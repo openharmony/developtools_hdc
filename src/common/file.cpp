@@ -191,7 +191,8 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     }
     // begin work
     ++refCount;
-    uv_fs_open(loopTask, &ctxNow.fsOpenReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
+    uv_fs_open(loopTask, &ctxNow.fsOpenReq, ctxNow.localPath.c_str(),
+               UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_APPEND,
                S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (ctxNow.transferDirBegin == 0) {
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();

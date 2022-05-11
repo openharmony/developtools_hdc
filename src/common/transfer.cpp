@@ -132,7 +132,7 @@ void HdcTransferBase::SetFileTime(CtxFile *context)
     uv_fs_req_cleanup(&fs);
 }
 
-bool HdcTransferBase::SendIOPayload(CtxFile *context, int index, uint8_t *data, int dataSize)
+bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *data, int dataSize)
 {
     TransferPayload payloadHead;
     string head;

@@ -56,7 +56,7 @@ bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
 int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes)
 {
     // The first 8 bytes file offset
-    uint8_t *buf = new uint8_t[bytes]();
+    uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
     while (true) {
@@ -69,12 +69,12 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             break;
         }
         uv_fs_t *req = &ioContext->fs;
-        ioContext->bufIO = buf;
+        ioContext->bufIO = buf + payloadPrefixReserve;
         ioContext->context = context;
         req->data = ioContext;
         ++refCount;
         if (context->master) {  // master just read, and slave just write.when master/read, sendBuf can be nullptr
-            uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(buf), bytes);
+            uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
             uv_fs_read(context->loop, req, context->fsOpenReq.result, &iov, 1, index, context->cb);
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
@@ -138,10 +138,9 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     string head;
     int compressSize = 0;
     int sendBufSize = payloadPrefixReserve + dataSize;
-    uint8_t *sendBuf = new uint8_t[sendBufSize]();
-    if (!sendBuf) {
-        return false;
-    }
+    uint8_t *sendBuf = data - payloadPrefixReserve;
+    bool ret = false;
+
     payloadHead.compressType = context->transferConfig.compressType;
     payloadHead.uncompressSize = dataSize;
     payloadHead.index = index;
@@ -149,17 +148,17 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
         switch (payloadHead.compressType) {
 #ifdef HARMONY_PROJECT
             case COMPRESS_LZ4: {
+                sendBuf = new uint8_t[sendBufSize]();
+                if (!sendBuf) {
+                    WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
+                    return false;
+                }
                 compressSize = LZ4_compress_default((const char *)data, (char *)sendBuf + payloadPrefixReserve,
                                                     dataSize, dataSize);
                 break;
             }
 #endif
             default: {  // COMPRESS_NONE
-                if (memcpy_s(sendBuf + payloadPrefixReserve, sendBufSize - payloadPrefixReserve, data, dataSize)
-                    != EOK) {
-                    delete[] sendBuf;
-                    return false;
-                }
                 compressSize = dataSize;
                 break;
             }
@@ -168,16 +167,17 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     payloadHead.compressSize = compressSize;
     head = SerialStruct::SerializeToString(payloadHead);
     if (head.size() + 1 > payloadPrefixReserve) {
-        delete[] sendBuf;
-        return false;
+        goto out;
     }
-    int errCode = memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1);
-    if (errCode != EOK) {
-        delete[] sendBuf;
-        return false;
+    if (EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
+        goto out;
     }
-    bool ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;
-    delete[] sendBuf;
+    ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;
+
+out:
+    if (dataSize > 0 && payloadHead.compressType != COMPRESS_NONE) {
+        delete[] sendBuf;
+    }
     return ret;
 }
 
@@ -244,7 +244,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
     }
     --thisClass->refCount;
-    delete[] bufIO;
+    delete[] (bufIO - payloadPrefixReserve);
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }
 
@@ -440,25 +440,23 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     TransferPayload pld;
     bool ret = false;
     SerialStruct::ParseFromString(pld, serialStrring);
-    clearBuf = new uint8_t[pld.uncompressSize]();
-    if (!clearBuf) {
-        return false;
-    }
     int clearSize = 0;
     if (pld.compressSize > 0) {
         switch (pld.compressType) {
 #ifdef HARMONY_PROJECT
             case COMPRESS_LZ4: {
+                clearBuf = new uint8_t[pld.uncompressSize]();
+                if (!clearBuf) {
+                    WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
+                    return false;
+                }
                 clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
                                                 pld.compressSize, pld.uncompressSize);
                 break;
             }
 #endif
             default: {  // COMPRESS_NONE
-                if (memcpy_s(clearBuf, pld.uncompressSize, data + payloadPrefixReserve, pld.compressSize) != EOK) {
-                    delete[] clearBuf;
-                    return false;
-                }
+                clearBuf = data + payloadPrefixReserve;
                 clearSize = pld.compressSize;
                 break;
             }
@@ -474,7 +472,9 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         ret = true;
         break;
     }
-    delete[] clearBuf;
+    if (pld.compressSize > 0 && pld.compressType != COMPRESS_NONE) {
+        delete[] clearBuf;
+    }
     return ret;
 }
 

@@ -303,7 +303,13 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
         ret = false;
         return ret;
     }
-    WRITE_LOG(LOG_DEBUG, "FetchCommand channelId:%u command:%u", channelId, command);
+    if (command != CMD_UNITY_BUGREPORT_DATA &&
+        command != CMD_SHELL_DATA &&
+        command != CMD_FORWARD_DATA &&
+        command != CMD_FILE_DATA &&
+        command != CMD_APP_DATA) {
+        WRITE_LOG(LOG_DEBUG, "FetchCommand channelId:%u command:%u", channelId, command);
+    }
     switch (command) {
         case CMD_KERNEL_HANDSHAKE: {
             // session handshake step2

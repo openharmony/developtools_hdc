@@ -113,7 +113,7 @@ private:
         uint8_t *bufIO;
         CtxFile *context;
     };
-    const uint8_t payloadPrefixReserve = 64;
+    static const uint8_t payloadPrefixReserve = 64;
     static void OnFileIO(uv_fs_t *req);
     int SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes);
     bool SendIOPayload(CtxFile *context, uint64_t index, uint8_t *data, int dataSize);

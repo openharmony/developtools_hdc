@@ -76,7 +76,7 @@ namespace Base {
     vector<uint8_t> Base64Encode(const uint8_t *input, const int length);
     int Base64DecodeBuf(const uint8_t *input, const int length, uint8_t *bufOut);
     string Base64Decode(const uint8_t *input, const int length);
-    string UnicodeToUtf8(const char *src);
+    string UnicodeToUtf8(const char *src, bool reverse = false);
     void ReverseBytes(void *start, int size);
     string CanonicalizeSpecPath(string &src);
     // Just zero a POD type, such as a structure or union

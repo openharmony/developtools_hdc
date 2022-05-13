@@ -116,14 +116,15 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
 #ifdef _WIN32
     char buf[BUF_SIZE_SMALL] = "";
     char shortPath[MAX_PATH] = "";
-    int ret = GetShortPathName(path, shortPath, MAX_PATH);
+    std::string strPath = Base::UnicodeToUtf8(path, true);
+    int ret = GetShortPathName(strPath.c_str(), shortPath, MAX_PATH);
     std::string runPath = shortPath;
     if (ret == 0) {
         int err = GetLastError();
         constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        strerror_s(buf, bufSize, err);
-        WRITE_LOG(LOG_WARN, "GetShortPath path:[%s] err:%d errmsg:%s", path, err, buf);
+        char buffer[bufSize] = { 0 };
+        strerror_s(buffer, bufSize, err);
+        WRITE_LOG(LOG_WARN, "GetShortPath path:[%s] errmsg:%s", path, buffer);
         string uvPath = path;
         runPath = uvPath.substr(uvPath.find_last_of("/\\") + 1);
     }

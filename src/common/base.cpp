@@ -1296,11 +1296,17 @@ namespace Base {
         return res;
     }
 
-    string UnicodeToUtf8(const char *src)
+    string UnicodeToUtf8(const char *src, bool reverse)
     {
 #if defined(_WIN32)
+        UINT from = CP_ACP;
+        UINT to = CP_UTF8;
         int count = 0;
-        count = MultiByteToWideChar(CP_ACP, 0, src, -1, nullptr, 0);
+        if (reverse) {
+            from = CP_UTF8;
+            to = CP_ACP;
+        }
+        count = MultiByteToWideChar(from, 0, src, -1, nullptr, 0);
         if (count <= 0) {
             DWORD err = GetLastError();
             WRITE_LOG(LOG_FATAL, "MultiByteToWideChar failed %s error:%lu", src, err);
@@ -1308,17 +1314,17 @@ namespace Base {
         }
         wchar_t *wstr = new(std::nothrow) wchar_t[count + 1]();
         if (wstr == nullptr) {
-            WRITE_LOG(LOG_FATAL, "UnicodeToUtf8 new wstr failed count:%d", count);
+            WRITE_LOG(LOG_FATAL, "new wstr failed count:%d", count);
             return "";
         }
-        count = MultiByteToWideChar(CP_ACP, 0, src, -1, wstr, count);
+        count = MultiByteToWideChar(from, 0, src, -1, wstr, count);
         if (count <= 0) {
             DWORD err = GetLastError();
             WRITE_LOG(LOG_FATAL, "MultiByteToWideChar failed to wstr %s error:%lu", src, err);
             delete[] wstr;
             return "";
         }
-        count = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
+        count = WideCharToMultiByte(to, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
         if (count <= 0) {
             DWORD err = GetLastError();
             WRITE_LOG(LOG_FATAL, "WideCharToMultiByte failed %s error:%lu", wstr, err);
@@ -1328,11 +1334,11 @@ namespace Base {
         char *ustr = new(std::nothrow) char[count + 1]();
         if (ustr == nullptr) {
             DWORD err = GetLastError();
-            WRITE_LOG(LOG_FATAL, "UnicodeToUtf8 new ustr failed count:%d", count);
+            WRITE_LOG(LOG_FATAL, "new ustr failed count:%d", count);
             delete[] wstr;
             return "";
         }
-        count = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, ustr, count, nullptr, nullptr);
+        count = WideCharToMultiByte(to, 0, wstr, -1, ustr, count, nullptr, nullptr);
         if (count <= 0) {
             DWORD err = GetLastError();
             WRITE_LOG(LOG_FATAL, "WideCharToMultiByte failed to ustr %s error:%lu", wstr, err);

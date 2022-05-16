@@ -582,9 +582,6 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
         // not my need device, release the device
         int configuration = 0;
         libusb_get_configuration(hUSB->devHandle, &configuration);
-        if (configuration == 1) {
-            libusb_set_configuration(hUSB->devHandle, 0);
-        }
         libusb_close(hUSB->devHandle);
         hUSB->devHandle = nullptr;
     }

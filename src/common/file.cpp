@@ -99,6 +99,11 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
     if (taskInfo->serverOrDaemon) {
         // master and server
         ExtractRelativePath(context->transferConfig.clientCwd, context->localPath);
+    } else {
+        if (argc - srcArgvIndex == 1) {
+            context->remotePath = ".";
+            context->localPath = argv[argc - 1];
+        }
     }
 
     context->localName = Base::GetFullFilePath(context->localPath);

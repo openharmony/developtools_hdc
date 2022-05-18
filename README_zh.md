@@ -50,7 +50,7 @@ hdc pc端可执行文件编译步骤：
 
 [1.下载sdk获取(建议)](#section161941989591)
 ```
-通过访问本社区网站下载dailybuilds或正式发布的sdk压缩包，从中根据自己平台到相应的目录toolchain下解压提取
+通过访问本社区网站下载dailybuilds(http://ci.openharmony.cn/dailys/dailybuilds)或正式发布的sdk压缩包，从中根据自己平台到相应的目录toolchain下解压提取
 ```
 
 [2.自行编译](#section161941989592)

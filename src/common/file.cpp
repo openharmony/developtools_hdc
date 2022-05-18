@@ -72,7 +72,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
     const string CMD_OPTION_SYNC = "-sync";
     const string CMD_OPTION_ZIP = "-z";
 
-    for (int i = 0; i < argc - CMD_ARG1_COUNT; i++) {
+    for (int i = 0; i < argc; i++) {
         if (argv[i] == CMD_OPTION_ZIP) {
             context->transferConfig.compressType = COMPRESS_LZ4;
             ++srcArgvIndex;
@@ -94,13 +94,21 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             return false;
         }
     }
+    if (argc == srcArgvIndex) {
+        LogMsg(MSG_FAIL, "There is no local and remote path");
+        return false;
+    }
     context->remotePath = argv[argc - 1];
     context->localPath = argv[argc - 2];
     if (taskInfo->serverOrDaemon) {
         // master and server
+        if ((srcArgvIndex + 1) == argc) {
+            LogMsg(MSG_FAIL, "There is no remote path");
+            return false;
+        }
         ExtractRelativePath(context->transferConfig.clientCwd, context->localPath);
     } else {
-        if (argc - srcArgvIndex == 1) {
+        if ((srcArgvIndex + 1) == argc) {
             context->remotePath = ".";
             context->localPath = argv[argc - 1];
         }

@@ -336,7 +336,7 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
     int ret = libusb_get_configuration(hUSB->devHandle, &configuration);
     if (ret != 0) {
         WRITE_LOG(LOG_WARN, "get config failed ret:%d", ret);
-	return -1;
+        return -1;
     }
 
     if (configuration != 1) {

@@ -335,6 +335,11 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
     int configuration = 0;
     int ret = libusb_get_configuration(hUSB->devHandle, &configuration);
     if (ret != 0) {
+        WRITE_LOG(LOG_WARN, "get config failed ret:%d", ret);
+        return -1;
+    }
+
+    if (configuration != 1) {
         ret = libusb_set_configuration(hUSB->devHandle, 1);
         if (ret != 0) {
             WRITE_LOG(LOG_WARN, "set config failed ret:%d", ret);
@@ -580,11 +585,6 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
     }
     if (ret) {
         // not my need device, release the device
-        int configuration = 0;
-        libusb_get_configuration(hUSB->devHandle, &configuration);
-        if (configuration == 1) {
-            libusb_set_configuration(hUSB->devHandle, 0);
-        }
         libusb_close(hUSB->devHandle);
         hUSB->devHandle = nullptr;
     }

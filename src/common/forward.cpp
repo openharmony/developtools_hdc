@@ -36,14 +36,20 @@ bool HdcForwardBase::ReadyForRelease()
 
 void HdcForwardBase::StopTask()
 {
+    ctxPointMutex.lock();
+    vector<HCtxForward> ctxs;
     map<uint32_t, HCtxForward>::iterator iter;
     for (iter = mapCtxPoint.begin(); iter != mapCtxPoint.end(); ++iter) {
         HCtxForward ctx = iter->second;
-        FreeContext(ctx, 0, false);
+        ctxs.push_back(ctx);
     }
     // FREECONTEXT in the STOP is triggered by the other party sector, no longer notifying each other.
     mapCtxPoint.clear();
-};
+    ctxPointMutex.unlock();
+    for (auto ctx: ctxs) {
+        FreeContext(ctx, 0, false);
+    }
+}
 
 void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_stream_t *client)
 {
@@ -122,8 +128,13 @@ void HdcForwardBase::FreeContextCallBack(HCtxForward ctx)
     Base::DoNextLoop(loopTask, ctx, [this](const uint8_t flag, string &msg, const void *data) {
         HCtxForward ctx = (HCtxForward)data;
         AdminContext(OP_REMOVE, ctx->id, nullptr);
-        delete ctx;
-        --refCount;
+        if (ctx != nullptr) {
+            delete ctx;
+            ctx = nullptr;
+        }
+        if (refCount > 0) {
+            --refCount;
+        }
     });
 }
 
@@ -154,7 +165,7 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
 
 void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNotifyRemote)
 {
-    WRITE_LOG(LOG_DEBUG, "FreeContext bNotifyRemote:%d", bNotifyRemote);
+    WRITE_LOG(LOG_DEBUG, "FreeContext id:%u, bNotifyRemote:%d", id, bNotifyRemote);
     HCtxForward ctx = nullptr;
     if (!ctxIn) {
         if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
@@ -625,6 +636,7 @@ bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
 
 void *HdcForwardBase::AdminContext(const uint8_t op, const uint32_t id, HCtxForward hInput)
 {
+    ctxPointMutex.lock();
     void *hRet = nullptr;
     map<uint32_t, HCtxForward> &mapCtx = mapCtxPoint;
     switch (op) {
@@ -646,6 +658,7 @@ void *HdcForwardBase::AdminContext(const uint8_t op, const uint32_t id, HCtxForw
         default:
             break;
     }
+    ctxPointMutex.unlock();
     return hRet;
 }
 

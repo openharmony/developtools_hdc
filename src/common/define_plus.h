@@ -368,6 +368,7 @@ struct HdcSession {
     uv_tcp_t hWorkTCP;
     uv_thread_t hWorkThread;
     uv_thread_t hWorkChildThread;
+    std::mutex mapTaskMutex;
     std::string ToDebugString()
     {
         std::ostringstream oss;

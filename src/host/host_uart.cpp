@@ -528,7 +528,6 @@ void HdcHostUART::WatchUartDevPlugin()
 
     if (!EnumSerialPort(portChange)) {
         WRITE_LOG(LOG_WARN, "%s enumDetailsSerialPorts fail.", __FUNCTION__);
-        portChange = false;
     } else if (portChange) {
         for (const auto &port : serialPortInfo) {
             WRITE_LOG(LOG_INFO, "%s found uart port :%s", __FUNCTION__, port.c_str());

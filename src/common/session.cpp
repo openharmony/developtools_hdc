@@ -100,6 +100,9 @@ bool HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
 
     WRITE_LOG(LOG_DEBUG, "BeginRemoveTask taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
     ret = RemoveInstanceTask(OP_CLEAR, hTask);
+    if (!ret) {
+        WRITE_LOG(LOG_INFO, "RemoveInstanceTask failed taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
+    }
     auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
         HTaskInfo hTask = (HTaskInfo)handle->data;
         HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
@@ -1136,24 +1139,22 @@ void HdcSessionBase::ReadCtrlFromMain(uv_stream_t *uvpipe, ssize_t nread, const 
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;
-    bool ret = true;
     while (true) {
         if (nread < 0) {
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
             uv_strerror_r((int)nread, buffer, bufSize);
             WRITE_LOG(LOG_DEBUG, "SessionCtrl failed,%s", buffer);
-            ret = false;
             break;
         }
         if (nread % formatCommandSize != 0) {
             WRITE_LOG(LOG_FATAL, "ReadCtrlFromMain size failed, nread == %d", nread);
-            ret = false;
             break;
         }
         CtrlStruct *ctrl = reinterpret_cast<CtrlStruct *>(buf->base + index);
-        if (!(ret = hSessionBase->DispatchMainThreadCommand(hSession, ctrl))) {
-            ret = false;
+        if (!hSessionBase->DispatchMainThreadCommand(hSession, ctrl)) {
+            WRITE_LOG(LOG_FATAL, "ReadCtrlFromMain failed sessionId:%u channelId:%u command:%u",
+                      hSession->sessionId, ctrl->channelId, ctrl->command);
             break;
         }
         index += sizeof(CtrlStruct);

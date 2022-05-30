@@ -102,6 +102,7 @@ private:
     const string HARMONY_RESERVED_SOCKET_PREFIX = "/dev/socket/";
     // set true to enable slave check when forward create
     const bool slaveCheckWhenBegin = false;
+    std::mutex ctxPointMutex;
 };
 }  // namespace Hdc
 #endif

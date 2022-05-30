@@ -108,10 +108,11 @@ bool HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
         if (!thisClass->TryRemoveTask(hTask)) {
             return;
         }
-        HSession hSession = thisClass->AdminSession(OP_QUERY, hTask->sessionId, nullptr);
-        thisClass->AdminTask(OP_REMOVE, hSession, hTask->channelId, nullptr);
         WRITE_LOG(LOG_DEBUG, "TaskDelay task remove finish, channelId:%u", hTask->channelId);
-        delete hTask;
+        if (hTask != nullptr) {
+            delete hTask;
+            hTask = nullptr;
+        }
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
     };
     Base::TimerUvTask(hTask->runLoop, hTask, taskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
@@ -130,6 +131,7 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
     // First case: normal task cleanup process (STOP Remove)
     // Second: The task is cleaned up, the session ends
     // Third: The task is cleaned up, and the session is directly over the session.
+    hSession->mapTaskMutex.lock();
     map<uint32_t, HTaskInfo>::iterator iter;
     for (iter = hSession->mapTask->begin(); iter != hSession->mapTask->end();) {
         uint32_t channelId = iter->first;
@@ -143,12 +145,14 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
             BeginRemoveTask(hTask);
             WRITE_LOG(LOG_DEBUG, "ClearOwnTasks OP_CLEAR finish, session:%p channelIDInput:%u", hSession,
                       channelIDInput);
+            iter = hSession->mapTask->erase(iter);
             break;
         }
         // multi
         BeginRemoveTask(hTask);
-        ++iter;
+        iter = hSession->mapTask->erase(iter);
     }
+    hSession->mapTaskMutex.unlock();
 }
 
 void HdcSessionBase::ClearSessions()

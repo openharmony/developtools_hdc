@@ -189,7 +189,7 @@ private:
     bool DispatchMainThreadCommand(HSession hSession, const CtrlStruct *ctrl);
     bool DispatchSessionThreadCommand(uv_stream_t *uvpipe, HSession hSession, const uint8_t *baseBuf,
                                       const int bytesIO);
-    bool BeginRemoveTask(HTaskInfo hTask);
+    void BeginRemoveTask(HTaskInfo hTask);
     bool TryRemoveTask(HTaskInfo hTask);
     void ReChildLoopForSessionClear(HSession hSession);
     void FreeSessionContinue(HSession hSession);

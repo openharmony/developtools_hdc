@@ -333,7 +333,7 @@ namespace SerialStruct {
 
         static bool ReadVarint(uint64_t &value, reader &in)
         {
-            value &= 0;
+            value = 0;
             for (size_t c = 0; c < 10; ++c) {
                 uint8_t x;
                 if (!ReadByte(x, in)) {

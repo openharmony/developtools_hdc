@@ -90,18 +90,16 @@ bool HdcSessionBase::TryRemoveTask(HTaskInfo hTask)
 }
 
 // remove step1
-bool HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
+void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
 {
-    bool ret = true;
-
     if (hTask->taskStop || hTask->taskFree) {
-        return true;
+        return;
     }
 
     WRITE_LOG(LOG_DEBUG, "BeginRemoveTask taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
-    ret = RemoveInstanceTask(OP_CLEAR, hTask);
+    bool ret = RemoveInstanceTask(OP_CLEAR, hTask);
     if (!ret) {
-        WRITE_LOG(LOG_INFO, "RemoveInstanceTask failed taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
+        WRITE_LOG(LOG_INFO, "RemoveInstanceTask false taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
     }
     auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
         HTaskInfo hTask = (HTaskInfo)handle->data;
@@ -121,8 +119,6 @@ bool HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
     Base::TimerUvTask(hTask->runLoop, hTask, taskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
 
     hTask->taskStop = true;
-    ret = true;
-    return ret;
 }
 
 // Clear all Task or a single Task, the regular situation is stopped first, and the specific class memory is cleaned up

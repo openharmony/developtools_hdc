@@ -438,6 +438,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     uint8_t *clearBuf = nullptr;
     string serialStrring((char *)data, payloadPrefixReserve);
     TransferPayload pld;
+    Base::ZeroStruct(pld);
     bool ret = false;
     SerialStruct::ParseFromString(pld, serialStrring);
     int clearSize = 0;

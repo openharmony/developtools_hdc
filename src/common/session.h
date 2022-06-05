@@ -201,6 +201,7 @@ private:
     bool WorkThreadStartSession(HSession hSession);
     uint32_t GetSessionPseudoUid();
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
+    void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
 
     map<uint32_t, HSession> mapSession;
     uv_rwlock_t lockMapSession;

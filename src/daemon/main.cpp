@@ -12,6 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <grp.h>
+#include <pwd.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include "daemon_common.h"
 using namespace Hdc;
 
@@ -172,19 +177,81 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
     return true;
 }
 
-void NeedDropPriv()
+bool DropRootPrivileges()
+{
+    int ret;
+    const char *userName = "shell";
+    vector<const char *> groupsNames = { "shell", "log" };
+    struct passwd *user;
+    gid_t *gids = nullptr;
+
+    user = getpwnam(userName);
+    if (user == nullptr) {
+        WRITE_LOG(LOG_FATAL, "getpwuid %s fail, %s", userName, strerror(errno));
+        return false;
+    }
+
+    gids = static_cast<gid_t *>(calloc(groupsNames.size(), sizeof(gid_t)));
+    if (gids == nullptr) {
+        WRITE_LOG(LOG_FATAL, "calloc fail");
+        return false;
+    }
+
+    for (size_t i = 0; i < groupsNames.size(); i++) {
+        struct group *group = getgrnam(groupsNames[i]);
+        if (group == nullptr) {
+            ret = -1;
+            WRITE_LOG(LOG_FATAL, "calloc fail");
+        }
+        gids[i] = group->gr_gid;
+    }
+
+    ret = setuid(user->pw_uid);
+    if (ret) {
+        WRITE_LOG(LOG_FATAL, "setuid %s fail, %s", userName, strerror(errno));
+        free(gids);
+        return false;
+    }
+
+    ret = setgid(user->pw_gid);
+    if (ret) {
+        WRITE_LOG(LOG_FATAL, "setgid %s fail, %s", userName, strerror(errno));
+        free(gids);
+        return false;
+    }
+
+    ret = setgroups(groupsNames.size(), gids);
+    if (ret) {
+        WRITE_LOG(LOG_FATAL, "setgroups %s fail, %s", userName, strerror(errno));
+        free(gids);
+        return false;
+    }
+
+    free(gids);
+    return true;
+}
+
+bool NeedDropRootPrivileges()
 {
     string rootMode;
+    string debugMode;
+    SystemDepend::GetDevItem("const.debuggable", debugMode);
     SystemDepend::GetDevItem("persist.hdc.root", rootMode);
-    if (Base::Trim(rootMode) == "1") {
-        setuid(0);
-        g_rootRun = true;
-        WRITE_LOG(LOG_DEBUG, "Root run");
-    } else if (Base::Trim(rootMode) == "0") {
-        setuid(AID_SHELL);
+    if (debugMode == "1") {
+        if (rootMode == "1") {
+            setuid(0);
+            g_rootRun = true;
+            WRITE_LOG(LOG_DEBUG, "Root run");
+        } else if (rootMode == "0") {
+            return DropRootPrivileges();
+        }
+        // default keep root
+    } else {
+        return DropRootPrivileges();
     }
+    return true;
 }
-}  // namespace Hdc
+} // namespace Hdc
 
 #ifndef UNIT_TEST
 // daemon running with default behavior. options also can be given to custom its behavior including b/t/u/l etc.
@@ -222,7 +289,10 @@ int main(int argc, const char *argv[])
     if (g_backgroundRun) {
         return BackgroundRun();
     }
-    NeedDropPriv();
+    if (!NeedDropRootPrivileges()) {
+        Base::PrintMessage("DropRootPrivileges fail, EXITING...\n");
+        return -1;
+    }
 
     umask(0);
     signal(SIGPIPE, SIG_IGN);

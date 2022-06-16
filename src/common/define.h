@@ -48,7 +48,6 @@ constexpr uint16_t BUF_SIZE_DEFAULT4 = BUF_SIZE_DEFAULT * 4;
 constexpr uint16_t MAX_IP_PORT = 65535;
 constexpr uint16_t MAX_CONNECTKEY_SIZE = 32;  // usb sn/tcp ipport
 constexpr uint16_t TIME_BASE = 1000;          // time unit conversion base value
-constexpr uint16_t AID_SHELL = 2000;
 constexpr uint16_t UV_DEFAULT_INTERVAL = 250;  // ms
 constexpr uint16_t VER_PROTOCOL = 0x01;
 constexpr uint16_t MAX_PACKET_SIZE_HISPEED = 512;

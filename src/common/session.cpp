@@ -136,7 +136,6 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
         uint32_t channelId = iter->first;
         HTaskInfo hTask = iter->second;
         if (channelIDInput != 0) {  // single
-            WRITE_LOG(LOG_DEBUG, "channelIDInput = %u, cur = %u", channelIDInput, channelId);
             if (channelIDInput != channelId) {
                 ++iter;
                 continue;
@@ -686,6 +685,16 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
     return hRet;
 }
 
+void HdcSessionBase::DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask)
+{
+    int idx = 1;
+    for (auto t : mapTask) {
+        HTaskInfo ti = t.second;
+        WRITE_LOG(LOG_WARN, "%d: channelId: %lu, type: %d, closeRetry: %d\n",
+                  idx++, ti->channelId, ti->taskType, ti->closeRetryCount);
+    }
+}
+
 // All in the corresponding sub-thread, no need locks
 HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput)
 {
@@ -698,6 +707,9 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
             // uv sub-thread confiured by threadPoolCount, reserve 2 for main & communicate
             if (mapTask.size() >= (threadPoolCount - 2)) {
                 WRITE_LOG(LOG_WARN, "mapTask.size:%d, hdc is busy", mapTask.size());
+                WRITE_LOG(LOG_WARN, ">> Session %lu mapTask Dumping Start", hSession->sessionId);
+                DumpTasksInfo(mapTask);
+                WRITE_LOG(LOG_WARN, "<< mapTask Dumping End");
                 break;
             }
 #endif

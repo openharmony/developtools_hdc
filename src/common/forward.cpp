@@ -685,7 +685,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         WRITE_LOG(LOG_WARN, "SendForwardBuf failed size:%d", size);
         return -1;
     }
-    auto pDynBuf = new uint8_t[size];
+    auto pDynBuf = new(std::nothrow) uint8_t[size];
     if (!pDynBuf) {
         return -1;
     }

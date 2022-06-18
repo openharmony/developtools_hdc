@@ -273,13 +273,15 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         }
         case CMD_UNITY_ROOTRUN: {
             ret = false;
-#ifdef HDC_DEBUG
-            if (payloadSize != 0 && !strcmp((char *)strPayload.c_str(), "r")) {
-                SystemDepend::SetDevItem("persist.hdc.root", "0");
-            } else {
-                SystemDepend::SetDevItem("persist.hdc.root", "1");
+            string debugMode;
+            SystemDepend::GetDevItem("const.debuggable", debugMode);
+            if (debugMode == "1") {
+                if (payloadSize != 0 && !strcmp(strPayload.c_str(), "r")) {
+                    SystemDepend::SetDevItem("persist.hdc.root", "0");
+                } else {
+                    SystemDepend::SetDevItem("persist.hdc.root", "1");
+                }
             }
-#endif // HDC_DEBUG
             daemon->PostStopInstanceMessage(true);
             break;
         }

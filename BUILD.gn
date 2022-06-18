@@ -86,7 +86,7 @@ ohos_executable("hdcd") {
     "//third_party/libuv:uv_static",
     "//third_party/lz4:liblz4_static",
     "//third_party/openssl:libcrypto_static",
-    "//utils/native/base:utils",
+    "//utils/native/base:utilsbase",
   ]
 
   if (hdc_jdwp_test) {

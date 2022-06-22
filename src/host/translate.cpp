@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "translate.h"
+#include "host_updater.h"
 
 namespace Hdc {
 namespace TranslateCommand {
@@ -97,7 +98,13 @@ namespace TranslateCommand {
               " sideload [PATH]                       - Sideload the given full OTA package\n"
               "\n"
               "security commands:\n"
-              " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n";
+              " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
+               "---------------------------------flash commands:-------------------------------------\n"
+              "flash commands:\n"
+              " update packagename                    - Update system by package\n"
+              " flash [-f] partition imagename        - Flash partition by image\n"
+              " erase [-f] partition                  - Erase partition\n"
+              " format [-f] partition                 - Format partition\n";
         return ret;
     }
 
@@ -184,7 +191,8 @@ namespace TranslateCommand {
         outCmd->cmdFlag = CMD_UNITY_REBOOT;
         if (strcmp(input, CMDSTR_TARGET_REBOOT.c_str())) {
             outCmd->parameters = input + 12;
-            if (outCmd->parameters != "-bootloader" && outCmd->parameters != "-recovery") {
+            if (outCmd->parameters != "-bootloader" && outCmd->parameters != "-recovery" &&
+                outCmd->parameters != "-flashd") {
                 stringError = "Error reboot paramenter";
                 outCmd->bJumpDo = true;
             } else {
@@ -285,6 +293,8 @@ namespace TranslateCommand {
         // Inner command, protocol uses only
         else if (!strncmp(input.c_str(), CMDSTR_INNER_ENABLE_KEEPALIVE.c_str(), CMDSTR_INNER_ENABLE_KEEPALIVE.size())) {
             outCmd->cmdFlag = CMD_KERNEL_ENABLE_KEEPALIVE;
+        } else if (HostUpdater::CheckMatchUpdate(input, *outCmd)) {
+            outCmd->parameters = input;
         } else {
             stringError = "Unknown command...";
             outCmd->bJumpDo = true;

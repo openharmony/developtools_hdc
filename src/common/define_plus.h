@@ -192,6 +192,16 @@ enum HdcCommand {
     CMD_APP_FINISH,
     CMD_APP_UNINSTALL,
 
+    // Flashd commands
+    CMD_FLASHD_UPDATE_INIT = 4000,
+    CMD_FLASHD_FLASH_INIT,
+    CMD_FLASHD_CHECK ,
+    CMD_FLASHD_BEGIN,
+    CMD_FLASHD_DATA,
+    CMD_FLASHD_FINISH,
+    CMD_FLASHD_ERASE,
+    CMD_FLASHD_FORMAT,
+    CMD_FLASHD_PROGRESS,
     // deprecated, remove later
     CMD_UNITY_JPID = CMD_JDWP_LIST,
 };

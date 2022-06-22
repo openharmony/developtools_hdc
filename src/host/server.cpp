@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 #include "server.h"
+#include "host_updater.h"
+
 
 namespace Hdc {
 HdcServer::HdcServer(bool serverOrDaemonIn)
@@ -905,6 +907,17 @@ bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_APP_UNINSTALL:
             ret = TaskCommandDispatch<HdcHostApp>(hTaskInfo, TASK_APP, command, payload, payloadSize);
             break;
+        case CMD_FLASHD_UPDATE_INIT:
+        case CMD_FLASHD_FLASH_INIT:
+        case CMD_FLASHD_CHECK:
+        case CMD_FLASHD_BEGIN:
+        case CMD_FLASHD_DATA:
+        case CMD_FLASHD_FINISH:
+        case CMD_FLASHD_ERASE:
+        case CMD_FLASHD_FORMAT:
+        case CMD_FLASHD_PROGRESS:
+            ret = TaskCommandDispatch<HostUpdater>(hTaskInfo, TASK_FLASHD, command, payload, payloadSize);
+            break;
         default:
             // ignore unknow command
             break;
@@ -930,6 +943,9 @@ bool HdcServer::RemoveInstanceTask(const uint8_t op, HTaskInfo hTask)
             break;
         case TASK_APP:
             ret = DoTaskRemove<HdcHostApp>(hTask, op);
+            break;
+        case TASK_FLASHD:
+            ret = DoTaskRemove<HostUpdater>(hTask, op);
             break;
         default:
             ret = false;

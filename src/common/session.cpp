@@ -1260,6 +1260,10 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
     masterTask = false;
     switch (command) {
         case CMD_FILE_INIT:
+        case CMD_FLASHD_FLASH_INIT:
+        case CMD_FLASHD_UPDATE_INIT:
+        case CMD_FLASHD_ERASE:
+        case CMD_FLASHD_FORMAT:
         case CMD_FORWARD_INIT:
         case CMD_APP_INIT:
         case CMD_APP_UNINSTALL:

@@ -142,6 +142,7 @@ ohos_executable("hdc_std") {
     "src/host/host_tcp.cpp",
     "src/host/host_unity.cpp",
     "src/host/host_usb.cpp",
+    "src/host/host_updater.cpp",
     "src/host/main.cpp",
     "src/host/server.cpp",
     "src/host/server_for_client.cpp",

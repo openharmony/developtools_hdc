@@ -112,5 +112,9 @@ const string CMDSTR_APP_SIDELOAD = "sideload";
 const string CMDSTR_LIST_JDWP = "jpid";
 const string CMDSTR_TRACK_JDWP = "track-jpid";
 const string CMDSTR_INNER_ENABLE_KEEPALIVE = "alive";
+const string CMDSTR_FLASHD_UPDATE = "update";
+const string CMDSTR_FLASHD_FLASH = "flash";
+const string CMDSTR_FLASHD_ERASE = "erase";
+const string CMDSTR_FLASHD_FORMAT = "format";
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

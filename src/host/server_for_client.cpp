@@ -329,13 +329,17 @@ bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterS
         vector<string> filterStrings;
         Base::SplitString(echo, string("\n"), filterStrings);
         for (auto &&s : filterStrings) {
-            if (!CommandRemoveForward(s.c_str())) {
-                EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed,ruler:%s", s.c_str());
+            if (CommandRemoveForward(s.c_str())) {
+                EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", s.c_str());
+            } else {
+                EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler:%s", s.c_str());
             }
         }
     } else {  // remove single
         if (!CommandRemoveForward(parameterString)) {
-            EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed,ruler:%s", parameterString);
+            EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", parameterString);
+        } else {
+            EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler:%s", parameterString);
         }
     }
     return true;

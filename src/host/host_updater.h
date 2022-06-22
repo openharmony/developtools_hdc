@@ -32,7 +32,8 @@ protected:
     void CheckMaster(CtxFile *context) override;
 
 private:
-    bool BeginTransfer(const std::string &function, const uint8_t *payload, int payloadSize, size_t minParam, size_t fileIndex);
+    bool BeginTransfer(const std::string &function, const uint8_t *payload, int payloadSize, size_t minParam,
+    size_t fileIndex);
     bool CheckUpdateContinue(const uint16_t command, const uint8_t *payload, int payloadSize);
     void RunQueue(CtxFile &context);
     void ProcessProgress(uint8_t percentage);

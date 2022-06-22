@@ -86,12 +86,11 @@ void HostUpdater::RunQueue(CtxFile &context)
 
 bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payload, int payloadSize, size_t minParam,
                                 size_t fileIndex)
-{   
+{
     if (payload[payloadSize - 1] != '\0') {
         WRITE_LOG(LOG_FATAL, "payload is invaild");
         return false;
     }
-    
     std::string cmdParam(reinterpret_cast<const char *>(payload));
     auto params = Split(cmdParam, {});
     auto count = minParam;
@@ -119,8 +118,6 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
         WRITE_LOG(LOG_FATAL, "file type is invaild");
         return false;
     }
-    WRITE_LOG(LOG_INFO, "cmdParam is: %s, size = %u, payloadSize =%d", cmdParam.c_str(), cmdParam.size(), payloadSize);
-    WRITE_LOG(LOG_INFO, "localPath is: %s, size = %u", localPath.c_str(), localPath.size());
     ctxNow.transferConfig.functionName = function;
     ctxNow.transferConfig.options = cmdParam;
     ctxNow.localPath = localPath;
@@ -140,7 +137,7 @@ void HostUpdater::CheckMaster(CtxFile *context)
     std::string bufString = SerialStruct::SerializeToString(context->transferConfig);
 
     WRITE_LOG(LOG_DEBUG, "functionName = %s, fileSize = %llu", context->transferConfig.functionName.c_str(),
-                context->transferConfig.fileSize);
+    context->transferConfig.fileSize);
 
     std::vector<uint8_t> buffer(sizeof(uint64_t) / sizeof(uint8_t), 0);
     buffer.insert(buffer.end(), bufString.begin(), bufString.end());
@@ -189,26 +186,26 @@ bool HostUpdater::CommandDispatch(const uint16_t command, uint8_t *payload, cons
 
     bool ret = true;
     switch (command) {
-    case CMD_FLASHD_UPDATE_INIT:
-        ret = BeginTransfer(CMDSTR_FLASHD_UPDATE, payload, payloadSize, UPDATE_PARAM_MIN_COUNT, UPDATE_FILE_INDEX);
-        break;
-    case CMD_FLASHD_FLASH_INIT:
-        ret = BeginTransfer(CMDSTR_FLASHD_FLASH, payload, payloadSize, FLASH_PARAM_MIN_COUNT, FLASH_FILE_INDEX);
-        break;
-    case CMD_FLASHD_FINISH:
-        ret = CheckUpdateContinue(command, payload, payloadSize);
-        break;
-    case CMD_FLASHD_ERASE:
-        ret = CheckCmd(CMD_FLASHD_ERASE, payload, payloadSize, ERASE_PARAM_MIN_COUNT);
-        break;
-    case CMD_FLASHD_FORMAT:
-        ret = CheckCmd(CMD_FLASHD_FORMAT, payload, payloadSize, FORMAT_PARAM_MIN_COUNT);
-        break;
-    case CMD_FLASHD_PROGRESS:
-        ProcessProgress(*payload);
-        break;
-    default:
-        break;
+        case CMD_FLASHD_UPDATE_INIT:
+            ret = BeginTransfer(CMDSTR_FLASHD_UPDATE, payload, payloadSize, UPDATE_PARAM_MIN_COUNT, UPDATE_FILE_INDEX);
+            break;
+        case CMD_FLASHD_FLASH_INIT:
+            ret = BeginTransfer(CMDSTR_FLASHD_FLASH, payload, payloadSize, FLASH_PARAM_MIN_COUNT, FLASH_FILE_INDEX);
+            break;
+        case CMD_FLASHD_FINISH:
+            ret = CheckUpdateContinue(command, payload, payloadSize);
+            break;
+        case CMD_FLASHD_ERASE:
+            ret = CheckCmd(CMD_FLASHD_ERASE, payload, payloadSize, ERASE_PARAM_MIN_COUNT);
+            break;
+        case CMD_FLASHD_FORMAT:
+            ret = CheckCmd(CMD_FLASHD_FORMAT, payload, payloadSize, FORMAT_PARAM_MIN_COUNT);
+            break;
+        case CMD_FLASHD_PROGRESS:
+            ProcessProgress(*payload);
+            break;
+        default:
+            break;
     }
     return ret;
 }
@@ -323,6 +320,6 @@ void HostUpdater::SendRawData(std::string rawData) const
         return;
     }
     sessionBase->ServerCommand(taskInfo->sessionId, taskInfo->channelId, CMD_KERNEL_ECHO_RAW,
-                                reinterpret_cast<uint8_t *>(rawData.data()), rawData.size());
+    reinterpret_cast<uint8_t *>(rawData.data()), rawData.size());
 }
 } // namespace Hdc

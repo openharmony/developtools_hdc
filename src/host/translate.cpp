@@ -51,6 +51,7 @@ namespace TranslateCommand {
               "service commands(on daemon):\n"
               " target mount                          - Set /system /vendor partition read-write\n"
               " target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\\recovery.\n"
+              " target boot [MODE]                    - Reboot the into MODE.\n"
               " smode [-r]                            - Restart daemon with root permissions, '-r' to cancel root\n"
               "                                         permissions\n"
               " tmode usb                             - Reboot the device, listening on USB\n"

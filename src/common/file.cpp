@@ -164,8 +164,8 @@ void HdcFile::TransferSummary(CtxFile *context)
     double fRate = static_cast<double>(fSize) / nMSec; // / /1000 * 1000 = 0
     if (context->indexIO >= context->fileSize) {
         WRITE_LOG(LOG_INFO, "HdcFile::TransferSummary success");
-        LogMsg(MSG_OK, "FileTransfer finish, File count = %d, Size:%lld time:%lldms rate:%.2lfkB/s",
-               context->fileCnt, fSize, nMSec, fRate);
+        LogMsg(MSG_OK, "FileTransfer finish, Size:%lld, File count = %d, time:%lldms rate:%.2lfkB/s",
+               fSize, context->fileCnt, nMSec, fRate);
     } else {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };

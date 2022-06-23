@@ -1211,7 +1211,7 @@ namespace Base {
 
     bool IdleUvTask(uv_loop_t *loop, void *data, uv_idle_cb cb)
     {
-        uv_idle_t *idle = new uv_idle_t();
+        uv_idle_t *idle = new(std::nothrow) uv_idle_t();
         if (idle == nullptr) {
             return false;
         }
@@ -1224,7 +1224,7 @@ namespace Base {
 
     bool TimerUvTask(uv_loop_t *loop, void *data, uv_timer_cb cb, int repeatTimeout)
     {
-        uv_timer_t *timer = new uv_timer_t();
+        uv_timer_t *timer = new(std::nothrow) uv_timer_t();
         if (timer == nullptr) {
             return false;
         }
@@ -1254,7 +1254,7 @@ namespace Base {
                 delete st;
             });
         };
-        DelayDoParam *st = new DelayDoParam();
+        DelayDoParam *st = new(std::nothrow) DelayDoParam();
         if (st == nullptr) {
             return false;
         }
@@ -1387,10 +1387,20 @@ namespace Base {
 
     string GetCwd()
     {
+        int value = -1;
         char path[PATH_MAX] = "";
         size_t size = sizeof(path);
         string res;
-        if (uv_cwd(path, &size) < 0) {
+        value = uv_cwd(path, &size);
+        if (value < 0) {
+            constexpr int bufSize = 1024;
+            char buf[bufSize] = { 0 };
+            uv_strerror_r(value, buf, bufSize);
+            WRITE_LOG(LOG_FATAL, "get path failed: %s", buf);
+            return res;
+        }
+        if (strlen(path) >= PATH_MAX - 1) {
+            WRITE_LOG(LOG_FATAL, "get path failed: buffer space max");
             return res;
         }
         if (path[strlen(path) - 1] != Base::GetPathSep()) {
@@ -1404,10 +1414,19 @@ namespace Base {
     {
         string res;
 #ifdef HDC_HOST
+        int value = -1;
         char path[PATH_MAX] = "";
         size_t size = sizeof(path);
-        if (uv_os_tmpdir(path, &size) < 0) {
-            WRITE_LOG(LOG_FATAL, "get tmppath failed!");
+        value = uv_os_tmpdir(path, &size);
+        if (value < 0) {
+            constexpr int bufSize = 1024;
+            char buf[bufSize] = { 0 };
+            uv_strerror_r(value, buf, bufSize);
+            WRITE_LOG(LOG_FATAL, "get tmppath failed: %s", buf);
+            return res;
+        }
+        if (strlen(path) >= PATH_MAX - 1) {
+            WRITE_LOG(LOG_FATAL, "get tmppath failed: buffer space max");
             return res;
         }
         if (path[strlen(path) - 1] != Base::GetPathSep()) {

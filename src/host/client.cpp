@@ -83,8 +83,15 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
         HdcServer::PullupServer(channelHostPort.c_str());
     } else {
         if (isNowRunning && pid) {
-            uv_kill(pid, SIGN_NUM);
-            Base::PrintMessage("Kill server finish");
+            int rc = uv_kill(pid, SIGN_NUM);
+            if (rc == 0) {
+                Base::PrintMessage("Kill server finish");
+            } else {
+                constexpr int size = 1024;
+                char buf[size] = { 0 };
+                uv_strerror_r(rc, buf, size);
+                Base::PrintMessage("Kill server failed %s", buf);
+            }
         }
         // already running
         if (!strstr(cmd, " -r")) {

@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <iostream>
+
 #include "server.h"
 #include "server_for_client.h"
 
@@ -165,7 +168,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
     HdcClient client(false, serverListenString, &loopMain);
     if (!commands.size()) {
         Base::PrintMessage("Unknown operation command...");
-        TranslateCommand::Usage();
+        std::cerr << TranslateCommand::Usage();
         return 0;
     }
     if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())

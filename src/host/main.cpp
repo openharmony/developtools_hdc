@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <iostream>
+
 #include "server.h"
 #include "server_for_client.h"
 
@@ -91,10 +94,21 @@ void AppendCwdWhenTransfer(string &outCommand)
         && outCommand != CMDSTR_APP_SIDELOAD) {
         return;
     }
+    int value = -1;
     char path[PATH_MAX] = "";
     size_t size = sizeof(path);
-    if (uv_cwd(path, &size) < 0)
+    value = uv_cwd(path, &size);
+    if (value < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r(value, buf, bufSize);
+        WRITE_LOG(LOG_FATAL, "append cwd path failed: %s", buf);
         return;
+    }
+    if (strlen(path) >= PATH_MAX - 1) {
+        WRITE_LOG(LOG_FATAL, "append cwd path failed: buffer space max");
+        return;
+    }
     if (path[strlen(path) - 1] != Base::GetPathSep()) {
         path[strlen(path)] = Base::GetPathSep();
     }
@@ -169,7 +183,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
     HdcClient client(false, serverListenString, &loopMain);
     if (!commands.size()) {
         Base::PrintMessage("Unknown operation command...");
-        TranslateCommand::Usage();
+        std::cerr << TranslateCommand::Usage();
         return 0;
     }
     if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())

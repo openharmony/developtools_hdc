@@ -71,8 +71,9 @@ namespace SystemDepend {
 
     bool CallDoReboot(const char *reason)
     {
+        string rebootCtrl = "ohos.startup.powerctrl";
 #ifdef HARMONY_PROJECT
-        return DoReboot(reason);
+        return SetDevItem(rebootCtrl.c_str(), reason);
 #else
         return false;
 #endif
@@ -80,11 +81,10 @@ namespace SystemDepend {
 
     bool RebootDevice(const string &cmd)
     {
-        string reason;
-        if (cmd == "recovery") {
-            reason = "updater";
-        } else if (cmd == "bootloader") {
-            reason = "updater";
+        string reason = "reboot";
+        if (cmd != "") {
+            reason += ",";
+            reason += cmd;
         }
         WRITE_LOG(LOG_DEBUG, "DoReboot with args:[%s] for cmd:[%s]", reason.c_str(), cmd.c_str());
         return CallDoReboot(reason.c_str());

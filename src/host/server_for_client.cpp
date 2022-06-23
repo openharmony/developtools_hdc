@@ -336,7 +336,7 @@ bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterS
             }
         }
     } else {  // remove single
-        if (!CommandRemoveForward(parameterString)) {
+        if (CommandRemoveForward(parameterString)) {
             EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", parameterString);
         } else {
             EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler is not exist %s", parameterString);

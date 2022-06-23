@@ -137,7 +137,7 @@ void HostUpdater::CheckMaster(CtxFile *context)
     std::string bufString = SerialStruct::SerializeToString(context->transferConfig);
 
     WRITE_LOG(LOG_DEBUG, "functionName = %s, fileSize = %llu", context->transferConfig.functionName.c_str(),
-    context->transferConfig.fileSize);
+        context->transferConfig.fileSize);
 
     std::vector<uint8_t> buffer(sizeof(uint64_t) / sizeof(uint8_t), 0);
     buffer.insert(buffer.end(), bufString.begin(), bufString.end());
@@ -320,6 +320,6 @@ void HostUpdater::SendRawData(std::string rawData) const
         return;
     }
     sessionBase->ServerCommand(taskInfo->sessionId, taskInfo->channelId, CMD_KERNEL_ECHO_RAW,
-    reinterpret_cast<uint8_t *>(rawData.data()), rawData.size());
+        reinterpret_cast<uint8_t *>(rawData.data()), rawData.size());
 }
 } // namespace Hdc

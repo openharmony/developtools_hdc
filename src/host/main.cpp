@@ -90,10 +90,21 @@ void AppendCwdWhenTransfer(string &outCommand)
         && outCommand != CMDSTR_APP_SIDELOAD) {
         return;
     }
+    int value = -1;
     char path[PATH_MAX] = "";
     size_t size = sizeof(path);
-    if (uv_cwd(path, &size) < 0)
+    value = uv_cwd(path, &size);
+    if (value < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r(value, buf, bufSize);
+        WRITE_LOG(LOG_FATAL, "append cwd path failed: %s", buf);
         return;
+    }
+    if (strlen(path) >= PATH_MAX - 1) {
+        WRITE_LOG(LOG_FATAL, "append cwd path failed: buffer space max");
+        return;
+    }
     if (path[strlen(path) - 1] != Base::GetPathSep()) {
         path[strlen(path)] = Base::GetPathSep();
     }

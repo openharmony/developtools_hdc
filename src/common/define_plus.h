@@ -191,6 +191,8 @@ enum HdcCommand {
     CMD_APP_DATA,
     CMD_APP_FINISH,
     CMD_APP_UNINSTALL,
+    // deprecated, remove later
+    CMD_UNITY_JPID = CMD_JDWP_LIST,
 
     // Flashd commands
     CMD_FLASHD_UPDATE_INIT = 4000,
@@ -202,8 +204,6 @@ enum HdcCommand {
     CMD_FLASHD_ERASE,
     CMD_FLASHD_FORMAT,
     CMD_FLASHD_PROGRESS,
-    // deprecated, remove later
-    CMD_UNITY_JPID = CMD_JDWP_LIST,
 };
 
 enum UsbProtocolOption {

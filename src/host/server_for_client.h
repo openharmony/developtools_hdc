@@ -25,6 +25,7 @@ public:
     int Initial();
     void EchoClient(HChannel hChannel, MessageLevel level, const char *msg, ...);
     void EchoClientRaw(const HChannel hChannel, uint8_t *payload, const int payloadSize);
+    void SendToClient(const HChannel hChannel, const uint16_t commandFlag, uint8_t *payload, const int payloadSize);
     uint16_t GetTCPListenPort();
     void Stop();
 
@@ -33,6 +34,7 @@ private:
     static void AcceptClient(uv_stream_t *server, int status);
     void SetTCPListen();
     int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO);
+    void ReportServerVersion(HChannel hChannel);
     bool DoCommand(HChannel hChannel, void *formatCommandInput);
     void OrderFindTargets(HChannel hChannel);
     bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey);

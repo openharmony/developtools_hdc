@@ -53,6 +53,17 @@ namespace SerialStruct {
         }
     };
 
+    template<> struct Descriptor<Hdc::HdcTransferBase::FileMode> {
+        static auto type()
+        {
+            return Message(Field<fieldOne, &Hdc::HdcTransferBase::FileMode::perm>("perm"),
+                           Field<fieldTwo, &Hdc::HdcTransferBase::FileMode::u_id>("u_id"),
+                           Field<fieldThree, &Hdc::HdcTransferBase::FileMode::g_id>("g_id"),
+                           Field<fieldFour, &Hdc::HdcTransferBase::FileMode::context>("context"),
+                           Field<fieldFive, &Hdc::HdcTransferBase::FileMode::fullName>("fullName"));
+        }
+    };
+
     template<> struct Descriptor<Hdc::HdcTransferBase::TransferPayload> {
         static auto type()
         {
@@ -70,7 +81,8 @@ namespace SerialStruct {
                            Field<fieldTwo, &Hdc::HdcSessionBase::SessionHandShake::authType>("authType"),
                            Field<fieldThree, &Hdc::HdcSessionBase::SessionHandShake::sessionId>("sessionId"),
                            Field<fieldFour, &Hdc::HdcSessionBase::SessionHandShake::connectKey>("connectKey"),
-                           Field<fieldFive, &Hdc::HdcSessionBase::SessionHandShake::buf>("buf"));
+                           Field<fieldFive, &Hdc::HdcSessionBase::SessionHandShake::buf>("buf"),
+                           Field<fieldSix, &Hdc::HdcSessionBase::SessionHandShake::version>("version"));
         }
     };
 

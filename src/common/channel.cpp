@@ -258,6 +258,43 @@ void HdcChannelBase::PushAsyncMessage(const uint32_t channelId, const uint8_t me
     uv_async_send(&asyncMainLoop);
 }
 
+// add commandflag ahead real buf data
+void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
+{
+    auto data = new uint8_t[size + sizeof(commandFlag)]();
+    if (!data) {
+        return;
+    }
+
+    if (memcpy_s(data, size + sizeof(commandFlag), &commandFlag, sizeof(commandFlag))) {
+        delete[] data;
+        return;
+    }
+
+    if (size > 0 && memcpy_s(data + sizeof(commandFlag), size, bufPtr, size)) {
+        delete[] data;
+        return;
+    }
+
+    SendChannel(hChannel, data, size + sizeof(commandFlag));
+    delete[] data;
+}
+
+void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
+{
+    HChannel hChannel = (HChannel)AdminChannel(OP_QUERY_REF, channelId, nullptr);
+    if (!hChannel) {
+        return;
+    }
+    do {
+        if (hChannel->isDead) {
+            break;
+        }
+        SendChannelWithCmd(hChannel, commandFlag, bufPtr, size);
+    } while (false);
+    --hChannel->ref;
+}
+
 void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size)
 {
     uv_stream_t *sendStream = nullptr;

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "daemon.h"
+#include "hdc_hash_gen.h"
 #include "../common/serial_struct.h"
 #include <openssl/sha.h>
 
@@ -167,6 +168,8 @@ bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_FILE_FINISH:
         case CMD_FILE_INIT:
         case CMD_FILE_BEGIN:
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE:
             ret = TaskCommandDispatch<HdcFile>(hTaskInfo, TASK_FILE, command, payload, payloadSize);
             break;
         // One-way function, so fewer options
@@ -276,6 +279,19 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
         handshake.connectKey = "";
     }
     if (enableSecure && !HandDaemonAuth(hSession, channelId, handshake)) {
+        return false;
+    }
+    string version = Base::GetVersion() + HDC_MSG_HASH;
+
+    WRITE_LOG(LOG_FATAL, "receive hs version = %s", handshake.version.c_str());
+
+    if (!handshake.version.empty() && handshake.version != version) {
+        hSession->availTailIndex = 0;
+        WRITE_LOG(LOG_FATAL, "DaemonSessionHandshake failed! version not match [%s] vs [%s]",
+            handshake.version.c_str(), version.c_str());
+        handshake.banner = HANDSHAKE_FAILED;
+        string failedString = SerialStruct::SerializeToString(handshake);
+        Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE, (uint8_t *)failedString.c_str(), failedString.size());
         return false;
     }
     // handshake auth OK.Can append the sending device information to HOST

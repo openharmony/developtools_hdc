@@ -191,6 +191,7 @@ enum HdcCommand {
     CMD_APP_DATA,
     CMD_APP_FINISH,
     CMD_APP_UNINSTALL,
+
     // deprecated, remove later
     CMD_UNITY_JPID = CMD_JDWP_LIST,
 

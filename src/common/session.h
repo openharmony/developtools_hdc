@@ -18,7 +18,7 @@
 #include "common.h"
 
 namespace Hdc {
-enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP };
+enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_FLASHD };
 
 class HdcSessionBase {
 public:

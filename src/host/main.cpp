@@ -70,6 +70,10 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_TARGET_REBOOT);
     registerCommand.push_back(CMDSTR_LIST_JDWP);
     registerCommand.push_back(CMDSTR_TRACK_JDWP);
+    registerCommand.push_back(CMDSTR_FLASHD_UPDATE);
+    registerCommand.push_back(CMDSTR_FLASHD_FLASH);
+    registerCommand.push_back(CMDSTR_FLASHD_ERASE);
+    registerCommand.push_back(CMDSTR_FLASHD_FORMAT);
 
     for (string v : registerCommand) {
         if (doubleCommand == v) {

@@ -13,9 +13,11 @@
  * limitations under the License.
  */
 #include "client.h"
+#include "host_updater.h"
 #include "server.h"
 
 namespace Hdc {
+bool terminalStateChange = false;
 HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
@@ -28,6 +30,11 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
 
 HdcClient::~HdcClient()
 {
+#ifndef _WIN32
+    if (terminalStateChange) {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalState);
+    }
+#endif
     Base::TryCloseLoop(loopMain, "ExecuteCommand finish");
 }
 
@@ -222,6 +229,30 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     }
     uv_timer_stop(handle);
     WRITE_LOG(LOG_DEBUG, "Connect server successful");
+    bool closeInput = false;
+    if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
+        uv_timer_stop(handle);
+        uv_stop(thisClass->loopMain);
+        WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        return;
+    }
+    while (closeInput) {
+#ifndef _WIN32
+        if (tcgetattr(STDIN_FILENO, &thisClass->terminalState)) {
+            break;
+        }
+        termios tio;
+        if (tcgetattr(STDIN_FILENO, &tio)) {
+            break;
+        }
+        cfmakeraw(&tio);
+        tio.c_cc[VTIME] = 0;
+        tio.c_cc[VMIN] = 1;
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &tio);
+        terminalStateChange = true;
+#endif
+        break;
+    }
     thisClass->Send(thisClass->channel->channelId, (uint8_t *)thisClass->command.c_str(),
                     thisClass->command.size() + 1);
 }

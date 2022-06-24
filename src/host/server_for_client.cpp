@@ -440,6 +440,12 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
     } else if (CMD_APP_SIDELOAD == formatCommand->cmdFlag) {
         cmdFlag = "sideload ";
         sizeCmdFlag = 9;
+    } else if (CMD_FLASHD_UPDATE_INIT == formatCommand->cmdFlag) {
+        cmdFlag = "update ";
+        sizeCmdFlag = 7; // 7: cmdFlag update size
+    } else if (CMD_FLASHD_FLASH_INIT == formatCommand->cmdFlag) {
+        cmdFlag = "flash ";
+        sizeCmdFlag = 6; // 6: cmdFlag flash size
     }
     uint8_t *payload = reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag;
     if (!strncmp(formatCommand->parameters.c_str(), cmdFlag.c_str(), sizeCmdFlag)) {  // local do
@@ -490,7 +496,11 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         case CMD_APP_INIT:
         case CMD_APP_UNINSTALL:
         case CMD_UNITY_BUGREPORT_INIT:
-        case CMD_APP_SIDELOAD: {
+        case CMD_APP_SIDELOAD:
+        case CMD_FLASHD_UPDATE_INIT:
+        case CMD_FLASHD_FLASH_INIT:
+        case CMD_FLASHD_ERASE:
+        case CMD_FLASHD_FORMAT: {
             TaskCommand(hChannel, formatCommandInput);
             ret = true;
             break;
@@ -635,7 +645,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         string retEcho = String2FormatCommand((char *)bufPtr, bytesIO, &formatCommand);
         if (retEcho.length()) {
             if (!strcmp((char *)bufPtr, CMDSTR_SOFTWARE_HELP.c_str())
-                || !strcmp((char *)bufPtr, CMDSTR_SOFTWARE_VERSION.c_str())) {
+                || !strcmp((char *)bufPtr, CMDSTR_SOFTWARE_VERSION.c_str())
+                || !strcmp((char *)bufPtr, "flash")) {
                 EchoClient(hChannel, MSG_OK, retEcho.c_str());
             } else {
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());

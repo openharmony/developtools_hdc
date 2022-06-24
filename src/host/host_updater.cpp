@@ -57,7 +57,7 @@ std::vector<std::string> Split(const std::string &src, const std::vector<std::st
     buffer.assign(src.begin(), src.end());
     const char delimit[] = "\t\r\n ";
     char *nextToken = nullptr;
-    auto token = strtok_s(buffer.data(), delimit, &nextToken);
+    char *token = strtok_s(buffer.data(), delimit, &nextToken);
     while (token != nullptr) {
         if (std::find(filter.cbegin(), filter.cend(), token) == filter.cend()) {
             result.push_back(token);

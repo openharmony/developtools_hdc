@@ -100,7 +100,7 @@ config("hdc_common_config") {
     "//third_party/libuv",  # used in common.h
     "//third_party/lz4/lib",  # used in transfer.cpp
     "//base/startup/syspara_lite/interfaces/innerkits/native/syspara/include",
-    "//base/startup/init_lite/interfaces/innerkits/include",  #daemon_unity.cpp
+    "//base/startup/init/interfaces/innerkits/include",  #daemon_unity.cpp
   ]
 
   if (hdc_support_uart) {
@@ -205,7 +205,7 @@ ohos_source_set("hdc_daemon_platform") {
 
   if (use_musl) {
     include_dirs += [
-      "//base/startup/init_lite/interfaces/innerkits/include",
+      "//base/startup/init/interfaces/innerkits/include",
       "//base/startup/syspara_lite/interfaces/innerkits/native/syspara/include",
     ]
   }

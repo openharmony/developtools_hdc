@@ -289,10 +289,13 @@ int main(int argc, const char *argv[])
     if (g_backgroundRun) {
         return BackgroundRun();
     }
+
+#ifdef HARMONY_PROJECT
     if (!NeedDropRootPrivileges()) {
         Base::PrintMessage("DropRootPrivileges fail, EXITING...\n");
         return -1;
     }
+#endif
 
     umask(0);
     signal(SIGPIPE, SIG_IGN);

@@ -812,7 +812,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     payloadHead.headSize = htons(s.size());
     payloadHead.dataSize = htonl(dataSize);
     int finalBufSize = sizeof(PayloadHead) + s.size() + dataSize;
-    uint8_t *finayBuf = new uint8_t[finalBufSize]();
+    uint8_t *finayBuf = new(std::nothrow) uint8_t[finalBufSize]();
     if (finayBuf == nullptr) {
         WRITE_LOG(LOG_WARN, "send allocmem err");
         return ERR_BUF_ALLOC;

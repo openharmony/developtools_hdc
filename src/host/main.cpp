@@ -140,7 +140,11 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
             outCommand += rawCmd.find(" ") == string::npos ? rawCmd : packageCmd;
         } else {
             outOption += outOption.size() ? " " : "";
-            outOption += argv[i];
+            if (i == 0) {
+                outOption += Base::StringFormat("\"%s\"", argv[i]);
+            } else {
+                outOption += argv[i];
+            }
         }
     }
     return 0;

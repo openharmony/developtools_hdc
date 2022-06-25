@@ -404,7 +404,8 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         }
 #endif
         ctxNow.dirMode.push_back(mode);
-        WRITE_LOG(LOG_DEBUG, "dir mode: %o u_id = %u, g_id = %u, context = %s", mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+        WRITE_LOG(LOG_DEBUG, "dir mode: %o u_id = %u, g_id = %u, context = %s", 
+                  mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
     }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
         // Skip. File
@@ -531,8 +532,8 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
                     uv_fs_chmod(nullptr, &fs, localPath.c_str(), mode.perm, nullptr);
                     uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.u_id, mode.g_id, nullptr);
                     uv_fs_req_cleanup(&fs);
-#if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
-		    if (!mode.context.empty()) {
+#if (!(defined(HOST_MINGW) || defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+                    if (!mode.context.empty()) {
                         WRITE_LOG(LOG_INFO, "setfilecon from master = %s", mode.context.c_str());
                         setfilecon(localPath.c_str(), mode.context.c_str());
                     }

@@ -181,7 +181,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
 {
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
-    HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_VERSION );
+    HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_VERSION);
     if (!commands.size()) {
         Base::PrintMessage("Unknown operation command...");
         std::cerr << TranslateCommand::Usage();

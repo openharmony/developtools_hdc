@@ -258,7 +258,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         break;
     }
     thisClass->SendWithCmd(thisClass->channel->channelId, 0, (uint8_t *)thisClass->command.c_str(),
-                    thisClass->command.size() + 1);
+                           thisClass->command.size() + 1);
 }
 
 void HdcClient::AllocStdbuf(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)

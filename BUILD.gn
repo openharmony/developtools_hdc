@@ -129,6 +129,10 @@ ohos_executable("hdcd") {
     defines += [ "SURPPORT_SELINUX" ]
   }
 
+  if (hdc_version_check) {
+    defines += [ "HDC_VERSION_CHECK" ]
+  }
+
   install_images = [
     "system",
     "updater",
@@ -199,6 +203,10 @@ ohos_executable("hdc_std") {
     deps += [ "//third_party/selinux:libselinux" ]
     include_dirs += [ "//third_party/selinux/libselinux/include" ]
     defines += [ "SURPPORT_SELINUX" ]
+  }
+
+  if (hdc_version_check) {
+    defines += [ "HDC_VERSION_CHECK" ]
   }
 
   if (is_mingw) {

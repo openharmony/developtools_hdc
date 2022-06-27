@@ -292,7 +292,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         getfilecon(context->localPath.c_str(), &con);
         if (con != nullptr) {
             context->fileMode.context = con;
-            WRITE_LOG(LOG_INFO, "getfilecon context = %s", con);
+            WRITE_LOG(LOG_DEBUG, "getfilecon context = %s", con);
             freecon(con);
         }
 #endif
@@ -309,7 +309,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
             if (!mode.context.empty()) {
-                WRITE_LOG(LOG_INFO, "setfilecon from master = %s", mode.context.c_str());
+                WRITE_LOG(LOG_DEBUG, "setfilecon from master = %s", mode.context.c_str());
                 setfilecon(context->localPath.c_str(), mode.context.c_str());
             }
 #endif
@@ -519,6 +519,9 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
             auto pos = resolvedPath.find(localPathBackup);
             if (pos == 0) {
                 string shortPath = resolvedPath.substr(localPathBackup.size());
+                if (shortPath.at(0) == Base::GetPathSep()) {
+                    shortPath = shortPath.substr(1);
+                }
                 WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, shortPath.c_str());
 
                 // set mode
@@ -534,7 +537,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
                     uv_fs_req_cleanup(&fs);
 #if (!(defined(HOST_MINGW) || defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
                     if (!mode.context.empty()) {
-                        WRITE_LOG(LOG_INFO, "setfilecon from master = %s", mode.context.c_str());
+                        WRITE_LOG(LOG_DEBUG, "setfilecon from master = %s", mode.context.c_str());
                         setfilecon(localPath.c_str(), mode.context.c_str());
                     }
 #endif

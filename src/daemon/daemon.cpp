@@ -286,13 +286,19 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     WRITE_LOG(LOG_FATAL, "receive hs version = %s", handshake.version.c_str());
 
     if (!handshake.version.empty() && handshake.version != version) {
-        hSession->availTailIndex = 0;
         WRITE_LOG(LOG_FATAL, "DaemonSessionHandshake failed! version not match [%s] vs [%s]",
             handshake.version.c_str(), version.c_str());
+#ifdef HDC_CHECK_CHECK
+	hSession->availTailIndex = 0;
         handshake.banner = HANDSHAKE_FAILED;
         string failedString = SerialStruct::SerializeToString(handshake);
         Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE, (uint8_t *)failedString.c_str(), failedString.size());
         return false;
+#endif
+    }
+    if (handshake.version.empty()) {
+        handshake.version = Base::GetVersion();
+        WRITE_LOG(LOG_FATAL, "set version if check mode = %s", handshake.version.c_str());
     }
     // handshake auth OK.Can append the sending device information to HOST
 #ifdef HDC_DEBUG

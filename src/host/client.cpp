@@ -377,10 +377,12 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         string serverVer(hShake->version);
 
         if (clientVer != serverVer) {
-            hChannel->availTailIndex = 0;
             serverVer = serverVer.substr(0, Base::GetVersion().size());
-            WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", Base::GetVersion().c_str(), serverVer.c_str());
+            WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());
+#ifdef HDC_VERSION_CHECK
+            hChannel->availTailIndex = 0;
             return ERR_CHECK_VERSION;
+#endif
         }
     }
     Send(hChannel->channelId, reinterpret_cast<uint8_t *>(hShake), sizeof(ChannelHandShake));

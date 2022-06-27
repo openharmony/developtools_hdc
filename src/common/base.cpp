@@ -496,7 +496,7 @@ namespace Base {
             return ERR_PARM_FORMAT;
         }
         *p = '\0';
-        if (!strlen(bufString) || strlen(bufString) > 64) { // 64: pre + ipv6
+        if (!strlen(bufString) || strlen(bufString) > 40) { // 40 : bigger than length of ipv6
             return ERR_PARM_SIZE;
         }
         uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));

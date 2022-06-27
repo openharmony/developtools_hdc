@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef HDC_SUPPORT_UART
+
 #include "host_uart.h"
 
 #include <mutex>
@@ -772,3 +775,4 @@ void HdcHostUART::Stop()
     }
 }
 } // namespace Hdc
+#endif // HDC_SUPPORT_UART

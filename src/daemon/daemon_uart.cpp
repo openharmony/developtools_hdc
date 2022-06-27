@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef HDC_SUPPORT_UART
+
 #include "daemon_uart.h"
 
 #include <thread>
@@ -359,3 +362,4 @@ void HdcDaemonUART::Stop()
     }
 }
 } // namespace Hdc
+#endif // HDC_SUPPORT_UART

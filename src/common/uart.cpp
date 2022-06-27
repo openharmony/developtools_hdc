@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef HDC_SUPPORT_UART
+
 #include "uart.h"
 
 using namespace std::chrono;
@@ -987,3 +990,4 @@ HdcUART::~HdcUART()
 #endif
 }
 } // namespace Hdc
+#endif // HDC_SUPPORT_UART

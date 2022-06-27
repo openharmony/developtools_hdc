@@ -113,7 +113,8 @@ void AppendCwdWhenTransfer(string &outCommand)
         path[strlen(path)] = Base::GetPathSep();
     }
     outCommand += outCommand.size() ? " -cwd " : "-cwd ";
-    outCommand += Base::UnicodeToUtf8(path, true);
+    string utf8Path = Base::UnicodeToUtf8(path, true);
+    outCommand += Base::StringFormat("\"%s\"", utf8Path.c_str());
 }
 
 int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string &outCommand)

@@ -99,7 +99,6 @@ config("hdc_common_config") {
     "${hdc_path}/test/unittest/common/include",
     "//third_party/libuv",  # used in common.h
     "//third_party/lz4/lib",  # used in transfer.cpp
-    "//base/startup/syspara_lite/interfaces/innerkits/native/syspara/include",
     "//base/startup/init_lite/interfaces/innerkits/include",  #daemon_unity.cpp
   ]
 
@@ -191,10 +190,7 @@ ohos_source_set("hdc_daemon_platform") {
     "//third_party/openssl:libcrypto_static",
   ]
 
-  external_deps = [
-    "init:libbegetutil",
-    "startup_l2:syspara",
-  ]
+  external_deps = [ "init:libbegetutil" ]
 
   include_dirs = [
     "${hdc_path}/daemon",
@@ -202,13 +198,6 @@ ohos_source_set("hdc_daemon_platform") {
     "//third_party/openssl/include",
     "//third_party/libuv",
   ]
-
-  if (use_musl) {
-    include_dirs += [
-      "//base/startup/init_lite/interfaces/innerkits/include",
-      "//base/startup/syspara_lite/interfaces/innerkits/native/syspara/include",
-    ]
-  }
 }
 
 ohos_unittest("hdc_jdwp_unittest") {

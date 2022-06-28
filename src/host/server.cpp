@@ -415,7 +415,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
         case AUTH_TOKEN: {
             void *ptr = nullptr;
             bool retChild = HdcAuth::KeylistIncrement(hSession->listKey, hSession->authKeyIndex, &ptr);
-            // HdcAuth::FreeKey will be effect at funciton 'FreeSession'
+            // HdcAuth::FreeKey will be effect at function 'FreeSession'
             if (!retChild) {
                 // Iteration call certificate authentication
                 handshake.authType = AUTH_PUBLICKEY;

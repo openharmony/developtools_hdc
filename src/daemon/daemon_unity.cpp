@@ -150,7 +150,7 @@ bool HdcDaemonUnity::RemountPartition(const char *dir)
 bool HdcDaemonUnity::RemountDevice()
 {
     if (getuid() != 0) {
-        LogMsg(MSG_FAIL, "Opearte need running as root");
+        LogMsg(MSG_FAIL, "Operate need running as root");
         return false;
     }
     struct stat info;
@@ -189,7 +189,7 @@ bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
             SystemDepend::SetDevItem("persist.hdc.port", port);
         }
     } else {
-        LogMsg(MSG_FAIL, "Unknow command");
+        LogMsg(MSG_FAIL, "Unknown command");
         return false;
     }
     // shutdown

@@ -88,7 +88,7 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
                                 size_t fileIndex)
 {
     if (payload[payloadSize - 1] != '\0') {
-        WRITE_LOG(LOG_FATAL, "payload is invaild");
+        WRITE_LOG(LOG_FATAL, "payload is invalid");
         return false;
     }
     std::string cmdParam(reinterpret_cast<const char *>(payload));
@@ -100,13 +100,13 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
         index++;
     }
     if (params.size() != count || params.size() <= index) {
-        WRITE_LOG(LOG_FATAL, "param count is invaild");
+        WRITE_LOG(LOG_FATAL, "param count is invalid");
         return false;
     }
 
     std::string localPath = params[index];
     if (!Base::CheckDirectoryOrPath(localPath.c_str(), true, true)) {
-        WRITE_LOG(LOG_FATAL, "localPath is invaild");
+        WRITE_LOG(LOG_FATAL, "localPath is invalid");
         return false;
     }
 
@@ -115,7 +115,7 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
     } else if (MatchPackageExtendName(localPath, ".zip")) {
         WRITE_LOG(LOG_INFO, "file type is zip");
     } else {
-        WRITE_LOG(LOG_FATAL, "file type is invaild");
+        WRITE_LOG(LOG_FATAL, "file type is invalid");
         return false;
     }
     ctxNow.transferConfig.functionName = function;
@@ -147,7 +147,7 @@ void HostUpdater::CheckMaster(CtxFile *context)
 bool HostUpdater::CheckCmd(HdcCommand command, uint8_t *payload, int payloadSize, size_t paramCount)
 {
     if (payload[payloadSize - 1] != '\0') {
-        WRITE_LOG(LOG_FATAL, "payload is invaild");
+        WRITE_LOG(LOG_FATAL, "payload is invalid");
         return false;
     }
     std::string cmdParam(reinterpret_cast<char *>(payload));

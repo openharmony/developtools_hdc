@@ -120,7 +120,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         WRITE_LOG(LOG_DEBUG, "HdcChannelBase::ReadStream Pipe IOBuf max");
         return;
     } else if (nread == 0) {
-        // maybe just afer accept, second client req
+        // maybe just after accept, second client req
         WRITE_LOG(LOG_DEBUG, "HdcChannelBase::ReadStream idle read");
         return;
     } else if (nread < 0) {

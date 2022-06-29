@@ -90,7 +90,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             context->transferConfig.clientCwd = argv[i + 1];
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i][0] == '-') {
-            LogMsg(MSG_FAIL, "Unknow file option: %s", argv[i]);
+            LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);
             return false;
         }
     }

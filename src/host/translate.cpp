@@ -77,7 +77,7 @@ namespace TranslateCommand {
               "                                         localabstract:<unix domain socket name>\n"
               "                                         dev:<device name>\n"
               "                                         jdwp:<pid> (remote only)\n"
-              " fport ls                              - Dispaly forward/reverse tasks\n"
+              " fport ls                              - Display forward/reverse tasks\n"
               " fport rm taskstr                      - Remove forward/reverse task by taskstring\n"
               "\n"
               "app commands:\n"

@@ -100,7 +100,7 @@ namespace Base {
                 case LOG_DEBUG:  // will reduce performance
                     logLevelString = "\033[1;36mD\033[0m";
                     break;
-                default:  // all, just more IO/Memory informations
+                default:  // all, just more IO/Memory information
                     logLevelString = "\033[1;38;5;21mA\033[0m";
                     break;
             }
@@ -513,7 +513,7 @@ namespace Base {
         delete req;
     }
 
-    // at the finsh of pFuncAfterThread must free uv_work_t*
+    // at the finish of pFuncAfterThread must free uv_work_t*
     // clang-format off
     int StartWorkThread(uv_loop_t *loop, uv_work_cb pFuncWorkThread,
                         uv_after_work_cb pFuncAfterThread, void *pThreadData)

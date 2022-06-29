@@ -185,7 +185,7 @@ bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
             ret = TaskCommandDispatch<HdcDaemonForward>(hTaskInfo, TASK_FORWARD, command, payload, payloadSize);
             break;
         default:
-            //ignore unknow command
+            //ignore unknown command
             break;
     }
     return ret;

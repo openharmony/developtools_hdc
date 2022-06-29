@@ -16,6 +16,13 @@
 #ifdef HDC_SUPPORT_UART
 
 #include "uart.h"
+#ifdef HOST_MAC
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <IOKit/serial/ioss.h>
+#define B1500000 1500000
+#define B921600 921600
+#endif
 
 using namespace std::chrono;
 namespace Hdc {
@@ -99,6 +106,8 @@ int HdcUARTBase::GetUartSpeed(int speed)
         case UART_SPEED921600:
             return (B921600);
             break;
+        case UART_SPEED1500000:
+            return (B1500000);
         default:
             return (B921600);
             break;
@@ -118,7 +127,45 @@ int HdcUARTBase::GetUartBits(int bits)
             break;
     }
 }
+#if defined(HOST_MAC)
+int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
+{
+    WRITE_LOG(LOG_DEBUG, "mac SetSerial rate = %d", nSpeed);
+    struct termios options, oldttys1;
+    if (tcgetattr(fd, &oldttys1) != 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        strerror_r(errno, buf, bufSize);
+        WRITE_LOG(LOG_DEBUG, "tcgetattr failed with %s\n", buf);
+        return ERR_GENERIC;
+    }
 
+    if (memcpy_s(&options, sizeof(options), &oldttys1, sizeof(options)) != EOK) {
+        return ERR_GENERIC;
+    }
+    cfmakeraw(&options);
+    options.c_cc[VMIN] = 0;
+    options.c_cc[VTIME] = 10;
+
+    cfsetspeed(&options, B19200);
+    options.c_cflag |= GetUartBits(nBits); // Use 8 bit words
+    options.c_cflag &= ~PARENB;
+
+    speed_t speed = nSpeed;
+    if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
+        WRITE_LOG(LOG_DEBUG, "set speed errno %d", errno);
+    }
+    if ((tcsetattr(fd, TCSANOW, &options)) != 0) {
+        WRITE_LOG(LOG_DEBUG, "com set error errno = %d", errno);
+        return ERR_GENERIC;
+    }
+    if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
+        WRITE_LOG(LOG_DEBUG, "set speed errno %d", errno);
+    }
+    WRITE_LOG(LOG_DEBUG, " SetSerial OK rate = %d", nSpeed);
+    return RET_SUCCESS;
+}
+#else
 int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
     struct termios newttys1, oldttys1;
@@ -136,7 +183,7 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
     newttys1.c_lflag &= ~ICANON;
     newttys1.c_cflag |= GetUartBits(nBits);
     switch (nEvent) {
-        case '0':
+        case 'O':
             newttys1.c_cflag |= PARENB;
             newttys1.c_iflag |= (INPCK | ISTRIP);
             newttys1.c_cflag |= PARODD;
@@ -164,12 +211,13 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
         return ERR_GENERIC;
     }
     if ((tcsetattr(fd, TCSANOW, &newttys1)) != 0) {
-        WRITE_LOG(LOG_DEBUG, " com set error");
+        WRITE_LOG(LOG_DEBUG, "com set error errno = %d", errno);
         return ERR_GENERIC;
     }
-    WRITE_LOG(LOG_DEBUG, " SetSerial OK");
+    WRITE_LOG(LOG_DEBUG, " SetSerial OK rate = %d", nSpeed);
     return RET_SUCCESS;
 }
+#endif
 #endif // _WIN32
 
 ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedSize, HdcUART &uart)
@@ -227,11 +275,15 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
         FD_ZERO(&readFds);
         FD_SET(uart.devUartHandle, &readFds);
         const constexpr int msTous = 1000;
+        const constexpr int sTous = 1000 * msTous;
         struct timeval tv;
         tv.tv_sec = 0;
 
         if (expectedSize == 0) {
             tv.tv_usec = WaitResponseTimeOutMs * msTous;
+            tv.tv_sec = tv.tv_usec / sTous;
+            tv.tv_usec = tv.tv_usec % sTous;
+            WRITE_LOG(LOG_DEBUG, "time  =  %d %d", tv.tv_sec, tv.tv_sec);
 #ifdef HDC_HOST
             // only host side need this
             // in this caes
@@ -244,6 +296,8 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
         } else {
             // when we have expect size , we need timeout for link data drop issue
             tv.tv_usec = ReadGiveUpTimeOutTimeMs * msTous;
+            tv.tv_sec = tv.tv_usec / sTous;
+            tv.tv_usec = tv.tv_usec % sTous;
             ret = select(uart.devUartHandle + 1, &readFds, nullptr, nullptr, &tv);
         }
         if (ret == 0 and expectedSize == 0) {

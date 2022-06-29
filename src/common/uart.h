@@ -167,7 +167,7 @@ public:
     virtual void StopSession(HSession hSession);
 
 protected:
-    static constexpr uint32_t DEFAULT_BAUD_RATE_VALUE = 921600;
+    static constexpr uint32_t DEFAULT_BAUD_RATE_VALUE = 1500000;
 
     bool stopped = false; // stop only can be call one times
 

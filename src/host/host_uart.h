@@ -21,10 +21,9 @@
 #include "windows.h"
 #include <setupapi.h>
 #include <winnt.h>
-#elif defined HOST_LINUX
+#elif defined(HOST_LINUX)||defined(HOST_MAC)
 #include <fcntl.h> // open close
 #include <pthread.h>
-#include <sys/epoll.h>
 #include <termios.h> // truct termios
 #endif
 
@@ -97,7 +96,7 @@ private:
     bool enumDetailsSerialPorts(bool *portChange);
     static constexpr uint8_t PORT_NAME_LEN = 10;
     static constexpr uint8_t PORT_NUM = 100;
-#elif defined(HOST_LINUX)
+#elif defined(HOST_LINUX)||defined(HOST_MAC)
     void EnumLinuxSerialPort(bool *PortStatusChange);
 #endif
     virtual void UartWriteThread();

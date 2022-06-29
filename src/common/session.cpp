@@ -157,7 +157,7 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
 void HdcSessionBase::ClearSessions()
 {
     // no need to lock mapSession
-    // broadcast free singal
+    // broadcast free signal
     for (auto v : mapSession) {
         HSession hSession = (HSession)v.second;
         if (!hSession->isDead) {
@@ -579,7 +579,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     if (hSession->ctrlPipe[STREAM_WORK].loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
         Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
-        WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread fo free. sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
             HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;

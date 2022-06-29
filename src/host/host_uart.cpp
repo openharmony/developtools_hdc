@@ -235,7 +235,7 @@ std::string WstringToString(const std::wstring &wstr)
     return ret;
 }
 
-// review reanme for same func from linux
+// review rename for same func from linux
 int HdcHostUART::WinSetSerial(HUART hUART, string serialPort, int byteSize, int eqBaudRate)
 {
     int winRet = RET_SUCCESS;
@@ -326,7 +326,7 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
     }
 
     if (!GetPortFromKey(connectKey, portName, baudRate)) {
-        WRITE_LOG(LOG_ALL, "%s unknow format %s", __FUNCTION__, connectKey.c_str());
+        WRITE_LOG(LOG_ALL, "%s unknown format %s", __FUNCTION__, connectKey.c_str());
         return -1;
     }
     do {
@@ -368,7 +368,7 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             strerror_r(errno, buf, bufSize);
-            WRITE_LOG(LOG_WARN, "Linux open serial port faild,serialPort:%s, Message : %s",
+            WRITE_LOG(LOG_WARN, "Linux open serial port failed, serialPort:%s, Message : %s",
                       uart.serialPort.c_str(), buf);
             ret = ERR_GENERIC;
             break;
@@ -667,7 +667,7 @@ void HdcHostUART::Restartession(const HSession session)
                   session->hUART->serialPort.c_str());
         CloseSerialPort(session->hUART); // huart will free , so we must clost it here
         server.EchoToClientsForSession(session->sessionId,
-                                       "uart link relased by daemon. need connect again.");
+                                       "uart link released by daemon. need connect again.");
     }
 }
 

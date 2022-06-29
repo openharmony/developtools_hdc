@@ -232,7 +232,7 @@ HSession HdcDaemonUART::PrepareNewSession(uint32_t sessionId)
             auto ctrl = daemonSession.BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
             Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(),
                                ctrl.size());
-            WRITE_LOG(LOG_DEBUG, "Main thread uartio mirgate finish");
+            WRITE_LOG(LOG_DEBUG, "Main thread uartio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
     };

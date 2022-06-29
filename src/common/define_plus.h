@@ -328,7 +328,7 @@ struct HdcUART {
     OVERLAPPED ovRead;
     HANDLE devUartHandle = INVALID_HANDLE_VALUE;
 #else
-    // we also make this for deamon side
+    // we also make this for daemon side
     int devUartHandle = -1;
 #endif
     // if we want to cancel io (read thread exit)
@@ -336,7 +336,7 @@ struct HdcUART {
     uint32_t dispatchedPackageIndex = 0;
     bool resetIO = false; // if true, must break write and read,default false
     uint64_t packageIndex = 0;
-    std::atomic_size_t streamSize = 0; // fro debug only
+    std::atomic_size_t streamSize = 0; // for debug only
     HdcUART();
     ~HdcUART();
 };

@@ -214,7 +214,7 @@ void HdcJdwp::AcceptClient(uv_stream_t *server, int status)
 bool HdcJdwp::JdwpListen()
 {
 #ifdef HDC_PCDEBUG
-    // if test, canbe enable
+    // if test, can be enabled
     return true;
     const char jdwpCtrlName[] = { 'j', 'd', 'w', 'p', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
     unlink(jdwpCtrlName);

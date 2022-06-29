@@ -406,7 +406,7 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
                       __FUNCTION__, packetSize);
         } else {
             // at least we got one package
-            // if the size of packge have all received ?
+            // if the size of package have all received ?
             if (data.size() >= packetSize) {
                 // send the data to logic level (link to logic)
                 if (hSession == nullptr) {
@@ -418,10 +418,10 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
 #endif
                 }
                 if (hSession == nullptr) {
-                    WRITE_LOG(LOG_WARN, "%s have not found seesion (%u). skip it", __FUNCTION__, sessionId);
+                    WRITE_LOG(LOG_WARN, "%s have not found session (%u). skip it", __FUNCTION__, sessionId);
                 } else {
                     if (hSession->hUART->dispatchedPackageIndex == packageIndex) {
-                        // we need check if the duplication pacakge we have already send
+                        // we need check if the duplication package we have already send
                         WRITE_LOG(LOG_WARN, "%s dup package %u, skip send to session logic",
                                   __FUNCTION__, packageIndex);
                     } else {
@@ -435,7 +435,7 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
                             // send to logic failed.
                             // this kind of issue unable handle in link layer
                             WRITE_LOG(LOG_FATAL,
-                                      "%s DispatchToWorkThread fail %d. requeset free session in "
+                                      "%s DispatchToWorkThread fail %d. request free session in "
                                       "other side",
                                       __FUNCTION__, ret);
                             ResponseUartTrans(hSession->sessionId, ++hSession->hUART->packageIndex,
@@ -470,7 +470,7 @@ bool HdcUARTBase::SendUARTRaw(HSession hSession, uint8_t *data, const size_t len
     deamonUart.devUartHandle = uartHandle;
     if (uartHeader->IsResponsePackage()) {
         // for the response package and in daemon side,
-        // we dont need seesion info
+        // we dont need session info
         ssize_t sendBytes = WriteUartDev(data, length, deamonUart);
         return sendBytes > 0;
     }
@@ -692,7 +692,7 @@ void HdcUARTBase::SendPkgInUARTOutMap()
                 transfer.Sent(); // something is sendout, transfer will timeout for next wait.
             }
         } else if (it->pkgStatus == PKG_WAIT_RESPONSE) {
-            // we found a pkg wiat for response
+            // we found a pkg wait for response
             auto elapsedTime = duration_cast<milliseconds>(steady_clock::now() - it->sendTimePoint);
             WRITE_LOG(LOG_DEBUG, "UartPackageManager: pkg:%s is wait ACK. elapsedTime %lld",
                       it->ToDebugString().c_str(), (long long)elapsedTime.count());
@@ -710,7 +710,7 @@ void HdcUARTBase::SendPkgInUARTOutMap()
                     // the response it timeout and retry counx is 0
                     // the link maybe not stable
                     // let's free this session
-                    WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the seesion %u",
+                    WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the session %u",
                               it->sessionId);
                     OnTransferError(GetSession(it->sessionId));
                     // dont reschedule here
@@ -900,7 +900,7 @@ void HdcUARTBase::ReadDataFromUARTStream(uv_stream_t *stream, ssize_t nread, con
     }
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
         WRITE_LOG(LOG_FATAL, "%s FetchIOBuf failed , free the other side session", __FUNCTION__);
-        // seesion side said the dont understand this seesion data
+        // session side said the dont understand this session data
         // so we also need tell other side to free it session.
         hUARTBase->ResponseUartTrans(hSession->sessionId, ++hSession->hUART->packageIndex,
                                      PKG_OPTION_FREE);

@@ -415,7 +415,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
         case AUTH_TOKEN: {
             void *ptr = nullptr;
             bool retChild = HdcAuth::KeylistIncrement(hSession->listKey, hSession->authKeyIndex, &ptr);
-            // HdcAuth::FreeKey will be effect at funciton 'FreeSession'
+            // HdcAuth::FreeKey will be effect at function 'FreeSession'
             if (!retChild) {
                 // Iteration call certificate authentication
                 handshake.authType = AUTH_PUBLICKEY;
@@ -490,7 +490,7 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     // update
     hdiNew->connStatus = STATUS_CONNECTED;
     if (handshake.buf.size() > sizeof(hdiNew->devName) || !handshake.buf.size()) {
-        hdiNew->devName = "unknow...";
+        hdiNew->devName = "unknown...";
     } else {
         hdiNew->devName = handshake.buf;
     }
@@ -937,7 +937,7 @@ bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
             ret = TaskCommandDispatch<HostUpdater>(hTaskInfo, TASK_FLASHD, command, payload, payloadSize);
             break;
         default:
-            // ignore unknow command
+            // ignore unknown command
             break;
     }
     return ret;

@@ -383,7 +383,7 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
     };
     auto funcFinish = [&](const void *a, const bool b, const string c) -> bool {
         HCtxForward ctx = (HCtxForward)a;
-        WRITE_LOG(LOG_DEBUG, "Error ReadForwardBuf dev,ret:%d reson:%s", b, c.c_str());
+        WRITE_LOG(LOG_DEBUG, "Error ReadForwardBuf dev,ret:%d reason:%s", b, c.c_str());
         FreeContext(ctx, 0, true);
         return false;
     };

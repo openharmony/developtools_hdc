@@ -163,7 +163,7 @@ int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
                 WRITE_LOG(LOG_WARN, "%s: write USB_FFS_VALUE failed: errno=%d", ep0Path.c_str(), errno);
                 break;
             }
-            // active usbrc，Send USB initialization singal
+            // active usbrc，Send USB initialization signal
             SystemDepend::SetDevItem("sys.usb.ffs.ready", "1");
             WRITE_LOG(LOG_DEBUG, "ConnectEPPoint ctrl init finish, set usb-ffs ready");
         }
@@ -339,7 +339,7 @@ void HdcDaemonUSB::OnNewHandshakeOK(const uint32_t sessionId)
     currentSessionId = sessionId;  // sync with server, and set server's real Id
 }
 
-// MainThreadCall, when seession was freeed
+// MainThreadCall, when seession was freed
 void HdcDaemonUSB::OnSessionFreeFinally(const HSession hSession)
 {
     if (currentSessionId == hSession->sessionId) {
@@ -366,7 +366,7 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
         if (!hChildSession->isDead) {
             auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
             Base::SendToStream((uv_stream_t *)&hChildSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
-            WRITE_LOG(LOG_DEBUG, "Main thread usbio mirgate finish");
+            WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
     };

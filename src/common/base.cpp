@@ -790,13 +790,13 @@ namespace Base {
         }
 #ifdef _WIN32
         if (snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "Global\\%s", procname) < 0) {
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
             return ERR_BUF_OVERFLOW;
         }
         HANDLE hMutex = CreateMutex(nullptr, FALSE, buf);
         DWORD dwError = GetLastError();
         if (ERROR_ALREADY_EXISTS == dwError || ERROR_ACCESS_DENIED == dwError) {
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", procname);
             return 1;
         }
@@ -812,16 +812,34 @@ namespace Base {
         int retChild = fcntl(fd, F_SETLK, &fl);
         if (-1 == retChild) {
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
             return 1;
         }
 #endif
-        ftruncate(fd, 0);
-        write(fd, pidBuf, strlen(pidBuf) + 1);
+        int rc = 0;
+        uv_fs_req_cleanup(&req);
+        rc = uv_fs_ftruncate(nullptr, &req, fd, 0, nullptr);
+        if (rc == -1) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+            uv_fs_close(nullptr, &req, fd, nullptr);
+            WRITE_LOG(LOG_FATAL, "ftruncate file %s failed!!! %s", bufPath, buffer);
+            return ERR_FILE_STAT;
+        }
+        uv_buf_t wbf = uv_buf_init(pidBuf, strlen(pidBuf));
+        uv_fs_req_cleanup(&req);
+        rc = uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
+        if (rc == -1) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+            uv_fs_close(nullptr, &req, fd, nullptr);
+            WRITE_LOG(LOG_FATAL, "write file %s failed!!! %s", bufPath, buffer);
+            return ERR_FILE_WRITE;
+        }
         WRITE_LOG(LOG_DEBUG, "Write mutext to %s, pid:%s", bufPath, pidBuf);
         if (checkOrNew) {
             // close it for check only
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
         }
         // Do not close the file descriptor, the process will be mutext effect under no-Win32 OS
         return RET_SUCCESS;

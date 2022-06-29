@@ -36,6 +36,13 @@ public:
         string reserve1;
         string reserve2;
     };
+    struct FileMode {
+        uint64_t perm;
+        uint64_t u_id;
+        uint64_t g_id;
+        string context;
+        string fullName;
+    };
     // used for HdcTransferBase. just base class use, not public
     struct TransferPayload {
         uint64_t index;
@@ -58,12 +65,14 @@ protected:
         uint64_t indexIO; // Id or written IO bytes
         uint32_t fileCnt; // add for directory mode
         bool isDir;       // add for directory mode
+        bool targetDirNotExist;
         uint64_t transferBegin;
         uint64_t transferDirBegin;
         string localName;
         string localPath;
         string remotePath;
         string localDirName;
+        bool fileModeSync;
         bool master;  // Document transmission initiative
         bool closeNotify;
         bool ioFinish;
@@ -76,6 +85,9 @@ protected:
         uv_fs_cb cb;
         vector<string> taskQueue;  // save file list if directory send mode
         TransferConfig transferConfig;  // Used for network IO configuration initialization
+        FileMode fileMode;
+        vector<FileMode> dirMode; // save dir mode on master
+        map<string, FileMode> dirModeMap; // save dir mode on slave
     };
     // Just app-mode use
     enum AppModType {
@@ -98,6 +110,8 @@ protected:
     bool MatchPackageExtendName(string fileName, string extName);
     bool ResetCtx(CtxFile *context, bool full = false);
     bool SmartSlavePath(string &cwd, string &localPath, const char *optName);
+    bool CheckLocalPath(string &localPath, string &optName, string &errStr);
+    bool CheckFilename(string &localPath, string &optName, string &errStr);
     void SetFileTime(CtxFile *context);
     void ExtractRelativePath(string &cwd, string &path);
 

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "session.h"
+#include "hdc_hash_gen.h"
 #include "serial_struct.h"
 
 namespace Hdc {
@@ -1054,6 +1055,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         handshake.banner = HANDSHAKE_MESSAGE;
         handshake.sessionId = hSession->sessionId;
         handshake.connectKey = hSession->connectKey;
+        handshake.version = Base::GetVersion() + HDC_MSG_HASH;
         handshake.authType = AUTH_NONE;
         string hs = SerialStruct::SerializeToString(handshake);
 #ifdef HDC_SUPPORT_UART
@@ -1311,6 +1313,7 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo->serverOrDaemon = serverOrDaemon;
             hTaskInfo->masterSlave = masterTask;
             hTaskInfo->closeRetryCount = 0;
+            hTaskInfo->channelTask = false;
 
             int addTaskRetry = 3; // try 3 time
             while (addTaskRetry > 0) {

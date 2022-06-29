@@ -63,7 +63,7 @@ namespace Base {
     string GetShellPath();
     uint64_t HostToNet(uint64_t val);
     uint64_t NetToHost(uint64_t val);
-    string GetFullFilePath(const string &s);
+    string GetFullFilePath(string &s);
     string GetPathWithoutFilename(const string &s);
     int CreateSocketPair(int *fds);
     void CloseSocketPair(const int *fds);
@@ -79,6 +79,7 @@ namespace Base {
     string UnicodeToUtf8(const char *src, bool reverse = false);
     void ReverseBytes(void *start, int size);
     string CanonicalizeSpecPath(string &src);
+    bool TryCreateDirectory(const string &path, string &err);
     // Just zero a POD type, such as a structure or union
     // If it contains c++ struct such as stl-string or others, please use 'T = {}' to initialize struct
     template<class T> int ZeroStruct(T &structBuf)

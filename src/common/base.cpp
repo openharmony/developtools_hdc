@@ -27,6 +27,7 @@ using namespace std::chrono;
 
 namespace Hdc {
 namespace Base {
+    constexpr int DEF_FILE_PERMISSION = 0750;
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -495,7 +496,7 @@ namespace Base {
             return ERR_PARM_FORMAT;
         }
         *p = '\0';
-        if (!strlen(bufString) || strlen(bufString) > 16) {
+        if (!strlen(bufString) || strlen(bufString) > 40) { // 40 : bigger than length of ipv6
             return ERR_PARM_SIZE;
         }
         uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));
@@ -885,8 +886,13 @@ namespace Base {
         return sep;
     }
 
-    string GetFullFilePath(const string &s)
+    string GetFullFilePath(string &s)
     {  // cannot use s.rfind(std::filesystem::path::preferred_separator
+        // remove last sep, and update input
+        while (s.back() == GetPathSep()) {
+            s.pop_back();
+        }
+
         size_t i = s.rfind(GetPathSep(), s.length());
         if (i != string::npos) {
             return (s.substr(i + 1, s.length() - i));
@@ -1070,6 +1076,34 @@ namespace Base {
             errStr += localPath;
         }
         return false;
+    }
+
+    bool TryCreateDirectory(const string &path, string &err)
+    {
+        uv_fs_t req;
+        WRITE_LOG(LOG_DEBUG, "TryCreateDirectory path = %s", path.c_str());
+        int r = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
+        mode_t mode = req.statbuf.st_mode;
+        uv_fs_req_cleanup(&req);
+        if (r < 0) {
+            WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", path.c_str());
+            r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
+            uv_fs_req_cleanup(&req);
+            if (r < 0) {
+                WRITE_LOG(LOG_WARN, "create dir %s failed", path.c_str());
+                err = "Error create directory, path:";
+                err += path.c_str();
+                return false;
+            }
+        } else {
+            if (!((mode & S_IFMT) == S_IFDIR)) {
+                WRITE_LOG(LOG_WARN, "%s exist, not directory", path.c_str());
+                err = "Not a directoty, path:";
+                err += path.c_str();
+                return false;
+            }
+        }
+        return true;
     }
 
     bool CheckDirectoryOrPath(const char *localPath, bool pathOrDir, bool readWrite)

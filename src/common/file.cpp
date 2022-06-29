@@ -71,6 +71,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
     const string CMD_OPTION_TSTMP = "-a";
     const string CMD_OPTION_SYNC = "-sync";
     const string CMD_OPTION_ZIP = "-z";
+    const string CMD_OPTION_MODE_SYNC = "-m";
 
     for (int i = 0; i < argc; i++) {
         if (argv[i] == CMD_OPTION_ZIP) {
@@ -89,6 +90,9 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         } else if (argv[i] == CMD_OPTION_CLIENTCWD) {
             context->transferConfig.clientCwd = argv[i + 1];
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
+        } else if (argv[i] == CMD_OPTION_MODE_SYNC) {
+            context->fileModeSync = true;
+            ++srcArgvIndex;
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknow file option: %s", argv[i]);
             return false;
@@ -119,7 +123,6 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
     mode_t mode = mode_t(~S_IFMT);
     if (!Base::CheckDirectoryOrPath(context->localPath.c_str(), true, true, errStr, mode) && (mode & S_IFDIR)) {
         context->isDir = true;
-
         GetSubFilesRecursively(context->localPath, context->localName, &context->taskQueue);
         if (context->taskQueue.size() == 0) {
             LogMsg(MSG_FAIL, "Directory empty.");
@@ -129,13 +132,13 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         context->dirSize = 0;
         context->localDirName = Base::GetPathWithoutFilename(context->localPath);
 
-        WRITE_LOG(LOG_INFO, "send directory file list %u %s", context->taskQueue.size(), context->taskQueue[0].c_str());
-        WRITE_LOG(LOG_INFO, "context->localDirName = %s", context->localDirName.c_str());
+        WRITE_LOG(LOG_DEBUG, "context->localDirName = %s", context->localDirName.c_str());
 
         context->localName = context->taskQueue.back();
         context->localPath = context->localDirName + context->localName;
 
-        WRITE_LOG(LOG_WARN, "localName = %s context->localPath = %s", context->localName.c_str(), context->localPath.c_str());
+        WRITE_LOG(LOG_DEBUG, "localName = %s context->localPath = %s", context->localName.c_str(),
+                  context->localPath.c_str());
         context->taskQueue.pop_back();
     }
     return true;
@@ -143,8 +146,13 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
 
 void HdcFile::CheckMaster(CtxFile *context)
 {
-    string s = SerialStruct::SerializeToString(context->transferConfig);
-    SendToAnother(CMD_FILE_CHECK, (uint8_t *)s.c_str(), s.size());
+    if (context->fileModeSync) {
+        string s = SerialStruct::SerializeToString(context->fileMode);
+        SendToAnother(CMD_FILE_MODE, (uint8_t *)s.c_str(), s.size());
+    } else {
+        string s = SerialStruct::SerializeToString(context->transferConfig);
+        SendToAnother(CMD_FILE_CHECK, (uint8_t *)s.c_str(), s.size());
+    }
 }
 
 void HdcFile::WhenTransferFinish(CtxFile *context)
@@ -175,10 +183,66 @@ void HdcFile::TransferSummary(CtxFile *context)
     }
 }
 
+bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int payloadSize)
+{
+    if (ctxNow.master) {
+        WRITE_LOG(LOG_DEBUG, "FileModeSync master ctxNow.fileModeSync = %d size = %zu", ctxNow.fileModeSync, ctxNow.dirMode.size());
+        if (ctxNow.dirMode.size() > 0 ) {
+            auto mode = ctxNow.dirMode.back();
+            WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u conext = %s",
+                mode.fullName.c_str(), mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+            string s = SerialStruct::SerializeToString(mode);
+            ctxNow.dirMode.pop_back();
+            SendToAnother(CMD_DIR_MODE, (uint8_t *)s.c_str(), s.size());
+        } else {
+            string s = SerialStruct::SerializeToString(ctxNow.transferConfig);
+            SendToAnother(CMD_FILE_CHECK, (uint8_t *)s.c_str(), s.size());
+        }
+    } else {
+        ctxNow.fileModeSync = true;
+        string serialString((char *)payload, payloadSize);
+        if (cmd == CMD_FILE_MODE) {
+            SerialStruct::ParseFromString(ctxNow.fileMode, serialString);
+        } else {
+            FileMode dirMode;
+            SerialStruct::ParseFromString(dirMode, serialString);
+
+            WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u context = %s",
+                dirMode.fullName.c_str(), dirMode.perm, dirMode.u_id, dirMode.g_id, dirMode.context.c_str());
+
+            vector<string> dirsOfOptName;
+            if (string::npos != dirMode.fullName.find('/')) {
+                WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from linux system");
+                Base::SplitString(dirMode.fullName, "/", dirsOfOptName);
+            } else if (string::npos != dirMode.fullName.find('\\')) {
+                WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from windows system");
+                Base::SplitString(dirMode.fullName, "\\", dirsOfOptName);
+            } else {
+                dirsOfOptName.emplace_back(dirMode.fullName);
+            }
+
+            dirMode.fullName = "";
+            for (auto s : dirsOfOptName) {
+                if (dirMode.fullName.empty()) {
+                    dirMode.fullName = s;
+                } else {
+                    dirMode.fullName = dirMode.fullName + Base::GetPathSep() + s;
+                }
+            }
+            WRITE_LOG(LOG_DEBUG, "dir = %s permissions: %o u_id = %u, g_id = %u context = %s",
+                dirMode.fullName.c_str(), dirMode.perm, dirMode.u_id, dirMode.g_id, dirMode.context.c_str());
+            ctxNow.dirModeMap.insert(std::make_pair(dirMode.fullName, dirMode));
+        }
+        SendToAnother(CMD_FILE_MODE, nullptr, 0);
+    }
+    return true;
+}
+
 bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 {
     bool ret = true;
     bool childRet = false;
+    string errStr;
     // parse option
     string serialString((char *)payload, payloadSize);
     TransferConfig &stat = ctxNow.transferConfig;
@@ -190,6 +254,16 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "HdcFile fileSize got %" PRIu64 "", ctxNow.fileSize);
 #endif
+
+    if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
+        LogMsg(MSG_FAIL, "%s", errStr.c_str());
+        return false;
+    }
+
+    if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
+        LogMsg(MSG_FAIL, "%s", errStr.c_str());
+        return false;
+    }
     // check path
     childRet = SmartSlavePath(stat.clientCwd, ctxNow.localPath, stat.optionalName.c_str());
     if (childRet && ctxNow.transferConfig.updateIfNew) {  // file exist and option need update
@@ -215,12 +289,12 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 
 void HdcFile::TransferNext(CtxFile *context)
 {
-    WRITE_LOG(LOG_WARN, "HdcFile::TransferNext");
+    WRITE_LOG(LOG_DEBUG, "HdcFile::TransferNext");
 
     context->localName = context->taskQueue.back();
     context->localPath = context->localDirName + context->localName;
     context->taskQueue.pop_back();
-    WRITE_LOG(LOG_WARN, "context->localName = %s context->localPath = %s queuesize:%d",
+    WRITE_LOG(LOG_DEBUG, "context->localName = %s context->localPath = %s queuesize:%d",
               context->localName.c_str(), context->localPath.c_str(), ctxNow.taskQueue.size());
     do {
         ++refCount;
@@ -245,7 +319,11 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
             ret = SlaveCheck(payload, payloadSize);
             break;
         }
-
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE: {
+            ret = FileModeSync(command, payload, payloadSize);
+            break;
+        }
         case CMD_FILE_FINISH: {
             if (*payload) {  // close-step3
                 WRITE_LOG(LOG_DEBUG, "Dir = %d taskQueue size = %d", ctxNow.isDir, ctxNow.taskQueue.size());

@@ -29,10 +29,12 @@ public:
     void FreeChannel(const uint32_t channelId);
     void EchoToAllChannelsViaSessionId(uint32_t targetSessionId, const string &echo);
     vector<uint8_t> GetChannelHandshake(string &connectKey) const;
+    void SendWithCmd(const uint32_t channelId, const uint16_t commandFlag, uint8_t *bufPtr, const int size);
 
 protected:
     struct ChannelHandShake {
         char banner[12];  // must first index
+        char version[BUF_SIZE_TINY] = { 0 };
         union {
             uint32_t channelId;
             char connectKey[MAX_CONNECTKEY_SIZE];
@@ -46,6 +48,7 @@ protected:
     virtual void NotifyInstanceChannelFree(HChannel hChannel) {};
     void Send(const uint32_t channelId, uint8_t *bufPtr, const int size);
     void SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size);
+    void SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size);
     void EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int size);
     virtual bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId)
     {

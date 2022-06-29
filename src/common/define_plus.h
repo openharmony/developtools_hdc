@@ -91,6 +91,7 @@ enum RetErrCode {
     ERR_BUF_CHECK,
     ERR_BUF_RESET,
     ERR_BUF_COPY,
+    ERR_CHECK_VERSION,
     ERR_FILE_OPEN = -11000,
     ERR_FILE_READ,
     ERR_FILE_WRITE,
@@ -148,6 +149,7 @@ enum HdcCommand {
     CMD_KERNEL_ECHO_RAW,
     CMD_KERNEL_ENABLE_KEEPALIVE,
     CMD_KERNEL_WAKEUP_SLAVETASK,
+    CMD_CHECK_VERSION,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,
@@ -184,6 +186,8 @@ enum HdcCommand {
     CMD_FILE_DATA,
     CMD_FILE_FINISH,
     CMD_APP_SIDELOAD,
+    CMD_FILE_MODE,
+    CMD_DIR_MODE,
     // App commands
     CMD_APP_INIT = 3500,
     CMD_APP_CHECK,
@@ -247,6 +251,8 @@ struct TaskInformation {
     void *taskClass;
     void *ownerSessionClass;
     uint32_t closeRetryCount;
+    bool channelTask;
+    void *channelClass;
 };
 using HTaskInfo = TaskInformation *;
 

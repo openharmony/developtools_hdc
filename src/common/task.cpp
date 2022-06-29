@@ -55,8 +55,14 @@ bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const i
     if (singalStop) {
         return false;
     }
-    HdcSessionBase *sessionBase = reinterpret_cast<HdcSessionBase *>(taskInfo->ownerSessionClass);
-    return sessionBase->Send(taskInfo->sessionId, taskInfo->channelId, command, bufPtr, size) > 0;
+    if (taskInfo->channelTask) {
+        HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(taskInfo->channelClass);
+        channelBase->SendWithCmd(taskInfo->channelId, command, bufPtr, size);
+        return true;
+    } else {
+        HdcSessionBase *sessionBase = reinterpret_cast<HdcSessionBase *>(taskInfo->ownerSessionClass);
+        return sessionBase->Send(taskInfo->sessionId, taskInfo->channelId, command, bufPtr, size) > 0;
+    }
 }
 
 void HdcTaskBase::LogMsg(MessageLevel level, const char *msg, ...)
@@ -65,8 +71,26 @@ void HdcTaskBase::LogMsg(MessageLevel level, const char *msg, ...)
     va_start(vaArgs, msg);
     string log = Base::StringFormat(msg, vaArgs);
     va_end(vaArgs);
-    HdcSessionBase *sessionBase = reinterpret_cast<HdcSessionBase *>(clsSession);
-    sessionBase->LogMsg(taskInfo->sessionId, taskInfo->channelId, level, log.c_str());
+
+    if (taskInfo->channelTask) {
+        string logInfo = "";
+        switch (level) {
+            case MSG_FAIL:
+                logInfo = MESSAGE_FAIL;
+                break;
+            case MSG_INFO:
+                logInfo = MESSAGE_INFO;
+                break;
+            default:  // successful, not append extra info
+                break;
+        }
+
+        fprintf(stdout, "%s%s\n", logInfo.c_str(), log.c_str());
+        fflush(stdout);
+    } else {
+        HdcSessionBase *sessionBase = reinterpret_cast<HdcSessionBase *>(clsSession);
+        sessionBase->LogMsg(taskInfo->sessionId, taskInfo->channelId, level, log.c_str());
+    }
 }
 
 bool HdcTaskBase::ServerCommand(const uint16_t command, uint8_t *bufPtr, const int size)

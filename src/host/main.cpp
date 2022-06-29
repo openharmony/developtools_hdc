@@ -47,6 +47,7 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_SOFTWARE_HELP);
     registerCommand.push_back(CMDSTR_TARGET_DISCOVER);
     registerCommand.push_back(CMDSTR_LIST_TARGETS);
+    registerCommand.push_back(CMDSTR_CHECK_VERSION);
     registerCommand.push_back(CMDSTR_CONNECT_ANY);
     registerCommand.push_back(CMDSTR_CONNECT_TARGET);
     registerCommand.push_back(CMDSTR_SHELL);
@@ -180,7 +181,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
 {
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
-    HdcClient client(false, serverListenString, &loopMain);
+    HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_VERSION);
     if (!commands.size()) {
         Base::PrintMessage("Unknown operation command...");
         std::cerr << TranslateCommand::Usage();

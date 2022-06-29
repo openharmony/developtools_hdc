@@ -462,6 +462,12 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "handshake.banner:%s, payload:%s(%d)", handshake.banner.c_str(), s.c_str(), payloadSize);
 #endif
+
+    if (handshake.banner == HANDSHAKE_FAILED.c_str()) {
+        WRITE_LOG(LOG_FATAL, "Handshake failed");
+        return false;
+    }
+
     if (handshake.banner != HANDSHAKE_MESSAGE.c_str()) {
         WRITE_LOG(LOG_DEBUG, "Hello failed");
         return false;
@@ -560,6 +566,16 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
             break;
         }
+        // server directly passthrough file command to client
+        case CMD_FILE_INIT:
+        case CMD_FILE_CHECK:
+        case CMD_FILE_BEGIN:
+        case CMD_FILE_DATA:
+        case CMD_FILE_FINISH:
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE:
+            sfc->SendToClient(hChannel, command, payload, payloadSize);
+            break;
         default: {
             HSession hSession = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
             if (!hSession) {
@@ -889,6 +905,8 @@ bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_FILE_CHECK:
         case CMD_FILE_DATA:
         case CMD_FILE_FINISH:
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE:
             ret = TaskCommandDispatch<HdcFile>(hTaskInfo, TASK_FILE, command, payload, payloadSize);
             break;
         case CMD_FORWARD_INIT:

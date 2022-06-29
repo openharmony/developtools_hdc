@@ -18,10 +18,12 @@
 #ifdef HARMONY_PROJECT
 #include <lz4.h>
 #endif
-
+#if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+#include <selinux/selinux.h>
+#endif
 namespace Hdc {
 constexpr uint64_t HDC_TIME_CONVERT_BASE = 1000000000;
-constexpr int DEF_FILE_PERMISSION = 0750;
+
 
 HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
     : HdcTaskBase(hTaskInfo)
@@ -280,9 +282,38 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         // update ctxNow=context child value
         context->fileSize = st.fileSize;
 
+        context->fileMode.perm = fs.statbuf.st_mode;
+        context->fileMode.u_id = fs.statbuf.st_uid;
+        context->fileMode.g_id = fs.statbuf.st_gid;
+        WRITE_LOG(LOG_DEBUG, "permissions: %o u_id = %u, g_id = %u", context->fileMode.perm, context->fileMode.u_id, context->fileMode.g_id);
+
+#if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+        char *con = nullptr;
+        getfilecon(context->localPath.c_str(), &con);
+        if (con != nullptr) {
+            context->fileMode.context = con;
+            WRITE_LOG(LOG_DEBUG, "getfilecon context = %s", con);
+            freecon(con);
+        }
+#endif
         uv_fs_req_cleanup(&fs);
         thisClass->CheckMaster(context);
     } else {  // write
+        if (context->fileModeSync) {
+            FileMode &mode = context->fileMode;
+            uv_fs_t fs = {};
+            WRITE_LOG(LOG_DEBUG, "file mode: %o u_id = %u, g_id = %u", mode.perm, mode.u_id, mode.g_id);
+            uv_fs_chmod(nullptr, &fs, context->localPath.c_str(), mode.perm, nullptr);
+            uv_fs_chown(nullptr, &fs, context->localPath.c_str(), mode.u_id, mode.g_id, nullptr);
+            uv_fs_req_cleanup(&fs);
+
+#if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+            if (!mode.context.empty()) {
+                WRITE_LOG(LOG_DEBUG, "setfilecon from master = %s", mode.context.c_str());
+                setfilecon(context->localPath.c_str(), mode.context.c_str());
+            }
+#endif
+        }
         thisClass->SendToAnother(thisClass->commandBegin, nullptr, 0);
     }
 }
@@ -344,7 +375,7 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
     uv_fs_t req = {};
     uv_dirent_t dent;
 
-    WRITE_LOG(LOG_WARN, "GetSubFiles111 path = %s currentDirname = %s", path.c_str(), currentDirname.c_str());
+    WRITE_LOG(LOG_DEBUG, "GetSubFiles path = %s currentDirname = %s", path.c_str(), currentDirname.c_str());
 
     if (!path.size()) {
         return retNum;
@@ -354,23 +385,169 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         uv_fs_req_cleanup(&req);
         return retNum;
     }
+
+    uv_fs_t fs = {};
+    int ret = uv_fs_stat(nullptr, &fs, path.c_str(), nullptr);
+    if (ret == 0) {
+        FileMode mode;
+        mode.fullName = currentDirname;
+        mode.perm = fs.statbuf.st_mode;
+        mode.u_id = fs.statbuf.st_uid;
+        mode.g_id = fs.statbuf.st_gid;
+
+#if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+        char *con = nullptr;
+        getfilecon(path.c_str(), &con);
+        if (con != nullptr) {
+            mode.context = con;
+            freecon(con);
+        }
+#endif
+        ctxNow.dirMode.push_back(mode);
+        WRITE_LOG(LOG_DEBUG, "dir mode: %o u_id = %u, g_id = %u, context = %s", 
+                  mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+    }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
         // Skip. File
         if (strcmp(dent.name, ".") == 0 || strcmp(dent.name, "..") == 0)
             continue;
         if (!(static_cast<uint32_t>(dent.type) & UV_DIRENT_FILE)) {
-            WRITE_LOG(LOG_WARN, "subdir dent.name fileName = %s", dent.name);
+            WRITE_LOG(LOG_DEBUG, "subdir dent.name fileName = %s", dent.name);
             GetSubFilesRecursively(path + Base::GetPathSep() + dent.name,
                 currentDirname + Base::GetPathSep() + dent.name, out);
             continue;
         }
         string fileName = dent.name;
-        WRITE_LOG(LOG_WARN, "GetSubFile1111s fileName = %s", fileName.c_str());
+        WRITE_LOG(LOG_DEBUG, "GetSubFiles fileName = %s", fileName.c_str());
 
         out->push_back(currentDirname + Base::GetPathSep() + fileName);
     }
     uv_fs_req_cleanup(&req);
     return retNum;
+}
+
+
+bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string &errStr)
+{
+    // If optName show this is directory mode, check localPath and try create each layer
+    WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s", localPath.c_str(), optName.c_str());
+    if ((string::npos == optName.find('/')) && (string::npos == optName.find('\\'))) {
+        WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s,  return", optName.c_str());
+        return true;
+    }
+    ctxNow.isDir = true;
+    uv_fs_t req;
+    int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
+    mode_t mode = req.statbuf.st_mode;
+    uv_fs_req_cleanup(&req);
+
+    if (r) {
+        vector<string> dirsOflocalPath;
+        char sep = Base::GetPathSep();
+        string split(&sep, 0, 1);
+        Base::SplitString(localPath, split, dirsOflocalPath);
+
+        WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu", localPath.c_str(), dirsOflocalPath.size());
+        string makedirPath;
+
+        if (localPath.at(0) != '/') {
+            makedirPath = ".";
+        }
+
+        for (auto dir : dirsOflocalPath) {
+            WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", dir.c_str());
+
+            if (dir == ".") {
+                continue;
+            } else {
+                makedirPath = makedirPath + Base::GetPathSep() + dir;
+                if (!Base::TryCreateDirectory(makedirPath, errStr)) {
+                    return false;
+                }
+            }
+        }
+        // set flag to remove first layer directory of filename from master
+        ctxNow.targetDirNotExist = true;
+    } else if (!(mode & S_IFDIR)) {
+        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
+        errStr = "Not a directory, path:";
+        errStr += localPath.c_str();
+        return false;
+    }
+    return true;
+}
+
+bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &errStr)
+{
+    string localPathBackup = localPath;
+    if (ctxNow.targetDirNotExist) {
+        // If target directory not exist, the first layer directory from master should remove
+        if (string::npos != optName.find('/')) {
+            optName = optName.substr(optName.find('/') + 1);
+        } else if (string::npos != optName.find('\\')) {
+            optName = optName.substr(optName.find('\\') + 1);
+        }
+        WRITE_LOG(LOG_DEBUG, "revise optName = %s", optName.c_str());
+    }
+    vector<string> dirsOfOptName;
+
+    if (string::npos != optName.find('/')) {
+        WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from linux system");
+        Base::SplitString(optName, "/", dirsOfOptName);
+    } else if (string::npos != optName.find('\\')) {
+        WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from windows system");
+        Base::SplitString(optName, "\\", dirsOfOptName);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", optName.c_str());
+        return true;
+    }
+
+    // If filename still include dir, try create each layer
+    optName = dirsOfOptName.back();
+    dirsOfOptName.pop_back();
+
+    for (auto s : dirsOfOptName) {
+        // Add each layer directory to localPath
+        localPath = localPath + Base::GetPathSep() + s;
+        WRITE_LOG(LOG_DEBUG, "CheckFilename try create dir = %s short path = %s", localPath.c_str(), s.c_str());
+
+        if (!Base::TryCreateDirectory(localPath, errStr)) {
+            return false;
+        }
+        if (ctxNow.fileModeSync) {
+            string resolvedPath = Base::CanonicalizeSpecPath(localPath);
+            auto pos = resolvedPath.find(localPathBackup);
+            if (pos == 0) {
+                string shortPath = resolvedPath.substr(localPathBackup.size());
+                if (shortPath.at(0) == Base::GetPathSep()) {
+                    shortPath = shortPath.substr(1);
+                }
+                WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, shortPath.c_str());
+
+                // set mode
+                auto it = ctxNow.dirModeMap.find(shortPath);
+                if (it != ctxNow.dirModeMap.end()) {
+                    auto mode = it->second;
+                    WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u context = %s",
+                        mode.fullName.c_str(), mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+
+                    uv_fs_t fs = {};
+                    uv_fs_chmod(nullptr, &fs, localPath.c_str(), mode.perm, nullptr);
+                    uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.u_id, mode.g_id, nullptr);
+                    uv_fs_req_cleanup(&fs);
+#if (!(defined(HOST_MINGW) || defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+                    if (!mode.context.empty()) {
+                        WRITE_LOG(LOG_DEBUG, "setfilecon from master = %s", mode.context.c_str());
+                        setfilecon(localPath.c_str(), mode.context.c_str());
+                    }
+#endif
+                }
+            }
+        }
+    }
+
+    WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s", localPath.c_str(), optName.c_str());
+    return true;
 }
 
 // https://en.cppreference.com/w/cpp/filesystem/is_directory
@@ -384,51 +561,15 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     }
     mode_t mode = mode_t(~S_IFMT);
     if (Base::CheckDirectoryOrPath(localPath.c_str(), true, false, errStr, mode)) {
-        WRITE_LOG(LOG_INFO, "%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "%s", errStr.c_str());
         return true;
     }
 
-    string filename = optName;
-    bool isDir = false;
-    vector<string> dirs;
-    if (string::npos != filename.find('/')) {
-        WRITE_LOG(LOG_WARN, "dir mode create parent dir from linux system");
-        isDir = true;
-        Base::SplitString(filename, "/", dirs);
-    } else if (string::npos != filename.find('\\')) {
-        WRITE_LOG(LOG_WARN, "dir mode create parent dir from windows system");
-        Base::SplitString(filename, "\\", dirs);
-        isDir = true;
-    }
-
-    if (isDir) {
-        filename = dirs.back();
-        dirs.pop_back();
-        uv_fs_t req;
-
-        string mkdirPath = localPath.c_str();
-        string shortPath;
-        for (auto s : dirs) {
-            mkdirPath = mkdirPath + Base::GetPathSep() + s;
-            shortPath = shortPath + Base::GetPathSep() + s;
-            WRITE_LOG(LOG_INFO, "ready create dir = %s", mkdirPath.c_str());
-            int r = uv_fs_lstat(nullptr, &req, mkdirPath.c_str(), nullptr);
-            if (r < 0) {
-                WRITE_LOG(LOG_INFO, "path not exist create dir = %s", mkdirPath.c_str());
-                r = uv_fs_mkdir(nullptr, &req, mkdirPath.c_str(), DEF_FILE_PERMISSION, nullptr);
-                if (r < 0) {
-                    WRITE_LOG(LOG_WARN, "create dir failed");
-                }
-            }
-        }
-        filename = shortPath + Base::GetPathSep() + filename;
-        WRITE_LOG(LOG_WARN, "filename = %s", filename.c_str());
-    }
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (r == 0 && req.statbuf.st_mode & S_IFDIR) {  // is dir
-        localPath = Base::StringFormat("%s%c%s", localPath.c_str(), Base::GetPathSep(), filename.c_str());
+        localPath = Base::StringFormat("%s%c%s", localPath.c_str(), Base::GetPathSep(), optName);
     }
     return false;
 }

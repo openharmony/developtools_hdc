@@ -376,7 +376,7 @@ int main(int argc, const char *argv[])
     bool cmdOptionResult;
 
     InitServerAddr();
-    cmdOptionResult = GetCommandlineOptions(optArgc, (const char **)optArgv);
+    cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[]((char *)optArgv);
     if (cmdOptionResult) {
         return 0;

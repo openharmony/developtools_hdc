@@ -145,7 +145,7 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
     }
     cfmakeraw(&options);
     options.c_cc[VMIN] = 0;
-    options.c_cc[VTIME] = 10;
+    options.c_cc[VTIME] = 10; // 10 * 1/10 sec : 1 sec
 
     cfsetspeed(&options, B19200);
     options.c_cflag |= GetUartBits(nBits); // Use 8 bit words

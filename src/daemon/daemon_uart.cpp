@@ -49,7 +49,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
         consoleActive = OHOS::TrimStr(consoleActive,'\n');
         WRITE_LOG(LOG_DEBUG, "consoleActive (%d):%s", consoleActive.length(),
                   consoleActive.c_str());
-        if (devPathIn.find(consoleActive.c_str()) != std::string::npos) {
+        if (!consoleActive.empty() and devPathIn.find(consoleActive.c_str()) != std::string::npos) {
             WRITE_LOG(LOG_FATAL,
                       "kernel use this dev(%s) as console , we can't open it as hdc uart dev",
                       devPathIn.c_str());

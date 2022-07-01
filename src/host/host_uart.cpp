@@ -183,13 +183,17 @@ bool HdcHostUART::EnumSerialPort(bool &portChange)
     }
     RegCloseKey(hKey);
 #endif
-#ifdef HOST_LINUX
+#if defined(HOST_LINUX)||defined(HOST_MAC)
     DIR *dir = opendir("/dev");
     dirent *p = NULL;
     while ((p = readdir(dir)) != NULL) {
+#ifdef HOST_LINUX
         if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
+#else
+        if (p->d_name[0] != '.' && string(p->d_name).find("serial") != std::string::npos) {
+#endif
             string port = "/dev/" + string(p->d_name);
-            if (port.find("/dev/ttyUSB") == 0 || port.find("/dev/ttySerial") == 0) {
+            if (port.find("/dev/ttyUSB") == 0 || port.find("/dev/ttySerial") == 0 || port.find("/dev/cu.") == 0) {
                 newPortInfo.push_back(port);
                 auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
                 if (it == serialPortInfo.end()) {
@@ -361,7 +365,7 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
         }
 #endif
 
-#if defined HOST_LINUX
+#if defined(HOST_LINUX)||defined(HOST_MAC)
         string uartName = Base::CanonicalizeSpecPath(portName);
         uart.devUartHandle = open(uartName.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
         if (uart.devUartHandle < 0) {
@@ -567,7 +571,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
 
     HSession hSession = server.MallocSession(true, CONN_SERIAL, this);
     hSession->connectKey = connectKey;
-#if defined(HOST_LINUX)
+#if defined(HOST_LINUX)||defined(HOST_MAC)
     hSession->hUART->devUartHandle = hUART->devUartHandle;
 #elif defined(HOST_MINGW)
     hSession->hUART->devUartHandle = hUART->devUartHandle;

@@ -97,7 +97,7 @@ const string CMDSTR_HILOG = "hilog";
 const string CMDSTR_TMODE_USB = "usb";
 #ifdef HDC_SUPPORT_UART
 const string CMDSTR_TMODE_UART = "uart";
-const string UART_HDC_NODE = "/dev/ttyAMA0";
+const string UART_HDC_NODE = "/dev/ttyS4";
 const string CONSOLE_ACTIVE_NODE = "/sys/class/tty/console/active";
 constexpr int uartIOWaitTime100 = 100;
 constexpr int uartIOWaitTime = 1000;

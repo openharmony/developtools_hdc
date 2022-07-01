@@ -762,7 +762,9 @@ int HdcServer::CreateConnect(const string &connectKey)
         connType = CONN_TCP;
     }
 #ifdef HDC_SUPPORT_UART
-    else if (connectKey.find("COM") == 0 || connectKey.find("/dev/ttyUSB") == 0) { // UART
+    else if (connectKey.find("COM") == 0
+            || connectKey.find("/dev/ttyUSB") == 0
+            || connectKey.find("/dev/cu.") == 0) { // UART
         connType = CONN_SERIAL;
     }
 #endif

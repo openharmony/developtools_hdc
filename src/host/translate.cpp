@@ -120,7 +120,8 @@ namespace TranslateCommand {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_DISCONNECT;
         } else {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_CONNECT;
-            if (outCmd->parameters.size() > 22) {  // 22: tcp max=21,USB max=8bytes
+            constexpr int MAX_KEY_LENGTH = 50; // 50: tcp max=21,USB max=8bytes, serial device name maybe long
+            if (outCmd->parameters.size() > MAX_KEY_LENGTH) {
                 stringError = "Error connect key's size";
                 outCmd->bJumpDo = true;
             }

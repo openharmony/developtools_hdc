@@ -55,7 +55,7 @@ void HdcHostTCP::BroadcastTimer(uv_idle_t *handle)
 }
 
 // Executive Administration Network Broadcast Discovery, broadcastLanIP==which interface to broadcast
-void HdcHostTCP::BroadcatFindDaemon(const char *broadcastLanIP)
+void HdcHostTCP::BroadcastFindDaemon(const char *broadcastLanIP)
 {
     if (broadcastFindWorking) {
         return;
@@ -165,7 +165,7 @@ void HdcHostTCP::FindLanDaemon()
             continue;
         }
         uv_ip6_name(&interface.address.address6, ipAddr, sizeof(ipAddr));
-        BroadcatFindDaemon(ipAddr);
+        BroadcastFindDaemon(ipAddr);
     }
     uv_free_interface_addresses(info, count);
 }

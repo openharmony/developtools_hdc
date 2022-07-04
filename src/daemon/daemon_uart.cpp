@@ -40,7 +40,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
     devPath = devPathIn;
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUART init");
     if (access(devPath.c_str(), F_OK) != 0) {
-        WRITE_LOG(LOG_DEBUG, "uartMod Disable");
+        WRITE_LOG(LOG_DEBUG, "uartMod Disable, path is %s and errno is %d.", devPath.c_str(), errno);
         return -1;
     }
 #ifndef HDC_UT

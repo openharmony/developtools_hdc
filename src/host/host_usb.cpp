@@ -279,7 +279,8 @@ int HdcHostUSB::CheckDescriptor(HUSB hUSB)
     childRet = libusb_get_string_descriptor_ascii(hUSB->devHandle, desc.iSerialNumber, (uint8_t *)serialNum,
                                                   sizeof(serialNum));
     if (childRet < 0) {
-        hUSB->serialNumber = Base::StringFormat("%d-%d", curBus, curDev);
+        WRITE_LOG(LOG_WARN, "CheckDescriptor libusb_get_string_descriptor_ascii failed %d-%d", curBus, curDev);
+        return -1;
     } else {
         hUSB->serialNumber = serialNum;
     }

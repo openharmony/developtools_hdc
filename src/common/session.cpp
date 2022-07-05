@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 #include "session.h"
+#ifndef TEST_HASH
 #include "hdc_hash_gen.h"
+#endif
 #include "serial_struct.h"
 
 namespace Hdc {
@@ -753,21 +755,14 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
     int ret = 0;
     switch (hSession->connType) {
         case CONN_TCP: {
-            WRITE_LOG(LOG_WARN, "CONN_TCP serverOrDaemon:%d", hSession->serverOrDaemon);
             if (echo && !hSession->serverOrDaemon) {
                 ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen,
                                            nullptr, (void *)FinishWriteSessionTCP, bufPtr);
             } else {
                 if (hSession->hWorkThread == uv_thread_self()) {
-
-                    WRITE_LOG(LOG_WARN, "CONN_TCP:%s serverOrDaemon:%d", bufPtr,
-                              hSession->serverOrDaemon);
-                    WRITE_LOG(LOG_WARN, "SendByProtocol %p  size:%lu", hSession->hWorkTCP, bufLen);
                     ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen,
                                                nullptr, (void *)FinishWriteSessionTCP, bufPtr);
                 } else if (hSession->hWorkChildThread == uv_thread_self()) {
-                    WRITE_LOG(LOG_WARN, "CONN_TCP 2:%s serverOrDaemon:%d", bufPtr,
-                              hSession->serverOrDaemon);
                     ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr,
                                                bufLen, nullptr, (void *)FinishWriteSessionTCP,
                                                bufPtr);

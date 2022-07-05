@@ -57,7 +57,8 @@ enum UartSetSerialNSpeed {
     UART_SPEED4800 = 4800,
     UART_SPEED9600 = 9600,
     UART_SPEED115200 = 115200,
-    UART_SPEED921600 = 921600
+    UART_SPEED921600 = 921600,
+    UART_SPEED1500000 = 1500000
 };
 enum UartSetSerialNStop {
     UART_STOP1 = 1,
@@ -91,6 +92,7 @@ enum RetErrCode {
     ERR_BUF_CHECK,
     ERR_BUF_RESET,
     ERR_BUF_COPY,
+    ERR_CHECK_VERSION,
     ERR_FILE_OPEN = -11000,
     ERR_FILE_READ,
     ERR_FILE_WRITE,
@@ -148,6 +150,7 @@ enum HdcCommand {
     CMD_KERNEL_ECHO_RAW,
     CMD_KERNEL_ENABLE_KEEPALIVE,
     CMD_KERNEL_WAKEUP_SLAVETASK,
+    CMD_CHECK_VERSION,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,
@@ -184,6 +187,8 @@ enum HdcCommand {
     CMD_FILE_DATA,
     CMD_FILE_FINISH,
     CMD_APP_SIDELOAD,
+    CMD_FILE_MODE,
+    CMD_DIR_MODE,
     // App commands
     CMD_APP_INIT = 3500,
     CMD_APP_CHECK,
@@ -194,6 +199,17 @@ enum HdcCommand {
 
     // deprecated, remove later
     CMD_UNITY_JPID = CMD_JDWP_LIST,
+
+    // Flashd commands
+    CMD_FLASHD_UPDATE_INIT = 4000,
+    CMD_FLASHD_FLASH_INIT,
+    CMD_FLASHD_CHECK,
+    CMD_FLASHD_BEGIN,
+    CMD_FLASHD_DATA,
+    CMD_FLASHD_FINISH,
+    CMD_FLASHD_ERASE,
+    CMD_FLASHD_FORMAT,
+    CMD_FLASHD_PROGRESS,
 };
 
 enum UsbProtocolOption {
@@ -236,6 +252,8 @@ struct TaskInformation {
     void *taskClass;
     void *ownerSessionClass;
     uint32_t closeRetryCount;
+    bool channelTask;
+    void *channelClass;
 };
 using HTaskInfo = TaskInformation *;
 
@@ -311,7 +329,7 @@ struct HdcUART {
     OVERLAPPED ovRead;
     HANDLE devUartHandle = INVALID_HANDLE_VALUE;
 #else
-    // we also make this for deamon side
+    // we also make this for daemon side
     int devUartHandle = -1;
 #endif
     // if we want to cancel io (read thread exit)
@@ -319,7 +337,7 @@ struct HdcUART {
     uint32_t dispatchedPackageIndex = 0;
     bool resetIO = false; // if true, must break write and read,default false
     uint64_t packageIndex = 0;
-    std::atomic_size_t streamSize = 0; // fro debug only
+    std::atomic_size_t streamSize = 0; // for debug only
     HdcUART();
     ~HdcUART();
 };

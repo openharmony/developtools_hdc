@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <iostream>
+
 #include "server.h"
 #include "server_for_client.h"
 
@@ -44,6 +47,7 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_SOFTWARE_HELP);
     registerCommand.push_back(CMDSTR_TARGET_DISCOVER);
     registerCommand.push_back(CMDSTR_LIST_TARGETS);
+    registerCommand.push_back(CMDSTR_CHECK_VERSION);
     registerCommand.push_back(CMDSTR_CONNECT_ANY);
     registerCommand.push_back(CMDSTR_CONNECT_TARGET);
     registerCommand.push_back(CMDSTR_SHELL);
@@ -67,6 +71,10 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_TARGET_REBOOT);
     registerCommand.push_back(CMDSTR_LIST_JDWP);
     registerCommand.push_back(CMDSTR_TRACK_JDWP);
+    registerCommand.push_back(CMDSTR_FLASHD_UPDATE);
+    registerCommand.push_back(CMDSTR_FLASHD_FLASH);
+    registerCommand.push_back(CMDSTR_FLASHD_ERASE);
+    registerCommand.push_back(CMDSTR_FLASHD_FORMAT);
 
     for (string v : registerCommand) {
         if (doubleCommand == v) {
@@ -87,15 +95,27 @@ void AppendCwdWhenTransfer(string &outCommand)
         && outCommand != CMDSTR_APP_SIDELOAD) {
         return;
     }
+    int value = -1;
     char path[PATH_MAX] = "";
     size_t size = sizeof(path);
-    if (uv_cwd(path, &size) < 0)
+    value = uv_cwd(path, &size);
+    if (value < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r(value, buf, bufSize);
+        WRITE_LOG(LOG_FATAL, "append cwd path failed: %s", buf);
         return;
+    }
+    if (strlen(path) >= PATH_MAX - 1) {
+        WRITE_LOG(LOG_FATAL, "append cwd path failed: buffer space max");
+        return;
+    }
     if (path[strlen(path) - 1] != Base::GetPathSep()) {
         path[strlen(path)] = Base::GetPathSep();
     }
     outCommand += outCommand.size() ? " -cwd " : "-cwd ";
-    outCommand += Base::UnicodeToUtf8(path, true);
+    string utf8Path = Base::UnicodeToUtf8(path, true);
+    outCommand += Base::StringFormat("\"%s\"", utf8Path.c_str());
 }
 
 int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string &outCommand)
@@ -122,7 +142,11 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
             outCommand += rawCmd.find(" ") == string::npos ? rawCmd : packageCmd;
         } else {
             outOption += outOption.size() ? " " : "";
-            outOption += argv[i];
+            if (i == 0) {
+                outOption += Base::StringFormat("\"%s\"", argv[i]);
+            } else {
+                outOption += argv[i];
+            }
         }
     }
     return 0;
@@ -162,10 +186,10 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
 {
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
-    HdcClient client(false, serverListenString, &loopMain);
+    HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_VERSION);
     if (!commands.size()) {
         Base::PrintMessage("Unknown operation command...");
-        TranslateCommand::Usage();
+        std::cerr << TranslateCommand::Usage();
         return 0;
     }
     if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())
@@ -352,7 +376,7 @@ int main(int argc, const char *argv[])
     bool cmdOptionResult;
 
     InitServerAddr();
-    cmdOptionResult = GetCommandlineOptions(optArgc, (const char **)optArgv);
+    cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[]((char *)optArgv);
     if (cmdOptionResult) {
         return 0;

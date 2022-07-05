@@ -18,7 +18,7 @@
 #include "common.h"
 
 namespace Hdc {
-enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP };
+enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_FLASHD };
 
 class HdcSessionBase {
 public:
@@ -30,6 +30,7 @@ public:
         uint32_t sessionId;
         string connectKey;
         string buf;
+        string version;
         std::string ToDebugString()
         {
             std::ostringstream oss;
@@ -38,6 +39,7 @@ public:
             oss << " sessionId:" << sessionId;
             oss << " authType:" << unsigned(authType);
             oss << " connectKey:" << connectKey;
+            oss << " version:" << version;
             oss << "]";
             return oss.str();
         }

@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef HDC_SUPPORT_UART
+
 #include "host_uart.h"
 
 #include <mutex>
@@ -180,13 +183,17 @@ bool HdcHostUART::EnumSerialPort(bool &portChange)
     }
     RegCloseKey(hKey);
 #endif
-#ifdef HOST_LINUX
+#if defined(HOST_LINUX)||defined(HOST_MAC)
     DIR *dir = opendir("/dev");
     dirent *p = NULL;
     while ((p = readdir(dir)) != NULL) {
+#ifdef HOST_LINUX
         if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
+#else
+        if (p->d_name[0] != '.' && string(p->d_name).find("serial") != std::string::npos) {
+#endif
             string port = "/dev/" + string(p->d_name);
-            if (port.find("/dev/ttyUSB") == 0 || port.find("/dev/ttySerial") == 0) {
+            if (port.find("/dev/ttyUSB") == 0 || port.find("/dev/ttySerial") == 0 || port.find("/dev/cu.") == 0) {
                 newPortInfo.push_back(port);
                 auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
                 if (it == serialPortInfo.end()) {
@@ -232,7 +239,7 @@ std::string WstringToString(const std::wstring &wstr)
     return ret;
 }
 
-// review reanme for same func from linux
+// review rename for same func from linux
 int HdcHostUART::WinSetSerial(HUART hUART, string serialPort, int byteSize, int eqBaudRate)
 {
     int winRet = RET_SUCCESS;
@@ -323,7 +330,7 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
     }
 
     if (!GetPortFromKey(connectKey, portName, baudRate)) {
-        WRITE_LOG(LOG_ALL, "%s unknow format %s", __FUNCTION__, connectKey.c_str());
+        WRITE_LOG(LOG_ALL, "%s unknown format %s", __FUNCTION__, connectKey.c_str());
         return -1;
     }
     do {
@@ -336,9 +343,9 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
         // review change to wstring ?
         TCHAR apiBuf[PORT_NAME_LEN * numTmp];
 #ifdef UNICODE
-        _stprintf_s(apiBuf, MAX_PATH, _T("%S"), port.c_str());
+        _stprintf_s(apiBuf, MAX_PATH, _T("\\\\.\\%S"), port.c_str());
 #else
-        _stprintf_s(apiBuf, MAX_PATH, _T("%s"), portName.c_str());
+        _stprintf_s(apiBuf, MAX_PATH, _T("\\\\.\\%s"), portName.c_str());
 #endif
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED;
         uart.devUartHandle = CreateFile(apiBuf, GENERIC_READ | GENERIC_WRITE, 0, NULL,
@@ -358,14 +365,14 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
         }
 #endif
 
-#if defined HOST_LINUX
+#if defined(HOST_LINUX)||defined(HOST_MAC)
         string uartName = Base::CanonicalizeSpecPath(portName);
         uart.devUartHandle = open(uartName.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
         if (uart.devUartHandle < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             strerror_r(errno, buf, bufSize);
-            WRITE_LOG(LOG_WARN, "Linux open serial port faild,serialPort:%s, Message : %s",
+            WRITE_LOG(LOG_WARN, "Linux open serial port failed, serialPort:%s, Message : %s",
                       uart.serialPort.c_str(), buf);
             ret = ERR_GENERIC;
             break;
@@ -564,7 +571,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
 
     HSession hSession = server.MallocSession(true, CONN_SERIAL, this);
     hSession->connectKey = connectKey;
-#if defined(HOST_LINUX)
+#if defined(HOST_LINUX)||defined(HOST_MAC)
     hSession->hUART->devUartHandle = hUART->devUartHandle;
 #elif defined(HOST_MINGW)
     hSession->hUART->devUartHandle = hUART->devUartHandle;
@@ -664,7 +671,7 @@ void HdcHostUART::Restartession(const HSession session)
                   session->hUART->serialPort.c_str());
         CloseSerialPort(session->hUART); // huart will free , so we must clost it here
         server.EchoToClientsForSession(session->sessionId,
-                                       "uart link relased by daemon. need connect again.");
+                                       "uart link released by daemon. need connect again.");
     }
 }
 
@@ -772,3 +779,4 @@ void HdcHostUART::Stop()
     }
 }
 } // namespace Hdc
+#endif // HDC_SUPPORT_UART

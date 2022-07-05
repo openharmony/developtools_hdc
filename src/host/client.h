@@ -19,7 +19,7 @@
 namespace Hdc {
 class HdcClient : public HdcChannelBase {
 public:
-    HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn);
+    HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion = false);
     virtual ~HdcClient();
     int Initial(const string &connectKeyIn);
     int ExecuteCommand(const string &commandIn);
@@ -53,6 +53,8 @@ private:
     uv_timer_t waitTimeDoCmd;
     uv_check_t ctrlServerWork;
     HChannel channel;
+    std::unique_ptr<HdcFile> fileTask;
+    bool isCheckVersionCmd = false;
 };
 }  // namespace Hdc
 #endif

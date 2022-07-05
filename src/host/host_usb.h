@@ -23,7 +23,7 @@ public:
     virtual ~HdcHostUSB();
     int Initial();
     void InitLogging(void *ctxUSB);
-    int SendUSBRaw(HSession hSession, uint8_t *data, const int length);
+    int SendUSBRaw(HSession hSession, uint8_t *data, const int length) override;
     HSession ConnectDetectDaemon(const HSession hSession, const HDaemonInfo pdi);
     void Stop();
     void RemoveIgnoreDevice(string &mountInfo);
@@ -45,15 +45,15 @@ private:
     int OpenDeviceMyNeed(HUSB hUSB);
     int CheckDescriptor(HUSB hUSB);
     bool IsDebuggableDev(const struct libusb_interface_descriptor *ifDescriptor);
-    bool ReadyForWorkThread(HSession hSession);
+    bool ReadyForWorkThread(HSession hSession) override;
     bool FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_context *ctxUSB);
     bool DetectMyNeed(libusb_device *device, string &sn);
     void RestoreHdcProtocol(HUSB hUsb, const uint8_t *buf, int bufSize);
     void UpdateUSBDaemonInfo(HUSB hUSB, HSession hSession, uint8_t connStatus);
     void BeginUsbRead(HSession hSession);
     void ReviewUsbNodeLater(string &nodeKey);
-    void CancelUsbIo(HSession hSession);
-    int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize);
+    void CancelUsbIo(HSession hSession) override;
+    int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     int SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, int bufSize);
 
     libusb_context *ctxUSB;

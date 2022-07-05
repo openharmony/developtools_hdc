@@ -120,7 +120,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         WRITE_LOG(LOG_DEBUG, "HdcChannelBase::ReadStream Pipe IOBuf max");
         return;
     } else if (nread == 0) {
-        // maybe just afer accept, second client req
+        // maybe just after accept, second client req
         WRITE_LOG(LOG_DEBUG, "HdcChannelBase::ReadStream idle read");
         return;
     } else if (nread < 0) {
@@ -256,6 +256,43 @@ void HdcChannelBase::PushAsyncMessage(const uint32_t channelId, const uint8_t me
     lstMainThreadOP.push_back(param);
     uv_rwlock_wrunlock(&mainAsync);
     uv_async_send(&asyncMainLoop);
+}
+
+// add commandflag ahead real buf data
+void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
+{
+    auto data = new uint8_t[size + sizeof(commandFlag)]();
+    if (!data) {
+        return;
+    }
+
+    if (memcpy_s(data, size + sizeof(commandFlag), &commandFlag, sizeof(commandFlag))) {
+        delete[] data;
+        return;
+    }
+
+    if (size > 0 && memcpy_s(data + sizeof(commandFlag), size, bufPtr, size)) {
+        delete[] data;
+        return;
+    }
+
+    SendChannel(hChannel, data, size + sizeof(commandFlag));
+    delete[] data;
+}
+
+void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
+{
+    HChannel hChannel = (HChannel)AdminChannel(OP_QUERY_REF, channelId, nullptr);
+    if (!hChannel) {
+        return;
+    }
+    do {
+        if (hChannel->isDead) {
+            break;
+        }
+        SendChannelWithCmd(hChannel, commandFlag, bufPtr, size);
+    } while (false);
+    --hChannel->ref;
 }
 
 void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size)

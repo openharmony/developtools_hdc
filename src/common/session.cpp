@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "session.h"
+#include "hdc_hash_gen.h"
 #include "serial_struct.h"
 
 namespace Hdc {
@@ -156,7 +157,7 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
 void HdcSessionBase::ClearSessions()
 {
     // no need to lock mapSession
-    // broadcast free singal
+    // broadcast free signal
     for (auto v : mapSession) {
         HSession hSession = (HSession)v.second;
         if (!hSession->isDead) {
@@ -578,7 +579,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     if (hSession->ctrlPipe[STREAM_WORK].loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
         Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
-        WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread fo free. sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
             HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
@@ -1054,6 +1055,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         handshake.banner = HANDSHAKE_MESSAGE;
         handshake.sessionId = hSession->sessionId;
         handshake.connectKey = hSession->connectKey;
+        handshake.version = Base::GetVersion() + HDC_MSG_HASH;
         handshake.authType = AUTH_NONE;
         string hs = SerialStruct::SerializeToString(handshake);
 #ifdef HDC_SUPPORT_UART
@@ -1260,6 +1262,10 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
     masterTask = false;
     switch (command) {
         case CMD_FILE_INIT:
+        case CMD_FLASHD_FLASH_INIT:
+        case CMD_FLASHD_UPDATE_INIT:
+        case CMD_FLASHD_ERASE:
+        case CMD_FLASHD_FORMAT:
         case CMD_FORWARD_INIT:
         case CMD_APP_INIT:
         case CMD_APP_UNINSTALL:
@@ -1307,6 +1313,7 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo->serverOrDaemon = serverOrDaemon;
             hTaskInfo->masterSlave = masterTask;
             hTaskInfo->closeRetryCount = 0;
+            hTaskInfo->channelTask = false;
 
             int addTaskRetry = 3; // try 3 time
             while (addTaskRetry > 0) {

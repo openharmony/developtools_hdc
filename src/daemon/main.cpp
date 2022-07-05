@@ -39,7 +39,7 @@ bool RestartDaemon(bool forkchild)
 
 bool ForkChildCheck(int argc, const char *argv[])
 {
-    // hdcd        #service start forground
+    // hdcd        #service start foreground
     // hdcd -b     #service start backgroundRun
     // hdcd -fork  #fork
     Base::PrintMessage("Background mode, persist.hdc.mode");
@@ -138,7 +138,7 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
 {
     int ch;
     // hdcd -l4 ...
-    WRITE_LOG(LOG_DEBUG, "Forground cli-mode");
+    WRITE_LOG(LOG_DEBUG, "Foreground cli-mode");
     // Both settings are running with parameters
     while ((ch = getopt(argc, (char *const *)argv, "utl:")) != -1) {
         switch (ch) {
@@ -289,10 +289,13 @@ int main(int argc, const char *argv[])
     if (g_backgroundRun) {
         return BackgroundRun();
     }
+
+#ifdef HARMONY_PROJECT
     if (!NeedDropRootPrivileges()) {
         Base::PrintMessage("DropRootPrivileges fail, EXITING...\n");
         return -1;
     }
+#endif
 
     umask(0);
     signal(SIGPIPE, SIG_IGN);
@@ -316,7 +319,7 @@ int main(int argc, const char *argv[])
         RestartDaemon(false);
     }
 #ifdef HDC_SUPPORT_UART
-    // when no usb insert , device will hung here , we don't konw why.
+    // when no usb insert , device will hung here , we don't know why.
     // Test the command "smode -r" in uart mode, then execute shell
     // hdcd will not really exit until usb plug in
     // so we use abort here

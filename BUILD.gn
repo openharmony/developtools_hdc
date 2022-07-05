@@ -15,6 +15,8 @@ import("//build/ohos.gni")
 HDC_PATH = "//developtools/hdc"
 import("//developtools/hdc/hdc.gni")
 
+py_out_dir = "$root_out_dir/gen/" + rebase_path(".", "//")
+
 declare_args() {
   # suggestion: uv threads number from 16 - 256
   hdcd_uv_thread_size = 16
@@ -36,11 +38,23 @@ hdc_common_sources = [
   "${HDC_PATH}/src/common/transfer.cpp",
   "${HDC_PATH}/src/common/usb.cpp",
 ]
+
+hash_sources = [
+  "${HDC_PATH}/scripts/hdc_hash_gen.py",
+  "${HDC_PATH}/src/common/base.cpp",
+  "${HDC_PATH}/src/common/channel.h",
+  "${HDC_PATH}/src/common/session.h",
+  "${HDC_PATH}/src/common/transfer.h",
+]
+
 if (hdc_support_uart) {
   hdc_common_sources += [ "${HDC_PATH}/src/common/uart.cpp" ]
 }
 config("hdc_config") {
-  include_dirs = [ "${HDC_PATH}/src/common" ]
+  include_dirs = [
+    "${HDC_PATH}/src/common",
+    "${py_out_dir}",
+  ]
   cflags_cc = [ "-std=c++17" ]
   if (is_mingw) {
     cflags_cc += [ "-Wno-inconsistent-dllimport" ]  # in mingw some sec api will
@@ -89,15 +103,14 @@ ohos_executable("hdcd") {
     "//utils/native/base:utilsbase",
   ]
 
+  deps += [ ":hdc_hash_gen" ]
+
   if (hdc_jdwp_test) {
     defines += [ "SIMULATE_JDWP" ]
     deps += [ "${HDC_PATH}/src/test/jdwp:jdwp_test" ]
   }
 
-  external_deps = [
-    "init:libbegetutil",
-    "startup_l2:syspara",
-  ]
+  external_deps = [ "init:libbegetutil" ]
 
   include_dirs = [
     "${HDC_PATH}/daemon",
@@ -106,6 +119,17 @@ ohos_executable("hdcd") {
     "//third_party/openssl/include",
     "//third_party/libuv",
   ]
+
+  if (build_selinux) {
+    deps += [ "//third_party/selinux:libselinux" ]
+    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    defines += [ "SURPPORT_SELINUX" ]
+  }
+
+  if (hdc_version_check) {
+    defines += [ "HDC_VERSION_CHECK" ]
+  }
+
   install_images = [
     "system",
     "updater",
@@ -141,6 +165,7 @@ ohos_executable("hdc_std") {
     "src/host/host_forward.cpp",
     "src/host/host_tcp.cpp",
     "src/host/host_unity.cpp",
+    "src/host/host_updater.cpp",
     "src/host/host_usb.cpp",
     "src/host/main.cpp",
     "src/host/server.cpp",
@@ -161,6 +186,8 @@ ohos_executable("hdc_std") {
     "//third_party/openssl:libcrypto_static",
   ]
 
+  deps += [ ":hdc_hash_gen" ]
+
   include_dirs = [
     "${HDC_PATH}/daemon",
     "//third_party/bounds_checking_function/include",
@@ -168,6 +195,16 @@ ohos_executable("hdc_std") {
     "//third_party/openssl/include",
     "//third_party/libuv",
   ]
+
+  if (!(is_mingw || is_mac) && build_selinux) {
+    deps += [ "//third_party/selinux:libselinux" ]
+    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    defines += [ "SURPPORT_SELINUX" ]
+  }
+
+  if (hdc_version_check) {
+    defines += [ "HDC_VERSION_CHECK" ]
+  }
 
   if (is_mingw) {
     static_link = false
@@ -214,4 +251,19 @@ group("hdc_target_all") {
 group("hdc_all") {
   testonly = true
   deps = [ ":hdc_target_all" ]
+}
+
+action("hdc_hash_gen") {
+  script = "${HDC_PATH}/scripts/hdc_hash_gen.py"
+  sources = hash_sources
+  outputs = [ "$py_out_dir" ]
+  args = [
+    "-f",
+    "hdc_hash_gen.h",
+    "-i",
+    rebase_path(".", root_build_dir),
+    "-o",
+    "../.." + "$py_out_dir" + "/",
+  ]
+  public_configs = [ ":hdc_config" ]
 }

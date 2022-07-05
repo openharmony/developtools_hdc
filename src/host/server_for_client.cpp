@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "server_for_client.h"
+#include "hdc_hash_gen.h"
 #include "server.h"
 
 namespace Hdc {
@@ -67,6 +68,12 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     struct ChannelHandShake handShake = {};
     if (EOK == strcpy_s(handShake.banner, sizeof(handShake.banner), HANDSHAKE_MESSAGE.c_str())) {
         handShake.channelId = htonl(hChannel->channelId);
+        string ver = Base::GetVersion() + HDC_MSG_HASH;
+        WRITE_LOG(LOG_DEBUG, "Server ver:%s", ver.c_str());
+        if (EOK != strcpy_s(handShake.version, sizeof(handShake.version), ver.c_str())) {
+            WRITE_LOG(LOG_FATAL, "strcpy_s failed");
+            return;
+        }
         thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, sizeof(struct ChannelHandShake));
     }
 }
@@ -117,12 +124,19 @@ void HdcServerForClient::EchoClient(HChannel hChannel, MessageLevel level, const
     if (log.back() != '\n') {
         log += "\r\n";
     }
-    SendChannel(hChannel, (uint8_t *)log.c_str(), log.size());
+    SendChannelWithCmd(hChannel, 0, (uint8_t *)log.c_str(), log.size());
 }
 
 void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload, const int payloadSize)
 {
-    SendChannel(hChannel, payload, payloadSize);
+    SendChannelWithCmd(hChannel, 0, payload, payloadSize);
+}
+
+// HdcServerForClient passthrough file command to client
+void HdcServerForClient::SendToClient(const HChannel hChannel, const uint16_t commandFlag,
+                                      uint8_t *payload, const int payloadSize)
+{
+    SendChannelWithCmd(hChannel, commandFlag, payload, payloadSize);
 }
 
 bool HdcServerForClient::SendToDaemon(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int bufSize)
@@ -329,13 +343,17 @@ bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterS
         vector<string> filterStrings;
         Base::SplitString(echo, string("\n"), filterStrings);
         for (auto &&s : filterStrings) {
-            if (!CommandRemoveForward(s.c_str())) {
-                EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed,ruler:%s", s.c_str());
+            if (CommandRemoveForward(s.c_str())) {
+                EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", s.c_str());
+            } else {
+                EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler is not exist %s", s.c_str());
             }
         }
     } else {  // remove single
-        if (!CommandRemoveForward(parameterString)) {
-            EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed,ruler:%s", parameterString);
+        if (CommandRemoveForward(parameterString)) {
+            EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", parameterString);
+        } else {
+            EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler is not exist %s", parameterString);
         }
     }
     return true;
@@ -356,6 +374,12 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         }
         case CMD_KERNEL_TARGET_LIST: {
             GetTargetList(hChannel, formatCommandInput);
+            ret = false;
+            break;
+        }
+        case CMD_CHECK_VERSION: {
+            WRITE_LOG(LOG_DEBUG, "CMD_CHECK_VERSION command");
+            ReportServerVersion(hChannel);
             ret = false;
             break;
         }
@@ -436,6 +460,12 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
     } else if (CMD_APP_SIDELOAD == formatCommand->cmdFlag) {
         cmdFlag = "sideload ";
         sizeCmdFlag = 9;
+    } else if (CMD_FLASHD_UPDATE_INIT == formatCommand->cmdFlag) {
+        cmdFlag = "update ";
+        sizeCmdFlag = 7; // 7: cmdFlag update size
+    } else if (CMD_FLASHD_FLASH_INIT == formatCommand->cmdFlag) {
+        cmdFlag = "flash ";
+        sizeCmdFlag = 6; // 6: cmdFlag flash size
     }
     uint8_t *payload = reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag;
     if (!strncmp(formatCommand->parameters.c_str(), cmdFlag.c_str(), sizeCmdFlag)) {  // local do
@@ -443,9 +473,16 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         if (!hSession) {
             return false;
         }
+        if (CMD_FILE_INIT == formatCommand->cmdFlag) {
+            // file send from client mode, CMD_FILE_INIT command send back to client
+            WRITE_LOG(LOG_INFO, "file send from client mode, CMD_FILE_INIT command send back to client");
+            SendChannelWithCmd(hChannel, CMD_FILE_INIT, payload, sizeSend - sizeCmdFlag);
+            return false;
+        }
         ptrServer->DispatchTaskData(hSession, hChannel->channelId, formatCommand->cmdFlag, payload,
                                     sizeSend - sizeCmdFlag);
     } else {  // Send to Daemon-side to do
+        WRITE_LOG(LOG_INFO, "TaskCommand recv cmd send to daemon");
         SendToDaemon(hChannel, formatCommand->cmdFlag, payload, sizeSend - sizeCmdFlag);
     }
     return true;
@@ -486,7 +523,11 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         case CMD_APP_INIT:
         case CMD_APP_UNINSTALL:
         case CMD_UNITY_BUGREPORT_INIT:
-        case CMD_APP_SIDELOAD: {
+        case CMD_APP_SIDELOAD:
+        case CMD_FLASHD_UPDATE_INIT:
+        case CMD_FLASHD_FLASH_INIT:
+        case CMD_FLASHD_ERASE:
+        case CMD_FLASHD_FORMAT: {
             TaskCommand(hChannel, formatCommandInput);
             ret = true;
             break;
@@ -503,7 +544,8 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
 bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput)
 {
     bool ret = false;
-    if (!hChannel->hChildWorkTCP.loop) {
+    TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
+    if (!hChannel->hChildWorkTCP.loop || formatCommand->cmdFlag == CMD_FORWARD_REMOVE) {
         // Main thread command, direct Listen main thread
         ret = DoCommandLocal(hChannel, formatCommandInput);
     } else {  // CONNECT DAEMON's work thread command, non-primary thread
@@ -619,6 +661,12 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     return 0;
 }
 
+void HdcServerForClient::ReportServerVersion(HChannel hChannel)
+{
+    string version = Base::GetVersion();
+    SendChannelWithCmd(hChannel, CMD_CHECK_VERSION, (uint8_t *)version.c_str(), version.size());
+}
+
 // Here is Server to get data, the source is the SERVER's ChildWork to send data
 int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
@@ -626,24 +674,36 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
+
+    uint16_t command = *reinterpret_cast<uint16_t *>(bufPtr);
+    if (command != 0) {
+        // server directly passthrough file command to daemon
+        if (!SendToDaemon(hChannel, command, bufPtr + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+            WRITE_LOG(LOG_FATAL, "Client ReadChannel : direct send to daemon failed");
+        }
+        return ret;
+    }
     struct TranslateCommand::FormatCommand formatCommand = { 0 };
     if (!hChannel->interactiveShellMode) {
-        string retEcho = String2FormatCommand((char *)bufPtr, bytesIO, &formatCommand);
+        string retEcho = String2FormatCommand((char *)bufPtr + sizeof(uint16_t), bytesIO - sizeof(uint16_t),
+                                              &formatCommand);
         if (retEcho.length()) {
-            if (!strcmp((char *)bufPtr, CMDSTR_SOFTWARE_HELP.c_str())
-                || !strcmp((char *)bufPtr, CMDSTR_SOFTWARE_VERSION.c_str())) {
+            if (!strcmp((char *)bufPtr + sizeof(uint16_t), CMDSTR_SOFTWARE_HELP.c_str())
+                || !strcmp((char *)bufPtr + sizeof(uint16_t), CMDSTR_SOFTWARE_VERSION.c_str())
+                || !strcmp((char *)bufPtr + sizeof(uint16_t), "flash")) {
                 EchoClient(hChannel, MSG_OK, retEcho.c_str());
             } else {
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());
             }
         }
-        WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr);
+        WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr + sizeof(uint16_t));
         if (formatCommand.bJumpDo) {
             ret = -10;
             return ret;
         }
     } else {
-        formatCommand.parameters = string(reinterpret_cast<char *>(bufPtr), bytesIO);
+        formatCommand.parameters = string(reinterpret_cast<char *>(bufPtr + sizeof(uint16_t)),
+                                          bytesIO - sizeof(uint16_t));
         formatCommand.cmdFlag = CMD_SHELL_DATA;
     }
 

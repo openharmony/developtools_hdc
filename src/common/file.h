@@ -22,18 +22,19 @@ class HdcFile : public HdcTransferBase {
 public:
     HdcFile(HTaskInfo hTaskInfo);
     virtual ~HdcFile();
-    void StopTask();
-    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
+    void StopTask() override;
+    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
 
 protected:
 private:
     void TransferNext(CtxFile *context);
     bool SlaveCheck(uint8_t *payload, const int payloadSize);
-    void CheckMaster(CtxFile *context);
-    void WhenTransferFinish(CtxFile *context);
+    void CheckMaster(CtxFile *context) override;
+    void WhenTransferFinish(CtxFile *context) override;
     bool BeginTransfer(CtxFile *context, const string &command);
     void TransferSummary(CtxFile *context);
     bool SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv);
+    bool FileModeSync(const uint16_t cmd, uint8_t *payload, const int payloadSize);
 };
 }  // namespace Hdc
 

@@ -18,7 +18,7 @@ This file is used to support compatibility between platforms, differences betwee
 compilation platforms
 
 defined HARMONY_PROJECT
-With openharmony toolchains suport. If not defined, it should be [device]buildroot or [PC]msys64(...)/ubuntu-apt(...)
+With openharmony toolchains support. If not defined, it should be [device]buildroot or [PC]msys64(...)/ubuntu-apt(...)
 envirments
 ############
 */

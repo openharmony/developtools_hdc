@@ -12,7 +12,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef HDC_SUPPORT_UART
+
 #include "uart.h"
+#ifdef HOST_MAC
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <IOKit/serial/ioss.h>
+#define B1500000 1500000
+#define B921600 921600
+#endif
 
 using namespace std::chrono;
 namespace Hdc {
@@ -96,6 +106,8 @@ int HdcUARTBase::GetUartSpeed(int speed)
         case UART_SPEED921600:
             return (B921600);
             break;
+        case UART_SPEED1500000:
+            return (B1500000);
         default:
             return (B921600);
             break;
@@ -115,7 +127,45 @@ int HdcUARTBase::GetUartBits(int bits)
             break;
     }
 }
+#if defined(HOST_MAC)
+int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
+{
+    WRITE_LOG(LOG_DEBUG, "mac SetSerial rate = %d", nSpeed);
+    struct termios options, oldttys1;
+    if (tcgetattr(fd, &oldttys1) != 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        strerror_r(errno, buf, bufSize);
+        WRITE_LOG(LOG_DEBUG, "tcgetattr failed with %s\n", buf);
+        return ERR_GENERIC;
+    }
 
+    if (memcpy_s(&options, sizeof(options), &oldttys1, sizeof(options)) != EOK) {
+        return ERR_GENERIC;
+    }
+    cfmakeraw(&options);
+    options.c_cc[VMIN] = 0;
+    options.c_cc[VTIME] = 10; // 10 * 1/10 sec : 1 sec
+
+    cfsetspeed(&options, B19200);
+    options.c_cflag |= GetUartBits(nBits); // Use 8 bit words
+    options.c_cflag &= ~PARENB;
+
+    speed_t speed = nSpeed;
+    if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
+        WRITE_LOG(LOG_DEBUG, "set speed errno %d", errno);
+    }
+    if ((tcsetattr(fd, TCSANOW, &options)) != 0) {
+        WRITE_LOG(LOG_DEBUG, "com set error errno = %d", errno);
+        return ERR_GENERIC;
+    }
+    if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
+        WRITE_LOG(LOG_DEBUG, "set speed errno %d", errno);
+    }
+    WRITE_LOG(LOG_DEBUG, " SetSerial OK rate = %d", nSpeed);
+    return RET_SUCCESS;
+}
+#else
 int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
     struct termios newttys1, oldttys1;
@@ -133,7 +183,7 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
     newttys1.c_lflag &= ~ICANON;
     newttys1.c_cflag |= GetUartBits(nBits);
     switch (nEvent) {
-        case '0':
+        case 'O':
             newttys1.c_cflag |= PARENB;
             newttys1.c_iflag |= (INPCK | ISTRIP);
             newttys1.c_cflag |= PARODD;
@@ -161,12 +211,13 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
         return ERR_GENERIC;
     }
     if ((tcsetattr(fd, TCSANOW, &newttys1)) != 0) {
-        WRITE_LOG(LOG_DEBUG, " com set error");
+        WRITE_LOG(LOG_DEBUG, "com set error errno = %d", errno);
         return ERR_GENERIC;
     }
-    WRITE_LOG(LOG_DEBUG, " SetSerial OK");
+    WRITE_LOG(LOG_DEBUG, " SetSerial OK rate = %d", nSpeed);
     return RET_SUCCESS;
 }
+#endif
 #endif // _WIN32
 
 ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedSize, HdcUART &uart)
@@ -224,11 +275,15 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
         FD_ZERO(&readFds);
         FD_SET(uart.devUartHandle, &readFds);
         const constexpr int msTous = 1000;
+        const constexpr int sTous = 1000 * msTous;
         struct timeval tv;
         tv.tv_sec = 0;
 
         if (expectedSize == 0) {
             tv.tv_usec = WaitResponseTimeOutMs * msTous;
+            tv.tv_sec = tv.tv_usec / sTous;
+            tv.tv_usec = tv.tv_usec % sTous;
+            WRITE_LOG(LOG_DEBUG, "time  =  %d %d", tv.tv_sec, tv.tv_sec);
 #ifdef HDC_HOST
             // only host side need this
             // in this caes
@@ -241,6 +296,8 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
         } else {
             // when we have expect size , we need timeout for link data drop issue
             tv.tv_usec = ReadGiveUpTimeOutTimeMs * msTous;
+            tv.tv_sec = tv.tv_usec / sTous;
+            tv.tv_usec = tv.tv_usec % sTous;
             ret = select(uart.devUartHandle + 1, &readFds, nullptr, nullptr, &tv);
         }
         if (ret == 0 and expectedSize == 0) {
@@ -403,7 +460,7 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
                       __FUNCTION__, packetSize);
         } else {
             // at least we got one package
-            // if the size of packge have all received ?
+            // if the size of package have all received ?
             if (data.size() >= packetSize) {
                 // send the data to logic level (link to logic)
                 if (hSession == nullptr) {
@@ -415,10 +472,10 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
 #endif
                 }
                 if (hSession == nullptr) {
-                    WRITE_LOG(LOG_WARN, "%s have not found seesion (%u). skip it", __FUNCTION__, sessionId);
+                    WRITE_LOG(LOG_WARN, "%s have not found session (%u). skip it", __FUNCTION__, sessionId);
                 } else {
                     if (hSession->hUART->dispatchedPackageIndex == packageIndex) {
-                        // we need check if the duplication pacakge we have already send
+                        // we need check if the duplication package we have already send
                         WRITE_LOG(LOG_WARN, "%s dup package %u, skip send to session logic",
                                   __FUNCTION__, packageIndex);
                     } else {
@@ -432,7 +489,7 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
                             // send to logic failed.
                             // this kind of issue unable handle in link layer
                             WRITE_LOG(LOG_FATAL,
-                                      "%s DispatchToWorkThread fail %d. requeset free session in "
+                                      "%s DispatchToWorkThread fail %d. request free session in "
                                       "other side",
                                       __FUNCTION__, ret);
                             ResponseUartTrans(hSession->sessionId, ++hSession->hUART->packageIndex,
@@ -467,7 +524,7 @@ bool HdcUARTBase::SendUARTRaw(HSession hSession, uint8_t *data, const size_t len
     deamonUart.devUartHandle = uartHandle;
     if (uartHeader->IsResponsePackage()) {
         // for the response package and in daemon side,
-        // we dont need seesion info
+        // we dont need session info
         ssize_t sendBytes = WriteUartDev(data, length, deamonUart);
         return sendBytes > 0;
     }
@@ -689,7 +746,7 @@ void HdcUARTBase::SendPkgInUARTOutMap()
                 transfer.Sent(); // something is sendout, transfer will timeout for next wait.
             }
         } else if (it->pkgStatus == PKG_WAIT_RESPONSE) {
-            // we found a pkg wiat for response
+            // we found a pkg wait for response
             auto elapsedTime = duration_cast<milliseconds>(steady_clock::now() - it->sendTimePoint);
             WRITE_LOG(LOG_DEBUG, "UartPackageManager: pkg:%s is wait ACK. elapsedTime %lld",
                       it->ToDebugString().c_str(), (long long)elapsedTime.count());
@@ -707,7 +764,7 @@ void HdcUARTBase::SendPkgInUARTOutMap()
                     // the response it timeout and retry counx is 0
                     // the link maybe not stable
                     // let's free this session
-                    WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the seesion %u",
+                    WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the session %u",
                               it->sessionId);
                     OnTransferError(GetSession(it->sessionId));
                     // dont reschedule here
@@ -897,7 +954,7 @@ void HdcUARTBase::ReadDataFromUARTStream(uv_stream_t *stream, ssize_t nread, con
     }
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
         WRITE_LOG(LOG_FATAL, "%s FetchIOBuf failed , free the other side session", __FUNCTION__);
-        // seesion side said the dont understand this seesion data
+        // session side said the dont understand this session data
         // so we also need tell other side to free it session.
         hUARTBase->ResponseUartTrans(hSession->sessionId, ++hSession->hUART->packageIndex,
                                      PKG_OPTION_FREE);
@@ -987,3 +1044,4 @@ HdcUART::~HdcUART()
 #endif
 }
 } // namespace Hdc
+#endif // HDC_SUPPORT_UART

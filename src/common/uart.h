@@ -32,9 +32,9 @@ namespace Hdc {
 enum UartProtocolOption {
     PKG_OPTION_TAIL = 1,  // makr is the last packget, can be send to session.
     PKG_OPTION_RESET = 2, // host request reset session in daemon
-    PKG_OPTION_ACK = 4,   // reponse the pkg is received
-    PKG_OPTION_NAK = 8,   // requeset resend pkg again
-    PKG_OPTION_FREE = 16, // request free this session, some unable recovery error happend
+    PKG_OPTION_ACK = 4,   // response the pkg is received
+    PKG_OPTION_NAK = 8,   // request resend pkg again
+    PKG_OPTION_FREE = 16, // request free this session, some unable recovery error happened
 };
 
 static_assert(MAX_UART_SIZE_IOBUF != 0);
@@ -167,7 +167,7 @@ public:
     virtual void StopSession(HSession hSession);
 
 protected:
-    static constexpr uint32_t DEFAULT_BAUD_RATE_VALUE = 921600;
+    static constexpr uint32_t DEFAULT_BAUD_RATE_VALUE = 1500000;
 
     bool stopped = false; // stop only can be call one times
 
@@ -217,7 +217,7 @@ protected:
 
         Return:
         ssize_t         >   0 how many bytes read after this function called
-                        ==  0 nothing read , timeout happend(expectedSize > 0)
+                        ==  0 nothing read , timeout happened(expectedSize > 0)
                         <   0 means devices error
     */
 
@@ -276,7 +276,7 @@ private:
         std::string key;
         uint32_t sessionId = 0; // like group , sometimes we will delete by this filter
         bool response;          // PKG for response
-        bool ack;               // UartResponseCode for this packge
+        bool ack;               // UartResponseCode for this package
         uint8_t pkgStatus;
         vector<uint8_t> msgSendBuf;
         size_t retryChance = 4; // how many time need retry

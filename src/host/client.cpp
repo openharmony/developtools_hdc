@@ -13,10 +13,14 @@
  * limitations under the License.
  */
 #include "client.h"
+#include "hdc_hash_gen.h"
+#include "host_updater.h"
 #include "server.h"
+#include "file.h"
 
 namespace Hdc {
-HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn)
+bool terminalStateChange = false;
+HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
     MallocChannel(&channel);  // free by logic
@@ -24,10 +28,16 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
 #ifndef _WIN32
     Base::ZeroStruct(terminalState);
 #endif
+    isCheckVersionCmd = checkVersion;
 }
 
 HdcClient::~HdcClient()
 {
+#ifndef _WIN32
+    if (terminalStateChange) {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalState);
+    }
+#endif
     Base::TryCloseLoop(loopMain, "ExecuteCommand finish");
 }
 
@@ -138,6 +148,7 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_HELP);
     vecNoConnectKeyCommand.push_back(CMDSTR_TARGET_DISCOVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
+    vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_VERSION);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
     vecNoConnectKeyCommand.push_back(CMDSTR_KILL_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " ls");
@@ -222,8 +233,32 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     }
     uv_timer_stop(handle);
     WRITE_LOG(LOG_DEBUG, "Connect server successful");
-    thisClass->Send(thisClass->channel->channelId, (uint8_t *)thisClass->command.c_str(),
-                    thisClass->command.size() + 1);
+    bool closeInput = false;
+    if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
+        uv_timer_stop(handle);
+        uv_stop(thisClass->loopMain);
+        WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        return;
+    }
+    while (closeInput) {
+#ifndef _WIN32
+        if (tcgetattr(STDIN_FILENO, &thisClass->terminalState)) {
+            break;
+        }
+        termios tio;
+        if (tcgetattr(STDIN_FILENO, &tio)) {
+            break;
+        }
+        cfmakeraw(&tio);
+        tio.c_cc[VTIME] = 0;
+        tio.c_cc[VMIN] = 1;
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &tio);
+        terminalStateChange = true;
+#endif
+        break;
+    }
+    thisClass->SendWithCmd(thisClass->channel->channelId, 0, (uint8_t *)thisClass->command.c_str(),
+                           thisClass->command.size() + 1);
 }
 
 void HdcClient::AllocStdbuf(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
@@ -245,7 +280,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     if (nread <= 0) {
         return;  // error
     }
-    thisClass->Send(hChannel->channelId, (uint8_t *)command, strlen(command));
+    thisClass->SendWithCmd(hChannel->channelId, 0, (uint8_t *)command, strlen(command));
     Base::ZeroArray(hChannel->bufStd);
 }
 
@@ -335,12 +370,28 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
         return ERR_BUF_COPY;
     }
+
+    // add check version
+    if (!isCheckVersionCmd) { // do not check version cause user want to get server version
+        string clientVer = Base::GetVersion() + HDC_MSG_HASH;
+        string serverVer(hShake->version);
+
+        if (clientVer != serverVer) {
+            serverVer = serverVer.substr(0, Base::GetVersion().size());
+            WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());
+#ifdef HDC_VERSION_CHECK
+            hChannel->availTailIndex = 0;
+            return ERR_CHECK_VERSION;
+#endif
+        }
+    }
     Send(hChannel->channelId, reinterpret_cast<uint8_t *>(hShake), sizeof(ChannelHandShake));
     hChannel->handshakeOK = true;
 #ifdef HDC_CHANNEL_KEEP_ALIVE
     // Evaluation method, non long-term support
-    Send(hChannel->channelId, reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
-         CMDSTR_INNER_ENABLE_KEEPALIVE.size());
+    SendWithCmd(hChannel->channelId, 0,
+                reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
+                CMDSTR_INNER_ENABLE_KEEPALIVE.size());
 #endif
     return RET_SUCCESS;
 }
@@ -356,7 +407,35 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     return 0;
 #endif
     WRITE_LOG(LOG_DEBUG, "Client ReadChannel :%d", bytesIO);
-    string s(reinterpret_cast<char *>(buf), bytesIO);
+
+    uint16_t command = *reinterpret_cast<uint16_t *>(buf);
+    if (command != 0) {
+        if (CMD_CHECK_VERSION == command) {
+            WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
+            string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
+            fprintf(stdout, "Client version:%s, server version:%s\n", Base::GetVersion().c_str(), version.c_str());
+            fflush(stdout);
+            return 0;
+        } else {
+            // file command
+            if (fileTask == nullptr) {
+                HTaskInfo hTaskInfo = new TaskInformation();
+                hTaskInfo->channelId = hChannel->channelId;
+                hTaskInfo->runLoop = loopMain;
+                hTaskInfo->serverOrDaemon = true;
+                hTaskInfo->masterSlave = (command == CMD_FILE_INIT);
+                hTaskInfo->channelTask = true;
+                hTaskInfo->channelClass = this;
+                fileTask = std::make_unique<HdcFile>(hTaskInfo);
+            }
+            if (!fileTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+                fileTask->TaskFinish();
+            }
+        }
+        return 0;
+    }
+
+    string s(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
     fprintf(stdout, "%s", s.c_str());
     fflush(stdout);
     return 0;

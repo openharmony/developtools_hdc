@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "translate.h"
+#include "host_updater.h"
 
 namespace Hdc {
 namespace TranslateCommand {
@@ -26,6 +27,7 @@ namespace TranslateCommand {
               " -v/version                            - Print hdc version\n"
               " -l 0-5                                - Set runtime loglevel\n"
               " -t connectkey                         - Use device with given connect key\n"
+              " check                                 - check client-server version\n"
               "\n"
               "---------------------------------component commands:-------------------------------\n"
               "session commands(on server):\n"
@@ -64,6 +66,7 @@ namespace TranslateCommand {
               "                                         -a: hold target file timestamp\n"
               "                                         -sync: just update newer file\n"
               "                                         -z: compress transfer\n"
+              "                                         -m: mode sync\n"
               "\n"
               "forward commands:\n"
               " fport localnode remotenode            - Forward local traffic to remote device\n"
@@ -76,7 +79,7 @@ namespace TranslateCommand {
               "                                         localabstract:<unix domain socket name>\n"
               "                                         dev:<device name>\n"
               "                                         jdwp:<pid> (remote only)\n"
-              " fport ls                              - Dispaly forward/reverse tasks\n"
+              " fport ls                              - Display forward/reverse tasks\n"
               " fport rm taskstr                      - Remove forward/reverse task by taskstring\n"
               "\n"
               "app commands:\n"
@@ -98,7 +101,14 @@ namespace TranslateCommand {
               " sideload [PATH]                       - Sideload the given full OTA package\n"
               "\n"
               "security commands:\n"
-              " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n";
+              " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
+              "\n"
+              "---------------------------------flash commands:------------------------------------\n"
+              "flash commands:\n"
+              " update packagename                    - Update system by package\n"
+              " flash [-f] partition imagename        - Flash partition by image\n"
+              " erase [-f] partition                  - Erase partition\n"
+              " format [-f] partition                 - Format partition\n";
         return ret;
     }
 
@@ -110,7 +120,8 @@ namespace TranslateCommand {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_DISCONNECT;
         } else {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_CONNECT;
-            if (outCmd->parameters.size() > 22) {  // 22: tcp max=21,USB max=8bytes
+            constexpr int MAX_KEY_LENGTH = 50; // 50: tcp max=21,USB max=8bytes, serial device name maybe long
+            if (outCmd->parameters.size() > MAX_KEY_LENGTH) {
                 stringError = "Error connect key's size";
                 outCmd->bJumpDo = true;
             }
@@ -185,8 +196,11 @@ namespace TranslateCommand {
         outCmd->cmdFlag = CMD_UNITY_REBOOT;
         if (strcmp(input, CMDSTR_TARGET_REBOOT.c_str())) {
             outCmd->parameters = input + 12;
-            if (outCmd->parameters == "-bootloader" || \
-                outCmd->parameters == "-recovery") {
+            if (outCmd->parameters != "-bootloader" && outCmd->parameters != "-recovery" &&
+                outCmd->parameters != "-flashd") {
+                stringError = "Error reboot paramenter";
+                outCmd->bJumpDo = true;
+            } else {
                 outCmd->parameters.erase(outCmd->parameters.begin());
             }
         }
@@ -214,6 +228,8 @@ namespace TranslateCommand {
             if (strstr(input.c_str(), " -v")) {
                 outCmd->parameters = "v";
             }
+        } else if (!strncmp(input.c_str(), CMDSTR_CHECK_VERSION.c_str(), CMDSTR_CHECK_VERSION.size())) {
+            outCmd->cmdFlag = CMD_CHECK_VERSION;
         } else if (!strcmp(input.c_str(), CMDSTR_CONNECT_ANY.c_str())) {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_ANY;
         } else if (!strncmp(input.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
@@ -284,6 +300,8 @@ namespace TranslateCommand {
         // Inner command, protocol uses only
         else if (!strncmp(input.c_str(), CMDSTR_INNER_ENABLE_KEEPALIVE.c_str(), CMDSTR_INNER_ENABLE_KEEPALIVE.size())) {
             outCmd->cmdFlag = CMD_KERNEL_ENABLE_KEEPALIVE;
+        } else if (HostUpdater::CheckMatchUpdate(input, *outCmd)) {
+            outCmd->parameters = input;
         } else {
             stringError = "Unknown command...";
             outCmd->bJumpDo = true;

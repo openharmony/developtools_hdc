@@ -12,6 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef HDC_SUPPORT_UART
+
 #include "daemon_uart.h"
 
 #include <thread>
@@ -37,7 +40,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
     devPath = devPathIn;
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUART init");
     if (access(devPath.c_str(), F_OK) != 0) {
-        WRITE_LOG(LOG_DEBUG, "uartMod Disable");
+        WRITE_LOG(LOG_DEBUG, "uartMod Disable, path is %s and errno is %d.", devPath.c_str(), errno);
         return -1;
     }
 #ifndef HDC_UT
@@ -46,7 +49,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
         consoleActive = OHOS::TrimStr(consoleActive,'\n');
         WRITE_LOG(LOG_DEBUG, "consoleActive (%d):%s", consoleActive.length(),
                   consoleActive.c_str());
-        if (devPathIn.find(consoleActive.c_str()) != std::string::npos) {
+        if (!consoleActive.empty() and devPathIn.find(consoleActive.c_str()) != std::string::npos) {
             WRITE_LOG(LOG_FATAL,
                       "kernel use this dev(%s) as console , we can't open it as hdc uart dev",
                       devPathIn.c_str());
@@ -229,7 +232,7 @@ HSession HdcDaemonUART::PrepareNewSession(uint32_t sessionId)
             auto ctrl = daemonSession.BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
             Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(),
                                ctrl.size());
-            WRITE_LOG(LOG_DEBUG, "Main thread uartio mirgate finish");
+            WRITE_LOG(LOG_DEBUG, "Main thread uartio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
     };
@@ -359,3 +362,4 @@ void HdcDaemonUART::Stop()
     }
 }
 } // namespace Hdc
+#endif // HDC_SUPPORT_UART

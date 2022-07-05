@@ -68,6 +68,7 @@ constexpr uint64_t LOG_FILE_MAX_SIZE = 104857600;
 const string SERVER_NAME = "HDCServer";
 const string STRING_EMPTY = "";
 const string HANDSHAKE_MESSAGE = "OHOS HDC";  // sep not char '-', not more than 11 bytes
+const string HANDSHAKE_FAILED = "HS FAILED";
 const string PACKET_FLAG = "HW";              // must 2bytes
 const string EMPTY_ECHO = "[Empty]";
 const string MESSAGE_INFO = "[Info]";
@@ -83,6 +84,7 @@ const string CMDSTR_GENERATE_KEY = "keygen";
 const string CMDSTR_KILL_SERVER = "kserver";
 const string CMDSTR_KILL_DAEMON = "kdaemon";
 const string CMDSTR_LIST_TARGETS = "list targets";
+const string CMDSTR_CHECK_VERSION = "check";
 const string CMDSTR_CONNECT_TARGET = "tconn";
 const string CMDSTR_CONNECT_ANY = "any";
 const string CMDSTR_SHELL = "shell";
@@ -95,7 +97,7 @@ const string CMDSTR_HILOG = "hilog";
 const string CMDSTR_TMODE_USB = "usb";
 #ifdef HDC_SUPPORT_UART
 const string CMDSTR_TMODE_UART = "uart";
-const string UART_HDC_NODE = "/dev/ttyAMA0";
+const string UART_HDC_NODE = "/dev/ttyS4";
 const string CONSOLE_ACTIVE_NODE = "/sys/class/tty/console/active";
 constexpr int uartIOWaitTime100 = 100;
 constexpr int uartIOWaitTime = 1000;
@@ -112,5 +114,9 @@ const string CMDSTR_APP_SIDELOAD = "sideload";
 const string CMDSTR_LIST_JDWP = "jpid";
 const string CMDSTR_TRACK_JDWP = "track-jpid";
 const string CMDSTR_INNER_ENABLE_KEEPALIVE = "alive";
+const string CMDSTR_FLASHD_UPDATE = "update";
+const string CMDSTR_FLASHD_FLASH = "flash";
+const string CMDSTR_FLASHD_ERASE = "erase";
+const string CMDSTR_FLASHD_FORMAT = "format";
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

@@ -27,6 +27,7 @@ using namespace std::chrono;
 
 namespace Hdc {
 namespace Base {
+    constexpr int DEF_FILE_PERMISSION = 0750;
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -100,7 +101,7 @@ namespace Base {
                 case LOG_DEBUG:  // will reduce performance
                     logLevelString = "\033[1;36mD\033[0m";
                     break;
-                default:  // all, just more IO/Memory informations
+                default:  // all, just more IO/Memory information
                     logLevelString = "\033[1;38;5;21mA\033[0m";
                     break;
             }
@@ -495,7 +496,7 @@ namespace Base {
             return ERR_PARM_FORMAT;
         }
         *p = '\0';
-        if (!strlen(bufString) || strlen(bufString) > 16) {
+        if (!strlen(bufString) || strlen(bufString) > 40) { // 40 : bigger than length of ipv6
             return ERR_PARM_SIZE;
         }
         uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));
@@ -513,7 +514,7 @@ namespace Base {
         delete req;
     }
 
-    // at the finsh of pFuncAfterThread must free uv_work_t*
+    // at the finish of pFuncAfterThread must free uv_work_t*
     // clang-format off
     int StartWorkThread(uv_loop_t *loop, uv_work_cb pFuncWorkThread,
                         uv_after_work_cb pFuncAfterThread, void *pThreadData)
@@ -789,13 +790,13 @@ namespace Base {
         }
 #ifdef _WIN32
         if (snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "Global\\%s", procname) < 0) {
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
             return ERR_BUF_OVERFLOW;
         }
         HANDLE hMutex = CreateMutex(nullptr, FALSE, buf);
         DWORD dwError = GetLastError();
         if (ERROR_ALREADY_EXISTS == dwError || ERROR_ACCESS_DENIED == dwError) {
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", procname);
             return 1;
         }
@@ -811,16 +812,34 @@ namespace Base {
         int retChild = fcntl(fd, F_SETLK, &fl);
         if (-1 == retChild) {
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
             return 1;
         }
 #endif
-        ftruncate(fd, 0);
-        write(fd, pidBuf, strlen(pidBuf) + 1);
+        int rc = 0;
+        uv_fs_req_cleanup(&req);
+        rc = uv_fs_ftruncate(nullptr, &req, fd, 0, nullptr);
+        if (rc == -1) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+            uv_fs_close(nullptr, &req, fd, nullptr);
+            WRITE_LOG(LOG_FATAL, "ftruncate file %s failed!!! %s", bufPath, buffer);
+            return ERR_FILE_STAT;
+        }
+        uv_buf_t wbf = uv_buf_init(pidBuf, strlen(pidBuf));
+        uv_fs_req_cleanup(&req);
+        rc = uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
+        if (rc == -1) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+            uv_fs_close(nullptr, &req, fd, nullptr);
+            WRITE_LOG(LOG_FATAL, "write file %s failed!!! %s", bufPath, buffer);
+            return ERR_FILE_WRITE;
+        }
         WRITE_LOG(LOG_DEBUG, "Write mutext to %s, pid:%s", bufPath, pidBuf);
         if (checkOrNew) {
             // close it for check only
-            close(fd);
+            uv_fs_close(nullptr, &req, fd, nullptr);
         }
         // Do not close the file descriptor, the process will be mutext effect under no-Win32 OS
         return RET_SUCCESS;
@@ -885,8 +904,13 @@ namespace Base {
         return sep;
     }
 
-    string GetFullFilePath(const string &s)
+    string GetFullFilePath(string &s)
     {  // cannot use s.rfind(std::filesystem::path::preferred_separator
+        // remove last sep, and update input
+        while (s.back() == GetPathSep()) {
+            s.pop_back();
+        }
+
         size_t i = s.rfind(GetPathSep(), s.length());
         if (i != string::npos) {
             return (s.substr(i + 1, s.length() - i));
@@ -1072,6 +1096,34 @@ namespace Base {
         return false;
     }
 
+    bool TryCreateDirectory(const string &path, string &err)
+    {
+        uv_fs_t req;
+        WRITE_LOG(LOG_DEBUG, "TryCreateDirectory path = %s", path.c_str());
+        int r = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
+        mode_t mode = req.statbuf.st_mode;
+        uv_fs_req_cleanup(&req);
+        if (r < 0) {
+            WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", path.c_str());
+            r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
+            uv_fs_req_cleanup(&req);
+            if (r < 0) {
+                WRITE_LOG(LOG_WARN, "create dir %s failed", path.c_str());
+                err = "Error create directory, path:";
+                err += path.c_str();
+                return false;
+            }
+        } else {
+            if (!((mode & S_IFMT) == S_IFDIR)) {
+                WRITE_LOG(LOG_WARN, "%s exist, not directory", path.c_str());
+                err = "Not a directoty, path:";
+                err += path.c_str();
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool CheckDirectoryOrPath(const char *localPath, bool pathOrDir, bool readWrite)
     {
         string strUnused;
@@ -1211,7 +1263,7 @@ namespace Base {
 
     bool IdleUvTask(uv_loop_t *loop, void *data, uv_idle_cb cb)
     {
-        uv_idle_t *idle = new uv_idle_t();
+        uv_idle_t *idle = new(std::nothrow) uv_idle_t();
         if (idle == nullptr) {
             return false;
         }
@@ -1224,7 +1276,7 @@ namespace Base {
 
     bool TimerUvTask(uv_loop_t *loop, void *data, uv_timer_cb cb, int repeatTimeout)
     {
-        uv_timer_t *timer = new uv_timer_t();
+        uv_timer_t *timer = new(std::nothrow) uv_timer_t();
         if (timer == nullptr) {
             return false;
         }
@@ -1254,7 +1306,7 @@ namespace Base {
                 delete st;
             });
         };
-        DelayDoParam *st = new DelayDoParam();
+        DelayDoParam *st = new(std::nothrow) DelayDoParam();
         if (st == nullptr) {
             return false;
         }
@@ -1387,10 +1439,20 @@ namespace Base {
 
     string GetCwd()
     {
+        int value = -1;
         char path[PATH_MAX] = "";
         size_t size = sizeof(path);
         string res;
-        if (uv_cwd(path, &size) < 0) {
+        value = uv_cwd(path, &size);
+        if (value < 0) {
+            constexpr int bufSize = 1024;
+            char buf[bufSize] = { 0 };
+            uv_strerror_r(value, buf, bufSize);
+            WRITE_LOG(LOG_FATAL, "get path failed: %s", buf);
+            return res;
+        }
+        if (strlen(path) >= PATH_MAX - 1) {
+            WRITE_LOG(LOG_FATAL, "get path failed: buffer space max");
             return res;
         }
         if (path[strlen(path) - 1] != Base::GetPathSep()) {
@@ -1404,10 +1466,19 @@ namespace Base {
     {
         string res;
 #ifdef HDC_HOST
+        int value = -1;
         char path[PATH_MAX] = "";
         size_t size = sizeof(path);
-        if (uv_os_tmpdir(path, &size) < 0) {
-            WRITE_LOG(LOG_FATAL, "get tmppath failed!");
+        value = uv_os_tmpdir(path, &size);
+        if (value < 0) {
+            constexpr int bufSize = 1024;
+            char buf[bufSize] = { 0 };
+            uv_strerror_r(value, buf, bufSize);
+            WRITE_LOG(LOG_FATAL, "get tmppath failed: %s", buf);
+            return res;
+        }
+        if (strlen(path) >= PATH_MAX - 1) {
+            WRITE_LOG(LOG_FATAL, "get tmppath failed: buffer space max");
             return res;
         }
         if (path[strlen(path) - 1] != Base::GetPathSep()) {

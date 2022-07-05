@@ -22,18 +22,18 @@ public:
     HdcServer(bool serverOrDaemonIn);
     virtual ~HdcServer();
     bool FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
-                      const int payloadSize);
+                      const int payloadSize) override;
     virtual string AdminDaemonMap(uint8_t opType, const string &connectKey, HDaemonInfo &hDaemonInfoInOut);
     string AdminForwardMap(uint8_t opType, const string &taskString, HForwardInfo &hForwardInfoInOut);
     void CleanForwardMap(uint32_t sessionId);
     int CreateConnect(const string &connectKey);
     bool Initial(const char *listenString);
-    void AttachChannel(HSession hSession, const uint32_t channelId);
-    void DeatchChannel(HSession hSession, const uint32_t channelId);
+    void AttachChannel(HSession hSession, const uint32_t channelId) override;
+    void DeatchChannel(HSession hSession, const uint32_t channelId) override;
     virtual void EchoToClientsForSession(uint32_t targetSessionId, const string &echo);
     static bool PullupServer(const char *listenString);
     static void UsbPreConnect(uv_timer_t *handle);
-    void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear);
+    void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear) override;
 
     HdcHostTCP *clsTCPClt;
     HdcHostUSB *clsUSBClt;
@@ -45,15 +45,15 @@ public:
     void *clsServerForClient;
 
 private:
-    void ClearInstanceResource();
+    void ClearInstanceResource() override;
     void BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string &out);
     void BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, string &echo);
     void ClearMapDaemonInfo();
     bool ServerCommand(const uint32_t sessionId, const uint32_t channelId, const uint16_t command, uint8_t *bufPtr,
-                       const int size);
+                       const int size) override;
     bool RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId, const uint16_t command,
-                        uint8_t *payload, const int payloadSize);
-    bool RemoveInstanceTask(const uint8_t op, HTaskInfo hTask);
+                        uint8_t *payload, const int payloadSize) override;
+    bool RemoveInstanceTask(const uint8_t op, HTaskInfo hTask) override;
     void BuildForwardVisableLine(HDaemonInfo hdi, char *out, int sizeOutBuf);
     bool HandServerAuth(HSession hSession, SessionHandShake &handshake);
     string GetDaemonMapList(uint8_t opType);

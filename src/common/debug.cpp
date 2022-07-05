@@ -85,7 +85,7 @@ namespace Debug {
         } else if (uv_thread_self() == hSession->hWorkChildThread) {
             WRITE_LOG(LOG_WARN, "At child workthread");
         } else {
-            WRITE_LOG(LOG_WARN, "At unknow workthread");
+            WRITE_LOG(LOG_WARN, "At unknown workthread");
         }
     }
 

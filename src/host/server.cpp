@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 #include "server.h"
+#include "host_updater.h"
+
 
 namespace Hdc {
 HdcServer::HdcServer(bool serverOrDaemonIn)
@@ -413,7 +415,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
         case AUTH_TOKEN: {
             void *ptr = nullptr;
             bool retChild = HdcAuth::KeylistIncrement(hSession->listKey, hSession->authKeyIndex, &ptr);
-            // HdcAuth::FreeKey will be effect at funciton 'FreeSession'
+            // HdcAuth::FreeKey will be effect at function 'FreeSession'
             if (!retChild) {
                 // Iteration call certificate authentication
                 handshake.authType = AUTH_PUBLICKEY;
@@ -460,6 +462,12 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "handshake.banner:%s, payload:%s(%d)", handshake.banner.c_str(), s.c_str(), payloadSize);
 #endif
+
+    if (handshake.banner == HANDSHAKE_FAILED.c_str()) {
+        WRITE_LOG(LOG_FATAL, "Handshake failed");
+        return false;
+    }
+
     if (handshake.banner != HANDSHAKE_MESSAGE.c_str()) {
         WRITE_LOG(LOG_DEBUG, "Hello failed");
         return false;
@@ -482,7 +490,7 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     // update
     hdiNew->connStatus = STATUS_CONNECTED;
     if (handshake.buf.size() > sizeof(hdiNew->devName) || !handshake.buf.size()) {
-        hdiNew->devName = "unknow...";
+        hdiNew->devName = "unknown...";
     } else {
         hdiNew->devName = handshake.buf;
     }
@@ -558,6 +566,16 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
             break;
         }
+        // server directly passthrough file command to client
+        case CMD_FILE_INIT:
+        case CMD_FILE_CHECK:
+        case CMD_FILE_BEGIN:
+        case CMD_FILE_DATA:
+        case CMD_FILE_FINISH:
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE:
+            sfc->SendToClient(hChannel, command, payload, payloadSize);
+            break;
         default: {
             HSession hSession = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
             if (!hSession) {
@@ -744,7 +762,9 @@ int HdcServer::CreateConnect(const string &connectKey)
         connType = CONN_TCP;
     }
 #ifdef HDC_SUPPORT_UART
-    else if (connectKey.find("COM") == 0 || connectKey.find("/dev/ttyUSB") == 0) { // UART
+    else if (connectKey.find("COM") == 0
+            || connectKey.find("/dev/ttyUSB") == 0
+            || connectKey.find("/dev/cu.") == 0) { // UART
         connType = CONN_SERIAL;
     }
 #endif
@@ -887,6 +907,8 @@ bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_FILE_CHECK:
         case CMD_FILE_DATA:
         case CMD_FILE_FINISH:
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE:
             ret = TaskCommandDispatch<HdcFile>(hTaskInfo, TASK_FILE, command, payload, payloadSize);
             break;
         case CMD_FORWARD_INIT:
@@ -905,8 +927,19 @@ bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_APP_UNINSTALL:
             ret = TaskCommandDispatch<HdcHostApp>(hTaskInfo, TASK_APP, command, payload, payloadSize);
             break;
+        case CMD_FLASHD_UPDATE_INIT:
+        case CMD_FLASHD_FLASH_INIT:
+        case CMD_FLASHD_CHECK:
+        case CMD_FLASHD_BEGIN:
+        case CMD_FLASHD_DATA:
+        case CMD_FLASHD_FINISH:
+        case CMD_FLASHD_ERASE:
+        case CMD_FLASHD_FORMAT:
+        case CMD_FLASHD_PROGRESS:
+            ret = TaskCommandDispatch<HostUpdater>(hTaskInfo, TASK_FLASHD, command, payload, payloadSize);
+            break;
         default:
-            // ignore unknow command
+            // ignore unknown command
             break;
     }
     return ret;
@@ -930,6 +963,9 @@ bool HdcServer::RemoveInstanceTask(const uint8_t op, HTaskInfo hTask)
             break;
         case TASK_APP:
             ret = DoTaskRemove<HdcHostApp>(hTask, op);
+            break;
+        case TASK_FLASHD:
+            ret = DoTaskRemove<HostUpdater>(hTask, op);
             break;
         default:
             ret = false;

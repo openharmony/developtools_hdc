@@ -30,7 +30,7 @@ public:
     // directly instantified of these two virtual functions.
     virtual void StopTask()
     {
-        singalStop = true;  // default opeartion
+        singalStop = true;  // default operation
     }
     bool ReadyForRelease();
     void TaskFinish();

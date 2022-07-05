@@ -179,6 +179,12 @@ int HdcClient::ExecuteCommand(const string &commandIn)
                   channelHostPort.c_str(), ret);
         return -1;
     }
+
+    if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size())
+        || !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
+        WRITE_LOG(LOG_DEBUG, "Set file send mode");
+        channel->bFileSend = true;
+    }
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
     ConnectServerForClient(ip, port);
@@ -257,7 +263,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
 #endif
         break;
     }
-    thisClass->SendWithCmd(thisClass->channel->channelId, 0, (uint8_t *)thisClass->command.c_str(),
+    thisClass->Send(thisClass->channel->channelId, (uint8_t *)thisClass->command.c_str(),
                            thisClass->command.size() + 1);
 }
 
@@ -280,7 +286,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     if (nread <= 0) {
         return;  // error
     }
-    thisClass->SendWithCmd(hChannel->channelId, 0, (uint8_t *)command, strlen(command));
+    thisClass->Send(hChannel->channelId, (uint8_t *)command, strlen(command));
     Base::ZeroArray(hChannel->bufStd);
 }
 
@@ -389,7 +395,7 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
     hChannel->handshakeOK = true;
 #ifdef HDC_CHANNEL_KEEP_ALIVE
     // Evaluation method, non long-term support
-    SendWithCmd(hChannel->channelId, 0,
+    Send(hChannel->channelId,
                 reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
                 CMDSTR_INNER_ENABLE_KEEPALIVE.size());
 #endif
@@ -408,8 +414,20 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
 #endif
     WRITE_LOG(LOG_DEBUG, "Client ReadChannel :%d", bytesIO);
 
-    uint16_t command = *reinterpret_cast<uint16_t *>(buf);
-    if (command != 0) {
+    uint16_t command = 0;
+    bool bOffset = false;
+    if (bytesIO >= sizeof(uint16_t)) {
+           command = *reinterpret_cast<uint16_t *>(buf);
+           bOffset = (command == CMD_CHECK_SERVER)
+            || (command == CMD_FILE_INIT)
+            || (command == CMD_FILE_CHECK)
+            || (command == CMD_FILE_BEGIN)
+            || (command == CMD_FILE_DATA)
+            || (command == CMD_FILE_FINISH)
+            || (command == CMD_FILE_MODE)
+            || (command == CMD_DIR_MODE);
+    }
+    if ((isCheckVersionCmd || hChannel->bFileSend) && bOffset) {
         if (CMD_CHECK_VERSION == command) {
             WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
             string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
@@ -434,8 +452,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         }
         return 0;
     }
-
-    string s(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
+    string s(reinterpret_cast<char *>(buf), bytesIO);
     fprintf(stdout, "%s", s.c_str());
     fflush(stdout);
     return 0;

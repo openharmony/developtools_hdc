@@ -469,6 +469,8 @@ struct HdcChannel {
     uv_tty_t stdinTty;
     uv_tty_t stdoutTty;
     char bufStd[128];
+    bool bFileSend = false;
+    bool bFileFromClient = false;
 };
 using HChannel = struct HdcChannel *;
 

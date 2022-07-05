@@ -34,11 +34,11 @@ public:
 protected:
     struct ChannelHandShake {
         char banner[12];  // must first index
-        char version[BUF_SIZE_TINY] = { 0 };
         union {
             uint32_t channelId;
             char connectKey[MAX_CONNECTKEY_SIZE];
         };
+        char version[BUF_SIZE_TINY] = { 0 };
     } __attribute__((packed));
     uint32_t MallocChannel(HChannel *hOutChannel);
     virtual int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)

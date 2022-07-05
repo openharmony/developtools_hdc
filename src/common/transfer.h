@@ -78,7 +78,6 @@ protected:
         bool ioFinish;
         void *thisClass;
         uint32_t lastErrno;
-
         uv_loop_t *loop;
         uv_fs_t fsOpenReq;
         uv_fs_t fsCloseReq;

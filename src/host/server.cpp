@@ -566,7 +566,6 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
             break;
         }
-        // server directly passthrough file command to client
         case CMD_FILE_INIT:
         case CMD_FILE_CHECK:
         case CMD_FILE_BEGIN:
@@ -574,8 +573,12 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_FILE_FINISH:
         case CMD_FILE_MODE:
         case CMD_DIR_MODE:
-            sfc->SendToClient(hChannel, command, payload, payloadSize);
-            break;
+            if (hChannel->bFileFromClient) {
+                // server directly passthrough file command to client if remote file mode, else go default
+                WRITE_LOG(LOG_INFO, "server directly passthrough file command to client command:%u", channelId);
+                sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
+                break;
+            }
         default: {
             HSession hSession = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
             if (!hSession) {

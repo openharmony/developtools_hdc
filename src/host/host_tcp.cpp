@@ -120,7 +120,7 @@ Finish:
     ptrConnect->FreeSession(hSession->sessionId);
 }
 
-HSession HdcHostTCP::ConnectDaemon(const string &connectKey)
+HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
 {
     char ip[BUF_SIZE_TINY] = "";
     uint16_t port = 0;
@@ -133,6 +133,7 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey)
     if (!hSession) {
         return nullptr;
     }
+    hSession->isCheck = isCheck;
     hSession->connectKey = connectKey;
     struct sockaddr_in dest;
     uv_ip4_addr(ip, port, &dest);

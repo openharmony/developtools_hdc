@@ -731,7 +731,10 @@ void HdcUARTBase::SendPkgInUARTOutMap()
             }
             // we will ready to send the package
             WRITE_LOG(LOG_DEBUG, "UartPackageManager: send pkg %s", it->ToDebugString().c_str());
-            SendUARTRaw(nullptr, it->msgSendBuf.data(), it->msgSendBuf.size());
+            if (!SendUARTRaw(nullptr, it->msgSendBuf.data(), it->msgSendBuf.size())) {
+                WRITE_LOG(LOG_WARN, "SendUARTRaw failed!");
+                break;
+            }	    
             if (it->response) {
                 // response pkg dont need wait response again.
                 WRITE_LOG(LOG_DEBUG, "UartPackageManager: erase pkg %s",

@@ -43,6 +43,7 @@ public:
     // all the thread maybe need exit if needed.
     void StopSession(HSession hSession) override;
     HSession ConnectDaemon(const std::string &connectKey);
+    void SetCheckFlag(bool flag) { isCheck = flag; };
 
 protected:
     virtual void OnTransferError(const HSession session) override;
@@ -111,6 +112,7 @@ private:
     std::vector<string> serialPortRemoved;
     bool uartOpened = false;
     std::thread sendThread;
+    bool isCheck;
 
     std::vector<std::string> StringSplit(std::string source, std::string split = ":");
     bool GetPortFromKey(const std::string &connectKey, std::string &portName, uint32_t &baudRate);

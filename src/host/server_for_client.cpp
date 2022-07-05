@@ -213,8 +213,14 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     while (true) {
         if (bConnectOK) {
             bExitRepet = true;
-            sRet = "Connect OK";
-            thisClass->EchoClient(hChannel, MSG_OK, (char *)sRet.c_str());
+            if (hChannel->isCheck) {
+                WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
+                thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
+                thisClass->EchoClient(hChannel, MSG_OK, (char *)hdi->version.c_str());
+            } else {
+                sRet = "Connect OK";
+                thisClass->EchoClient(hChannel, MSG_OK, (char *)sRet.c_str());
+            }		
             break;
         } else {
             uint16_t *bRetryCount = (uint16_t *)hChannel->bufStd;
@@ -235,12 +241,12 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     }
 }
 
-bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey)
+bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck)
 {
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_ALL, "%s %s", __FUNCTION__, connectKey.c_str());
 #endif
-    int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey);
+    int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
     if (-1 == childRet) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
@@ -377,8 +383,8 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             ret = false;
             break;
         }
-        case CMD_CHECK_VERSION: {
-            WRITE_LOG(LOG_DEBUG, "CMD_CHECK_VERSION command");
+        case CMD_CHECK_SERVER: {
+            WRITE_LOG(LOG_DEBUG, "CMD_CHECK_SERVER command");
             ReportServerVersion(hChannel);
             ret = false;
             break;
@@ -395,6 +401,13 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_CONNECT %s", __FUNCTION__, parameterString);
 #endif
             ret = NewConnectTry(ptrServer, hChannel, parameterString);
+            break;
+        }
+        case CMD_CHECK_DEVICE: {
+            WRITE_LOG(LOG_INFO, "%s CMD_CHECK_DEVICE %s", __FUNCTION__, parameterString);
+            hChannel->isCheck = true;
+            hChannel->key = parameterString;
+            ret = NewConnectTry(ptrServer, hChannel, parameterString, true);
             break;
         }
         case CMD_KERNEL_TARGET_DISCONNECT: {
@@ -674,7 +687,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
 void HdcServerForClient::ReportServerVersion(HChannel hChannel)
 {
     string version = Base::GetVersion();
-    SendChannelWithCmd(hChannel, CMD_CHECK_VERSION, (uint8_t *)version.c_str(), version.size());
+    SendChannelWithCmd(hChannel, CMD_CHECK_SERVER, (uint8_t *)version.c_str(), version.size());
 }
 
 // Here is Server to get data, the source is the SERVER's ChildWork to send data
@@ -698,14 +711,14 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         string retEcho = String2FormatCommand((char *)bufPtr, bytesIO, &formatCommand);
         if (retEcho.length()) {
             if (!strcmp((char *)bufPtr, CMDSTR_SOFTWARE_HELP.c_str())
-                || !strcmp((char *)bufPtr, CMDSTR_SOFTWARE_VERSION.c_str())) {
+                || !strcmp((char *)bufPtr, CMDSTR_SOFTWARE_VERSION.c_str())
                 || !strcmp((char *)bufPtr, "flash")) {
                 EchoClient(hChannel, MSG_OK, retEcho.c_str());
             } else {
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());
             }
         }
-        WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr + sizeof(uint16_t));
+        WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr);
         if (formatCommand.bJumpDo) {
             ret = -10;
             return ret;

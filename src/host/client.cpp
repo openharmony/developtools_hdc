@@ -148,8 +148,9 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_HELP);
     vecNoConnectKeyCommand.push_back(CMDSTR_TARGET_DISCOVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
-    vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_VERSION);
+    vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
+    vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_DEVICE);
     vecNoConnectKeyCommand.push_back(CMDSTR_KILL_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " ls");
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " rm");
@@ -416,7 +417,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
 
     uint16_t command = 0;
     bool bOffset = false;
-    if (bytesIO >= sizeof(uint16_t)) {
+    if (bytesIO >= static_cast<int>(sizeof(uint16_t))) {
            command = *reinterpret_cast<uint16_t *>(buf);
            bOffset = (command == CMD_CHECK_SERVER)
             || (command == CMD_FILE_INIT)
@@ -428,7 +429,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
             || (command == CMD_DIR_MODE);
     }
     if ((isCheckVersionCmd || hChannel->bFileSend) && bOffset) {
-        if (CMD_CHECK_VERSION == command) {
+        if (CMD_CHECK_SERVER == command) {
             WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
             string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
             fprintf(stdout, "Client version:%s, server version:%s\n", Base::GetVersion().c_str(), version.c_str());

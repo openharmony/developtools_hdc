@@ -150,7 +150,8 @@ enum HdcCommand {
     CMD_KERNEL_ECHO_RAW,
     CMD_KERNEL_ENABLE_KEEPALIVE,
     CMD_KERNEL_WAKEUP_SLAVETASK,
-    CMD_CHECK_VERSION,
+    CMD_CHECK_SERVER,
+    CMD_CHECK_DEVICE,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,
@@ -349,6 +350,7 @@ struct HdcSession {
     bool handshakeOK;     // Is an expected peer side
     bool isDead;
     bool voteReset;
+    bool isCheck = false;
     string connectKey;
     uint8_t connType;  // ConnType
     uint32_t sessionId;
@@ -469,6 +471,8 @@ struct HdcChannel {
     uv_tty_t stdinTty;
     uv_tty_t stdoutTty;
     char bufStd[128];
+    bool isCheck = false;
+    string key;
     bool bFileSend = false;
     bool bFileFromClient = false;
 };
@@ -481,6 +485,7 @@ struct HdcDaemonInformation {
     string usbMountPoint;
     string devName;
     HSession hSession;
+    string version;
 };
 using HDaemonInfo = struct HdcDaemonInformation *;
 

@@ -577,6 +577,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
     hSession->hUART->devUartHandle = hUART->devUartHandle;
 #endif
 
+    hSession->isCheck = isCheck;
     hSession->hUART->serialPort = hUART->serialPort;
     WRITE_LOG(LOG_DEBUG, "%s connectkey:%s,port:%s", __FUNCTION__, hSession->connectKey.c_str(),
               hUART->serialPort.c_str());

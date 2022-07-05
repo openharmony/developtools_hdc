@@ -1055,7 +1055,10 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         handshake.banner = HANDSHAKE_MESSAGE;
         handshake.sessionId = hSession->sessionId;
         handshake.connectKey = hSession->connectKey;
-        handshake.version = Base::GetVersion() + HDC_MSG_HASH;
+        if (!hSession->isCheck) {
+            handshake.version = Base::GetVersion() + HDC_MSG_HASH;
+            WRITE_LOG(LOG_INFO, "set version = %s", handshake.version.c_str());
+        }
         handshake.authType = AUTH_NONE;
         string hs = SerialStruct::SerializeToString(handshake);
 #ifdef HDC_SUPPORT_UART

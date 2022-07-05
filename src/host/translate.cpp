@@ -27,7 +27,8 @@ namespace TranslateCommand {
               " -v/version                            - Print hdc version\n"
               " -l 0-5                                - Set runtime loglevel\n"
               " -t connectkey                         - Use device with given connect key\n"
-              " check                                 - check client-server version\n"
+              " checkserver                           - check client-server version\n"
+              " checkdevice                           - check server-daemon version\n"
               "\n"
               "---------------------------------component commands:-------------------------------\n"
               "session commands(on server):\n"
@@ -228,8 +229,11 @@ namespace TranslateCommand {
             if (strstr(input.c_str(), " -v")) {
                 outCmd->parameters = "v";
             }
-        } else if (!strncmp(input.c_str(), CMDSTR_CHECK_VERSION.c_str(), CMDSTR_CHECK_VERSION.size())) {
-            outCmd->cmdFlag = CMD_CHECK_VERSION;
+        } else if (!strncmp(input.c_str(), CMDSTR_CHECK_SERVER.c_str(), CMDSTR_CHECK_SERVER.size())) {
+            outCmd->cmdFlag = CMD_CHECK_SERVER;
+        } else if (!strncmp(input.c_str(), CMDSTR_CHECK_DEVICE.c_str(), CMDSTR_CHECK_DEVICE.size())) {
+            outCmd->parameters = input.c_str() + CMDSTR_CHECK_DEVICE.size() + 1;  // with ' '
+            outCmd->cmdFlag = CMD_CHECK_DEVICE;
         } else if (!strcmp(input.c_str(), CMDSTR_CONNECT_ANY.c_str())) {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_ANY;
         } else if (!strncmp(input.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {

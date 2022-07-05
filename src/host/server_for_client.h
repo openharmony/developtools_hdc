@@ -37,7 +37,7 @@ private:
     void ReportServerVersion(HChannel hChannel);
     bool DoCommand(HChannel hChannel, void *formatCommandInput);
     void OrderFindTargets(HChannel hChannel);
-    bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey);
+    bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck = false);
     static void OrderConnecTargetResult(uv_timer_t *req);
     bool SendToDaemon(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int bufSize);
     int BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO);

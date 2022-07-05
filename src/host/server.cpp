@@ -494,6 +494,8 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     } else {
         hdiNew->devName = handshake.buf;
     }
+    WRITE_LOG(LOG_INFO, "handshake.version = %s", handshake.version.c_str());
+    hdiNew->version = handshake.version;
     AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
     hSession->handshakeOK = true;
     return true;
@@ -758,7 +760,7 @@ void HdcServer::CreatConnectUart(HSession hSession)
 }
 #endif
 // -1,has old,-2 error
-int HdcServer::CreateConnect(const string &connectKey)
+int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
 {
     uint8_t connType = 0;
     if (connectKey.find(":") != std::string::npos) { // TCP
@@ -789,13 +791,15 @@ int HdcServer::CreateConnect(const string &connectKey)
         AdminDaemonMap(OP_QUERY, connectKey, hdi);
     }
     if (!hdi || hdi->connStatus == STATUS_CONNECTED) {
+        WRITE_LOG(LOG_FATAL, "Connected return");
         return ERR_GENERIC;
     }
     HSession hSession = nullptr;
     if (CONN_TCP == connType) {
-        hSession = clsTCPClt->ConnectDaemon(connectKey);
+        hSession = clsTCPClt->ConnectDaemon(connectKey, isCheck);
     } else if (CONN_SERIAL == connType) {
 #ifdef HDC_SUPPORT_UART
+        clsUARTClt->SetCheckFlag(isCheck);
         hSession = clsUARTClt->ConnectDaemon(connectKey);
 #endif
     } else {

@@ -26,7 +26,7 @@ public:
     virtual string AdminDaemonMap(uint8_t opType, const string &connectKey, HDaemonInfo &hDaemonInfoInOut);
     string AdminForwardMap(uint8_t opType, const string &taskString, HForwardInfo &hForwardInfoInOut);
     void CleanForwardMap(uint32_t sessionId);
-    int CreateConnect(const string &connectKey);
+    int CreateConnect(const string &connectKey, bool isCheck);
     bool Initial(const char *listenString);
     void AttachChannel(HSession hSession, const uint32_t channelId) override;
     void DeatchChannel(HSession hSession, const uint32_t channelId) override;

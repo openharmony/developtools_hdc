@@ -378,6 +378,7 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         return ERR_BUF_COPY;
     }
 
+#ifdef HDC_VERSION_CHECK
     // add check version
     if (!isCheckVersionCmd) { // do not check version cause user want to get server version
         string clientVer = Base::GetVersion() + HDC_MSG_HASH;
@@ -386,13 +387,15 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         if (clientVer != serverVer) {
             serverVer = serverVer.substr(0, Base::GetVersion().size());
             WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());
-#ifdef HDC_VERSION_CHECK
             hChannel->availTailIndex = 0;
             return ERR_CHECK_VERSION;
-#endif
         }
     }
     Send(hChannel->channelId, reinterpret_cast<uint8_t *>(hShake), sizeof(ChannelHandShake));
+#else
+        // do not send version message if check feature disable
+    Send(hChannel->channelId, reinterpret_cast<uint8_t *>(hShake), offsetof(struct ChannelHandShake, version));
+#endif
     hChannel->handshakeOK = true;
 #ifdef HDC_CHANNEL_KEEP_ALIVE
     // Evaluation method, non long-term support

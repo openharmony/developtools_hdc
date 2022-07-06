@@ -74,7 +74,12 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
             WRITE_LOG(LOG_FATAL, "strcpy_s failed");
             return;
         }
-        thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, sizeof(struct ChannelHandShake));
+#ifdef HDC_VERSION_CHECK
+    thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, sizeof(struct ChannelHandShake));
+#else
+    // do not send version message if check feature disable
+    thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, offsetof(struct ChannelHandShake, version));
+#endif
     }
 }
 

@@ -27,14 +27,16 @@ using namespace HdcTest;
 #include "server_for_client.h"
 using namespace Hdc;
 
-bool g_isServerMode = false;
-bool g_isPullServer = true;
-bool g_isPcDebugRun = false;
-bool g_isTCPorUSB = false;
-bool g_isCustomLoglevel = false;
-int g_isTestMethod = 0;
-string g_connectKey = "";
-string g_serverListenString = "";
+namespace {
+    bool g_isServerMode = false;
+    bool g_isPullServer = true;
+    bool g_isPcDebugRun = false;
+    bool g_isTCPorUSB = false;
+    bool g_isCustomLoglevel = false;
+    int g_isTestMethod = 0;
+    string g_connectKey = "";
+    string g_serverListenString = "";
+}
 
 namespace Hdc {
 // return value: 0 == not command, 1 == one command, 2 == double command
@@ -267,7 +269,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, (char *const *)optArgv, "hvpfms:d:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfms:d:t:l:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
@@ -364,7 +366,6 @@ void InitServerAddr(void)
     g_serverListenString += ":";
     g_serverListenString += std::to_string(port);
 }
-
 }
 
 #ifndef UNIT_TEST
@@ -381,7 +382,7 @@ int main(int argc, const char *argv[])
 
     InitServerAddr();
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
-    delete[]((char *)optArgv);
+    delete[](reinterpret_cast<char*>(optArgv));
     if (cmdOptionResult) {
         return 0;
     }

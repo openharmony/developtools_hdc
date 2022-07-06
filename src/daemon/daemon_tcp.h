@@ -21,7 +21,7 @@ class HdcDaemonTCP : public HdcTCPBase {
 public:
     HdcDaemonTCP(const bool serverOrDaemonIn, void *ptrMainBase);
     virtual ~HdcDaemonTCP();
-    void RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf);
+    void RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf) override;
     uint16_t tcpListenPort;
     int Initial();
     void Stop();

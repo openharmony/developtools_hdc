@@ -21,11 +21,11 @@ class HdcHostApp : public HdcTransferBase {
 public:
     HdcHostApp(HTaskInfo hTaskInfo);
     virtual ~HdcHostApp();
-    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
+    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
 
 private:
     bool BeginInstall(CtxFile *context, const char *command);
-    void CheckMaster(CtxFile *context);
+    void CheckMaster(CtxFile *context) override;
     bool CheckInstallContinue(AppModType mode, bool lastResult, const char *msg);
     void RunQueue(CtxFile *context);
     bool BeginSideload(CtxFile *context, const char *localPath);

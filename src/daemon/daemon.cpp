@@ -188,7 +188,7 @@ bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
             ret = TaskCommandDispatch<HdcDaemonForward>(hTaskInfo, TASK_FORWARD, command, payload, payloadSize);
             break;
         default:
-            //ignore unknown command
+        // ignore unknown command
             break;
     }
     return ret;
@@ -292,7 +292,8 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
 	hSession->availTailIndex = 0;
         handshake.banner = HANDSHAKE_FAILED;
         string failedString = SerialStruct::SerializeToString(handshake);
-        Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE, (uint8_t *)failedString.c_str(), failedString.size());
+        Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE, (uint8_t *)failedString.c_str(),
+             failedString.size());
         return false;
 #endif
     }

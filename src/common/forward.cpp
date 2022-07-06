@@ -62,16 +62,16 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
         }
         ctxClient->type = ctxListen->type;
         ctxClient->remoteParamenters = ctxListen->remoteParamenters;
-        int maxSize = sizeof(buf) - FORWARD_PARAMENTER_BUFSIZE;
+        int maxSize = sizeof(buf) - forwardParameterBufSize;
         // clang-format off
-        if (snprintf_s(buf + FORWARD_PARAMENTER_BUFSIZE, maxSize, maxSize - 1, "%s",
+        if (snprintf_s(buf + forwardParameterBufSize, maxSize, maxSize - 1, "%s",
                        ctxClient->remoteParamenters.c_str()) < 0) {
             break;
         }
         // clang-format on
         // pre 8bytes preserve for param bits
         SendToTask(ctxClient->id, CMD_FORWARD_ACTIVE_SLAVE, (uint8_t *)buf,
-                   strlen(buf + FORWARD_PARAMENTER_BUFSIZE) + 9);
+                   strlen(buf + forwardParameterBufSize) + 9);
         ret = true;
         break;
     }
@@ -328,10 +328,10 @@ bool HdcForwardBase::DetechForwardType(HCtxForward ctxPoint)
         // host:   hdc_std fport tcp:8080 localabstract:linux-abstract
         ctxPoint->type = FORWARD_ABSTRACT;
     } else if (sFType == "localreserved") {
-        sNodeCfg = HARMONY_RESERVED_SOCKET_PREFIX + sNodeCfg;
+        sNodeCfg = harmonyReservedSocketPrefix + sNodeCfg;
         ctxPoint->type = FORWARD_RESERVED;
     } else if (sFType == "localfilesystem") {
-        sNodeCfg = FILESYSTEM_SOCKET_PREFIX + sNodeCfg;
+        sNodeCfg = filesystemSocketPrefix + sNodeCfg;
         ctxPoint->type = FORWARD_FILESYSTEM;
     } else if (sFType == "jdwp") {
         ctxPoint->type = FORWARD_JDWP;
@@ -556,10 +556,10 @@ bool HdcForwardBase::BeginForward(const string &command, string &sError)
     sError = ctxPoint->lastError;
     if (ret) {
         // First 8-byte parameter bit
-        int maxBufSize = sizeof(bufString) - FORWARD_PARAMENTER_BUFSIZE;
-        if (snprintf_s(bufString + FORWARD_PARAMENTER_BUFSIZE, maxBufSize, maxBufSize - 1, "%s", argv[1]) > 0) {
+        int maxBufSize = sizeof(bufString) - forwardParameterBufSize;
+        if (snprintf_s(bufString + forwardParameterBufSize, maxBufSize, maxBufSize - 1, "%s", argv[1]) > 0) {
             SendToTask(ctxPoint->id, CMD_FORWARD_CHECK, (uint8_t *)bufString,
-                       FORWARD_PARAMENTER_BUFSIZE + strlen(bufString + FORWARD_PARAMENTER_BUFSIZE) + 1);
+                       forwardParameterBufSize + strlen(bufString + forwardParameterBufSize) + 1);
             taskCommand = command;
         }
     }
@@ -589,7 +589,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
     // refresh another id,8byte param
     FilterCommand(bufCmd, &ctxPoint->id, (uint8_t **)&content);
     AdminContext(OP_UPDATE, idSlaveOld, ctxPoint);
-    content += FORWARD_PARAMENTER_BUFSIZE;
+    content += forwardParameterBufSize;
     if (!CheckNodeInfo(content, ctxPoint->localArgs)) {
         return false;
     }

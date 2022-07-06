@@ -21,11 +21,11 @@ class HdcDaemonApp : public HdcTransferBase {
 public:
     HdcDaemonApp(HTaskInfo hTaskInfo);
     virtual ~HdcDaemonApp();
-    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
+    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
     bool ReadyForRelease();
 
 private:
-    void WhenTransferFinish(CtxFile *context);
+    void WhenTransferFinish(CtxFile *context) override;
     void PackageShell(bool installOrUninstall, const char *options, const string package);
     bool AsyncInstallFinish(bool finish, int64_t exitStatus, const string result);
     void Sideload(const char *pathOTA);

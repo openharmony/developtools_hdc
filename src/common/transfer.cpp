@@ -404,7 +404,7 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         }
 #endif
         ctxNow.dirMode.push_back(mode);
-        WRITE_LOG(LOG_DEBUG, "dir mode: %o u_id = %u, g_id = %u, context = %s", 
+        WRITE_LOG(LOG_DEBUG, "dir mode: %o u_id = %u, g_id = %u, context = %s",
                   mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
     }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {

@@ -189,7 +189,7 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
 {
     if (ctxNow.master) {
         WRITE_LOG(LOG_DEBUG, "FileModeSync master ctxNow.fileModeSync = %d size = %zu", ctxNow.fileModeSync, ctxNow.dirMode.size());
-        if (ctxNow.dirMode.size() > 0 ) {
+        if (ctxNow.dirMode.size() > 0) {
             auto mode = ctxNow.dirMode.back();
             WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u conext = %s",
                 mode.fullName.c_str(), mode.perm, mode.u_id, mode.g_id, mode.context.c_str());

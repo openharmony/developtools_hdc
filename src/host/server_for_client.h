@@ -33,7 +33,7 @@ protected:
 private:
     static void AcceptClient(uv_stream_t *server, int status);
     void SetTCPListen();
-    int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO);
+    int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO) override;
     void ReportServerVersion(HChannel hChannel);
     bool DoCommand(HChannel hChannel, void *formatCommandInput);
     void OrderFindTargets(HChannel hChannel);
@@ -51,7 +51,7 @@ private:
     bool RemoveForward(HChannel hChannel, const char *parameterString);
     bool TaskCommand(HChannel hChannel, void *formatCommandInput);
     int ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, const int bytesIO);
-    bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId);
+    bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId) override;
     HSession FindAliveSession(uint32_t sessionId);
     HSession FindAliveSessionFromDaemonMap(const HChannel hChannel);
 

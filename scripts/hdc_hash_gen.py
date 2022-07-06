@@ -50,7 +50,6 @@ def write_hdc_file():
     if hdc_file == "":
         return
     with open(output_dir+hdc_file, 'w') as fd_hdc:
-        #fd_hdc.write(algorithm.hexdigest())
         fd_hdc.write("#ifndef HDC_HASH_GEN_H\n")
         fd_hdc.write("#define HDC_HASH_GEN_H\n")
         fd_hdc.write('\n')

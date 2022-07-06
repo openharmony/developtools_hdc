@@ -21,8 +21,8 @@ class HdcDaemonUnity : public HdcTaskBase {
 public:
     HdcDaemonUnity(HTaskInfo hTaskInfo);
     virtual ~HdcDaemonUnity();
-    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
-    void StopTask();
+    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
+    void StopTask() override;
     bool ReadyForRelease();
 
 private:

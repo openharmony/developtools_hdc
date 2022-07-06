@@ -19,11 +19,11 @@
 namespace Hdc {
 class HdcForwardBase : public HdcTaskBase {
 public:
-    HdcForwardBase(HTaskInfo hTaskInfo);
+    explicit HdcForwardBase(HTaskInfo hTaskInfo);
     virtual ~HdcForwardBase();
-    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
+    bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
     bool BeginForward(const string &command, string &sError);
-    void StopTask();
+    void StopTask() override;
     bool ReadyForRelease();
 
 protected:
@@ -97,9 +97,9 @@ private:
 
     map<uint32_t, HCtxForward> mapCtxPoint;
     string taskCommand;
-    const uint8_t FORWARD_PARAMENTER_BUFSIZE = 8;
-    const string FILESYSTEM_SOCKET_PREFIX = "/tmp/";
-    const string HARMONY_RESERVED_SOCKET_PREFIX = "/dev/socket/";
+    const uint8_t forwardParameterBufSize = 8;
+    const string filesystemSocketPrefix = "/tmp/";
+    const string harmonyReservedSocketPrefix = "/dev/socket/";
     // set true to enable slave check when forward create
     const bool slaveCheckWhenBegin = false;
     std::mutex ctxPointMutex;

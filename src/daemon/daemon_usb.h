@@ -23,7 +23,7 @@ public:
     virtual ~HdcDaemonUSB();
     int Initial();
     void Stop();
-    int SendUSBRaw(HSession hSession, uint8_t *data, const int length);
+    int SendUSBRaw(HSession hSession, uint8_t *data, const int length) override;
     void OnNewHandshakeOK(const uint32_t sessionId);
     void OnSessionFreeFinally(const HSession hSession);
 
@@ -44,7 +44,7 @@ private:
     int AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *sessionId);
     void CloseEndpoint(HUSB hUSB, bool closeCtrlEp = false);
     string GetDevPath(const std::string &path);
-    bool ReadyForWorkThread(HSession hSession);
+    bool ReadyForWorkThread(HSession hSession) override;
     int LoopUSBRead(HUSB hUSB, int readMaxWanted);
     HSession PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, int recvBytesIO);
     bool JumpAntiquePacket(const uint8_t &buf, ssize_t bytes) const;
@@ -52,7 +52,7 @@ private:
     int CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop);
     void ResetOldSession(uint32_t sessionId);
     int GetMaxPacketSize(int fdFfs);
-    int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize);
+    int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     void FillUsbV2Head(struct usb_functionfs_desc_v2 &descUsbFfs);
 
     HdcUSB usbHandle = {};

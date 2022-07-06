@@ -33,7 +33,7 @@ private:
     static void ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
     static void CommandWorker(uv_timer_t *handle);
     int ConnectServerForClient(const char *ip, uint16_t port);
-    int ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO);
+    int ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO) override;
     int PreHandshake(HChannel hChannel, const uint8_t *buf);
     string AutoConnectKey(string &doCommand, const string &preConnectKey) const;
     uint32_t GetLastPID();
@@ -41,7 +41,7 @@ private:
     void BindLocalStd();
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);
-    void NotifyInstanceChannelFree(HChannel hChannel);
+    void NotifyInstanceChannelFree(HChannel hChannel) override;
 
 #ifndef _WIN32
     termios terminalState;

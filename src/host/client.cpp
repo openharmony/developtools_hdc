@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 #include "client.h"
+#ifndef TEST_HASH
 #include "hdc_hash_gen.h"
+#endif
 #include "host_updater.h"
 #include "server.h"
 #include "file.h"

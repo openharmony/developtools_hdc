@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 #include "server_for_client.h"
+#ifndef TEST_HASH
 #include "hdc_hash_gen.h"
+#endif
 #include "server.h"
 
 namespace Hdc {

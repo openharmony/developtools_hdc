@@ -141,7 +141,6 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     // just get usb SN, close handle immediately
     int childRet = OpenDeviceMyNeed(hUSB);
     if (childRet < 0) {
-        WRITE_LOG(LOG_WARN, "DetectMyNeed childRet:%d sn:%s", childRet, sn.c_str());
         delete hUSB;
         return false;
     }
@@ -216,7 +215,6 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
         WRITE_LOG(LOG_FATAL, "Failed to get device list");
         return;
     }
-    WRITE_LOG(LOG_DEBUG, "WatchUsbNodeChange cnt: %lu", cnt);
     int i = 0;
     // linux replug devid increment，windows will be not
     while ((dev = devs[i++]) != nullptr) {  // must postfix++
@@ -226,7 +224,6 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
         if (statusCheck == HOST_USB_IGNORE || statusCheck == HOST_USB_REGISTER) {
             continue;
         }
-        WRITE_LOG(LOG_DEBUG, "WatchUsbNodeChange szTmpKey:%s", szTmpKey.c_str());
         string sn = szTmpKey;
         if (!thisClass->DetectMyNeed(dev, sn)) {
             thisClass->ReviewUsbNodeLater(szTmpKey);
@@ -320,12 +317,9 @@ bool HdcHostUSB::IsDebuggableDev(const struct libusb_interface_descriptor *ifDes
 
     if (ifDescriptor->bInterfaceClass != harmonyClass || ifDescriptor->bInterfaceSubClass != harmonySubClass
         || ifDescriptor->bInterfaceProtocol != harmonyProtocol) {
-        WRITE_LOG(LOG_DEBUG, "IsDebuggableDev false bInterfaceClass:%d bInterfaceSubClass:%d bInterfaceProtocol:%d",
-                  ifDescriptor->bInterfaceClass, ifDescriptor->bInterfaceSubClass, ifDescriptor->bInterfaceProtocol);
         return false;
     }
     if (ifDescriptor->bNumEndpoints != harmonyEpNum) {
-        WRITE_LOG(LOG_DEBUG, "IsDebuggableDev false bNumEndpoints:%d", ifDescriptor->bNumEndpoints);
         return false;
     }
     return true;
@@ -351,7 +345,6 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
     struct libusb_config_descriptor *descConfig = nullptr;
     ret = libusb_get_active_config_descriptor(device, &descConfig);
     if (ret != 0) {
-        WRITE_LOG(LOG_WARN, "CheckActiveConfig failed descConfig ret:%d", ret);
         return -1;
     }
     ret = -1;
@@ -379,14 +372,12 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
                 }
             }
             if (hUSB->hostBulkIn.endpoint == 0 || hUSB->hostBulkOut.endpoint == 0) {
-                WRITE_LOG(LOG_WARN, "CheckActiveConfig endpoint is 0");
                 break;
             }
             ret = 0;
         }
     }
     libusb_free_config_descriptor(descConfig);
-    WRITE_LOG(LOG_DEBUG, "CheckActiveConfig ret:%d", ret);
     return ret;
 }
 
@@ -573,11 +564,9 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
     while (modRunning) {
         libusb_device_handle *handle = hUSB->devHandle;
         if (CheckDescriptor(hUSB)) {
-            WRITE_LOG(LOG_WARN, "OpenDeviceMyNeed CheckDescriptor break");
             break;
         }
         if (CheckActiveConfig(device, hUSB)) {
-            WRITE_LOG(LOG_WARN, "OpenDeviceMyNeed CheckActiveConfig break");
             break;
         }
         // USB filter rules are set according to specific device pedding device
@@ -589,7 +578,6 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
         libusb_close(hUSB->devHandle);
         hUSB->devHandle = nullptr;
     }
-    WRITE_LOG(LOG_DEBUG, "OpenDeviceMyNeed ret:%d", ret);
     return ret;
 }
 

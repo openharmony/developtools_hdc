@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 #include "daemon.h"
+#ifndef TEST_HASH
 #include "hdc_hash_gen.h"
+#endif
 #include "../common/serial_struct.h"
 #include <openssl/sha.h>
 

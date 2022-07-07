@@ -285,7 +285,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.u_id = fs.statbuf.st_uid;
         context->fileMode.g_id = fs.statbuf.st_gid;
-        WRITE_LOG(LOG_DEBUG, "permissions: %o u_id = %u, g_id = %u", context->fileMode.perm, context->fileMode.u_id, context->fileMode.g_id);
+        WRITE_LOG(LOG_DEBUG, "permissions: %o u_id = %u, g_id = %u", context->fileMode.perm,
+                  context->fileMode.u_id, context->fileMode.g_id);
 
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;

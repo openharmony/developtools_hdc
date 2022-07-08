@@ -24,7 +24,7 @@ public:
     virtual ~HdcShell();
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
     void StopTask() override;
-    bool ReadyForRelease();
+    bool ReadyForRelease() override;
 
 private:
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);

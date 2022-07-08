@@ -22,7 +22,7 @@ public:
     HdcDaemonApp(HTaskInfo hTaskInfo);
     virtual ~HdcDaemonApp();
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
-    bool ReadyForRelease();
+    bool ReadyForRelease() override;
 
 private:
     void WhenTransferFinish(CtxFile *context) override;

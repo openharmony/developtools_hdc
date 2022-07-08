@@ -112,7 +112,7 @@ private:
     std::vector<string> serialPortRemoved;
     bool uartOpened = false;
     std::thread sendThread;
-    bool isCheck;
+    bool isCheck = false;
 
     std::vector<std::string> StringSplit(std::string source, std::string split = ":");
     bool GetPortFromKey(const std::string &connectKey, std::string &portName, uint32_t &baudRate);

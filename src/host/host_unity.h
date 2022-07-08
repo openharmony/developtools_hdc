@@ -23,7 +23,7 @@ public:
     virtual ~HdcHostUnity();
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
     void StopTask() override;
-    bool ReadyForRelease();
+    bool ReadyForRelease() override;
 
 private:
     struct ContextUnity {

@@ -32,7 +32,7 @@ public:
     {
         singalStop = true;  // default operation
     }
-    bool ReadyForRelease();
+    virtual bool ReadyForRelease();
     void TaskFinish();
 
 protected:                                                                        // D/S==daemon/server

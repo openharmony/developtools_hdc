@@ -24,7 +24,7 @@ public:
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
     bool BeginForward(const string &command, string &sError);
     void StopTask() override;
-    bool ReadyForRelease();
+    bool ReadyForRelease() override;
 
 protected:
     enum FORWARD_TYPE {

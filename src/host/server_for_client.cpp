@@ -62,7 +62,11 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
         HChannel context = (HChannel)handle->data;
         Base::ReallocBuf(&context->ioBuf, &context->bufSize, sizeWanted);  // sizeWanted default 6k
         buf->base = (char *)context->ioBuf + context->availTailIndex;
+#ifdef HDC_VERSION_CHECK
         buf->len = sizeof(struct ChannelHandShake) + DWORD_SERIALIZE_SIZE;  // only recv static size
+#else
+        buf->len = offsetof(struct ChannelHandShake, version) + DWORD_SERIALIZE_SIZE;
+#endif
     };
     // first packet static size, after this packet will be dup for normal recv
     uv_read_start((uv_stream_t *)&hChannel->hWorkTCP, funcChannelHeaderAlloc, ReadStream);

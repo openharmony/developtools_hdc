@@ -19,7 +19,11 @@
     "ram": "1599KB",
     "deps": {
       "components": [
-        "base:utils"
+        "common",
+        "libuv",
+        "init",
+        "selinux",
+        "utils_base"
       ],
       "third_party": [
         "libuv:uv_static",

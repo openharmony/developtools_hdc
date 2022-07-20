@@ -14,8 +14,7 @@
  */
 #ifndef HDC_SHELL_H
 #define HDC_SHELL_H
-#include "daemon_common.h"
-#include <mutex>
+#include "task.h"
 
 namespace Hdc {
 class HdcShell : public HdcTaskBase {

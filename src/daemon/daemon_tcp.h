@@ -14,7 +14,11 @@
  */
 #ifndef HDC_DAEMON_TCP_H
 #define HDC_DAEMON_TCP_H
-#include "daemon_common.h"
+#include <cstdint>
+#include "uv.h"
+#include "uv/unix.h"
+#include "tcp.h"
+struct sockaddr;
 
 namespace Hdc {
 class HdcDaemonTCP : public HdcTCPBase {

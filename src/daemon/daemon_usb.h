@@ -14,7 +14,7 @@
  */
 #ifndef HDC_DAEMON_USB_H
 #define HDC_DAEMON_USB_H
-#include "daemon_common.h"
+#include "usb.h"
 
 namespace Hdc {
 class HdcDaemonUSB : public HdcUSBBase {

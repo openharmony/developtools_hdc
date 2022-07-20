@@ -13,6 +13,20 @@
  * limitations under the License.
  */
 #include "daemon_usb.h"
+#include <cerrno>
+#include <cstddef>
+#include "arpa/inet.h"
+#include "asm-generic/int-ll64.h"
+#include "bits/errno.h"
+#include "bits/fcntl.h"
+#include "fcntl.h"
+#include "linux/usb/functionfs.h"
+#include "new"
+#include "sched.h"
+#include "system_depend.h"
+#include "unistd.h"
+#include "uv/unix.h"
+#include "daemon.h"
 #include "usb_ffs.h"
 
 namespace Hdc {

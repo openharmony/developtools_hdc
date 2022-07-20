@@ -14,7 +14,7 @@
  */
 #ifndef HDC_DAEMON_FORWARD_H
 #define HDC_DAEMON_FORWARD_H
-#include "daemon_common.h"
+#include "forward.h"
 
 namespace Hdc {
 class HdcDaemonForward : public HdcForwardBase {

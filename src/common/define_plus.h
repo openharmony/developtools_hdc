@@ -282,8 +282,8 @@ struct HostUSBEndpoint {
     bool isShutdown;
     bool bulkInOut;  // true is bulkIn
     uint16_t sizeEpBuf;
-    mutex mutexIo;
-    mutex mutexCb;
+    std::mutex mutexIo;
+    std::mutex mutexCb;
     condition_variable cv;
     libusb_transfer *transfer;
 };
@@ -298,8 +298,8 @@ struct HdcUSB {
     uint8_t devId;
     uint8_t busId;
     uint8_t interfaceNumber;
-    string serialNumber;
-    string usbMountPoint;
+    std::string serialNumber;
+    std::string usbMountPoint;
     HostUSBEndpoint hostBulkIn;
     HostUSBEndpoint hostBulkOut;
 
@@ -312,15 +312,15 @@ struct HdcUSB {
     uint32_t payloadSize;
     uint16_t wMaxPacketSizeSend;
     bool resetIO;  // if true, must break write and read,default false
-    mutex lockDeviceHandle;
-    mutex lockSendUsbBlock;
+    std::mutex lockDeviceHandle;
+    std::mutex lockSendUsbBlock;
 };
 using HUSB = struct HdcUSB *;
 
 #ifdef HDC_SUPPORT_UART
 struct HdcUART {
 #ifdef HDC_HOST
-    string serialPort;
+    std::string serialPort;
     std::thread readThread;
     uint16_t retryCount = 0;
 #endif // HDC_HOST
@@ -351,14 +351,14 @@ struct HdcSession {
     bool isDead;
     bool voteReset;
     bool isCheck = false;
-    string connectKey;
+    std::string connectKey;
     uint8_t connType;  // ConnType
     uint32_t sessionId;
     std::atomic<uint32_t> ref;
     uint8_t uvHandleRef;  // libuv handle ref -- just main thread now
     uint8_t uvChildRef;   // libuv handle ref -- just main thread now
     bool childCleared;
-    map<uint32_t, HTaskInfo> *mapTask;
+    std::map<uint32_t, HTaskInfo> *mapTask;
     // class ptr
     void *classInstance;  //  HdcSessionBase instance, HdcServer or HdcDaemon
     void *classModule;    //  Communicate module, TCP or USB instance,HdcDaemonUSB HdcDaemonTCP etc...
@@ -367,9 +367,9 @@ struct HdcSession {
     int availTailIndex;  // buffer available data size
     uint8_t *ioBuf;
     // auth
-    list<void *> *listKey;  // rsa private or publickey list
+    std::list<void *> *listKey;  // rsa private or publickey list
     uint8_t authKeyIndex;
-    string tokenRSA;  // SHA_DIGEST_LENGTH+1==21
+    std::string tokenRSA;  // SHA_DIGEST_LENGTH+1==21
     // child work
     uv_loop_t childLoop;  // run in work thread
     // pipe0 in main thread(hdc server mainloop), pipe1 in work thread
@@ -448,7 +448,7 @@ using HSession = struct HdcSession *;
 struct HdcChannel {
     void *clsChannel;  // ptr Class of serverForClient or client
     uint32_t channelId;
-    string connectKey;
+    std::string connectKey;
     uv_tcp_t hWorkTCP;  // work channel for client, forward channel for server
     uv_thread_t hWorkThread;
     uint8_t uvHandleRef = 0;  // libuv handle ref -- just main thread now
@@ -472,7 +472,7 @@ struct HdcChannel {
     uv_tty_t stdoutTty;
     char bufStd[128];
     bool isCheck = false;
-    string key;
+    std::string key;
     bool bFileSend = false;
     bool bFileFromClient = false;
 };
@@ -481,16 +481,16 @@ using HChannel = struct HdcChannel *;
 struct HdcDaemonInformation {
     uint8_t connType;
     uint8_t connStatus;
-    string connectKey;
-    string usbMountPoint;
-    string devName;
+    std::string connectKey;
+    std::string usbMountPoint;
+    std::string devName;
     HSession hSession;
-    string version;
+    std::string version;
 };
 using HDaemonInfo = struct HdcDaemonInformation *;
 
 struct HdcForwardInformation {
-    string taskString;
+    std::string taskString;
     bool forwardDirection;  // true for forward, false is reverse;
     uint32_t sessionId;
     uint32_t channelId;

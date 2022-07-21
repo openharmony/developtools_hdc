@@ -186,7 +186,10 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size())
         || !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
         WRITE_LOG(LOG_DEBUG, "Set file send mode");
-        channel->bFileSend = true;
+        channel->remote = 1;
+    }
+    if (!strncmp(commandIn.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
+        channel->remote = 2;
     }
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
@@ -431,9 +434,14 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
             || (command == CMD_FILE_DATA)
             || (command == CMD_FILE_FINISH)
             || (command == CMD_FILE_MODE)
-            || (command == CMD_DIR_MODE);
+            || (command == CMD_DIR_MODE)
+            || (command == CMD_APP_INIT)
+            || (command == CMD_APP_CHECK)
+            || (command == CMD_APP_BEGIN)
+            || (command == CMD_APP_DATA)
+            || (command == CMD_APP_FINISH);
     }
-    if ((isCheckVersionCmd || hChannel->bFileSend) && bOffset) {
+    if ((isCheckVersionCmd || hChannel->remote > 0) && bOffset) {
         if (CMD_CHECK_SERVER == command) {
             WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
             string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
@@ -441,19 +449,18 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
             fflush(stdout);
             return 0;
         } else {
+            GetRemoteTask(hChannel, command);
             // file command
-            if (fileTask == nullptr) {
-                HTaskInfo hTaskInfo = new TaskInformation();
-                hTaskInfo->channelId = hChannel->channelId;
-                hTaskInfo->runLoop = loopMain;
-                hTaskInfo->serverOrDaemon = true;
-                hTaskInfo->masterSlave = (command == CMD_FILE_INIT);
-                hTaskInfo->channelTask = true;
-                hTaskInfo->channelClass = this;
-                fileTask = std::make_unique<HdcFile>(hTaskInfo);
+            if (hChannel->remote == 1) {
+                if (!fileTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+                    fileTask->TaskFinish();
+                }
             }
-            if (!fileTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
-                fileTask->TaskFinish();
+            // app command
+            if (hChannel->remote == 2) {
+                if (!appTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+                    appTask->TaskFinish();
+                }
             }
         }
         return 0;
@@ -462,5 +469,33 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     fprintf(stdout, "%s", s.c_str());
     fflush(stdout);
     return 0;
+}
+
+void HdcClient::GetRemoteTask(HChannel hChannel, uint16_t command)
+{
+    if (hChannel->remote == 1) {
+        if (fileTask == nullptr) {
+            HTaskInfo hTaskInfo = new TaskInformation();
+            hTaskInfo->channelId = hChannel->channelId;
+            hTaskInfo->runLoop = loopMain;
+            hTaskInfo->serverOrDaemon = true;
+            hTaskInfo->masterSlave = (command == CMD_FILE_INIT);
+            hTaskInfo->channelTask = true;
+            hTaskInfo->channelClass = this;
+            fileTask = std::make_unique<HdcFile>(hTaskInfo);
+        }
+    }
+    if (hChannel->remote == 2) {
+        if (appTask == nullptr) {
+            HTaskInfo hTaskInfo = new TaskInformation();
+            hTaskInfo->channelId = hChannel->channelId;
+            hTaskInfo->runLoop = loopMain;
+            hTaskInfo->serverOrDaemon = true;
+            hTaskInfo->masterSlave = (command == CMD_APP_INIT);
+            hTaskInfo->channelTask = true;
+            hTaskInfo->channelClass = this;
+            appTask = std::make_unique<HdcHostApp>(hTaskInfo);
+        }
+    }
 };
 }  // namespace Hdc

@@ -51,6 +51,7 @@ private:
     bool GetAnyTarget(HChannel hChannel);
     bool RemoveForward(HChannel hChannel, const char *parameterString);
     bool TaskCommand(HChannel hChannel, void *formatCommandInput);
+    void HandleRemote(HChannel hChannel, string &parameters, int flag);
     int ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, const int bytesIO);
     bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId) override;
     HSession FindAliveSession(uint32_t sessionId);

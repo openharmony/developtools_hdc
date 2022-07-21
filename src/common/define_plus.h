@@ -473,8 +473,8 @@ struct HdcChannel {
     char bufStd[128];
     bool isCheck = false;
     std::string key;
-    bool bFileSend = false;
-    bool bFileFromClient = false;
+    int remote = 0;
+    bool fromClient = false;
 };
 using HChannel = struct HdcChannel *;
 

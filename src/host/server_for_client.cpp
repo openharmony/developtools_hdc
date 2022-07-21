@@ -528,7 +528,7 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, int
         }
     }
     if (hChannel->fromClient) {
-        string remote = CMDSTR_FILE_REMOTE_PARAMETER + " ";
+        string remote = CMDSTR_REMOTE_PARAMETER + " ";
         if (parameters.find(remote) != std::string::npos) {
             parameters.replace(parameters.find(remote), remote.size(), "");
             WRITE_LOG(LOG_DEBUG, "parameters: %s", parameters.c_str());

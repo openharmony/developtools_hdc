@@ -13,6 +13,15 @@
  * limitations under the License.
  */
 #include "daemon_tcp.h"
+#include <cstdlib>
+#include "arpa/inet.h"
+#include "netinet/in.h"
+#include "new"
+#include "sys/socket.h"
+#include "system_depend.h"
+#include "unistd.h"
+#include "common.h"
+#include "session.h"
 
 namespace Hdc {
 HdcDaemonTCP::HdcDaemonTCP(const bool serverOrDaemonIn, void *ptrMainBase)

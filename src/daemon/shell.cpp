@@ -14,6 +14,17 @@
  */
 #include "shell.h"
 #include <sys/wait.h>
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <string>
+#include "bits/fcntl.h"
+#include "fcntl.h"
+#include "functional"
+#include "new"
+#include "unistd.h"
+#include "base.h"
+#include "file_descriptor.h"
 
 namespace Hdc {
 std::mutex HdcShell::mutexPty;

@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 #include "daemon_forward.h"
+#include <cstdint>
+#include "securec.h"
+#include "daemon.h"
+#include "jdwp.h"
 
 namespace Hdc {
 HdcDaemonForward::HdcDaemonForward(HTaskInfo hTaskInfo)

@@ -117,7 +117,7 @@ void AppendCwdWhenTransfer(string &outCommand)
         path[strlen(path)] = Base::GetPathSep();
     }
     outCommand += outCommand.size() ? " " : "";
-    outCommand += CMDSTR_FILE_REMOTE_PARAMETER;
+    outCommand += CMDSTR_REMOTE_PARAMETER;
     outCommand += outCommand.size() ? " -cwd " : "-cwd ";
     string utf8Path = Base::UnicodeToUtf8(path, true);
     outCommand += Base::StringFormat("\"%s\"", utf8Path.c_str());

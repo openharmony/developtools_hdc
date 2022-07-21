@@ -17,7 +17,7 @@
 #include "host_common.h"
 
 namespace Hdc {
-
+// Avoiding Circular dependency
 class HdcHostApp;
 
 class HdcClient : public HdcChannelBase {
@@ -45,7 +45,8 @@ private:
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);
     void NotifyInstanceChannelFree(HChannel hChannel) override;
-    void GetRemoteTask(HChannel hChannel, uint16_t command);
+    bool IsOffset(uint16_t command);
+    HTaskInfo GetRemoteTaskInfo(HChannel hChannel);
 
 #ifndef _WIN32
     termios terminalState;

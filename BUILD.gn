@@ -97,9 +97,9 @@ ohos_executable("hdcd") {
   configs = [ ":hdc_config" ]
 
   deps = [
-    "//third_party/libuv:uv_static",
+    "//third_party/libuv:uv",
     "//third_party/lz4:liblz4_static",
-    "//third_party/openssl:libcrypto_static",
+    "//third_party/openssl:libcrypto_shared",
     "//utils/native/base:utilsbase",
   ]
 

@@ -186,10 +186,10 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size())
         || !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
         WRITE_LOG(LOG_DEBUG, "Set file send mode");
-        channel->remote = REMOTE_FILE;
+        channel->remote = RemoteType::REMOTE_FILE;
     }
     if (!strncmp(commandIn.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
-        channel->remote = REMOTE_APP;
+        channel->remote = RemoteType::REMOTE_APP;
     }
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
@@ -436,9 +436,9 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         fflush(stdout);
         return 0;
     }
-    if (hChannel->remote > REMOTE_NONE && bOffset) {
+    if (hChannel->remote > RemoteType::REMOTE_NONE && bOffset) {
         // file command
-        if (hChannel->remote == REMOTE_FILE) {
+        if (hChannel->remote == RemoteType::REMOTE_FILE) {
             if (fileTask == nullptr) {
                 HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
                 hTaskInfo->masterSlave = (command == CMD_FILE_INIT);
@@ -449,7 +449,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
             }
         }
         // app command
-        if (hChannel->remote == REMOTE_APP) {
+        if (hChannel->remote == RemoteType::REMOTE_APP) {
             if (appTask == nullptr) {
                 HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
                 hTaskInfo->masterSlave = (command == CMD_APP_INIT);

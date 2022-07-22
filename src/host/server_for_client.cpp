@@ -468,14 +468,14 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
     if (CMD_FILE_INIT == formatCommand->cmdFlag) {
         cmdFlag = "send ";
         sizeCmdFlag = 5;  // 5: cmdFlag send size
-        HandleRemote(hChannel, formatCommand->parameters, REMOTE_FILE);
+        HandleRemote(hChannel, formatCommand->parameters, RemoteType::REMOTE_FILE);
     } else if (CMD_FORWARD_INIT == formatCommand->cmdFlag) {
         cmdFlag = "fport ";
         sizeCmdFlag = 6;  // 6: cmdFlag fport size
     } else if (CMD_APP_INIT == formatCommand->cmdFlag) {
         cmdFlag = "install ";
         sizeCmdFlag = 8;  // 8: cmdFlag install size
-        HandleRemote(hChannel, formatCommand->parameters, REMOTE_APP);
+        HandleRemote(hChannel, formatCommand->parameters, RemoteType::REMOTE_APP);
     } else if (CMD_APP_UNINSTALL == formatCommand->cmdFlag) {
         cmdFlag = "uninstall ";
         sizeCmdFlag = 10;  // 10: cmdFlag uninstall size
@@ -515,7 +515,7 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
     return true;
 }
 
-void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, int flag)
+void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, RemoteType flag)
 {
     hChannel->remote = flag;
     int argc = 0;
@@ -724,7 +724,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     }
 
     uint16_t command = *reinterpret_cast<uint16_t *>(bufPtr);
-    if (command != 0 && (hChannel->remote > REMOTE_NONE)) {
+    if (command != 0 && (hChannel->remote > RemoteType::REMOTE_NONE)) {
         // server directly passthrough file command to daemon
         if (!SendToDaemon(hChannel, command, bufPtr + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
             WRITE_LOG(LOG_FATAL, "Client ReadChannel : direct send to daemon failed");

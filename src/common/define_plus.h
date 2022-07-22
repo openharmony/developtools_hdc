@@ -445,9 +445,11 @@ struct HdcSession {
 };
 using HSession = struct HdcSession *;
 
-constexpr int REMOTE_NONE = 0;
-constexpr int REMOTE_FILE = 1;
-constexpr int REMOTE_APP = 2;
+enum class RemoteType {
+    REMOTE_NONE = 0,
+    REMOTE_FILE = 1,
+    REMOTE_APP = 2,
+};
 
 struct HdcChannel {
     void *clsChannel;  // ptr Class of serverForClient or client
@@ -477,7 +479,7 @@ struct HdcChannel {
     char bufStd[128];
     bool isCheck = false;
     std::string key;
-    int remote = REMOTE_NONE;
+    RemoteType remote = RemoteType::REMOTE_NONE;
     bool fromClient = false;
 };
 using HChannel = struct HdcChannel *;

@@ -575,14 +575,9 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_FILE_FINISH:
         case CMD_FILE_MODE:
         case CMD_DIR_MODE:
-        case CMD_APP_INIT:
-        case CMD_APP_CHECK:
-        case CMD_APP_BEGIN:
-        case CMD_APP_DATA:
-        case CMD_APP_FINISH:
-            if (hChannel->fromClient) {
-                // server directly passthrough app command to client if remote file mode, else go default
-                WRITE_LOG(LOG_DEBUG, "command passthrough to client command:%u channelId:%u", command, channelId);
+            if (hChannel->bFileFromClient) {
+                // server directly passthrough file command to client if remote file mode, else go default
+                WRITE_LOG(LOG_INFO, "server directly passthrough file command to client command:%u", channelId);
                 sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
                 break;
             }

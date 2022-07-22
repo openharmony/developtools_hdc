@@ -17,9 +17,6 @@
 #include "host_common.h"
 
 namespace Hdc {
-// Avoiding Circular dependency
-class HdcHostApp;
-
 class HdcClient : public HdcChannelBase {
 public:
     HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion = false);
@@ -45,8 +42,6 @@ private:
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);
     void NotifyInstanceChannelFree(HChannel hChannel) override;
-    bool IsOffset(uint16_t command);
-    HTaskInfo GetRemoteTaskInfo(HChannel hChannel);
 
 #ifndef _WIN32
     termios terminalState;
@@ -59,7 +54,6 @@ private:
     uv_check_t ctrlServerWork;
     HChannel channel;
     std::unique_ptr<HdcFile> fileTask;
-    std::unique_ptr<HdcHostApp> appTask;
     bool isCheckVersionCmd = false;
 };
 }  // namespace Hdc

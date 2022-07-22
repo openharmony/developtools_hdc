@@ -186,10 +186,7 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size())
         || !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
         WRITE_LOG(LOG_DEBUG, "Set file send mode");
-        channel->remote = RemoteType::REMOTE_FILE;
-    }
-    if (!strncmp(commandIn.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
-        channel->remote = RemoteType::REMOTE_APP;
+        channel->bFileSend = true;
     }
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
@@ -426,73 +423,44 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     uint16_t command = 0;
     bool bOffset = false;
     if (bytesIO >= static_cast<int>(sizeof(uint16_t))) {
-       command = *reinterpret_cast<uint16_t *>(buf);
-       bOffset = IsOffset(command);
+           command = *reinterpret_cast<uint16_t *>(buf);
+           bOffset = (command == CMD_CHECK_SERVER)
+            || (command == CMD_FILE_INIT)
+            || (command == CMD_FILE_CHECK)
+            || (command == CMD_FILE_BEGIN)
+            || (command == CMD_FILE_DATA)
+            || (command == CMD_FILE_FINISH)
+            || (command == CMD_FILE_MODE)
+            || (command == CMD_DIR_MODE);
     }
-    if (CMD_CHECK_SERVER == command && isCheckVersionCmd) {
-        WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
-        string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
-        fprintf(stdout, "Client version:%s, server version:%s\n", Base::GetVersion().c_str(), version.c_str());
-        fflush(stdout);
-        return 0;
-    }
-    if (hChannel->remote > RemoteType::REMOTE_NONE && bOffset) {
-        // file command
-        if (hChannel->remote == RemoteType::REMOTE_FILE) {
+    if ((isCheckVersionCmd || hChannel->bFileSend) && bOffset) {
+        if (CMD_CHECK_SERVER == command) {
+            WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
+            string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
+            fprintf(stdout, "Client version:%s, server version:%s\n", Base::GetVersion().c_str(), version.c_str());
+            fflush(stdout);
+            return 0;
+        } else {
+            // file command
             if (fileTask == nullptr) {
-                HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
+                HTaskInfo hTaskInfo = new TaskInformation();
+                hTaskInfo->channelId = hChannel->channelId;
+                hTaskInfo->runLoop = loopMain;
+                hTaskInfo->serverOrDaemon = true;
                 hTaskInfo->masterSlave = (command == CMD_FILE_INIT);
+                hTaskInfo->channelTask = true;
+                hTaskInfo->channelClass = this;
                 fileTask = std::make_unique<HdcFile>(hTaskInfo);
             }
             if (!fileTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
                 fileTask->TaskFinish();
             }
         }
-        // app command
-        if (hChannel->remote == RemoteType::REMOTE_APP) {
-            if (appTask == nullptr) {
-                HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
-                hTaskInfo->masterSlave = (command == CMD_APP_INIT);
-                appTask = std::make_unique<HdcHostApp>(hTaskInfo);
-            }
-            if (!appTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
-                appTask->TaskFinish();
-            }
-        }
         return 0;
     }
-
     string s(reinterpret_cast<char *>(buf), bytesIO);
     fprintf(stdout, "%s", s.c_str());
     fflush(stdout);
     return 0;
-}
-
-bool HdcClient::IsOffset(uint16_t command)
-{
-    return (command == CMD_CHECK_SERVER) ||
-           (command == CMD_FILE_INIT) ||
-           (command == CMD_FILE_CHECK) ||
-           (command == CMD_FILE_BEGIN) ||
-           (command == CMD_FILE_DATA) ||
-           (command == CMD_FILE_FINISH) ||
-           (command == CMD_FILE_MODE) ||
-           (command == CMD_DIR_MODE) ||
-           (command == CMD_APP_INIT) ||
-           (command == CMD_APP_CHECK) ||
-           (command == CMD_APP_BEGIN) ||
-           (command == CMD_APP_DATA) ||
-           (command == CMD_APP_FINISH);
-}
-
-HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
-{
-    HTaskInfo hTaskInfo = new TaskInformation();
-    hTaskInfo->channelId = hChannel->channelId;
-    hTaskInfo->runLoop = loopMain;
-    hTaskInfo->serverOrDaemon = true;
-    hTaskInfo->channelTask = true;
-    hTaskInfo->channelClass = this;
-    return hTaskInfo;
 };
 }  // namespace Hdc

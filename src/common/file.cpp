@@ -93,7 +93,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         } else if (argv[i] == CMD_OPTION_MODE_SYNC) {
             context->fileModeSync = true;
             ++srcArgvIndex;
-        } else if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
+        } else if (argv[i] == CMDSTR_FILE_REMOTE_PARAMETER) {
             ++srcArgvIndex;
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);

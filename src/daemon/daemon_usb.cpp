@@ -17,8 +17,6 @@
 #include <cstddef>
 #include "arpa/inet.h"
 #include "asm-generic/int-ll64.h"
-#include "bits/errno.h"
-#include "bits/fcntl.h"
 #include "fcntl.h"
 #include "linux/usb/functionfs.h"
 #include "new"

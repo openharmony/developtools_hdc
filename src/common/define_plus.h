@@ -445,6 +445,12 @@ struct HdcSession {
 };
 using HSession = struct HdcSession *;
 
+enum class RemoteType {
+    REMOTE_NONE = 0,
+    REMOTE_FILE = 1,
+    REMOTE_APP = 2,
+};
+
 struct HdcChannel {
     void *clsChannel;  // ptr Class of serverForClient or client
     uint32_t channelId;
@@ -473,8 +479,8 @@ struct HdcChannel {
     char bufStd[128];
     bool isCheck = false;
     string key;
-    bool bFileSend = false;
-    bool bFileFromClient = false;
+    RemoteType remote = RemoteType::REMOTE_NONE;
+    bool fromClient = false;
 };
 using HChannel = struct HdcChannel *;
 

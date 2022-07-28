@@ -100,7 +100,6 @@ ohos_executable("hdcd") {
     "//third_party/libuv:uv",
     "//third_party/lz4:liblz4_static",
     "//third_party/openssl:libcrypto_shared",
-    "//utils/native/base:utilsbase",
   ]
 
   deps += [ ":hdc_hash_gen" ]
@@ -110,7 +109,10 @@ ohos_executable("hdcd") {
     deps += [ "${HDC_PATH}/src/test/jdwp:jdwp_test" ]
   }
 
-  external_deps = [ "init:libbegetutil" ]
+  external_deps = [
+    "c_utils:utilsbase",
+    "init:libbegetutil",
+  ]
 
   include_dirs = [
     "${HDC_PATH}/daemon",

@@ -20,11 +20,11 @@ ohos_executable("jdwp_test") {
     "HdcJdwpSimulator.cpp",
     "main.cpp",
   ]
-  deps = [
-    "//third_party/libuv:uv_static",
-    "//utils/native/base:utils",
+  deps = [ "//third_party/libuv:uv_static" ]
+  external_deps = [
+    "c_utils:utils",
+    "hiviewdfx_hilog_native:libhilog",
   ]
-  external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
   include_dirs = [
     "//third_party/bounds_checking_function/include",
     "//third_party/libuv",

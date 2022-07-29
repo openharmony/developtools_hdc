@@ -140,9 +140,7 @@ void HdcForwardBase::FreeContextCallBack(HCtxForward ctx)
 
 void HdcForwardBase::FreeJDWP(HCtxForward ctx)
 {
-    if (ctx->fd > 0) {
-        close(ctx->fd);
-    }
+    Base::CloseFd(ctx->fd);
     if (ctx->fdClass) {
         ctx->fdClass->StopWork(false, nullptr);
 
@@ -424,8 +422,8 @@ bool HdcForwardBase::LocalAbstractConnect(uv_pipe_t *pipe, string &sNodeCfg)
         }
         abstractRet = true;
     } while (false);
-    if (!abstractRet && s > 0) {
-        close(s);
+    if (!abstractRet) {
+        Base::CloseFd(s);
     }
 #endif
     return abstractRet;

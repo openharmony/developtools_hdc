@@ -100,7 +100,7 @@ bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
         return false;
     }
     read(fd, buf, sizeof(buf) - 1);
-    close(fd);
+    Base::CloseFd(fd);
     buf[sizeof(buf) - 1] = '\0';
     token = strtok(buf, delims);
 
@@ -138,7 +138,7 @@ bool HdcDaemonUnity::RemountPartition(const char *dir)
         return false;
     }
     ioctl(fd, BLKROSET, &off);
-    close(fd);
+    Base::CloseFd(fd);
 
     if (mount(dev, dir, "none", MS_REMOUNT, nullptr) < 0) {
         WRITE_LOG(LOG_DEBUG, "Mount device failed");

@@ -632,7 +632,7 @@ void HdcHostUART::CloseSerialPort(const HUART hUART)
     }
 #else
     if (hUART->devUartHandle != -1) {
-        close(hUART->devUartHandle);
+        Base::CloseFd(hUART->devUartHandle);
         hUART->devUartHandle = -1;
     }
 #endif

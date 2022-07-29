@@ -66,7 +66,7 @@ namespace Base {
     string GetFullFilePath(string &s);
     string GetPathWithoutFilename(const string &s);
     int CreateSocketPair(int *fds);
-    void CloseSocketPair(const int *fds);
+    void CloseSocketPair(int *fds);
     int StringEndsWith(string s, string sub);
     void BuildErrorString(const char *localPath, const char *op, const char *err, string &str);
     const char *GetFileType(mode_t mode);
@@ -155,6 +155,8 @@ namespace Base {
     {
         return MAX_USBFFS_BULK;
     }
+
+    int CloseFd(int &fd);
 #ifdef HDC_SUPPORT_FLASHD
     // deprecated, remove later
     inline bool SetHdcProperty(const char *key, const char *value)

@@ -935,8 +935,8 @@ namespace Base {
         if (ret == 0) {
             for (auto i = 0; i < 2; ++i) {
                 if (fcntl(fds[i], F_SETFD, FD_CLOEXEC) == -1) {
-                    close(fds[0]);
-                    close(fds[1]);
+                    CloseFd(fds[0]);
+                    CloseFd(fds[1]);
                     constexpr int bufSize = 1024;
                     char buf[bufSize] = { 0 };
                     strerror_r(errno, buf, bufSize);
@@ -1000,11 +1000,11 @@ namespace Base {
 #endif
     }
 
-    void CloseSocketPair(const int *fds)
+    void CloseSocketPair(int *fds)
     {
 #ifndef _WIN32
-        close(fds[0]);
-        close(fds[1]);
+        CloseFd(fds[0]);
+        CloseFd(fds[1]);
 #else
         closesocket(fds[0]);
         closesocket(fds[1]);
@@ -1539,6 +1539,26 @@ namespace Base {
         ret = path[0] == '/';
 #endif
         return ret;
+    }
+
+    int CloseFd(int &fd)
+    {
+        int rc = 0;
+        if (fd > 0) {
+            rc = close(fd);
+            if (rc < 0) {
+                char buffer[BUF_SIZE_DEFAULT] = { 0 };
+#ifdef _WIN32
+                strerror_s(buffer, BUF_SIZE_DEFAULT, errno);
+#else
+                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+#endif
+                WRITE_LOG(LOG_WARN, "close failed errno:%d %s", errno, buffer);
+            } else {
+                fd = -1;
+            }
+        }
+        return rc;
     }
 }
 }  // namespace Hdc

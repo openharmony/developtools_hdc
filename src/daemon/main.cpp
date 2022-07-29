@@ -107,7 +107,8 @@ int BackgroundRun()
         int i;
         const int MAX_NUM = 64;
         for (i = 0; i < MAX_NUM; ++i) {
-            close(i);
+            int fd = i;
+            Base::CloseFd(fd);
         }
         RestartDaemon(true);
     } else {  // >0 orig process

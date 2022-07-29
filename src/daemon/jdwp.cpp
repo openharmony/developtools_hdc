@@ -32,10 +32,7 @@ HdcJdwp::HdcJdwp(uv_loop_t *loopIn)
 
 HdcJdwp::~HdcJdwp()
 {
-    if (awakenPollFd >= 0) {
-        close(awakenPollFd);
-        awakenPollFd = -1;
-    }
+    Base::CloseFd(awakenPollFd);
     uv_rwlock_destroy(&lockMapContext);
     uv_rwlock_destroy(&lockJdwpTrack);
 }
@@ -534,10 +531,7 @@ void *HdcJdwp::FdEventPollThread(void *args)
 int HdcJdwp::CreateFdEventPoll()
 {
     pthread_t tid;
-    if (awakenPollFd >= 0) {
-        close(awakenPollFd);
-        awakenPollFd = -1;
-    }
+    Base::CloseFd(awakenPollFd);
     awakenPollFd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
     if (awakenPollFd < 0) {
         WRITE_LOG(LOG_FATAL, "CreateFdEventPoll : Failed to create awakenPollFd");

@@ -46,6 +46,7 @@ void HdcHostUnity::StopTask()
     if (opContext.enableLog) {
         ++refCount;
         opContext.fsClose.data = &opContext;
+        WRITE_LOG(LOG_DEBUG, "taskInfo->channelId:%u fileLog:%d", taskInfo->channelId, opContext.fileLog);
         uv_fs_close(loopTask, &opContext.fsClose, opContext.fileLog, OnFileClose);
     }
 };

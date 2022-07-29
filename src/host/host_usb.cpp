@@ -608,28 +608,34 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
     int curDev = 0;
 
     int device_num = libusb_get_device_list(ctxUSB, &listDevices);
+    WRITE_LOG(LOG_DEBUG, "device_num:%d", device_num);
     if (device_num <= 0) {
         libusb_free_device_list(listDevices, 1);
         return false;
     }
+    WRITE_LOG(LOG_DEBUG, "usbMountPoint:%s", usbMountPoint);
     if (strchr(usbMountPoint, '-') && EOK == strcpy_s(tmpStr, sizeof(tmpStr), usbMountPoint)) {
         *strchr(tmpStr, '-') = '\0';
         busNum = atoi(tmpStr);
         devNum = atoi(tmpStr + strlen(tmpStr) + 1);
     } else
         return false;
+    WRITE_LOG(LOG_DEBUG, "busNum:%d devNum:%d", busNum, devNum);
 
     int i = 0;
     for (i = 0; i < device_num; ++i) {
         struct libusb_device_descriptor desc;
         if (LIBUSB_SUCCESS != libusb_get_device_descriptor(listDevices[i], &desc)) {
-            break;
+            WRITE_LOG(LOG_DEBUG, "libusb_get_device_descriptor failed i:%d", i);
+            continue;
         }
         curBus = libusb_get_bus_number(listDevices[i]);
         curDev = libusb_get_device_address(listDevices[i]);
+        WRITE_LOG(LOG_DEBUG, "curBus:%d curDev:%d", curBus, curDev);
         if ((curBus == busNum && curDev == devNum)) {
             hUSB->device = listDevices[i];
             int childRet = OpenDeviceMyNeed(hUSB);
+            WRITE_LOG(LOG_DEBUG, "OpenDeviceMyNeed childRet:%d", childRet);
             if (!childRet) {
                 ret = true;
             }

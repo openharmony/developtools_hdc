@@ -41,9 +41,7 @@ bool AsyncCmd::ReadyForRelease()
         delete childShell;
         childShell = nullptr;
     }
-    if (fd > 0) {
-        close(fd);
-    }
+    Base::CloseFd(fd);
     return true;
 }
 
@@ -112,8 +110,8 @@ int AsyncCmd::Popen(string command, bool readWrite, int &pid)
         } else {
             dup2(fd[PIPE_READ], STDIN_FILENO);
         }
-        close(fd[PIPE_READ]);
-        close(fd[PIPE_WRITE]);
+        Base::CloseFd(fd[PIPE_READ]);
+        Base::CloseFd(fd[PIPE_WRITE]);
 
         setsid();
         setpgid(childPid, childPid);
@@ -122,10 +120,10 @@ int AsyncCmd::Popen(string command, bool readWrite, int &pid)
         exit(0);
     } else {
         if (readWrite) {
-            close(fd[PIPE_WRITE]);
+            Base::CloseFd(fd[PIPE_WRITE]);
             fcntl(fd[PIPE_READ], F_SETFD, FD_CLOEXEC);
         } else {
-            close(fd[PIPE_READ]);
+            Base::CloseFd(fd[PIPE_READ]);
             fcntl(fd[PIPE_WRITE], F_SETFD, FD_CLOEXEC);
         }
     }

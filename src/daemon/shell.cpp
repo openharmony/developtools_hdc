@@ -54,9 +54,7 @@ bool HdcShell::ReadyForRelease()
     }
     delete childShell;
     childShell = nullptr;
-    if (fdPTY > 0) {
-        close(fdPTY);
-    }
+    Base::CloseFd(fdPTY);
     return true;
 }
 
@@ -131,12 +129,12 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
     dup2(pts, STDIN_FILENO);
     dup2(pts, STDOUT_FILENO);
     dup2(pts, STDERR_FILENO);
-    close(pts);
+    Base::CloseFd(pts);
     string text = "/proc/self/oom_score_adj";
     int fd = 0;
     if ((fd = open(text.c_str(), O_WRONLY)) >= 0) {
         write(fd, "0", 1);
-        close(fd);
+        Base::CloseFd(fd);
     }
     char *env = nullptr;
     if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
@@ -160,7 +158,7 @@ int HdcShell::ShellFork(const char *cmd, const char *arg0, const char *arg1)
     if (pid == 0) {
         HdcShell::mutexPty.unlock();
         setsid();
-        close(ptm);
+        Base::CloseFd(ptm);
         int pts = 0;
         if ((pts = open(devname, O_RDWR | O_CLOEXEC)) < 0) {
             return -1;
@@ -188,7 +186,7 @@ int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char 
         char buf[bufSize] = { 0 };
         strerror_r(errno, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "Cannot open2 ptmx, error:%s", buf);
-        close(ptm);
+        Base::CloseFd(ptm);
         return ERR_API_FAIL;
     }
     if (ptsname_r(ptm, devname, sizeof(devname)) != 0) {
@@ -196,7 +194,7 @@ int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char 
         char buf[bufSize] = { 0 };
         strerror_r(errno, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "Trouble with  ptmx, error:%s", buf);
-        close(ptm);
+        Base::CloseFd(ptm);
         return ERR_API_FAIL;
     }
     *pid = ShellFork(cmd, arg0, arg1);

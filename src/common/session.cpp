@@ -107,8 +107,13 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
     auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
         HTaskInfo hTask = (HTaskInfo)handle->data;
         HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
-        WRITE_LOG(LOG_DEBUG, "TaskDelay task remove current try count %d/%d, channelId:%u, sessionId:%u",
-                  hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->channelId, hTask->sessionId);
+        constexpr uint32_t count = 1000;
+        if (hTask->closeRetryCount == 0 || hTask->closeRetryCount > count) {
+            WRITE_LOG(LOG_DEBUG, "TaskDelay task remove retry count %d/%d, taskType:%d channelId:%u, sessionId:%u",
+                hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->taskType, hTask->channelId, hTask->sessionId);
+            hTask->closeRetryCount = 1;
+        }
+        hTask->closeRetryCount++;
         if (!thisClass->TryRemoveTask(hTask)) {
             return;
         }
@@ -474,14 +479,8 @@ void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
             hUSB->devHandle = nullptr;
         }
 #else
-        if (hUSB->bulkIn > 0) {
-            close(hUSB->bulkIn);
-            hUSB->bulkIn = 0;
-        }
-        if (hUSB->bulkOut > 0) {
-            close(hUSB->bulkOut);
-            hUSB->bulkOut = 0;
-        }
+        Base::CloseFd(hUSB->bulkIn);
+        Base::CloseFd(hUSB->bulkOut);
 #endif
         delete hSession->hUSB;
         hSession->hUSB = nullptr;
@@ -505,10 +504,7 @@ void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
             hUART->devUartHandle = INVALID_HANDLE_VALUE;
         }
 #elif defined(HOST_LINUX)
-        if (hUART->devUartHandle >= 0) {
-            close(hUART->devUartHandle);
-            hUART->devUartHandle = -1;
-        }
+        Base::CloseFd(hUART->devUartHandle);
 #endif // _WIN32
 #endif
         delete hSession->hUART;

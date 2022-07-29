@@ -36,9 +36,7 @@ HdcDaemonUSB::HdcDaemonUSB(const bool serverOrDaemonIn, void *ptrMainBase)
 HdcDaemonUSB::~HdcDaemonUSB()
 {
     // Closed in the IO loop, no longer closing CLOSE ENDPOINT
-    if (controlEp > 0) {
-        close(controlEp);
-    }
+    Base::CloseFd(controlEp);
     if (ctxRecv.buf) {
         delete[] ctxRecv.buf;
     }
@@ -207,16 +205,10 @@ int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
 
 void HdcDaemonUSB::CloseEndpoint(HUSB hUSB, bool closeCtrlEp)
 {
-    if (hUSB->bulkIn > 0) {
-        close(hUSB->bulkIn);
-        hUSB->bulkIn = 0;
-    }
-    if (hUSB->bulkOut > 0) {
-        close(hUSB->bulkOut);
-        hUSB->bulkOut = 0;
-    }
+    Base::CloseFd(hUSB->bulkIn);
+    Base::CloseFd(hUSB->bulkOut);
     if (controlEp > 0 && closeCtrlEp) {
-        close(controlEp);
+        Base::CloseFd(controlEp);
         controlEp = 0;
     }
     isAlive = false;
@@ -284,6 +276,7 @@ int HdcDaemonUSB::CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop)
     ctx->bulkInOut = bulkInOut;
     ctx->thisClass = this;
     isAlive = false;
+    WRITE_LOG(LOG_DEBUG, "CloseBulkEp bulkFd:%d", bulkFd);
     uv_fs_close(loop, req, bulkFd, [](uv_fs_t *req) {
         auto ctx = (CtxCloseBulkEp *)req->data;
         WRITE_LOG(LOG_DEBUG, "Try to abort blukin write callback %s", ctx->bulkInOut ? "bulkin" : "bulkout");
@@ -552,8 +545,7 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
             resetEp = true;
         }
         if (thisClass->controlEp > 0) {
-            close(thisClass->controlEp);
-            thisClass->controlEp = 0;
+            Base::CloseFd(thisClass->controlEp);
             resetEp = true;
         }
     } while (false);

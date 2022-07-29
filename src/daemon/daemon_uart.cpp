@@ -124,14 +124,9 @@ void HdcDaemonUART::WatcherTimerCallBack()
 
 int HdcDaemonUART::CloseUartDevice()
 {
-    int ret = close(uartHandle);
+    int ret = Base::CloseFd(uartHandle);
     if (ret < 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        strerror_r(errno, buf, bufSize);
-        WRITE_LOG(LOG_FATAL, "DaemonUART stop for CloseBulkSpErrno: %d:%s\n", errno, buf);
-    } else {
-        uartHandle = -1;
+        WRITE_LOG(LOG_FATAL, "CloseUartDevice failed ret: %d", ret);
     }
     isAlive = false;
     return ret;

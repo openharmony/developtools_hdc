@@ -47,6 +47,7 @@ void HdcFileDescriptor::StopWork(bool tryCloseFdIo, std::function<void()> closeF
     if (tryCloseFdIo && refIO > 0) {
         ++refIO;
         reqClose.data = this;
+        WRITE_LOG(LOG_DEBUG, "StopWork fdIO:%d", fdIO);
         uv_fs_close(loop, &reqClose, fdIO, [](uv_fs_t *req) {
             auto thisClass = (HdcFileDescriptor *)req->data;
             uv_fs_req_cleanup(req);

@@ -55,7 +55,7 @@ constexpr uint16_t DEVICE_CHECK_INTERVAL = 3000;  // ms
 constexpr uint16_t MAX_SIZE_IOBUF = 15360;
 constexpr uint16_t MAX_USBFFS_BULK = 16384;
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
-constexpr uint32_t HDC_VERSION_NUMBER = 0x10102000;  // 1.1.2a=0x10102000
+constexpr uint32_t HDC_VERSION_NUMBER = 0x10200000;  // 1.1.2a=0x10102000
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 constexpr uint32_t HDC_SOCKETPAIR_SIZE = MAX_SIZE_IOBUF * 10;
 

@@ -265,7 +265,7 @@ action("hdc_hash_gen") {
     "-i",
     rebase_path(".", root_build_dir),
     "-o",
-    "../.." + "$py_out_dir" + "/",
+    rebase_path("$py_out_dir" + "/", root_build_dir),
   ]
   public_configs = [ ":hdc_config" ]
 }

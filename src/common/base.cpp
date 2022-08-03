@@ -1544,7 +1544,7 @@ namespace Base {
     int CloseFd(int &fd)
     {
         int rc = 0;
-        if (fd >= 0) {
+        if (fd > 0) {
             rc = close(fd);
             if (rc < 0) {
                 char buffer[BUF_SIZE_DEFAULT] = { 0 };

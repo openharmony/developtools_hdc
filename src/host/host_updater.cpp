@@ -168,11 +168,6 @@ bool HostUpdater::CheckCmd(HdcCommand command, uint8_t *payload, int payloadSize
 
 bool HostUpdater::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
-    if (payload == nullptr || payloadSize <= 0) {
-        WRITE_LOG(LOG_FATAL, "payload or payloadSize is invalid");
-        return false;
-    }
-
     if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
         return false;
     }
@@ -182,6 +177,11 @@ bool HostUpdater::CommandDispatch(const uint16_t command, uint8_t *payload, cons
         sendProgress_ = true;
         SendRawData(tip);
         return true;
+    }
+
+    if (payload == nullptr || payloadSize <= 0) {
+        WRITE_LOG(LOG_FATAL, "payload or payloadSize is invalid");
+        return false;
     }
 
     bool ret = true;

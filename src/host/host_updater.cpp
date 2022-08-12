@@ -168,11 +168,10 @@ bool HostUpdater::CheckCmd(HdcCommand command, uint8_t *payload, int payloadSize
 
 bool HostUpdater::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
-    if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
-        return false;
-    }
-
     if (command == CMD_FLASHD_BEGIN) {
+        if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
+            return false;
+        }
         std::string tip("Processing:    0%");
         sendProgress_ = true;
         SendRawData(tip);
@@ -183,7 +182,9 @@ bool HostUpdater::CommandDispatch(const uint16_t command, uint8_t *payload, cons
         WRITE_LOG(LOG_FATAL, "payload or payloadSize is invalid");
         return false;
     }
-
+    if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
+        return false;
+    }
     bool ret = true;
     switch (command) {
         case CMD_FLASHD_UPDATE_INIT:

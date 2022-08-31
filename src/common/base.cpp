@@ -1560,5 +1560,25 @@ namespace Base {
         }
         return rc;
     }
+
+    void InitProcess(void)
+    {
+#ifndef HDC_HOST
+        umask(0);
+        signal(SIGPIPE, SIG_IGN);
+        signal(SIGCHLD, SIG_IGN);
+        signal(SIGALRM, SIG_IGN);
+#endif
+    }
+
+    void DeInitProcess(void)
+    {
+#ifndef HDC_HOST
+        umask(022);
+        signal(SIGPIPE, SIG_DFL);
+        signal(SIGCHLD, SIG_DFL);
+        signal(SIGALRM, SIG_DFL);
+#endif
+    }
 }
 }  // namespace Hdc

@@ -298,10 +298,7 @@ int main(int argc, const char *argv[])
     }
 #endif
 
-    umask(0);
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
-    signal(SIGALRM, SIG_IGN);
+    Base::InitProcess();
     WRITE_LOG(LOG_DEBUG, "HdcDaemon main run");
     HdcDaemon daemon(false, CheckUvThreadConfig());
 

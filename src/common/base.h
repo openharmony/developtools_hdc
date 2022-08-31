@@ -157,6 +157,8 @@ namespace Base {
     }
 
     int CloseFd(int &fd);
+    void InitProcess(void);
+    void DeInitProcess(void);
 #ifdef HDC_SUPPORT_FLASHD
     // deprecated, remove later
     inline bool SetHdcProperty(const char *key, const char *value)

@@ -156,6 +156,7 @@ int HdcShell::ShellFork(const char *cmd, const char *arg0, const char *arg1)
         return ERR_GENERIC;
     }
     if (pid == 0) {
+        Base::DeInitProcess();
         HdcShell::mutexPty.unlock();
         setsid();
         Base::CloseFd(ptm);

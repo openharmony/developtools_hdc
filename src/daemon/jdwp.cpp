@@ -206,29 +206,26 @@ void HdcJdwp::AcceptClient(uv_stream_t *server, int status)
     uv_read_start((uv_stream_t *)&ctxJdwp->pipe, funAlloc, ReadStream);
 }
 
-// Test bash connnet(UNIX-domain sockets):nc -U path/jdwp-control < hexpid.file
+// Test bash connnet(UNIX-domain sockets):nc -U path/ohjpid-control < hexpid.file
 // Test uv connect(pipe): 'uv_pipe_connect'
 bool HdcJdwp::JdwpListen()
 {
 #ifdef HDC_PCDEBUG
     // if test, can be enabled
     return true;
-    const char jdwpCtrlName[] = { 'j', 'd', 'w', 'p', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
+    const char jdwpCtrlName[] = { 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
     unlink(jdwpCtrlName);
 #else
-    const char jdwpCtrlName[] = { '\0', 'j', 'd', 'w', 'p', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
+    const char jdwpCtrlName[] = { '\0', 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
 #endif
     const int DEFAULT_BACKLOG = 4;
     bool ret = false;
     while (true) {
         uv_pipe_init(loop, &listenPipe, 0);
         listenPipe.data = this;
-        if ((uv_pipe_bind(&listenPipe, jdwpCtrlName))) {
-            constexpr int bufSize = 1024;
-            char buf[bufSize] = { 0 };
-            strerror_r(errno, buf, bufSize);
-            WRITE_LOG(LOG_WARN, "Bind error : %d: %s", errno, buf);
-            return 1;
+        if (UvPipeBind(&listenPipe, jdwpCtrlName, sizeof(jdwpCtrlName))) {
+            WRITE_LOG(LOG_FATAL, "UvPipeBind failed");
+            return ret;
         }
         if (uv_listen((uv_stream_t *)&listenPipe, DEFAULT_BACKLOG, AcceptClient)) {
             break;
@@ -239,6 +236,50 @@ bool HdcJdwp::JdwpListen()
     }
     // listenPipe close by stop
     return ret;
+}
+
+int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
+{
+    char buffer[BUF_SIZE_DEFAULT] = { 0 };
+
+    if (handle->io_watcher.fd >= 0) {
+        WRITE_LOG(LOG_FATAL, "socket already bound %d", handle->io_watcher.fd);
+        return -1;
+    }
+
+    int type = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
+    int sockfd = socket(AF_UNIX, type, 0);
+    if (sockfd < 0) {
+        strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "socket failed errno:%d %s", errno, buffer);
+        return -1;
+    }
+
+#if defined(SO_NOSIGPIPE)
+    int on = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
+#endif
+
+    struct sockaddr_un saddr;
+    Base::ZeroStruct(saddr);
+    size_t capacity = sizeof(saddr.sun_path);
+    size_t min = size < capacity ? size : capacity;
+    for (size_t i = 0; i < min; i++) {
+        saddr.sun_path[i] = name[i];
+    }
+    saddr.sun_path[capacity - 1] = '\0';
+    saddr.sun_family = AF_UNIX;
+    int err = bind(sockfd, reinterpret_cast<struct sockaddr*>(&saddr), sizeof saddr);
+    if (err != 0) {
+        strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "bind failed errno:%d %s", errno, buffer);
+        close(sockfd);
+        return -1;
+    }
+    constexpr uint32_t UV_HANDLE_BOUND = 0x00002000;
+    handle->flags |= UV_HANDLE_BOUND;
+    handle->io_watcher.fd = sockfd;
+    return 0;
 }
 
 // Working in the main thread, but will be accessed by each session thread, so we need to set thread lock
@@ -552,6 +593,7 @@ int HdcJdwp::Initial()
     pollNodeMap.clear();
     freeContextMutex.unlock();
     if (!JdwpListen()) {
+        WRITE_LOG(LOG_FATAL, "JdwpListen failed");
         return ERR_MODULE_JDWP_FAILED;
     }
     if (CreateFdEventPoll() < 0) {

@@ -61,7 +61,7 @@ hdc_host_sources = [
 common_deps = [
   "//third_party/bounds_checking_function:libsec_static",
   "//third_party/libusb:libusb",
-  "//third_party/libuv:uv_static",
+  "//third_party/libuv:uv",
   "//third_party/lz4:liblz4_static",
   "//third_party/openssl:libcrypto_static",
 ]
@@ -186,7 +186,7 @@ ohos_source_set("hdc_daemon_platform") {
 
   public_deps = [
     "//third_party/bounds_checking_function:libsec_static",
-    "//third_party/libuv:uv_static",
+    "//third_party/libuv:uv",
     "//third_party/openssl:libcrypto_static",
   ]
 

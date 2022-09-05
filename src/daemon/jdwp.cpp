@@ -269,7 +269,8 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
     }
     saddr.sun_path[capacity - 1] = '\0';
     saddr.sun_family = AF_UNIX;
-    int err = bind(sockfd, reinterpret_cast<struct sockaddr*>(&saddr), sizeof saddr);
+    size_t saddrLen = sizeof(saddr.sun_family) + sizeof(name) - 1;
+    int err = bind(sockfd, reinterpret_cast<struct sockaddr*>(&saddr), saddrLen);
     if (err != 0) {
         strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
         WRITE_LOG(LOG_FATAL, "bind failed errno:%d %s", errno, buffer);

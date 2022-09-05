@@ -53,7 +53,7 @@ int GetPublicKeyFileBuf(unsigned char *data, size_t len)
 #endif
 // ------------------------------------------------------------------------------------------------
 
-const uint32_t RSANUMBYTES = 256;  // 2048 bit key length
+const uint32_t RSANUMBYTES = 512;  // 4096 bit key length
 const uint32_t RSANUMWORDS = (RSANUMBYTES / sizeof(uint32_t));
 struct RSAPublicKey {
     int wordModulusSize;            // Length of n[] in number of uint32_t */
@@ -186,7 +186,7 @@ bool GenerateKey(const char *file)
         }
 
         BN_set_word(exponent, RSA_F4);
-        RSA_generate_key_ex(rsa, 2048, exponent, nullptr);
+        RSA_generate_key_ex(rsa, 4096, exponent, nullptr);
         EVP_PKEY_set1_RSA(publicKey, rsa);
         old_mask = umask(077);  // 077:permission
 
@@ -209,7 +209,6 @@ bool GenerateKey(const char *file)
         break;
     }
 
-    RSA_free(rsa);
     EVP_PKEY_free(publicKey);
     BN_free(exponent);
     if (fKey)
@@ -292,7 +291,7 @@ bool LoadHostUserKey(list<void *> *listPrivateKey)
 int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig)
 {
     unsigned int len;
-    if (!RSA_sign(NID_sha1, token, tokenSize, (unsigned char *)sig, &len, (RSA *)rsa)) {
+    if (!RSA_sign(NID_sha256, token, tokenSize, (unsigned char *)sig, &len, (RSA *)rsa)) {
         return 0;
     }
     return (int)len;
@@ -415,7 +414,7 @@ bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen)
         if (!RSAPublicKey2RSA((const uint8_t *)ptr, &rsa)) {
             break;
         }
-        childRet = RSA_verify(NID_sha1, (const unsigned char *)token, RSA_TOKEN_SIZE, (const unsigned char *)sig,
+        childRet = RSA_verify(NID_sha256, (const unsigned char *)token, RSA_TOKEN_SIZE, (const unsigned char *)sig,
                               siglen, rsa);
         RSA_free(rsa);
         if (childRet) {

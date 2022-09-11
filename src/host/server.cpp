@@ -86,17 +86,17 @@ bool HdcServer::Initial(const char *listenString)
     }
     Base::RemoveLogFile();
     clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
+    (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
+    clsUSBClt->InitLogging(ctxUSB);
     clsTCPClt = new HdcHostTCP(true, this);
     clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
+    if (clsUSBClt->Initial() != RET_SUCCESS) {
+        return false;
+    }
     if (!clsServerForClient || !clsTCPClt || !clsUSBClt) {
         WRITE_LOG(LOG_FATAL, "Class init failed");
         return false;
     }
-    (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
-    if (clsUSBClt->Initial() != RET_SUCCESS) {
-        return false;
-    }
-    clsUSBClt->InitLogging(ctxUSB);
 
 #ifdef HDC_SUPPORT_UART
     clsUARTClt = new HdcHostUART(*this);

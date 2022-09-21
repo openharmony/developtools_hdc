@@ -94,8 +94,8 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
 
 void AppendCwdWhenTransfer(string &outCommand)
 {
-    if (outCommand != CMDSTR_FILE_SEND && outCommand != CMDSTR_FILE_RECV && outCommand != CMDSTR_APP_INSTALL
-        && outCommand != CMDSTR_APP_SIDELOAD) {
+    if (outCommand != CMDSTR_FILE_SEND && outCommand != CMDSTR_FILE_RECV && outCommand != CMDSTR_APP_INSTALL &&
+        outCommand != CMDSTR_APP_SIDELOAD) {
         return;
     }
     int value = -1;
@@ -197,14 +197,14 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         std::cerr << TranslateCommand::Usage();
         return 0;
     }
-    if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())
-        || !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())
-        || !strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size())) {
+    if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
+        !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
+        !strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size())) {
         client.CtrlServiceWork(commands.c_str());
         return 0;
     }
-    if (isPullServer && serverListenString == DEFAULT_SERVER_ADDR
-        && Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
+    if (isPullServer && serverListenString == DEFAULT_SERVER_ADDR &&
+        Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
         // default pullup, just default listenstr.If want to customer listen-string, please use 'hdc -m -s lanip:port'
         HdcServer::PullupServer(DEFAULT_SERVER_ADDR.c_str());
         uv_sleep(300);  // give time to start serverForClient,at least 200ms

@@ -235,11 +235,12 @@ bool HostUpdater::CheckUpdateContinue(const uint16_t command, const uint8_t *pay
         return false;
     }
 
-    MessageLevel level = (MessageLevel)payload[1];
+    MessageLevel level = static_cast<MessageLevel>(payload[1]);
     if ((level == MSG_OK) && sendProgress_) {
         ProcessProgress(PERCENT_FINISH);
     }
-    std::string info((char *)(payload + sizeof(uint16_t)), payloadSize - sizeof(uint16_t));
+    std::string info(reinterpret_cast<char *>(const_cast<uint8_t *>(payload + sizeof(uint16_t))),
+                     payloadSize - sizeof(uint16_t));
     if (!info.empty()) {
         LogMsg(level, "%s", info.c_str());
     }

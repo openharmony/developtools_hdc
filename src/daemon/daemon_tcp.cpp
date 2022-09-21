@@ -61,8 +61,8 @@ void HdcDaemonTCP::TransmitConfig(const sockaddr *addrSrc, uv_udp_t *handle)
     }
     string sendBuf = Base::StringFormat("%s-%d", HANDSHAKE_MESSAGE.c_str(), tcpListenPort);
     uv_buf_t sndbuf = uv_buf_init((char *)sendBuf.c_str(), sendBuf.size());
-    uv_ip4_name((sockaddr_in *)addrSrc, srcIP, sizeof(srcIP));
-    uv_ip4_addr(srcIP, DEFAULT_PORT, (sockaddr_in *)&addrSrcIPPort);
+    uv_ip4_name(const_cast<sockaddr_in *>(reinterpret_cast<const sockaddr_in *>(addrSrc)), srcIP, sizeof(srcIP));
+    uv_ip4_addr(srcIP, DEFAULT_PORT, const_cast<sockaddr_in *>(reinterpret_cast<const sockaddr_in *>(&addrSrcIPPort)));
     uv_udp_send(req, handle, &sndbuf, 1, &addrSrcIPPort, SendUDPFinish);
 }
 
@@ -71,7 +71,7 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
     uv_loop_t *ptrLoop = server->loop;
     uv_tcp_t *pServTCP = (uv_tcp_t *)server;
     HdcDaemonTCP *thisClass = (HdcDaemonTCP *)pServTCP->data;
-    HdcSessionBase *ptrConnect = (HdcSessionBase *)thisClass->clsMainBase;
+    HdcSessionBase *ptrConnect = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
     HdcSessionBase *daemon = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
     const uint16_t maxWaitTime = UV_DEFAULT_INTERVAL;
     auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);

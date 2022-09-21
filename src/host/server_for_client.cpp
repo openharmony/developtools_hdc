@@ -84,7 +84,8 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, sizeof(struct ChannelHandShake));
 #else
     // do not send version message if check feature disable
-    thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, offsetof(struct ChannelHandShake, version));
+    thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(&handShake),
+                    offsetof(struct ChannelHandShake, version));
 #endif
     }
 }
@@ -135,7 +136,7 @@ void HdcServerForClient::EchoClient(HChannel hChannel, MessageLevel level, const
     if (log.back() != '\n') {
         log += "\r\n";
     }
-    SendChannel(hChannel, (uint8_t *)log.c_str(), log.size());
+    SendChannel(hChannel, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(log.c_str())), log.size());
 }
 
 void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload, const int payloadSize)
@@ -191,7 +192,7 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
         di.connectKey = lst.front();
         di.connType = CONN_TCP;
         di.connStatus = STATUS_READY;
-        HDaemonInfo pDi = (HDaemonInfo)&di;
+        HDaemonInfo pDi = reinterpret_cast<HDaemonInfo>(&di);
         ptrServer->AdminDaemonMap(OP_ADD, STRING_EMPTY, pDi);
         lst.pop_front();
     }
@@ -218,7 +219,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     } else {
         ptrServer->AdminDaemonMap(OP_QUERY, target, hdi);
     }
-    if (hdi && STATUS_CONNECTED == hdi->connStatus) {
+    if (hdi && hdi->connStatus == STATUS_CONNECTED) {
         bConnectOK = true;
     }
     while (true) {
@@ -227,20 +228,20 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
             if (hChannel->isCheck) {
                 WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
                 thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
-                thisClass->EchoClient(hChannel, MSG_OK, (char *)hdi->version.c_str());
+                thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
             } else {
                 sRet = "Connect OK";
-                thisClass->EchoClient(hChannel, MSG_OK, (char *)sRet.c_str());
-            }		
+                thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
+            }
             break;
         } else {
-            uint16_t *bRetryCount = (uint16_t *)hChannel->bufStd;
+            uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
             ++(*bRetryCount);
             if (*bRetryCount > 500) {
                 // 5s
                 bExitRepet = true;
                 sRet = "Connect failed";
-                thisClass->EchoClient(hChannel, MSG_FAIL, (char *)sRet.c_str());
+                thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
                 break;
             }
         }
@@ -259,15 +260,15 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
 #endif
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
-    if (-1 == childRet) {
+    if (childRet == -1) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
-    } else if (-2 == childRet) {
+    } else if (childRet == -2) {
         EchoClient(hChannel, MSG_FAIL, "CreateConnect failed");
         WRITE_LOG(LOG_FATAL, "CreateConnect failed");
     } else {
         Base::ZeroBuf(hChannel->bufStd, 2);
         childRet = snprintf_s(hChannel->bufStd + 2, sizeof(hChannel->bufStd) - 2, sizeof(hChannel->bufStd) - 3, "%s",
-                              (char *)connectKey.c_str());
+                              const_cast<char *>(connectKey.c_str()));
         if (childRet > 0) {
             Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, 10);
             ret = true;
@@ -280,12 +281,12 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HDaemonInfo hdiOld = nullptr;
-    ((HdcServer *)ptrServer)->AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
+    (reinterpret_cast<HdcServer *>(ptrServer))->AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
     if (!hdiOld) {
         EchoClient(hChannel, MSG_FAIL, "No target available");
         return false;
     }
-    ((HdcServer *)ptrServer)->FreeSession(hdiOld->hSession->sessionId);
+    (reinterpret_cast<HdcServer *>(ptrServer))->FreeSession(hdiOld->hSession->sessionId);
     return true;
 }
 
@@ -322,7 +323,7 @@ void HdcServerForClient::GetTargetList(HChannel hChannel, void *formatCommandInp
     if (!sRet.length()) {
         sRet = EMPTY_ECHO;
     }
-    EchoClient(hChannel, MSG_OK, (char *)sRet.c_str());
+    EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
 #ifdef UNIT_TEST
     Base::WriteBinFile((UT_TMP_PATH + "/base-list.result").c_str(), (uint8_t *)MESSAGE_SUCCESS.c_str(),
                        MESSAGE_SUCCESS.size(), true);
@@ -380,7 +381,6 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
 {
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
     HdcServer *ptrServer = (HdcServer *)clsServer;
-    const char *parameterString = formatCommand->parameters.c_str();
     bool ret = false;
     // Main thread command, direct Listen main thread
     switch (formatCommand->cmdFlag) {
@@ -402,27 +402,27 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         }
         case CMD_KERNEL_TARGET_ANY: {
 #ifdef HDC_DEBUG
-            WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_ANY %s", __FUNCTION__, parameterString);
+            WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_ANY %s", __FUNCTION__, formatCommand->parameters.c_str());
 #endif
             ret = GetAnyTarget(hChannel);
             break;
         }
         case CMD_KERNEL_TARGET_CONNECT: {
 #ifdef HDC_DEBUG
-            WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_CONNECT %s", __FUNCTION__, parameterString);
+            WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_CONNECT %s", __FUNCTION__, formatCommand->parameters.c_str());
 #endif
-            ret = NewConnectTry(ptrServer, hChannel, parameterString);
+            ret = NewConnectTry(ptrServer, hChannel, formatCommand->parameters.c_str());
             break;
         }
         case CMD_CHECK_DEVICE: {
-            WRITE_LOG(LOG_INFO, "%s CMD_CHECK_DEVICE %s", __FUNCTION__, parameterString);
+            WRITE_LOG(LOG_INFO, "%s CMD_CHECK_DEVICE %s", __FUNCTION__, formatCommand->parameters.c_str());
             hChannel->isCheck = true;
-            hChannel->key = parameterString;
-            ret = NewConnectTry(ptrServer, hChannel, parameterString, true);
+            hChannel->key = formatCommand->parameters.c_str();
+            ret = NewConnectTry(ptrServer, hChannel, formatCommand->parameters.c_str(), true);
             break;
         }
         case CMD_KERNEL_TARGET_DISCONNECT: {
-            CommandRemoveSession(hChannel, parameterString);
+            CommandRemoveSession(hChannel, formatCommand->parameters.c_str());
             break;
         }
         case CMD_KERNEL_SERVER_KILL: {
@@ -438,11 +438,11 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             if (!echo.length()) {
                 echo = EMPTY_ECHO;
             }
-            EchoClient(hChannel, MSG_OK, (char *)echo.c_str());
+            EchoClient(hChannel, MSG_OK, const_cast<char *>(echo.c_str()));
             break;
         }
         case CMD_FORWARD_REMOVE: {
-            RemoveForward(hChannel, parameterString);
+            RemoveForward(hChannel, formatCommand->parameters.c_str());
             break;
         }
         case CMD_KERNEL_ENABLE_KEEPALIVE: {
@@ -465,52 +465,56 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
     HdcServer *ptrServer = (HdcServer *)clsServer;
     string cmdFlag;
     uint8_t sizeCmdFlag = 0;
-    if (CMD_FILE_INIT == formatCommand->cmdFlag) {
+    if (formatCommand->cmdFlag == CMD_FILE_INIT) {
         cmdFlag = "send ";
         sizeCmdFlag = 5;  // 5: cmdFlag send size
         HandleRemote(hChannel, formatCommand->parameters, RemoteType::REMOTE_FILE);
-    } else if (CMD_FORWARD_INIT == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_FORWARD_INIT) {
         cmdFlag = "fport ";
         sizeCmdFlag = 6;  // 6: cmdFlag fport size
-    } else if (CMD_APP_INIT == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_APP_INIT) {
         cmdFlag = "install ";
         sizeCmdFlag = 8;  // 8: cmdFlag install size
         HandleRemote(hChannel, formatCommand->parameters, RemoteType::REMOTE_APP);
-    } else if (CMD_APP_UNINSTALL == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_APP_UNINSTALL) {
         cmdFlag = "uninstall ";
         sizeCmdFlag = 10;  // 10: cmdFlag uninstall size
-    } else if (CMD_UNITY_BUGREPORT_INIT == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_UNITY_BUGREPORT_INIT) {
         cmdFlag = "bugreport ";
         sizeCmdFlag = 10;  // 10: cmdFlag bugreport size
-    } else if (CMD_APP_SIDELOAD == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_APP_SIDELOAD) {
         cmdFlag = "sideload ";
         sizeCmdFlag = 9;
-    } else if (CMD_FLASHD_UPDATE_INIT == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_FLASHD_UPDATE_INIT) {
         cmdFlag = "update ";
         sizeCmdFlag = 7; // 7: cmdFlag update size
-    } else if (CMD_FLASHD_FLASH_INIT == formatCommand->cmdFlag) {
+    } else if (formatCommand->cmdFlag == CMD_FLASHD_FLASH_INIT) {
         cmdFlag = "flash ";
         sizeCmdFlag = 6; // 6: cmdFlag flash size
     }
     int sizeSend = formatCommand->parameters.size();
-    uint8_t *payload = reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag;
     if (!strncmp(formatCommand->parameters.c_str(), cmdFlag.c_str(), sizeCmdFlag)) {  // local do
         HSession hSession = FindAliveSession(hChannel->targetSessionId);
         if (!hSession) {
             return false;
         }
-        if ((CMD_FILE_INIT == formatCommand->cmdFlag || CMD_APP_INIT == formatCommand->cmdFlag)
-            && hChannel->fromClient) {
+        if ((formatCommand->cmdFlag == CMD_FILE_INIT || formatCommand->cmdFlag == CMD_APP_INIT ) &&
+            hChannel->fromClient) {
             // remote client mode, CMD_FILE_INIT and CMD_APP_INIT command send back to client
             WRITE_LOG(LOG_DEBUG, "command send back to remote client channelId:%u", hChannel->channelId);
-            SendChannelWithCmd(hChannel, formatCommand->cmdFlag, payload, sizeSend - sizeCmdFlag);
+            SendChannelWithCmd(hChannel, formatCommand->cmdFlag,
+                reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag,
+                sizeSend - sizeCmdFlag);
             return false;
         }
-        ptrServer->DispatchTaskData(hSession, hChannel->channelId, formatCommand->cmdFlag, payload,
-                                    sizeSend - sizeCmdFlag);
+        ptrServer->DispatchTaskData(hSession, hChannel->channelId, formatCommand->cmdFlag,
+            reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag,
+            sizeSend - sizeCmdFlag);
     } else {  // Send to Daemon-side to do
         WRITE_LOG(LOG_INFO, "TaskCommand recv cmd send to daemon cmd = %u", formatCommand->cmdFlag);
-        SendToDaemon(hChannel, formatCommand->cmdFlag, payload, sizeSend - sizeCmdFlag);
+        SendToDaemon(hChannel, formatCommand->cmdFlag,
+            reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag,
+            sizeSend - sizeCmdFlag);
     }
     return true;
 }
@@ -561,7 +565,7 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
                 break;
             }
             ret = true;
-            if (CMD_SHELL_INIT == formatCommand->cmdFlag) {
+            if (formatCommand->cmdFlag == CMD_SHELL_INIT) {
                 hChannel->interactiveShellMode = true;
             }
             break;
@@ -621,14 +625,13 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }
-    hSession = (HSession)hdi->hSession;
+    hSession = reinterpret_cast<HSession>(hdi->hSession);
     return hSession;
 }
 
 int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
-    HSession hSession = nullptr;
-    if ((hSession = FindAliveSessionFromDaemonMap(hChannel)) == nullptr) {
+    if (FindAliveSessionFromDaemonMap(hChannel) == nullptr) {
         return ERR_SESSION_NOFOUND;
     }
     bool isClosing = uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP);
@@ -712,7 +715,9 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
 void HdcServerForClient::ReportServerVersion(HChannel hChannel)
 {
     string version = Base::GetVersion();
-    SendChannelWithCmd(hChannel, CMD_CHECK_SERVER, (uint8_t *)version.c_str(), version.size());
+    SendChannelWithCmd(hChannel, CMD_CHECK_SERVER,
+                       const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(version.c_str())),
+                       version.size());
 }
 
 // Here is Server to get data, the source is the SERVER's ChildWork to send data
@@ -733,11 +738,11 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     }
     struct TranslateCommand::FormatCommand formatCommand = { 0 };
     if (!hChannel->interactiveShellMode) {
-        string retEcho = String2FormatCommand((char *)bufPtr, bytesIO, &formatCommand);
+        string retEcho = String2FormatCommand(reinterpret_cast<char *>(bufPtr), bytesIO, &formatCommand);
         if (retEcho.length()) {
-            if (!strcmp((char *)bufPtr, CMDSTR_SOFTWARE_HELP.c_str())
-                || !strcmp((char *)bufPtr, CMDSTR_SOFTWARE_VERSION.c_str())
-                || !strcmp((char *)bufPtr, "flash")) {
+            if (!strcmp(reinterpret_cast<char *>(bufPtr), CMDSTR_SOFTWARE_HELP.c_str()) ||
+                !strcmp(reinterpret_cast<char *>(bufPtr), CMDSTR_SOFTWARE_VERSION.c_str()) ||
+                !strcmp(reinterpret_cast<char *>(bufPtr), "flash")) {
                 EchoClient(hChannel, MSG_OK, retEcho.c_str());
             } else {
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());

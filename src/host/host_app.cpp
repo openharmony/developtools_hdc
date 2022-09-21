@@ -71,7 +71,7 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
     ret = true;
 Finish:
     if (argv) {
-        delete[]((char *)argv);
+        delete[](reinterpret_cast<char *>(argv));
     }
     return ret;
 }
@@ -103,13 +103,14 @@ void HdcHostApp::CheckMaster(CtxFile *context)
 
     context->transferConfig.optionalName
         = Base::GetRandomString(9);  // Prevent the name of illegal APP leads to pm unable to install
-    if (context->localPath.find(".hap") != (size_t)-1) {
+    if (context->localPath.find(".hap") != static_cast<size_t>(-1)) {
         context->transferConfig.optionalName += ".hap";
     } else {
         context->transferConfig.optionalName += ".bundle";
     }
     string bufString = SerialStruct::SerializeToString(context->transferConfig);
-    SendToAnother(CMD_APP_CHECK, (uint8_t *)bufString.c_str(), bufString.size());
+    SendToAnother(CMD_APP_CHECK, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(bufString.c_str())),
+                  bufString.size());
 }
 
 bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const char *msg)
@@ -155,8 +156,8 @@ bool HdcHostApp::CommandDispatch(const uint16_t command, uint8_t *payload, const
             break;
         }
         case CMD_APP_FINISH: {
-            AppModType mode = (AppModType)payload[0];
-            bool result = (bool)payload[1];
+            AppModType mode = static_cast<AppModType>(payload[0]);
+            bool result = static_cast<bool>(payload[1]);
             string s(reinterpret_cast<char *>(payload + cmdOffset), payloadSize - cmdOffset);
             ret = CheckInstallContinue(mode, result, s.c_str());
             break;

@@ -135,15 +135,16 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         hChannel->availTailIndex += nread;
     }
     while (hChannel->availTailIndex > DWORD_SERIALIZE_SIZE) {
-        size = ntohl(*(uint32_t *)(hChannel->ioBuf + indexBuf));  // big endian
-        if (size <= 0 || (uint32_t)size > HDC_BUF_MAX_BYTES) {
+        size = ntohl(*reinterpret_cast<uint32_t *>(hChannel->ioBuf + indexBuf));  // big endian
+        if (size <= 0 || static_cast<uint32_t>(size) > HDC_BUF_MAX_BYTES) {
             needExit = true;
             break;
         }
         if (hChannel->availTailIndex - DWORD_SERIALIZE_SIZE < size) {
             break;
         }
-        childRet = thisClass->ReadChannel(hChannel, (uint8_t *)hChannel->ioBuf + DWORD_SERIALIZE_SIZE + indexBuf, size);
+        childRet = thisClass->ReadChannel(hChannel, reinterpret_cast<uint8_t *>(hChannel->ioBuf) +
+                                          DWORD_SERIALIZE_SIZE + indexBuf, size);
         if (childRet < 0) {
             if (!hChannel->keepAlive) {
                 needExit = true;
@@ -282,7 +283,7 @@ void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t comman
 
 void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
 {
-    HChannel hChannel = (HChannel)AdminChannel(OP_QUERY_REF, channelId, nullptr);
+    HChannel hChannel = reinterpret_cast<HChannel>(AdminChannel(OP_QUERY_REF, channelId, nullptr));
     if (!hChannel) {
         return;
     }
@@ -303,7 +304,7 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
     if (!data) {
         return;
     }
-    *(uint32_t *)data = htonl(size);  // big endian
+    *reinterpret_cast<uint32_t *>(data) = htonl(size);  // big endian
     if (memcpy_s(data + DWORD_SERIALIZE_SIZE, sizeNewBuf - DWORD_SERIALIZE_SIZE, bufPtr, size)) {
         delete[] data;
         return;
@@ -324,7 +325,7 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
 // works only in current working thread
 void HdcChannelBase::Send(const uint32_t channelId, uint8_t *bufPtr, const int size)
 {
-    HChannel hChannel = (HChannel)AdminChannel(OP_QUERY_REF, channelId, nullptr);
+    HChannel hChannel = reinterpret_cast<HChannel>(AdminChannel(OP_QUERY_REF, channelId, nullptr));
     if (!hChannel) {
         return;
     }
@@ -348,10 +349,9 @@ void HdcChannelBase::AllocCallback(uv_handle_t *handle, size_t sizeWanted, uv_bu
 uint32_t HdcChannelBase::GetChannelPseudoUid()
 {
     uint32_t uid = 0;
-    HChannel hInput = nullptr;
     do {
         uid = static_cast<uint32_t>(Base::GetRandom());
-    } while ((hInput = AdminChannel(OP_QUERY, uid, nullptr)) != nullptr);
+    } while (AdminChannel(OP_QUERY, uid, nullptr) != nullptr);
     return uid;
 }
 
@@ -400,7 +400,7 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
 void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 {
     auto closeChannelHandle = [](uv_handle_t *handle) -> void {
-        HChannel hChannel = (HChannel)handle->data;
+        HChannel hChannel = reinterpret_cast<HChannel>(handle->data);
         --hChannel->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
     };
@@ -514,7 +514,7 @@ void HdcChannelBase::EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int 
     if (!data) {
         return;
     }
-    *(uint32_t *)data = htonl(size);
+    *reinterpret_cast<uint32_t *>(data) = htonl(size);
     if (memcpy_s(data + DWORD_SERIALIZE_SIZE, sizeNewBuf - DWORD_SERIALIZE_SIZE, bufPtr, size)) {
         delete[] data;
         return;

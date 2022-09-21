@@ -62,7 +62,7 @@ uint32_t HdcClient::GetLastPID()
         return 0;
     }
     string path = Base::StringFormat("%s%c.%s.pid", bufPath, Base::GetPathSep(), SERVER_NAME.c_str());
-    Base::ReadBinFile(path.c_str(), (void **)&pidBuf, BUF_SIZE_TINY);
+    Base::ReadBinFile(path.c_str(), reinterpret_cast<void **>(&pidBuf), BUF_SIZE_TINY);
     int pid = atoi(pidBuf);  // pid  maybe 0
     return pid;
 }
@@ -70,7 +70,7 @@ uint32_t HdcClient::GetLastPID()
 bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
 {
     bool isNowRunning = Base::ProgramMutex(SERVER_NAME.c_str(), true) != 0;
-    const int SIGN_NUM = 9;
+    const int signNum = 9;
     uint32_t pid = GetLastPID();
     if (!pid) {
         return false;
@@ -82,13 +82,13 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
                 return true;
             }
             if (pid) {
-                uv_kill(pid, SIGN_NUM);
+                uv_kill(pid, signNum);
             }
         }
         HdcServer::PullupServer(channelHostPort.c_str());
     } else {
         if (isNowRunning && pid) {
-            int rc = uv_kill(pid, SIGN_NUM);
+            int rc = uv_kill(pid, signNum);
             if (rc == 0) {
                 Base::PrintMessage("Kill server finish");
             } else {
@@ -110,23 +110,19 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
 void HdcClient::DoCtrlServiceWork(uv_check_t *handle)
 {
     HdcClient *thisClass = (HdcClient *)handle->data;
-    const char *cmd = thisClass->command.c_str();
     string &strCmd = thisClass->command;
-    while (true) {
-        if (!strncmp(cmd, CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
-            thisClass->StartKillServer(cmd, true);
-        } else if (!strncmp(cmd, CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
-            thisClass->StartKillServer(cmd, false);
-            // clang-format off
-        } else if (!strncmp(cmd, CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size()) &&
-                   strCmd.find(" ") != std::string::npos) {
-            // clang-format on
-            string keyPath = strCmd.substr(CMDSTR_GENERATE_KEY.size() + 1, strCmd.size());
-            HdcAuth::GenerateKey(keyPath.c_str());
-        } else {
-            Base::PrintMessage("Unknown command");
-        }
-        break;
+    if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
+        thisClass->StartKillServer(thisClass->command.c_str(), true);
+    } else if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
+        thisClass->StartKillServer(thisClass->command.c_str(), false);
+        // clang-format off
+    } else if (!strncmp(thisClass->command.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size()) &&
+                strCmd.find(" ") != std::string::npos) {
+        // clang-format on
+        string keyPath = strCmd.substr(CMDSTR_GENERATE_KEY.size() + 1, strCmd.size());
+        HdcAuth::GenerateKey(keyPath.c_str());
+    } else {
+        Base::PrintMessage("Unknown command");
     }
     Base::TryCloseHandle((const uv_handle_t *)handle);
 }
@@ -183,8 +179,8 @@ int HdcClient::ExecuteCommand(const string &commandIn)
         return -1;
     }
 
-    if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size())
-        || !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
+    if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size()) ||
+        !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
         WRITE_LOG(LOG_DEBUG, "Set file send mode");
         channel->remote = RemoteType::REMOTE_FILE;
     }
@@ -269,8 +265,9 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
 #endif
         break;
     }
-    thisClass->Send(thisClass->channel->channelId, (uint8_t *)thisClass->command.c_str(),
-                           thisClass->command.size() + 1);
+    thisClass->Send(thisClass->channel->channelId,
+                    const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(thisClass->command.c_str())),
+                    thisClass->command.size() + 1);
 }
 
 void HdcClient::AllocStdbuf(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
@@ -288,11 +285,11 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
     HChannel hChannel = (HChannel)stream->data;
     HdcClient *thisClass = (HdcClient *)hChannel->clsChannel;
-    char *command = hChannel->bufStd;
+    char *cmd = hChannel->bufStd;
     if (nread <= 0) {
         return;  // error
     }
-    thisClass->Send(hChannel->channelId, (uint8_t *)command, strlen(command));
+    thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(cmd), strlen(cmd));
     Base::ZeroArray(hChannel->bufStd);
 }
 
@@ -302,11 +299,13 @@ void HdcClient::ModifyTty(bool setOrRestore, uv_tty_t *tty)
 #ifdef _WIN32
         uv_tty_set_mode(tty, UV_TTY_MODE_RAW);
 #else
-        if (tcgetattr(STDIN_FILENO, &terminalState))
+        if (tcgetattr(STDIN_FILENO, &terminalState)) {
             return;
+        }
         termios tio;
-        if (tcgetattr(STDIN_FILENO, &tio))
+        if (tcgetattr(STDIN_FILENO, &tio)) {
             return;
+        }
         cfmakeraw(&tio);
         tio.c_cc[VTIME] = 0;
         tio.c_cc[VMIN] = 1;
@@ -350,7 +349,7 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
 {
     HdcClient *thisClass = (HdcClient *)connection->data;
     delete connection;
-    HChannel hChannel = (HChannel)thisClass->channel;
+    HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
     if (status < 0 || uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
         WRITE_LOG(LOG_FATAL, "connect failed");
         thisClass->FreeChannel(hChannel->channelId);
@@ -363,7 +362,7 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
 
 int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
 {
-    ChannelHandShake *hShake = (ChannelHandShake *)buf;
+    ChannelHandShake *hShake = reinterpret_cast<ChannelHandShake *>(const_cast<uint8_t *>(buf));
     if (strncmp(hShake->banner, HANDSHAKE_MESSAGE.c_str(), HANDSHAKE_MESSAGE.size())) {
         hChannel->availTailIndex = 0;
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
@@ -423,13 +422,13 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
 #endif
     WRITE_LOG(LOG_DEBUG, "Client ReadChannel :%d", bytesIO);
 
-    uint16_t command = 0;
+    uint16_t cmd = 0;
     bool bOffset = false;
     if (bytesIO >= static_cast<int>(sizeof(uint16_t))) {
-       command = *reinterpret_cast<uint16_t *>(buf);
-       bOffset = IsOffset(command);
+       cmd = *reinterpret_cast<uint16_t *>(buf);
+       bOffset = IsOffset(cmd);
     }
-    if (CMD_CHECK_SERVER == command && isCheckVersionCmd) {
+    if (cmd == CMD_CHECK_SERVER && isCheckVersionCmd) {
         WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
         string version(reinterpret_cast<char *>(buf + sizeof(uint16_t)), bytesIO - sizeof(uint16_t));
         fprintf(stdout, "Client version:%s, server version:%s\n", Base::GetVersion().c_str(), version.c_str());
@@ -441,10 +440,10 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         if (hChannel->remote == RemoteType::REMOTE_FILE) {
             if (fileTask == nullptr) {
                 HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
-                hTaskInfo->masterSlave = (command == CMD_FILE_INIT);
+                hTaskInfo->masterSlave = (cmd == CMD_FILE_INIT);
                 fileTask = std::make_unique<HdcFile>(hTaskInfo);
             }
-            if (!fileTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+            if (!fileTask->CommandDispatch(cmd, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
                 fileTask->TaskFinish();
             }
         }
@@ -452,10 +451,10 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         if (hChannel->remote == RemoteType::REMOTE_APP) {
             if (appTask == nullptr) {
                 HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
-                hTaskInfo->masterSlave = (command == CMD_APP_INIT);
+                hTaskInfo->masterSlave = (cmd == CMD_APP_INIT);
                 appTask = std::make_unique<HdcHostApp>(hTaskInfo);
             }
-            if (!appTask->CommandDispatch(command, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+            if (!appTask->CommandDispatch(cmd, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
                 appTask->TaskFinish();
             }
         }
@@ -468,21 +467,21 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     return 0;
 }
 
-bool HdcClient::IsOffset(uint16_t command)
+bool HdcClient::IsOffset(uint16_t cmd)
 {
-    return (command == CMD_CHECK_SERVER) ||
-           (command == CMD_FILE_INIT) ||
-           (command == CMD_FILE_CHECK) ||
-           (command == CMD_FILE_BEGIN) ||
-           (command == CMD_FILE_DATA) ||
-           (command == CMD_FILE_FINISH) ||
-           (command == CMD_FILE_MODE) ||
-           (command == CMD_DIR_MODE) ||
-           (command == CMD_APP_INIT) ||
-           (command == CMD_APP_CHECK) ||
-           (command == CMD_APP_BEGIN) ||
-           (command == CMD_APP_DATA) ||
-           (command == CMD_APP_FINISH);
+    return (cmd == CMD_CHECK_SERVER) ||
+           (cmd == CMD_FILE_INIT) ||
+           (cmd == CMD_FILE_CHECK) ||
+           (cmd == CMD_FILE_BEGIN) ||
+           (cmd == CMD_FILE_DATA) ||
+           (cmd == CMD_FILE_FINISH) ||
+           (cmd == CMD_FILE_MODE) ||
+           (cmd == CMD_DIR_MODE) ||
+           (cmd == CMD_APP_INIT) ||
+           (cmd == CMD_APP_CHECK) ||
+           (cmd == CMD_APP_BEGIN) ||
+           (cmd == CMD_APP_DATA) ||
+           (cmd == CMD_APP_FINISH);
 }
 
 HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)

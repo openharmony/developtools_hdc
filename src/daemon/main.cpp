@@ -141,7 +141,7 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
     // hdcd -l4 ...
     WRITE_LOG(LOG_DEBUG, "Foreground cli-mode");
     // Both settings are running with parameters
-    while ((ch = getopt(argc, (char *const *)argv, "utl:")) != -1) {
+    while ((ch = getopt(argc, const_cast<char *const *>(argv), "utl:")) != -1) {
         switch (ch) {
             case 'l': {
                 int logLevel = atoi(optarg);
@@ -201,7 +201,6 @@ bool DropRootPrivileges()
     for (size_t i = 0; i < groupsNames.size(); i++) {
         struct group *group = getgrnam(groupsNames[i]);
         if (group == nullptr) {
-            ret = -1;
             WRITE_LOG(LOG_FATAL, "calloc fail");
         }
         gids[i] = group->gr_gid;

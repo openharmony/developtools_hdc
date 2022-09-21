@@ -54,8 +54,8 @@ void HdcHostUnity::StopTask()
 void HdcHostUnity::OnFileClose(uv_fs_t *req)
 {
     uv_fs_req_cleanup(req);
-    ContextUnity *context = (ContextUnity *)req->data;
-    HdcHostUnity *thisClass = (HdcHostUnity *)context->thisClass;
+    ContextUnity *context = reinterpret_cast<ContextUnity *>(req->data);
+    HdcHostUnity *thisClass = reinterpret_cast<HdcHostUnity *>(context->thisClass);
     context->hasFilelogClosed = true;
     --thisClass->refCount;
     return;
@@ -66,8 +66,9 @@ bool HdcHostUnity::InitLocalLog(const char *path)
     uv_fs_t reqFs;
     // block open
     if (uv_fs_open(nullptr, &reqFs, path, UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR, nullptr)
-        < 0)
+        < 0) {
         return false;
+    }
     uv_fs_req_cleanup(&reqFs);
     opContext.fileLog = reqFs.result;
     return true;
@@ -75,9 +76,9 @@ bool HdcHostUnity::InitLocalLog(const char *path)
 
 void HdcHostUnity::OnFileIO(uv_fs_t *req)
 {
-    CtxUnityIO *contextIO = (CtxUnityIO *)req->data;
-    ContextUnity *context = (ContextUnity *)contextIO->context;
-    HdcHostUnity *thisClass = (HdcHostUnity *)context->thisClass;
+    CtxUnityIO *contextIO = reinterpret_cast<CtxUnityIO *>(req->data);
+    ContextUnity *context = reinterpret_cast<ContextUnity *>(contextIO->context);
+    HdcHostUnity *thisClass = reinterpret_cast<HdcHostUnity *>(context->thisClass);
     uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
     --thisClass->refCount;
@@ -119,7 +120,7 @@ bool HdcHostUnity::AppendLocalLog(const char *bufLog, const int sizeLog)
 
     if (memcpy_s(buf, sizeLog, bufLog, sizeLog)) {
     }
-    uv_buf_t iov = uv_buf_init((char *)buf, sizeLog);
+    uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(buf), sizeLog);
     uv_fs_write(loopTask, req, opContext.fileLog, &iov, 1, opContext.fileBufIndex, OnFileIO);
     opContext.fileBufIndex += sizeLog;
     return true;
@@ -131,8 +132,8 @@ bool HdcHostUnity::CommandDispatch(const uint16_t command, uint8_t *payload, con
     // Both are executed, do not need to detect ChildReady
     switch (command) {
         case CMD_UNITY_BUGREPORT_INIT: {
-            if (strlen((char *)payload)) {  // enable local log
-                if (!InitLocalLog((const char *)payload)) {
+            if (strlen(reinterpret_cast<char *>(payload))) {  // enable local log
+                if (!InitLocalLog(reinterpret_cast<const char *>(payload))) {
                     LogMsg(MSG_FAIL, "Cannot set locallog");
                     ret = false;
                     break;
@@ -144,7 +145,7 @@ bool HdcHostUnity::CommandDispatch(const uint16_t command, uint8_t *payload, con
         }
         case CMD_UNITY_BUGREPORT_DATA: {
             if (opContext.enableLog) {
-                AppendLocalLog((const char *)payload, payloadSize);
+                AppendLocalLog(reinterpret_cast<const char *>(payload), payloadSize);
             } else {
                 ServerCommand(CMD_KERNEL_ECHO_RAW, payload, payloadSize);
             }

@@ -97,7 +97,7 @@ void HdcHostUSB::InitLogging(void *ctxUSB)
     std::string debugEnv = "LIBUSB_DEBUG";
     libusb_log_level debugLevel;
 
-    switch ((Hdc::LogLevel)Base::GetLogLevel()) {
+    switch (static_cast<Hdc::LogLevel>(Base::GetLogLevel())) {
         case LOG_WARN:
             debugLevel = LIBUSB_LOG_LEVEL_ERROR;
             break;
@@ -236,10 +236,10 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
 void HdcHostUSB::UsbWorkThread(void *arg)
 {
     HdcHostUSB *thisClass = (HdcHostUSB *)arg;
-    constexpr uint8_t USB_HANDLE_TIMEOUT = 30;  // second
+    constexpr uint8_t usbHandleTimeout = 30;  // second
     while (thisClass->modRunning) {
         struct timeval zerotime;
-        zerotime.tv_sec = USB_HANDLE_TIMEOUT;
+        zerotime.tv_sec = usbHandleTimeout;
         zerotime.tv_usec = 0;  // if == 0,windows will be high CPU load
         libusb_handle_events_timeout(thisClass->ctxUSB, &zerotime);
     }
@@ -315,8 +315,8 @@ bool HdcHostUSB::IsDebuggableDev(const struct libusb_interface_descriptor *ifDes
     constexpr uint8_t harmonySubClass = 0x50;
     constexpr uint8_t harmonyProtocol = 0x01;
 
-    if (ifDescriptor->bInterfaceClass != harmonyClass || ifDescriptor->bInterfaceSubClass != harmonySubClass
-        || ifDescriptor->bInterfaceProtocol != harmonyProtocol) {
+    if (ifDescriptor->bInterfaceClass != harmonyClass || ifDescriptor->bInterfaceSubClass != harmonySubClass ||
+        ifDescriptor->bInterfaceProtocol != harmonyProtocol) {
         return false;
     }
     if (ifDescriptor->bNumEndpoints != harmonyEpNum) {
@@ -419,7 +419,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
     int childRet = 0;
 
     while (index < dataSize) {
-        if ((childRet = select(fd + 1, NULL, &fdSet, NULL, &timeout)) <= 0) {
+        if ((childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout)) <= 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
 #ifdef _WIN32
@@ -430,7 +430,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
             WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d]", errno, buf, childRet);
             break;
         }
-        childRet = send(fd, (const char *)appendData + index, dataSize - index, 0);
+        childRet = send(fd, reinterpret_cast<const char *>(appendData) + index, dataSize - index, 0);
         if (childRet < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
@@ -453,7 +453,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 
 void LIBUSB_CALL HdcHostUSB::USBBulkCallback(struct libusb_transfer *transfer)
 {
-    auto *ep = static_cast<HostUSBEndpoint *>(transfer->user_data);
+    auto *ep = reinterpret_cast<HostUSBEndpoint *>(transfer->user_data);
     std::unique_lock<std::mutex> lock(ep->mutexIo);
     bool retrySumit = false;
     int childRet = 0;

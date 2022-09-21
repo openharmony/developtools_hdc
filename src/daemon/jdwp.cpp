@@ -277,8 +277,8 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
         close(sockfd);
         return -1;
     }
-    constexpr uint32_t UV_HANDLE_BOUND = 0x00002000;
-    handle->flags |= UV_HANDLE_BOUND;
+    constexpr uint32_t uvHandleBound = 0x00002000;
+    handle->flags |= uvHandleBound;
     handle->io_watcher.fd = sockfd;
     return 0;
 }
@@ -353,7 +353,7 @@ bool HdcJdwp::SendJdwpNewFD(uint32_t targetPID, int fd)
         if (!ctx) {
             break;
         }
-        ctx->dummy = (uint8_t)'!';
+        ctx->dummy = static_cast<uint8_t>('!');
         if (uv_tcp_init(loop, &ctx->jvmTCP)) {
             break;
         }

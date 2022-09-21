@@ -882,16 +882,18 @@ namespace Base {
     // Not supported on some platforms, Can only be achieved manually
     uint64_t HostToNet(uint64_t val)
     {
-        if (htonl(1) == 1)
+        if (htonl(1) == 1) {
             return val;
-        return (((uint64_t)htonl(val)) << 32) + htonl(val >> 32);
+        }
+        return ((static_cast<uint64_t>(htonl(val))) << 32) + htonl(val >> 32);
     }
 
     uint64_t NetToHost(uint64_t val)
     {
-        if (htonl(1) == 1)
+        if (htonl(1) == 1) {
             return val;
-        return (((uint64_t)ntohl(val)) << 32) + ntohl(val >> 32);
+        }
+        return ((static_cast<uint64_t>(ntohl(val))) << 32) + ntohl(val >> 32);
     }
 
     char GetPathSep()
@@ -1080,8 +1082,9 @@ namespace Base {
                     BuildErrorString(localPath, op, buf, errStr);
                 }
                 uv_fs_req_cleanup(&req);
-                if (req.result == 0)
+                if (req.result == 0) {
                     return true;
+                }
             } else if (r == 0) {
                 const char *type = GetFileType(mode);
                 errStr = "Not support ";
@@ -1201,7 +1204,7 @@ namespace Base {
         string retString;
         uint8_t *pBuf = nullptr;
         while (true) {
-            if ((uint32_t)length > HDC_BUF_MAX_BYTES) {
+            if (static_cast<uint32_t>(length) > HDC_BUF_MAX_BYTES) {
                 break;
             }
             // must less than length
@@ -1574,7 +1577,8 @@ namespace Base {
     void DeInitProcess(void)
     {
 #ifndef HDC_HOST
-        umask(022);
+        mode_t writePermission = 022;
+        umask(writePermission);
         signal(SIGPIPE, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGALRM, SIG_DFL);

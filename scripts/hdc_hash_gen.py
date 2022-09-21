@@ -31,8 +31,8 @@ def calc_file_hash():
         return
     global algorithm
     algorithm = hashlib.sha256()
-    size = os.path.getsize(output_dir+output_file_name)
-    with open(output_dir+output_file_name, 'rb') as fd:
+    size = os.path.getsize("{}{}".format(output_dir, output_file_name))
+    with open("{}{}".format(output_dir, output_file_name), 'rb') as fd:
         while size >= 1024 * 1024:
             algorithm.update(fd.read(1024 * 1024))
             size -= 1024 * 1024
@@ -41,7 +41,7 @@ def calc_file_hash():
 def write_output_file():
     if output_dir == "":
         return
-    with open(output_dir+output_file_name, 'w') as fd_struct:
+    with open("{}{}".format(output_dir, output_file_name), 'w') as fd_struct:
         for i in struct_vals:
             fd_struct.write(i)
             fd_struct.write('\n')
@@ -49,12 +49,12 @@ def write_output_file():
 def write_hdc_file():
     if hdc_file == "":
         return
-    with open(output_dir+hdc_file, 'w') as fd_hdc:
+    with open("{}{}".format(output_dir, hdc_file), 'w') as fd_hdc:
         fd_hdc.write("#ifndef HDC_HASH_GEN_H\n")
         fd_hdc.write("#define HDC_HASH_GEN_H\n")
         fd_hdc.write('\n')
         fd_hdc.write("#include <stdio.h>\n")
-        context = "#define HDC_MSG_HASH \"" + str(algorithm.hexdigest())[0:16] + "\""
+        context = "{}{}{}".format("#define HDC_MSG_HASH \"", str(algorithm.hexdigest())[0:16], "\"")
         fd_hdc.write(context)
         fd_hdc.write("\n\n")
         fd_hdc.write("#endif\n")
@@ -62,10 +62,10 @@ def write_hdc_file():
 def read_struct():
     if input_dir == "":
         return
-    with open(input_dir+cfg_file_name, mode='r', encoding='utf-8') as fd_path:
+    with open("{}{}".format(input_dir , cfg_file_name), mode='r', encoding='utf-8') as fd_path:
         for line in fd_path.readlines():
             file_name = line.strip()
-            with open(input_dir+file_name, mode='r', encoding='utf-8') as fd_file:
+            with open("{}{}".format(input_dir , file_name), mode='r', encoding='utf-8') as fd_file:
                 is_find = False
                 is_end = False
                 begin_count = 0

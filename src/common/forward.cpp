@@ -70,7 +70,7 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
         }
         // clang-format on
         // pre 8bytes preserve for param bits
-        SendToTask(ctxClient->id, CMD_FORWARD_ACTIVE_SLAVE, (uint8_t *)buf,
+        SendToTask(ctxClient->id, CMD_FORWARD_ACTIVE_SLAVE, reinterpret_cast<uint8_t *>(buf),
                    strlen(buf + forwardParameterBufSize) + 9);
         ret = true;
         break;
@@ -95,7 +95,7 @@ void HdcForwardBase::ListenCallback(uv_stream_t *server, const int status)
     if (!ctxClient) {
         return;
     }
-    if (FORWARD_TCP == ctxListen->type) {
+    if (ctxListen->type == FORWARD_TCP) {
         uv_tcp_init(ctxClient->thisClass->loopTask, &ctxClient->tcp);
         client = (uv_stream_t *)&ctxClient->tcp;
     } else {
@@ -150,10 +150,10 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
                 ctx->thisClass->FreeContextCallBack(ctx);
                 delete (uv_idle_t *)handle;
             };
-            HCtxForward ctx = (HCtxForward)handle->data;
-            if (ctx->fdClass->ReadyForRelease()) {
-                delete ctx->fdClass;
-                ctx->fdClass = nullptr;
+            HCtxForward context = (HCtxForward)handle->data;
+            if (context->fdClass->ReadyForRelease()) {
+                delete context->fdClass;
+                context->fdClass = nullptr;
                 Base::TryCloseHandle((uv_handle_t *)handle, funcIdleHandleClose);
             }
         };
@@ -214,7 +214,7 @@ bool HdcForwardBase::SendToTask(const uint32_t cid, const uint16_t command, uint
     if (!newBuf) {
         return false;
     }
-    *(uint32_t *)(newBuf) = htonl(cid);
+    *reinterpret_cast<uint32_t *>(newBuf) = htonl(cid);
     if (bufSize > 0 && bufPtr != nullptr && memcpy_s(newBuf + 4, bufSize, bufPtr, bufSize) != EOK) {
         delete[] newBuf;
         return false;
@@ -414,7 +414,7 @@ bool HdcForwardBase::LocalAbstractConnect(uv_pipe_t *pipe, string &sNodeCfg)
             break;
         };
         // local connect, ignore timeout
-        if (connect(s, (struct sockaddr *)&addr, addrLen) < 0) {
+        if (connect(s, reinterpret_cast<struct sockaddr *>(&addr), addrLen) < 0) {
             break;
         }
         if (uv_pipe_open(pipe, s)) {
@@ -556,19 +556,19 @@ bool HdcForwardBase::BeginForward(const string &command, string &sError)
         // First 8-byte parameter bit
         int maxBufSize = sizeof(bufString) - forwardParameterBufSize;
         if (snprintf_s(bufString + forwardParameterBufSize, maxBufSize, maxBufSize - 1, "%s", argv[1]) > 0) {
-            SendToTask(ctxPoint->id, CMD_FORWARD_CHECK, (uint8_t *)bufString,
+            SendToTask(ctxPoint->id, CMD_FORWARD_CHECK, reinterpret_cast<uint8_t *>(bufString),
                        forwardParameterBufSize + strlen(bufString + forwardParameterBufSize) + 1);
             taskCommand = command;
         }
     }
-    delete[]((char *)argv);
+    delete[](reinterpret_cast<char *>(argv));
     return ret;
 }
 
 inline bool HdcForwardBase::FilterCommand(uint8_t *bufCmdIn, uint32_t *idOut, uint8_t **pContentBuf)
 {
     *pContentBuf = bufCmdIn + DWORD_SERIALIZE_SIZE;
-    *idOut = ntohl(*(uint32_t *)bufCmdIn);
+    *idOut = ntohl(*reinterpret_cast<uint32_t *>(bufCmdIn));
     return true;
 }
 
@@ -585,7 +585,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
     idSlaveOld = ctxPoint->id;
     ctxPoint->checkPoint = bCheckPoint;
     // refresh another id,8byte param
-    FilterCommand(bufCmd, &ctxPoint->id, (uint8_t **)&content);
+    FilterCommand(bufCmd, &ctxPoint->id, reinterpret_cast<uint8_t **>(&content));
     AdminContext(OP_UPDATE, idSlaveOld, ctxPoint);
     content += forwardParameterBufSize;
     if (!CheckNodeInfo(content, ctxPoint->localArgs)) {
@@ -663,7 +663,7 @@ void *HdcForwardBase::AdminContext(const uint8_t op, const uint32_t id, HCtxForw
 void HdcForwardBase::SendCallbackForwardBuf(uv_write_t *req, int status)
 {
     ContextForwardIO *ctxIO = (ContextForwardIO *)req->data;
-    HCtxForward ctx = (HCtxForward)ctxIO->ctxForward;
+    HCtxForward ctx = reinterpret_cast<HCtxForward>(ctxIO->ctxForward);
     if (status < 0 && !ctx->finish) {
         WRITE_LOG(LOG_DEBUG, "SendCallbackForwardBuf ctx->type:%d, status:%d finish", ctx->type, status);
         ctx->thisClass->FreeContext(ctx, 0, true);
@@ -688,7 +688,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         return -1;
     }
     (void)memcpy_s(pDynBuf, size, bufPtr, size);
-    if (FORWARD_DEVICE == ctx->type) {
+    if (ctx->type == FORWARD_DEVICE) {
         nRet = ctx->fdClass->WriteWithMem(pDynBuf, size);
     } else {
         auto ctxIO = new ContextForwardIO();
@@ -698,7 +698,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         }
         ctxIO->ctxForward = ctx;
         ctxIO->bufIO = pDynBuf;
-        if (FORWARD_TCP == ctx->type || FORWARD_JDWP == ctx->type) {
+        if (ctx->type == FORWARD_TCP || ctx->type == FORWARD_JDWP) {
             nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->tcp, pDynBuf, size, nullptr,
                                         (void *)SendCallbackForwardBuf, (void *)ctxIO);
         } else {
@@ -713,13 +713,14 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
 bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload)
 {
     bool ret = true;
-    bool bCheck = (bool)payload;
+    bool bCheck = static_cast<bool>(payload);
     LogMsg(bCheck ? MSG_OK : MSG_FAIL, "Forwardport result:%s", bCheck ? "OK" : "Failed");
     if (bCheck) {
         string mapInfo = taskInfo->serverOrDaemon ? "1|" : "0|";
         mapInfo += taskCommand;
         ctx->ready = true;
-        ServerCommand(CMD_FORWARD_SUCCESS, (uint8_t *)mapInfo.c_str(), mapInfo.size() + 1);
+        ServerCommand(CMD_FORWARD_SUCCESS, reinterpret_cast<uint8_t *>(const_cast<char *>(mapInfo.c_str())),
+                      mapInfo.size() + 1);
     } else {
         ret = false;
         FreeContext(ctx, 0, false);
@@ -782,21 +783,21 @@ bool HdcForwardBase::CommandDispatch(const uint16_t command, uint8_t *payload, c
     bool ret = true;
     string sError;
     // prepare
-    if (CMD_FORWARD_INIT == command) {
+    if (command == CMD_FORWARD_INIT) {
         string strCommand(reinterpret_cast<char *>(payload), payloadSize);
         if (!BeginForward(strCommand, sError)) {
             ret = false;
             goto Finish;
         }
         return true;
-    } else if (CMD_FORWARD_CHECK == command) {
+    } else if (command == CMD_FORWARD_CHECK) {
         // Detect remote if it's reachable
         if (!SlaveConnect(payload, true, sError)) {
             ret = false;
             goto Finish;
         }
         return true;
-    } else if (CMD_FORWARD_ACTIVE_SLAVE == command) {
+    } else if (command == CMD_FORWARD_ACTIVE_SLAVE) {
         // slave connect target port when activating
         if (!SlaveConnect(payload, false, sError)) {
             ret = false;
@@ -813,8 +814,8 @@ Finish:
         if (!sError.size()) {
             LogMsg(MSG_FAIL, "Forward parament failed");
         } else {
-            LogMsg(MSG_FAIL, (char *)sError.c_str());
-            WRITE_LOG(LOG_WARN, (char *)sError.c_str());
+            LogMsg(MSG_FAIL, const_cast<char *>(sError.c_str()));
+            WRITE_LOG(LOG_WARN, const_cast<char *>(sError.c_str()));
         }
     }
     return ret;

@@ -104,6 +104,7 @@ int AsyncCmd::Popen(string command, bool readWrite, int &pid)
         return ERR_GENERIC;
     }
     if (childPid == 0) {
+        Base::DeInitProcess();
         if (readWrite) {
             dup2(fd[PIPE_WRITE], STDOUT_FILENO);
             dup2(fd[PIPE_WRITE], STDERR_FILENO);

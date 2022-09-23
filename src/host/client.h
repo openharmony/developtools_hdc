@@ -16,6 +16,9 @@
 #define HDC_CLIENT_H
 #include "host_common.h"
 
+extern std::map<std::string, std::string> g_lists;
+extern bool g_show;
+
 namespace Hdc {
 // Avoiding Circular dependency
 class HdcHostApp;
@@ -47,6 +50,9 @@ private:
     void NotifyInstanceChannelFree(HChannel hChannel) override;
     bool IsOffset(uint16_t command);
     HTaskInfo GetRemoteTaskInfo(HChannel hChannel);
+    bool WaitFor(const string &str);
+    string ListTargetsAll(const string &str);
+    void UpdateList(const string &str);
 
 #ifndef _WIN32
     termios terminalState;

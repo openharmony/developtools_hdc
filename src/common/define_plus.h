@@ -79,7 +79,8 @@ enum OperateID {
     OP_CLEAR,
     OP_INIT,
     OP_GET_ONLY,
-    OP_VOTE_RESET
+    OP_VOTE_RESET,
+    OP_WAIT_FOR_ANY
 };
 
 enum RetErrCode {
@@ -152,6 +153,7 @@ enum HdcCommand {
     CMD_KERNEL_WAKEUP_SLAVETASK,
     CMD_CHECK_SERVER,
     CMD_CHECK_DEVICE,
+    CMD_WAIT_FOR,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,

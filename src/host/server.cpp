@@ -357,6 +357,19 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
             uv_rwlock_rdunlock(&daemonAdmin);
             break;
         }
+        case OP_WAIT_FOR_ANY: {
+            uv_rwlock_rdlock(&daemonAdmin);
+            map<string, HDaemonInfo>::iterator iter;
+            for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
+                HDaemonInfo di = iter->second;
+                if (di->connStatus == STATUS_CONNECTED) {
+                    hDaemonInfoInOut = di;
+                    break;
+                }
+            }
+            uv_rwlock_rdunlock(&daemonAdmin);
+            break;
+        }
         case OP_GET_ONLY: {
             GetDaemonMapOnlyOne(hDaemonInfoInOut);
             break;

@@ -42,12 +42,12 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     if (argc < CMD_ARG1_COUNT || argv == nullptr) {
         LogMsg(MSG_FAIL, "Transfer path split failed");
         if (argv) {
-            delete[]((char *)argv);
+            delete[](reinterpret_cast<char *>(argv));
         }
         return false;
     }
     if (!SetMasterParameters(context, command.c_str(), argc, argv)) {
-        delete[]((char *)argv);
+        delete[](reinterpret_cast<char *>(argv));
         return false;
     }
     do {
@@ -60,7 +60,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", context->localPath.c_str(),
                context->remotePath.c_str());
     }
-    delete[]((char *)argv);
+    delete[](reinterpret_cast<char *>(argv));
     return ret;
 }
 
@@ -68,19 +68,19 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
 {
     int srcArgvIndex = 0;
     string errStr;
-    const string CMD_OPTION_TSTMP = "-a";
-    const string CMD_OPTION_SYNC = "-sync";
-    const string CMD_OPTION_ZIP = "-z";
-    const string CMD_OPTION_MODE_SYNC = "-m";
+    const string cmdOptionTstmp = "-a";
+    const string cmdOptionSync = "-sync";
+    const string cmdOptionZip = "-z";
+    const string cmdOptionModeSync = "-m";
 
     for (int i = 0; i < argc; i++) {
-        if (argv[i] == CMD_OPTION_ZIP) {
+        if (argv[i] == cmdOptionZip) {
             context->transferConfig.compressType = COMPRESS_LZ4;
             ++srcArgvIndex;
-        } else if (argv[i] == CMD_OPTION_SYNC) {
+        } else if (argv[i] == cmdOptionSync) {
             context->transferConfig.updateIfNew = true;
             ++srcArgvIndex;
-        } else if (argv[i] == CMD_OPTION_TSTMP) {
+        } else if (argv[i] == cmdOptionTstmp) {
             // The time zone difference may cause the display time on the PC and the
             // device to differ by several hours
             //
@@ -90,7 +90,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         } else if (argv[i] == CMD_OPTION_CLIENTCWD) {
             context->transferConfig.clientCwd = argv[i + 1];
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
-        } else if (argv[i] == CMD_OPTION_MODE_SYNC) {
+        } else if (argv[i] == cmdOptionModeSync) {
             context->fileModeSync = true;
             ++srcArgvIndex;
         } else if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
@@ -150,10 +150,10 @@ void HdcFile::CheckMaster(CtxFile *context)
 {
     if (context->fileModeSync) {
         string s = SerialStruct::SerializeToString(context->fileMode);
-        SendToAnother(CMD_FILE_MODE, (uint8_t *)s.c_str(), s.size());
+        SendToAnother(CMD_FILE_MODE, reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
     } else {
         string s = SerialStruct::SerializeToString(context->transferConfig);
-        SendToAnother(CMD_FILE_CHECK, (uint8_t *)s.c_str(), s.size());
+        SendToAnother(CMD_FILE_CHECK, reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
     }
 }
 
@@ -179,7 +179,7 @@ void HdcFile::TransferSummary(CtxFile *context)
     } else {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
-        uv_strerror_r((int)(-context->lastErrno), buf, bufSize);
+        uv_strerror_r(static_cast<int>(-context->lastErrno), buf, bufSize);
         LogMsg(MSG_FAIL, "Transfer Stop at:%lld/%lld(Bytes), Reason: %s", context->indexIO, context->fileSize,
                buf);
     }
@@ -196,14 +196,14 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
                 mode.fullName.c_str(), mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
             string s = SerialStruct::SerializeToString(mode);
             ctxNow.dirMode.pop_back();
-            SendToAnother(CMD_DIR_MODE, (uint8_t *)s.c_str(), s.size());
+            SendToAnother(CMD_DIR_MODE, reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
         } else {
             string s = SerialStruct::SerializeToString(ctxNow.transferConfig);
-            SendToAnother(CMD_FILE_CHECK, (uint8_t *)s.c_str(), s.size());
+            SendToAnother(CMD_FILE_CHECK, reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
         }
     } else {
         ctxNow.fileModeSync = true;
-        string serialString((char *)payload, payloadSize);
+        string serialString(reinterpret_cast<char *>(payload), payloadSize);
         if (cmd == CMD_FILE_MODE) {
             SerialStruct::ParseFromString(ctxNow.fileMode, serialString);
         } else {
@@ -214,10 +214,10 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
                 dirMode.fullName.c_str(), dirMode.perm, dirMode.u_id, dirMode.g_id, dirMode.context.c_str());
 
             vector<string> dirsOfOptName;
-            if (string::npos != dirMode.fullName.find('/')) {
+            if (dirMode.fullName.find('/') != string::npos) {
                 WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from linux system");
                 Base::SplitString(dirMode.fullName, "/", dirsOfOptName);
-            } else if (string::npos != dirMode.fullName.find('\\')) {
+            } else if (dirMode.fullName.find('\\') != string::npos) {
                 WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from windows system");
                 Base::SplitString(dirMode.fullName, "\\", dirsOfOptName);
             } else {
@@ -247,7 +247,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     bool childRet = false;
     string errStr;
     // parse option
-    string serialString((char *)payload, payloadSize);
+    string serialString(reinterpret_cast<char *>(payload), payloadSize);
     TransferConfig &stat = ctxNow.transferConfig;
     SerialStruct::ParseFromString(stat, serialString);
     ctxNow.fileSize = stat.fileSize;
@@ -313,7 +313,7 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
     bool ret = true;
     switch (command) {
         case CMD_FILE_INIT: {  // initial
-            string s = string((char *)payload, payloadSize);
+            string s = string(reinterpret_cast<char *>(payload), payloadSize);
             ret = BeginTransfer(&ctxNow, s);
             ctxNow.transferBegin = Base::GetRuntimeMSec();
             break;

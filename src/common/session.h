@@ -158,7 +158,7 @@ protected:
             hTaskInfo->hasInitial = true;
             hTaskInfo->taskClass = ptrTask;
         } else {
-            ptrTask = (T *)hTaskInfo->taskClass;
+            ptrTask = static_cast<T *>(hTaskInfo->taskClass);
         }
         if (!ptrTask->CommandDispatch(command, payload, payloadSize)) {
             ptrTask->TaskFinish();
@@ -167,7 +167,7 @@ protected:
     }
     template<class T> bool DoTaskRemove(HTaskInfo hTaskInfo, const uint8_t op)
     {
-        T *ptrTask = (T *)hTaskInfo->taskClass;
+        T *ptrTask = static_cast<T *>(hTaskInfo->taskClass);
         if (ptrTask == nullptr) {
             return true;
         }

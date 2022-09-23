@@ -26,10 +26,11 @@ bool TestBaseCommand(void *runtimePtr)
     bool ret = false;
     // test 'discover'
     rt->InnerCall(UT_DISCOVER);
-    if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/base-discover.result").c_str(), (void **)&bufPtr, 0)) < 0) {
+    if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/base-discover.result").c_str(),
+                                     reinterpret_cast<void **>(&bufPtr), 0)) < 0) {
         return false;
     }
-    if (!strcmp("0", (char *)bufPtr)) {
+    if (!strcmp("0", reinterpret_cast<char *>(bufPtr))) {
         delete[] bufPtr;
         bufPtr = nullptr;
         return false;
@@ -39,20 +40,22 @@ bool TestBaseCommand(void *runtimePtr)
     // test 'targets'
     rt->InnerCall(UT_LIST_TARGETS);
     constexpr int expert = 5;
-    if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/base-list.result").c_str(), (void **)&bufPtr, 0)) < expert) {
+    if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/base-list.result").c_str(),
+                                     reinterpret_cast<void **>(&bufPtr), 0)) < expert) {
         goto Finish;
     }
-    if (strcmp(MESSAGE_SUCCESS.c_str(), (char *)bufPtr)) {
+    if (strcmp(MESSAGE_SUCCESS.c_str(), reinterpret_cast<char *>(bufPtr))) {
         goto Finish;
     }
     delete[] bufPtr;
     bufPtr = nullptr;
     // test 'any'
     rt->InnerCall(UT_CONNECT_ANY);
-    if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/base-any.result").c_str(), (void **)&bufPtr, 0)) < 0) {
+    if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/base-any.result").c_str(),
+                                     reinterpret_cast<void **>(&bufPtr), 0)) < 0) {
         goto Finish;
     }
-    if (strcmp(MESSAGE_SUCCESS.c_str(), (char *)bufPtr)) {
+    if (strcmp(MESSAGE_SUCCESS.c_str(), reinterpret_cast<char *>(bufPtr))) {
         goto Finish;
     }
     // all pass
@@ -78,11 +81,12 @@ bool TestShellExecute(void *runtimePtr)
         // test1
         rt->InnerCall(UT_SHELL_BASIC);
         constexpr int expert = 10;
-        if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/" + resultFile).c_str(), (void **)&bufPtr, 0)) < expert) {
+        if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/" + resultFile).c_str(),
+                                         reinterpret_cast<void **>(&bufPtr), 0)) < expert) {
             break;
         }
-        Base::RunPipeComand((const char *)"id", bufString, sizeof(bufString), false);
-        if (strcmp(bufString, (char *)bufPtr)) {
+        Base::RunPipeComand(const_cast<const char *>("id"), bufString, sizeof(bufString), false);
+        if (strcmp(bufString, reinterpret_cast<char *>(bufPtr))) {
             break;
         }
         delete[] bufPtr;
@@ -91,11 +95,12 @@ bool TestShellExecute(void *runtimePtr)
         // test 2
         rt->ResetUtTmpFile(resultFile);
         rt->InnerCall(UT_SHELL_LIGHT);
-        if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/" + resultFile).c_str(), (void **)&bufPtr, 0)) < expert) {
+        if ((bytesIO = Base::ReadBinFile((UT_TMP_PATH + "/" + resultFile).c_str(),
+                                         reinterpret_cast<void **>(&bufPtr), 0)) < expert) {
             break;
         }
-        Base::RunPipeComand((const char *)"cat /etc/passwd", bufString, sizeof(bufString), false);
-        if (strcmp(bufString, (char *)bufPtr)) {
+        Base::RunPipeComand(const_cast<const char *>("cat /etc/passwd"), bufString, sizeof(bufString), false);
+        if (strcmp(bufString, reinterpret_cast<char *>(bufPtr))) {
             break;
         }
         delete[] bufPtr;
@@ -138,10 +143,10 @@ bool TestFileCommand(void *runtimePtr)
         string cmd = Base::StringFormat("find /usr > %s", localFile.c_str());
         Base::RunPipeComand(cmd.c_str(), bufString, sizeof(bufString), false);
         rt->InnerCall(UT_FILE_SEND);
-        if ((sizeLocal = Base::ReadBinFile(localFile.c_str(), (void **)&bufLocal, 0)) < 0) {
+        if ((sizeLocal = Base::ReadBinFile(localFile.c_str(), reinterpret_cast<void **>(&bufLocal), 0)) < 0) {
             break;
         };
-        if ((sizeRemote = Base::ReadBinFile(remoteFile.c_str(), (void **)&bufRemote, 0)) < 0) {
+        if ((sizeRemote = Base::ReadBinFile(remoteFile.c_str(), reinterpret_cast<void **>(&bufRemote), 0)) < 0) {
             break;
         };
         auto localHash = Md5Sum(bufLocal, sizeLocal);
@@ -166,7 +171,8 @@ void UtForwardWaiter(uv_loop_t *loop, uv_tcp_t *server)
     auto funcOnNewConn = [](uv_stream_t *server, int status) -> void {
         auto funcOnRead = [](uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) -> void {
             if (nread > 0 && !strcmp(buf->base, MESSAGE_SUCCESS.c_str())) {
-                Base::WriteBinFile((UT_TMP_PATH + "/forward.result").c_str(), (uint8_t *)MESSAGE_SUCCESS.c_str(),
+                Base::WriteBinFile((UT_TMP_PATH + "/forward.result").c_str(),
+                                   reinterpret_cast<uint8_t *>(MESSAGE_SUCCESS.c_str()),
                                    MESSAGE_SUCCESS.size(), true);
             }
             uv_close((uv_handle_t *)client, [](uv_handle_t *handle) { free(handle); });
@@ -268,7 +274,7 @@ bool TestForwardCommand(void *runtimePtr)
     uv_thread_join(&td);
     // all done, we will check result ok
     string localFile = Base::StringFormat("%s/forward.result", UT_TMP_PATH.c_str());
-    if ((sizeResult = Base::ReadBinFile(localFile.c_str(), (void **)buf, sizeof(buf))) < 0) {
+    if ((sizeResult = Base::ReadBinFile(localFile.c_str(), reinterpret_cast<void **>(buf), sizeof(buf))) < 0) {
         return false;
     };
     if (strcmp(buf, MESSAGE_SUCCESS.c_str())) {
@@ -287,11 +293,11 @@ bool TestAppCommand(void *runtimePtr)
     rt->InnerCall(UT_APP_INSTALL);
 
     constexpr int expert = 5;
-    if (Base::ReadBinFile((UT_TMP_PATH + "/appinstall.result").c_str(), (void **)&bufString, sizeof(bufString))
-        < expert) {
+    if (Base::ReadBinFile((UT_TMP_PATH + "/appinstall.result").c_str(), reinterpret_cast<void **>(&bufString),
+                          sizeof(bufString)) < expert) {
         return false;
     }
-    if (strcmp(MESSAGE_SUCCESS.c_str(), (char *)bufString)) {
+    if (strcmp(MESSAGE_SUCCESS.c_str(), reinterpret_cast<char *>(bufString))) {
         return false;
     }
     return true;

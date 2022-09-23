@@ -31,7 +31,7 @@ int GetPublicKeyFileBuf(unsigned char *data, size_t len);
 
 // daemon
 bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen);
-bool PostUIConfirm(string pkey);
+bool PostUIConfirm(string publicKey);
 }
 
 #endif

@@ -119,8 +119,8 @@ namespace TranslateCommand {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_DISCONNECT;
         } else {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_CONNECT;
-            constexpr int MAX_KEY_LENGTH = 50; // 50: tcp max=21,USB max=8bytes, serial device name maybe long
-            if (outCmd->parameters.size() > MAX_KEY_LENGTH) {
+            constexpr int maxKeyLength = 50; // 50: tcp max=21,USB max=8bytes, serial device name maybe long
+            if (outCmd->parameters.size() > maxKeyLength) {
                 stringError = "Error connect key's size";
                 outCmd->bJumpDo = true;
             }
@@ -175,8 +175,8 @@ namespace TranslateCommand {
         string stringError;
         outCmd->cmdFlag = CMD_UNITY_RUNMODE;
         outCmd->parameters = input + CMDSTR_TARGET_MODE.size() + 1;  // with  ' '
-        if (!strncmp(outCmd->parameters.c_str(), "port", 4)
-            && !strcmp(outCmd->parameters.c_str(), CMDSTR_TMODE_USB.c_str())) {
+        if (!strncmp(outCmd->parameters.c_str(), "port", 4) &&
+            !strcmp(outCmd->parameters.c_str(), CMDSTR_TMODE_USB.c_str())) {
             stringError = "Error tmode command";
             outCmd->bJumpDo = true;
         } else if (!strncmp(outCmd->parameters.c_str(), "port ", 5)) {
@@ -242,8 +242,8 @@ namespace TranslateCommand {
             outCmd->parameters = input.c_str() + CMDSTR_SHELL.size() + 1;
         } else if (!strcmp(input.c_str(), CMDSTR_SHELL.c_str())) {
             outCmd->cmdFlag = CMD_SHELL_INIT;
-        } else if (!strncmp(input.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size())
-                   || !strncmp(input.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
+        } else if (!strncmp(input.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size()) ||
+                   !strncmp(input.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
             outCmd->cmdFlag = CMD_FILE_INIT;
             outCmd->parameters = Base::UnicodeToUtf8(input.c_str() + strlen("file "));
         } else if (!strncmp(input.c_str(), string(CMDSTR_FORWARD_FPORT + " ").c_str(), CMDSTR_FORWARD_FPORT.size() + 1)

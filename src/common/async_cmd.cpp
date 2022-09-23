@@ -71,7 +71,7 @@ bool AsyncCmd::Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint
 bool AsyncCmd::FinishShellProc(const void *context, const bool result, const string exitMsg)
 {
     WRITE_LOG(LOG_DEBUG, "FinishShellProc finish");
-    AsyncCmd *thisClass = (AsyncCmd *)context;
+    AsyncCmd *thisClass = static_cast<AsyncCmd *>(const_cast<void *>(context));
     thisClass->resultCallback(true, result, thisClass->cmdResult + exitMsg);
     --thisClass->refCount;
     return true;
@@ -79,26 +79,26 @@ bool AsyncCmd::FinishShellProc(const void *context, const bool result, const str
 
 bool AsyncCmd::ChildReadCallback(const void *context, uint8_t *buf, const int size)
 {
-    AsyncCmd *thisClass = (AsyncCmd *)context;
+    AsyncCmd *thisClass = static_cast<AsyncCmd *>(const_cast<void *>(context));
     if (thisClass->options & OPTION_COMMAND_ONETIME) {
-        string s((char *)buf, size);
+        string s(reinterpret_cast<char *>(buf), size);
         thisClass->cmdResult += s;
         return true;
     }
-    string s((char *)buf, size);
+    string s(reinterpret_cast<char *>(buf), size);
     return thisClass->resultCallback(false, 0, s);
 };
 
-int AsyncCmd::Popen(string command, bool readWrite, int &pid)
+int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
 {
 #ifdef _WIN32
     return ERR_NO_SUPPORT;
 #else
-    constexpr uint8_t PIPE_READ = 0;
-    constexpr uint8_t PIPE_WRITE = 1;
+    constexpr uint8_t pipeRead = 0;
+    constexpr uint8_t pipeWrite = 1;
     pid_t childPid;
-    int fd[2];
-    pipe(fd);
+    int fds[2];
+    pipe(fds);
 
     if ((childPid = fork()) == -1) {
         return ERR_GENERIC;
@@ -106,13 +106,13 @@ int AsyncCmd::Popen(string command, bool readWrite, int &pid)
     if (childPid == 0) {
         Base::DeInitProcess();
         if (readWrite) {
-            dup2(fd[PIPE_WRITE], STDOUT_FILENO);
-            dup2(fd[PIPE_WRITE], STDERR_FILENO);
+            dup2(fds[pipeWrite], STDOUT_FILENO);
+            dup2(fds[pipeWrite], STDERR_FILENO);
         } else {
-            dup2(fd[PIPE_READ], STDIN_FILENO);
+            dup2(fds[pipeRead], STDIN_FILENO);
         }
-        Base::CloseFd(fd[PIPE_READ]);
-        Base::CloseFd(fd[PIPE_WRITE]);
+        Base::CloseFd(fds[pipeRead]);
+        Base::CloseFd(fds[pipeWrite]);
 
         setsid();
         setpgid(childPid, childPid);
@@ -121,18 +121,18 @@ int AsyncCmd::Popen(string command, bool readWrite, int &pid)
         exit(0);
     } else {
         if (readWrite) {
-            Base::CloseFd(fd[PIPE_WRITE]);
-            fcntl(fd[PIPE_READ], F_SETFD, FD_CLOEXEC);
+            Base::CloseFd(fds[pipeWrite]);
+            fcntl(fds[pipeRead], F_SETFD, FD_CLOEXEC);
         } else {
-            Base::CloseFd(fd[PIPE_READ]);
-            fcntl(fd[PIPE_WRITE], F_SETFD, FD_CLOEXEC);
+            Base::CloseFd(fds[pipeRead]);
+            fcntl(fds[pipeWrite], F_SETFD, FD_CLOEXEC);
         }
     }
-    pid = childPid;
+    cpid = childPid;
     if (readWrite) {
-        return fd[PIPE_READ];
+        return fds[pipeRead];
     } else {
-        return fd[PIPE_WRITE];
+        return fds[pipeWrite];
     }
 #endif
 }

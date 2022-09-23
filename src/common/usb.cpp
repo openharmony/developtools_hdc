@@ -39,8 +39,8 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
 {
     // Server-end USB IO is handed over to each sub-thread, only the daemon is still read by the main IO to distribute
     // to each sub-thread by DataPipe.
-    if (uv_tcp_init(&hSession->childLoop, &hSession->dataPipe[STREAM_WORK])
-        || uv_tcp_open(&hSession->dataPipe[STREAM_WORK], hSession->dataFd[STREAM_WORK])) {
+    if (uv_tcp_init(&hSession->childLoop, &hSession->dataPipe[STREAM_WORK]) ||
+        uv_tcp_open(&hSession->dataPipe[STREAM_WORK], hSession->dataFd[STREAM_WORK])) {
         WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed");
         return false;
     }
@@ -78,7 +78,7 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
     auto header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
     hSession->hUSB->lockSendUsbBlock.lock();
     do {
-        if ((childRet = SendUSBRaw(hSession, header.data(), header.size())) <= 0) {
+        if ((SendUSBRaw(hSession, header.data(), header.size())) <= 0) {
             WRITE_LOG(LOG_FATAL, "SendUSBRaw index failed");
             break;
         }
@@ -90,7 +90,7 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
             // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
             // so, we send dummy packet to prevent zero packet generate
             auto dummy = BuildPacketHeader(hSession->sessionId, 0, 0);
-            if ((childRet = SendUSBRaw(hSession, dummy.data(), dummy.size())) <= 0) {
+            if ((SendUSBRaw(hSession, dummy.data(), dummy.size())) <= 0) {
                 WRITE_LOG(LOG_FATAL, "SendUSBRaw dummy failed");
                 break;
             }
@@ -103,7 +103,7 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
 
 bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
 {
-    USBHead *usbPayloadHeader = (struct USBHead *)ioBuf;
+    USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
     uint32_t maybeSize = ntohl(usbPayloadHeader->dataSize);
     bool isHeader = false;
     do {
@@ -129,12 +129,11 @@ bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
 void HdcUSBBase::PreSendUsbSoftReset(HSession hSession, uint32_t sessionIdOld)
 {
     HUSB hUSB = hSession->hUSB;
-    int childRet = 0;
     if (hSession->serverOrDaemon && !hUSB->resetIO) {
         hUSB->lockSendUsbBlock.lock();
         WRITE_LOG(LOG_WARN, "SendToHdcStream check, sessionId not matched");
         auto header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
-        if ((childRet = SendUSBRaw(hSession, header.data(), header.size())) <= 0) {
+        if (SendUSBRaw(hSession, header.data(), header.size()) <= 0) {
             WRITE_LOG(LOG_FATAL, "PreSendUsbSoftReset send failed");
         }
         hUSB->lockSendUsbBlock.unlock();
@@ -146,7 +145,7 @@ int HdcUSBBase::CheckPacketOption(HSession hSession, uint8_t *appendData, int da
 {
     HUSB hUSB = hSession->hUSB;
     // special short packet
-    USBHead *header = (USBHead *)appendData;
+    USBHead *header = reinterpret_cast<USBHead *>(appendData);
     header->sessionId = ntohl(header->sessionId);
     header->dataSize = ntohl(header->dataSize);
     if (header->sessionId != hSession->sessionId) {
@@ -174,7 +173,7 @@ int HdcUSBBase::SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t 
     if (IsUsbPacketHeader(appendData, dataSize)) {
         return CheckPacketOption(hSession, appendData, dataSize);
     }
-    if (hUSB->payloadSize <= (uint32_t)childRet) {
+    if (hUSB->payloadSize <= static_cast<uint32_t>(childRet)) {
         // last session data
         PreSendUsbSoftReset(hSession, 0);  // 0 == reset current
         return 0;

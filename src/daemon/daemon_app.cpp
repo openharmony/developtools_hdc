@@ -51,7 +51,7 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
             string tmpData = "/data/local/tmp/";
             string tmpSD = "/sdcard/tmp/";
             string dstPath = tmpData;
-            string bufString((char *)payload, payloadSize);
+            string bufString(reinterpret_cast<char *>(payload), payloadSize);
             SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
             // update transferconfig to main context
             ctxNow.master = false;
@@ -146,7 +146,7 @@ void HdcDaemonApp::WhenTransferFinish(CtxFile *context)
     if (context->lastErrno > 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
-        uv_strerror_r((int)(-context->lastErrno), buf, bufSize);
+        uv_strerror_r(static_cast<int>(-context->lastErrno), buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "HdcDaemonApp WhenTransferFinish with errno:%d", context->lastErrno);
         LogMsg(MSG_FAIL, "Transfer App at:%lld/%lld(Bytes), Reason: %s",
                context->indexIO, context->fileSize, buf);

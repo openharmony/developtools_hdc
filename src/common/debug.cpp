@@ -53,8 +53,8 @@ namespace Debug {
         }
         FILE *fp = fopen(pathName, "r");
         if (fp == nullptr) {
-            if (snprintf_s(pathName, sizeof(pathName), sizeof(pathName) - 1, "/tmp/%s", fileName) < 0
-                || (fp = fopen(pathName, "r")) == nullptr) {
+            if (snprintf_s(pathName, sizeof(pathName), sizeof(pathName) - 1, "/tmp/%s", fileName) < 0 ||
+                (fp = fopen(pathName, "r")) == nullptr) {
                 if (fp != nullptr) {
                     fclose(fp);
                 }

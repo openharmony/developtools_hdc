@@ -174,6 +174,7 @@ bool GenerateKey(const char *file)
     EVP_PKEY *publicKey = EVP_PKEY_new();
     BIGNUM *exponent = BN_new();
     RSA *rsa = RSA_new();
+    int bits = 4096;
     mode_t old_mask;
     FILE *fKey = nullptr;
     bool ret = false;
@@ -186,7 +187,7 @@ bool GenerateKey(const char *file)
         }
 
         BN_set_word(exponent, RSA_F4);
-        RSA_generate_key_ex(rsa, 4096, exponent, nullptr);
+        RSA_generate_key_ex(rsa, bits, exponent, nullptr);
         EVP_PKEY_set1_RSA(publicKey, rsa);
         old_mask = umask(077);  // 077:permission
 
@@ -385,7 +386,7 @@ void ReadDaemonKeys(const char *file, list<void *> *listPublicKey)
         if (sep) {
             *sep = '\0';
         }
-        ret = Base::Base64DecodeBuf(reinterpret_cast<uint8_t *>(buf), strlen(buf), (uint8_t *)key);
+        ret = Base::Base64DecodeBuf(reinterpret_cast<uint8_t *>(buf), strlen(buf), reinterpret_cast<uint8_t *>(key));
         if (ret != sizeof(RSAPublicKey)) {
             WRITE_LOG(LOG_DEBUG, "%s: Invalid base64 data ret=%d", file, ret);
             delete key;
@@ -414,7 +415,8 @@ bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen)
         if (!RSAPublicKey2RSA((const uint8_t *)ptr, &rsa)) {
             break;
         }
-        childRet = RSA_verify(NID_sha256, (const unsigned char *)token, RSA_TOKEN_SIZE, (const unsigned char *)sig,
+        childRet = RSA_verify(NID_sha256, reinterpret_cast<const unsigned char *>(token),
+                              RSA_TOKEN_SIZE, reinterpret_cast<const unsigned char *>(sig),
                               siglen, rsa);
         RSA_free(rsa);
         if (childRet) {

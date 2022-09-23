@@ -54,7 +54,7 @@ void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf
 void HdcTCPBase::AllocStreamUDP(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
 {
     int bufLen = BUF_SIZE_DEFAULT;
-    char *pRecvBuf = (char *)new uint8_t[bufLen]();
+    char *pRecvBuf = reinterpret_cast<char *>(new uint8_t[bufLen]());
     if (!pRecvBuf) {
         return;
     }
@@ -82,7 +82,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
             // possible
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
-            uv_strerror_r((int)nread, buffer, bufSize);
+            uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
             WRITE_LOG(LOG_DEBUG, "HdcTCPBase::ReadStream < 0 %s", buffer);
             break;
         }

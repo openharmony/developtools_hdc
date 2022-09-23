@@ -57,7 +57,8 @@ bool HdcDaemonUnity::AsyncCmdOut(bool finish, int64_t exitStatus, const string r
             --refCount;
             break;
         }
-        if (!SendToAnother(currentDataCommand, (uint8_t *)result.c_str(), result.size())) {
+        if (!SendToAnother(currentDataCommand, reinterpret_cast<uint8_t *>(const_cast<char *>(result.c_str())),
+            result.size())) {
             break;
         }
         ret = true;
@@ -201,7 +202,7 @@ bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
 inline bool HdcDaemonUnity::GetHiLog(const char *cmd)
 {
     string cmdDo = "hilog";
-    if (cmd && !strcmp((char *)cmd, "v")) {
+    if (cmd && !strcmp(const_cast<char *>(cmd), "v")) {
         cmdDo += " -v long";
     }
     ExecuteShell(cmdDo.c_str());
@@ -243,13 +244,13 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
     bool ret = true;
     HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
     // Both are not executed, do not need to be detected 'childReady'
-    string strPayload = string((char *)payload, payloadSize);
+    string strPayload = string(reinterpret_cast<char *>(payload), payloadSize);
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "CommandDispatch command:%d", command);
 #endif // HDC_DEBUG
     switch (command) {
         case CMD_UNITY_EXECUTE: {
-            ExecuteShell((char *)strPayload.c_str());
+            ExecuteShell(const_cast<char *>(strPayload.c_str()));
             break;
         }
         case CMD_UNITY_REMOUNT: {
@@ -286,12 +287,12 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
             break;
         }
         case CMD_UNITY_TERMINATE: {
-            daemon->PostStopInstanceMessage(!strcmp((char *)strPayload.c_str(), "1"));
+            daemon->PostStopInstanceMessage(!strcmp(const_cast<char *>(strPayload.c_str()), "1"));
             break;
         }
         case CMD_UNITY_BUGREPORT_INIT: {
             currentDataCommand = CMD_UNITY_BUGREPORT_DATA;
-            ExecuteShell((char *)CMDSTR_BUGREPORT.c_str());
+            ExecuteShell(const_cast<char *>(CMDSTR_BUGREPORT.c_str()));
             break;
         }
         case CMD_JDWP_LIST: {

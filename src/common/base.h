@@ -51,7 +51,7 @@ namespace Base {
     void TryCloseHandle(const uv_handle_t *handle, uv_close_cb closeCallBack);
     void TryCloseHandle(const uv_handle_t *handle, bool alwaysCallback, uv_close_cb closeCallBack);
     char **SplitCommandToArgs(const char *cmdStringLine, int *slotIndex);
-    bool RunPipeComand(const char *cmdString, char *outBuf, uint16_t sizeOutBuf, bool ignoreTailLF);
+    bool RunPipeComand(const char *cmdString, char *outBuf, uint16_t sizeOutBuf, bool ignoreTailLf);
     // results need to save in buf which can't be const
     int ReadBinFile(const char *pathName, void **buf, const size_t bufLen);
     int WriteBinFile(const char *pathName, const uint8_t *buf, const size_t bufLen, bool newFile = false);

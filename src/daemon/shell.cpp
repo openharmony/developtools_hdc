@@ -205,7 +205,7 @@ int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char 
 bool HdcShell::FinishShellProc(const void *context, const bool result, const string exitMsg)
 {
     WRITE_LOG(LOG_DEBUG, "FinishShellProc finish");
-    HdcShell *thisClass = (HdcShell *)context;
+    HdcShell *thisClass = reinterpret_cast<HdcShell *>(const_cast<void *>(context));
     thisClass->TaskFinish();
     --thisClass->refCount;
     return true;
@@ -213,7 +213,7 @@ bool HdcShell::FinishShellProc(const void *context, const bool result, const str
 
 bool HdcShell::ChildReadCallback(const void *context, uint8_t *buf, const int size)
 {
-    HdcShell *thisClass = (HdcShell *)context;
+    HdcShell *thisClass = reinterpret_cast<HdcShell *>(const_cast<void *>(context));
     return thisClass->SendToAnother(CMD_KERNEL_ECHO_RAW, (uint8_t *)buf, size);
 };
 

@@ -177,7 +177,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;
 
 out:
-    if (dataSize > 0 && payloadHead.compressType != COMPRESS_NONE) {
+    if (dataSize > 0 && payloadHead.compressType == COMPRESS_LZ4) {
         delete[] sendBuf;
     }
     return ret;
@@ -185,8 +185,8 @@ out:
 
 void HdcTransferBase::OnFileIO(uv_fs_t *req)
 {
-    CtxFileIO *contextIO = (CtxFileIO *)req->data;
-    CtxFile *context = (CtxFile *)contextIO->context;
+    CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
+    CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
@@ -351,10 +351,12 @@ int HdcTransferBase::GetSubFiles(const char *path, string filter, vector<string>
     }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
         // Skip. File
-        if (strcmp(dent.name, ".") == 0 || strcmp(dent.name, "..") == 0)
+        if (strcmp(dent.name, ".") == 0 || strcmp(dent.name, "..") == 0) {
             continue;
-        if (!(static_cast<uint32_t>(dent.type) & UV_DIRENT_FILE))
+        }
+        if (!(static_cast<uint32_t>(dent.type) & UV_DIRENT_FILE)) {
             continue;
+        }
         string fileName = dent.name;
         for (auto &&s : filterStrings) {
             int subfixIndex = fileName.rfind(s);
@@ -411,8 +413,9 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
     }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
         // Skip. File
-        if (strcmp(dent.name, ".") == 0 || strcmp(dent.name, "..") == 0)
+        if (strcmp(dent.name, ".") == 0 || strcmp(dent.name, "..") == 0) {
             continue;
+        }
         if (!(static_cast<uint32_t>(dent.type) & UV_DIRENT_FILE)) {
             WRITE_LOG(LOG_DEBUG, "subdir dent.name fileName = %s", dent.name);
             GetSubFilesRecursively(path + Base::GetPathSep() + dent.name,
@@ -433,7 +436,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
 {
     // If optName show this is directory mode, check localPath and try create each layer
     WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s", localPath.c_str(), optName.c_str());
-    if ((string::npos == optName.find('/')) && (string::npos == optName.find('\\'))) {
+    if ((optName.find('/') == string::npos) && (optName.find('\\') == string::npos)) {
         WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s,  return", optName.c_str());
         return true;
     }
@@ -484,19 +487,19 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     string localPathBackup = localPath;
     if (ctxNow.targetDirNotExist) {
         // If target directory not exist, the first layer directory from master should remove
-        if (string::npos != optName.find('/')) {
+        if (optName.find('/') == string::npos) {
             optName = optName.substr(optName.find('/') + 1);
-        } else if (string::npos != optName.find('\\')) {
+        } else if (optName.find('\\') != string::npos) {
             optName = optName.substr(optName.find('\\') + 1);
         }
         WRITE_LOG(LOG_DEBUG, "revise optName = %s", optName.c_str());
     }
     vector<string> dirsOfOptName;
 
-    if (string::npos != optName.find('/')) {
+    if (optName.find('/') == string::npos) {
         WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from linux system");
         Base::SplitString(optName, "/", dirsOfOptName);
-    } else if (string::npos != optName.find('\\')) {
+    } else if (optName.find('\\') != string::npos) {
         WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from windows system");
         Base::SplitString(optName, "\\", dirsOfOptName);
     } else {
@@ -579,7 +582,7 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
 bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize)
 {
     uint8_t *clearBuf = nullptr;
-    string serialStrring((char *)data, payloadPrefixReserve);
+    string serialStrring(reinterpret_cast<char *>(data), payloadPrefixReserve);
     TransferPayload pld;
     Base::ZeroStruct(pld);
     bool ret = false;
@@ -607,7 +610,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         }
     }
     while (true) {
-        if ((uint32_t)clearSize != pld.uncompressSize) {
+        if (static_cast<uint32_t>(clearSize) != pld.uncompressSize) {
             break;
         }
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {
@@ -635,7 +638,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             }
             context->transferBegin = Base::GetRuntimeMSec();
         } else if (command == commandData) {
-            if ((uint32_t)payloadSize > HDC_BUF_MAX_BYTES || payloadSize < 0) {
+            if (static_cast<uint32_t>(payloadSize) > HDC_BUF_MAX_BYTES || payloadSize < 0) {
                 ret = false;
                 break;
             }

@@ -387,10 +387,9 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
 uint32_t HdcSessionBase::GetSessionPseudoUid()
 {
     uint32_t uid = 0;
-    HSession hInput = nullptr;
     do {
         uid = static_cast<uint32_t>(Base::GetRandom());
-    } while ((hInput = AdminSession(OP_QUERY, uid, nullptr)) != nullptr);
+    } while (AdminSession(OP_QUERY, uid, nullptr) != nullptr);
     return uid;
 }
 
@@ -881,10 +880,10 @@ int HdcSessionBase::OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen)
         WRITE_LOG(LOG_FATAL, "PACKET_FLAG incorrect %x %x", bufPtr[0], bufPtr[1]);
         return ERR_BUF_CHECK;
     }
-    struct PayloadHead *payloadHead = (struct PayloadHead *)bufPtr;
+    struct PayloadHead *payloadHead = reinterpret_cast<struct PayloadHead *>(bufPtr);
     int tobeReadLen = ntohl(payloadHead->dataSize) + ntohs(payloadHead->headSize);
     int packetHeadSize = sizeof(struct PayloadHead);
-    if (tobeReadLen <= 0 || (uint32_t)tobeReadLen > HDC_BUF_MAX_BYTES) {
+    if (tobeReadLen <= 0 || static_cast<uint32_t>(tobeReadLen) > HDC_BUF_MAX_BYTES) {
         WRITE_LOG(LOG_FATAL, "Packet size incorrect");
         return ERR_BUF_CHECK;
     }
@@ -933,7 +932,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
             != EOK) {
             return ERR_BUF_COPY;
         };
-        uint8_t *bufToZero = (uint8_t *)(hSession->ioBuf + hSession->availTailIndex);
+        uint8_t *bufToZero = reinterpret_cast<uint8_t *>(hSession->ioBuf + hSession->availTailIndex);
         Base::ZeroBuf(bufToZero, hSession->bufSize - hSession->availTailIndex);
     }
     return indexBuf;
@@ -968,7 +967,7 @@ bool HdcSessionBase::DispatchSessionThreadCommand(uv_stream_t *uvpipe, HSession 
                                                   const int bytesIO)
 {
     bool ret = true;
-    uint8_t flag = *(uint8_t *)baseBuf;
+    uint8_t flag = *const_cast<uint8_t *>(baseBuf);
 
     switch (flag) {
         case SP_JDWP_NEWFD: {
@@ -990,7 +989,7 @@ void HdcSessionBase::ReadCtrlFromSession(uv_stream_t *uvpipe, ssize_t nread, con
         if (nread < 0) {
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
-            uv_strerror_r((int)nread, buffer, bufSize);
+            uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
             WRITE_LOG(LOG_DEBUG, "SessionCtrl failed,%s", buffer);
             uv_read_stop(uvpipe);
             break;
@@ -1014,7 +1013,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
     if (hSession->connType == CONN_TCP) {
         HdcTCPBase *pTCPBase = (HdcTCPBase *)hSession->classModule;
         hSession->hChildWorkTCP.data = hSession;
-        if ((childRet = uv_tcp_init(&hSession->childLoop, &hSession->hChildWorkTCP)) < 0) {
+        if (uv_tcp_init(&hSession->childLoop, &hSession->hChildWorkTCP) < 0) {
             WRITE_LOG(LOG_DEBUG, "HdcSessionBase SessionCtrl failed 1");
             return false;
         }
@@ -1056,7 +1055,8 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         WRITE_LOG(LOG_DEBUG, "WorkThreadStartSession session %u auth %u send handshake hs: %s",
                   hSession->sessionId, handshake.authType, hs.c_str());
 #endif
-        Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE, (uint8_t *)hs.c_str(), hs.size());
+        Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
+             reinterpret_cast<uint8_t *>(const_cast<char *>(hs.c_str())), hs.size());
     }
     return regOK;
 }
@@ -1147,7 +1147,7 @@ void HdcSessionBase::ReadCtrlFromMain(uv_stream_t *uvpipe, ssize_t nread, const 
         if (nread < 0) {
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
-            uv_strerror_r((int)nread, buffer, bufSize);
+            uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
             WRITE_LOG(LOG_DEBUG, "SessionCtrl failed,%s", buffer);
             break;
         }

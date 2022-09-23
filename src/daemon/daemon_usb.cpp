@@ -239,7 +239,7 @@ int HdcDaemonUSB::AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *session
             break;
         }
         // usb header
-        USBHead *usbPayloadHeader = (struct USBHead *)ioBuf;
+        USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
         uint32_t inSessionId = ntohl(usbPayloadHeader->sessionId);
         if ((usbPayloadHeader->option & USB_OPTION_RESET)) {
             ResetOldSession(inSessionId);
@@ -298,7 +298,7 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
     int ret = ERR_IO_FAIL;
     int offset = 0;
     while (modRunning && isAlive && !hSession->isDead) {
-        childRet = write(bulkIn, (uint8_t *)data + offset, length - offset);
+        childRet = write(bulkIn, const_cast<uint8_t *>(data) + offset, length - offset);
         if (childRet <= 0) {
             int err = errno;
             if (err == EINTR) {

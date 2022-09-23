@@ -81,9 +81,9 @@ void HdcFileDescriptor::OnFileIO(uv_fs_t *req)
         } else {
             if (req->result != 0) {
                 constexpr int bufSize = 1024;
-                char buf[bufSize] = { 0 };
-                uv_strerror_r((int)req->result, buf, bufSize);
-                WRITE_LOG(LOG_DEBUG, "OnFileIO fd:%d failed:%s", thisClass->fdIO, buf);
+                char buffer[bufSize] = { 0 };
+                uv_strerror_r((int)req->result, buffer, bufSize);
+                WRITE_LOG(LOG_DEBUG, "OnFileIO fd:%d failed:%s", thisClass->fdIO, buffer);
             }
             bFinish = true;
             fetalFinish = true;

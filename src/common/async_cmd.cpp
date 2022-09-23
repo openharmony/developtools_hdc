@@ -141,7 +141,6 @@ bool AsyncCmd::ExecuteCommand(const string &command)
 {
     string cmd = command;
     Base::Trim(cmd, "\"");
-    Base::DeInitProcess();
     if ((fd = Popen(cmd, true, pid)) < 0) {
         return false;
     }

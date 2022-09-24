@@ -274,7 +274,7 @@ void HdcJdwpSimulator::FreeContext()
 
 bool HdcJdwpSimulator::Connect()
 {
-    string jdwpCtrlName = "\0jdwp-control";
+    string jdwpCtrlName = "\0ohjpid-control";
     uv_connect_t *connect = new uv_connect_t();
     ctxPoint = static_cast<HCtxJdwpSimulator>(MallocContext());
     if (!ctxPoint) {

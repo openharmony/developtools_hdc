@@ -49,6 +49,7 @@ private:
     bool DoCommandRemote(HChannel hChannel, void *formatCommandInput);
     void GetTargetList(HChannel hChannel, void *formatCommandInput);
     bool GetAnyTarget(HChannel hChannel);
+    bool WaitForAny(HChannel hChannel);
     bool RemoveForward(HChannel hChannel, const char *parameterString);
     bool TaskCommand(HChannel hChannel, void *formatCommandInput);
     void HandleRemote(HChannel hChannel, string &parameters, RemoteType flag);

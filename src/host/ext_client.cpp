@@ -1,0 +1,382 @@
+/*
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#include "ext_client.h"
+#include "common.h"
+
+namespace Hdc {
+ExtClient::ExtClient()
+{
+#ifdef _WIN32
+    const char *path = "libexternal_hdc.dll";
+#elif HOST_MAC
+    const char *path = "libexternal_hdc.dylib";
+#else
+    const char *path = "libexternal_hdc.so";
+#endif
+    int rc = uv_dlopen(path, &lib);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
+    }
+}
+
+ExtClient::~ExtClient()
+{
+    uv_dlclose(&lib);
+}
+
+bool ExtClient::SharedLibraryExist()
+{
+#ifdef _WIN32
+    const char *path = "libexternal_hdc.dll";
+#elif HOST_MAC
+    const char *path = "libexternal_hdc.dylib";
+#else
+    const char *path = "libexternal_hdc.so";
+#endif
+    uv_lib_t lib;
+    int rc = uv_dlopen(path, &lib);
+    if (rc != 0) {
+        return false;
+    }
+    uv_dlclose(&lib);
+    return true;
+}
+
+void ExtClient::ExecuteCommand(const string &command)
+{
+    if (!strncmp(command.c_str(), CMDSTR_SOFTWARE_VERSION.c_str(), CMDSTR_SOFTWARE_VERSION.size())) {
+        Version(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size())) {
+        Help(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size())) {
+        Discover(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
+        Start(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
+        Kill(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
+        Connect(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
+        ListTargets(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_SHELL.c_str(), CMDSTR_SHELL.size())) {
+        Shell(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size()) ||
+               !strncmp(command.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
+        File(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
+        Install(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_APP_UNINSTALL.c_str(), CMDSTR_APP_UNINSTALL.size())) {
+        Uninstall(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_FORWARD_FPORT.c_str(), CMDSTR_FORWARD_FPORT.size())) {
+        Fport(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_FORWARD_RPORT.c_str(), CMDSTR_FORWARD_RPORT.size())) {
+        Rport(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_LIST_JDWP.c_str(), CMDSTR_LIST_JDWP.size())) {
+        Jpid(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_TRACK_JDWP.c_str(), CMDSTR_TRACK_JDWP.size())) {
+        TrackJpid(command);
+    } else if (!strncmp(command.c_str(), (CMDSTR_SHELL + " ").c_str(), CMDSTR_SHELL.size() + 1) ||
+               !strncmp(command.c_str(), CMDSTR_TARGET_REBOOT.c_str(), CMDSTR_TARGET_REBOOT.size()) ||
+               !strncmp(command.c_str(), CMDSTR_TARGET_MOUNT.c_str(), CMDSTR_TARGET_MOUNT.size()) ||
+               !strncmp(command.c_str(), CMDSTR_STARTUP_MODE.c_str(), CMDSTR_STARTUP_MODE.size()) ||
+               !strncmp(command.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size()) ||
+               !strncmp(command.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size())) {
+        Utility(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_BUGREPORT.c_str(), CMDSTR_BUGREPORT.size())) {
+        Bugreport(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
+        WaitFor(command);
+    } else if (!strncmp(command.c_str(), CMDSTR_CONTAINER_STATE.c_str(), CMDSTR_CONTAINER_STATE.size())) {
+        ContainerState(command);
+    } else {
+        UnknowCommand(command);
+    }
+}
+
+void ExtClient::Version(const std::string &str)
+{
+    const char *name = "HdcExtVersion";
+    Handle(str, name);
+}
+
+void ExtClient::Help(const std::string &str)
+{
+    const char *name = "HdcExtHelp";
+    Handle(str, name);
+}
+
+void ExtClient::Discover(const std::string &str)
+{
+    const char *name = "HdcExtDiscover";
+    Handle(str, name);
+}
+
+void ExtClient::Start(const std::string &str)
+{
+    const char *name = "HdcExtStart";
+    Handle(str, name);
+}
+
+void ExtClient::Kill(const std::string &str)
+{
+    const char *name = "HdcExtKill";
+    Handle(str, name);
+}
+
+void ExtClient::Connect(const std::string &str)
+{
+    const char *name = "HdcExtConnect";
+    Handle(str, name);
+}
+
+void ExtClient::ListTargets(const std::string &str)
+{
+    typedef void (*HdcExtListTargets)(const char *, uint64_t, char *, uint64_t &);
+    const char *name = "HdcExtListTargets";
+    HdcExtListTargets listTargets;
+    int rc = uv_dlsym(&lib, name, (void **) &listTargets);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlsym %s failed %s", name, uv_dlerror(&lib));
+    } else {
+        uint64_t size = 4096;
+        char *buffer = new(std::nothrow) char[size]();
+        if (buffer == nullptr) {
+            WRITE_LOG(LOG_FATAL, "new buffer failed with function %s", name);
+            return;
+        }
+        listTargets(str.c_str(), str.size(), buffer, size);
+        string extdevs(buffer);
+        UpdateList(extdevs);
+        delete[] buffer;
+        if (extdevs.empty()) {
+            return;
+        }
+        if (g_show) {
+            const string listv = "list targets -v";
+            if (!strncmp(str.c_str(), listv.c_str(), listv.size())) {
+                string all = extdevs;
+                all = Base::ReplaceAll(all, "\n", "\texternal\n");
+                Base::PrintMessage("%s", all.c_str());
+            } else {
+                Base::PrintMessage("%s", extdevs.c_str());
+            }
+        }
+    }
+}
+
+void ExtClient::UpdateList(const string &str)
+{
+    if (str.empty()) {
+        return;
+    }
+    vector<string> devs;
+    Base::SplitString(str, "\n", devs);
+    for (size_t i = 0; i < devs.size(); i++) {
+        string::size_type pos = devs[i].find("\t");
+        if (pos != string::npos || (pos = devs[i].find(" ")) != string::npos) {
+            string key = devs[i].substr(0, pos);
+            g_lists[key] = "external";
+        }
+    }
+}
+
+void ExtClient::Shell(const std::string &str)
+{
+    const char *name = "HdcExtShell";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::File(const std::string &str)
+{
+    const char *name = "HdcExtFile";
+    std::string cmd = RemoveRemoteCwd(str);
+    string value = WithConnectKey(cmd);
+    Handle(value, name);
+}
+
+void ExtClient::Install(const std::string &str)
+{
+    const char *name = "HdcExtInstall";
+    std::string cmd = RemoveRemoteCwd(str);
+    string value = WithConnectKey(cmd);
+    Handle(value, name);
+}
+
+void ExtClient::Uninstall(const std::string &str)
+{
+    const char *name = "HdcExtUninstall";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::Fport(const std::string &str)
+{
+    const char *name = "HdcExtFport";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::Rport(const std::string &str)
+{
+    const char *name = "HdcExtRport";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::Jpid(const std::string &str)
+{
+    const char *name = "HdcExtJpid";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::TrackJpid(const std::string &str)
+{
+    const char *name = "HdcExtTrackJpid";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::Utility(const std::string &str)
+{
+    const char *name = "HdcExtUtility";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::Bugreport(const std::string &str)
+{
+    const char *name = "HdcExtBugreport";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::WaitFor(const std::string &str)
+{
+    std::thread([str]() {
+        WaitForExtent(str);
+        _exit(0);
+    }).detach();
+}
+
+void ExtClient::ContainerState(const std::string &str)
+{
+    const char *name = "HdcExtContainerState";
+    string value = WithConnectKey(str);
+    Handle(value, name);
+}
+
+void ExtClient::UnknowCommand(const std::string &str)
+{
+    const char *name = "HdcExtUnknowCommand";
+    Handle(str, name);
+}
+
+std::string ExtClient::RemoveRemoteCwd(const std::string &str)
+{
+    int argc = 0;
+    std::string cmd = str;
+    char **argv = Base::SplitCommandToArgs(cmd.c_str(), &argc);
+    for (int i = 0; i < argc; i++) {
+        if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
+            std::string remove = Base::StringFormat("%s %s \"%s\" ", argv[i], argv[i + 1], argv[i + 2]);
+            if (cmd.find(remove) != std::string::npos) {
+                cmd.replace(cmd.find(remove), remove.size(), "");
+            }
+            break;
+        }
+    }
+    if (argv) {
+        delete[](reinterpret_cast<char *>(argv));
+    }
+    return cmd;
+}
+
+void ExtClient::Handle(const std::string &str, const char *name)
+{
+    typedef void (*HdcExtCommand)(const char *, uint64_t, char *, uint64_t &);
+    HdcExtCommand command;
+    int rc = uv_dlsym(&lib, name, (void **) &command);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlsym %s failed %s", name, uv_dlerror(&lib));
+    } else {
+        uint64_t size = 4096;
+        char *buffer = new(std::nothrow) char[size]();
+        if (buffer == nullptr) {
+            WRITE_LOG(LOG_FATAL, "new buffer failed with function %s", name);
+            return;
+        }
+        command(str.c_str(), str.size(), buffer, size);
+        std::string strBuf(buffer);
+        if (!strBuf.empty()) {
+            Base::PrintMessage("%s", strBuf.c_str());
+        }
+        delete[] buffer;
+    }
+}
+
+std::string ExtClient::WithConnectKey(const string &str)
+{
+    std::string value;
+    if (!connectKey.empty()) {
+        value = "-t " + connectKey + " ";
+    }
+    if (!containerInOut.empty()) {
+        value = value + containerInOut + " ";
+    }
+    value = value + str;
+    return value;
+}
+
+void ExtClient::WaitForExtent(const std::string &str)
+{
+    uv_lib_t lib;
+#ifdef _WIN32
+    const char *path = "libexternal_hdc.dll";
+#elif HOST_MAC
+    const char *path = "libexternal_hdc.dylib";
+#else
+    const char *path = "libexternal_hdc.so";
+#endif
+    int rc = uv_dlopen(path, &lib);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
+        return;
+    }
+    const char *name = "HdcExtWaitFor";
+    typedef void (*HdcExtCommand)(const char *, uint64_t, char *, uint64_t &);
+    HdcExtCommand command;
+    rc = uv_dlsym(&lib, name, (void **) &command);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlsym %s failed %s", name, uv_dlerror(&lib));
+    } else {
+        uint64_t size = 4096;
+        char *buffer = new(std::nothrow) char[size]();
+        if (buffer == nullptr) {
+            WRITE_LOG(LOG_FATAL, "new buffer failed with function %s", name);
+            return;
+        }
+        command(str.c_str(), str.size(), buffer, size);
+        std::string strBuf(buffer);
+        if (!strBuf.empty()) {
+            Base::PrintMessage("%s", strBuf.c_str());
+        }
+        delete[] buffer;
+    }
+    uv_dlclose(&lib);
+}
+}
+

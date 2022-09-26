@@ -349,6 +349,20 @@ bool HdcServerForClient::GetAnyTarget(HChannel hChannel)
     return ret;
 }
 
+bool HdcServerForClient::WaitForAny(HChannel hChannel)
+{
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    HDaemonInfo hdi = nullptr;
+    ptrServer->AdminDaemonMap(OP_WAIT_FOR_ANY, STRING_EMPTY, hdi);
+    if (!hdi) {
+        EchoClient(hChannel, MSG_FAIL, "No any connected target");
+        return false;
+    }
+    string key = hdi->connectKey;
+    EchoClient(hChannel, MSG_OK, "Wait for connected target is %s", key.c_str());
+    return true;
+}
+
 bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterString)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
@@ -398,6 +412,11 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             WRITE_LOG(LOG_DEBUG, "CMD_CHECK_SERVER command");
             ReportServerVersion(hChannel);
             ret = false;
+            break;
+        }
+        case CMD_WAIT_FOR: {
+            WRITE_LOG(LOG_DEBUG, "CMD_WAIT_FOR command");
+            ret = !WaitForAny(hChannel);
             break;
         }
         case CMD_KERNEL_TARGET_ANY: {

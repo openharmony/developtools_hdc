@@ -20,6 +20,9 @@
 #include "server.h"
 #include "file.h"
 
+std::map<std::string, std::string> g_lists;
+bool g_show = true;
+
 namespace Hdc {
 bool terminalStateChange = false;
 HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion)
@@ -149,6 +152,7 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_DEVICE);
+    vecNoConnectKeyCommand.push_back(CMDSTR_WAIT_FOR);
     vecNoConnectKeyCommand.push_back(CMDSTR_KILL_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " ls");
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " rm");
@@ -462,9 +466,69 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     }
 
     string s(reinterpret_cast<char *>(buf), bytesIO);
-    fprintf(stdout, "%s", s.c_str());
-    fflush(stdout);
+    if (WaitFor(s)) {
+        return 0;
+    }
+    s = ListTargetsAll(s);
+    if (g_show) {
+        fprintf(stdout, "%s", s.c_str());
+        fflush(stdout);
+    }
     return 0;
+}
+
+bool HdcClient::WaitFor(const string &str)
+{
+    bool wait = false;
+    if (!strncmp(this->command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
+        const string waitFor = "[Fail]No any connected target";
+        if (!strncmp(str.c_str(), waitFor.c_str(), waitFor.size())) {
+            Send(this->channel->channelId, (uint8_t *)this->command.c_str(), this->command.size() + 1);
+            constexpr int timeout = 1;
+            std::this_thread::sleep_for(std::chrono::seconds(timeout));
+            wait = true;
+        } else {
+            _exit(0);
+        }
+    }
+    return wait;
+}
+
+string HdcClient::ListTargetsAll(const string &str)
+{
+    string all = str;
+    const string lists = "list targets -v";
+    if (!strncmp(this->command.c_str(), lists.c_str(), lists.size())) {
+        UpdateList(str);
+        all = Base::ReplaceAll(all, "\n", "\thdc\n");
+    } else if (!strncmp(this->command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
+        UpdateList(str);
+    }
+    if (!strncmp(this->command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
+        if (g_lists.size() > 0 && !strncmp(str.c_str(), EMPTY_ECHO.c_str(), EMPTY_ECHO.size())) {
+            all = "";
+        }
+    }
+    return all;
+}
+
+void HdcClient::UpdateList(const string &str)
+{
+    if (!strncmp(str.c_str(), EMPTY_ECHO.c_str(), EMPTY_ECHO.size())) {
+        return;
+    }
+    vector<string> devs;
+    Base::SplitString(str, "\n", devs);
+    for (size_t i = 0; i < devs.size(); i++) {
+        string::size_type pos = devs[i].find("\t");
+        if (pos != string::npos) {
+            string key = devs[i].substr(0, pos);
+            g_lists[key] = "hdc";
+        } else {
+            string key = devs[i];
+            g_lists[key] = "hdc";
+        }
+    }
 }
 
 bool HdcClient::IsOffset(uint16_t cmd)

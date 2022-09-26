@@ -25,6 +25,7 @@ using namespace HdcTest;
 
 #include "server.h"
 #include "server_for_client.h"
+#include "ext_client.h"
 using namespace Hdc;
 
 namespace {
@@ -36,6 +37,7 @@ namespace {
     int g_isTestMethod = 0;
     string g_connectKey = "";
     string g_serverListenString = "";
+    string g_containerInOut = "";
 }
 
 namespace Hdc {
@@ -51,6 +53,8 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_LIST_TARGETS);
     registerCommand.push_back(CMDSTR_CHECK_SERVER);
     registerCommand.push_back(CMDSTR_CHECK_DEVICE);
+    registerCommand.push_back(CMDSTR_CONTAINER_STATE);
+    registerCommand.push_back(CMDSTR_WAIT_FOR);
     registerCommand.push_back(CMDSTR_CONNECT_ANY);
     registerCommand.push_back(CMDSTR_CONNECT_TARGET);
     registerCommand.push_back(CMDSTR_SHELL);
@@ -84,7 +88,7 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
             outCommand = doubleCommand;
             return 2;
         }
-        if (cmd == v) {
+        if (cmd == v || !strncmp(cmd, CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
             outCommand = cmd;
             return 1;
         }
@@ -268,7 +272,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfms:d:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:d:t:l:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
@@ -298,6 +302,14 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
             }
             case 'm': {  // [not-publish] is server mode，or client mode
                 g_isServerMode = true;
+                break;
+            }
+            case 'n': {
+                g_containerInOut = "-n";
+                break;
+            }
+            case 'c': {
+                g_containerInOut = "-c";
                 break;
             }
             case 'p': {  // [not-publish]  not pullup server
@@ -365,6 +377,14 @@ void InitServerAddr(void)
     g_serverListenString += ":";
     g_serverListenString += std::to_string(port);
 }
+
+void RunExternalClient(string &str, string &connectKey, string &containerInOut)
+{
+    ExtClient extClient;
+    extClient.connectKey = connectKey;
+    extClient.containerInOut = containerInOut;
+    extClient.ExecuteCommand(str);
+}
 }
 
 #ifndef UNIT_TEST
@@ -394,7 +414,53 @@ int main(int argc, const char *argv[])
         if (!g_isCustomLoglevel) {
             Base::SetLogLevel(LOG_INFO);
         }
-        Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+        bool exist = ExtClient::SharedLibraryExist();
+        if (!exist) {
+            Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+            WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main only hdc");
+            Hdc::Base::RemoveLogCache();
+            return 0;
+        }
+        string str = "list targets";
+        if (!strncmp(commands.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
+            string lista = "list targets -a";
+            if (!strncmp(commands.c_str(), lista.c_str(), lista.size())) {
+                str = "list targets -v";
+            } else {
+                str = commands;
+            }
+            Hdc::RunExternalClient(str, g_connectKey, g_containerInOut);
+            Hdc::RunClientMode(str, g_serverListenString, g_connectKey, g_isPullServer);
+        } else if (!strncmp(commands.c_str(), CMDSTR_SOFTWARE_VERSION.c_str(), CMDSTR_SOFTWARE_VERSION.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
+            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
+            Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+        } else {
+            g_show = false;
+            Hdc::RunExternalClient(str, g_connectKey, g_containerInOut);
+            Hdc::RunClientMode(str, g_serverListenString, g_connectKey, g_isPullServer);
+            g_show = true;
+            if (g_connectKey.empty()) {
+                if (g_lists.size() == 0) {
+                    Base::PrintMessage("No any target");
+                } else if (g_lists.size() == 1) {
+                    auto iter = g_lists.begin();
+                    g_connectKey = iter->first;
+                } else {
+                    Base::PrintMessage("Specify one target");
+                }
+            }
+            if (g_lists[g_connectKey] == "external") {
+                Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
+            } else if (g_lists[g_connectKey] == "hdc") {
+                Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+            }
+        }
     }
     WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main");
     Hdc::Base::RemoveLogCache();

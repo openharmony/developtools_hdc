@@ -487,7 +487,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     string localPathBackup = localPath;
     if (ctxNow.targetDirNotExist) {
         // If target directory not exist, the first layer directory from master should remove
-        if (optName.find('/') == string::npos) {
+        if (optName.find('/') != string::npos) {
             optName = optName.substr(optName.find('/') + 1);
         } else if (optName.find('\\') != string::npos) {
             optName = optName.substr(optName.find('\\') + 1);
@@ -496,7 +496,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     }
     vector<string> dirsOfOptName;
 
-    if (optName.find('/') == string::npos) {
+    if (optName.find('/') != string::npos) {
         WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from linux system");
         Base::SplitString(optName, "/", dirsOfOptName);
     } else if (optName.find('\\') != string::npos) {

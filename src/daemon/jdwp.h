@@ -75,6 +75,7 @@ private:
     using HCtxJdwp = struct ContextJdwp *;
 
     bool JdwpListen();
+    static int UvPipeBind(uv_pipe_t* handle, const char* name, size_t size);
     static void AcceptClient(uv_stream_t *server, int status);
     static void ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf);
     static void SendCallbackJdwpNewFD(uv_write_t *req, int status);

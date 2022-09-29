@@ -368,9 +368,10 @@ void InitServerAddr(void)
         }
 
         port = atoi(env);
-        if (port <= 0) {
+	if (port > 65535 || port <= 0) {
+            fprintf(stderr, "please set OHOS_HDC_SERVER_PORT to positive interger, now it is %s, now use defult port %d.\n", env, DEFAULT_PORT);
             port = DEFAULT_PORT;
-        }
+	}
     } while (0);
 
     g_serverListenString = DEFAULT_SERVER_ADDR_IP;

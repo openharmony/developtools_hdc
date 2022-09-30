@@ -87,7 +87,6 @@ const string CMDSTR_LIST_TARGETS = "list targets";
 const string CMDSTR_CHECK_SERVER = "checkserver";
 const string CMDSTR_CHECK_DEVICE = "checkdevice";
 const string CMDSTR_WAIT_FOR = "wait";
-const string CMDSTR_CONTAINER_STATE = "get-container-state";
 const string CMDSTR_CONNECT_TARGET = "tconn";
 const string CMDSTR_CONNECT_ANY = "any";
 const string CMDSTR_SHELL = "shell";

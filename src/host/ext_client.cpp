@@ -98,8 +98,6 @@ void ExtClient::ExecuteCommand(const string &command)
         Bugreport(command);
     } else if (!strncmp(command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
         WaitFor(command);
-    } else if (!strncmp(command.c_str(), CMDSTR_CONTAINER_STATE.c_str(), CMDSTR_CONTAINER_STATE.size())) {
-        ContainerState(command);
     } else {
         UnknowCommand(command);
     }
@@ -270,13 +268,6 @@ void ExtClient::WaitFor(const std::string &str)
         WaitForExtent(str);
         _exit(0);
     }).detach();
-}
-
-void ExtClient::ContainerState(const std::string &str)
-{
-    const char *name = "HdcExtContainerState";
-    string value = WithConnectKey(str);
-    Handle(value, name);
 }
 
 void ExtClient::UnknowCommand(const std::string &str)

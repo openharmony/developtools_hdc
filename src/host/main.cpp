@@ -53,7 +53,6 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_LIST_TARGETS);
     registerCommand.push_back(CMDSTR_CHECK_SERVER);
     registerCommand.push_back(CMDSTR_CHECK_DEVICE);
-    registerCommand.push_back(CMDSTR_CONTAINER_STATE);
     registerCommand.push_back(CMDSTR_WAIT_FOR);
     registerCommand.push_back(CMDSTR_CONNECT_ANY);
     registerCommand.push_back(CMDSTR_CONNECT_TARGET);

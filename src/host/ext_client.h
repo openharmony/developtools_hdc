@@ -50,7 +50,6 @@ private:
     void Utility(const std::string &str);
     void Bugreport(const std::string &str);
     void WaitFor(const std::string &str);
-    void ContainerState(const std::string &str);
     void UnknowCommand(const std::string &str);
     std::string RemoveRemoteCwd(const std::string &str);
     void UpdateList(const std::string &str);

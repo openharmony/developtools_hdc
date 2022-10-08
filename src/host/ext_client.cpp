@@ -23,7 +23,7 @@ ExtClient::ExtClient()
 #elif HOST_MAC
     const char *path = "libexternal_hdc.dylib";
 #else
-    const char *path = "libexternal_hdc.so";
+    const char *path = "libexternal_hdc.z.so";
 #endif
     int rc = uv_dlopen(path, &lib);
     if (rc != 0) {
@@ -43,7 +43,7 @@ bool ExtClient::SharedLibraryExist()
 #elif HOST_MAC
     const char *path = "libexternal_hdc.dylib";
 #else
-    const char *path = "libexternal_hdc.so";
+    const char *path = "libexternal_hdc.z.so";
 #endif
     uv_lib_t lib;
     int rc = uv_dlopen(path, &lib);
@@ -340,7 +340,7 @@ void ExtClient::WaitForExtent(const std::string &str)
 #elif HOST_MAC
     const char *path = "libexternal_hdc.dylib";
 #else
-    const char *path = "libexternal_hdc.so";
+    const char *path = "libexternal_hdc.z.so";
 #endif
     int rc = uv_dlopen(path, &lib);
     if (rc != 0) {

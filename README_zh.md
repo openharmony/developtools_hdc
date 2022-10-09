@@ -99,7 +99,6 @@ hdc_std当前常用命令如下，未尽命令使用hdc_std -h或者hdc_std --he
 
 **表 1**  hdc_std常用命令列表
 
-<a name="table159297571254"></a>
 <table><thead align="left"><tr id="row149291357182511"><th class="cellrowborder" valign="top" width="50%" id="mcps1.2.3.1.1"><p id="p14423184344212"><a name="p14423184344212"></a><a name="p14423184344212"></a>Option</p>
 </th>
 <th class="cellrowborder" valign="top" width="50%" id="mcps1.2.3.1.2"><p id="p164237433425"><a name="p164237433425"></a><a name="p164237433425"></a>Description</p>
@@ -123,6 +122,18 @@ hdc_std当前常用命令如下，未尽命令使用hdc_std -h或者hdc_std --he
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p742444364214"><a name="p742444364214"></a><a name="p742444364214"></a><span>用于显示hdc_std相关的帮助、版本信息</span></p>
 </td>
 </tr>
+<tr id="row4929185718355"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p17424204354316"><a name="p17424204354316"></a><a name="p17424204354316"></a>-l 0-5</p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p742444364314"><a name="p742444364314"></a><a name="p742444364314"></a><span>用于指定运行时日志等级</span></p>
+<p id="p23801376355"><a name="p23801376355"></a><a name="p23801376355"></a>举例： hdc_std -l5 start</p>
+</td>
+</tr>
+<tr id="row4929185718335"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p17424204354336"><a name="p17424204354336"></a><a name="p17424204354336"></a>checkserver</p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p742444364334"><a name="p742444364334"></a><a name="p742444364334"></a><span>用于获取client-server版本</span></p>
+<p id="p23801376341"><a name="p23801376341"></a><a name="p23801376341"></a>举例： hdc_std checkserver </p>
+</td>
+</tr>
 <tr id="row169301574251"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p13424743134216"><a name="p13424743134216"></a><a name="p13424743134216"></a>list targets[-v]</p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p6424643164211"><a name="p6424643164211"></a><a name="p6424643164211"></a><span>显示所有已经连接的目标设备列表</span>，-v选项显示详细信息</p>
@@ -135,9 +146,15 @@ hdc_std当前常用命令如下，未尽命令使用hdc_std -h或者hdc_std --he
 <p id="p23801376351"><a name="p23801376351"></a><a name="p23801376351"></a>举例： hdc_std target mount</p>
 </td>
 </tr>
-<tr id="row5930657142518"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p1642534318425"><a name="p1642534318425"></a><a name="p1642534318425"></a>smode [off]</p>
+<tr id="row139301957122511"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p8424164318421"><a name="p8424164318421"></a><a name="p8424164318421"></a>target boot</p>
 </td>
-<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p44253434422"><a name="p44253434422"></a><a name="p44253434422"></a>授予后台服务进程root权限， 使用off参数取消授权</p>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p13424154324211"><a name="p13424154324211"></a>重启设备</p>
+<p id="p23801376355"><a name="p23801376355"></a><a name="p23801376355"></a>举例： hdc_std target boot</p>
+</td>
+</tr>
+<tr id="row5930657142518"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p1642534318425"><a name="p1642534318425"></a><a name="p1642534318425"></a>smode [-r]</p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p44253434422"><a name="p44253434422"></a><a name="p44253434422"></a>授予后台服务进程root权限， 使用-r参数取消授权</p>
 <p id="p9806102118436"><a name="p9806102118436"></a><a name="p9806102118436"></a>举例： hdc_std smode</p>
 </td>
 </tr>
@@ -182,6 +199,29 @@ hdc_std当前常用命令如下，未尽命令使用hdc_std -h或者hdc_std --he
 <p id="p191761424101713"><a name="p191761424101713"></a><a name="p191761424101713"></a>举例： hdc_std file recv  /data/local/tmp/a.txt   ./a.txt</p>
 </td>
 </tr>
+<tr id="row1973583819559"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p20428943104259"><a name="p20428943104259"></a><a name="p20428943104259"></a>fport <em id="i84129581558"><a name="i84129581558"></a><a name="i84129581558"></a>localnode remotenode</em></p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p0428144314459"><a name="p0428144314459"></a><a name="p0428144314459"></a><span>端口转发</span><span id="text442834344259"><a name="text442834344259"></a><a name="text442834344259"></a>主机端口 转发数据到 设备侧端口</span></p>
+<p id="p23801376355"><a name="p23801376355"></a><a name="p23801376355"></a>举例： hdc_std fport tcp:1234 tcp:1080</p>
+</td>
+</tr>
+<tr id="row1973583819359"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p20428943104359"><a name="p20428943104359"></a><a name="p20428943104359"></a>rport <em id="i84129581358"><a name="i84129581358"></a><a name="i84129581358"></a>remotenode localnode</em></p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p0428144314359"><a name="p0428144314359"></a><a name="p0428144314359"></a><span>端口转发</span><span id="text442834344359"><a name="text442834344359"></a><a name="text442834344359"></a>设备侧端口 转发数据到 主机端口</span></p>
+<p id="p23801376355"><a name="p23801376355"></a><a name="p23801376355"></a>举例： hdc_std rport tcp:1234 tcp:1080</p>
+</td>
+</tr>
+<tr id="row193125772576"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p542613431479"><a name="p542613431479"></a><a name="p542613431479"></a>fport ls</p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p19426174319472"><a name="p19426174319472"></a><a name="p19426174319472"></a><span>展示全部转发任务</span></p>
+</td>
+</tr>
+<tr id="row139301957122511"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p8424164318428"><a name="p8424164318428"></a><a name="p8424164318428"></a>fport rm</p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p13424154324211"><a name="p13424154324211"></a>删除指定转发任务</p>
+<p id="p23801376358"><a name="p23801376358"></a><a name="p23801376358"></a>举例： hdc_std fport rm tcp:1234 tcp:1080</p>
+</td>
+</tr>
 <tr id="row887171025420"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p204287432425"><a name="p204287432425"></a><a name="p204287432425"></a>install<em id="i242704315422"><a name="i242704315422"></a><a name="i242704315422"></a> </em>[-r/-d/-g]<em id="i642814310424"><a name="i642814310424"></a><a name="i642814310424"></a> </em><em id="i103610557016"><a name="i103610557016"></a><a name="i103610557016"></a>package</em></p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p12428194312421"><a name="p12428194312421"></a><a name="p12428194312421"></a><span>安装</span><span id="text242884314423"><a name="text242884314423"></a><a name="text242884314423"></a>OpenHarmony</span><span> package</span></p>
@@ -203,6 +243,11 @@ hdc_std当前常用命令如下，未尽命令使用hdc_std -h或者hdc_std --he
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p16429843124213"><a name="p16429843124213"></a><a name="p16429843124213"></a><span>远程执行命令或进入交互命令环境</span></p>
 <p id="p1490692061519"><a name="p1490692061519"></a><a name="p1490692061519"></a>举例： hdc_std shell</p>
+</td>
+</tr>
+<tr id="row193125772572"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p542613431472"><a name="p542613431479"></a><a name="p542613431472"></a>jpid</p>
+</td>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p19426174319422"><a name="p19426174319422"></a><a name="p19426174319422"></a><span>获取JDWP调试进程列表 </span></p>
 </td>
 </tr>
 </tbody>

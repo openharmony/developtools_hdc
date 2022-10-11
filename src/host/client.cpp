@@ -429,8 +429,8 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     uint16_t cmd = 0;
     bool bOffset = false;
     if (bytesIO >= static_cast<int>(sizeof(uint16_t))) {
-       cmd = *reinterpret_cast<uint16_t *>(buf);
-       bOffset = IsOffset(cmd);
+        cmd = *reinterpret_cast<uint16_t *>(buf);
+        bOffset = IsOffset(cmd);
     }
     if (cmd == CMD_CHECK_SERVER && isCheckVersionCmd) {
         WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
@@ -483,7 +483,8 @@ bool HdcClient::WaitFor(const string &str)
     if (!strncmp(this->command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
         const string waitFor = "[Fail]No any connected target";
         if (!strncmp(str.c_str(), waitFor.c_str(), waitFor.size())) {
-            Send(this->channel->channelId, (uint8_t *)this->command.c_str(), this->command.size() + 1);
+            Send(this->channel->channelId, reinterpret_cast<uint8_t *>(const_cast<char *>(this->command.c_str())),
+                 this->command.size() + 1);
             constexpr int timeout = 1;
             std::this_thread::sleep_for(std::chrono::seconds(timeout));
             wait = true;
@@ -556,6 +557,16 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     hTaskInfo->serverOrDaemon = true;
     hTaskInfo->channelTask = true;
     hTaskInfo->channelClass = this;
+    hTaskInfo->taskType = TYPE_SHELL;
+    hTaskInfo->taskStop = false;
+    hTaskInfo->sessionId = 0;
+    hTaskInfo->closeRetryCount = 0;
+    hTaskInfo->taskFree = false;
+    hTaskInfo->hasInitial = false;
+    hTaskInfo->masterSlave = false;
+    hTaskInfo->channelClass = nullptr;
+    hTaskInfo->ownerSessionClass = nullptr;
+    hTaskInfo->taskClass = nullptr;
     return hTaskInfo;
 };
 }  // namespace Hdc

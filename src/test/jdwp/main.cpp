@@ -27,7 +27,7 @@ static void PrintMessage(const char *fmt, ...)
     int ret = 0;
     va_list ap;
     va_start(ap, fmt);
-    ret = vfprintf(stdout, fmt, ap);
+    vfprintf(stdout, fmt, ap);
     ret = fprintf(stdout, "\n");
     va_end(ap);
 }

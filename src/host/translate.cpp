@@ -175,11 +175,13 @@ namespace TranslateCommand {
         string stringError;
         outCmd->cmdFlag = CMD_UNITY_RUNMODE;
         outCmd->parameters = input + CMDSTR_TARGET_MODE.size() + 1;  // with  ' '
-        if (!strncmp(outCmd->parameters.c_str(), "port", 4) &&
+        int portLength = 4;
+        int portSpaceLength = 5;
+        if (!strncmp(outCmd->parameters.c_str(), "port", portLength) &&
             !strcmp(outCmd->parameters.c_str(), CMDSTR_TMODE_USB.c_str())) {
             stringError = "Error tmode command";
             outCmd->bJumpDo = true;
-        } else if (!strncmp(outCmd->parameters.c_str(), "port ", 5)) {
+        } else if (!strncmp(outCmd->parameters.c_str(), "port ", portSpaceLength)) {
             int port = atoi(input + strlen("tmode port "));
             if (port > MAX_IP_PORT || port <= 0) {
                 stringError = "Incorrect port range";

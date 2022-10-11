@@ -455,7 +455,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu", localPath.c_str(), dirsOflocalPath.size());
         string makedirPath;
 
-        if (localPath.at(0) != '/') {
+        if (!Base::IsAbsolutePath(localPath)) {
             makedirPath = ".";
         }
 
@@ -465,6 +465,12 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
             if (dir == ".") {
                 continue;
             } else {
+#ifdef _WIN32
+                if (dir.find(":") == 1) {
+                    makedirPath = dir;
+                    continue;
+                }
+#endif
                 makedirPath = makedirPath + Base::GetPathSep() + dir;
                 if (!Base::TryCreateDirectory(makedirPath, errStr)) {
                     return false;

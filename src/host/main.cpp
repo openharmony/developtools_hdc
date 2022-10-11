@@ -206,10 +206,9 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         client.CtrlServiceWork(commands.c_str());
         return 0;
     }
-    if (isPullServer && serverListenString == DEFAULT_SERVER_ADDR &&
-        Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
+    if (isPullServer && Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
         // default pullup, just default listenstr.If want to customer listen-string, please use 'hdc -m -s lanip:port'
-        HdcServer::PullupServer(DEFAULT_SERVER_ADDR.c_str());
+        HdcServer::PullupServer(serverListenString.c_str());
         uv_sleep(300);  // give time to start serverForClient,at least 200ms
     }
     client.Initial(connectKey);

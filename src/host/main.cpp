@@ -331,7 +331,10 @@ void InitServerAddr(void)
         }
 
         port = atoi(env);
-        if (port <= 0) {
+        int maxPort = 65535;
+        if (port > maxPort || port <= 0) {
+            fprintf(stderr, "please set OHOS_HDC_SERVER_PORT to positive interger, now it is %s,"
+                    "now use defult port %d.\n", env, DEFAULT_PORT);
             port = DEFAULT_PORT;
         }
     } while (0);

@@ -323,7 +323,7 @@ bool HdcForwardBase::DetechForwardType(HCtxForward ctxPoint)
     } else if (sFType == "localabstract") {
         // daemon shell: /system/bin/socat abstract-listen:linux-abstract -
         // daemon shell: /system/bin/socat - abstract-connect:linux-abstract
-        // host:   hdc_std fport tcp:8080 localabstract:linux-abstract
+        // host:   hdc fport tcp:8080 localabstract:linux-abstract
         ctxPoint->type = FORWARD_ABSTRACT;
     } else if (sFType == "localreserved") {
         sNodeCfg = harmonyReservedSocketPrefix + sNodeCfg;

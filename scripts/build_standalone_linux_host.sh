@@ -85,11 +85,11 @@ function build_hdc ()
 	export LDFLAGS="-Wl,--copy-dt-needed-entries"
 	export CXXFLAGS="-std=c++17 -ggdb -O0"
 
-	g++ ${DEFINES} ${CXXFLAGS} ${INCLUDES} $(find src/common/ src/host/ \( -name "*.cpp" -or -name "*.c" \)) -lusb-1.0 -ldl -lpthread $STATICLIB -o hdc_std
+	g++ ${DEFINES} ${CXXFLAGS} ${INCLUDES} $(find src/common/ src/host/ \( -name "*.cpp" -or -name "*.c" \)) -lusb-1.0 -ldl -lpthread $STATICLIB -o hdc
 
-	if [ -f hdc_std ]; then
+	if [ -f hdc ]; then
 		echo build success
-		cp hdc_std $cwddir
+		cp hdc $cwddir
 	else
 		echo build fail
 	fi

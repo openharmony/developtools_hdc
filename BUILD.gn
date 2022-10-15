@@ -144,7 +144,7 @@ ohos_executable("hdcd") {
   part_name = "hdc"
 }
 
-ohos_executable("hdc_std") {
+ohos_executable("hdc") {
   use_exceptions = true
   ldflags = []
   libs = []
@@ -242,7 +242,7 @@ ohos_executable("hdc_std") {
 
 group("hdc_target") {
   deps = [
-    ":hdc_std",
+    ":hdc",
     ":hdcd",
   ]
 }

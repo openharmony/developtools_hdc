@@ -10,7 +10,7 @@
 
 ## Introduction<a name="section662115419449"></a>
 
-HDC (OpenHarmony Device Connector) is a command-line tool for developers to connect and debug the device. The PC-side development machine uses the command-line tool hdc_std (for convenience, collectively referred to as hdc below). This tool needs to support deployment on Windows/Linux /Mac and other systems to connect and debug communication with OpenHarmony devices (or simulators). The PC-side hdc tool needs to release corresponding versions for the above development machine operating system platforms, and the device-side hdc daemon needs to follow the device image release including support for the simulator. The following will introduce the commonly used commands and usage examples of hdc.
+HDC (OpenHarmony Device Connector) is a command-line tool for developers to connect and debug the device. The PC-side development machine uses the command-line tool hdc (for convenience, collectively referred to as hdc below). This tool needs to support deployment on Windows/Linux /Mac and other systems to connect and debug communication with OpenHarmony devices (or simulators). The PC-side hdc tool needs to release corresponding versions for the above development machine operating system platforms, and the device-side hdc daemon needs to follow the device image release including support for the simulator. The following will introduce the commonly used commands and usage examples of hdc.
 
 ## Architecture<a name="section15908143623714"></a>
 
@@ -41,7 +41,7 @@ Compilation steps of hdc pc executable file:
 
 1. Compile command: Please refer to https://gitee.com/openharmony/build/blob/master/README_zh.md to compile the sdk instructions, execute the specified sdk compile command to compile the entire sdk, hdc will be compiled Pack it inside.
 
-2. Compile: Run the sdk compilation command adjusted above on the target development machine, and the normal compilation of hdc_std will be output to the relevant directory of the sdk platform; Note: Only the windows/linux version tools can be compiled in the ubuntu environment, and the mac version needs to be on the macos development machine Compile.
+2. Compile: Run the sdk compilation command adjusted above on the target development machine, and the normal compilation of hdc will be output to the relevant directory of the sdk platform; Note: Only the windows/linux version tools can be compiled in the ubuntu environment, and the mac version needs to be on the macos development machine Compile.
 
 
 ### Getting instructions on pc<a name="section129654513263"></a>
@@ -58,7 +58,7 @@ For compilation, please refer to the separate section above. Prebuilt is no long
 
 [3. Support operating environment](#section161941989593)
 
-The linux version is recommended to be 64-bit above ubuntu 16.04, and other similar versions are also available; libc++.so quotes errors, please use ldd/readelf and other commands to check the library. Windows version is recommended. Windows 10 64-bit is recommended. If the lower version of the windows winusb library is missing, please use zadig to update the library. . 
+The linux version is recommended to be 64-bit above ubuntu 16.04, and other similar versions are also available; libc++.so quotes errors, please use ldd/readelf and other commands to check the library. Windows version is recommended. Windows 10 64-bit is recommended. If the lower version of the windows winusb library is missing, please use zadig to update the library. .
 
 ## More help and docs<a name="section129654513264"></a>
 

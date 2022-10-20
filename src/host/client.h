@@ -48,7 +48,7 @@ private:
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);
     void NotifyInstanceChannelFree(HChannel hChannel) override;
-    bool IsOffset(uint16_t command);
+    bool IsOffset(uint16_t cmd);
     HTaskInfo GetRemoteTaskInfo(HChannel hChannel);
     bool WaitFor(const string &str);
     string ListTargetsAll(const string &str);

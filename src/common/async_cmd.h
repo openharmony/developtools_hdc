@@ -43,7 +43,7 @@ public:
 private:
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
-    int Popen(string command, bool readWrite, int &pid);
+    int Popen(string command, bool readWrite, int &cpid);
 
     uint32_t options = 0;
     int fd = 0;

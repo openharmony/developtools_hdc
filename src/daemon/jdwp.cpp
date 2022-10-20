@@ -457,17 +457,19 @@ void HdcJdwp::ProcessListUpdated(HTaskInfo task)
     if (task != nullptr) {
         SendProcessList(task, data);
     } else {
-        for (auto &t : jdwpTrackers) {
-            if (t == nullptr) {
+        for (auto iter = jdwpTrackers.begin(); iter != jdwpTrackers.end();) {
+            if (*iter == nullptr) {
                 continue;
             }
-            if (t->taskStop || t->taskFree || !t->taskClass) {  // The channel for the track-jpid has been stopped.
-                jdwpTrackers.erase(remove(jdwpTrackers.begin(), jdwpTrackers.end(), t), jdwpTrackers.end());
+            // The channel for the track-jpid has been stopped.
+            if ((*iter)->taskStop || (*iter)->taskFree || !(*iter)->taskClass) {
+                iter = jdwpTrackers.erase(remove(jdwpTrackers.begin(), jdwpTrackers.end(), *iter), jdwpTrackers.end());
                 if (jdwpTrackers.size() <= 0) {
                     return;
                 }
             } else {
-                SendProcessList(t, data);
+                SendProcessList(*iter, data);
+                iter++;
             }
         }
     }

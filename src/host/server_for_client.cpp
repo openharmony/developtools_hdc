@@ -260,9 +260,10 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
 #endif
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
+    int connectError = -2;
     if (childRet == -1) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
-    } else if (childRet == -2) {
+    } else if (childRet == connectError) {
         EchoClient(hChannel, MSG_FAIL, "CreateConnect failed");
         WRITE_LOG(LOG_FATAL, "CreateConnect failed");
     } else {
@@ -517,7 +518,7 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         if (!hSession) {
             return false;
         }
-        if ((formatCommand->cmdFlag == CMD_FILE_INIT || formatCommand->cmdFlag == CMD_APP_INIT ) &&
+        if ((formatCommand->cmdFlag == CMD_FILE_INIT || formatCommand->cmdFlag == CMD_APP_INIT) &&
             hChannel->fromClient) {
             // remote client mode, CMD_FILE_INIT and CMD_APP_INIT command send back to client
             WRITE_LOG(LOG_DEBUG, "command send back to remote client channelId:%u", hChannel->channelId);

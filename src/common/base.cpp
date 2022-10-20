@@ -885,7 +885,8 @@ namespace Base {
         if (htonl(1) == 1) {
             return val;
         }
-        return ((static_cast<uint64_t>(htonl(val))) << 32) + htonl(val >> 32);
+        int offset = 32;
+        return ((static_cast<uint64_t>(htonl(val))) << offset) + htonl(val >> offset);
     }
 
     uint64_t NetToHost(uint64_t val)

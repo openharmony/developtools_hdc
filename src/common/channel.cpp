@@ -400,8 +400,8 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
 void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 {
     auto closeChannelHandle = [](uv_handle_t *handle) -> void {
-        HChannel hChannel = reinterpret_cast<HChannel>(handle->data);
-        --hChannel->uvHandleRef;
+        HChannel channel = reinterpret_cast<HChannel>(handle->data);
+        --channel->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
     };
     hChannel->availTailIndex = 0;

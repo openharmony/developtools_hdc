@@ -227,8 +227,9 @@ void HdcJdwpSimulator::ConnectJdwp(uv_connect_t *connection, int status)
         info = nullptr;
     }
 #else
-    char pid[5] = {0};
-    if (sprintf_s(pid, sizeof(pid), "%d", pidCurr) < 0) {
+    int pidLength = 5;
+    char pid[pidLength] = {0};
+    if (to_string(pidCurr).length() >= pidLength || sprintf_s(pid, sizeof(pid), "%d", pidCurr) < 0) {
         HiLog::Info(LABEL, "ConnectJdwp trans pid fail :%{public}d.", pidCurr);
         return;
     }

@@ -894,7 +894,8 @@ namespace Base {
         if (htonl(1) == 1) {
             return val;
         }
-        return ((static_cast<uint64_t>(ntohl(val))) << 32) + ntohl(val >> 32);
+        int offset = 32;
+        return ((static_cast<uint64_t>(ntohl(val))) << offset) + ntohl(val >> offset);
     }
 
     char GetPathSep()

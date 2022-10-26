@@ -557,16 +557,6 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     hTaskInfo->serverOrDaemon = true;
     hTaskInfo->channelTask = true;
     hTaskInfo->channelClass = this;
-    hTaskInfo->taskType = TYPE_SHELL;
-    hTaskInfo->taskStop = false;
-    hTaskInfo->sessionId = 0;
-    hTaskInfo->closeRetryCount = 0;
-    hTaskInfo->taskFree = false;
-    hTaskInfo->hasInitial = false;
-    hTaskInfo->masterSlave = false;
-    hTaskInfo->channelClass = nullptr;
-    hTaskInfo->ownerSessionClass = nullptr;
-    hTaskInfo->taskClass = nullptr;
     return hTaskInfo;
 };
 }  // namespace Hdc

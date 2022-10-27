@@ -378,6 +378,7 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
         }
     }
     libusb_free_config_descriptor(descConfig);
+    libusb_set_configuration(hUSB->devHandle, configuration);
     return ret;
 }
 

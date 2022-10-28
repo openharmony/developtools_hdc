@@ -241,6 +241,11 @@ void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv
     HCtxForward ctx = (HCtxForward)stream->data;
     if (nread < 0) {
         ctx->thisClass->FreeContext(ctx, 0, true);
+        delete[] buf->base;
+        return;
+    }
+    if (nread == 0) {
+        delete[] buf->base;
         return;
     }
     ctx->thisClass->SendToTask(ctx->id, CMD_FORWARD_DATA, (uint8_t *)buf->base, nread);

@@ -281,6 +281,9 @@ std::string ExtClient::RemoveRemoteCwd(const std::string &str)
     int argc = 0;
     std::string cmd = str;
     char **argv = Base::SplitCommandToArgs(cmd.c_str(), &argc);
+    if(argv == nullptr) {
+        return cmd;
+    }
     for (int i = 0; i < argc; i++) {
         if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
             std::string remove = Base::StringFormat("%s %s \"%s\" ", argv[i], argv[i + 1], argv[i + 2]);
@@ -290,9 +293,7 @@ std::string ExtClient::RemoveRemoteCwd(const std::string &str)
             break;
         }
     }
-    if (argv) {
-        delete[](reinterpret_cast<char *>(argv));
-    }
+    delete[](reinterpret_cast<char *>(argv));
     return cmd;
 }
 

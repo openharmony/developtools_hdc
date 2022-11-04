@@ -257,11 +257,10 @@ int HdcHostUSB::StartupUSBWork()
     return 0;
 }
 
-int HdcHostUSB::CheckDescriptor(HUSB hUSB)
+int HdcHostUSB::CheckDescriptor(HUSB hUSB, libusb_device_descriptor& desc)
 {
     char serialNum[BUF_SIZE_MEDIUM] = "";
     int childRet = 0;
-    struct libusb_device_descriptor desc;
     uint8_t curBus = libusb_get_bus_number(hUSB->device);
     uint8_t curDev = libusb_get_device_address(hUSB->device);
     hUSB->busId = curBus;
@@ -325,28 +324,36 @@ bool HdcHostUSB::IsDebuggableDev(const struct libusb_interface_descriptor *ifDes
     return true;
 }
 
-int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
+int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_device_descriptor& desc)
 {
-    int configuration = 0;
-    int ret = libusb_get_configuration(hUSB->devHandle, &configuration);
-    if (ret != 0) {
-        WRITE_LOG(LOG_WARN, "get config failed ret:%d", ret);
-        return -1;
-    }
-
-    if (configuration != 1) {
-        ret = libusb_set_configuration(hUSB->devHandle, 1);
-        if (ret != 0) {
-            WRITE_LOG(LOG_WARN, "set config failed ret:%d", ret);
-            return -1;
-        }
-    }
     unsigned int j = 0;
     struct libusb_config_descriptor *descConfig = nullptr;
-    ret = libusb_get_active_config_descriptor(device, &descConfig);
-    if (ret != 0) {
-        return -1;
+    int ret = libusb_get_active_config_descriptor(device, &descConfig);
+    if (ret != 0)
+    {
+#ifdef HOST_MAC
+        if ((desc.bDeviceClass == 0xFF)
+            && (desc.bDeviceSubClass == 0xFF)
+            && (desc.bDeviceProtocol == 0xFF))
+        {
+            ret = libusb_set_configuration(hUSB->devHandle, 1);
+            if (ret != 0)
+            {
+                WRITE_LOG(LOG_WARN, "set config failed ret:%d", ret);
+                return -1;
+            }
+        }
+
+        ret = libusb_get_active_config_descriptor(device, &descConfig);
+        if (ret != 0)
+        {
+#endif
+            return -1;
+        }
+#ifdef HOST_MAC
     }
+#endif
+
     ret = -1;
     for (j = 0; j < descConfig->bNumInterfaces; ++j) {
         const struct libusb_interface *interface = &descConfig->interface[j];
@@ -378,7 +385,6 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB)
         }
     }
     libusb_free_config_descriptor(descConfig);
-    libusb_set_configuration(hUSB->devHandle, configuration);
     return ret;
 }
 
@@ -564,10 +570,11 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
     }
     while (modRunning) {
         libusb_device_handle *handle = hUSB->devHandle;
-        if (CheckDescriptor(hUSB)) {
+        struct libusb_device_descriptor desc;
+        if (CheckDescriptor(hUSB, desc)) {
             break;
         }
-        if (CheckActiveConfig(device, hUSB)) {
+        if (CheckActiveConfig(device, hUSB, desc)) {
             break;
         }
         // USB filter rules are set according to specific device pedding device

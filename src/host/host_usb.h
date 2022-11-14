@@ -40,9 +40,9 @@ private:
     static void KickoutZombie(HSession hSession);
     static void LIBUSB_CALL USBBulkCallback(struct libusb_transfer *transfer);
     int StartupUSBWork();
-    int CheckActiveConfig(libusb_device *device, HUSB hUSB);
+    int CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_device_descriptor& desc);
     int OpenDeviceMyNeed(HUSB hUSB);
-    int CheckDescriptor(HUSB hUSB);
+    int CheckDescriptor(HUSB hUSB, libusb_device_descriptor& desc);
     bool IsDebuggableDev(const struct libusb_interface_descriptor *ifDescriptor);
     bool ReadyForWorkThread(HSession hSession);
     bool FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_context *ctxUSB);

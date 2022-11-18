@@ -102,7 +102,10 @@ ohos_executable("hdcd") {
     "//third_party/openssl:libcrypto_shared",
   ]
 
-  deps += [ ":hdc_hash_gen" ]
+  deps += [
+    ":hdc_hash_gen",
+    ":hdc_para_dac",
+  ]
 
   if (hdc_jdwp_test) {
     defines += [ "SIMULATE_JDWP" ]
@@ -269,4 +272,11 @@ action("hdc_hash_gen") {
     rebase_path("$py_out_dir" + "/", root_build_dir),
   ]
   public_configs = [ ":hdc_config" ]
+}
+
+ohos_prebuilt_etc("hdc_para_dac") {
+  source = "hdc.para.dac"
+  relative_install_dir = "param"
+  part_name = "hdc"
+  subsystem_name = "developtools"
 }

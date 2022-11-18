@@ -90,16 +90,34 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     }
 }
 
-void HdcServerForClient::SetTCPListen()
+bool HdcServerForClient::SetTCPListen()
 {
+    char buffer[BUF_SIZE_DEFAULT] = { 0 };
     tcpListen.data = this;
     struct sockaddr_in6 addr;
     uv_tcp_init(loopMain, &tcpListen);
 
     WRITE_LOG(LOG_DEBUG, "channelHost %s, port: %d", channelHost.c_str(), channelPort);
-    uv_ip6_addr(channelHost.c_str(), channelPort, &addr);
-    uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr, 0);
-    uv_listen((uv_stream_t *)&tcpListen, 128, (uv_connection_cb)AcceptClient);
+    int rc = uv_ip6_addr(channelHost.c_str(), channelPort, &addr);
+    if (rc != 0) {
+        uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "uv_ip6_addr %d %s", rc, buffer);
+        return false;
+    }
+    rc = uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr, 0);
+    if (rc != 0) {
+        uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "uv_tcp_bind %d %s", rc, buffer);
+        return false;
+    }
+    int backLog = 128;
+    rc = uv_listen((uv_stream_t *)&tcpListen, backLog, (uv_connection_cb)AcceptClient);
+    if (rc != 0) {
+        uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "uv_listen %d %s", rc, buffer);
+        return false;
+    }
+    return true;
 }
 
 int HdcServerForClient::Initial()
@@ -112,7 +130,11 @@ int HdcServerForClient::Initial()
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
         return -2;
     }
-    SetTCPListen();
+    bool b = SetTCPListen();
+    if (!b) {
+        WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
+        return -3;
+    }
     return 0;
 }
 

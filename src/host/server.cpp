@@ -86,7 +86,11 @@ bool HdcServer::Initial(const char *listenString)
     }
     Base::RemoveLogFile();
     clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
-    (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
+    int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
+    if (rc != RET_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "clsServerForClient Initial failed");
+        return false;
+    }
     clsUSBClt->InitLogging(ctxUSB);
     clsTCPClt = new HdcHostTCP(true, this);
     clsUSBClt = new HdcHostUSB(true, this, ctxUSB);

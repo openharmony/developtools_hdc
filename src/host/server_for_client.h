@@ -33,7 +33,7 @@ public:
 protected:
 private:
     static void AcceptClient(uv_stream_t *server, int status);
-    void SetTCPListen();
+    bool SetTCPListen();
     int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO) override;
     void ReportServerVersion(HChannel hChannel);
     bool DoCommand(HChannel hChannel, void *formatCommandInput);

@@ -244,8 +244,10 @@ bool NeedDropRootPrivileges()
             WRITE_LOG(LOG_DEBUG, "Root run");
         } else if (rootMode == "0") {
             return DropRootPrivileges();
+        } else {
+            // default keep root
+            g_rootRun = true;
         }
-        // default keep root
     } else {
         return DropRootPrivileges();
     }

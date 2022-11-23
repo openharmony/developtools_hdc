@@ -442,6 +442,8 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     hSession->ctrlPipe[STREAM_WORK].data = hSession;
     // Activate USB DAEMON's data channel, may not for use
     uv_tcp_init(&loopMain, &hSession->dataPipe[STREAM_MAIN]);
+    (void)memset_s(&hSession->dataPipe[STREAM_WORK], sizeof(hSession->dataPipe[STREAM_WORK]),
+                   0, sizeof(uv_tcp_t));
     ++hSession->uvHandleRef;
     Base::CreateSocketPair(hSession->dataFd);
     uv_tcp_open(&hSession->dataPipe[STREAM_MAIN], hSession->dataFd[STREAM_MAIN]);

@@ -25,7 +25,6 @@ static bool g_enableUsb = false;
 static bool g_enableUart = false;
 #endif
 static bool g_enableTcp = false;
-static bool g_rootRun = false;
 static bool g_backgroundRun = false;
 namespace Hdc {
 bool RestartDaemon(bool forkchild)
@@ -240,7 +239,6 @@ bool NeedDropRootPrivileges()
     if (debugMode == "1") {
         if (rootMode == "1") {
             setuid(0);
-            g_rootRun = true;
             WRITE_LOG(LOG_DEBUG, "Root run");
         } else if (rootMode == "0") {
             return DropRootPrivileges();
@@ -308,9 +306,9 @@ int main(int argc, const char *argv[])
 #endif
     daemon.WorkerPendding();
     bool wantRestart = daemon.WantRestart();
-    WRITE_LOG(LOG_DEBUG, "Daemon finish g_rootRun %d wantRestart %d", g_rootRun, wantRestart);
+    WRITE_LOG(LOG_DEBUG, "Daemon finish wantRestart %d", wantRestart);
     // There is no daemon, we can only restart myself.
-    if (g_rootRun && wantRestart) {
+    if (wantRestart) {
         // just root can self restart, low privilege will be exit and start by service(root)
         WRITE_LOG(LOG_INFO, "Daemon restart");
         RestartDaemon(false);

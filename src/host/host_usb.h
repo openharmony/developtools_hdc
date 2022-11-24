@@ -41,6 +41,7 @@ private:
     static void KickoutZombie(HSession hSession);
     static void LIBUSB_CALL USBBulkCallback(struct libusb_transfer *transfer);
     int StartupUSBWork();
+    void CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor *descConfig);
     int CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_device_descriptor& desc);
     int OpenDeviceMyNeed(HUSB hUSB);
     int CheckDescriptor(HUSB hUSB, libusb_device_descriptor& desc);

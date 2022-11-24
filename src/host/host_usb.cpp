@@ -326,27 +326,22 @@ bool HdcHostUSB::IsDebuggableDev(const struct libusb_interface_descriptor *ifDes
 
 int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_device_descriptor& desc)
 {
-    unsigned int j = 0;
     struct libusb_config_descriptor *descConfig = nullptr;
     int ret = libusb_get_active_config_descriptor(device, &descConfig);
-    if (ret != 0)
-    {
+    if (ret != 0) {
 #ifdef HOST_MAC
         if ((desc.bDeviceClass == 0xFF)
             && (desc.bDeviceSubClass == 0xFF)
-            && (desc.bDeviceProtocol == 0xFF))
-        {
+            && (desc.bDeviceProtocol == 0xFF)) {
             ret = libusb_set_configuration(hUSB->devHandle, 1);
-            if (ret != 0)
-            {
+            if (ret != 0) {
                 WRITE_LOG(LOG_WARN, "set config failed ret:%d", ret);
                 return -1;
             }
         }
 
         ret = libusb_get_active_config_descriptor(device, &descConfig);
-        if (ret != 0)
-        {
+        if (ret != 0) {
 #endif
             return -1;
         }
@@ -355,6 +350,14 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_devic
 #endif
 
     ret = -1;
+    CheckUsbEndpoint(ret, hUSB, descConfig);
+    libusb_free_config_descriptor(descConfig);
+    return ret;
+}
+
+void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor *descConfig)
+{
+    unsigned int j = 0;
     for (j = 0; j < descConfig->bNumInterfaces; ++j) {
         const struct libusb_interface *interface = &descConfig->interface[j];
         if (interface->num_altsetting >= 1) {
@@ -384,8 +387,6 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_devic
             ret = 0;
         }
     }
-    libusb_free_config_descriptor(descConfig);
-    return ret;
 }
 
 // multi-thread calll

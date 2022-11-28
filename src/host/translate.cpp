@@ -189,21 +189,16 @@ namespace TranslateCommand {
         return stringError;
     }
 
-    string TargetReboot(const char *input, FormatCommand *outCmd)
+    void TargetReboot(const char *input, FormatCommand *outCmd)
     {
-        string stringError;
         outCmd->cmdFlag = CMD_UNITY_REBOOT;
         if (strcmp(input, CMDSTR_TARGET_REBOOT.c_str())) {
             outCmd->parameters = input + 12;
-            if (outCmd->parameters != "-bootloader" && outCmd->parameters != "-recovery" &&
-                outCmd->parameters != "-flashd") {
-                stringError = "Error reboot paramenter";
-                outCmd->bJumpDo = true;
-            } else {
+            if (outCmd->parameters == "-bootloader" || outCmd->parameters == "-recovery" ||
+                outCmd->parameters == "-flashd") {
                 outCmd->parameters.erase(outCmd->parameters.begin());
             }
         }
-        return stringError;
     }
 
     // command input
@@ -274,7 +269,7 @@ namespace TranslateCommand {
         } else if (!strcmp(input.c_str(), CMDSTR_TRACK_JDWP.c_str())) {
             outCmd->cmdFlag = CMD_JDWP_TRACK;
         } else if (!strncmp(input.c_str(), CMDSTR_TARGET_REBOOT.c_str(), CMDSTR_TARGET_REBOOT.size())) {
-            stringError = TargetReboot(input.c_str(), outCmd);
+            TargetReboot(input.c_str(), outCmd);
         } else if (!strncmp(input.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size())) {
             stringError = RunMode(input.c_str(), outCmd);
         } else if (!strncmp(input.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size())) {

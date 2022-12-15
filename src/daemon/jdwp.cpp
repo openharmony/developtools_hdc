@@ -434,6 +434,7 @@ void HdcJdwp::SendProcessList(HTaskInfo t, string data)
     void *clsSession = t->ownerSessionClass;
     HdcSessionBase *sessionBase = static_cast<HdcSessionBase *>(clsSession);
     sessionBase->LogMsg(t->sessionId, t->channelId, MSG_OK, data.c_str());
+    WRITE_LOG(LOG_INFO, "SendProcessList channelId:%u data:%s", t->channelId, data.c_str());
 }
 
 void HdcJdwp::ProcessListUpdated(HTaskInfo task)

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "ext_client.h"
+#include "libgen.h"
 #include "common.h"
 
 namespace Hdc {
@@ -30,6 +31,7 @@ ExtClient::ExtClient()
     if (rc != 0) {
         WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
     }
+    RegistExecFunc(&lib);
 }
 
 ExtClient::~ExtClient()
@@ -143,7 +145,10 @@ void ExtClient::Kill(const std::string &str)
 void ExtClient::Connect(const std::string &str)
 {
     const char *name = "HdcExtConnect";
-    Handle(str, name);
+    string res = Handle(str, name);
+    if (res.find("connected to") != std::string::npos) {
+        _exit(0);
+    }
 }
 
 void ExtClient::ListTargets(const std::string &str)
@@ -304,10 +309,11 @@ std::string ExtClient::RemoveRemoteCwd(const std::string &str)
     return cmd;
 }
 
-void ExtClient::HandleLib(const std::string &str, const char *name, uv_lib_t &lib)
+std::string ExtClient::HandleLib(const std::string &str, const char *name, uv_lib_t &lib)
 {
     typedef void (*HdcExtCommand)(const char *, uint64_t, char *, uint64_t &);
     HdcExtCommand command;
+    std::string strBuf;
     int rc = uv_dlsym(&lib, name, (void **) &command);
     if (rc != 0) {
         WRITE_LOG(LOG_FATAL, "uv_dlsym %s failed %s", name, uv_dlerror(&lib));
@@ -316,20 +322,21 @@ void ExtClient::HandleLib(const std::string &str, const char *name, uv_lib_t &li
         char *buffer = new(std::nothrow) char[size]();
         if (buffer == nullptr) {
             WRITE_LOG(LOG_FATAL, "new buffer failed with function %s", name);
-            return;
+            return "";
         }
         command(str.c_str(), str.size(), buffer, size);
-        std::string strBuf(buffer);
+        strBuf = buffer;
         if (!strBuf.empty()) {
             Base::PrintMessage("%s", strBuf.c_str());
         }
         delete[] buffer;
     }
+    return strBuf;
 }
 
-void ExtClient::Handle(const std::string &str, const char *name)
+std::string ExtClient::Handle(const std::string &str, const char *name)
 {
-    HandleLib(str, name, this->lib);
+    return HandleLib(str, name, this->lib);
 }
 
 std::string ExtClient::WithConnectKey(const string &str)
@@ -354,9 +361,61 @@ void ExtClient::WaitForExtent(const std::string &str)
         WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&uvLib));
         return;
     }
+    RegistExecFunc(&uvLib);
     const char *name = "HdcExtWaitFor";
     HandleLib(str, name, uvLib);
     uv_dlclose(&uvLib);
+}
+
+static void ExternalExecFunc(int argc, char *argv[])
+{
+#define EXTERNAL_KEEP_FDS 3
+    uv_loop_t loop;
+    uv_process_t childReq = {};
+    uv_process_options_t options = {};
+    uv_stdio_container_t childStdio[EXTERNAL_KEEP_FDS];
+
+    if (argc <= 0) {
+        return;
+    }
+
+    uv_loop_init(&loop);
+
+    for (int i = 0; i < EXTERNAL_KEEP_FDS; i++) {
+        childStdio[i].flags = UV_INHERIT_FD;
+        childStdio[i].data.fd = i;
+    }
+
+    size_t pathSize = BUF_SIZE_DEFAULT;
+    char execPath[pathSize];
+    int ret = uv_exepath(execPath, &pathSize);
+    if (ret < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r(ret, buf, bufSize);
+        Base::PrintMessage("ExternalExecFunc exepath error: %s\n", buf);
+        return;
+    }
+    char *execDir = dirname(execPath);
+    options.file = (string(execDir) + "/" + string(argv[0])).c_str();
+    options.args = argv;
+    options.exit_cb = NULL;
+    options.stdio_count = EXTERNAL_KEEP_FDS;
+    options.stdio = childStdio;
+
+    uv_spawn(&loop, &childReq, &options);
+    uv_run(&loop, UV_RUN_DEFAULT);
+}
+
+void ExtClient::RegistExecFunc(uv_lib_t *lib)
+{
+    typedef void (*HdcExtRegistExec)(void *);
+    HdcExtRegistExec registExec;
+    const char *name = "HdcExtRegistExecFunc";
+    int rc = uv_dlsym(lib, name, (void **) &registExec);
+    if (rc == 0) {
+        registExec(reinterpret_cast<void *>(ExternalExecFunc));
+    }
 }
 }
 

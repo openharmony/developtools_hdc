@@ -14,7 +14,6 @@
  */
 
 #include <iostream>
-
 #include "server.h"
 #include "server_for_client.h"
 
@@ -395,6 +394,7 @@ int main(int argc, const char *argv[])
     string options;
     string commands;
     Hdc::SplitOptionAndCommand(argc, argv, options, commands);
+    uv_setup_args(argc, const_cast<char **>(argv));
     int optArgc = 0;
     char **optArgv = Base::SplitCommandToArgs(options.c_str(), &optArgc);
     bool cmdOptionResult;
@@ -438,7 +438,9 @@ int main(int argc, const char *argv[])
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
-            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
+            std::thread([&commands]() {
+                Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
+            }).detach();
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
         } else {
             g_show = false;

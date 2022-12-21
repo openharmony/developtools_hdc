@@ -389,7 +389,7 @@ void InitServerAddr(void)
             }
         }
         if (!digit) {
-            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not digit",
+            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not digit, "
                     "now use defult port %u.\n", env, DEFAULT_PORT);
             port = DEFAULT_PORT;
             break;

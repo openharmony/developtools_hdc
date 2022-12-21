@@ -233,6 +233,13 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
             Base::PrintMessage("The port-string's length must < 5");
             return false;
         }
+        size_t len = strlen(buf);
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(buf[i]) == 0) {
+                Base::PrintMessage("The port must be digit buf:%s", buf);
+                return false;
+            }
+        }
         int port = atoi(buf);
         if (port <= 0 || port > MAX_IP_PORT) {
             Base::PrintMessage("Port range incorrect");
@@ -242,6 +249,14 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
         serverListenString = buf;
     } else {
         *p = '\0';
+        char *str = p + 1;
+        size_t len = strlen(str);
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(str[i]) == 0) {
+                Base::PrintMessage("The port must be digit str:%s", str);
+                return false;
+            }
+        }
         int port = atoi(p + 1);
         sockaddr_in addrv4;
         sockaddr_in6 addrv6;
@@ -361,6 +376,21 @@ void InitServerAddr(void)
     do {
         char *env = getenv(ENV_SERVER_PORT.c_str());
         if (!env) {
+            port = DEFAULT_PORT;
+            break;
+        }
+
+        bool digit = true;
+        size_t len = strlen(env);
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(env[i]) == 0) {
+                digit = false;
+                break;
+            }
+        }
+        if (!digit) {
+            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not digit",
+                    "now use defult port %u.\n", env, DEFAULT_PORT);
             port = DEFAULT_PORT;
             break;
         }

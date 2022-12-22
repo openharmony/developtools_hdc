@@ -429,10 +429,13 @@ int main(int argc, const char *argv[])
     char **optArgv = Base::SplitCommandToArgs(options.c_str(), &optArgc);
     bool cmdOptionResult;
 
-    bool rc = InitServerAddr();
-    if (!rc) {
-        fprintf(stderr, "InitServerAddr failed rc %d\n", rc);
-        return 0;
+    bool exist = ExtClient::SharedLibraryExist();
+    if (!exist) {
+        bool rc = InitServerAddr();
+        if (!rc) {
+            fprintf(stderr, "InitServerAddr failed rc %d\n", rc);
+            return 0;
+        }
     }
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
@@ -448,7 +451,6 @@ int main(int argc, const char *argv[])
         if (!g_isCustomLoglevel) {
             Base::SetLogLevel(LOG_INFO);
         }
-        bool exist = ExtClient::SharedLibraryExist();
         if (!exist) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
             WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main only hdc");

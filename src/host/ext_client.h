@@ -53,11 +53,12 @@ private:
     void UnknowCommand(const std::string &str);
     std::string RemoveRemoteCwd(const std::string &str);
     void UpdateList(const std::string &str);
-    static void HandleLib(const std::string &str, const char *name, uv_lib_t &lib);
-    void Handle(const std::string &str, const char *name);
+    static std::string HandleLib(const std::string &str, const char *name, uv_lib_t &lib);
+    std::string Handle(const std::string &str, const char *name);
     string WithConnectKey(const string &str);
     static void WaitForExtent(const std::string &str);
     static const char *GetPath();
+    static void RegistExecFunc(uv_lib_t *lib);
 };
 }
 #endif

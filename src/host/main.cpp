@@ -370,10 +370,9 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     return needExit;
 }
 
-bool InitServerAddr(void)
+void InitServerAddr(void)
 {
     int port;
-    bool rc = true;
     do {
         char *env = getenv(ENV_SERVER_PORT.c_str());
         if (!env) {
@@ -384,28 +383,20 @@ bool InitServerAddr(void)
         size_t len = strlen(env);
         for (size_t i = 0; i < len; i++) {
             if (isdigit(env[i]) == 0) {
-                rc = false;
-                break;
+                fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not digit\n", env);
+                return;
             }
-        }
-        if (!rc) {
-            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not digit\n", env);
-            break;
         }
 
         port = atoi(env);
         if (port > MAX_IP_PORT || port <= 0) {
             fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not in (0, 65535] range\n", env);
-            rc = false;
+            return;
         }
     } while (0);
-    if (!rc) {
-        return false;
-    }
     g_serverListenString = DEFAULT_SERVER_ADDR_IP;
     g_serverListenString += ":";
     g_serverListenString += std::to_string(port);
-    return true;
 }
 
 void RunExternalClient(string &str, string &connectKey, string &containerInOut)
@@ -429,8 +420,7 @@ int main(int argc, const char *argv[])
     char **optArgv = Base::SplitCommandToArgs(options.c_str(), &optArgc);
     bool cmdOptionResult;
 
-    bool rc = InitServerAddr();
-    fprintf(stderr, "InitServerAddr rc %d\n", rc);
+    InitServerAddr();
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
     if (cmdOptionResult) {

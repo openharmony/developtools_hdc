@@ -163,7 +163,6 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
 int RunServerMode(string &serverListenString)
 {
     if (serverListenString.empty()) {
-        Base::PrintMessage("RunServerMode serverListenString empty");
         return -1;
     }
     HdcServer server(true);
@@ -197,7 +196,6 @@ int RunPcDebugMode(bool isPullServer, bool isTCPorUSB, int isTestMethod)
 int RunClientMode(string &commands, string &serverListenString, string &connectKey, bool isPullServer)
 {
     if (serverListenString.empty()) {
-        Base::PrintMessage("RunClientMode serverListenString empty");
         return -1;
     }
     uv_loop_t loopMain;
@@ -446,7 +444,6 @@ int main(int argc, const char *argv[])
         bool exist = ExtClient::SharedLibraryExist();
         if (!exist) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
-            WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main only hdc");
             Hdc::Base::RemoveLogCache();
             return 0;
         }

@@ -162,6 +162,10 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
 
 int RunServerMode(string &serverListenString)
 {
+    if (serverListenString.empty()) {
+        Base::PrintMessage("RunServerMode serverListenString empty");
+        return -1;
+    }
     HdcServer server(true);
     if (!server.Initial(serverListenString.c_str())) {
         Base::PrintMessage("Initial failed");
@@ -192,6 +196,10 @@ int RunPcDebugMode(bool isPullServer, bool isTCPorUSB, int isTestMethod)
 
 int RunClientMode(string &commands, string &serverListenString, string &connectKey, bool isPullServer)
 {
+    if (serverListenString.empty()) {
+        Base::PrintMessage("RunClientMode serverListenString empty");
+        return -1;
+    }
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
     HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_SERVER);

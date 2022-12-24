@@ -162,6 +162,9 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
 
 int RunServerMode(string &serverListenString)
 {
+    if (serverListenString.empty()) {
+        return -1;
+    }
     HdcServer server(true);
     if (!server.Initial(serverListenString.c_str())) {
         Base::PrintMessage("Initial failed");
@@ -192,6 +195,9 @@ int RunPcDebugMode(bool isPullServer, bool isTCPorUSB, int isTestMethod)
 
 int RunClientMode(string &commands, string &serverListenString, string &connectKey, bool isPullServer)
 {
+    if (serverListenString.empty()) {
+        return -1;
+    }
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
     HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_SERVER);
@@ -233,6 +239,13 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
             Base::PrintMessage("The port-string's length must < 5");
             return false;
         }
+        size_t len = strlen(buf);
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(buf[i]) == 0) {
+                Base::PrintMessage("The port must be digit buf:%s", buf);
+                return false;
+            }
+        }
         int port = atoi(buf);
         if (port <= 0 || port > MAX_IP_PORT) {
             Base::PrintMessage("Port range incorrect");
@@ -242,6 +255,14 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
         serverListenString = buf;
     } else {
         *p = '\0';
+        char *str = p + 1;
+        size_t len = strlen(str);
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(str[i]) == 0) {
+                Base::PrintMessage("The port must be digit str:%s", str);
+                return false;
+            }
+        }
         int port = atoi(p + 1);
         sockaddr_in addrv4;
         sockaddr_in6 addrv6;
@@ -365,11 +386,18 @@ void InitServerAddr(void)
             break;
         }
 
+        size_t len = strlen(env);
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(env[i]) == 0) {
+                fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not digit\n", env);
+                return;
+            }
+        }
+
         port = atoi(env);
 	if (port > 65535 || port <= 0) {
-            fprintf(stderr, "please set OHOS_HDC_SERVER_PORT to positive interger,"
-                    " now it is %s, now use defult port %u.\n", env, DEFAULT_PORT);
-            port = DEFAULT_PORT;
+            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not in (0, 65535] range\n", env);
+            return;
 	}
     } while (0);
 
@@ -417,7 +445,6 @@ int main(int argc, const char *argv[])
         bool exist = ExtClient::SharedLibraryExist();
         if (!exist) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
-            WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main only hdc");
             Hdc::Base::RemoveLogCache();
             return 0;
         }

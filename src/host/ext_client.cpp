@@ -386,8 +386,9 @@ static void ExternalExecFunc(int argc, char *argv[])
         childStdio[i].data.fd = i;
     }
 
-    size_t pathSize = BUF_SIZE_DEFAULT;
+    size_t pathSize = BUF_SIZE_DEFAULT4;
     char execPath[pathSize];
+    (void)memset_s(execPath, pathSize, 0, pathSize);
     int ret = uv_exepath(execPath, &pathSize);
     if (ret < 0) {
         constexpr int bufSize = 1024;
@@ -396,8 +397,8 @@ static void ExternalExecFunc(int argc, char *argv[])
         Base::PrintMessage("ExternalExecFunc exepath error: %s\n", buf);
         return;
     }
-    char *execDir = dirname(execPath);
-    options.file = (string(execDir) + "/" + string(argv[0])).c_str();
+    string path = string(dirname(execPath)) + "/" + string(argv[0]);
+    options.file = path.c_str();
     options.args = argv;
     options.exit_cb = NULL;
     options.stdio_count = EXTERNAL_KEEP_FDS;

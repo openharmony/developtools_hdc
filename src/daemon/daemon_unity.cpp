@@ -274,16 +274,22 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         }
         case CMD_UNITY_ROOTRUN: {
             ret = false;
+#ifndef HDC_BUILD_VARIANT_USER
             string debugMode;
+            // hdcd restart in old pid
+            bool restart = true;
             SystemDepend::GetDevItem("const.debuggable", debugMode);
             if (debugMode == "1") {
                 if (payloadSize != 0 && !strcmp(strPayload.c_str(), "r")) {
                     SystemDepend::SetDevItem("persist.hdc.root", "0");
                 } else {
+                    // hdcd restart in new pid
+                    restart = false;
                     SystemDepend::SetDevItem("persist.hdc.root", "1");
                 }
             }
-            daemon->PostStopInstanceMessage(true);
+            daemon->PostStopInstanceMessage(restart);
+#endif
             break;
         }
         case CMD_UNITY_TERMINATE: {

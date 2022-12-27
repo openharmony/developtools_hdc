@@ -94,6 +94,9 @@ ohos_executable("hdcd") {
   if (js_jdwp_connect) {
     defines += [ "JS_JDWP_CONNECT" ]
   }
+  if (build_variant == "user") {
+    defines += [ "HDC_BUILD_VARIANT_USER" ]
+  }
   configs = [ ":hdc_config" ]
 
   deps = [
@@ -104,7 +107,7 @@ ohos_executable("hdcd") {
 
   deps += [
     ":hdc_hash_gen",
-    ":hdc_para_dac",
+    "${HDC_PATH}/src/daemon/etc:daemon_etc",
   ]
 
   if (hdc_jdwp_test) {
@@ -274,9 +277,3 @@ action("hdc_hash_gen") {
   public_configs = [ ":hdc_config" ]
 }
 
-ohos_prebuilt_etc("hdc_para_dac") {
-  source = "hdc.para.dac"
-  relative_install_dir = "param"
-  part_name = "hdc"
-  subsystem_name = "developtools"
-}

@@ -238,10 +238,17 @@ bool NeedDropRootPrivileges()
     SystemDepend::GetDevItem("persist.hdc.root", rootMode);
     if (debugMode == "1") {
         if (rootMode == "1") {
-            setuid(0);
-            WRITE_LOG(LOG_DEBUG, "Root run");
+            int rc = setuid(0);
+            if (rc != 0) {
+                char buffer[BUF_SIZE_DEFAULT] = { 0 };
+                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+                WRITE_LOG(LOG_FATAL, "setuid(0) fail %s", buffer);
+            }
+            WRITE_LOG(LOG_DEBUG, "Root run rc:%d", rc);
         } else if (rootMode == "0") {
-            return DropRootPrivileges();
+            if (getuid() == 0) {
+                return DropRootPrivileges();
+            }
         }
         // default keep root
     } else {
@@ -288,7 +295,7 @@ int main(int argc, const char *argv[])
         return BackgroundRun();
     }
 
-#ifdef HARMONY_PROJECT
+#ifndef HDC_BUILD_VARIANT_USER
     if (!NeedDropRootPrivileges()) {
         Base::PrintMessage("DropRootPrivileges fail, EXITING...\n");
         return -1;
@@ -297,6 +304,7 @@ int main(int argc, const char *argv[])
 
     Base::InitProcess();
     WRITE_LOG(LOG_DEBUG, "HdcDaemon main run");
+    Base::ChmodLogFile();
     HdcDaemon daemon(false, CheckUvThreadConfig());
 
 #ifdef HDC_SUPPORT_UART
@@ -318,7 +326,7 @@ int main(int argc, const char *argv[])
     // Test the command "smode -r" in uart mode, then execute shell
     // hdcd will not really exit until usb plug in
     // so we use abort here
-    abort();
+    _exit(0);
 #endif
     return 0;
 }

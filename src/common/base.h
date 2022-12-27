@@ -143,6 +143,7 @@ namespace Base {
     void RemoveLogFile();
     void RemoveLogCache();
     void RollLogFile(const char *path);
+    void ChmodLogFile();
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
     bool IsRoot();
     char GetPathSep();

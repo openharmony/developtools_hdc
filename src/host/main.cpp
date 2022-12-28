@@ -462,12 +462,11 @@ int main(int argc, const char *argv[])
                    !strncmp(commands.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
-            std::thread([&commands]() {
-                Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
-            }).detach();
+            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
+            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
         } else {
             g_show = false;
             Hdc::RunExternalClient(str, g_connectKey, g_containerInOut);

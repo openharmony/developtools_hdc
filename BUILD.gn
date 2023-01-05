@@ -276,4 +276,3 @@ action("hdc_hash_gen") {
   ]
   public_configs = [ ":hdc_config" ]
 }
-

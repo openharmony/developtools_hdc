@@ -36,4 +36,3 @@ ohos_prebuilt_etc("hdc.para.dac") {
   part_name = "hdc"
   subsystem_name = "developtools"
 }
-

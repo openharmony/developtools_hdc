@@ -86,7 +86,7 @@ namespace TranslateCommand {
               "app commands:\n"
               " install [-r] src                      - Send package(s) to device and install them\n"
               "                                         src examples: single or multiple packages and directories\n"
-              "                                         (.hap)\n"
+              "                                         (.hap .hsp)\n"
               "                                         -r: replace existing application\n"
               " uninstall [-k] package                - Remove application package from device\n"
               "                                         -k: keep the data and cache directories\n"

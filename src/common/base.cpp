@@ -203,6 +203,19 @@ namespace Base {
         }
     }
 
+    void ChmodLogFile()
+    {
+        string path = GetTmpDir() + LOG_FILE_NAME;
+        uv_fs_t req;
+        uv_fs_req_cleanup(&req);
+        int rc = uv_fs_chmod(nullptr, &req, path.c_str(), 0664, nullptr);
+        if (rc < 0) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", path.c_str(), buffer);
+        }
+    }
+
     void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
     {
         if (logLevel > g_logLevel) {

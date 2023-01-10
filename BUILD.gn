@@ -121,7 +121,6 @@ ohos_executable("hdcd") {
   ]
 
   include_dirs = [
-    "${HDC_PATH}/daemon",
     "//third_party/bounds_checking_function/include",
     "//third_party/lz4/lib",
     "//third_party/openssl/include",
@@ -198,7 +197,6 @@ ohos_executable("hdc") {
   deps += [ ":hdc_hash_gen" ]
 
   include_dirs = [
-    "${HDC_PATH}/daemon",
     "//third_party/bounds_checking_function/include",
     "//third_party/lz4/lib",
     "//third_party/openssl/include",

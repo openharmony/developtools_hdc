@@ -206,7 +206,7 @@ namespace Base {
     void ChmodLogFile()
     {
         string path = GetTmpDir() + LOG_FILE_NAME;
-        uv_fs_t req;
+        uv_fs_t req = {};
         uv_fs_req_cleanup(&req);
         int rc = uv_fs_chmod(nullptr, &req, path.c_str(), 0664, nullptr);
         if (rc < 0) {

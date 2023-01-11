@@ -50,10 +50,11 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
         } else {
             string path = argv[i];
             ExtractRelativePath(context->transferConfig.clientCwd, path);
-            if (MatchPackageExtendName(path, ".hap")) {
+            if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")) {
                 context->taskQueue.push_back(path);
             } else {
                 GetSubFiles(argv[i], ".hap", &context->taskQueue);
+                GetSubFiles(argv[i], ".hsp", &context->taskQueue);
             }
         }
     }
@@ -105,6 +106,8 @@ void HdcHostApp::CheckMaster(CtxFile *context)
         = Base::GetRandomString(9);  // Prevent the name of illegal APP leads to pm unable to install
     if (context->localPath.find(".hap") != static_cast<size_t>(-1)) {
         context->transferConfig.optionalName += ".hap";
+    } else if (context->localPath.find(".hsp") != static_cast<size_t>(-1)) {
+        context->transferConfig.optionalName += ".hsp";
     } else {
         context->transferConfig.optionalName += ".bundle";
     }

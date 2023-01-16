@@ -26,6 +26,10 @@ ohos_prebuilt_etc("hdcd.cfg") {
     source = "hdcd.cfg"
   }
   relative_install_dir = "init"
+  install_images = [
+    "system",
+    "updater",
+  ]
   part_name = "hdc"
   subsystem_name = "developtools"
 }
@@ -33,6 +37,10 @@ ohos_prebuilt_etc("hdcd.cfg") {
 ohos_prebuilt_etc("hdc.para.dac") {
   source = "hdc.para.dac"
   relative_install_dir = "param"
+  install_images = [
+    "system",
+    "updater",
+  ]
   part_name = "hdc"
   subsystem_name = "developtools"
 }

@@ -389,7 +389,7 @@ void InitServerAddr(void)
         size_t len = strlen(env);
         size_t maxLen = 5;
         if (len > maxLen) {
-            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is not in (0, 65535] range\n", env);
+            fprintf(stderr, "OHOS_HDC_SERVER_PORT %s is too long for the (0, 65535] range\n", env);
             return;
         }
 

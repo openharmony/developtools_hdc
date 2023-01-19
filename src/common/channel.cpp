@@ -361,6 +361,8 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     if (!hChannel) {
         return 0;
     }
+    hChannel->stdinTty.data = nullptr;
+    hChannel->stdoutTty.data = nullptr;
     uint32_t channelId = GetChannelPseudoUid();
     if (isServerOrClient) {
         hChannel->serverOrClient = isServerOrClient;
@@ -400,6 +402,10 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
 void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 {
     auto closeChannelHandle = [](uv_handle_t *handle) -> void {
+        if (handle->data == nullptr) {
+            WRITE_LOG(LOG_WARN, "FreeChannelContinue handle->data is nullptr");
+            return;
+        }
         HChannel channel = reinterpret_cast<HChannel>(handle->data);
         --channel->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);

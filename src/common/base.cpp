@@ -329,7 +329,6 @@ namespace Base {
             uv_strerror_r(status, buf, bufSize);
             WRITE_LOG(LOG_WARN, "SendCallback failed,status:%d %s", status, buf);
         }
-        delete[]((uint8_t *)req->data);
         delete req;
     }
 
@@ -400,17 +399,7 @@ namespace Base {
         if (bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
             return ERR_BUF_ALLOC;
         }
-        uint8_t *pDynBuf = new uint8_t[bufLen];
-        if (!pDynBuf) {
-            WRITE_LOG(LOG_WARN, "SendToStream, alloc failed, size:%d", bufLen);
-            return ERR_BUF_ALLOC;
-        }
-        if (memcpy_s(pDynBuf, bufLen, buf, bufLen)) {
-            WRITE_LOG(LOG_WARN, "SendToStream, memory copy failed, size:%d", bufLen);
-            delete[] pDynBuf;
-            return ERR_BUF_COPY;
-        }
-        return SendToStreamEx(handleStream, pDynBuf, bufLen, nullptr, (void *)SendCallback, (void *)pDynBuf);
+        return SendToStreamEx(handleStream, buf, bufLen, nullptr, (void *)SendCallback, (void *)buf);
     }
 
     // handleSend is used for pipe thread sending, set nullptr for tcp, and dynamically allocated by malloc when buf

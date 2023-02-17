@@ -133,7 +133,8 @@ int HdcServerForClient::Initial()
     bool b = SetTCPListen();
     if (!b) {
         WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
-        return -3;
+        int listenError = -3;
+        return listenError;
     }
     return 0;
 }

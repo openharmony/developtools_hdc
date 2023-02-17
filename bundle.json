@@ -33,8 +33,7 @@
     },
     "build": {
       "sub_component": [
-        "//developtools/hdc:hdcd",
-        "//developtools/hdc:hdc_target_all"
+        "//developtools/hdc:hdcd"
       ]
     }
   }

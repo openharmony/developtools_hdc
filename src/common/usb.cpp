@@ -178,10 +178,12 @@ int HdcUSBBase::SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t 
         PreSendUsbSoftReset(hSession, 0);  // 0 == reset current
         return 0;
     }
+    Base::StartDaemonTrace("HdcUSBBase::SendToHdcStream: UsbToHdcProtocol SendToStreamEx");
     if ((childRet = UsbToHdcProtocol(stream, appendData, dataSize)) < 0) {
         WRITE_LOG(LOG_FATAL, "Error usb send to stream dataSize:%d", dataSize);
         return ERR_IO_FAIL;
     }
+    Base::FinishDaemonTrace();
     hUSB->payloadSize -= childRet;
     return hUSB->payloadSize;
 }

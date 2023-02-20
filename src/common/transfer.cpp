@@ -210,13 +210,17 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             WRITE_LOG(LOG_DEBUG, "read file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
                       context->fileSize);
 #endif // HDC_DEBUG
+            Base::StartDaemonTrace("OnFileIO: SendIOPayload");
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
                 context->ioFinish = true;
                 break;
             }
+            Base::FinishDaemonTrace();
             if (context->indexIO < context->fileSize) {
+                Base::StartDaemonTrace("OnFileIO: SimpleFileIO");
                 thisClass->SimpleFileIO(context, context->indexIO, nullptr,
                                         Base::GetMaxBufSize() * thisClass->maxTransferBufFactor);
+                Base::FinishDaemonTrace();
             } else {
                 context->ioFinish = true;
             }
@@ -621,9 +625,11 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         if (static_cast<uint32_t>(clearSize) != pld.uncompressSize) {
             break;
         }
+        Base::StartDaemonTrace("RecvIOPayload: SimpleFileIO");
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {
             break;
         }
+        Base::FinishDaemonTrace();
         ret = true;
         break;
     }
@@ -639,7 +645,9 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
     while (true) {
         if (command == commandBegin) {
             CtxFile *context = &ctxNow;
+            Base::StartDaemonTrace("CommandDispatch: SimpleFileIO");
             int ioRet = SimpleFileIO(context, context->indexIO, nullptr, Base::GetMaxBufSize() * maxTransferBufFactor);
+            Base::FinishDaemonTrace();
             if (ioRet < 0) {
                 ret = false;
                 break;

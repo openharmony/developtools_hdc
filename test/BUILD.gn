@@ -124,6 +124,7 @@ ohos_source_set("hdc_common") {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
   }
   public_deps = common_deps
+  external_deps = [ "hitrace_native:hitrace_meter" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -140,6 +141,7 @@ ohos_source_set("hdc_daemon") {
     sources += [ "${hdc_path}/src/daemon/daemon_uart.cpp" ]
   }
   public_deps = common_deps
+  external_deps = [ "hitrace_native:hitrace_meter" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -190,7 +192,10 @@ ohos_source_set("hdc_daemon_platform") {
     "//third_party/openssl:libcrypto_static",
   ]
 
-  external_deps = [ "init:libbegetutil" ]
+  external_deps = [
+    "hitrace_native:hitrace_meter",
+    "init:libbegetutil",
+  ]
 
   include_dirs = [
     "${hdc_path}/daemon",

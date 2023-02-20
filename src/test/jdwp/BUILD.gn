@@ -23,6 +23,7 @@ ohos_executable("jdwp_test") {
   deps = [ "//third_party/libuv:uv" ]
   external_deps = [
     "c_utils:utils",
+    "hitrace_native:hitrace_meter",
     "hiviewdfx_hilog_native:libhilog",
   ]
   include_dirs = [

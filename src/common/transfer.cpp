@@ -58,11 +58,11 @@ bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
 int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes)
 {
     // The first 8 bytes file offset
-    uint8_t *buf = context->master ? new uint8_t[bytes + payloadPrefixReserve]() : nullptr;
+    uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
     while (true) {
-        if (!ioContext || bytes < 0) {
+        if (!buf || !ioContext || bytes < 0) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }
@@ -71,20 +71,20 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             break;
         }
         uv_fs_t *req = &ioContext->fs;
-        ioContext->bufIO = context->master ? buf + payloadPrefixReserve : sendBuf;
+        ioContext->bufIO = buf + payloadPrefixReserve;
         ioContext->context = context;
         req->data = ioContext;
         ++refCount;
         if (context->master) {  // master just read, and slave just write.when master/read, sendBuf can be nullptr
-            if (!buf) {
-                WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
-                break;
-            }
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
             uv_fs_read(context->loop, req, context->fsOpenReq.result, &iov, 1, index, context->cb);
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
+            if (bytes > 0 && memcpy_s(ioContext->bufIO, bytes, sendBuf, bytes) != EOK) {
+                WRITE_LOG(LOG_WARN, "SimpleFileIO memcpy error");
+                break;
+            }
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
             uv_fs_write(context->loop, req, context->fsOpenReq.result, &iov, 1, index, context->cb);
         }
@@ -247,9 +247,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
     }
     --thisClass->refCount;
-    if (req->fs_type == UV_FS_READ) {
-        delete[] (bufIO - payloadPrefixReserve);
-    }
+    delete[] (bufIO - payloadPrefixReserve);
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }
 

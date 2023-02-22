@@ -282,8 +282,11 @@ bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
         return false;
     }
     as[0] = bufString;
+    if (as[0].size() > BUF_SIZE_SMALL) {
+        return false;
+    }
     as[1] = bufString + strlen(bufString) + 1;
-    if (as[0].size() > BUF_SIZE_SMALL || as[1].size() > BUF_SIZE_SMALL) {
+    if (as[1].size() > BUF_SIZE_SMALL) {
         return false;
     }
     if (as[0] == "tcp") {

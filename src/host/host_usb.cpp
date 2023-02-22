@@ -360,32 +360,34 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
     unsigned int j = 0;
     for (j = 0; j < descConfig->bNumInterfaces; ++j) {
         const struct libusb_interface *interface = &descConfig->interface[j];
-        if (interface->num_altsetting >= 1) {
-            const struct libusb_interface_descriptor *ifDescriptor = &interface->altsetting[0];
-            if (!IsDebuggableDev(ifDescriptor)) {
+        if (interface->num_altsetting < 1) {
+            continue;
+        }
+        const struct libusb_interface_descriptor *ifDescriptor = &interface->altsetting[0];
+        if (!IsDebuggableDev(ifDescriptor)) {
+            continue;
+        }
+        WRITE_LOG(LOG_DEBUG, "CheckActiveConfig IsDebuggableDev passed and then check endpoint attr");
+        hUSB->interfaceNumber = ifDescriptor->bInterfaceNumber;
+        unsigned int k = 0;
+        for (k = 0; k < ifDescriptor->bNumEndpoints; ++k) {
+            const struct libusb_endpoint_descriptor *ep_desc = &ifDescriptor->endpoint[k];
+            if ((ep_desc->bmAttributes & 0x03) != LIBUSB_TRANSFER_TYPE_BULK) {
                 continue;
             }
-            WRITE_LOG(LOG_DEBUG, "CheckActiveConfig IsDebuggableDev passed and then check endpoint attr");
-            hUSB->interfaceNumber = ifDescriptor->bInterfaceNumber;
-            unsigned int k = 0;
-            for (k = 0; k < ifDescriptor->bNumEndpoints; ++k) {
-                const struct libusb_endpoint_descriptor *ep_desc = &ifDescriptor->endpoint[k];
-                if ((ep_desc->bmAttributes & 0x03) == LIBUSB_TRANSFER_TYPE_BULK) {
-                    if (ep_desc->bEndpointAddress & LIBUSB_ENDPOINT_IN) {
-                        hUSB->hostBulkIn.endpoint = ep_desc->bEndpointAddress;
-                        hUSB->hostBulkIn.bulkInOut = true;
-                    } else {
-                        hUSB->hostBulkOut.endpoint = ep_desc->bEndpointAddress;
-                        hUSB->wMaxPacketSizeSend = ep_desc->wMaxPacketSize;
-                        hUSB->hostBulkOut.bulkInOut = false;
-                    }
-                }
+            if (ep_desc->bEndpointAddress & LIBUSB_ENDPOINT_IN) {
+                hUSB->hostBulkIn.endpoint = ep_desc->bEndpointAddress;
+                hUSB->hostBulkIn.bulkInOut = true;
+            } else {
+                hUSB->hostBulkOut.endpoint = ep_desc->bEndpointAddress;
+                hUSB->wMaxPacketSizeSend = ep_desc->wMaxPacketSize;
+                hUSB->hostBulkOut.bulkInOut = false;
             }
-            if (hUSB->hostBulkIn.endpoint == 0 || hUSB->hostBulkOut.endpoint == 0) {
-                break;
-            }
-            ret = 0;
         }
+        if (hUSB->hostBulkIn.endpoint == 0 || hUSB->hostBulkOut.endpoint == 0) {
+            break;
+        }
+        ret = 0;
     }
 }
 

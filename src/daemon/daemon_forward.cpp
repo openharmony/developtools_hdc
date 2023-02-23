@@ -70,9 +70,11 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
         memcpy_s(flag + 1 + len, sizeof(flag) - len - 1, &fds[1], len)) {
         return ret;
     }
+    Base::StartDaemonTrace("SetupJdwpPoint: ThreadCtrlCommunicate SendToStreamEx (hSession->ctrlPipe)");
     if (ThreadCtrlCommunicate(flag, sizeof(flag)) > 0) {
         ret = true;
     }
+    Base::FinishDaemonTrace();
     WRITE_LOG(LOG_DEBUG, "SendJdwpNewFD Finish,ret:%d fd0:%d fd1:%d", ret, fds[0], fds[1]);
     if (!ret) {
         Base::CloseSocketPair(fds);

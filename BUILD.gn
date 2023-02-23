@@ -82,6 +82,7 @@ ohos_executable("hdcd") {
     "HARMONY_PROJECT",
     "USE_CONFIG_UV_THREADS",
     "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
+    "HDC_TRACE",
   ]
 
   if (hdc_debug) {
@@ -117,6 +118,7 @@ ohos_executable("hdcd") {
 
   external_deps = [
     "c_utils:utilsbase",
+    "hitrace_native:hitrace_meter",
     "init:libbegetutil",
   ]
 

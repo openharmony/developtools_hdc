@@ -707,12 +707,16 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         ctxIO->ctxForward = ctx;
         ctxIO->bufIO = pDynBuf;
         if (ctx->type == FORWARD_TCP || ctx->type == FORWARD_JDWP) {
+            Base::StartDaemonTrace("SendForwardBuf: SendToStreamEx FORWARD_TCP_JDWP");
             nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->tcp, pDynBuf, size, nullptr,
                                         (void *)SendCallbackForwardBuf, (void *)ctxIO);
+            Base::FinishDaemonTrace();
         } else {
+            Base::StartDaemonTrace("SendForwardBuf: SendToStreamEx FORWARD");
             // FORWARD_ABSTRACT, FORWARD_RESERVED, FORWARD_FILESYSTEM,
             nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, pDynBuf, size, nullptr,
                                         (void *)SendCallbackForwardBuf, (void *)ctxIO);
+            Base::FinishDaemonTrace();
         }
     }
     return nRet;

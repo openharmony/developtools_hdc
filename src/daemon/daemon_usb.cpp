@@ -329,7 +329,9 @@ int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     HdcDaemon *daemon = (HdcDaemon *)hSession->classInstance;
     std::unique_lock<std::mutex> lock(mutexUsbFfs);
     ++hSession->ref;
+    Base::StartDaemonTrace("SendUSBRaw: SendUSBIOSync");
     int ret = SendUSBIOSync(hSession, &usbHandle, data, length);
+    Base::FinishDaemonTrace();
     --hSession->ref;
     if (ret < 0) {
         daemon->FreeSession(hSession->sessionId);
@@ -370,7 +372,9 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
         }
         if (!hChildSession->isDead) {
             auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
+            Base::StartDaemonTrace("PrepareNewSession: SendToStreamEx (hChildSession->ctrlPipe[STREAM_MAIN])");
             Base::SendToStream((uv_stream_t *)&hChildSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
+            Base::FinishDaemonTrace();
             WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);

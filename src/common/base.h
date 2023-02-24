@@ -172,8 +172,6 @@ namespace Base {
         return false;
     }
 #endif
-    void StartDaemonTrace(const std::string& value);
-    void FinishDaemonTrace();
 }  // namespace base
 }  // namespace Hdc
 

@@ -577,9 +577,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     // wait workthread to free
     if (hSession->ctrlPipe[STREAM_WORK].loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
-        Base::StartDaemonTrace("FreeSessionOpeate: SendToStreamEx (hSession->ctrlPipe[STREAM_MAIN])");
         Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
-        Base::FinishDaemonTrace();
         WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
@@ -755,22 +753,16 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
     switch (hSession->connType) {
         case CONN_TCP: {
             if (echo && !hSession->serverOrDaemon) {
-                Base::StartDaemonTrace("SendByProtocol: SendToStreamEx");
                 ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen,
                                            nullptr, (void *)FinishWriteSessionTCP, bufPtr);
-                Base::FinishDaemonTrace();
             } else {
                 if (hSession->hWorkThread == uv_thread_self()) {
-                    Base::StartDaemonTrace("SendByProtocol: SendToStreamEx");
                     ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen,
                                                nullptr, (void *)FinishWriteSessionTCP, bufPtr);
-                    Base::FinishDaemonTrace();
                 } else if (hSession->hWorkChildThread == uv_thread_self()) {
-                    Base::StartDaemonTrace("SendByProtocol: SendToStreamEx");
                     ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr,
                                                bufLen, nullptr, (void *)FinishWriteSessionTCP,
                                                bufPtr);
-                    Base::FinishDaemonTrace();
                 } else {
                     WRITE_LOG(LOG_FATAL, "SendByProtocol uncontrol send");
                     ret = ERR_API_FAIL;
@@ -832,7 +824,6 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     }
     bool bufRet = false;
     do {
-        Base::StartDaemonTrace("HdcSessionBase::Send memcpy_s PayloadHead + s");
         if (memcpy_s(finayBuf, sizeof(PayloadHead), reinterpret_cast<uint8_t *>(&payloadHead), sizeof(PayloadHead))) {
             WRITE_LOG(LOG_WARN, "send copyhead err for dataSize:%d", dataSize);
             break;
@@ -842,7 +833,6 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
             WRITE_LOG(LOG_WARN, "send copyProtbuf err for dataSize:%d", dataSize);
             break;
         }
-        Base::FinishDaemonTrace();
         if (dataSize > 0 && memcpy_s(finayBuf + sizeof(PayloadHead) + s.size(), dataSize, data, dataSize)) {
             WRITE_LOG(LOG_WARN, "send copyDatabuf err for dataSize:%d", dataSize);
             break;

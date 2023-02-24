@@ -129,6 +129,7 @@ ohos_source_set("hdc_common") {
     ":hdc_common_config",
     ":hdc_ut_config",
   ]
+  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
 ohos_source_set("hdc_daemon") {
@@ -146,6 +147,7 @@ ohos_source_set("hdc_daemon") {
     ":hdc_common_config",
     ":hdc_ut_config",
   ]
+  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
 ohos_source_set("hdc_host") {
@@ -162,6 +164,7 @@ ohos_source_set("hdc_host") {
     ":hdc_host_common_config",
     ":hdc_ut_config",
   ]
+  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
 ohos_source_set("hdc_daemon_platform") {
@@ -240,6 +243,7 @@ ohos_unittest("hdc_jdwp_unittest") {
     static_link = false
   }
   subsystem_name = "developtools"
+  defines += [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
 ohos_unittest("hdc_uart_unittest") {
@@ -259,6 +263,7 @@ ohos_unittest("hdc_uart_unittest") {
     "//third_party/googletest:gmock_main",
     "//third_party/googletest:gtest_main",
   ]
+  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
 ohos_unittest("hdc_host_uart_unittest") {
@@ -282,6 +287,7 @@ ohos_unittest("hdc_host_uart_unittest") {
     "//third_party/googletest:gmock_main",
     "//third_party/googletest:gtest_main",
   ]
+  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
 group("HdcJdwpTest") {

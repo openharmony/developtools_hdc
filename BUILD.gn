@@ -82,6 +82,7 @@ ohos_executable("hdcd") {
     "HARMONY_PROJECT",
     "USE_CONFIG_UV_THREADS",
     "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
+    "OPENSSL_SUPPRESS_DEPRECATED",
   ]
 
   if (hdc_debug) {
@@ -159,6 +160,7 @@ ohos_executable("hdc") {
     "HARMONY_PROJECT",
     "USE_CONFIG_UV_THREADS",
     "SIZE_THREAD_POOL=$hdc_uv_thread_size",
+    "OPENSSL_SUPPRESS_DEPRECATED",
   ]
   if (is_mac) {
     defines += [ "HOST_MAC" ]
@@ -218,7 +220,6 @@ ohos_executable("hdc") {
 
     # we should use something we define , not just _WIN32 (this will defined in some windows header)
     defines += [ "HOST_MINGW" ]  # we define this for mingw
-    defines += [ "WIN32_LEAN_AND_MEAN" ]
     libs += [ "setupapi" ]
     ldflags += [
       "-Wl,--whole-archive",

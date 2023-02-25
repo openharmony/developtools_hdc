@@ -23,9 +23,6 @@
 #include <random>
 #include <sstream>
 #include <thread>
-#ifdef HDC_TRACE
-#include "hitrace_meter.h"
-#endif
 using namespace std::chrono;
 
 namespace Hdc {
@@ -1589,22 +1586,6 @@ namespace Base {
         signal(SIGPIPE, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGALRM, SIG_DFL);
-#endif
-    }
-
-    void StartDaemonTrace(const std::string& value)
-    {
-#ifdef HDC_TRACE
-        uint64_t label = HITRACE_TAG_HDCD;
-        StartTrace(label, value);
-#endif
-    }
-
-    void FinishDaemonTrace()
-    {
-#ifdef HDC_TRACE
-        uint64_t label = HITRACE_TAG_HDCD;
-        FinishTrace(label);
 #endif
     }
 }

@@ -24,6 +24,9 @@
 #include "unistd.h"
 #include "base.h"
 #include "file_descriptor.h"
+#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#include "selinux/selinux.h"
+#endif
 
 namespace Hdc {
 std::mutex HdcShell::mutexPty;
@@ -143,6 +146,22 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
     return 0;
 }
 
+static void SetSelinuxLabel()
+{
+#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+    char *con = nullptr;
+    if (getcon(&con) != 0) {
+        return;
+    }
+    if (strcmp(con, "u:r:hdcd:s0") != 0) {
+        freecon(con);
+        return;
+    }
+    setcon("u:r:sh:s0");
+    freecon(con);
+#endif
+}
+
 int HdcShell::ShellFork(const char *cmd, const char *arg0, const char *arg1)
 {
     pid_t pid;
@@ -158,6 +177,7 @@ int HdcShell::ShellFork(const char *cmd, const char *arg0, const char *arg1)
         Base::DeInitProcess();
         HdcShell::mutexPty.unlock();
         setsid();
+        SetSelinuxLabel();
         Base::CloseFd(ptm);
         int pts = 0;
         if ((pts = open(devname, O_RDWR | O_CLOEXEC)) < 0) {

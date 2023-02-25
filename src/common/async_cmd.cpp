@@ -13,6 +13,11 @@
  * limitations under the License.
  */
 #include "async_cmd.h"
+#if !defined(_WIN32) && !defined(HDC_HOST)
+#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#include "selinux/selinux.h"
+#endif
+#endif
 
 namespace Hdc {
 // Do not add thread-specific init op in the following methods as it's running in child thread.
@@ -89,6 +94,24 @@ bool AsyncCmd::ChildReadCallback(const void *context, uint8_t *buf, const int si
     return thisClass->resultCallback(false, 0, s);
 };
 
+#if !defined(_WIN32) && !defined(HDC_HOST)
+static void SetSelinuxLabel()
+{
+#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+    char *con = nullptr;
+    if (getcon(&con) != 0) {
+        return;
+    }
+    if (strcmp(con, "u:r:hdcd:s0") != 0) {
+        freecon(con);
+        return;
+    }
+    setcon("u:r:sh:s0");
+    freecon(con);
+#endif
+}
+#endif
+
 int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
 {
 #ifdef _WIN32
@@ -116,6 +139,9 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
 
         setsid();
         setpgid(childPid, childPid);
+#if !defined(HDC_HOST)
+        SetSelinuxLabel();
+#endif
         string shellPath = Base::GetShellPath();
         execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
         exit(0);

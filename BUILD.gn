@@ -62,91 +62,129 @@ config("hdc_config") {
   }
 }
 
-ohos_executable("hdcd") {
-  use_exceptions = true
-  sources = [
-    "src/daemon/daemon.cpp",
-    "src/daemon/daemon_app.cpp",
-    "src/daemon/daemon_forward.cpp",
-    "src/daemon/daemon_tcp.cpp",
-    "src/daemon/daemon_unity.cpp",
-    "src/daemon/daemon_usb.cpp",
-    "src/daemon/jdwp.cpp",
-    "src/daemon/main.cpp",
-    "src/daemon/shell.cpp",
-    "src/daemon/system_depend.cpp",
-  ]
-  sources += hdc_common_sources
+template("hdcd_source_set") {
+  forward_variables_from(invoker, "*")
 
-  defines = [
-    "HARMONY_PROJECT",
-    "USE_CONFIG_UV_THREADS",
-    "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
-  ]
+  ohos_source_set(target_name) {
+    use_exceptions = true
+    sources = [
+      "src/daemon/daemon.cpp",
+      "src/daemon/daemon_app.cpp",
+      "src/daemon/daemon_forward.cpp",
+      "src/daemon/daemon_tcp.cpp",
+      "src/daemon/daemon_unity.cpp",
+      "src/daemon/daemon_usb.cpp",
+      "src/daemon/jdwp.cpp",
+      "src/daemon/main.cpp",
+      "src/daemon/shell.cpp",
+      "src/daemon/system_depend.cpp",
+    ]
+    sources += hdc_common_sources
 
-  if (hdc_debug) {
-    defines += [ "HDC_DEBUG" ]
+    defines = [
+      "HARMONY_PROJECT",
+      "USE_CONFIG_UV_THREADS",
+      "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
+    ]
+
+    if (hdc_debug) {
+      defines += [ "HDC_DEBUG" ]
+    }
+    if (hdc_support_uart) {
+      defines += [ "HDC_SUPPORT_UART" ]
+      sources += [ "src/daemon/daemon_uart.cpp" ]
+    }
+    if (js_jdwp_connect) {
+      defines += [ "JS_JDWP_CONNECT" ]
+    }
+    if (build_variant == "user") {
+      defines += [ "HDC_BUILD_VARIANT_USER" ]
+    }
+    configs = [ ":hdc_config" ]
+
+    deps = [
+      "//third_party/libuv:uv",
+      "//third_party/lz4:liblz4_static",
+      "//third_party/openssl:libcrypto_shared",
+    ]
+
+    deps += [
+      ":hdc_hash_gen",
+      "${HDC_PATH}/src/daemon/etc:daemon_etc",
+    ]
+
+    if (hdc_jdwp_test) {
+      defines += [ "SIMULATE_JDWP" ]
+      deps += [ "${HDC_PATH}/src/test/jdwp:jdwp_test" ]
+    }
+
+    external_deps = [
+      "c_utils:utilsbase",
+      "init:libbegetutil",
+    ]
+
+    include_dirs = [
+      "//third_party/bounds_checking_function/include",
+      "//third_party/lz4/lib",
+      "//third_party/openssl/include",
+      "//third_party/libuv",
+    ]
+
+    if (build_selinux) {
+      deps += [ "//third_party/selinux:libselinux" ]
+      include_dirs += [ "//third_party/selinux/libselinux/include" ]
+      defines += [ "SURPPORT_SELINUX" ]
+      if (image_name == "updater") {
+        defines += [ "UPDATER_MODE" ]
+      }
+    }
+
+    if (hdc_version_check) {
+      defines += [ "HDC_VERSION_CHECK" ]
+    }
+
+    ldflags = [ "-rdynamic" ]
   }
-  if (hdc_support_uart) {
-    defines += [ "HDC_SUPPORT_UART" ]
-    sources += [ "src/daemon/daemon_uart.cpp" ]
-  }
-  if (js_jdwp_connect) {
-    defines += [ "JS_JDWP_CONNECT" ]
-  }
-  if (build_variant == "user") {
-    defines += [ "HDC_BUILD_VARIANT_USER" ]
-  }
-  configs = [ ":hdc_config" ]
+}
 
-  deps = [
-    "//third_party/libuv:uv",
-    "//third_party/lz4:liblz4_static",
-    "//third_party/openssl:libcrypto_shared",
-  ]
-
-  deps += [
-    ":hdc_hash_gen",
-    "${HDC_PATH}/src/daemon/etc:daemon_etc",
-  ]
-
-  if (hdc_jdwp_test) {
-    defines += [ "SIMULATE_JDWP" ]
-    deps += [ "${HDC_PATH}/src/test/jdwp:jdwp_test" ]
+template("build_hdc") {
+  forward_variables_from(invoker, "*")
+  image_name = target_name
+  hdcd_source_set("hdcd_${image_name}_source") {
+    if (build_selinux) {
+      image_name = image_name
+    }
   }
 
-  external_deps = [
-    "c_utils:utilsbase",
-    "init:libbegetutil",
-  ]
-
-  include_dirs = [
-    "//third_party/bounds_checking_function/include",
-    "//third_party/lz4/lib",
-    "//third_party/openssl/include",
-    "//third_party/libuv",
-  ]
-
-  if (build_selinux) {
-    deps += [ "//third_party/selinux:libselinux" ]
-    include_dirs += [ "//third_party/selinux/libselinux/include" ]
-    defines += [ "SURPPORT_SELINUX" ]
+  ohos_executable("hdcd_${image_name}_exe") {
+    deps = [ ":hdcd_${image_name}_source" ]
+    output_name = "hdcd_${image_name}"
+    install_enable = false
+    subsystem_name = "developtools"
+    part_name = "hdc"
   }
 
-  if (hdc_version_check) {
-    defines += [ "HDC_VERSION_CHECK" ]
+  ohos_prebuilt_executable("hdcd_${image_name}") {
+    deps = [ ":hdcd_${image_name}_exe" ]
+    output = "${image_name}/hdcd"
+    install_enable = true
+    subsystem_name = "developtools"
+    part_name = "hdc"
+    source = "${root_out_dir}/${subsystem_name}/${part_name}/hdcd_${image_name}"
+    module_install_dir = "bin"
+    install_images = []
+    if (image_name == "updater") {
+      install_images = [ "updater" ]
+    } else {
+      install_images = [ "system" ]
+    }
   }
+}
 
-  install_images = [
-    "system",
-    "updater",
-  ]
+build_hdc("system") {
+}
 
-  ldflags = [ "-rdynamic" ]
-
-  install_enable = true
-  subsystem_name = "developtools"
-  part_name = "hdc"
+build_hdc("updater") {
 }
 
 ohos_executable("hdc") {
@@ -247,7 +285,8 @@ ohos_executable("hdc") {
 group("hdc_target") {
   deps = [
     ":hdc",
-    ":hdcd",
+    ":hdcd_system",
+    ":hdcd_updater",
   ]
 }
 

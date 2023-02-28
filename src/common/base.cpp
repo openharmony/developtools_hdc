@@ -1392,7 +1392,6 @@ namespace Base {
         }
         char *ustr = new(std::nothrow) char[count + 1]();
         if (ustr == nullptr) {
-            DWORD err = GetLastError();
             WRITE_LOG(LOG_FATAL, "new ustr failed count:%d", count);
             delete[] wstr;
             return "";

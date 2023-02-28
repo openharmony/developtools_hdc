@@ -102,7 +102,7 @@ static void SetSelinuxLabel()
     if (getcon(&con) != 0) {
         return;
     }
-    if (strcmp(con, "u:r:hdcd:s0") != 0) {
+    if ((strcmp(con, "u:r:hdcd:s0") != 0) && (strcmp(con, "u:r:updater:s0") != 0)) {
         freecon(con);
         return;
     }

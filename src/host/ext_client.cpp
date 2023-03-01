@@ -412,8 +412,8 @@ static int ExternalExecFunc(int argc, char *argv[])
 
 #ifdef HOST_MINGW
     DWORD status = 0;
-    if (GetExitCodeProcess(childReq.process_hanle, &status))
-        return uv_tanslate_sys_error(GetLastError());
+    if (GetExitCodeProcess(childReq.process_handle, &status)) {
+        return uv_translate_sys_error(GetLastError());
     }
 #else
     int status = 0;

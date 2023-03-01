@@ -367,16 +367,21 @@ void ExtClient::WaitForExtent(const std::string &str)
     uv_dlclose(&uvLib);
 }
 
-static void ExternalExecFunc(int argc, char *argv[])
+static void OnExit(uv_process_t *req, int64_t exitStatus, int termSignal)
+{
+    uv_close((uv_handle_t*) req, nullptr);
+}
+
+static int ExternalExecFunc(int argc, char *argv[])
 {
 #define EXTERNAL_KEEP_FDS 3
     uv_loop_t loop;
-    uv_process_t childReq = {};
-    uv_process_options_t options = {};
+    uv_process_t childReq = { 0 };
+    uv_process_options_t options = { 0 };
     uv_stdio_container_t childStdio[EXTERNAL_KEEP_FDS];
 
     if (argc <= 0) {
-        return;
+        return 1;
     }
 
     uv_loop_init(&loop);
@@ -391,31 +396,43 @@ static void ExternalExecFunc(int argc, char *argv[])
     (void)memset_s(execPath, pathSize, 0, pathSize);
     int ret = uv_exepath(execPath, &pathSize);
     if (ret < 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        uv_strerror_r(ret, buf, bufSize);
-        Base::PrintMessage("ExternalExecFunc exepath error: %s\n", buf);
-        return;
+        return 1;
     }
     string path = string(dirname(execPath)) + "/" + string(argv[0]);
     options.file = path.c_str();
     options.args = argv;
-    options.exit_cb = NULL;
+    options.exit_cb = OnExit;
     options.stdio_count = EXTERNAL_KEEP_FDS;
     options.stdio = childStdio;
 
-    uv_spawn(&loop, &childReq, &options);
+    if (uv_spawn(&loop, &childReq, &options) != 0) {
+        return 1;
+    }
     uv_run(&loop, UV_RUN_DEFAULT);
+
+#ifdef HOST_MINGW
+    DWORD status = 0;
+    if (GetExitCodeProcess(childReq.process_handle, &status)) {
+        return uv_translate_sys_error(GetLastError());
+    }
+#else
+    int status = 0;
+    if (!WIFEXITED(childReq.status)) {
+        return errno;
+    }
+    status = WEXITSTATUS(childReq.status);
+#endif
+    return static_cast<int>(status);
 }
 
 void ExtClient::RegistExecFunc(uv_lib_t *lib)
 {
-    typedef void (*HdcExtRegistExec)(void *);
+    typedef void (*HdcExtRegistExec)(int *);
     HdcExtRegistExec registExec;
     const char *name = "HdcExtRegistExecFunc";
     int rc = uv_dlsym(lib, name, (void **) &registExec);
     if (rc == 0) {
-        registExec(reinterpret_cast<void *>(ExternalExecFunc));
+        registExec(reinterpret_cast<int *>(ExternalExecFunc));
     }
 }
 }

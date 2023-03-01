@@ -297,6 +297,7 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
     int childRet = 0;
     int ret = ERR_IO_FAIL;
     int offset = 0;
+    StartTraceScope("HdcDaemonUSB::SendUSBIOSync");
     while (modRunning && isAlive && !hSession->isDead) {
         childRet = write(bulkIn, const_cast<uint8_t *>(data) + offset, length - offset);
         if (childRet <= 0) {
@@ -327,6 +328,7 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
 int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
 {
     HdcDaemon *daemon = (HdcDaemon *)hSession->classInstance;
+    StartTraceScope("SendUSBRaw: SendUSBIOSync");
     std::unique_lock<std::mutex> lock(mutexUsbFfs);
     ++hSession->ref;
     int ret = SendUSBIOSync(hSession, &usbHandle, data, length);
@@ -356,6 +358,7 @@ void HdcDaemonUSB::OnSessionFreeFinally(const HSession hSession)
 HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, int recvBytesIO)
 {
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
+    StartTraceScope("HdcDaemonUSB::PrepareNewSession");
     HSession hChildSession = daemon->MallocSession(false, CONN_USB, this, sessionId);
     if (!hChildSession) {
         return nullptr;
@@ -389,6 +392,7 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
     HSession hChildSession = nullptr;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
     int childRet = RET_SUCCESS;
+    StartTraceScope("HdcDaemonUSB::DispatchToWorkThread");
     if (sessionId == 0) {
         // hdc packet data
         sessionId = currentSessionId;
@@ -508,6 +512,7 @@ int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
     int ret = ERR_GENERIC;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
     uv_buf_t iov;
+    StartTraceScope("HdcDaemonUSB::LoopUSBRead");
     ctxRecv.data = hUSB;
     ctxRecv.bufSize = readMaxWanted;
     ctxRecv.req = {};
@@ -517,9 +522,11 @@ int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
     ret = uv_fs_read(&daemon->loopMain, req, hUSB->bulkOut, &iov, 1, -1, OnUSBRead);
     if (ret < 0) {
         WRITE_LOG(LOG_FATAL, "uv_fs_read < 0");
+        FinishTracePoint();
         return ERR_API_FAIL;
     }
     ctxRecv.atPollQueue = true;
+    FinishTracePoint();
     return RET_SUCCESS;
 }
 

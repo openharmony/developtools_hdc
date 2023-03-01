@@ -38,6 +38,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
 {
     int argc = 0;
     bool ret = false;
+    StartTraceScope("HdcFile::BeginTransfer");
     char **argv = Base::SplitCommandToArgs(command.c_str(), &argc);
     if (argc < CMD_ARG1_COUNT || argv == nullptr) {
         LogMsg(MSG_FAIL, "Transfer path split failed");
@@ -148,6 +149,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
 
 void HdcFile::CheckMaster(CtxFile *context)
 {
+    StartTraceScope("HdcFile::CheckMaster");
     if (context->fileModeSync) {
         string s = SerialStruct::SerializeToString(context->fileMode);
         SendToAnother(CMD_FILE_MODE, reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
@@ -187,6 +189,7 @@ void HdcFile::TransferSummary(CtxFile *context)
 
 bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int payloadSize)
 {
+    StartTraceScope("HdcFile::FileModeSync");
     if (ctxNow.master) {
         WRITE_LOG(LOG_DEBUG, "FileModeSync master ctxNow.fileModeSync = %d size = %zu", ctxNow.fileModeSync,
                   ctxNow.dirMode.size());
@@ -311,6 +314,7 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
 {
     HdcTransferBase::CommandDispatch(command, payload, payloadSize);
     bool ret = true;
+    StartTraceScope("HdcFile::CommandDispatch");
     switch (command) {
         case CMD_FILE_INIT: {  // initial
             string s = string(reinterpret_cast<char *>(payload), payloadSize);

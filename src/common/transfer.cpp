@@ -61,6 +61,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
+    StartTraceScope("HdcTransferBase::SimpleFileIO");
     while (true) {
         if (!buf || !ioContext || bytes < 0) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
@@ -143,6 +144,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     uint8_t *sendBuf = data - payloadPrefixReserve;
     bool ret = false;
 
+    StartTraceScope("HdcTransferBase::SendIOPayload");
     payloadHead.compressType = context->transferConfig.compressType;
     payloadHead.uncompressSize = dataSize;
     payloadHead.index = index;
@@ -189,6 +191,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     uint8_t *bufIO = contextIO->bufIO;
+    StartTraceScope("HdcTransferBase::OnFileIO");
     uv_fs_req_cleanup(req);
     while (true) {
         if (context->ioFinish) {
@@ -255,6 +258,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 {
     CtxFile *context = (CtxFile *)req->data;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+    StartTraceScope("HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
     WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s", context->localPath.c_str());
     --thisClass->refCount;
@@ -594,6 +598,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     bool ret = false;
     SerialStruct::ParseFromString(pld, serialStrring);
     int clearSize = 0;
+    StartTraceScope("HdcTransferBase::RecvIOPayload");
     if (pld.compressSize > 0) {
         switch (pld.compressType) {
 #ifdef HARMONY_PROJECT

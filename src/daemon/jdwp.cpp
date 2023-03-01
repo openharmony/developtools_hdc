@@ -22,8 +22,6 @@ HdcJdwp::HdcJdwp(uv_loop_t *loopIn)
     listenPipe.data = this;
     loop = loopIn;
     refCount = 0;
-    stop = false;
-    awakenPollFd = -1;
     uv_rwlock_init(&lockMapContext);
     uv_rwlock_init(&lockJdwpTrack);
     awakenPollFd = -1;
@@ -52,8 +50,10 @@ void HdcJdwp::Stop()
     };
     Base::TryCloseHandle((const uv_handle_t *)&listenPipe, funcListenPipeClose);
     freeContextMutex.lock();
-    for (auto &&obj : mapCtxJdwp) {
-        HCtxJdwp v = obj.second;
+    auto it = mapCtxJdwp.begin();
+    while (it != mapCtxJdwp.end()) {
+        HCtxJdwp v = it->second;
+        mapCtxJdwp.erase(it++);
         FreeContext(v);
     }
     AdminContext(OP_CLEAR, 0, nullptr);
@@ -81,7 +81,9 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
     ctx->finish = true;
     WRITE_LOG(LOG_INFO, "FreeContext for targetPID :%d", ctx->pid);
     Base::TryCloseHandle((const uv_handle_t *)&ctx->pipe);
-    AdminContext(OP_REMOVE, ctx->pid, nullptr);
+    if (!stop) {
+        AdminContext(OP_REMOVE, ctx->pid, nullptr);
+    }
     auto funcReqClose = [](uv_idle_t *handle) -> void {
         HCtxJdwp ctx = (HCtxJdwp)handle->data;
         --ctx->thisClass->refCount;

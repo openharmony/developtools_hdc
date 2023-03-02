@@ -17,6 +17,9 @@
 
 #include <sstream>
 #include <thread>
+#ifdef HDC_TRACE
+#include "hitrace_meter.h"
+#endif
 
 namespace Hdc {
 // ############################# enum define ###################################
@@ -31,6 +34,16 @@ enum LogLevel {
     LOG_LAST = LOG_VERBOSE,  // tail, not use
 };
 #define WRITE_LOG(x, y...) Base::PrintLogEx(__FILE__, __LINE__, x, y)
+
+#ifdef HDC_TRACE
+#define StartTracePoint(value) StartTrace(HITRACE_TAG_HDCD, value)
+#define FinishTracePoint()     FinishTrace(HITRACE_TAG_HDCD)
+#define StartTraceScope(value) HITRACE_METER_NAME(HITRACE_TAG_HDCD, value)
+#else
+#define StartTracePoint(value)
+#define FinishTracePoint()
+#define StartTraceScope(value)
+#endif
 
 enum MessageLevel {
     MSG_FAIL,

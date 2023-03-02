@@ -137,6 +137,10 @@ template("hdcd_source_set") {
       if (image_name == "updater") {
         defines += [ "UPDATER_MODE" ]
       }
+      if (image_name == "system") {
+        defines += [ "HDC_TRACE" ]
+        external_deps += [ "hitrace_native:hitrace_meter" ]
+      }
     }
 
     if (hdc_version_check) {

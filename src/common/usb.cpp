@@ -75,6 +75,7 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
 {
     int childRet = 0;
     int ret = ERR_IO_FAIL;
+    StartTraceScope("HdcUSBBase::SendUSBBlock");
     auto header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
     hSession->hUSB->lockSendUsbBlock.lock();
     do {
@@ -170,6 +171,7 @@ int HdcUSBBase::SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t 
 {
     int childRet = 0;
     HUSB hUSB = hSession->hUSB;
+    StartTraceScope("HdcUSBBase::SendToHdcStream: SendToStreamEx");
     if (IsUsbPacketHeader(appendData, dataSize)) {
         return CheckPacketOption(hSession, appendData, dataSize);
     }

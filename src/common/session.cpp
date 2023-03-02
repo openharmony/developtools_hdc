@@ -95,6 +95,7 @@ bool HdcSessionBase::TryRemoveTask(HTaskInfo hTask)
 // remove step1
 void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
 {
+    StartTraceScope("HdcSessionBase::BeginRemoveTask");
     if (hTask->taskStop || hTask->taskFree) {
         return;
     }
@@ -105,6 +106,7 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
         WRITE_LOG(LOG_INFO, "RemoveInstanceTask false taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
     }
     auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
+        StartTracePoint("HdcSessionBase::BeginRemoveTask: taskClassDeleteRetry");
         HTaskInfo hTask = (HTaskInfo)handle->data;
         HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
         constexpr uint32_t count = 1000;
@@ -123,6 +125,7 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
             hTask = nullptr;
         }
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
+        FinishTracePoint();
     };
     Base::TimerUvTask(hTask->runLoop, hTask, taskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
 
@@ -138,6 +141,7 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
     // First case: normal task cleanup process (STOP Remove)
     // Second: The task is cleaned up, the session ends
     // Third: The task is cleaned up, and the session is directly over the session.
+    StartTraceScope("HdcSessionBase::ClearOwnTasks");
     hSession->mapTaskMutex.lock();
     map<uint32_t, HTaskInfo>::iterator iter;
     for (iter = hSession->mapTask->begin(); iter != hSession->mapTask->end();) {
@@ -175,6 +179,7 @@ void HdcSessionBase::ClearSessions()
 
 void HdcSessionBase::ReMainLoopForInstanceClear()
 {  // reloop
+    StartTraceScope("HdcSessionBase::ReMainLoopForInstanceClear");
     auto clearSessionsForFinish = [](uv_idle_t *handle) -> void {
         HdcSessionBase *thisClass = (HdcSessionBase *)handle->data;
         if (thisClass->sessionRef > 0) {
@@ -560,6 +565,7 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
 
 void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
 {
+    StartTraceScope("HdcSessionBase::FreeSessionOpeate");
     HSession hSession = (HSession)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->ref > 0) {
@@ -597,6 +603,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
 
 void HdcSessionBase::FreeSession(const uint32_t sessionId)
 {
+    StartTraceScope("HdcSessionBase::FreeSession");
     if (threadSessionMain != uv_thread_self()) {
         PushAsyncMessage(sessionId, ASYNC_FREE_SESSION, nullptr, 0);
         return;
@@ -745,6 +752,7 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
 
 int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo )
 {
+    StartTraceScope("HdcSessionBase::SendByProtocol");
     if (hSession->isDead) {
         WRITE_LOG(LOG_WARN, "SendByProtocol session dead error");
         return ERR_SESSION_NOFOUND;
@@ -824,6 +832,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     }
     bool bufRet = false;
     do {
+        StartTracePoint("HdcSessionBase::Send memcpy_s PayloadHead + s");
         if (memcpy_s(finayBuf, sizeof(PayloadHead), reinterpret_cast<uint8_t *>(&payloadHead), sizeof(PayloadHead))) {
             WRITE_LOG(LOG_WARN, "send copyhead err for dataSize:%d", dataSize);
             break;
@@ -837,6 +846,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
             WRITE_LOG(LOG_WARN, "send copyDatabuf err for dataSize:%d", dataSize);
             break;
         }
+        FinishTracePoint();
         bufRet = true;
     } while (false);
     if (!bufRet) {
@@ -853,6 +863,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
 
 int HdcSessionBase::DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe, uint8_t *encBuf)
 {
+    StartTraceScope("HdcSessionBase::DecryptPayload");
     PayloadProtect protectBuf = {};
     uint16_t headSize = ntohs(payloadHeadBe->headSize);
     int dataSize = ntohl(payloadHeadBe->dataSize);
@@ -878,6 +889,7 @@ int HdcSessionBase::DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe
 int HdcSessionBase::OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen)
 {
     int ret = ERR_GENERIC;
+    StartTraceScope("HdcSessionBase::OnRead");
     if (memcmp(bufPtr, PACKET_FLAG.c_str(), PACKET_FLAG.size())) {
         WRITE_LOG(LOG_FATAL, "PACKET_FLAG incorrect %x %x", bufPtr[0], bufPtr[1]);
         return ERR_BUF_CHECK;
@@ -906,6 +918,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
     HdcSessionBase *ptrConnect = (HdcSessionBase *)hSession->classInstance;
     int indexBuf = 0;
     int childRet = 0;
+    StartTraceScope("HdcSessionBase::FetchIOBuf");
     if (read < 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };

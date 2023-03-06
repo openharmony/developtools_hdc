@@ -56,6 +56,7 @@ private:
     void Handle(const std::string &str, const char *name);
     string WithConnectKey(const string &str);
     static void WaitForExtent(const std::string &str);
+    static void RegistExecFunc(uv_lib_t *lib);
 };
 }
 #endif

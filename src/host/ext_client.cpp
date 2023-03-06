@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "ext_client.h"
+#include "libgen.h"
 #include "common.h"
 
 namespace Hdc {
@@ -29,6 +30,7 @@ ExtClient::ExtClient()
     if (rc != 0) {
         WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
     }
+    RegistExecFunc(&lib);
 }
 
 ExtClient::~ExtClient()
@@ -348,6 +350,7 @@ void ExtClient::WaitForExtent(const std::string &str)
         WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
         return;
     }
+    RegistExecFunc(&lib);
     const char *name = "HdcExtWaitFor";
     typedef void (*HdcExtCommand)(const char *, uint64_t, char *, uint64_t &);
     HdcExtCommand command;
@@ -369,6 +372,75 @@ void ExtClient::WaitForExtent(const std::string &str)
         delete[] buffer;
     }
     uv_dlclose(&lib);
+}
+
+static void OnExit(uv_process_t *req, int64_t exitStatus, int termSignal)
+{
+    uv_close((uv_handle_t*) req, nullptr);
+}
+
+static int ExternalExecFunc(int argc, char *argv[])
+{
+#define EXTERNAL_KEEP_FDS 3
+    uv_loop_t loop;
+    uv_process_t childReq = { 0 };
+    uv_process_options_t options = { 0 };
+    uv_stdio_container_t childStdio[EXTERNAL_KEEP_FDS];
+
+    if (argc <= 0) {
+        return 1;
+    }
+
+    uv_loop_init(&loop);
+
+    for (int i = 0; i < EXTERNAL_KEEP_FDS; i++) {
+        childStdio[i].flags = UV_INHERIT_FD;
+        childStdio[i].data.fd = i;
+    }
+
+    size_t pathSize = BUF_SIZE_DEFAULT4;
+    char execPath[pathSize];
+    (void)memset_s(execPath, pathSize, 0, pathSize);
+    int ret = uv_exepath(execPath, &pathSize);
+    if (ret < 0) {
+        return 1;
+    }
+    string path = string(dirname(execPath)) + "/" + string(argv[0]);
+    options.file = path.c_str();
+    options.args = argv;
+    options.exit_cb = OnExit;
+    options.stdio_count = EXTERNAL_KEEP_FDS;
+    options.stdio = childStdio;
+
+    if (uv_spawn(&loop, &childReq, &options) != 0) {
+        return 1;
+    }
+    uv_run(&loop, UV_RUN_DEFAULT);
+
+#ifdef HOST_MINGW
+    DWORD status = 0;
+    if (GetExitCodeProcess(childReq.process_handle, &status)) {
+        return uv_translate_sys_error(GetLastError());
+    }
+#else
+    int status = 0;
+    if (!WIFEXITED(childReq.status)) {
+        return errno;
+    }
+    status = WEXITSTATUS(childReq.status);
+#endif
+    return static_cast<int>(status);
+}
+
+void ExtClient::RegistExecFunc(uv_lib_t *lib)
+{
+    typedef void (*HdcExtRegistExec)(int *);
+    HdcExtRegistExec registExec;
+    const char *name = "HdcExtRegistExecFunc";
+    int rc = uv_dlsym(lib, name, (void **) &registExec);
+    if (rc == 0) {
+        registExec(reinterpret_cast<int *>(ExternalExecFunc));
+    }
 }
 }
 

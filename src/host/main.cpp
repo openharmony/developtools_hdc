@@ -429,6 +429,7 @@ int main(int argc, const char *argv[])
     string options;
     string commands;
     Hdc::SplitOptionAndCommand(argc, argv, options, commands);
+    uv_setup_args(argc, const_cast<char **>(argv));
     int optArgc = 0;
     char **optArgv = Base::SplitCommandToArgs(options.c_str(), &optArgc);
     bool cmdOptionResult;
@@ -469,10 +470,11 @@ int main(int argc, const char *argv[])
                    !strncmp(commands.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
             Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
+            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
         } else {
             g_show = false;
             Hdc::RunExternalClient(str, g_connectKey, g_containerInOut);

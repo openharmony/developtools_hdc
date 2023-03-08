@@ -85,6 +85,7 @@ template("hdcd_source_set") {
       "HARMONY_PROJECT",
       "USE_CONFIG_UV_THREADS",
       "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
+      "HDC_HILOG",
     ]
 
     if (hdc_debug) {
@@ -120,6 +121,7 @@ template("hdcd_source_set") {
 
     external_deps = [
       "c_utils:utilsbase",
+      "hiviewdfx_hilog_native:libhilog",
       "init:libbegetutil",
     ]
 

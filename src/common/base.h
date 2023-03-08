@@ -139,11 +139,13 @@ namespace Base {
     string GetFileNameAny(string &path);
     string GetCwd();
     string GetTmpDir();
+#ifndef  HDC_HILOG
     void SetLogCache(bool enable);
     void RemoveLogFile();
     void RemoveLogCache();
     void RollLogFile(const char *path);
     void ChmodLogFile();
+#endif
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
     bool IsRoot();
     char GetPathSep();

@@ -23,6 +23,9 @@
 #include <random>
 #include <sstream>
 #include <thread>
+#ifdef HDC_HILOG
+#include "hilog/log.h"
+#endif
 using namespace std::chrono;
 
 namespace Hdc {
@@ -32,7 +35,9 @@ namespace Base {
     {
         return g_logLevel;
     }
+#ifndef  HDC_HILOG
     std::atomic<bool> g_logCache = true;
+#endif
     uint8_t g_logLevel = LOG_DEBUG;  // tmp set,now debugmode.LOG_OFF when release;;
     void SetLogLevel(const uint8_t logLevel)
     {
@@ -121,6 +126,7 @@ namespace Base {
         }
     }
 
+#ifndef  HDC_HILOG
     void LogToPath(const char *path, const char *str)
     {
         // logfile, not thread-safe
@@ -215,6 +221,7 @@ namespace Base {
             WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", path.c_str(), buffer);
         }
     }
+#endif
 
     void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
     {
@@ -238,6 +245,13 @@ namespace Base {
         debugInfo = functionName;
         GetLogDebugFunctionName(debugInfo, line, threadIdString);
         GetLogLevelAndTime(logLevel, logLevelString, timeString);
+
+#ifdef  HDC_HILOG
+        static constexpr OHOS::HiviewDFX::HiLogLabel HILOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
+        OHOS::HiviewDFX::HiLog::Info(HILOG_LABEL, "[%{public}s]%{public}s%{public}s %{public}s%{public}s",
+                                     logLevelString.c_str(), threadIdString.c_str(), debugInfo.c_str(),
+                                     logDetail.c_str(), sep.c_str());
+#else
         logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(), threadIdString.c_str(),
                               debugInfo.c_str(), logDetail.c_str(), sep.c_str());
 
@@ -249,7 +263,7 @@ namespace Base {
         } else {
             LogToCache(logBuf.c_str());
         }
-
+#endif
         return;
     }
 #else   // else ENABLE_DEBUGLOG.If disabled, the entire output code will be optimized by the compiler
@@ -1498,6 +1512,7 @@ namespace Base {
         return res;
     }
 
+#ifndef  HDC_HILOG
     void SetLogCache(bool enable)
     {
         g_logCache = enable;
@@ -1521,6 +1536,7 @@ namespace Base {
         string cachePath = GetTmpDir() + LOG_CACHE_NAME;
         unlink(cachePath.c_str());
     }
+#endif
 
     bool IsRoot()
     {

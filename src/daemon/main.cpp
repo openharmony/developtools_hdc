@@ -262,7 +262,6 @@ bool NeedDropRootPrivileges()
 // daemon running with default behavior. options also can be given to custom its behavior including b/t/u/l etc.
 int main(int argc, const char *argv[])
 {
-    Hdc::Base::SetLogCache(false);
     // check property
     if (argc == 2 && !strcmp(argv[1], "-h")) {
         string usage = DaemonUsage();
@@ -275,7 +274,6 @@ int main(int argc, const char *argv[])
         return 0;
     }
     if (argc == 1 || (argc == CMD_ARG1_COUNT && (!strcmp(argv[1], "-forkchild") || !strcmp(argv[1], "-b")))) {
-        Hdc::Base::RemoveLogFile();
         ForkChildCheck(argc, argv);
     } else {
         GetDaemonCommandlineOptions(argc, argv);
@@ -304,7 +302,6 @@ int main(int argc, const char *argv[])
 
     Base::InitProcess();
     WRITE_LOG(LOG_DEBUG, "HdcDaemon main run");
-    Base::ChmodLogFile();
     HdcDaemon daemon(false, CheckUvThreadConfig());
 
 #ifdef HDC_SUPPORT_UART

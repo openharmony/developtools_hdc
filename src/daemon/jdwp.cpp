@@ -53,7 +53,6 @@ void HdcJdwp::Stop()
     auto it = mapCtxJdwp.begin();
     while (it != mapCtxJdwp.end()) {
         HCtxJdwp v = it->second;
-        mapCtxJdwp.erase(it++);
         FreeContext(v);
     }
     AdminContext(OP_CLEAR, 0, nullptr);

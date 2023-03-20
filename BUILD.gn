@@ -86,6 +86,7 @@ template("hdcd_source_set") {
       "USE_CONFIG_UV_THREADS",
       "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
       "HDC_HILOG",
+      "OPENSSL_SUPPRESS_DEPRECATED",
     ]
 
     if (hdc_debug) {
@@ -203,6 +204,7 @@ ohos_executable("hdc") {
     "HARMONY_PROJECT",
     "USE_CONFIG_UV_THREADS",
     "SIZE_THREAD_POOL=$hdc_uv_thread_size",
+    "OPENSSL_SUPPRESS_DEPRECATED",
   ]
   if (is_mac) {
     defines += [ "HOST_MAC" ]

@@ -50,9 +50,8 @@ void HdcJdwp::Stop()
     };
     Base::TryCloseHandle((const uv_handle_t *)&listenPipe, funcListenPipeClose);
     freeContextMutex.lock();
-    auto it = mapCtxJdwp.begin();
-    while (it != mapCtxJdwp.end()) {
-        HCtxJdwp v = it->second;
+    for (auto &&obj : mapCtxJdwp) {
+        HCtxJdwp v = obj.second;
         FreeContext(v);
     }
     AdminContext(OP_CLEAR, 0, nullptr);

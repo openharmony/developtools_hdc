@@ -35,7 +35,10 @@ ohos_prebuilt_etc("hdcd.cfg") {
 }
 
 ohos_prebuilt_etc("hdc.para.dac") {
-  source = "hdc.para.dac"
+  source = [
+    "hdc.para.dac",
+    "hdc.para",
+  ]
   relative_install_dir = "param"
   install_images = [
     "system",

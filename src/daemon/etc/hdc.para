@@ -11,13 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-sys.usb.ffs.ready = root:shell:0660
-persist.hdc.root = root:shell:0660
-persist.hdc.mode = root:shell:0660
-persist.hdc.port = root:shell:0660
-persist.hdc.uv.threads = root:shell:0660
-
-# hdc control
-persist.hdc.control.shell = root:shell:0660
-persist.hdc.control.file = root:shell:0660
-persist.hdc.control.fport = root:shell:0660
+# hdc control, "1" is on, "0" is off
+persist.hdc.control.shell="1"
+persist.hdc.control.file="1"
+persist.hdc.control.fport="1"

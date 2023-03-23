@@ -15,6 +15,7 @@ import("//build/ohos.gni")
 
 group("daemon_etc") {
   deps = [
+    ":hdc.para",
     ":hdc.para.dac",
     ":hdcd.cfg",
   ]
@@ -35,10 +36,18 @@ ohos_prebuilt_etc("hdcd.cfg") {
 }
 
 ohos_prebuilt_etc("hdc.para.dac") {
-  sources = [
-    "hdc.para.dac",
-    "hdc.para",
+  source = "hdc.para.dac"
+  relative_install_dir = "param"
+  install_images = [
+    "system",
+    "updater",
   ]
+  part_name = "hdc"
+  subsystem_name = "developtools"
+}
+
+ohos_prebuilt_etc("hdc.para") {
+  source = "hdc.para"
   relative_install_dir = "param"
   install_images = [
     "system",

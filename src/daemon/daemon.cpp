@@ -321,9 +321,16 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     return true;
 }
 
+bool HdcDaemon::IsExpectedParam(const string& param, const string& expect)
+{
+    string out;
+    SystemDepend::GetDevItem(param.c_str(), out);
+    return (out == expect);
+}
+
 bool HdcDaemon::CheckControl(const uint16_t command)
 {
-    bool ret = true; // usb control must make control param is 0, default no debug
+    bool ret = false; // default no debug
     switch (command) { // this switch is match RedirectToTask function
         case CMD_UNITY_EXECUTE:
         case CMD_UNITY_REMOUNT:
@@ -336,11 +343,10 @@ bool HdcDaemon::CheckControl(const uint16_t command)
         case CMD_JDWP_LIST:
         case CMD_JDWP_TRACK:
         case CMD_SHELL_INIT:
-        case CMD_SHELL_DATA:
-            string controlShell;
-            SystemDepend::GetDevItem("persist.hdc.control.shell", controlShell);
-            ret = (controlShell == "1");
+        case CMD_SHELL_DATA: {
+            ret = IsExpectedParam("persist.hdc.control.shell", "1");
             break;
+        }
         case CMD_FILE_CHECK:
         case CMD_FILE_DATA:
         case CMD_FILE_FINISH:
@@ -350,24 +356,22 @@ bool HdcDaemon::CheckControl(const uint16_t command)
         case CMD_DIR_MODE:
         case CMD_APP_CHECK:
         case CMD_APP_DATA:
-        case CMD_APP_UNINSTALL:
-            string controlFile;
-            SystemDepend::GetDevItem("persist.hdc.control.file", controlFile);
-            ret = (controlFile == "1");
+        case CMD_APP_UNINSTALL: {
+            ret = IsExpectedParam("persist.hdc.control.file", "1");
             break;
+        }
         case CMD_FORWARD_INIT:
         case CMD_FORWARD_CHECK:
         case CMD_FORWARD_ACTIVE_MASTER:
         case CMD_FORWARD_ACTIVE_SLAVE:
         case CMD_FORWARD_DATA:
         case CMD_FORWARD_FREE_CONTEXT:
-        case CMD_FORWARD_CHECK_RESULT:
-            string controlFport;
-            SystemDepend::GetDevItem("persist.hdc.control.fport", controlFport);
-            ret = (controlFport == "1");
+        case CMD_FORWARD_CHECK_RESULT: {
+            ret = IsExpectedParam("persist.hdc.control.fport", "1");
             break;
+        }
         default:
-            ret = true;
+            ret = false;
     }
     return ret;
 }

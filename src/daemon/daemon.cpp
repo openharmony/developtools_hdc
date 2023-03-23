@@ -325,12 +325,13 @@ bool HdcDaemon::IsExpectedParam(const string& param, const string& expect)
 {
     string out;
     SystemDepend::GetDevItem(param.c_str(), out);
+    WRITE_LOG(LOG_INFO, "param is %s, expect is %s", out, expect);
     return (out == expect);
 }
 
 bool HdcDaemon::CheckControl(const uint16_t command)
 {
-    bool ret = false; // default no debug
+    bool ret = true; // default no debug
     switch (command) { // this switch is match RedirectToTask function
         case CMD_UNITY_EXECUTE:
         case CMD_UNITY_REMOUNT:
@@ -347,19 +348,19 @@ bool HdcDaemon::CheckControl(const uint16_t command)
             ret = IsExpectedParam("persist.hdc.control.shell", "1");
             break;
         }
-        case CMD_FILE_CHECK:
-        case CMD_FILE_DATA:
-        case CMD_FILE_FINISH:
-        case CMD_FILE_INIT:
-        case CMD_FILE_BEGIN:
-        case CMD_FILE_MODE:
-        case CMD_DIR_MODE:
-        case CMD_APP_CHECK:
-        case CMD_APP_DATA:
-        case CMD_APP_UNINSTALL: {
-            ret = IsExpectedParam("persist.hdc.control.file", "1");
-            break;
-        }
+        // case CMD_FILE_CHECK:
+        // case CMD_FILE_DATA:
+        // case CMD_FILE_FINISH:
+        // case CMD_FILE_INIT:
+        // case CMD_FILE_BEGIN:
+        // case CMD_FILE_MODE:
+        // case CMD_DIR_MODE:
+        // case CMD_APP_CHECK:
+        // case CMD_APP_DATA:
+        // case CMD_APP_UNINSTALL: {
+        //     ret = IsExpectedParam("persist.hdc.control.file", "1");
+        //     break;
+        // }
         case CMD_FORWARD_INIT:
         case CMD_FORWARD_CHECK:
         case CMD_FORWARD_ACTIVE_MASTER:
@@ -371,7 +372,7 @@ bool HdcDaemon::CheckControl(const uint16_t command)
             break;
         }
         default:
-            ret = false;
+            ret = true;
     }
     return ret;
 }
@@ -410,6 +411,7 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
         }
         default:
             if (CheckControl(command)) {
+                WRITE_LOG(LOG_INFO, "beigin DispatchTaskData, command is %u", command);
                 ret = DispatchTaskData(hSession, channelId, command, payload, payloadSize);
             }
             break;

@@ -325,7 +325,7 @@ bool HdcDaemon::IsExpectedParam(const string& param, const string& expect)
 {
     string out;
     SystemDepend::GetDevItem(param.c_str(), out);
-    WRITE_LOG(LOG_INFO, "param is %s, expect is %s", out, expect);
+    WRITE_LOG(LOG_INFO, "param is %s, expect is %s", out.c_str(), expect.c_str());
     return (out == expect);
 }
 

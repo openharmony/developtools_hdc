@@ -466,7 +466,7 @@ void HdcJdwp::ProcessListUpdated(HTaskInfo task)
         // The channel for the track-jpid has been stopped.
         if ((*iter)->taskStop || (*iter)->taskFree || !(*iter)->taskClass) {
             iter = jdwpTrackers.erase(remove(jdwpTrackers.begin(), jdwpTrackers.end(), *iter), jdwpTrackers.end());
-            if (jdwpTrackers.size() <= 0) {
+            if (jdwpTrackers.size() == 0) {
                 return;
             }
         } else {

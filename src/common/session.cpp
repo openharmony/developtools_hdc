@@ -970,7 +970,7 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
     if (status < 0) {
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hSession->isDead && !hSession->ref) {
-            WRITE_LOG(LOG_DEBUG, "FinishWriteSessionTCP freesession :%p", hSession);
+            WRITE_LOG(LOG_DEBUG, "FinishWriteSessionTCP freesession :%u", hSession->sessionId);
             thisClass->FreeSession(hSession->sessionId);
         }
     }
@@ -1245,7 +1245,7 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     // main loop has exit
     thisClass->ReChildLoopForSessionClear(hSession);  // work pending again
     hSession->childCleared = true;
-    WRITE_LOG(LOG_DEBUG, "!!!Workthread run finish, sessionId:%u workthread:%p", hSession->sessionId, uv_thread_self());
+    WRITE_LOG(LOG_DEBUG, "!!!Workthread run finish, sessionId:%u", hSession->sessionId);
 }
 
 // clang-format off

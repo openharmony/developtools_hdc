@@ -269,24 +269,18 @@ void HdcForwardBase::ConnectTarget(uv_connect_t *connection, int status)
 
 bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
 {
-    char bufString[BUF_SIZE_MEDIUM];
-    if (!strchr(nodeInfo, ':')) {
-        return false;
-    }
-    if (EOK != strcpy_s(bufString, sizeof(bufString), nodeInfo)) {
-        return false;
-    }
-    if (*strchr(bufString, ':')) {
-        *strchr(bufString, ':') = '\0';
+    string str = nodeInfo;
+    size_t strLen = str.size();
+    size_t pos = str.find(':');
+    if (pos != string::npos) {
+        size_t maxPortLen = 5;
+        int portLen = strLen - 1 - pos;
+        if (pos == 0 || pos == strLen - 1 || portLen > maxPortLen) {
+            return false;
+        }
+        as[0] = str.substr(0, pos);
+        as[1] = str.substr(pos + 1);
     } else {
-        return false;
-    }
-    as[0] = bufString;
-    if (as[0].size() > BUF_SIZE_SMALL) {
-        return false;
-    }
-    as[1] = bufString + strlen(bufString) + 1;
-    if (as[1].size() > BUF_SIZE_SMALL) {
         return false;
     }
     if (as[0] == "tcp") {

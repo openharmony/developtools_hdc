@@ -229,7 +229,6 @@ namespace Base {
             return;
         }
         string debugInfo;
-        string logBuf;
         string logLevelString;
         string threadIdString;
         string sep = "\n";
@@ -252,8 +251,8 @@ namespace Base {
                                      logLevelString.c_str(), threadIdString.c_str(), debugInfo.c_str(),
                                      logDetail.c_str(), sep.c_str());
 #else
-        logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(), threadIdString.c_str(),
-                              debugInfo.c_str(), logDetail.c_str(), sep.c_str());
+        string logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
+                                     threadIdString.c_str(), debugInfo.c_str(), logDetail.c_str(), sep.c_str());
 
         printf("%s", logBuf.c_str());
         fflush(stdout);
@@ -424,7 +423,8 @@ namespace Base {
             delete[] pDynBuf;
             return ERR_BUF_COPY;
         }
-        return SendToStreamEx(handleStream, pDynBuf, bufLen, nullptr, (void *)SendCallback, (void *)pDynBuf);
+        return SendToStreamEx(handleStream, pDynBuf, bufLen, nullptr,
+                              reinterpret_cast<void *>(SendCallback), reinterpret_cast<void *>(pDynBuf));
     }
 
     // handleSend is used for pipe thread sending, set nullptr for tcp, and dynamically allocated by malloc when buf

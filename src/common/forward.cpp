@@ -273,9 +273,7 @@ bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
     size_t strLen = str.size();
     size_t pos = str.find(':');
     if (pos != string::npos) {
-        size_t maxPortLen = 5;
-        int portLen = strLen - 1 - pos;
-        if (pos == 0 || pos == strLen - 1 || portLen > maxPortLen) {
+        if (pos == 0 || pos == strLen - 1) {
             return false;
         }
         as[0] = str.substr(0, pos);
@@ -284,6 +282,9 @@ bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
         return false;
     }
     if (as[0] == "tcp") {
+        if (as[1].size() > std::to_string(MAX_IP_PORT).size()) {
+            return false;
+        }
         int port = atoi(as[1].c_str());
         if (port <= 0 || port > MAX_IP_PORT) {
             return false;

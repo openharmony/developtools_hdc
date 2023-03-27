@@ -282,7 +282,7 @@ bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
         return false;
     }
     if (as[0] == "tcp") {
-	if (as[1].size() > string(MAX_IP_PORT).size()) {
+	if (as[1].size() > std::to_string(MAX_IP_PORT).size()) {
             return false;
         }
         int port = atoi(as[1].c_str());

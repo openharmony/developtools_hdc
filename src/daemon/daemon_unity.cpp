@@ -202,8 +202,8 @@ bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
 inline bool HdcDaemonUnity::GetHiLog(const char *cmd)
 {
     string cmdDo = "hilog";
-    if (cmd && !strcmp(const_cast<char *>(cmd), "v")) {
-        cmdDo += " -v long";
+    if (cmd && !strcmp(const_cast<char *>(cmd), "h")) {
+        cmdDo += " -h";
     }
     ExecuteShell(cmdDo.c_str());
     return true;
@@ -298,7 +298,7 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         }
         case CMD_UNITY_BUGREPORT_INIT: {
             currentDataCommand = CMD_UNITY_BUGREPORT_DATA;
-            ExecuteShell(const_cast<char *>(CMDSTR_BUGREPORT.c_str()));
+            ExecuteShell("hidumper");
             break;
         }
         case CMD_JDWP_LIST: {

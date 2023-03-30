@@ -16,3 +16,9 @@ persist.hdc.root = root:shell:0660
 persist.hdc.mode = root:shell:0660
 persist.hdc.port = root:shell:0660
 persist.hdc.uv.threads = root:shell:0660
+
+# hdc control
+persist.hdc.control = root:shell:0664
+persist.hdc.control.shell = root:shell:0664
+persist.hdc.control.file = root:shell:0664
+persist.hdc.control.fport = root:shell:0664

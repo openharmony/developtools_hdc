@@ -321,6 +321,61 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     return true;
 }
 
+bool HdcDaemon::IsExpectedParam(const string& param, const string& expect)
+{
+    string out;
+    SystemDepend::GetDevItem(param.c_str(), out);
+    return (out.empty() || out == expect); // default empty
+}
+
+bool HdcDaemon::CheckControl(const uint16_t command)
+{
+    bool ret = false; // default no debug
+    switch (command) { // this switch is match RedirectToTask function
+        case CMD_UNITY_EXECUTE:
+        case CMD_UNITY_REMOUNT:
+        case CMD_UNITY_REBOOT:
+        case CMD_UNITY_RUNMODE:
+        case CMD_UNITY_HILOG:
+        case CMD_UNITY_ROOTRUN:
+        case CMD_UNITY_TERMINATE:
+        case CMD_UNITY_BUGREPORT_INIT:
+        case CMD_JDWP_LIST:
+        case CMD_JDWP_TRACK:
+        case CMD_SHELL_INIT:
+        case CMD_SHELL_DATA: {
+            ret = IsExpectedParam("persist.hdc.control.shell", "true");
+            break;
+        }
+        case CMD_FILE_CHECK:
+        case CMD_FILE_DATA:
+        case CMD_FILE_FINISH:
+        case CMD_FILE_INIT:
+        case CMD_FILE_BEGIN:
+        case CMD_FILE_MODE:
+        case CMD_DIR_MODE:
+        case CMD_APP_CHECK:
+        case CMD_APP_DATA:
+        case CMD_APP_UNINSTALL: {
+            ret = IsExpectedParam("persist.hdc.control.file", "true");
+            break;
+        }
+        case CMD_FORWARD_INIT:
+        case CMD_FORWARD_CHECK:
+        case CMD_FORWARD_ACTIVE_MASTER:
+        case CMD_FORWARD_ACTIVE_SLAVE:
+        case CMD_FORWARD_DATA:
+        case CMD_FORWARD_FREE_CONTEXT:
+        case CMD_FORWARD_CHECK_RESULT: {
+            ret = IsExpectedParam("persist.hdc.control.fport", "true");
+            break;
+        }
+        default:
+            ret = true; // other ECHO_RAW and so on
+    }
+    return ret;
+}
+
 bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
 {
@@ -354,7 +409,13 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
             break;
         }
         default:
-            ret = DispatchTaskData(hSession, channelId, command, payload, payloadSize);
+            ret = true;
+            if (CheckControl(command)) {
+                ret = DispatchTaskData(hSession, channelId, command, payload, payloadSize);
+            } else {
+                uint8_t count = 1;
+                Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+            }
             break;
     }
     return ret;

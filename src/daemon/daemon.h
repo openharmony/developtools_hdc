@@ -46,6 +46,8 @@ private:
     bool RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId, const uint16_t command,
                         uint8_t *payload, const int payloadSize) override;
     void JdwpNewFileDescriptor(const uint8_t *buf, const int bytesIO) override;
+    bool CheckControl(const uint16_t command);
+    bool IsExpectedParam(const std::string& param, const std::string& expect);
     bool HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     void ClearInstanceResource() override;
     bool DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);

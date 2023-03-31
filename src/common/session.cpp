@@ -1278,7 +1278,6 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
         case CMD_FORWARD_INIT:
         case CMD_APP_INIT:
         case CMD_APP_UNINSTALL:
-        case CMD_UNITY_BUGREPORT_INIT:
         case CMD_APP_SIDELOAD:
             taskMasterInit = true;
             break;
@@ -1291,6 +1290,8 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
         ret = true;
     } else if (command == CMD_KERNEL_WAKEUP_SLAVETASK) {
         // slave tasks
+        ret = true;
+    } else if (command == CMD_UNITY_BUGREPORT_INIT) {
         ret = true;
     } else if (taskMasterInit) {
         // task init command

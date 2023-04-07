@@ -373,9 +373,6 @@ bool HdcDaemon::CheckControl(const uint16_t command)
         default:
             ret = true; // other ECHO_RAW and so on
     }
-    if (!ret) {
-        LogMsg(MSG_FAIL, "debugging is not allowed");
-    }
     return ret;
 }
 
@@ -416,6 +413,7 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
             if (CheckControl(command)) {
                 ret = DispatchTaskData(hSession, channelId, command, payload, payloadSize);
             } else {
+                LogMsg(hSession->sessionId, channelId, MSG_FAIL, "debugging is not allowed");
                 uint8_t count = 1;
                 Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
             }

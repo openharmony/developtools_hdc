@@ -18,7 +18,7 @@ persist.hdc.port = root:shell:0660
 persist.hdc.uv.threads = root:shell:0660
 
 # hdc control, init, edm and usb_host can write control by selinux
-persist.hdc.control = root:shell:0664
+persist.hdc.control = usb_host:edm:0664
 persist.hdc.control.shell = root:shell:0644
 persist.hdc.control.file = root:shell:0644
 persist.hdc.control.fport = root:shell:0644

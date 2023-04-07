@@ -373,6 +373,9 @@ bool HdcDaemon::CheckControl(const uint16_t command)
         default:
             ret = true; // other ECHO_RAW and so on
     }
+    if (!ret) {
+        LogMsg(MSG_FAIL, "debugging is not allowed");
+    }
     return ret;
 }
 

@@ -445,7 +445,7 @@ int main(int argc, const char *argv[])
         Hdc::RunPcDebugMode(g_isPullServer, g_isTCPorUSB, g_isTestMethod);
     } else {
         if (!g_isCustomLoglevel) {
-            Base::SetLogLevel(LOG_INFO);
+            Base::SetLogLevel(LOG_ALL);
         }
         bool exist = ExtClient::SharedLibraryExist();
         if (!exist) {

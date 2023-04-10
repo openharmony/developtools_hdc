@@ -294,7 +294,7 @@ namespace TranslateCommand {
         } else if (!strncmp(input.c_str(), CMDSTR_BUGREPORT.c_str(), CMDSTR_BUGREPORT.size())) {
             outCmd->cmdFlag = CMD_UNITY_BUGREPORT_INIT;
             outCmd->parameters = input;
-            if (outCmd->parameters.size() == CMDSTR_BUGREPORT.size()) {
+            if (outCmd->parameters.size() == CMDSTR_BUGREPORT.size() + 1) { // 1 is for \0 input string
                 outCmd->parameters += " ";
             }
         }

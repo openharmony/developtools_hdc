@@ -21,14 +21,14 @@ namespace TranslateCommand {
     {
         string ret;
 
-        ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
+        ret = "\n                         OpenHarmony device connector(HDC)\n\n"
               "---------------------------------global commands:----------------------------------\n"
               " -h/help                               - Print hdc help\n"
               " -v/version                            - Print hdc version\n"
-              " -l 0-5                                - Set runtime loglevel\n"
+              " -l[0-5]                               - Set runtime loglevel\n"
               " -t connectkey                         - Use device with given connect key\n"
               " checkserver                           - check client-server version\n"
-              " checkdevice                           - check server-daemon version\n"
+              " checkdevice                           - check server-daemon version(only uart)\n"
               "\n"
               "---------------------------------component commands:-------------------------------\n"
               "session commands(on server):\n"
@@ -92,7 +92,7 @@ namespace TranslateCommand {
               "                                         -k: keep the data and cache directories\n"
               "\n"
               "debug commands:\n"
-              " hilog [-v]                            - Show device log, -v for detail\n"
+              " hilog [-h]                            - Show device log, -h for detail\n"
               " shell [COMMAND...]                    - Run shell command (interactive shell if no command given)\n"
               " bugreport [PATH]                      - Return all information from the device, path will be save "
               "localpath\n"
@@ -276,8 +276,8 @@ namespace TranslateCommand {
             stringError = RunMode(input.c_str(), outCmd);
         } else if (!strncmp(input.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size())) {
             outCmd->cmdFlag = CMD_UNITY_HILOG;
-            if (strstr(input.c_str(), " -v")) {
-                outCmd->parameters = "v";
+            if (strstr(input.c_str(), " -h")) {
+                outCmd->parameters = "h";
             }
         } else if (!strncmp(input.c_str(), CMDSTR_STARTUP_MODE.c_str(), CMDSTR_STARTUP_MODE.size())) {
             outCmd->cmdFlag = CMD_UNITY_ROOTRUN;
@@ -294,8 +294,8 @@ namespace TranslateCommand {
         } else if (!strncmp(input.c_str(), CMDSTR_BUGREPORT.c_str(), CMDSTR_BUGREPORT.size())) {
             outCmd->cmdFlag = CMD_UNITY_BUGREPORT_INIT;
             outCmd->parameters = input;
-            if (outCmd->parameters.size() == CMDSTR_BUGREPORT.size()) {
-                outCmd->parameters += " ";
+            if (outCmd->parameters.size() == CMDSTR_BUGREPORT.size() + 1) { // 1 is sizeInputRaw = input.size() + 1
+                outCmd->parameters = CMDSTR_BUGREPORT + " ";
             }
         }
         // Inner command, protocol uses only

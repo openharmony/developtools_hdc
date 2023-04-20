@@ -59,7 +59,7 @@ private:
     void RunCommandWin32(const string& command);
 #else
     void RunCommand(const string& command);
-
+#endif
     void RunExecuteCommand(const string& command);    
 
 #ifndef _WIN32

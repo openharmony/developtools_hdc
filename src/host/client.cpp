@@ -201,7 +201,7 @@ static void ReadFileThreadFunc(void* arg)
     }
 }
 
-static string GetHilogPath()
+string HdcClient::GetHilogPath()
 {
     char path[BUF_SIZE_SMALL] = "";
     size_t nPathSize = sizeof(path);
@@ -258,7 +258,7 @@ void HdcClient::RunCommandWin32(const string& command)
 
     auto thread = std::thread(ReadFileThreadFunc, this);
 
-    DWORD dwRet = WaitForSingleObject(pi.hProcess,INFINITE);
+    WaitForSingleObject(pi.hProcess,INFINITE);
     CloseHandle(hSubWrite);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
@@ -269,21 +269,6 @@ void HdcClient::RunCommandWin32(const string& command)
 }
 #else 
 void HdcClient::RunCommand(const string& command)
-    DWORD dwRet = WaitForSingleObject(pi.hProcess,INFINITE);
-    switch(dwRet)
-    {
-      case WAIT_OBJECT_0:
-        CloseHandle(hSubWrite);
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        break;
-      default:
-        return;
-    }
-    ReadFileThreadFunc();
-}
-#else 
-static void RunCommand(const string& command)
 {
     FILE *procFileInfo = nullptr;
     string cmdLog = "";

@@ -196,7 +196,9 @@ static void ReadFileThreadFunc(void* arg)
             return;
         }
         printf("%s", buffer);
-        memset_s(buffer, sizeof(buffer), 0, sizeof(buffer));
+        if (memset_s(buffer, sizeof(buffer), 0, sizeof(buffer)) != EOK) {
+            return;
+        }
     }
 }
 
@@ -246,7 +248,9 @@ void HdcClient::RunCommandWin32(const string& command)
 
     const char *msg = command.c_str();
     char buffer[BUF_SIZE_SMALL] = {0};
-    strcpy_s(buffer, sizeof(buffer), msg);
+    if (strcpy_s(buffer, sizeof(buffer), msg) != EOK) {
+        return;
+    }
     const char *exePath = GetHilogPath().c_str();
     if (!CreateProcess(_T(exePath), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi)) {
         WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
@@ -275,7 +279,9 @@ void HdcClient::RunCommand(const string& command)
     char resultBufShell[BUF_SIZE_DEFAULT] = {0};
     while (fgets(resultBufShell, sizeof(resultBufShell), procFileInfo) != nullptr) {
         printf("%s", resultBufShell);
-        memset_s(resultBufShell, sizeof(resultBufShell), 0, sizeof(resultBufShell));
+        if (memset_s(resultBufShell, sizeof(resultBufShell), 0, sizeof(resultBufShell)) != EOK) {
+            break;
+        }
     }
     pclose(procFileInfo);
 }

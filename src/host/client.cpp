@@ -179,22 +179,26 @@ HANDLE hParentWrite;
 HANDLE hSubRead;
 HANDLE hProcess;
 static const char *HILOG_NAME = "hilog.exe";
+static const char *SPLIT = "\\";
 
-static void ReadFileThreadFunc()
+static void ReadFileThreadFunc(void* arg)
 {
     char buffer[BUF_SIZE_DEFAULT] = { 0 };
-    DWORD bytesRead;
+    DWORD bytesRead = 0;
+
     while (true)
     {
         if (!ReadFile(hParentRead, buffer, BUF_SIZE_DEFAULT - 1, &bytesRead, NULL)) {
             break;
         }
+        string str = std::to_string(bytesRead);
+        const char* zero = "0";
+        if (!strncmp(zero, str.c_str(), strlen(zero))) {
+            return;
+        }
         printf("%s", buffer);
         memset(buffer, 0, BUF_SIZE_DEFAULT);
     }
-    CloseHandle(hParentRead);
-    CloseHandle(hParentRead);
-    CloseHandle(hSubRead);
 }
 
 static string GetHilogPath()
@@ -209,13 +213,13 @@ static string GetHilogPath()
         return "";
     }
     string hdcPath(path);
-    int index = hdcPath.find_last_of("\\");
-    string exePath = hdcPath.substr(0, index) + HILOG_NAME;
+    int index = hdcPath.find_last_of(SPLIT);
+    string exePath = hdcPath.substr(0, index) + SPLIT + HILOG_NAME;
 
     return exePath;
 }
 
-static void RunCommandWin32(const string& command)
+void HdcClient::RunCommandWin32(const string& command)
 {
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
@@ -252,6 +256,19 @@ static void RunCommandWin32(const string& command)
         return;
     }
 
+    auto thread = std::thread(ReadFileThreadFunc, this);
+
+    DWORD dwRet = WaitForSingleObject(pi.hProcess,INFINITE);
+    CloseHandle(hSubWrite);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    thread.join();
+    CloseHandle(hParentRead);
+    CloseHandle(hParentWrite);
+    CloseHandle(hSubRead);
+}
+#else 
+void HdcClient::RunCommand(const string& command)
     DWORD dwRet = WaitForSingleObject(pi.hProcess,INFINITE);
     switch(dwRet)
     {
@@ -284,7 +301,7 @@ static void RunCommand(const string& command)
 }
 #endif
 
-static void RunExecuteCommand(const string& command)
+void HdcClient::RunExecuteCommand(const string& command)
 {
 #ifdef _WIN32
     RunCommandWin32(command);
@@ -298,16 +315,14 @@ bool IsCaptureCommand(const string& command)
     int index = string(CMDSTR_HILOG).length();
     int length = command.length();
     const char* str = command.c_str();
-    const string captureOption1 = "-A";
-    const string captureOption2 = "--parse";
+    const string captureOption = "parse";
     while (index < length) {
         if (command[index] == ' ') {
             index++;
             continue;
         }
-        if (!strncmp(str + index, captureOption1.c_str(), captureOption1.size()) || 
-            !strncmp(str + index, captureOption2.c_str(), captureOption2.size())) {
-            return true;    
+        if (!strncmp(str + index, captureOption.c_str(), captureOption.size())) {
+            return true;
         } else {
             return false;
         }
@@ -326,11 +341,10 @@ int HdcClient::ExecuteCommand(const string &commandIn)
         return -1;
     }
 
-    if (!strncmp(commandIn.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size())) {
-        if (IsCaptureCommand(commandIn)) {
-            RunExecuteCommand(commandIn);
-            return 0;
-        }
+    if (!strncmp(commandIn.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size()) &&
+        IsCaptureCommand(commandIn)) {
+        RunExecuteCommand(commandIn);
+        return 0;
     }
 
     if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size()) ||

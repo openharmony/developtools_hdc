@@ -471,6 +471,27 @@ namespace Base {
         return ret;
     }
 
+    int SendToPollFd(int fd, uv_poll_t *pollHandle, const uint8_t *buf, const int bufLen)
+    {
+        if (bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
+            return ERR_BUF_ALLOC;
+        }
+        uint8_t *pDynBuf = new uint8_t[bufLen];
+        if (!pDynBuf) {
+            WRITE_LOG(LOG_WARN, "ThreadCtrlCommunicate SendToPollFd, alloc failed, size:%d", bufLen);
+            return ERR_BUF_ALLOC;
+        }
+        if (memcpy_s(pDynBuf, bufLen, buf, bufLen)) {
+            WRITE_LOG(LOG_WARN, "SendToStream, memory copy failed, size:%d", bufLen);
+            delete[] pDynBuf;
+            return ERR_BUF_COPY;
+        }
+        uv_poll_start(pollHandle, UV_WRITABLE, [](uv_poll_t *poll, int status, int events){});
+        int ret = Base::HdcWrite(fd, pDynBuf, bufLen);
+        delete[] pDynBuf;
+        return ret;
+    }
+
     uint64_t GetRuntimeMSec()
     {
         struct timespec times = { 0, 0 };
@@ -1612,6 +1633,40 @@ namespace Base {
         signal(SIGPIPE, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGALRM, SIG_DFL);
+#endif
+    }
+
+    int HdcRead(int fd, void *buf, size_t count)
+    {
+#ifdef _WIN32
+        DWORD bytesRead = 0;
+        OVERLAPPED ov = {};
+        SOCKET s = fd;
+        BOOL bWriteStat = ReadFile((HANDLE)s, buf, count, &bytesRead, &ov);
+        if (bWriteStat) {
+            return bytesRead;
+        } else {
+            return -1;
+        }
+#else
+        return TEMP_FAILURE_RETRY(read(fd, buf, count));
+#endif
+    }
+
+    int HdcWrite(int fd, const void *buf, size_t count)
+    {
+#ifdef _WIN32
+        DWORD bytesWrite = 0;
+        OVERLAPPED ov = {};
+        SOCKET s = fd;
+        BOOL bWriteStat = WriteFile((HANDLE)s, buf, count, &bytesWrite, &ov);
+        if (bWriteStat) {
+            return 1;
+        } else {
+            return -1;
+        }
+#else
+        return TEMP_FAILURE_RETRY(write(fd, buf, count));
 #endif
     }
 }

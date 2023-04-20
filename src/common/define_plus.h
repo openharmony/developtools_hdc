@@ -388,7 +388,7 @@ struct HdcSession {
     // child work
     uv_loop_t childLoop;  // run in work thread
     // pipe0 in main thread(hdc server mainloop), pipe1 in work thread
-    uv_tcp_t ctrlPipe[2];  // control channel
+    uv_poll_t *pollHandle[2];  // control channel
     int ctrlFd[2];         // control channel socketpair
     // data channel(TCP with socket, USB with thread forward)
     uv_tcp_t dataPipe[2];

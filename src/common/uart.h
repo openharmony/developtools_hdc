@@ -141,6 +141,7 @@ class ExternInterface {
 public:
     virtual void SetTcpOptions(uv_tcp_t *tcpHandle);
     virtual int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen);
+    virtual int SendToPollFd(int fd, uv_poll_t *pollHandle, const uint8_t *buf, const int len);
     virtual int UvTcpInit(uv_loop_t *, uv_tcp_t *, int);
     virtual int UvRead(uv_stream_t *, uv_alloc_cb, uv_read_cb);
     virtual int StartWorkThread(uv_loop_t *loop, uv_work_cb pFuncWorkThread,

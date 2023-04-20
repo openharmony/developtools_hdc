@@ -373,7 +373,8 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
         }
         if (!hChildSession->isDead) {
             auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-            Base::SendToStream((uv_stream_t *)&hChildSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
+            Base::SendToPollFd(hChildSession->ctrlFd[STREAM_MAIN], hChildSession->pollHandle[STREAM_MAIN],
+                               ctrl.data(), ctrl.size());
             WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);

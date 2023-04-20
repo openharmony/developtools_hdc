@@ -436,15 +436,16 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     // pullup child
     WRITE_LOG(LOG_DEBUG, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",
               hSession->sessionId, hSession->connType);
-    uv_tcp_init(&loopMain, &hSession->ctrlPipe[STREAM_MAIN]);
-    (void)memset_s(&hSession->ctrlPipe[STREAM_WORK], sizeof(hSession->ctrlPipe[STREAM_WORK]),
-                   0, sizeof(uv_tcp_t));
     ++hSession->uvHandleRef;
     Base::CreateSocketPair(hSession->ctrlFd);
-    uv_tcp_open(&hSession->ctrlPipe[STREAM_MAIN], hSession->ctrlFd[STREAM_MAIN]);
-    uv_read_start((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], Base::AllocBufferCallback, ReadCtrlFromSession);
-    hSession->ctrlPipe[STREAM_MAIN].data = hSession;
-    hSession->ctrlPipe[STREAM_WORK].data = hSession;
+    size_t handleSize = sizeof(uv_poll_t);
+    hSession->pollHandle[STREAM_WORK] = (uv_poll_t *)malloc(handleSize);
+    hSession->pollHandle[STREAM_MAIN] = (uv_poll_t *)malloc(handleSize);
+    uv_poll_t *pollHandle = hSession->pollHandle[STREAM_MAIN];
+    uv_poll_init_socket(&loopMain, pollHandle, hSession->ctrlFd[STREAM_MAIN]);
+    uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromSession);
+    hSession->pollHandle[STREAM_MAIN]->data = hSession;
+    hSession->pollHandle[STREAM_WORK]->data = hSession;
     // Activate USB DAEMON's data channel, may not for use
     uv_tcp_init(&loopMain, &hSession->dataPipe[STREAM_MAIN]);
     (void)memset_s(&hSession->dataPipe[STREAM_WORK], sizeof(hSession->dataPipe[STREAM_WORK]),
@@ -546,6 +547,9 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         HSession hSession = (HSession)handle->data;
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
+        if (handle == (uv_handle_t *)hSession->pollHandle[STREAM_MAIN]) {
+            free(hSession->pollHandle[STREAM_MAIN]);
+        }
     };
     if (CONN_TCP == hSession->connType) {
         // Turn off TCP to prevent continuing writing
@@ -556,7 +560,7 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         delete[] hSession->ioBuf;
         hSession->ioBuf = nullptr;
     }
-    Base::TryCloseHandle((uv_handle_t *)&hSession->ctrlPipe[STREAM_MAIN], true, closeSessionTCPHandle);
+    Base::TryCloseHandle((uv_handle_t *)hSession->pollHandle[STREAM_MAIN], true, closeSessionTCPHandle);
     Base::TryCloseHandle((uv_handle_t *)&hSession->dataPipe[STREAM_MAIN], true, closeSessionTCPHandle);
     FreeSessionByConnectType(hSession);
     // finish
@@ -581,9 +585,10 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     }
 #endif
     // wait workthread to free
-    if (hSession->ctrlPipe[STREAM_WORK].loop) {
+    if (hSession->pollHandle[STREAM_WORK]->loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
-        Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
+        Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN],
+                           ctrl.data(), ctrl.size());
         WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
@@ -978,7 +983,7 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
     delete req;
 }
 
-bool HdcSessionBase::DispatchSessionThreadCommand(uv_stream_t *uvpipe, HSession hSession, const uint8_t *baseBuf,
+bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8_t *baseBuf,
                                                   const int bytesIO)
 {
     bool ret = true;
@@ -996,17 +1001,20 @@ bool HdcSessionBase::DispatchSessionThreadCommand(uv_stream_t *uvpipe, HSession 
     return ret;
 }
 
-void HdcSessionBase::ReadCtrlFromSession(uv_stream_t *uvpipe, ssize_t nread, const uv_buf_t *buf)
+void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events)
 {
-    HSession hSession = (HSession)uvpipe->data;
+    HSession hSession = (HSession)poll->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
+    const int size = Base::GetMaxBufSize();
+    char *buf = (char *)new uint8_t[size]();
+    ssize_t nread = Base::HdcRead(hSession->ctrlFd[STREAM_WORK], buf, size);
     while (true) {
         if (nread < 0) {
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
             uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
             WRITE_LOG(LOG_DEBUG, "SessionCtrl failed,%s", buffer);
-            uv_read_stop(uvpipe);
+            uv_poll_stop(poll);
             break;
         }
         if (nread > 64) {  // 64 : max length
@@ -1015,10 +1023,10 @@ void HdcSessionBase::ReadCtrlFromSession(uv_stream_t *uvpipe, ssize_t nread, con
         }
         // only one command, no need to split command from stream
         // if add more commands, consider the format command
-        hSessionBase->DispatchSessionThreadCommand(uvpipe, hSession, (uint8_t *)buf->base, nread);
+        hSessionBase->DispatchSessionThreadCommand(hSession, (uint8_t *)buf, nread);
         break;
     }
-    delete[] buf->base;
+    delete[] buf;
 }
 
 bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
@@ -1114,6 +1122,9 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
             auto closeSessionChildThreadTCPHandle = [](uv_handle_t *handle) -> void {
                 HSession hSession = (HSession)handle->data;
                 Base::TryCloseHandle((uv_handle_t *)handle);
+                if (handle == (uv_handle_t *)hSession->pollHandle[STREAM_WORK]) {
+                    free(hSession->pollHandle[STREAM_WORK]);
+                }
                 if (--hSession->uvChildRef == 0) {
                     uv_stop(&hSession->childLoop);
                 };
@@ -1123,7 +1134,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
                 ++hSession->uvChildRef;
                 Base::TryCloseHandle((uv_handle_t *)&hSession->hChildWorkTCP, true, closeSessionChildThreadTCPHandle);
             }
-            Base::TryCloseHandle((uv_handle_t *)&hSession->ctrlPipe[STREAM_WORK], true,
+            Base::TryCloseHandle((uv_handle_t *)hSession->pollHandle[STREAM_WORK], true,
                                  closeSessionChildThreadTCPHandle);
             Base::TryCloseHandle((uv_handle_t *)&hSession->dataPipe[STREAM_WORK], true,
                                  closeSessionChildThreadTCPHandle);
@@ -1150,14 +1161,16 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
     }
     return ret;
 }
-
 // Several bytes of control instructions, generally do not stick
-void HdcSessionBase::ReadCtrlFromMain(uv_stream_t *uvpipe, ssize_t nread, const uv_buf_t *buf)
+void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
 {
-    HSession hSession = (HSession)uvpipe->data;
+    HSession hSession = (HSession)poll->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;
+    const int size = Base::GetMaxBufSize();
+    char *buf = (char *)new uint8_t[size]();
+    ssize_t nread = Base::HdcRead(hSession->ctrlFd[STREAM_WORK], buf, size);
     while (true) {
         if (nread < 0) {
             constexpr int bufSize = 1024;
@@ -1170,7 +1183,7 @@ void HdcSessionBase::ReadCtrlFromMain(uv_stream_t *uvpipe, ssize_t nread, const 
             WRITE_LOG(LOG_FATAL, "ReadCtrlFromMain size failed, nread == %d", nread);
             break;
         }
-        CtrlStruct *ctrl = reinterpret_cast<CtrlStruct *>(buf->base + index);
+        CtrlStruct *ctrl = reinterpret_cast<CtrlStruct *>(buf + index);
         if (!hSessionBase->DispatchMainThreadCommand(hSession, ctrl)) {
             WRITE_LOG(LOG_FATAL, "ReadCtrlFromMain failed sessionId:%u channelId:%u command:%u",
                       hSession->sessionId, ctrl->channelId, ctrl->command);
@@ -1181,7 +1194,7 @@ void HdcSessionBase::ReadCtrlFromMain(uv_stream_t *uvpipe, ssize_t nread, const 
             break;
         }
     }
-    delete[] buf->base;
+    delete[] buf;
 }
 
 void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
@@ -1221,23 +1234,14 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
 
 void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
 {
-    int childRet = 0;
     HSession hSession = (HSession)arg->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     hSession->hWorkChildThread = uv_thread_self();
-    if ((childRet = uv_tcp_init(&hSession->childLoop, &hSession->ctrlPipe[STREAM_WORK])) < 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        uv_strerror_r(childRet, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "SessionCtrl err1, %s", buf);
-    }
-    if ((childRet = uv_tcp_open(&hSession->ctrlPipe[STREAM_WORK], hSession->ctrlFd[STREAM_WORK])) < 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        uv_strerror_r(childRet, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "SessionCtrl err2, %s fd:%d", buf, hSession->ctrlFd[STREAM_WORK]);
-    }
-    uv_read_start((uv_stream_t *)&hSession->ctrlPipe[STREAM_WORK], Base::AllocBufferCallback, ReadCtrlFromMain);
+
+    uv_poll_t *pollHandle = hSession->pollHandle[STREAM_WORK];
+    pollHandle->data = hSession;
+    uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
+    uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
     WRITE_LOG(LOG_DEBUG, "!!!Workthread run begin, sessionId:%u instance:%s", hSession->sessionId,
               thisClass->serverOrDaemon ? "server" : "daemon");
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);  // work pendding

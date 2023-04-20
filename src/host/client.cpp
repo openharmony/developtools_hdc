@@ -186,8 +186,7 @@ static void ReadFileThreadFunc(void* arg)
     char buffer[BUF_SIZE_DEFAULT] = { 0 };
     DWORD bytesRead = 0;
 
-    while (true)
-    {
+    while (true) {
         if (!ReadFile(hParentRead, buffer, BUF_SIZE_DEFAULT - 1, &bytesRead, NULL)) {
             break;
         }
@@ -197,7 +196,7 @@ static void ReadFileThreadFunc(void* arg)
             return;
         }
         printf("%s", buffer);
-        memset(buffer, 0, BUF_SIZE_DEFAULT);
+        memset_s(buffer, sizeof(buffer), 0, sizeof(buffer));
     }
 }
 
@@ -232,8 +231,7 @@ void HdcClient::RunCommandWin32(const string& command)
     if (!CreatePipe(&hParentRead, &hSubWrite, &sa, 0) ||
         !CreatePipe(&hSubRead, &hParentWrite, &sa, 0) ||
         !SetHandleInformation(hParentRead, HANDLE_FLAG_INHERIT, 0) ||
-        !SetHandleInformation(hParentWrite, HANDLE_FLAG_INHERIT, 0))
-    {
+        !SetHandleInformation(hParentWrite, HANDLE_FLAG_INHERIT, 0)) {
         return;
     }
 
@@ -248,17 +246,14 @@ void HdcClient::RunCommandWin32(const string& command)
 
     const char *msg = command.c_str();
     char buffer[BUF_SIZE_SMALL] = {0};
-    strcpy(buffer, msg);
+    strcpy_s(buffer, sizeof(buffer), msg);
     const char *exePath = GetHilogPath().c_str();
-    if (!CreateProcess(_T(exePath), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi))
-    {
+    if (!CreateProcess(_T(exePath), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi)) {
         WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
         return;
     }
-
     auto thread = std::thread(ReadFileThreadFunc, this);
-
-    WaitForSingleObject(pi.hProcess,INFINITE);
+    WaitForSingleObject(pi.hProcess, INFINITE);
     CloseHandle(hSubWrite);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
@@ -267,7 +262,7 @@ void HdcClient::RunCommandWin32(const string& command)
     CloseHandle(hParentWrite);
     CloseHandle(hSubRead);
 }
-#else 
+#else
 void HdcClient::RunCommand(const string& command)
 {
     FILE *procFileInfo = nullptr;
@@ -280,7 +275,7 @@ void HdcClient::RunCommand(const string& command)
     char resultBufShell[BUF_SIZE_DEFAULT] = {0};
     while (fgets(resultBufShell, sizeof(resultBufShell), procFileInfo) != nullptr) {
         printf("%s", resultBufShell);
-        memset(resultBufShell, 0, sizeof(resultBufShell));
+        memset_s(resultBufShell, sizeof(resultBufShell), 0, sizeof(resultBufShell));
     }
     pclose(procFileInfo);
 }

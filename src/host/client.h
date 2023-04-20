@@ -60,7 +60,7 @@ private:
 #else
     void RunCommand(const string& command);
 #endif
-    void RunExecuteCommand(const string& command);    
+    void RunExecuteCommand(const string& command);
 
 #ifndef _WIN32
     termios terminalState;

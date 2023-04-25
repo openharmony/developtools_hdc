@@ -336,6 +336,7 @@ namespace Base {
     // As an uv_write_cb it must keep the same as prototype
     void SendCallback(uv_write_t *req, int status)
     {
+        StartTraceScope("Base::SendCallback");
         if (status < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
@@ -410,6 +411,7 @@ namespace Base {
 
     int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen)
     {
+        StartTraceScope("Base::SendToStream");
         if (bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
             return ERR_BUF_ALLOC;
         }
@@ -432,6 +434,7 @@ namespace Base {
     int SendToStreamEx(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen, uv_stream_t *handleSend,
                        const void *finishCallback, const void *pWriteReqData)
     {
+        StartTraceScope("Base::SendToStreamEx");
         int ret = ERR_GENERIC;
         uv_write_t *reqWrite = new uv_write_t();
         if (!reqWrite) {
@@ -486,7 +489,7 @@ namespace Base {
             delete[] pDynBuf;
             return ERR_BUF_COPY;
         }
-        uv_poll_start(pollHandle, UV_WRITABLE, [](uv_poll_t *poll, int status, int events){});
+        uv_poll_start(pollHandle, UV_WRITABLE, [](uv_poll_t *poll, int status, int events) {});
         int ret = Base::HdcWrite(fd, pDynBuf, bufLen);
         delete[] pDynBuf;
         return ret;

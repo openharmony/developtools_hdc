@@ -45,6 +45,7 @@ bool HdcTaskBase::ReadyForRelease()
 // Only the Task work thread call is allowed to use only when Workfortask returns FALSE.
 void HdcTaskBase::TaskFinish()
 {
+    StartTraceScope("HdcTaskBase::TaskFinish");
     uint8_t count = 1;
     SendToAnother(CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
     WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify");
@@ -52,6 +53,7 @@ void HdcTaskBase::TaskFinish()
 
 bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size)
 {
+    StartTraceScope("HdcTaskBase::SendToAnother");
     if (singalStop) {
         return false;
     }

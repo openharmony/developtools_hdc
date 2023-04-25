@@ -327,8 +327,8 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
 
 int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
 {
+    StartTraceScope("HdcDaemonUSB::SendUSBRaw");
     HdcDaemon *daemon = (HdcDaemon *)hSession->classInstance;
-    StartTraceScope("SendUSBRaw: SendUSBIOSync");
     std::unique_lock<std::mutex> lock(mutexUsbFfs);
     ++hSession->ref;
     int ret = SendUSBIOSync(hSession, &usbHandle, data, length);
@@ -383,9 +383,65 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
     return hChildSession;
 }
 
+void HdcDaemonUSB::UvWriteCallback(uv_write_t *req, int status)
+{
+    StartTraceScope("HdcDaemonUSB::UvWriteCallback");
+    if (status < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r(status, buf, bufSize);
+        WRITE_LOG(LOG_WARN, "SendCallback failed,status:%d %s", status, buf);
+    }
+    HdcDaemonUSB *daemonUsb = (HdcDaemonUSB *) req->data;
+    daemonUsb->cirbuf.Free();
+    delete req;
+}
+
+int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int size)
+{
+    StartTraceScope("HdcDaemonUSB::UsbToStream");
+    int ret = ERR_GENERIC;
+    uv_write_t *reqWrite = new uv_write_t();
+    if (!reqWrite) {
+        WRITE_LOG(LOG_WARN, "UsbToStream new write_t failed size:%d", size);
+        return ERR_BUF_ALLOC;
+    }
+    uv_buf_t bfr;
+    while (true) {
+        reqWrite->data = (void *)this;
+        bfr.base = (char *)buf;
+        bfr.len = size;
+        if (!uv_is_writable(stream)) {
+            WRITE_LOG(LOG_WARN, "UsbToStream uv_is_writable false size:%d", size);
+            delete reqWrite;
+            break;
+        }
+        ret = uv_write(reqWrite, stream, &bfr, 1, UvWriteCallback);
+        if (ret < 0) {
+            WRITE_LOG(LOG_WARN, "UsbToStream uv_write false ret:%d", ret);
+            delete reqWrite;
+            ret = ERR_IO_FAIL;
+            break;
+        }
+        ret = size;
+        break;
+    }
+    return ret;
+}
+
 int HdcDaemonUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize)
 {
-    return Base::SendToStream(stream, appendData, dataSize);
+    StartTraceScope("HdcDaemonUSB::UsbToHdcProtocol");
+    uint8_t *data = cirbuf.Malloc();
+    if (data == nullptr) {
+        WRITE_LOG(LOG_WARN, "UsbToHdcProtocol data nullptr");
+        return -1;
+    }
+    if (memcpy_s(data, dataSize, appendData, dataSize)) {
+        WRITE_LOG(LOG_WARN, "UsbToHdcProtocol memory copy failed dataSize:%d", dataSize);
+        return ERR_BUF_COPY;
+    }
+    return UsbToStream(stream, data, dataSize);
 }
 
 int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int readBytes)
@@ -439,6 +495,7 @@ bool HdcDaemonUSB::JumpAntiquePacket(const uint8_t &buf, ssize_t bytes) const
 // Only physically swap EP ports will be reset
 void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
 {  // Only read at the main thread
+    StartTraceScope("HdcDaemonUSB::OnUSBRead");
     auto ctxIo = reinterpret_cast<CtxUvFileCommonIo *>(req->data);
     auto hUSB = reinterpret_cast<HUSB>(ctxIo->data);
     auto thisClass = reinterpret_cast<HdcDaemonUSB *>(ctxIo->thisClass);
@@ -510,10 +567,10 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
 
 int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
 {
+    StartTraceScope("HdcDaemonUSB::LoopUSBRead");
     int ret = ERR_GENERIC;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
     uv_buf_t iov;
-    StartTraceScope("HdcDaemonUSB::LoopUSBRead");
     ctxRecv.data = hUSB;
     ctxRecv.bufSize = readMaxWanted;
     ctxRecv.req = {};
@@ -523,11 +580,9 @@ int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
     ret = uv_fs_read(&daemon->loopMain, req, hUSB->bulkOut, &iov, 1, -1, OnUSBRead);
     if (ret < 0) {
         WRITE_LOG(LOG_FATAL, "uv_fs_read < 0");
-        FinishTracePoint();
         return ERR_API_FAIL;
     }
     ctxRecv.atPollQueue = true;
-    FinishTracePoint();
     return RET_SUCCESS;
 }
 

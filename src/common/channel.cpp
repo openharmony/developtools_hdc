@@ -109,6 +109,7 @@ void HdcChannelBase::WorkerPendding()
 
 void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)
 {
+    StartTraceScope("HdcChannelBase::ReadStream");
     int size = 0;
     int indexBuf = 0;
     int childRet = 0;
@@ -262,6 +263,7 @@ void HdcChannelBase::PushAsyncMessage(const uint32_t channelId, const uint8_t me
 // add commandflag ahead real buf data
 void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
 {
+    StartTraceScope("HdcChannelBase::SendChannelWithCmd");
     auto data = new uint8_t[size + sizeof(commandFlag)]();
     if (!data) {
         return;
@@ -283,6 +285,7 @@ void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t comman
 
 void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
 {
+    StartTraceScope("HdcChannelBase::SendWithCmd");
     HChannel hChannel = reinterpret_cast<HChannel>(AdminChannel(OP_QUERY_REF, channelId, nullptr));
     if (!hChannel) {
         return;
@@ -298,6 +301,7 @@ void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t comman
 
 void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size)
 {
+    StartTraceScope("HdcChannelBase::SendChannel");
     uv_stream_t *sendStream = nullptr;
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
     auto data = new uint8_t[sizeNewBuf]();
@@ -325,6 +329,7 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
 // works only in current working thread
 void HdcChannelBase::Send(const uint32_t channelId, uint8_t *bufPtr, const int size)
 {
+    StartTraceScope("HdcChannelBase::Send");
     HChannel hChannel = reinterpret_cast<HChannel>(AdminChannel(OP_QUERY_REF, channelId, nullptr));
     if (!hChannel) {
         return;
@@ -514,6 +519,7 @@ HChannel HdcChannelBase::AdminChannel(const uint8_t op, const uint32_t channelId
 
 void HdcChannelBase::EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int size)
 {
+    StartTraceScope("HdcChannelBase::EchoToClient");
     uv_stream_t *sendStream = nullptr;
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
     auto data = new uint8_t[sizeNewBuf]();

@@ -147,6 +147,7 @@ protected:
     bool TaskCommandDispatch(HTaskInfo hTaskInfo, uint8_t taskType, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
     {
+        StartTraceScope("HdcSessionBase::TaskCommandDispatch");
         bool ret = true;
         T *ptrTask = nullptr;
         if (!hTaskInfo->hasInitial) {
@@ -211,6 +212,7 @@ private:
     const uint8_t payloadProtectStaticVcode = 0x09;
     uv_thread_t threadSessionMain;
     size_t threadPoolCount;
+    CircleBuffer cirbuf;
 };
 }  // namespace Hdc
 #endif

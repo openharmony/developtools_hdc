@@ -106,7 +106,7 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
         WRITE_LOG(LOG_INFO, "RemoveInstanceTask false taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
     }
     auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
-        StartTracePoint("HdcSessionBase::BeginRemoveTask: taskClassDeleteRetry");
+        StartTraceScope("HdcSessionBase::BeginRemoveTask taskClassDeleteRetry");
         HTaskInfo hTask = (HTaskInfo)handle->data;
         HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
         constexpr uint32_t count = 1000;
@@ -125,7 +125,6 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
             hTask = nullptr;
         }
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
-        FinishTracePoint();
     };
     Base::TimerUvTask(hTask->runLoop, hTask, taskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
 
@@ -789,14 +788,14 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
         case CONN_USB: {
             HdcUSBBase *pUSB = ((HdcUSBBase *)hSession->classModule);
             ret = pUSB->SendUSBBlock(hSession, bufPtr, bufLen);
-            delete[] bufPtr;
+            cirbuf.Free();
             break;
         }
 #ifdef HDC_SUPPORT_UART
         case CONN_SERIAL: {
             HdcUARTBase *pUART = ((HdcUARTBase *)hSession->classModule);
             ret = pUART->SendUARTData(hSession, bufPtr, bufLen);
-            delete[] bufPtr;
+            cirbuf.Free();
             break;
         }
 #endif
@@ -809,6 +808,7 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
 int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, const uint16_t commandFlag,
                          const uint8_t *data, const int dataSize)
 {
+    StartTraceScope("HdcSessionBase::Send");
     HSession hSession = AdminSession(OP_QUERY, sessionId, nullptr);
     if (!hSession) {
         WRITE_LOG(LOG_DEBUG, "Send to offline device, drop it, sessionId:%u", sessionId);
@@ -830,14 +830,13 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     payloadHead.headSize = htons(s.size());
     payloadHead.dataSize = htonl(dataSize);
     int finalBufSize = sizeof(PayloadHead) + s.size() + dataSize;
-    uint8_t *finayBuf = new(std::nothrow) uint8_t[finalBufSize]();
+    uint8_t *finayBuf = cirbuf.Malloc();
     if (finayBuf == nullptr) {
         WRITE_LOG(LOG_WARN, "send allocmem err");
         return ERR_BUF_ALLOC;
     }
     bool bufRet = false;
     do {
-        StartTracePoint("HdcSessionBase::Send memcpy_s PayloadHead + s");
         if (memcpy_s(finayBuf, sizeof(PayloadHead), reinterpret_cast<uint8_t *>(&payloadHead), sizeof(PayloadHead))) {
             WRITE_LOG(LOG_WARN, "send copyhead err for dataSize:%d", dataSize);
             break;
@@ -851,11 +850,10 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
             WRITE_LOG(LOG_WARN, "send copyDatabuf err for dataSize:%d", dataSize);
             break;
         }
-        FinishTracePoint();
         bufRet = true;
     } while (false);
     if (!bufRet) {
-        delete[] finayBuf;
+        cirbuf.Free();
         WRITE_LOG(LOG_WARN, "send copywholedata err for dataSize:%d", dataSize);
         return ERR_BUF_COPY;
     }
@@ -979,7 +977,7 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
             thisClass->FreeSession(hSession->sessionId);
         }
     }
-    delete[]((uint8_t *)req->data);
+    thisClass->cirbuf.Free();
     delete req;
 }
 
@@ -1006,7 +1004,7 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
     HSession hSession = (HSession)poll->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     const int size = Base::GetMaxBufSize();
-    char *buf = (char *)new uint8_t[size]();
+    char *buf = reinterpret_cast<char *>(new uint8_t[size]());
     ssize_t nread = Base::HdcRead(hSession->ctrlFd[STREAM_WORK], buf, size);
     while (true) {
         if (nread < 0) {
@@ -1023,7 +1021,7 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
         }
         // only one command, no need to split command from stream
         // if add more commands, consider the format command
-        hSessionBase->DispatchSessionThreadCommand(hSession, (uint8_t *)buf, nread);
+        hSessionBase->DispatchSessionThreadCommand(hSession, reinterpret_cast<uint8_t *>(buf), nread);
         break;
     }
     delete[] buf;
@@ -1161,6 +1159,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
     }
     return ret;
 }
+
 // Several bytes of control instructions, generally do not stick
 void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
 {
@@ -1169,7 +1168,7 @@ void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;
     const int size = Base::GetMaxBufSize();
-    char *buf = (char *)new uint8_t[size]();
+    char *buf = reinterpret_cast<char *>(new uint8_t[size]());
     ssize_t nread = Base::HdcRead(hSession->ctrlFd[STREAM_WORK], buf, size);
     while (true) {
         if (nread < 0) {
@@ -1308,6 +1307,7 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
 bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command,
                                       uint8_t *payload, int payloadSize)
 {
+    StartTraceScope("HdcSessionBase::DispatchTaskData");
     bool ret = true;
     HTaskInfo hTaskInfo = nullptr;
     bool masterTask = false;

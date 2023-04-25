@@ -23,6 +23,7 @@ hdc_common_sources = [
   "${hdc_path}/src/common/auth.cpp",
   "${hdc_path}/src/common/base.cpp",
   "${hdc_path}/src/common/channel.cpp",
+  "${hdc_path}/src/common/circle_buffer.cpp",
   "${hdc_path}/src/common/debug.cpp",
   "${hdc_path}/src/common/file.cpp",
   "${hdc_path}/src/common/file_descriptor.cpp",

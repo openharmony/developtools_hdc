@@ -51,7 +51,7 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
     }
 }
 
-void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int readMax)
+void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite)
 {
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
@@ -64,7 +64,11 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int readMax)
             return;
         }
         memset(buf, 0, readMax);
-        nBytes = read(thisClass->fdIO, buf, readMax);
+        if (isWrite) {
+            nBytes = write(thisClass->fdIO, buf, bufSize);
+        } else {
+            nBytes = read(thisClass->fdIO, buf, bufSize);
+        }
         WRITE_LOG(LOG_FATAL, "read %s, size %d", buf, nBytes);
         if (nBytes > 0) {
             if (!thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
@@ -109,7 +113,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    IOThread = std::thread(FileIOOnThread, contextIO, readMax);
+    IOThread = std::thread(FileIOOnThread, contextIO, readMax, false);
     IOThread.detach();
     return 0;
 }
@@ -154,9 +158,8 @@ int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
     contextIO->thisClass = this;
     req->data = contextIO;
     ++refIO;
-
-    uv_buf_t iov = uv_buf_init((char *)data, size);
-    uv_fs_write(loop, req, fdIO, &iov, 1, -1, OnFileIO);
+    IOThread = std::thread(FileIOOnThread, contextIO, size, true);
+    IOThread.detach();
     return size;
 }
 }  // namespace Hdc

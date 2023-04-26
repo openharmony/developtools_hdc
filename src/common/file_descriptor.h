@@ -40,7 +40,7 @@ private:
         uint8_t *bufIO;
         HdcFileDescriptor *thisClass;
     };
-    static void FileIOOnThread(CtxFileIO *ctxIO, int readMax);
+    static void FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite);
     int LoopReadOnThread();
 
     std::function<void()> callbackCloseFd;

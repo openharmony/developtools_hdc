@@ -31,8 +31,6 @@ public:
 
     bool ReadyForRelease();
     bool StartWorkOnThread();
-    bool StartWorkOnThread();
-    void StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback);
     void StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback);
 
 protected:
@@ -42,9 +40,7 @@ private:
         uint8_t *bufIO;
         HdcFileDescriptor *thisClass;
     };
-    static void OnFileIO(uv_fs_t *req);
     static void FileIOOnThread(CtxFileIO *ctxIO, int readMax);
-    int LoopRead();
     int LoopReadOnThread();
 
     std::function<void()> callbackCloseFd;

@@ -45,25 +45,6 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
     workContinue = false;
     callbackCloseFd = closeFdCallback;
     if (tryCloseFdIo && refIO > 0) {
-        ++refIO;
-        reqClose.data = this;
-        WRITE_LOG(LOG_DEBUG, "StopWorkOnThread fdIO:%d", fdIO);
-        uv_fs_close(loop, &reqClose, fdIO, [](uv_fs_t *req) {
-            auto thisClass = (HdcFileDescriptor *)req->data;
-            uv_fs_req_cleanup(req);
-            if (thisClass->callbackCloseFd != nullptr) {
-                thisClass->callbackCloseFd();
-            }
-            --thisClass->refIO;
-        });
-    }
-}
-
-void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback)
-{
-    workContinue = false;
-    callbackCloseFd = closeFdCallback;
-    if (tryCloseFdIo && refIO > 0) {
         if (callbackCloseFd != nullptr) {
             callbackCloseFd();
         }

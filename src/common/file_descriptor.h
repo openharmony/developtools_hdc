@@ -47,7 +47,6 @@ private:
     CmdResultCallback callbackFinish;
     CallBackWhenRead callbackRead;
     uv_loop_t *loop;
-    uv_fs_t reqClose;
     void *callerContext;
     bool workContinue;
     int fdIO;

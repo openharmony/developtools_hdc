@@ -63,7 +63,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
         if (thisClass->workContinue == false) {
             return;
         }
-        memset(buf, 0, readMax);
+        memset(buf, 0, bufSize);
         if (isWrite) {
             nBytes = write(thisClass->fdIO, buf, bufSize);
         } else {

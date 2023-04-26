@@ -19,7 +19,7 @@ py_out_dir = "$root_out_dir/gen/" + rebase_path(".", "//")
 
 declare_args() {
   # suggestion: uv threads number from 16 - 256
-  hdcd_uv_thread_size = 16
+  hdcd_uv_thread_size = 4
   hdc_uv_thread_size = 128
 }
 

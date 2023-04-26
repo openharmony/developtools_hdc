@@ -68,7 +68,7 @@ void HdcShell::StopTask()
         return;
     }
     if (childShell) {
-        childShell->StopWork(false, nullptr);
+        childShell->StopWorkOnThread(false, nullptr);
     }
 
     if (pidShell > 1) {
@@ -252,7 +252,7 @@ int HdcShell::StartShell()
             ret = ERR_GENERIC;
             break;
         }
-        if (!childShell->StartWork()) {
+        if (!childShell->StartWorkOnThread()) {
             ret = ERR_API_FAIL;
             break;
         }

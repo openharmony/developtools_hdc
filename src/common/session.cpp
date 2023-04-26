@@ -712,13 +712,7 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
         case OP_ADD:
 #ifndef HDC_HOST
             // uv sub-thread confiured by threadPoolCount, reserve 2 for main & communicate
-            if (mapTask.size() >= (threadPoolCount - 2)) {
-                WRITE_LOG(LOG_WARN, "mapTask.size:%d, hdc is busy", mapTask.size());
-                WRITE_LOG(LOG_WARN, ">> Session %lu mapTask Dumping Start", hSession->sessionId);
-                DumpTasksInfo(mapTask);
-                WRITE_LOG(LOG_WARN, "<< mapTask Dumping End");
-                break;
-            }
+            WRITE_LOG(LOG_WARN, "mapTask.size:%d", mapTask.size());
 #endif
             hRet = mapTask[channelId];
             if (hRet != nullptr) {

@@ -54,7 +54,7 @@ void AsyncCmd::DoRelease()
 {
     WRITE_LOG(LOG_DEBUG, "AsyncCmd::DoRelease finish");
     if (childShell != nullptr) {
-        childShell->StopWork(false, nullptr);
+        childShell->StopWorkOnThread(false, nullptr);
     }
     if (pid > 0) {
         uv_kill(pid, SIGTERM);
@@ -175,7 +175,7 @@ bool AsyncCmd::ExecuteCommand(const string &command)
         WRITE_LOG(LOG_FATAL, "ExecuteCommand new childShell failed");
         return false;
     }
-    if (!childShell->StartWork()) {
+    if (!childShell->StartWorkOnThread()) {
         return false;
     }
     ++refCount;

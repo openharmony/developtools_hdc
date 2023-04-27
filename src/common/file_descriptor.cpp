@@ -93,6 +93,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
 
     --thisClass->refIO;
     if (bFinish) {
+        thisClass->workContinue = false;
         thisClass->callbackFinish(thisClass->callerContext, fetalFinish, STRING_EMPTY);
     }
 }

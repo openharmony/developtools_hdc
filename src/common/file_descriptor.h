@@ -51,7 +51,8 @@ private:
     bool workContinue;
     int fdIO;
     int refIO;
-    std::thread IOThread;
+    std::thread IOReadThread;
+    std::thread IOWriteThread;
 };
 }  // namespace Hdc
 

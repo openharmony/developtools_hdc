@@ -755,6 +755,7 @@ HWTEST_F(HdcHostUARTTest, CloseSerialPort, TestSize.Level1)
 {
     myUART.devUartHandle = -1;
     mockHostUART.CloseSerialPort(&myUART);
+    EXPECT_EQ(myUART.devUartHandle, -1);
 }
 
 /*

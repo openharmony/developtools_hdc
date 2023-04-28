@@ -227,7 +227,7 @@ bool HdcForwardBase::SendToTask(const uint32_t cid, const uint16_t command, uint
 // Forward flow is small and frequency is fast
 void HdcForwardBase::AllocForwardBuf(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf)
 {
-    const uint16_t size = 1492 - 256;  // For layer 3, the default MTU is 1492 bytes. reserve hdc header 256 bytes
+    size_t size = sizeSuggested;
     buf->base = (char *)new char[size];
     if (buf->base) {
         buf->len = size - 1;

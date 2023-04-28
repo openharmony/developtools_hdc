@@ -97,6 +97,10 @@ const string CMDSTR_TARGET_MODE = "tmode";
 const string CMDSTR_BUGREPORT = "bugreport";
 const string CMDSTR_HILOG = "hilog";
 const string CMDSTR_TMODE_USB = "usb";
+#ifdef _WIN32
+const char *HILOG_NAME = "hilog.exe";
+const char *SPLIT = "\\";
+#endif
 #ifdef HDC_SUPPORT_UART
 const string CMDSTR_TMODE_UART = "uart";
 const string UART_HDC_NODE = "/dev/ttyS4";

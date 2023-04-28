@@ -172,6 +172,147 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     return key;
 }
 
+#ifdef _WIN32
+static void ReadFileThreadFunc(void* arg)
+{
+    char buffer[BUF_SIZE_DEFAULT] = { 0 };
+    DWORD bytesRead = 0;
+
+    HANDLE* read = (HANDLE*)arg;
+    while (true) {
+        if (!ReadFile(*read, buffer, BUF_SIZE_DEFAULT - 1, &bytesRead, NULL)) {
+            break;
+        }
+        string str = std::to_string(bytesRead);
+        const char* zero = "0";
+        if (!strncmp(zero, str.c_str(), strlen(zero))) {
+            return;
+        }
+        printf("%s", buffer);
+        if (memset_s(buffer, sizeof(buffer), 0, sizeof(buffer)) != EOK) {
+            return;
+        }
+    }
+}
+
+string HdcClient::GetHilogPath()
+{
+    char path[BUF_SIZE_SMALL] = "";
+    size_t nPathSize = sizeof(path);
+    int ret = uv_exepath(path, &nPathSize);
+    if (ret < 0) {
+        char buf[BUF_SIZE_DEFAULT] = { 0 };
+        uv_err_name_r(ret, buf, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_WARN, "uvexepath ret:%d error:%s", ret, buf);
+        return "";
+    }
+    string hdcPath(path);
+    int index = hdcPath.find_last_of(SPLIT);
+    string exePath = hdcPath.substr(0, index) + SPLIT + HILOG_NAME;
+
+    return exePath;
+}
+
+void HdcClient::RunCommandWin32(const string& command)
+{
+    HANDLE hSubWrite;
+    HANDLE hParentRead;
+    HANDLE hParentWrite;
+    HANDLE hSubRead;
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = true;
+
+    if (!CreatePipe(&hParentRead, &hSubWrite, &sa, 0) ||
+        !CreatePipe(&hSubRead, &hParentWrite, &sa, 0) ||
+        !SetHandleInformation(hParentRead, HANDLE_FLAG_INHERIT, 0) ||
+        !SetHandleInformation(hParentWrite, HANDLE_FLAG_INHERIT, 0)) {
+        return;
+    }
+
+    ZeroMemory(&si, sizeof(STARTUPINFO));
+    si.cb = sizeof(STARTUPINFO);
+    GetStartupInfo(&si);
+    si.hStdError = hSubWrite;
+    si.hStdOutput = hSubWrite;
+    si.hStdInput = hSubRead;
+    si.wShowWindow = SW_HIDE;
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+
+    const char *msg = command.c_str();
+    char buffer[BUF_SIZE_SMALL] = {0};
+    if (strcpy_s(buffer, sizeof(buffer), msg) != EOK) {
+        return;
+    }
+    const char *exePath = GetHilogPath().c_str();
+    if (!CreateProcess(_T(exePath), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi)) {
+        WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
+        return;
+    }
+    auto thread = std::thread(ReadFileThreadFunc, &hParentRead);
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(hSubWrite);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    thread.join();
+    CloseHandle(hParentRead);
+    CloseHandle(hParentWrite);
+    CloseHandle(hSubRead);
+}
+#else
+void HdcClient::RunCommand(const string& command)
+{
+    FILE *procFileInfo = nullptr;
+    string cmdLog = "";
+    procFileInfo = popen(command.c_str(), "r");
+    if (procFileInfo == nullptr) {
+        perror("popen execute failed");
+        return;
+    }
+    char resultBufShell[BUF_SIZE_DEFAULT] = {0};
+    while (fgets(resultBufShell, sizeof(resultBufShell), procFileInfo) != nullptr) {
+        printf("%s", resultBufShell);
+        if (memset_s(resultBufShell, sizeof(resultBufShell), 0, sizeof(resultBufShell)) != EOK) {
+            break;
+        }
+    }
+    pclose(procFileInfo);
+}
+#endif
+
+void HdcClient::RunExecuteCommand(const string& command)
+{
+#ifdef _WIN32
+    RunCommandWin32(command);
+#else
+    RunCommand(command);
+#endif
+}
+
+bool IsCaptureCommand(const string& command)
+{
+    int index = string(CMDSTR_HILOG).length();
+    int length = command.length();
+    const char* str = command.c_str();
+    const string captureOption = "parse";
+    while (index < length) {
+        if (command[index] == ' ') {
+            index++;
+            continue;
+        }
+        if (!strncmp(str + index, captureOption.c_str(), captureOption.size())) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return false;
+}
+
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
@@ -181,6 +322,12 @@ int HdcClient::ExecuteCommand(const string &commandIn)
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort %s failed with %d",
                   channelHostPort.c_str(), ret);
         return -1;
+    }
+
+    if (!strncmp(commandIn.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size()) &&
+        IsCaptureCommand(commandIn)) {
+        RunExecuteCommand(commandIn);
+        return 0;
     }
 
     if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size()) ||

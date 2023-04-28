@@ -54,6 +54,14 @@ private:
     string ListTargetsAll(const string &str);
     void UpdateList(const string &str);
 
+#ifdef _WIN32
+    string GetHilogPath();
+    void RunCommandWin32(const string& command);
+#else
+    void RunCommand(const string& command);
+#endif
+    void RunExecuteCommand(const string& command);
+
 #ifndef _WIN32
     termios terminalState;
 #endif

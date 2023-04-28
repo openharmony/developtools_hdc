@@ -30,8 +30,8 @@ public:
     int WriteWithMem(uint8_t *data, int size);
 
     bool ReadyForRelease();
-    bool StartWork();
-    void StopWork(bool tryCloseFdIo, std::function<void()> closeFdCallback);
+    bool StartWorkOnThread();
+    void StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback);
 
 protected:
 private:
@@ -40,18 +40,19 @@ private:
         uint8_t *bufIO;
         HdcFileDescriptor *thisClass;
     };
-    static void OnFileIO(uv_fs_t *req);
-    int LoopRead();
+    static void FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite);
+    int LoopReadOnThread();
 
     std::function<void()> callbackCloseFd;
     CmdResultCallback callbackFinish;
     CallBackWhenRead callbackRead;
     uv_loop_t *loop;
-    uv_fs_t reqClose;
     void *callerContext;
     bool workContinue;
     int fdIO;
     int refIO;
+    std::thread IOReadThread;
+    std::thread IOWriteThread;
 };
 }  // namespace Hdc
 

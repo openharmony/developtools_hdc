@@ -103,6 +103,7 @@ private:
     // set true to enable slave check when forward create
     const bool slaveCheckWhenBegin = false;
     std::mutex ctxPointMutex;
+    std::mutex ctxFreeMutex;
 };
 }  // namespace Hdc
 #endif

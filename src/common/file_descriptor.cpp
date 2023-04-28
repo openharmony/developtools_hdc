@@ -40,70 +40,66 @@ bool HdcFileDescriptor::ReadyForRelease()
 }
 
 // just tryCloseFdIo = true, callback will be effect
-void HdcFileDescriptor::StopWork(bool tryCloseFdIo, std::function<void()> closeFdCallback)
+void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback)
 {
     workContinue = false;
     callbackCloseFd = closeFdCallback;
     if (tryCloseFdIo && refIO > 0) {
-        ++refIO;
-        reqClose.data = this;
-        WRITE_LOG(LOG_DEBUG, "StopWork fdIO:%d", fdIO);
-        uv_fs_close(loop, &reqClose, fdIO, [](uv_fs_t *req) {
-            auto thisClass = (HdcFileDescriptor *)req->data;
-            uv_fs_req_cleanup(req);
-            if (thisClass->callbackCloseFd != nullptr) {
-                thisClass->callbackCloseFd();
-            }
-            --thisClass->refIO;
-        });
+        if (callbackCloseFd != nullptr) {
+            callbackCloseFd();
+        }
     }
-};
+}
 
-void HdcFileDescriptor::OnFileIO(uv_fs_t *req)
+void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite)
 {
-    CtxFileIO *ctxIO = static_cast<CtxFileIO *>(req->data);
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
     bool bFinish = false;
     bool fetalFinish = false;
+    ssize_t nBytes;
 
-    do {
-        if (req->result > 0) {
-            if (req->fs_type == UV_FS_READ) {
-                if (!thisClass->callbackRead(thisClass->callerContext, buf, req->result)) {
-                    bFinish = true;
-                    break;
-                }
-                thisClass->LoopRead();
-            } else {
-                // fs_write
-            }
+    while (true) {
+        if (thisClass->workContinue == false) {
+            return;
+        }
+
+        if (isWrite) {
+            nBytes = write(thisClass->fdIO, buf, bufSize);
+            bufSize -= nBytes;
         } else {
-            if (req->result != 0) {
-                constexpr int bufSize = 1024;
-                char buffer[bufSize] = { 0 };
-                uv_strerror_r((int)req->result, buffer, bufSize);
-                WRITE_LOG(LOG_DEBUG, "OnFileIO fd:%d failed:%s", thisClass->fdIO, buffer);
+            memset(buf, 0, bufSize);
+            nBytes = read(thisClass->fdIO, buf, bufSize);
+        }
+        if (nBytes > 0) {
+            if (isWrite && bufSize == 0) {
+                break;
+            } else if (!isWrite && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
+                bFinish = true;
+                break;
+            }
+            continue;
+        } else {
+            if (nBytes != 0) {
+                WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, strerror(errno));
             }
             bFinish = true;
             fetalFinish = true;
             break;
         }
-    } while (false);
-    uv_fs_req_cleanup(req);
+    }
     delete[] buf;
     delete ctxIO;
 
     --thisClass->refIO;
     if (bFinish) {
-        thisClass->callbackFinish(thisClass->callerContext, fetalFinish, STRING_EMPTY);
         thisClass->workContinue = false;
+        thisClass->callbackFinish(thisClass->callerContext, fetalFinish, STRING_EMPTY);
     }
 }
 
-int HdcFileDescriptor::LoopRead()
+int HdcFileDescriptor::LoopReadOnThread()
 {
-    uv_buf_t iov;
     int readMax = Base::GetMaxBufSize() * 1.2;
     auto contextIO = new CtxFileIO();
     auto buf = new uint8_t[readMax]();
@@ -118,19 +114,17 @@ int HdcFileDescriptor::LoopRead()
         callbackFinish(callerContext, true, "Memory alloc failed");
         return -1;
     }
-    uv_fs_t *req = &contextIO->fs;
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
-    req->data = contextIO;
     ++refIO;
-    iov = uv_buf_init((char *)buf, readMax);
-    uv_fs_read(loop, req, fdIO, &iov, 1, -1, OnFileIO);
+    IOReadThread = std::thread(FileIOOnThread, contextIO, readMax, false);
+    IOReadThread.detach();
     return 0;
 }
 
-bool HdcFileDescriptor::StartWork()
+bool HdcFileDescriptor::StartWorkOnThread()
 {
-    if (LoopRead() < 0) {
+    if (LoopReadOnThread() < 0) {
         return false;
     }
     return true;
@@ -163,14 +157,11 @@ int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
         callbackFinish(callerContext, true, "Memory alloc failed");
         return -1;
     }
-    uv_fs_t *req = &contextIO->fs;
     contextIO->bufIO = data;
     contextIO->thisClass = this;
-    req->data = contextIO;
     ++refIO;
-
-    uv_buf_t iov = uv_buf_init((char *)data, size);
-    uv_fs_write(loop, req, fdIO, &iov, 1, -1, OnFileIO);
+    IOWriteThread = std::thread(FileIOOnThread, contextIO, size, true);
+    IOWriteThread.detach();
     return size;
 }
 }  // namespace Hdc

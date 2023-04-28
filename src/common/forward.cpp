@@ -142,7 +142,7 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
 {
     Base::CloseFd(ctx->fd);
     if (ctx->fdClass) {
-        ctx->fdClass->StopWork(false, nullptr);
+        ctx->fdClass->StopWorkOnThread(false, nullptr);
 
         auto funcReqClose = [](uv_idle_t *handle) -> void {
             uv_close_cb funcIdleHandleClose = [](uv_handle_t *handle) -> void {
@@ -164,6 +164,7 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
 void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNotifyRemote)
 {
     WRITE_LOG(LOG_DEBUG, "FreeContext id:%u, bNotifyRemote:%d", id, bNotifyRemote);
+    std::lock_guard<std::mutex> lock(ctxFreeMutex);
     HCtxForward ctx = nullptr;
     if (!ctxIn) {
         if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
@@ -625,7 +626,7 @@ bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
             uv_read_start((uv_stream_t *)&ctx->pipe, AllocForwardBuf, ReadForwardBuf);
             break;
         case FORWARD_DEVICE: {
-            ctx->fdClass->StartWork();
+            ctx->fdClass->StartWorkOnThread();
             break;
         }
         default:

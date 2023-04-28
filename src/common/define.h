@@ -98,8 +98,8 @@ const string CMDSTR_BUGREPORT = "bugreport";
 const string CMDSTR_HILOG = "hilog";
 const string CMDSTR_TMODE_USB = "usb";
 #ifdef _WIN32
-const char *HILOG_NAME = "hilog.exe";
-const char *SPLIT = "\\";
+const string HILOG_NAME = "hilog.exe";
+const string SPLIT = "\\";
 #endif
 #ifdef HDC_SUPPORT_UART
 const string CMDSTR_TMODE_UART = "uart";

@@ -55,10 +55,10 @@ bool ExtClient::Init()
     return true;
 }
 
-bool SharedLibraryExist()
+bool ExtClient::SharedLibraryExist()
 {
     string path = GetPath();
-    return CheckDirectoryOrPath(path.c_str(), true, true);
+    return Base::CheckDirectoryOrPath(path.c_str(), true, true);
 }
 
 void ExtClient::ExecuteCommand(const string &command)
@@ -352,8 +352,17 @@ std::string ExtClient::WithConnectKey(const string &str)
 
 void ExtClient::WaitForExtent(const std::string &str)
 {
+    uv_lib_t uvLib;
+    string path = GetPath();
+    int rc = uv_dlopen(path.c_str(), &uvLib);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path.c_str(), uv_dlerror(&uvLib));
+        return;
+    }
+    RegistExecFunc(&uvLib);
     const char *name = "HdcExtWaitFor";
-    Handle(str, name);
+    HandleLib(str, name, uvLib);
+    uv_dlclose(&uvLib);
 }
 
 static void OnExit(uv_process_t *req, int64_t exitStatus, int termSignal)

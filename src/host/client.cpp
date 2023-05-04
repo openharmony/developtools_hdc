@@ -197,18 +197,9 @@ static void ReadFileThreadFunc(void* arg)
 
 string HdcClient::GetHilogPath()
 {
-    char path[BUF_SIZE_SMALL] = "";
-    size_t nPathSize = sizeof(path);
-    int ret = uv_exepath(path, &nPathSize);
-    if (ret < 0) {
-        char buf[BUF_SIZE_DEFAULT] = { 0 };
-        uv_err_name_r(ret, buf, BUF_SIZE_DEFAULT);
-        WRITE_LOG(LOG_WARN, "uvexepath ret:%d error:%s", ret, buf);
-        return "";
-    }
-    string hdcPath(path);
-    int index = hdcPath.find_last_of(SPLIT);
-    string exePath = hdcPath.substr(0, index) + SPLIT + HILOG_NAME;
+    string hdcPath = Base::GetHdcAbsolutePath();
+    int index = hdcPath.find_last_of(Base::GetPathSep());
+    string exePath = hdcPath.substr(0, index) + Base::GetPathSep() + HILOG_NAME;
 
     return exePath;
 }

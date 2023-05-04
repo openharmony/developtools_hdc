@@ -28,6 +28,7 @@ public:
     ExtClient();
     virtual ~ExtClient();
     void ExecuteCommand(const string &command);
+    bool Init();
     static bool SharedLibraryExist();
 
 private:
@@ -57,7 +58,7 @@ private:
     std::string Handle(const std::string &str, const char *name);
     string WithConnectKey(const string &str);
     static void WaitForExtent(const std::string &str);
-    static const char *GetPath();
+    static string GetPath();
     static void RegistExecFunc(uv_lib_t *lib);
 };
 }

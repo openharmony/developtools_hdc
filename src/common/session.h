@@ -82,8 +82,8 @@ public:
     static void MainAsyncCallback(uv_async_t *handle);
     static void FinishWriteSessionTCP(uv_write_t *req, int status);
     static void SessionWorkThread(uv_work_t *arg);
-    static void ReadCtrlFromMain(uv_stream_t *uvpipe, ssize_t nread, const uv_buf_t *buf);
-    static void ReadCtrlFromSession(uv_stream_t *uvpipe, ssize_t nread, const uv_buf_t *buf);
+    static void ReadCtrlFromSession(uv_poll_t *poll, int status, int events);
+    static void ReadCtrlFromMain(uv_poll_t *poll, int status, int events);
     HSession QueryUSBDeviceRegister(void *pDev, uint8_t busIDIn, uint8_t devIDIn);
     virtual HSession MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule, uint32_t sessionId = 0);
     virtual void FreeSession(const uint32_t sessionId);
@@ -147,6 +147,7 @@ protected:
     bool TaskCommandDispatch(HTaskInfo hTaskInfo, uint8_t taskType, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
     {
+        StartTraceScope("HdcSessionBase::TaskCommandDispatch");
         bool ret = true;
         T *ptrTask = nullptr;
         if (!hTaskInfo->hasInitial) {
@@ -189,7 +190,7 @@ private:
     }
     int DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe, uint8_t *encBuf);
     bool DispatchMainThreadCommand(HSession hSession, const CtrlStruct *ctrl);
-    bool DispatchSessionThreadCommand(uv_stream_t *uvpipe, HSession hSession, const uint8_t *baseBuf,
+    bool DispatchSessionThreadCommand(HSession hSession, const uint8_t *baseBuf,
                                       const int bytesIO);
     void BeginRemoveTask(HTaskInfo hTask);
     bool TryRemoveTask(HTaskInfo hTask);
@@ -211,6 +212,7 @@ private:
     const uint8_t payloadProtectStaticVcode = 0x09;
     uv_thread_t threadSessionMain;
     size_t threadPoolCount;
+    CircleBuffer cirbuf;
 };
 }  // namespace Hdc
 #endif

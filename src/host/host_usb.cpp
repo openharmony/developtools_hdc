@@ -685,7 +685,7 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
         uv_sleep(1);
     }
     auto ctrl = pServer->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-    Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
+    Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN], ctrl.data(), ctrl.size());
     return hSession;
 }
 }  // namespace Hdc

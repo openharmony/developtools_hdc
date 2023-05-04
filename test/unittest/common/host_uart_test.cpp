@@ -214,7 +214,7 @@ HWTEST_F(HdcHostUARTTest, ConnectDaemonByUart, TestSize.Level1)
         .Times(1);
     EXPECT_CALL(
         mockInterface,
-        SendToStream(reinterpret_cast<uv_stream_t *>(&mySession.ctrlPipe[STREAM_MAIN]), _, _))
+        SendToPollFd(mySession.ctrlFd[STREAM_MAIN], mySession.pollHandle[STREAM_MAIN], _, _))
         .Times(1);
     mySession.childLoop.active_handles = 1;
     EXPECT_EQ(mockHostUART.ConnectDaemonByUart(&mySession), &mySession);
@@ -228,7 +228,7 @@ HWTEST_F(HdcHostUARTTest, ConnectDaemonByUart, TestSize.Level1)
         .Times(1);
     EXPECT_CALL(
         mockInterface,
-        SendToStream(reinterpret_cast<uv_stream_t *>(&mySession.ctrlPipe[STREAM_MAIN]), _, _))
+        SendToPollFd(mySession.ctrlFd[STREAM_MAIN], mySession.pollHandle[STREAM_MAIN], _, _))
         .Times(1);
 
     mySession.childLoop.active_handles = 0;

@@ -63,7 +63,6 @@ using std::vector;
 #include <securec.h>
 #include <limits.h>
 
-#include "circle_buffer.h"
 #include "define.h"
 #include "debug.h"
 #include "base.h"

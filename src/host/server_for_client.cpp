@@ -700,8 +700,7 @@ int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr,
             return;
         }
         auto ctrl = HdcSessionBase::BuildCtrlString(SP_ATTACH_CHANNEL, hChannel->channelId, nullptr, 0);
-        Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN],
-                           ctrl.data(), ctrl.size());
+        Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(), ctrl.size());
     });
     return RET_SUCCESS;
 }
@@ -827,7 +826,6 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
     if (!hSession) {
         return false;
     }
-    return Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN],
-                              ctrlMsg.data(), ctrlMsg.size()) > 0;
+    return Base::SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrlMsg.data(), ctrlMsg.size()) > 0;
 }
 }  // namespace Hdc

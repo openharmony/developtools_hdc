@@ -57,15 +57,11 @@ bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
 
 int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes)
 {
-    StartTraceScope("HdcTransferBase::SimpleFileIO");
     // The first 8 bytes file offset
-    uint8_t *buf = cirbuf.Malloc();
-    if (buf == nullptr) {
-        WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr");
-        return -1;
-    }
+    uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
+    StartTraceScope("HdcTransferBase::SimpleFileIO");
     while (true) {
         if (!buf || !ioContext || bytes < 0) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
@@ -97,6 +93,10 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         break;
     }
     if (!ret) {
+        if (buf != nullptr) {
+            delete[] buf;
+            buf = nullptr;
+        }
         if (ioContext != nullptr) {
             delete ioContext;
             ioContext = nullptr;
@@ -108,7 +108,6 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 
 void HdcTransferBase::OnFileClose(uv_fs_t *req)
 {
-    StartTraceScope("HdcTransferBase::OnFileClose");
     uv_fs_req_cleanup(req);
     CtxFile *context = (CtxFile *)req->data;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
@@ -250,8 +249,8 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d", thisClass->taskInfo->channelId, context->fsOpenReq.result);
         uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
     }
-    thisClass->cirbuf.Free();
     --thisClass->refCount;
+    delete[] (bufIO - payloadPrefixReserve);
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }
 
@@ -639,7 +638,6 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
 
 bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
-    StartTraceScope("HdcTransferBase::CommandDispatch");
     bool ret = true;
     while (true) {
         if (command == commandBegin) {

@@ -28,7 +28,6 @@ HdcUSBBase::~HdcUSBBase()
 
 void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
-    StartTraceScope("HdcUSBBase::ReadUSB");
     HSession hSession = (HSession)stream->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
@@ -105,7 +104,6 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
 
 bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
 {
-    StartTraceScope("HdcUSBBase::IsUsbPacketHeader");
     USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
     uint32_t maybeSize = ntohl(usbPayloadHeader->dataSize);
     bool isHeader = false;
@@ -131,7 +129,6 @@ bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
 
 void HdcUSBBase::PreSendUsbSoftReset(HSession hSession, uint32_t sessionIdOld)
 {
-    StartTraceScope("HdcUSBBase::PreSendUsbSoftReset");
     HUSB hUSB = hSession->hUSB;
     if (hSession->serverOrDaemon && !hUSB->resetIO) {
         hUSB->lockSendUsbBlock.lock();
@@ -172,9 +169,9 @@ int HdcUSBBase::CheckPacketOption(HSession hSession, uint8_t *appendData, int da
 // return value: <0 error; = 0 all finish; >0 need size
 int HdcUSBBase::SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t *appendData, int dataSize)
 {
-    StartTraceScope("HdcUSBBase::SendToHdcStream");
     int childRet = 0;
     HUSB hUSB = hSession->hUSB;
+    StartTraceScope("HdcUSBBase::SendToHdcStream: SendToStreamEx");
     if (IsUsbPacketHeader(appendData, dataSize)) {
         return CheckPacketOption(hSession, appendData, dataSize);
     }

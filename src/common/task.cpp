@@ -45,7 +45,6 @@ bool HdcTaskBase::ReadyForRelease()
 // Only the Task work thread call is allowed to use only when Workfortask returns FALSE.
 void HdcTaskBase::TaskFinish()
 {
-    StartTraceScope("HdcTaskBase::TaskFinish");
     uint8_t count = 1;
     SendToAnother(CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
     WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify");
@@ -53,7 +52,6 @@ void HdcTaskBase::TaskFinish()
 
 bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size)
 {
-    StartTraceScope("HdcTaskBase::SendToAnother");
     if (singalStop) {
         return false;
     }
@@ -109,17 +107,14 @@ int HdcTaskBase::ThreadCtrlCommunicate(const uint8_t *bufPtr, const int size)
     if (!hSession) {
         return -1;
     }
-    uv_poll_t *pollHandle;
-    int fd;
+    uv_stream_t *handleStream = nullptr;
     if (uv_thread_self() == hSession->hWorkThread) {
-        fd = hSession->ctrlFd[STREAM_MAIN];
-        pollHandle = hSession->pollHandle[STREAM_MAIN];
+        handleStream = (uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN];
     } else if (uv_thread_self() == hSession->hWorkChildThread) {
-        fd = hSession->ctrlFd[STREAM_WORK];
-        pollHandle = hSession->pollHandle[STREAM_WORK];
+        handleStream = (uv_stream_t *)&hSession->ctrlPipe[STREAM_WORK];
     } else {
         return ERR_GENERIC;
     }
-    return Base::SendToPollFd(fd, pollHandle, bufPtr, size);
+    return Base::SendToStream(handleStream, bufPtr, size);
 }
 }

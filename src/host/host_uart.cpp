@@ -494,8 +494,8 @@ HSession HdcHostUART::ConnectDaemonByUart(const HSession hSession, const HDaemon
         uv_sleep(1);
     }
     auto ctrl = server.BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-    externInterface.SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN],
-                                 ctrl.data(), ctrl.size());
+    externInterface.SendToStream((uv_stream_t *)&hSession->ctrlPipe[STREAM_MAIN], ctrl.data(),
+                                 ctrl.size());
     return hSession;
 }
 

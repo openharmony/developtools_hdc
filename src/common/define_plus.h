@@ -280,21 +280,19 @@ struct HostUSBEndpoint {
     HostUSBEndpoint()
     {
         endpoint = 0;
-        sizeEpBuf = 62464;  // MAX_USBFFS_BULK
+        sizeEpBuf = 16384;  // MAX_USBFFS_BULK
         transfer = libusb_alloc_transfer(0);
         isShutdown = true;
         isComplete = true;
         bulkInOut = false;
-        buf = new (std::nothrow) uint8_t[sizeEpBuf];
         (void)memset_s(buf, sizeEpBuf, 0, sizeEpBuf);
     }
     ~HostUSBEndpoint()
     {
         libusb_free_transfer(transfer);
-        delete[] buf;
     }
     uint8_t endpoint;
-    uint8_t *buf;  // MAX_USBFFS_BULK
+    uint8_t buf[16384];  // MAX_USBFFS_BULK
     bool isComplete;
     bool isShutdown;
     bool bulkInOut;  // true is bulkIn
@@ -390,7 +388,7 @@ struct HdcSession {
     // child work
     uv_loop_t childLoop;  // run in work thread
     // pipe0 in main thread(hdc server mainloop), pipe1 in work thread
-    uv_poll_t *pollHandle[2];  // control channel
+    uv_tcp_t ctrlPipe[2];  // control channel
     int ctrlFd[2];         // control channel socketpair
     // data channel(TCP with socket, USB with thread forward)
     uv_tcp_t dataPipe[2];

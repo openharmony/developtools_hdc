@@ -206,7 +206,6 @@ void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNot
 
 bool HdcForwardBase::SendToTask(const uint32_t cid, const uint16_t command, uint8_t *bufPtr, const int bufSize)
 {
-    StartTraceScope("HdcForwardBase::SendToTask");
     bool ret = false;
     // usually MAX_SIZE_IOBUF*2 from HdcFileDescriptor maxIO
     if (bufSize > Base::GetMaxBufSize() * 2) {

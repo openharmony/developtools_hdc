@@ -146,6 +146,7 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
 bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId,
                                const uint16_t command, uint8_t *payload, const int payloadSize)
 {
+    StartTraceScope("HdcDaemon::RedirectToTask");
     bool ret = true;
     hTaskInfo->ownerSessionClass = this;
     switch (command) {
@@ -246,6 +247,7 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
 
 bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize)
 {
+    StartTraceScope("HdcDaemon::DaemonSessionHandshake");
     // session handshake step2
     string s = string(reinterpret_cast<char *>(payload), payloadSize);
     SessionHandShake handshake;
@@ -379,6 +381,7 @@ bool HdcDaemon::CheckControl(const uint16_t command)
 bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
 {
+    StartTraceScope("HdcDaemon::FetchCommand");
     bool ret = true;
     if (!hSession->handshakeOK and command != CMD_KERNEL_HANDSHAKE) {
         WRITE_LOG(LOG_WARN, "session %u wait CMD_KERNEL_HANDSHAKE , but got command %u",

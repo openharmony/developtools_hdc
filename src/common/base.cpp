@@ -982,6 +982,21 @@ namespace Base {
         return s;
     }
 
+    string GetHdcAbsolutePath()
+    {
+        char path[BUF_SIZE_DEFAULT4] = { 0 };
+        size_t nPathSize = sizeof(path);
+        int ret = uv_exepath(path, &nPathSize);
+        if (ret < 0) {
+            char buf[BUF_SIZE_DEFAULT] = { 0 };
+            uv_err_name_r(ret, buf, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_WARN, "uvexepath ret:%d error:%s", ret, buf);
+            return "";
+        }
+
+        return string(path);
+    }
+
     int CreateSocketPair(int *fds)
     {
 #ifndef _WIN32

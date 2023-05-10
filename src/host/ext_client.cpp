@@ -19,48 +19,46 @@
 namespace Hdc {
 ExtClient::ExtClient()
 {
-#ifdef _WIN32
-    const char *path = "libexternal_hdc.dll";
-#elif defined(HOST_MAC)
-    const char *path = "libexternal_hdc.dylib";
-#else
-    const char *path = "libexternal_hdc.z.so";
-#endif
-
-    int rc = uv_dlopen(path, &lib);
-    if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
-    }
-    RegistExecFunc(&lib);
+    lib.handle = nullptr;
 }
 
 ExtClient::~ExtClient()
 {
-    uv_dlclose(&lib);
+    if (lib.handle != nullptr) {
+        uv_dlclose(&lib);
+    }
 }
 
-const char *ExtClient::GetPath()
+string ExtClient::GetPath()
 {
 #ifdef _WIN32
-    const char *path = "libexternal_hdc.dll";
+    string path = "libexternal_hdc.dll";
 #elif defined(HOST_MAC)
-    const char *path = "libexternal_hdc.dylib";
+    string path = "libexternal_hdc.dylib";
 #else
-    const char *path = "libexternal_hdc.z.so";
+    string path = "libexternal_hdc.z.so";
 #endif
-    return path;
+    string hdcPath = Base::GetHdcAbsolutePath();
+    int index = hdcPath.find_last_of(Base::GetPathSep());
+    return (hdcPath.substr(0, index) + Base::GetPathSep() + path);
+}
+
+bool ExtClient::Init()
+{
+    string path = GetPath();
+    int rc = uv_dlopen(path.c_str(), &lib);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path.c_str(), uv_dlerror(&lib));
+        return false;
+    }
+    RegistExecFunc(&lib);
+    return true;
 }
 
 bool ExtClient::SharedLibraryExist()
 {
-    const char *path = GetPath();
-    uv_lib_t lib;
-    int rc = uv_dlopen(path, &lib);
-    if (rc != 0) {
-        return false;
-    }
-    uv_dlclose(&lib);
-    return true;
+    string path = GetPath();
+    return Base::CheckDirectoryOrPath(path.c_str(), true, true);
 }
 
 void ExtClient::ExecuteCommand(const string &command)
@@ -355,10 +353,10 @@ std::string ExtClient::WithConnectKey(const string &str)
 void ExtClient::WaitForExtent(const std::string &str)
 {
     uv_lib_t uvLib;
-    const char *path = GetPath();
-    int rc = uv_dlopen(path, &uvLib);
+    string path = GetPath();
+    int rc = uv_dlopen(path.c_str(), &uvLib);
     if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&uvLib));
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path.c_str(), uv_dlerror(&uvLib));
         return;
     }
     RegistExecFunc(&uvLib);

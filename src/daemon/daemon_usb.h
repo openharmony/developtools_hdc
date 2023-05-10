@@ -39,6 +39,7 @@ private:
     };
     static void OnUSBRead(uv_fs_t *req);
     static void WatchEPTimer(uv_timer_t *handle);
+    static void UvWriteCallback(uv_write_t *req, int status);
     int ConnectEPPoint(HUSB hUSB);
     int DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int readBytes);
     int AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *sessionId);
@@ -54,6 +55,7 @@ private:
     int GetMaxPacketSize(int fdFfs);
     int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     void FillUsbV2Head(struct usb_functionfs_desc_v2 &descUsbFfs);
+    int UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int size);
 
     HdcUSB usbHandle = {};
     string basePath;                // usb device's base path
@@ -64,6 +66,7 @@ private:
     int controlEp = 0;  // EP0
     CtxUvFileCommonIo ctxRecv = {};
     int saveNextReadSize = 0;
+    CircleBuffer cirbuf;
 };
 }  // namespace Hdc
 #endif

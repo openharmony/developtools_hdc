@@ -118,6 +118,7 @@ protected:
     uint16_t commandBegin;
     uint16_t commandData;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+    CircleBuffer cirbuf;
 
 private:
     // dynamic IO context

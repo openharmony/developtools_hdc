@@ -223,36 +223,49 @@ namespace Base {
     }
 #endif
 
-    void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
+    void PrintLogEx(uint8_t logLevel, const char *msg, ...)
     {
         if (logLevel > g_logLevel) {
             return;
         }
-        string debugInfo;
+
+        char buf[BUF_SIZE_DEFAULT4] = { 0 }; // only 4k to avoid stack overflow in 32bit or L0
+        va_list vaArgs;
+        va_start(vaArgs, msg);
+        (void)vsnprintf_s(buf, sizeof(buf), sizeof(buf) - 1, msg, vaArgs);
+        va_end(vaArgs);
+
+#ifdef  HDC_HILOG
+        static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
+        switch (static_cast<int>(logLevel)) {
+            case static_cast<int>(LOG_DEBUG):
+                OHOS::HiviewDFX::HiLog::Debug(LOG_LABEL, "%{public}s", buf);
+                break;
+            case static_cast<int>(LOG_INFO):
+                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "%{public}s", buf);
+                break;
+            case static_cast<int>(LOG_WARN):
+                OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "%{public}s", buf);
+                break;
+            case static_cast<int>(LOG_FATAL):
+                OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "%{public}s", buf);
+                break;
+            default:
+                break;
+        }
+#else
         string logLevelString;
         string threadIdString;
         string sep = "\n";
         string timeString;
-
-        va_list vaArgs;
-        va_start(vaArgs, msg);
-        string logDetail = Base::StringFormat(msg, vaArgs);
-        va_end(vaArgs);
-        if (logDetail.back() == '\n') {
+        if (string(buf).back() == '\n') {
             sep = "\r\n";
         }
-        debugInfo = functionName;
-        GetLogDebugFunctionName(debugInfo, line, threadIdString);
+        string debugInfo = __FILE__;
+        GetLogDebugFunctionName(debugInfo, __LINE__, threadIdString);
         GetLogLevelAndTime(logLevel, logLevelString, timeString);
-
-#ifdef  HDC_HILOG
-        static constexpr OHOS::HiviewDFX::HiLogLabel HILOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
-        OHOS::HiviewDFX::HiLog::Info(HILOG_LABEL, "[%{public}s]%{public}s%{public}s %{public}s%{public}s",
-                                     logLevelString.c_str(), threadIdString.c_str(), debugInfo.c_str(),
-                                     logDetail.c_str(), sep.c_str());
-#else
         string logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
-                                     threadIdString.c_str(), debugInfo.c_str(), logDetail.c_str(), sep.c_str());
+                                     threadIdString.c_str(), debugInfo.c_str(), buf, sep.c_str());
 
         printf("%s", logBuf.c_str());
         fflush(stdout);

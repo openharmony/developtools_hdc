@@ -491,7 +491,8 @@ namespace Base {
         }
         uv_poll_start(pollHandle, UV_WRITABLE, [](uv_poll_t *poll, int status, int events) {});
         int ret = Base::WriteToFd(fd, pDynBuf, bufLen);
-        delete[] pDynBuf;
+        uv_poll_stop(pollHandle);
+	delete[] pDynBuf;
         return ret;
     }
 

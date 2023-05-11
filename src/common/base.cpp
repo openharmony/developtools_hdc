@@ -239,7 +239,8 @@ namespace Base {
         static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
         switch (static_cast<int>(logLevel)) {
             case static_cast<int>(LOG_DEBUG):
-                OHOS::HiviewDFX::HiLog::Debug(LOG_LABEL, "%{public}s", buf);
+                // Info level log can be printed default in hilog, debug can't
+                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "%{public}s", buf);
                 break;
             case static_cast<int>(LOG_INFO):
                 OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "%{public}s", buf);

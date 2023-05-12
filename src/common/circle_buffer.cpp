@@ -25,15 +25,12 @@ CircleBuffer::CircleBuffer()
         uint8_t *buf = new(std::nothrow) uint8_t[BUF_SIZE];
         buffers.push_back(buf);
     }
-    run = true;
-    begin = std::chrono::steady_clock::now();
-    thread = std::thread (Timer, this);
+    TimerStart();
 }
 
 CircleBuffer::~CircleBuffer()
 {
-    run = false;
-    thread.join();
+    TimerStop();
     for (int i = 0; i < size; i++) {
         delete[] buffers[i];
     }
@@ -85,12 +82,17 @@ void CircleBuffer::Free()
 void CircleBuffer::FreeMemory()
 {
     std::unique_lock<std::mutex> lock(mutex);
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+    int64_t freeTime = 10;
+    int64_t val = Interval();
+    if (val <= freeTime) {
+        return;
+    }
     int left = size - CIRCLE_SIZE;
+    if (left < 1) {
+        return;
+    }
     bool b = Empty();
-    int freeTime = 10;
-    if (b && left > 0 && duration.count() > freeTime) {
+    if (b) {
         for (int i = left; i > 0; i--) {
             delete[] buffers[i - 1 + CIRCLE_SIZE];
             buffers.pop_back();
@@ -106,8 +108,41 @@ void CircleBuffer::Timer(void *object)
     CircleBuffer *cirbuf = (CircleBuffer *)object;
     while (cirbuf->run) {
         cirbuf->FreeMemory();
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        cirbuf->TimerSleep();
     }
+}
+
+void CircleBuffer::TimerStart()
+{
+    run = true;
+    begin = std::chrono::steady_clock::now();
+    thread = std::thread (Timer, this);
+}
+
+void CircleBuffer::TimerStop()
+{
+    run = false;
+    TimerNotify();
+    thread.join();
+}
+
+void CircleBuffer::TimerSleep()
+{
+    std::unique_lock<std::mutex> lock(timerMutex);
+    timerCv.wait_for(lock, std::chrono::seconds(1));
+}
+
+void CircleBuffer::TimerNotify()
+{
+    std::unique_lock<std::mutex> lock(timerMutex);
+    timerCv.notify_one();
+}
+
+int64_t CircleBuffer::Interval()
+{
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+    return duration.count();
 }
 }
 

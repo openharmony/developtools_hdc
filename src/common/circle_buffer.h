@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <new>
 #include <securec.h>
@@ -45,9 +46,16 @@ private:
     std::vector<uint8_t *> buffers;
     bool run;
     std::thread thread;
+    std::mutex timerMutex;
+    std::condition_variable timerCv;
     std::chrono::steady_clock::time_point begin;
     static void Timer(void *object);
     void FreeMemory();
+    void TimerNotify();
+    void TimerSleep();
+    void TimerStart();
+    void TimerStop();
+    int64_t Interval();
 };
 }
 

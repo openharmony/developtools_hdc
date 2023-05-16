@@ -765,13 +765,10 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
                 if (hSession->hWorkThread == uv_thread_self()) {
                     ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen,
                                                nullptr, (void *)FinishWriteSessionTCP, bufPtr);
-                } else if (hSession->hWorkChildThread == uv_thread_self()) {
+                } else {
                     ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr,
                                                bufLen, nullptr, (void *)FinishWriteSessionTCP,
                                                bufPtr);
-                } else {
-                    WRITE_LOG(LOG_FATAL, "SendByProtocol uncontrol send");
-                    ret = ERR_API_FAIL;
                 }
             }
             if (ret > 0) {

@@ -26,8 +26,8 @@
 #include <vector>
 
 namespace Hdc {
-constexpr int CIRCLE_SIZE = 64;
-constexpr int BUF_SIZE = 62464; // MAX_USBFFS_BULK
+constexpr uint64_t CIRCLE_SIZE = 64;
+constexpr uint64_t BUF_SIZE = 62464; // MAX_USBFFS_BULK
 
 class CircleBuffer {
 public:
@@ -39,16 +39,18 @@ public:
 private:
     bool Full();
     bool Empty();
-    int head;
-    int tail;
-    int size;
-    std::mutex mutex;
-    std::vector<uint8_t *> buffers;
-    bool run;
-    std::thread thread;
-    std::mutex timerMutex;
-    std::condition_variable timerCv;
-    std::chrono::steady_clock::time_point begin;
+    void Init();
+    bool FirstMalloc();
+    uint64_t head_;
+    uint64_t tail_;
+    uint64_t size_;
+    std::mutex mutex_;
+    std::vector<uint8_t *> buffers_;
+    bool run_;
+    std::thread thread_;
+    std::mutex timerMutex_;
+    std::condition_variable timerCv_;
+    std::chrono::steady_clock::time_point begin_;
     static void Timer(void *object);
     void FreeMemory();
     void TimerNotify();

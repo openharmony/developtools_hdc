@@ -25,8 +25,7 @@ CircleBuffer::CircleBuffer()
 CircleBuffer::~CircleBuffer()
 {
     TimerStop();
-    run_ = false;
-    for (int i = 0; i < buffers_.size(); i++) {
+    for (size_t i = 0; i < buffers_.size(); i++) {
         delete[] buffers_[i];
     }
 }
@@ -67,20 +66,22 @@ bool CircleBuffer::FirstMalloc()
 
     TimerStart();
     size_ = static_cast<uint64_t>(buffers_.size());
-    run_ = true;
+    return true;
 }
 
 uint8_t *CircleBuffer::Malloc()
 {
     std::unique_lock<std::mutex> lock(mutex_);
-    FirstMalloc();
+    if (!FirstMalloc()) {
+        return nullptr;
+    }
     uint8_t *buf = nullptr;
     if (Full()) {
         buf = new(std::nothrow) uint8_t[BUF_SIZE];
         if (buf == nullptr) {
             return nullptr;
         }
-        buffers_.insert(buffers_.begin_() + tail_, buf);
+        buffers_.insert(buffers_.begin() + tail_, buf);
         size_++;
         if (head_ > tail_) {
             head_ = (head_ + 1) % size_;
@@ -130,9 +131,9 @@ void CircleBuffer::Timer(void *object)
 
 void CircleBuffer::TimerStart()
 {
-    run = true;
-    begin = std::chrono::steady_clock::now();
-    thread = std::thread (Timer, this);
+    run_ = true;
+    begin_ = std::chrono::steady_clock::now();
+    thread_ = std::thread (Timer, this);
 }
 
 void CircleBuffer::TimerStop()

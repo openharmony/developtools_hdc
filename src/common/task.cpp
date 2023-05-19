@@ -47,8 +47,9 @@ void HdcTaskBase::TaskFinish()
 {
     StartTraceScope("HdcTaskBase::TaskFinish");
     uint8_t count = 1;
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify begin channelId:%u", taskInfo->channelId);
     SendToAnother(CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify");
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify end channelId:%u", taskInfo->channelId);
 }
 
 bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size)

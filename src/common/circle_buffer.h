@@ -47,6 +47,7 @@ private:
     std::mutex mutex_;
     std::vector<uint8_t *> buffers_;
     bool run_;
+    bool mallocInit_;
     std::thread thread_;
     std::mutex timerMutex_;
     std::condition_variable timerCv_;

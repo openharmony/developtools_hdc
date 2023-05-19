@@ -19,6 +19,7 @@ namespace Hdc {
 CircleBuffer::CircleBuffer()
 {
     Init();
+    run_ = false;
     begin_ = std::chrono::steady_clock::now();
 }
 
@@ -35,7 +36,7 @@ void CircleBuffer::Init()
     head_ = 0;
     tail_ = 0;
     size_ = CIRCLE_SIZE;
-    run_ = false;
+    mallocInit_ = false;
 }
 
 bool CircleBuffer::Full()
@@ -50,7 +51,7 @@ bool CircleBuffer::Empty()
 
 bool CircleBuffer::FirstMalloc()
 {
-    if (run_) {
+    if (mallocInit_) {
         return true;
     }
     for (uint64_t i = 0; i < size_; i++) {
@@ -65,6 +66,7 @@ bool CircleBuffer::FirstMalloc()
     }
 
     TimerStart();
+    mallocInit_ = true;
     size_ = static_cast<uint64_t>(buffers_.size());
     return true;
 }
@@ -88,9 +90,8 @@ uint8_t *CircleBuffer::Malloc()
                 head_ = (head_ + 1) % size_;
             }
         }
-    } else {
-        buf = buffers_[tail_];
     }
+    buf = buffers_[tail_];
     (void)memset_s(buf, BUF_SIZE, 0, BUF_SIZE);
     tail_ = (tail_ + 1) % size_;
     begin_ = std::chrono::steady_clock::now();
@@ -134,9 +135,11 @@ void CircleBuffer::Timer(void *object)
 
 void CircleBuffer::TimerStart()
 {
-    run_ = true;
-    begin_ = std::chrono::steady_clock::now();
-    thread_ = std::thread (Timer, this);
+    if (!run_) {
+        run_ = true;
+        begin_ = std::chrono::steady_clock::now();
+        thread_ = std::thread(Timer, this);
+    }
 }
 
 void CircleBuffer::TimerStop()

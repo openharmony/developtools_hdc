@@ -26,7 +26,7 @@
 #include <vector>
 
 namespace Hdc {
-constexpr uint64_t CIRCLE_SIZE = 64;
+constexpr uint64_t CIRCLE_SIZE = 16;
 constexpr uint64_t BUF_SIZE = 62464; // MAX_USBFFS_BULK
 
 class CircleBuffer {

@@ -77,14 +77,16 @@ uint8_t *CircleBuffer::Malloc()
     }
     uint8_t *buf = nullptr;
     if (Full()) {
-        buf = new(std::nothrow) uint8_t[BUF_SIZE];
-        if (buf == nullptr) {
-            return nullptr;
-        }
-        buffers_.insert(buffers_.begin() + tail_, buf);
-        size_++;
-        if (head_ > tail_) {
-            head_ = (head_ + 1) % size_;
+        for (int i = 0; i < CIRCLE_SIZE; i++) {
+            buf = new(std::nothrow) uint8_t[BUF_SIZE];
+            if (buf == nullptr) {
+                return nullptr;
+            }
+            buffers_.insert(buffers_.begin() + tail_, buf);
+            size_++;
+            if (head_ > tail_) {
+                head_ = (head_ + 1) % size_;
+            }
         }
     } else {
         buf = buffers_[tail_];
@@ -113,7 +115,8 @@ void CircleBuffer::FreeMemory()
         return;
     }
 
-    for (uint64_t i = buffers_.size(); i > 0; i--) {
+    size_t bufferSize = buffers_.size();
+    for (size_t i = bufferSize; i > 0; i--) {
         delete[] buffers_[i - 1];
         buffers_.pop_back();
     }

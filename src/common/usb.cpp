@@ -52,8 +52,8 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
         WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed");
         return false;
     }
-    WRITE_LOG(LOG_DEBUG, "USBBase ReadyForWorkThread finish dataPipe[STREAM_WORK].io_watcher.fd:%d",
-        hSession->dataPipe[STREAM_WORK].io_watcher.fd);
+    WRITE_LOG(LOG_DEBUG, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d",
+        hSession->dataFd[STREAM_WORK]);
     return true;
 };
 

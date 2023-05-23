@@ -20,7 +20,6 @@ namespace TranslateCommand {
     string Usage()
     {
         string ret;
-
         ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
               "---------------------------------global commands:----------------------------------\n"
               " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
@@ -84,7 +83,7 @@ namespace TranslateCommand {
               "\n"
               "security commands:\n"
               " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
-              "\n"
+              "\n";
         return ret;
     }
 
@@ -122,6 +121,7 @@ namespace TranslateCommand {
 			  "---------------------------------external commands:------------------------------------\n"
 			  "extconn key                             - Connect external device via key, TCP use ip:port(remian)\n"
 			  "-S [ip:]port                            - Set hdc external server listen config\n"
+              "\n";
         return ret;
     }
 
@@ -226,7 +226,7 @@ namespace TranslateCommand {
         if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size() )) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
             outCmd->bJumpDo = true;
-            if (strstr(input.c_str(), " verbose") {
+            if (strstr(input.c_str(), " verbose")) {
                 stringError = Verbose();
             } else {
                 stringError = Usage();

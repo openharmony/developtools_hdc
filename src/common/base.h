@@ -31,7 +31,7 @@ namespace Base {
     int SendToStreamEx(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen, uv_stream_t *handleSend,
                        const void *finishCallback, const void *pWriteReqData);
     int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen);
-    int SendToPollFd(int fd, uv_poll_t *pollHandle, const uint8_t *buf, const int bufLen);
+    int SendToPollFd(int fd, const uint8_t *buf, const int bufLen);
     // As an uv_write_cb it must keep the same as prototype
     void SendCallback(uv_write_t *req, int status);
     // As an uv_alloc_cb it must keep the same as prototype

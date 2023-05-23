@@ -112,7 +112,7 @@ void CircleBuffer::FreeMemory()
 {
     std::unique_lock<std::mutex> lock(mutex_);
     int64_t freeTime = 30; // 30s
-    if (!Empty() || Interval() < freeTime) {
+    if (Empty() || Interval() < freeTime) {
         return;
     }
 

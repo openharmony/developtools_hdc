@@ -586,8 +586,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     // wait workthread to free
     if (hSession->pollHandle[STREAM_WORK]->loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
-        Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN],
-                           ctrl.data(), ctrl.size());
+        Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
         WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;

@@ -91,7 +91,7 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
     while (hSession->childLoop.active_handles == 0) {
         usleep(maxWaitTime);
     }
-    Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN], ctrl.data(), ctrl.size());
+    Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
     return;
 Finish:
     ptrConnect->FreeSession(hSession->sessionId);

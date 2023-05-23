@@ -38,9 +38,9 @@ int ExternInterface::SendToStream(uv_stream_t *handleStream, const uint8_t *buf,
     return Base::SendToStream(handleStream, buf, len);
 }
 
-int ExternInterface::SendToPollFd(int fd, uv_poll_t *pollHandle, const uint8_t *buf, const int len)
+int ExternInterface::SendToPollFd(int fd, const uint8_t *buf, const int len)
 {
-    return Base::SendToPollFd(fd, pollHandle, buf, len);
+    return Base::SendToPollFd(fd, buf, len);
 }
 
 int ExternInterface::UvTcpInit(uv_loop_t *loop, uv_tcp_t *tcp, int socketFd)

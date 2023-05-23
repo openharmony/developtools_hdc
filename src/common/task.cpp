@@ -109,17 +109,14 @@ int HdcTaskBase::ThreadCtrlCommunicate(const uint8_t *bufPtr, const int size)
     if (!hSession) {
         return -1;
     }
-    uv_poll_t *pollHandle;
     int fd;
     if (uv_thread_self() == hSession->hWorkThread) {
         fd = hSession->ctrlFd[STREAM_MAIN];
-        pollHandle = hSession->pollHandle[STREAM_MAIN];
     } else if (uv_thread_self() == hSession->hWorkChildThread) {
         fd = hSession->ctrlFd[STREAM_WORK];
-        pollHandle = hSession->pollHandle[STREAM_WORK];
     } else {
         return ERR_GENERIC;
     }
-    return Base::SendToPollFd(fd, pollHandle, bufPtr, size);
+    return Base::SendToPollFd(fd, bufPtr, size);
 }
 }

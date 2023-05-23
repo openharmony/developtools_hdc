@@ -303,7 +303,8 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
         if (childRet <= 0) {
             int err = errno;
             if (err == EINTR) {
-                WRITE_LOG(LOG_DEBUG, "BulkinWrite write EINTR, try again, offset:%u", offset);
+                WRITE_LOG(LOG_WARN, "BulkinWrite write EINTR, try again, offset:%u bulkIn:%d bulkOut:%d",
+                    offset, bulkIn, hMainUSB->bulkOut);
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "BulkinWrite write fatal errno %d", err);

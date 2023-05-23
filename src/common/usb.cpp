@@ -159,6 +159,8 @@ int HdcUSBBase::CheckPacketOption(HSession hSession, uint8_t *appendData, int da
         //
         // Because the USB-reset API does not work on all platforms, the last session IO data may be
         // recveived, we need to ignore it.
+        WRITE_LOG(LOG_WARN, "CheckPacketOption softreset header->sessionId:%u sessionId:%u",
+            header->sessionId, hSession->sessionId);
         PreSendUsbSoftReset(hSession, header->sessionId);
         return 0;
     }
@@ -181,6 +183,8 @@ int HdcUSBBase::SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t 
     }
     if (hUSB->payloadSize <= static_cast<uint32_t>(childRet)) {
         // last session data
+        WRITE_LOG(LOG_WARN, "SendToHdcStream softreset dataSize:%d payloadSize:%u childRet:%d",
+            dataSize, hUSB->payloadSize, childRet);
         PreSendUsbSoftReset(hSession, 0);  // 0 == reset current
         return 0;
     }

@@ -122,6 +122,8 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
     pid_t childPid;
     int fds[2];
     pipe(fds);
+    WRITE_LOG(LOG_DEBUG, "ExecuteCommand pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
+        fds[pipeRead], fds[pipeWrite]);
 
     if ((childPid = fork()) == -1) {
         return ERR_GENERIC;

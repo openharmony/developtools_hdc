@@ -605,7 +605,10 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_APP_FINISH:
             if (hChannel->fromClient) {
                 // server directly passthrough app command to client if remote file mode, else go default
-                WRITE_LOG(LOG_DEBUG, "command passthrough to client command:%u channelId:%u", command, channelId);
+                if (command != CMD_FILE_DATA) {
+                    WRITE_LOG(LOG_DEBUG, "command passthrough to client command:%u channelId:%u",
+                        command, channelId);
+                }
                 sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
                 break;
             }

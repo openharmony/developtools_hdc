@@ -303,7 +303,8 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
         if (childRet <= 0) {
             int err = errno;
             if (err == EINTR) {
-                WRITE_LOG(LOG_DEBUG, "BulkinWrite write EINTR, try again, offset:%u", offset);
+                WRITE_LOG(LOG_WARN, "BulkinWrite write EINTR, try again, offset:%u bulkIn:%d bulkOut:%d",
+                    offset, bulkIn, hMainUSB->bulkOut);
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "BulkinWrite write fatal errno %d", err);
@@ -373,8 +374,7 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
         }
         if (!hChildSession->isDead) {
             auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-            Base::SendToPollFd(hChildSession->ctrlFd[STREAM_MAIN], hChildSession->pollHandle[STREAM_MAIN],
-                               ctrl.data(), ctrl.size());
+            Base::SendToPollFd(hChildSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
             WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);

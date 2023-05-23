@@ -75,8 +75,8 @@ bool AsyncCmd::Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint
 
 bool AsyncCmd::FinishShellProc(const void *context, const bool result, const string exitMsg)
 {
-    WRITE_LOG(LOG_DEBUG, "FinishShellProc finish");
     AsyncCmd *thisClass = static_cast<AsyncCmd *>(const_cast<void *>(context));
+    WRITE_LOG(LOG_DEBUG, "FinishShellProc finish pipeRead fd:%d pid:%d", thisClass->fd, thisClass->pid);
     thisClass->resultCallback(true, result, thisClass->cmdResult + exitMsg);
     --thisClass->refCount;
     return true;
@@ -122,6 +122,8 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
     pid_t childPid;
     int fds[2];
     pipe(fds);
+    WRITE_LOG(LOG_DEBUG, "ExecuteCommand pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
+        fds[pipeRead], fds[pipeWrite]);
 
     if ((childPid = fork()) == -1) {
         return ERR_GENERIC;
@@ -170,6 +172,7 @@ bool AsyncCmd::ExecuteCommand(const string &command)
     if ((fd = Popen(cmd, true, pid)) < 0) {
         return false;
     }
+    WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);
     childShell = new(std::nothrow) HdcFileDescriptor(loop, fd, this, ChildReadCallback, FinishShellProc);
     if (childShell == nullptr) {
         WRITE_LOG(LOG_FATAL, "ExecuteCommand new childShell failed");

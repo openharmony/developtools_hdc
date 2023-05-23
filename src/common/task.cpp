@@ -47,8 +47,9 @@ void HdcTaskBase::TaskFinish()
 {
     StartTraceScope("HdcTaskBase::TaskFinish");
     uint8_t count = 1;
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify begin channelId:%u", taskInfo->channelId);
     SendToAnother(CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify");
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify end channelId:%u", taskInfo->channelId);
 }
 
 bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size)
@@ -109,17 +110,14 @@ int HdcTaskBase::ThreadCtrlCommunicate(const uint8_t *bufPtr, const int size)
     if (!hSession) {
         return -1;
     }
-    uv_poll_t *pollHandle;
     int fd;
     if (uv_thread_self() == hSession->hWorkThread) {
         fd = hSession->ctrlFd[STREAM_MAIN];
-        pollHandle = hSession->pollHandle[STREAM_MAIN];
     } else if (uv_thread_self() == hSession->hWorkChildThread) {
         fd = hSession->ctrlFd[STREAM_WORK];
-        pollHandle = hSession->pollHandle[STREAM_WORK];
     } else {
         return ERR_GENERIC;
     }
-    return Base::SendToPollFd(fd, pollHandle, bufPtr, size);
+    return Base::SendToPollFd(fd, bufPtr, size);
 }
 }

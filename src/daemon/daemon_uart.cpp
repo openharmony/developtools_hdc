@@ -225,8 +225,7 @@ HSession HdcDaemonUART::PrepareNewSession(uint32_t sessionId)
         }
         if (!hSession->isDead) {
             auto ctrl = daemonSession.BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-            Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], hSession->pollHandle[STREAM_MAIN], ctrl.data(),
-                               ctrl.size());
+            Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
             WRITE_LOG(LOG_DEBUG, "Main thread uartio migrate finish");
         }
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);

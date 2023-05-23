@@ -488,25 +488,23 @@ namespace Base {
         return ret;
     }
 
-    int SendToPollFd(int fd, uv_poll_t *pollHandle, const uint8_t *buf, const int bufLen)
+    int SendToPollFd(int fd, const uint8_t *buf, const int bufLen)
     {
         if (bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
             return ERR_BUF_ALLOC;
         }
         uint8_t *pDynBuf = new uint8_t[bufLen];
         if (!pDynBuf) {
-            WRITE_LOG(LOG_WARN, "ThreadCtrlCommunicate SendToPollFd, alloc failed, size:%d", bufLen);
+            WRITE_LOG(LOG_WARN, "SendToPollFd, alloc failed, size:%d", bufLen);
             return ERR_BUF_ALLOC;
         }
         if (memcpy_s(pDynBuf, bufLen, buf, bufLen)) {
-            WRITE_LOG(LOG_WARN, "SendToStream, memory copy failed, size:%d", bufLen);
+            WRITE_LOG(LOG_WARN, "SendToPollFd, memory copy failed, size:%d", bufLen);
             delete[] pDynBuf;
             return ERR_BUF_COPY;
         }
-        uv_poll_start(pollHandle, UV_WRITABLE, [](uv_poll_t *poll, int status, int events) {});
         int ret = Base::WriteToFd(fd, pDynBuf, bufLen);
-        uv_poll_stop(pollHandle);
-	delete[] pDynBuf;
+        delete[] pDynBuf;
         return ret;
     }
 
@@ -1631,6 +1629,7 @@ namespace Base {
     int CloseFd(int &fd)
     {
         int rc = 0;
+        WRITE_LOG(LOG_INFO, "CloseFd fd:%d", fd);
         if (fd > 0) {
             rc = close(fd);
             if (rc < 0) {

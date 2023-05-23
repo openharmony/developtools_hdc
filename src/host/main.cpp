@@ -294,6 +294,9 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
+                if (string(optarg) == "verbose") {
+                    usage = Hdc::TranslateCommand::Verbose();
+                }
                 fprintf(stderr, "%s", usage.c_str());
                 needExit = true;
                 return needExit;
@@ -436,7 +439,7 @@ int main(int argc, const char *argv[])
     InitServerAddr();
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
-    if (cmdOptionResult) {
+    if (cmdOptionResult && !ExtClient::SharedLibraryExist()) {
         return 0;
     }
     if (g_isServerMode) {
@@ -472,7 +475,8 @@ int main(int argc, const char *argv[])
                    !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
             Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
-        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
+        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size())) {
             Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
         } else {
             g_show = false;

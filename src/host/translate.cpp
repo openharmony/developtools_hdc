@@ -21,34 +21,17 @@ namespace TranslateCommand {
     {
         string ret;
 
-        ret = "\n                         OpenHarmony device connector(HDC)\n\n"
+        ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
               "---------------------------------global commands:----------------------------------\n"
-              " -h/help                               - Print hdc help\n"
+              " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
               " -v/version                            - Print hdc version\n"
-              " -l[0-5]                               - Set runtime loglevel\n"
               " -t connectkey                         - Use device with given connect key\n"
-              " checkserver                           - check client-server version\n"
-              " checkdevice                           - check server-daemon version(only uart)\n"
               "\n"
               "---------------------------------component commands:-------------------------------\n"
               "session commands(on server):\n"
-              " discover                              - Discover devices listening on TCP via LAN broadcast\n"
               " list targets [-v]                     - List all devices status, -v for detail\n"
-              " tconn key                             - Connect device via key, TCP use ip:port\n"
-              "                                         example:192.168.0.100:10178/192.168.0.100\n"
-              "                                         USB connect automatic, TCP need to connect manually\n"
-#ifdef HDC_SUPPORT_UART
-              "\n"
-              "                                         UART connect need connect manually.\n"
-              "                                         Baud Rate can be specified with commas.\n"
-              "                                         key format: <Port Name>[,Baud Rate]\n"
-              "                                         example: tconn COM5,921600\n"
-              "                                         Default Baud Rate is 921600.\n"
-              "\n"
-#endif
               " start [-r]                            - Start server. If with '-r', will be restart server\n"
               " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
-              " -s [ip:]port                          - Set hdc server listen config\n"
               "\n"
               "service commands(on daemon):\n"
               " target mount                          - Set /system /vendor partition read-write\n"
@@ -102,12 +85,43 @@ namespace TranslateCommand {
               "security commands:\n"
               " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
               "\n"
+        return ret;
+    }
+
+    string Verbose()
+    {
+        string ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
+              "---------------------------------global commands:----------------------------------\n"
+              " -l[0-5]                               - Set runtime loglevel\n"
+              " checkserver                           - check client-server version\n"
+              " checkdevice                           - check server-daemon version\n"
+              "\n"
+              "---------------------------------component commands:-------------------------------\n"
+              "session commands(on server):\n"
+              " discover                              - Discover devices listening on TCP via LAN broadcast\n"
+              " tconn key                             - Connect device via key, TCP use ip:port\n"
+              "                                         example:192.168.0.100:10178/192.168.0.100\n"
+              "                                         USB connect automatic, TCP need to connect manually\n"
+#ifdef HDC_SUPPORT_UART
+              "\n"
+              "                                         UART connect need connect manually.\n"
+              "                                         Baud Rate can be specified with commas.\n"
+              "                                         key format: <Port Name>[,Baud Rate]\n"
+              "                                         example: tconn COM5,921600\n"
+              "                                         Default Baud Rate is 921600.\n"
+              "\n"
+#endif
+              " -s [ip:]port                          - Set hdc server listen config\n"
+              "\n"
               "---------------------------------flash commands:------------------------------------\n"
               "flash commands:\n"
               " update packagename                    - Update system by package\n"
               " flash [-f] partition imagename        - Flash partition by image\n"
               " erase [-f] partition                  - Erase partition\n"
               " format [-f] partition                 - Format partition\n";
+			  "---------------------------------external commands:------------------------------------\n"
+			  "extconn key                             - Connect external device via key, TCP use ip:port(remian)\n"
+			  "-S [ip:]port                            - Set hdc external server listen config\n"
         return ret;
     }
 
@@ -209,10 +223,14 @@ namespace TranslateCommand {
     {
         string stringError;
         string input = string(inputRaw, sizeInputRaw);
-        if (!strcmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str())) {
+        if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size() )) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
-            stringError = Usage();
             outCmd->bJumpDo = true;
+            if (strstr(input.c_str(), " verbose") {
+                stringError = Verbose();
+            } else {
+                stringError = Usage();
+            }
         } else if (!strcmp(input.c_str(), CMDSTR_SOFTWARE_VERSION.c_str())) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
             stringError = Base::GetVersion();

@@ -117,7 +117,7 @@ namespace TranslateCommand {
               " update packagename                    - Update system by package\n"
               " flash [-f] partition imagename        - Flash partition by image\n"
               " erase [-f] partition                  - Erase partition\n"
-              " format [-f] partition                 - Format partition\n";
+              " format [-f] partition                 - Format partition\n"
 			  "---------------------------------external commands:------------------------------------\n"
 			  "extconn key                             - Connect external device via key, TCP use ip:port(remian)\n"
 			  "-S [ip:]port                            - Set hdc external server listen config\n"

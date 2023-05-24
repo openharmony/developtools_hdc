@@ -290,7 +290,10 @@ void *HdcJdwp::AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJd
     switch (op) {
         case OP_ADD: {
             uv_rwlock_wrlock(&lockMapContext);
-            mapCtxJdwp[pid] = ctxJdwp;
+            const int maxMapSize = 1024;
+            if (mapCtxJdwp.size() < maxMapSize) {
+                mapCtxJdwp[pid] = ctxJdwp;
+            }
             uv_rwlock_wrunlock(&lockMapContext);
             break;
         }

@@ -35,7 +35,8 @@ void CircleBuffer::Init()
 {
     head_ = 0;
     tail_ = 0;
-    size_ = CIRCLE_SIZE;
+    const int firstSize = 2;
+    size_ = firstSize;
     mallocInit_ = false;
 }
 
@@ -54,7 +55,8 @@ bool CircleBuffer::FirstMalloc()
     if (mallocInit_) {
         return true;
     }
-    for (uint64_t i = 0; i < size_; i++) {
+    const int firstSize = 2;
+    for (uint64_t i = 0; i < firstSize; i++) {
         uint8_t *buf = new(std::nothrow) uint8_t[BUF_SIZE];
         if (buf == nullptr) {
             continue;
@@ -112,7 +114,7 @@ void CircleBuffer::FreeMemory()
 {
     std::unique_lock<std::mutex> lock(mutex_);
     int64_t freeTime = 30; // 30s
-    if (Empty() || Interval() < freeTime) {
+    if (!Empty() || Interval() < freeTime) {
         return;
     }
 

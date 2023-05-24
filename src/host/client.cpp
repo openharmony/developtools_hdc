@@ -248,8 +248,8 @@ void HdcClient::RunCommandWin32(const string& command)
     if (strcpy_s(buffer, sizeof(buffer), msg) != EOK) {
         return;
     }
-    const char *exePath = GetHilogPath().c_str();
-    if (!CreateProcess(_T(exePath), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi)) {
+    const string exePath = GetHilogPath();
+    if (!CreateProcess(_T(exePath.c_str()), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi)) {
         WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
         return;
     }

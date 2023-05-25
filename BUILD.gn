@@ -308,6 +308,14 @@ group("hdc_all") {
   deps = [ ":hdc_target_all" ]
 }
 
+group("hdc_test_target") {
+  testonly = true
+  deps = [
+    "test:hdc_unittest",
+    "test:hdc_fuzztest",
+  ]
+}
+
 action("hdc_hash_gen") {
   script = "${HDC_PATH}/scripts/hdc_hash_gen.py"
   sources = hash_sources

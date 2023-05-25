@@ -30,6 +30,7 @@ ohos_prebuilt_etc("hdcd.cfg") {
     "system",
     "updater",
   ]
+  output = "hdcd.cfg"
   part_name = "hdc"
   subsystem_name = "developtools"
 }

@@ -19,13 +19,13 @@
 namespace Hdc {
 class HdcJdwpFuzzer : public HdcJdwp {
 public:
-    HdcJdwpFuzzer(uv_loop_t *loop) : HdcJdwp(loop) {}
+    explicit HdcJdwpFuzzer(uv_loop_t *loop) : HdcJdwp(loop) {}
 
     static std::unique_ptr<HdcJdwpFuzzer> Instance(uv_loop_t *loop)
     {
         std::unique_ptr<HdcJdwpFuzzer> jdwp = std::make_unique<HdcJdwpFuzzer>(loop);
         if (jdwp == nullptr) {
-            WRITE_LOG(LOG_FATAL, "Error in HdcJdwpFuzzer::instance make_unique failed");
+            WRITE_LOG(LOG_FATAL, "HdcJdwpFuzzer::Instance make_unique failed");
             return nullptr;
         }
         return jdwp;
@@ -43,14 +43,14 @@ bool FuzzJdwpReadStream(const uint8_t *data, size_t size)
     }
     HdcJdwp::HCtxJdwp ctx = (HdcJdwp::HCtxJdwp)jdwp->MallocContext();
     if (ctx == nullptr) {
-        WRITE_LOG(LOG_FATAL, "FuzzJdwpReadStream jdwp MallocContext failed");
+        WRITE_LOG(LOG_FATAL, "FuzzJdwpReadStream ctx is null");
         return false;
     }
     ctx->finish = true;
     uv_pipe_t pipe;
     pipe.data = ctx;
     uv_stream_t *stream = (uv_stream_t *)&pipe;
-    uv_buf_t rbf = uv_buf_init((char *)data, size);
+    uv_buf_t rbf = uv_buf_init(reinterpret_cast<char *>(const_cast<uint8_t *>(data)), size);
     jdwp->ReadStream(stream, (ssize_t)size, &rbf);
     delete ctx;
     uv_stop(&loop);

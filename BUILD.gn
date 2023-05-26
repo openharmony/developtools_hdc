@@ -311,8 +311,8 @@ group("hdc_all") {
 group("hdc_test_target") {
   testonly = true
   deps = [
-    "test:hdc_unittest",
     "test:hdc_fuzztest",
+    "test:hdc_unittest",
   ]
 }
 

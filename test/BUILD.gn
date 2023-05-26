@@ -73,7 +73,10 @@ config("hdc_ut_code_flag") {
 }
 
 config("hdc_ut_config") {
-  defines = [ "TEST_HASH", "HDC_MSG_HASH=\"TEST\"" ]
+  defines = [
+    "TEST_HASH",
+    "HDC_MSG_HASH=\"TEST\"",
+  ]
   include_dirs = [ "${hdc_path}/src/common" ]
 
   cflags = [
@@ -350,7 +353,5 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
 
 group("hdc_fuzztest") {
   testonly = true
-  deps = [
-    ":JdwpReadStreamFuzzTest",
-  ]
+  deps = [ ":JdwpReadStreamFuzzTest" ]
 }

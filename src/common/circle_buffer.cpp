@@ -40,12 +40,12 @@ void CircleBuffer::Init()
     mallocInit_ = false;
 }
 
-bool CircleBuffer::Full()
+bool CircleBuffer::Full() const
 {
     return (tail_ + 1) % size_ == head_;
 }
 
-bool CircleBuffer::Empty()
+bool CircleBuffer::Empty() const
 {
     return tail_ == head_;
 }

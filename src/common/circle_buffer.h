@@ -37,8 +37,8 @@ public:
     void Free();
 
 private:
-    bool Full();
-    bool Empty();
+    bool Full() const;
+    bool Empty() const;
     void Init();
     bool FirstMalloc();
     uint64_t head_;

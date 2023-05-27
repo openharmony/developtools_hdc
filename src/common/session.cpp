@@ -408,7 +408,6 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     }
     int ret = 0;
     ++sessionRef;
-    (void)memset_s(hSession->ctrlFd, sizeof(hSession->ctrlFd), 0, sizeof(hSession->ctrlFd));
     hSession->classInstance = this;
     hSession->connType = connType;
     hSession->classModule = classModule;
@@ -546,7 +545,7 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         HSession hSession = (HSession)handle->data;
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
-        if (handle == (uv_handle_t *)hSession->pollHandle[STREAM_MAIN]) {
+        if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };

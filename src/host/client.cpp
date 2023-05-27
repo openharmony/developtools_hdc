@@ -178,7 +178,7 @@ static void ReadFileThreadFunc(void* arg)
     char buffer[BUF_SIZE_DEFAULT] = { 0 };
     DWORD bytesRead = 0;
 
-    HANDLE* read = (HANDLE*)arg;
+    HANDLE* read = reinterpret_cast<HANDLE*>(arg);
     while (true) {
         if (!ReadFile(*read, buffer, BUF_SIZE_DEFAULT - 1, &bytesRead, NULL)) {
             break;
@@ -212,7 +212,6 @@ void HdcClient::RunCommandWin32(const string& command)
     HANDLE hSubRead;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
-    
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
     sa.lpSecurityDescriptor = NULL;
@@ -258,7 +257,6 @@ void HdcClient::RunCommandWin32(const string& command)
 void HdcClient::RunCommand(const string& command)
 {
     FILE *procFileInfo = nullptr;
-    string cmdLog = "";
     procFileInfo = popen(command.c_str(), "r");
     if (procFileInfo == nullptr) {
         perror("popen execute failed");

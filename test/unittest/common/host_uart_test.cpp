@@ -56,6 +56,7 @@ public:
         MOCK_METHOD2(TryCloseHandle, void(const uv_handle_t *, uv_close_cb));
         MOCK_METHOD3(TimerUvTask, bool(uv_loop_t *, void *, uv_timer_cb));
         MOCK_METHOD3(SendToStream, int(uv_stream_t *, const uint8_t *, const int));
+        MOCK_METHOD3(SendToPollFd, int(int, const uint8_t *, const int));
         MOCK_METHOD6(DelayDo, bool(uv_loop_t *, const int, const uint8_t, string, void *, DelayCB));
         MOCK_METHOD4(UvTimerStart, bool(uv_timer_t *, uv_timer_cb, uint64_t, uint64_t));
     } mockInterface;

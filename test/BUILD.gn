@@ -16,6 +16,7 @@ hdc_path = "//developtools/hdc/"
 module_output_path = "developtools/hdc/"
 declare_args() {
   hdc_unit_test = true
+  hdc_fuzz_test = true
 }
 
 hdc_common_sources = [
@@ -53,6 +54,7 @@ hdc_host_sources = [
   "${hdc_path}/src/host/host_forward.cpp",
   "${hdc_path}/src/host/host_tcp.cpp",
   "${hdc_path}/src/host/host_unity.cpp",
+  "${hdc_path}/src/host/host_updater.cpp",
   "${hdc_path}/src/host/host_usb.cpp",
   "${hdc_path}/src/host/server.cpp",
   "${hdc_path}/src/host/server_for_client.cpp",
@@ -61,7 +63,6 @@ hdc_host_sources = [
 
 common_deps = [
   "//third_party/bounds_checking_function:libsec_static",
-  "//third_party/libusb:libusb",
   "//third_party/libuv:uv",
   "//third_party/lz4:liblz4_static",
   "//third_party/openssl:libcrypto_static",
@@ -72,7 +73,10 @@ config("hdc_ut_code_flag") {
 }
 
 config("hdc_ut_config") {
-  defines = []
+  defines = [
+    "TEST_HASH",
+    "HDC_MSG_HASH=\"TEST\"",
+  ]
   include_dirs = [ "${hdc_path}/src/common" ]
 
   cflags = [
@@ -158,6 +162,7 @@ ohos_source_set("hdc_host") {
     sources += [ "${hdc_path}/src/host/host_uart.cpp" ]
   }
   public_deps = common_deps
+  public_deps += [ "//third_party/libusb:libusb" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_host_common_config",
@@ -300,4 +305,53 @@ group("hdc_unittest") {
     ":hdc_uart_unittest",
     ":hdc_uart_unittest(${host_toolchain})",
   ]
+}
+
+config("hdc_test_config") {
+  cflags = code_check_flag
+  ldflags = []
+  defines = []
+
+  if (hdc_test_coverage && is_ohos) {
+    defines += [ "TEST_COVERAGE" ]
+    cflags += [
+      "-fprofile-arcs",
+      "-ftest-coverage",
+    ]
+    ldflags += [ "--coverage" ]
+  }
+  if (js_jdwp_connect) {
+    defines += [ "JS_JDWP_CONNECT" ]
+  }
+  include_dirs = [
+    "${hdc_path}/test/fuzztest/jdwpreadstream_fuzzer",
+    "${hdc_path}/src/daemon",
+    "${hdc_path}/src/common",
+    "//third_party/bounds_checking_function/include",
+    "//third_party/libuv/include",
+  ]
+}
+
+fuzz_cflags = [
+  "-O0",
+  "-Wno-unused-variable",
+  "-fno-omit-frame-pointer",
+]
+
+ohos_fuzztest("JdwpReadStreamFuzzTest") {
+  module_out_path = module_output_path
+  fuzz_config_file = "${hdc_path}/test/fuzztest/jdwpreadstream_fuzzer"
+  configs = [ ":hdc_test_config" ]
+  cflags = fuzz_cflags
+  deps = [ "//third_party/libuv:uv" ]
+  sources = [
+    "${hdc_path}/src/daemon/jdwp.cpp",
+    "fuzztest/jdwpreadstream_fuzzer/JdwpReadStream_fuzzer.cpp",
+  ]
+  deps += [ ":hdc_common" ]
+}
+
+group("hdc_fuzztest") {
+  testonly = true
+  deps = [ ":JdwpReadStreamFuzzTest" ]
 }

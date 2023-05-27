@@ -31,7 +31,11 @@ public:
     bool SendJdwpNewFD(uint32_t targetPID, int fd);
     bool CheckPIDExist(uint32_t targetPID);
 
+#ifdef FUZZ_TEST
+public:
+#else
 private:
+#endif
 #ifdef JS_JDWP_CONNECT
     static constexpr uint8_t JS_PKG_MIN_SIZE = 15;  // JsMsgHeader + "pkgName:"uint8_t[7~127]
     static constexpr uint8_t JS_PKG_MX_SIZE = 135;

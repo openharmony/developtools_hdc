@@ -55,7 +55,7 @@ private:
     void UpdateList(const string &str);
 
 #ifdef _WIN32
-    string GetHilogPath();
+    static string GetHilogPath();
     void RunCommandWin32(const string& command);
 #else
     void RunCommand(const string& command);

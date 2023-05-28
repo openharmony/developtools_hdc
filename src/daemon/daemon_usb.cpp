@@ -408,7 +408,7 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
     }
     uv_buf_t bfr;
     while (true) {
-        reqWrite->data = (void *)this;
+        reqWrite->data = reinterpret_cast<void *>(this);
         bfr.base = (char *)buf;
         bfr.len = size;
         if (!uv_is_writable(stream)) {

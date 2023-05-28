@@ -37,12 +37,12 @@ enum LogLevel {
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(level, fmt, ##__VA_ARGS__)
 
 #ifndef TEMP_FAILURE_RETRY
-#define TEMP_FAILURE_RETRY(exp) ({       \
-  __typeof__(exp) _rc;                   \
-  do {                                   \
-  _rc = (exp);                           \
-  } while (_rc == -1 && errno == EINTR); \
-  _rc; })
+#define TEMP_FAILURE_RETRY(exp) ({         \
+    __typeof__(exp) _rc;                   \
+    do {                                   \
+        _rc = (exp);                       \
+    } while (_rc == -1 && errno == EINTR); \
+    _rc; })
 #endif
 
 #ifdef HDC_TRACE
@@ -453,6 +453,9 @@ struct HdcSession {
         authKeyIndex = 0;
         tokenRSA = "";
         hUSB = nullptr;
+        (void)memset_s(pollHandle, sizeof(pollHandle), 0, sizeof(pollHandle));
+        (void)memset_s(ctrlFd, sizeof(ctrlFd), 0, sizeof(ctrlFd));
+        (void)memset_s(dataFd, sizeof(dataFd), 0, sizeof(dataFd));
 #ifdef HDC_SUPPORT_UART
         hUART = nullptr;
 #endif

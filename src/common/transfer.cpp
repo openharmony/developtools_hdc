@@ -67,7 +67,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
     while (true) {
-        if (!buf || !ioContext || bytes < 0) {
+        if (!ioContext || bytes < 0) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }

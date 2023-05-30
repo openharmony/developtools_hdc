@@ -120,8 +120,8 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    IOReadThread = std::thread(FileIOOnThread, contextIO, readMax, false);
-    IOReadThread.detach();
+    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax, false);
+    ioReadThread.detach();
     return 0;
 }
 
@@ -163,8 +163,8 @@ int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
     contextIO->bufIO = data;
     contextIO->thisClass = this;
     ++refIO;
-    IOWriteThread = std::thread(FileIOOnThread, contextIO, size, true);
-    IOWriteThread.detach();
+    ioWriteThread = std::thread(FileIOOnThread, contextIO, size, true);
+    ioWriteThread.detach();
     return size;
 }
 }  // namespace Hdc

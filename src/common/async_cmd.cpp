@@ -130,11 +130,11 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
     }
     if (childPid == 0) {
         Base::DeInitProcess();
+        // avoid cpu 100% when watch -n 2 ls command
+        dup2(fds[pipeRead], STDIN_FILENO);
         if (readWrite) {
             dup2(fds[pipeWrite], STDOUT_FILENO);
             dup2(fds[pipeWrite], STDERR_FILENO);
-        } else {
-            dup2(fds[pipeRead], STDIN_FILENO);
         }
         Base::CloseFd(fds[pipeRead]);
         Base::CloseFd(fds[pipeWrite]);

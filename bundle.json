@@ -20,15 +20,19 @@
     "deps": {
       "components": [
         "common",
-        "libuv",
         "init",
-        "selinux",
-        "c_utils"
+        "c_utils",
+        "hitrace_native",
+        "hilog_native"
       ],
       "third_party": [
-        "libuv:uv_static",
-        "lz4:liblz4_static",
-        "openssl:libcrypto_static"
+        "libuv",
+        "openssl",
+        "bounds_checking_function",
+        "thirdparty_lz4",
+        "thirdparty_selinux",
+        "thirdparty_libusb",
+        "thirdparty_googletest"
       ]
     },
     "build": {

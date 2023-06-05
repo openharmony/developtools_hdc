@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import("//build/ohos.gni")
-HDC_PATH = "//developtools/hdc"
+HDC_PATH = "."
 import("//developtools/hdc/hdc.gni")
 
 py_out_dir = "$root_out_dir/gen/" + rebase_path(".", "//")

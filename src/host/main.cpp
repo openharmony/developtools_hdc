@@ -291,11 +291,11 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "h:vpfmncs:Sd:t:l:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
-                if (string(optarg) == "verbose") {
+                if (optind < optArgc && optind >= 0 && string(optArgv[optind]) == "verbose") {
                     usage = Hdc::TranslateCommand::Verbose();
                 }
                 fprintf(stderr, "%s", usage.c_str());

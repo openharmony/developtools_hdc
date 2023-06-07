@@ -359,14 +359,22 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
         return ERR_GENERIC;
     }
     conn->data = this;
-    if (strchr(ip, ':')) {
+    if (strchr(ip, '.')) {
+        std::string s = ip;
+        size_t index = s.find(IPV4_MAPPING_PREFIX);
+        size_t size = IPV4_MAPPING_PREFIX.size();
+        if (index != std::string::npos) {
+            s = s.substr(index + size);
+        }
+        WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv4 %s:%d", s.c_str(), port);
+        struct sockaddr_in destv4;
+        uv_ip4_addr(s.c_str(), port, &destv4);
+        uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&destv4, Connect);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv6 %s:%d", ip, port);
         struct sockaddr_in6 dest;
         uv_ip6_addr(ip, port, &dest);
         uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&dest, Connect);
-    } else {
-        struct sockaddr_in destv4;
-        uv_ip4_addr(ip, port, &destv4);
-        uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&destv4, Connect);
     }
     return 0;
 }

@@ -106,9 +106,27 @@ bool HdcServerForClient::SetTCPListen()
     }
     rc = uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr, 0);
     if (rc != 0) {
-        uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
-        WRITE_LOG(LOG_FATAL, "uv_tcp_bind %d %s", rc, buffer);
-        return false;
+        WRITE_LOG(LOG_WARN, "uv_tcp_bind ipv6 %d", rc);
+        if (rc == -EAFNOSUPPORT) {
+            size_t index = channelHost.find(IPV4_MAPPING_PREFIX);
+            size_t size = IPV4_MAPPING_PREFIX.size();
+            if (index != std::string::npos) {
+                struct sockaddr_in addr4v;
+                std::string ipv4 = channelHost.substr(index + size);
+                uv_ip4_addr(ipv4.c_str(), channelPort, &addr4v);
+                rc = uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr4v, 0);
+                if (rc != 0) {
+                    uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+                    WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
+                        ipv4.c_str(), rc, buffer);
+                    return false;
+                }
+            }
+        } else {
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_FATAL, "uv_tcp_bind %d %s", rc, buffer);
+            return false;
+        }
     }
     int backLog = 128;
     rc = uv_listen((uv_stream_t *)&tcpListen, backLog, (uv_connection_cb)AcceptClient);

@@ -63,58 +63,28 @@ namespace Base {
         }
     }
 
-    bool IsWindowsSupportAnsiColor()
-    {
-#ifdef _WIN32
-        // Set output mode to handle virtual terminal sequences
-        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (hOut == INVALID_HANDLE_VALUE) {
-            return false;
-        }
-        DWORD dwMode = 0;
-        if (!GetConsoleMode(hOut, &dwMode)) {
-            return false;
-        }
-        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        if (!SetConsoleMode(hOut, dwMode)) {
-            return false;
-        }
-#endif
-        return true;
-    }
-
     void GetLogLevelAndTime(uint8_t logLevel, string &logLevelString, string &timeString)
     {
         system_clock::time_point timeNow = system_clock::now();          // now time
         system_clock::duration sinceUnix0 = timeNow.time_since_epoch();  // since 1970
         time_t sSinceUnix0 = duration_cast<seconds>(sinceUnix0).count();
         std::tm *tim = std::localtime(&sSinceUnix0);
-        bool enableAnsiColor = false;
-#ifdef _WIN32
-        enableAnsiColor = IsWindowsSupportAnsiColor();
-#else
-        enableAnsiColor = true;
-#endif
-        if (enableAnsiColor) {
-            switch (logLevel) {
-                case LOG_FATAL:
-                    logLevelString = "\033[1;31mF\033[0m";
-                    break;
-                case LOG_INFO:
-                    logLevelString = "\033[1;32mI\033[0m";
-                    break;
-                case LOG_WARN:
-                    logLevelString = "\033[1;33mW\033[0m";
-                    break;
-                case LOG_DEBUG:  // will reduce performance
-                    logLevelString = "\033[1;36mD\033[0m";
-                    break;
-                default:  // all, just more IO/Memory information
-                    logLevelString = "\033[1;38;5;21mA\033[0m";
-                    break;
-            }
-        } else {
-            logLevelString = std::to_string(logLevel);
+        switch (logLevel) {
+            case LOG_FATAL:
+                logLevelString = "F";
+                break;
+            case LOG_INFO:
+                logLevelString = "I";
+                break;
+            case LOG_WARN:
+                logLevelString = "W";
+                break;
+            case LOG_DEBUG:  // will reduce performance
+                logLevelString = "D";
+                break;
+            default:  // all, just more IO/Memory information
+                logLevelString = "A";
+                break;
         }
         string msTimeSurplus;
         if (g_logLevel >= LOG_DEBUG) {
@@ -226,11 +196,12 @@ namespace Base {
     }
 #endif
 
-    void PrintLogEx(uint8_t logLevel, const char *msg, ...)
+    void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
     {
         if (logLevel > g_logLevel) {
             return;
         }
+        string threadIdString;
 
         char buf[BUF_SIZE_DEFAULT4] = { 0 }; // only 4k to avoid stack overflow in 32bit or L0
         va_list vaArgs;
@@ -242,34 +213,39 @@ namespace Base {
         va_end(vaArgs);
 
 #ifdef  HDC_HILOG
+        string tmpPath = functionName;
+        string filePath = GetFileNameAny(tmpPath);
         static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
         switch (static_cast<int>(logLevel)) {
             case static_cast<int>(LOG_DEBUG):
                 // Info level log can be printed default in hilog, debug can't
-                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "%{public}s", buf);
+                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
+                                             filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_INFO):
-                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "%{public}s", buf);
+                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
+                                             filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_WARN):
-                OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "%{public}s", buf);
+                OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
+                                             filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_FATAL):
-                OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "%{public}s", buf);
+                OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
+                                              filePath.c_str(), line, buf);
                 break;
             default:
                 break;
         }
 #else
         string logLevelString;
-        string threadIdString;
         string sep = "\n";
         string timeString;
         if (string(buf).back() == '\n') {
             sep = "\r\n";
         }
-        string debugInfo = __FILE__;
-        GetLogDebugFunctionName(debugInfo, __LINE__, threadIdString);
+        string debugInfo = functionName;
+        GetLogDebugFunctionName(debugInfo, line, threadIdString);
         GetLogLevelAndTime(logLevel, logLevelString, timeString);
         string logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
                                      threadIdString.c_str(), debugInfo.c_str(), buf, sep.c_str());
@@ -286,7 +262,7 @@ namespace Base {
         return;
     }
 #else   // else ENABLE_DEBUGLOG.If disabled, the entire output code will be optimized by the compiler
-    void PrintLogEx(uint8_t logLevel, char *msg, ...)
+    void PrintLogEx(const char *functionName, int line, uint8_t logLevel, char *msg, ...)
     {
     }
 #endif  // ENABLE_DEBUGLOG

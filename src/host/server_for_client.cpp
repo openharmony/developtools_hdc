@@ -278,8 +278,8 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
         } else {
             uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
             ++(*bRetryCount);
-            if (*bRetryCount > 500) {
-                // 5s
+            if (*bRetryCount > 500 || (hChannel->connectLocalDevice && *bRetryCount > 100)) {
+                // 5s or localDevice 1s
                 bExitRepet = true;
                 sRet = "Connect failed";
                 thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
@@ -308,6 +308,13 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
         EchoClient(hChannel, MSG_FAIL, "CreateConnect failed");
         WRITE_LOG(LOG_FATAL, "CreateConnect failed");
     } else {
+        size_t pos = connectKey.find(":");
+        if (pos != std::string::npos) {
+            string ip = connectKey.substr(0, pos);
+            if (ip == "127.0.0.1") {
+                hChannel->connectLocalDevice = true;
+            }
+        }
         Base::ZeroBuf(hChannel->bufStd, 2);
         childRet = snprintf_s(hChannel->bufStd + 2, sizeof(hChannel->bufStd) - 2, sizeof(hChannel->bufStd) - 3, "%s",
                               const_cast<char *>(connectKey.c_str()));

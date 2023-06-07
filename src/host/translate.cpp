@@ -20,35 +20,17 @@ namespace TranslateCommand {
     string Usage()
     {
         string ret;
-
-        ret = "\n                         OpenHarmony device connector(HDC)\n\n"
+        ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
               "---------------------------------global commands:----------------------------------\n"
-              " -h/help                               - Print hdc help\n"
+              " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
               " -v/version                            - Print hdc version\n"
-              " -l[0-5]                               - Set runtime loglevel\n"
               " -t connectkey                         - Use device with given connect key\n"
-              " checkserver                           - check client-server version\n"
-              " checkdevice                           - check server-daemon version(only uart)\n"
               "\n"
               "---------------------------------component commands:-------------------------------\n"
               "session commands(on server):\n"
-              " discover                              - Discover devices listening on TCP via LAN broadcast\n"
               " list targets [-v]                     - List all devices status, -v for detail\n"
-              " tconn key                             - Connect device via key, TCP use ip:port\n"
-              "                                         example:192.168.0.100:10178/192.168.0.100\n"
-              "                                         USB connect automatic, TCP need to connect manually\n"
-#ifdef HDC_SUPPORT_UART
-              "\n"
-              "                                         UART connect need connect manually.\n"
-              "                                         Baud Rate can be specified with commas.\n"
-              "                                         key format: <Port Name>[,Baud Rate]\n"
-              "                                         example: tconn COM5,921600\n"
-              "                                         Default Baud Rate is 921600.\n"
-              "\n"
-#endif
               " start [-r]                            - Start server. If with '-r', will be restart server\n"
               " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
-              " -s [ip:]port                          - Set hdc server listen config\n"
               "\n"
               "service commands(on daemon):\n"
               " target mount                          - Set /system /vendor partition read-write\n"
@@ -101,13 +83,103 @@ namespace TranslateCommand {
               "\n"
               "security commands:\n"
               " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
-              "\n"
-              "---------------------------------flash commands:------------------------------------\n"
-              "flash commands:\n"
-              " update packagename                    - Update system by package\n"
-              " flash [-f] partition imagename        - Flash partition by image\n"
-              " erase [-f] partition                  - Erase partition\n"
-              " format [-f] partition                 - Format partition\n";
+              "\n";
+        return ret;
+    }
+
+    string Verbose()
+    {
+        string ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
+            "---------------------------------global commands:----------------------------------\n"
+            " -h/help                               - Print hdc help\n"
+            " -v/version                            - Print hdc version\n"
+            " -l[0-5]                               - Set runtime loglevel\n"
+            " -t connectkey                         - Use device with given connect key\n"
+            " checkserver                           - check client-server version\n"
+            " checkdevice                           - check server-daemon version(only uart)\n"
+            "\n"
+            "---------------------------------component commands:-------------------------------\n"
+            "session commands(on server):\n"
+            " discover                              - Discover devices listening on TCP via LAN broadcast\n"
+            " list targets [-v]                     - List all devices status, -v for detail\n"
+            " tconn key                             - Connect device via key, TCP use ip:port\n"
+            "                                         example:192.168.0.100:10178/192.168.0.100\n"
+            "                                         USB connect automatic, TCP need to connect manually\n"
+#ifdef HDC_SUPPORT_UART
+            "\n"
+            "                                         UART connect need connect manually.\n"
+            "                                         Baud Rate can be specified with commas.\n"
+            "                                         key format: <Port Name>[,Baud Rate]\n"
+            "                                         example: tconn COM5,921600\n"
+            "                                         Default Baud Rate is 921600.\n"
+            "\n"
+#endif
+            " start [-r]                            - Start server. If with '-r', will be restart server\n"
+            " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
+            " -s [ip:]port                          - Set hdc server listen config\n"
+            "\n"
+            "service commands(on daemon):\n"
+            " target mount                          - Set /system /vendor partition read-write\n"
+            " target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\\recovery.\n"
+            " target boot [MODE]                    - Reboot the into MODE.\n"
+            " smode [-r]                            - Restart daemon with root permissions, '-r' to cancel root\n"
+            "                                         permissions\n"
+            " tmode usb                             - Reboot the device, listening on USB\n"
+            " tmode port [port]                     - Reboot the device, listening on TCP port\n"
+            "\n"
+            "---------------------------------task commands:-------------------------------------\n"
+            "file commands:\n"
+            " file send [option] local remote       - Send file to device\n"
+            " file recv [option] remote local       - Recv file from device\n"
+            "                                         option is -a|-s|-z\n"
+            "                                         -a: hold target file timestamp\n"
+            "                                         -sync: just update newer file\n"
+            "                                         -z: compress transfer\n"
+            "                                         -m: mode sync\n"
+            "\n"
+            "forward commands:\n"
+            " fport localnode remotenode            - Forward local traffic to remote device\n"
+            " rport remotenode localnode            - Reserve remote traffic to local host\n"
+            "                                         node config name format 'schema:content'\n"
+            "                                         examples are below:\n"
+            "                                         tcp:<port>\n"
+            "                                         localfilesystem:<unix domain socket name>\n"
+            "                                         localreserved:<unix domain socket name>\n"
+            "                                         localabstract:<unix domain socket name>\n"
+            "                                         dev:<device name>\n"
+            "                                         jdwp:<pid> (remote only)\n"
+            " fport ls                              - Display forward/reverse tasks\n"
+            " fport rm taskstr                      - Remove forward/reverse task by taskstring\n"
+            "\n"
+            "app commands:\n"
+            " install [-r] src                      - Send package(s) to device and install them\n"
+            "                                         src examples: single or multiple packages and directories\n"
+            "                                         (.hap .hsp)\n"
+            "                                         -r: replace existing application\n"
+            " uninstall [-k] package                - Remove application package from device\n"
+            "                                         -k: keep the data and cache directories\n"
+            "\n"
+            "debug commands:\n"
+            " hilog [-h]                            - Show device log, -h for detail\n"
+            " shell [COMMAND...]                    - Run shell command (interactive shell if no command given)\n"
+            " bugreport [PATH]                      - Return all information from the device, path will be save "
+            "localpath\n"
+            " jpid                                  - List pids of processes hosting a JDWP transport\n"
+            " sideload [PATH]                       - Sideload the given full OTA package\n"
+            "\n"
+            "security commands:\n"
+            " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
+            "\n"
+            "---------------------------------flash commands:------------------------------------\n"
+            "flash commands:\n"
+            " update packagename                    - Update system by package\n"
+            " flash [-f] partition imagename        - Flash partition by image\n"
+            " erase [-f] partition                  - Erase partition\n"
+            " format [-f] partition                 - Format partition\n"
+            "---------------------------------external commands:------------------------------------\n"
+            "extconn key                             - Connect external device via key, TCP use ip:port(remian)\n"
+            "-S [ip:]port                            - Set hdc external server listen config\n"
+            "\n";
         return ret;
     }
 
@@ -209,10 +281,14 @@ namespace TranslateCommand {
     {
         string stringError;
         string input = string(inputRaw, sizeInputRaw);
-        if (!strcmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str())) {
+        if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size() )) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
-            stringError = Usage();
             outCmd->bJumpDo = true;
+            if (strstr(input.c_str(), " verbose")) {
+                stringError = Verbose();
+            } else {
+                stringError = Usage();
+            }
         } else if (!strcmp(input.c_str(), CMDSTR_SOFTWARE_VERSION.c_str())) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
             stringError = Base::GetVersion();

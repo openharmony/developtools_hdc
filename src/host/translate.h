@@ -26,6 +26,7 @@ namespace TranslateCommand {
 
     string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatCommand *outCmd);
     string Usage();
+    string Verbose();
 }
 }
 #endif

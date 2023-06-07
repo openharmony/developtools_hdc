@@ -33,6 +33,7 @@ namespace {
     bool g_isPcDebugRun = false;
     bool g_isTCPorUSB = false;
     bool g_isCustomLoglevel = false;
+    bool g_externalCmd = false;
     int g_isTestMethod = 0;
     string g_connectKey = "";
     string g_serverListenString = "";
@@ -290,10 +291,13 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:d:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:t:l:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
+                if (optind < optArgc && optind >= 0 && string(optArgv[optind]) == "verbose") {
+                    usage = Hdc::TranslateCommand::Verbose();
+                }
                 fprintf(stderr, "%s", usage.c_str());
                 needExit = true;
                 return needExit;
@@ -348,6 +352,10 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                     needExit = true;
                     return needExit;
                 }
+                break;
+            }
+            case 'S': {
+                g_externalCmd = true;
                 break;
             }
             case 'd':  // [Undisclosed parameters] debug mode
@@ -436,7 +444,7 @@ int main(int argc, const char *argv[])
     InitServerAddr();
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
-    if (cmdOptionResult) {
+    if (cmdOptionResult && !ExtClient::SharedLibraryExist()) {
         return 0;
     }
     if (g_isServerMode) {
@@ -472,7 +480,8 @@ int main(int argc, const char *argv[])
                    !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
             Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
-        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
+        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
+                   !strncmp(commands.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size()) || g_externalCmd) {
             Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
         } else {
             g_show = false;

@@ -1635,7 +1635,9 @@ namespace Base {
     int CloseFd(int &fd)
     {
         int rc = 0;
+#ifndef HDC_HOST
         WRITE_LOG(LOG_INFO, "CloseFd fd:%d", fd);
+#endif
         if (fd > 0) {
             rc = close(fd);
             if (rc < 0) {

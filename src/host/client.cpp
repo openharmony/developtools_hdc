@@ -353,15 +353,21 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
         return ERR_SOCKET_FAIL;
     }
     WRITE_LOG(LOG_DEBUG, "Try to connect %s:%d", ip, port);
-    struct sockaddr_in6 dest;
-    uv_ip6_addr(ip, port, &dest);
     uv_connect_t *conn = new(std::nothrow) uv_connect_t();
     if (conn == nullptr) {
         WRITE_LOG(LOG_FATAL, "ConnectServerForClient new conn failed");
         return ERR_GENERIC;
     }
     conn->data = this;
-    uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&dest, Connect);
+    if (strchr(ip, ':')) {
+        struct sockaddr_in6 dest;
+        uv_ip6_addr(ip, port, &dest);
+        uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&dest, Connect);
+    } else {
+        struct sockaddr_in destv4;
+        uv_ip4_addr(ip, port, &destv4);
+        uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&destv4, Connect);
+    }
     return 0;
 }
 

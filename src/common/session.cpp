@@ -54,6 +54,7 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize)
     if (serverOrDaemon) {
         if (libusb_init((libusb_context **)&ctxUSB) != 0) {
             ctxUSB = nullptr;
+            WRITE_LOG(LOG_FATAL, "libusb_init failed ctxUSB is nullptr");
         }
     }
 #endif

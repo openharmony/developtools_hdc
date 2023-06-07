@@ -94,6 +94,10 @@ static void UsbLogHandler(libusb_context* ctx, enum libusb_log_level level, cons
 }
 void HdcHostUSB::InitLogging(void *ctxUSB)
 {
+    if (ctxUSB == nullptr) {
+        WRITE_LOG(LOG_FATAL, "InitLogging failed ctxUSB is nullptr");
+        return;
+    }
     std::string debugEnv = "LIBUSB_DEBUG";
     libusb_log_level debugLevel;
 

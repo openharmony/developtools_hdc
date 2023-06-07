@@ -101,6 +101,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             delete ioContext;
             ioContext = nullptr;
         }
+        cirbuf.Free();
         return -1;
     }
     return bytes;

@@ -404,6 +404,7 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
     uv_write_t *reqWrite = new uv_write_t();
     if (!reqWrite) {
         WRITE_LOG(LOG_WARN, "UsbToStream new write_t failed size:%d", size);
+        cirbuf.Free();
         return ERR_BUF_ALLOC;
     }
     uv_buf_t bfr;
@@ -414,12 +415,14 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
         if (!uv_is_writable(stream)) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_is_writable false size:%d", size);
             delete reqWrite;
+            cirbuf.Free();
             break;
         }
         ret = uv_write(reqWrite, stream, &bfr, 1, UvWriteCallback);
         if (ret < 0) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_write false ret:%d", ret);
             delete reqWrite;
+            cirbuf.Free();
             ret = ERR_IO_FAIL;
             break;
         }
@@ -439,6 +442,7 @@ int HdcDaemonUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int
     }
     if (memcpy_s(data, dataSize, appendData, dataSize)) {
         WRITE_LOG(LOG_WARN, "UsbToHdcProtocol memory copy failed dataSize:%d", dataSize);
+        cirbuf.Free();
         return ERR_BUF_COPY;
     }
     return UsbToStream(stream, data, dataSize);

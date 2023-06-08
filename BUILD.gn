@@ -24,36 +24,36 @@ declare_args() {
 }
 
 hdc_common_sources = [
-  "${HDC_PATH}/src/common/async_cmd.cpp",
-  "${HDC_PATH}/src/common/auth.cpp",
-  "${HDC_PATH}/src/common/base.cpp",
-  "${HDC_PATH}/src/common/channel.cpp",
-  "${HDC_PATH}/src/common/circle_buffer.cpp",
-  "${HDC_PATH}/src/common/debug.cpp",
-  "${HDC_PATH}/src/common/file.cpp",
-  "${HDC_PATH}/src/common/file_descriptor.cpp",
-  "${HDC_PATH}/src/common/forward.cpp",
-  "${HDC_PATH}/src/common/session.cpp",
-  "${HDC_PATH}/src/common/task.cpp",
-  "${HDC_PATH}/src/common/tcp.cpp",
-  "${HDC_PATH}/src/common/transfer.cpp",
-  "${HDC_PATH}/src/common/usb.cpp",
+  "src/common/async_cmd.cpp",
+  "src/common/auth.cpp",
+  "src/common/base.cpp",
+  "src/common/channel.cpp",
+  "src/common/circle_buffer.cpp",
+  "src/common/debug.cpp",
+  "src/common/file.cpp",
+  "src/common/file_descriptor.cpp",
+  "src/common/forward.cpp",
+  "src/common/session.cpp",
+  "src/common/task.cpp",
+  "src/common/tcp.cpp",
+  "src/common/transfer.cpp",
+  "src/common/usb.cpp",
 ]
 
 hash_sources = [
-  "${HDC_PATH}/scripts/hdc_hash_gen.py",
-  "${HDC_PATH}/src/common/base.cpp",
-  "${HDC_PATH}/src/common/channel.h",
-  "${HDC_PATH}/src/common/session.h",
-  "${HDC_PATH}/src/common/transfer.h",
+  "scripts/hdc_hash_gen.py",
+  "src/common/base.cpp",
+  "src/common/channel.h",
+  "src/common/session.h",
+  "src/common/transfer.h",
 ]
 
 if (hdc_support_uart) {
-  hdc_common_sources += [ "${HDC_PATH}/src/common/uart.cpp" ]
+  hdc_common_sources += [ "src/common/uart.cpp" ]
 }
 config("hdc_config") {
   include_dirs = [
-    "${HDC_PATH}/src/common",
+    "src/common",
     "${py_out_dir}",
   ]
   cflags_cc = [ "-std=c++17" ]
@@ -113,17 +113,17 @@ template("hdcd_source_set") {
 
     deps += [
       ":hdc_hash_gen",
-      "${HDC_PATH}/src/daemon/etc:daemon_etc",
+      "src/daemon/etc:daemon_etc",
     ]
 
     if (hdc_jdwp_test) {
       defines += [ "SIMULATE_JDWP" ]
-      deps += [ "${HDC_PATH}/src/test/jdwp:jdwp_test" ]
+      deps += [ "src/test/jdwp:jdwp_test" ]
     }
 
     external_deps = [
       "c_utils:utilsbase",
-      "hiviewdfx_hilog_native:libhilog",
+      "hilog_native:libhilog",
       "init:libbegetutil",
     ]
 
@@ -152,6 +152,9 @@ template("hdcd_source_set") {
     }
 
     ldflags = [ "-rdynamic" ]
+
+    subsystem_name = "developtools"
+    part_name = "hdc"
   }
 }
 
@@ -162,6 +165,9 @@ template("build_hdc") {
     if (build_selinux) {
       image_name = image_name
     }
+
+    subsystem_name = "developtools"
+    part_name = "hdc"
   }
 
   ohos_executable("hdcd_${image_name}_exe") {
@@ -314,7 +320,7 @@ group("hdc_test_target") {
 }
 
 action("hdc_hash_gen") {
-  script = "${HDC_PATH}/scripts/hdc_hash_gen.py"
+  script = "scripts/hdc_hash_gen.py"
   sources = hash_sources
   outputs = [ "$py_out_dir" ]
   args = [

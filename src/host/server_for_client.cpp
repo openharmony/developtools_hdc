@@ -801,7 +801,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->interactiveShellMode) {
         string retEcho = String2FormatCommand(reinterpret_cast<char *>(bufPtr), bytesIO, &formatCommand);
         if (retEcho.length()) {
-            if (!strcmp(reinterpret_cast<char *>(bufPtr), CMDSTR_SOFTWARE_HELP.c_str()) ||
+            if (!strncmp(reinterpret_cast<char *>(bufPtr), CMDSTR_SOFTWARE_HELP.c_str(),
+                CMDSTR_SOFTWARE_HELP.size()) ||
                 !strcmp(reinterpret_cast<char *>(bufPtr), CMDSTR_SOFTWARE_VERSION.c_str()) ||
                 !strcmp(reinterpret_cast<char *>(bufPtr), "flash")) {
                 EchoClient(hChannel, MSG_OK, retEcho.c_str());

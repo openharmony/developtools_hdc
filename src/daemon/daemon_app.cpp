@@ -118,7 +118,11 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     chmod(package.c_str(), 0644);  // 0644 : permission
     string doBuf;
     if (installOrUninstall) {
-        doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
+        if (string(options).find("-s") == string::npos) {
+            doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
+        } else {
+            doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
+        }
     } else {
         doBuf = Base::StringFormat("bm uninstall %s -n %s", options, package.c_str());
     }

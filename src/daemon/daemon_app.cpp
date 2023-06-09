@@ -57,10 +57,10 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
             ctxNow.master = false;
             ctxNow.fsOpenReq.data = &ctxNow;
             // -lrtsdpg, -l -r -t -s..,
-            if (ctxNow.transferConfig.functionName == CMDSTR_APP_INSTALL
-                && ctxNow.transferConfig.options.find("s") != std::string::npos) {
-                dstPath = tmpSD;
-            }
+            // if (ctxNow.transferConfig.functionName == CMDSTR_APP_INSTALL
+            //     && ctxNow.transferConfig.options.find("s") != std::string::npos) {
+            //     dstPath = tmpSD;
+            // }
 #ifdef HDC_PCDEBUG
             char tmpPath[256] = "";
             size_t size = 256;
@@ -81,7 +81,18 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
         case CMD_APP_UNINSTALL: {
             // This maybe has a command implanting risk, since it is a controllable device, it can be ignored
             string bufString(reinterpret_cast<char *>(payload), payloadSize);
-            PackageShell(false, "", bufString);
+            string options = "";
+            string packages = "";
+            vector<string> segments;
+            Base::SplitString(bufString, " ", segments);
+            for (auto seg: segments) {
+                if (seg[0] == '-') {
+                    options += " " + seg;
+                } else {
+                    packages += " " + seg;
+                }
+            }
+            PackageShell(false, options.c_str(), packages);
             break;
         }
         default:
@@ -118,7 +129,7 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     chmod(package.c_str(), 0644);  // 0644 : permission
     string doBuf;
     if (installOrUninstall) {
-        if (string(options).find("-s") == string::npos) {
+        if (string(options).find("s") == string::npos) {
             doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
         } else {
             doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());

@@ -29,7 +29,7 @@
         "libuv",
         "openssl",
         "bounds_checking_function",
-        "thirdparty_lz4",
+        "lz4",
         "thirdparty_selinux",
         "thirdparty_libusb",
         "thirdparty_googletest"

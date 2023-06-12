@@ -48,9 +48,7 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
     bool ret = true;
     switch (command) {
         case CMD_APP_CHECK: {
-            string tmpData = "/data/local/tmp/";
-            string tmpSD = "/sdcard/tmp/";
-            string dstPath = tmpData;
+            string dstPath = "/data/local/tmp/";
             string bufString(reinterpret_cast<char *>(payload), payloadSize);
             SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
             // update transferconfig to main context
@@ -123,15 +121,21 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     // asynccmd Other processes, no RunningProtect protection
     chmod(package.c_str(), 0644);  // 0644 : permission
     string doBuf;
-    if (installOrUninstall) {
-        if (string(options).find("s") == string::npos) {
-            doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
+    
+    if (strlen(options) == 0) {  // basic mode
+        if (installOrUninstall) {
+            doBuf = Base::StringFormat("bm install -p %s", package.c_str());
         } else {
-            doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
+            doBuf = Base::StringFormat("bm uninstall -n %s", package.c_str());
         }
-    } else {
-        doBuf = Base::StringFormat("bm uninstall %s -n %s", options, package.c_str());
+    } else {  // advansed mode
+        if (installOrUninstall) {
+            doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
+        } else {
+            doBuf = Base::StringFormat("bm uninstall %s %s", options, package.c_str());
+        }
     }
+    
     funcAppModFinish = std::bind(&HdcDaemonApp::AsyncInstallFinish, this, std::placeholders::_1, std::placeholders::_2,
                                  std::placeholders::_3);
     if (installOrUninstall) {

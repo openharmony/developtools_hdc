@@ -56,11 +56,6 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
             // update transferconfig to main context
             ctxNow.master = false;
             ctxNow.fsOpenReq.data = &ctxNow;
-            // -lrtsdpg, -l -r -t -s..,
-            // if (ctxNow.transferConfig.functionName == CMDSTR_APP_INSTALL
-            //     && ctxNow.transferConfig.options.find("s") != std::string::npos) {
-            //     dstPath = tmpSD;
-            // }
 #ifdef HDC_PCDEBUG
             char tmpPath[256] = "";
             size_t size = 256;

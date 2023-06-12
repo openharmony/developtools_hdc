@@ -36,6 +36,8 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 HdcTransferBase::~HdcTransferBase()
 {
     if (ctxNow.fsOpenReq.result && !ctxNow.ioFinish) {
+        WRITE_LOG(LOG_WARN, "~HdcTransferBase channelId:%u result:%d",
+            taskInfo->channelId,ctxNow.fsOpenReq.result);
         uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
     }
     WRITE_LOG(LOG_DEBUG, "~HdcTransferBase");
@@ -264,7 +266,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     StartTraceScope("HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
-    WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s", context->localPath.c_str());
+    WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
+        context->localPath.c_str(), thisClass->taskInfo->channelId, context->fsOpenReq.result);
     --thisClass->refCount;
     if (req->result < 0) {
         constexpr int bufSize = 1024;

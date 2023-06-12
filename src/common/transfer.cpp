@@ -35,6 +35,9 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 
 HdcTransferBase::~HdcTransferBase()
 {
+    if (ctxNow.fsOpenReq.result && !ctxNow.ioFinish) {
+        uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+    }
     WRITE_LOG(LOG_DEBUG, "~HdcTransferBase");
 };
 

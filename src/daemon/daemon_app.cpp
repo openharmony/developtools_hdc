@@ -123,7 +123,7 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     string doBuf;
 
     if (installOrUninstall) {
-        if (strlen(options) == 0) { 
+        if (strlen(options) == 0) {
             // basic mode: blank options
             doBuf = Base::StringFormat("bm install -p %s", package.c_str());
         } else {

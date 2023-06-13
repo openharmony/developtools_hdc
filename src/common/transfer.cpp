@@ -86,7 +86,8 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
-            if (bytes > 0 && memcpy_s(ioContext->bufIO, bytes, sendBuf, bytes) != EOK) {
+            if (bytes > 0 && bytes <= MAX_USBFFS_BULK &&
+                memcpy_s(ioContext->bufIO, MAX_USBFFS_BULK, sendBuf, bytes) != EOK) {
                 WRITE_LOG(LOG_WARN, "SimpleFileIO memcpy error");
                 break;
             }

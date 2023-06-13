@@ -888,7 +888,7 @@ int HdcSessionBase::OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen)
         return ERR_BUF_CHECK;
     }
     struct PayloadHead *payloadHead = reinterpret_cast<struct PayloadHead *>(bufPtr);
-    // 两个外部无符号数相加，类型升格防止整数回绕
+    // to prevent integer overflow caused by the add operation of two input num
     uint64_t payloadHeadSize = static_cast<uint64_t>(ntohl(payloadHead->dataSize)) +
         static_cast<uint64_t>(ntohs(payloadHead->headSize));
     int packetHeadSize = sizeof(struct PayloadHead);
@@ -897,7 +897,7 @@ int HdcSessionBase::OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen)
         return ERR_BUF_CHECK;
     }
 
-    // 已判定范围 0 < payloadHeadSize < HDC_BUF_MAX_BYTES
+    // 0 < payloadHeadSize < HDC_BUF_MAX_BYTES
     int tobeReadLen = static_cast<int>(payloadHeadSize);
     if (bufLen - packetHeadSize < tobeReadLen) {
         return 0;

@@ -126,15 +126,15 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
         if (strlen(options) == 0) { 
             // basic mode: blank options
             doBuf = Base::StringFormat("bm install -p %s", package.c_str());
-        } else {  
+        } else {
             // advansed mode for -p/-r/-s and some other options in the future
             doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
         }
     } else {  // -n is always required in uninstall
-        if (string(options).find("n") == string::npos) {  
+        if (string(options).find("n") == string::npos) {
             // basic mode: blank options or "-n" is omitted
             doBuf = Base::StringFormat("bm uninstall %s -n %s", options, package.c_str());
-        } else {  
+        } else {
             // advansed mode for -s/-n and some other options in the future
             doBuf = Base::StringFormat("bm uninstall %s %s", options, package.c_str());
         }

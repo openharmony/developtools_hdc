@@ -593,12 +593,16 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
 
 bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize)
 {
+
+    if (dataSize < static_cast<int>(payloadPrefixReserve)) {
+        return false;
+    }
     uint8_t *clearBuf = nullptr;
-    string serialStrring(reinterpret_cast<char *>(data), payloadPrefixReserve);
+    string serialString(reinterpret_cast<char *>(data), payloadPrefixReserve);
     TransferPayload pld;
     Base::ZeroStruct(pld);
     bool ret = false;
-    SerialStruct::ParseFromString(pld, serialStrring);
+    SerialStruct::ParseFromString(pld, serialString);
     int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
     if (pld.compressSize > 0) {

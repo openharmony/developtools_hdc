@@ -139,7 +139,7 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
             doBuf = Base::StringFormat("bm uninstall %s %s", options, package.c_str());
         }
     }
-    
+
     funcAppModFinish = std::bind(&HdcDaemonApp::AsyncInstallFinish, this, std::placeholders::_1, std::placeholders::_2,
                                  std::placeholders::_3);
     if (installOrUninstall) {

@@ -197,14 +197,19 @@ namespace TranslateCommand {
                 outCmd->bJumpDo = true;
             }
         }
-        if (outCmd->parameters.find(":") != std::string::npos) {
+        size_t pos = outCmd->parameters.find(":");
+        if (pos != std::string::npos) {
             // tcp mode
-            string ip = outCmd->parameters.substr(0, outCmd->parameters.find(":"));
-            string sport = outCmd->parameters.substr(outCmd->parameters.find(":") + 1);
+            string ip = outCmd->parameters.substr(0, pos);
+            string sport = outCmd->parameters.substr(pos + 1);
             if (sport.empty()) {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;
+            }
+            if (ip == "localhost") {
+                ip = "127.0.0.1";
+                outCmd->parameters.replace(0, pos, ip);
             }
             int port = std::stoi(sport);
             sockaddr_in addr;

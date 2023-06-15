@@ -513,6 +513,7 @@ struct HdcChannel {
     std::string key;
     RemoteType remote = RemoteType::REMOTE_NONE;
     bool fromClient = false;
+    bool connectLocalDevice = false;
 };
 using HChannel = struct HdcChannel *;
 

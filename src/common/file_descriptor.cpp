@@ -67,6 +67,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
 
         if (isWrite) {
             nBytes = write(thisClass->fdIO, buf, bufSize);
+            if (nBytes < 0 && errno == EINTR) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d write interrupt", thisClass->fdIO);
+                continue;
+            }
             bufSize -= nBytes;
         } else {
             if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
@@ -74,6 +78,17 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
                 break;
             }
             nBytes = read(thisClass->fdIO, buf, bufSize);
+            if (nBytes < 0) {
+                if (errno == EAGAIN) {
+                    constexpr int one = 1;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(one));
+                    continue;
+                }
+                if (errno == EINTR) {
+                    WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
+                    continue;
+                }
+            }
         }
         if (nBytes > 0) {
             if (isWrite && bufSize == 0) {
@@ -84,12 +99,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             }
             continue;
         } else {
-            if (!isWrite && nBytes == -1) {
-                if (errno == EAGAIN || errno == EINTR) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    continue;
-                }
-            }
             if (nBytes != 0) {
                 char buffer[BUF_SIZE_DEFAULT] = { 0 };
 #ifdef HOST_MINGW

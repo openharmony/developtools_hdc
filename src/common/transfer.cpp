@@ -593,7 +593,6 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
 
 bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize)
 {
-
     if (dataSize < static_cast<int>(payloadPrefixReserve)) {
         WRITE_LOG(LOG_WARN, "unable to parse TransferPayload: invalid dataSize %d", dataSize);
         return false;

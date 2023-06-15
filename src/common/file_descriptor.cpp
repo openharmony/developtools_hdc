@@ -76,12 +76,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             nBytes = read(thisClass->fdIO, buf, bufSize);
         }
         if (nBytes > 0) {
-            if (!isWrite && nBytes == -1) {
-                if (errno == EAGAIN) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    continue;
-                }
-            }
             if (isWrite && bufSize == 0) {
                 break;
             } else if (!isWrite && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
@@ -90,6 +84,12 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             }
             continue;
         } else {
+            if (!isWrite && nBytes == -1) {
+                if (errno == EAGAIN || errno == EINTR) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+            }
             if (nBytes != 0) {
                 char buffer[BUF_SIZE_DEFAULT] = { 0 };
 #ifdef HOST_MINGW

@@ -95,10 +95,8 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
         delete[] buf;
         buf = nullptr;
     }
-    if (ctxIO != nullptr) {
-        delete ctxIO;
-        ctxIO = nullptr;
-    }
+    delete ctxIO;
+    ctxIO = nullptr;
 
     --thisClass->refIO;
     if (bFinish) {

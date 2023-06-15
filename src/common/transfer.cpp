@@ -37,7 +37,7 @@ HdcTransferBase::~HdcTransferBase()
 {
     if (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish) {
         WRITE_LOG(LOG_WARN, "~HdcTransferBase channelId:%u result:%d",
-            taskInfo->channelId,ctxNow.fsOpenReq.result);
+                  taskInfo->channelId,ctxNow.fsOpenReq.result);
         uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
     }
     WRITE_LOG(LOG_DEBUG, "~HdcTransferBase");

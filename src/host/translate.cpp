@@ -281,7 +281,7 @@ namespace TranslateCommand {
     {
         string stringError;
         string input = string(inputRaw, sizeInputRaw);
-        if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size() )) {
+        if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size())) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
             outCmd->bJumpDo = true;
             if (strstr(input.c_str(), " verbose")) {

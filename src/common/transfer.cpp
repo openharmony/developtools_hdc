@@ -595,6 +595,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
 {
 
     if (dataSize < static_cast<int>(payloadPrefixReserve)) {
+        WRITE_LOG(LOG_WARN, "unable to parse TransferPayload: invalid dataSize %d", dataSize);
         return false;
     }
     uint8_t *clearBuf = nullptr;

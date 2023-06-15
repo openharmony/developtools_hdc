@@ -46,7 +46,7 @@ enum LogLevel {
 #endif
 
 // hitrace will increase ipc thread to upper hdcd memory
-// IPCSkeleton::SetMaxWorkThreadNum(4) can limit thread num, default 16 threads
+// IPC function SetMaxWorkThreadNum can limit thread num, default 16 threads
 #ifdef HDC_TRACE_TEST // default close, change to open by HDC_TRACE
 #define StartTracePoint(value) StartTrace(HITRACE_TAG_HDCD, value)
 #define FinishTracePoint()     FinishTrace(HITRACE_TAG_HDCD)

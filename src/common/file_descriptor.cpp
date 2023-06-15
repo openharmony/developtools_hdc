@@ -61,6 +61,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
 
     while (true) {
         if (thisClass->workContinue == false) {
+            bFinish = true;
             break;
         }
 
@@ -75,6 +76,12 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             nBytes = read(thisClass->fdIO, buf, bufSize);
         }
         if (nBytes > 0) {
+            if (!isWrite && nBytes == -1) {
+                if (errno == EAGAIN) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+            }
             if (isWrite && bufSize == 0) {
                 break;
             } else if (!isWrite && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
@@ -84,7 +91,13 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             continue;
         } else {
             if (nBytes != 0) {
-                WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, strerror(errno));
+                char buffer[BUF_SIZE_DEFAULT] = { 0 };
+#ifdef HOST_MINGW
+                strerror_s(buffer, BUF_SIZE_DEFAULT, errno);
+#else
+                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+#endif
+                WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, buffer);
             }
             bFinish = true;
             fetalFinish = true;

@@ -121,18 +121,22 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     // asynccmd Other processes, no RunningProtect protection
     chmod(package.c_str(), 0644);  // 0644 : permission
     string doBuf;
-
-    if (installOrUninstall) {
-        if (strlen(options) == 0) {
-            // basic mode: blank options
-            doBuf = Base::StringFormat("bm install -p %s", package.c_str());
+    string opts = string(options);
+    if (installOrUninstall) { // either -p or -s is always required in install
+        if (opts.find("p") == string::npos && opts.find("s") == string::npos) {
+            // basic mode: blank options or both "-s" / "-p" are omitted
+            // eg. hdc install x.hap --> bm install -p x.hap
+            // eg. hdc install -r x.hap --> bm install -r -p x.hap
+            doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
         } else {
             // advansed mode for -p/-r/-s and some other options in the future
             doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
         }
     } else {  // -n is always required in uninstall
-        if (string(options).find("n") == string::npos) {
+        if (opts.find("n") == string::npos) {
             // basic mode: blank options or "-n" is omitted
+            // eg. hdc uninstall com.xx.xx --> bm uninstall -n com.xx.xx
+            // eg. hdc uninstall -s com.xx.xx --> bm uninstall -s -n com.xx.xx
             doBuf = Base::StringFormat("bm uninstall %s -n %s", options, package.c_str());
         } else {
             // advansed mode for -s/-n and some other options in the future

@@ -66,12 +66,14 @@ namespace TranslateCommand {
               " fport rm taskstr                      - Remove forward/reverse task by taskstring\n"
               "\n"
               "app commands:\n"
-              " install [-r] src                      - Send package(s) to device and install them\n"
+              " install [-r|-s] src                   - Send package(s) to device and install them\n"
               "                                         src examples: single or multiple packages and directories\n"
               "                                         (.hap .hsp)\n"
               "                                         -r: replace existing application\n"
-              " uninstall [-k] package                - Remove application package from device\n"
+              "                                         -s: install shared bundle for multi-apps\n"
+              " uninstall [-k] [-s] package           - Remove application package from device\n"
               "                                         -k: keep the data and cache directories\n"
+              "                                         -s: remove shared bundle\n"
               "\n"
               "debug commands:\n"
               " hilog [-h]                            - Show device log, -h for detail\n"
@@ -152,12 +154,14 @@ namespace TranslateCommand {
             " fport rm taskstr                      - Remove forward/reverse task by taskstring\n"
             "\n"
             "app commands:\n"
-            " install [-r] src                      - Send package(s) to device and install them\n"
+            " install [-r|-s] src                   - Send package(s) to device and install them\n"
             "                                         src examples: single or multiple packages and directories\n"
             "                                         (.hap .hsp)\n"
             "                                         -r: replace existing application\n"
-            " uninstall [-k] package                - Remove application package from device\n"
+            "                                         -s: install shared bundle for multi-apps\n"
+            " uninstall [-k] [-s] package           - Remove application package from device\n"
             "                                         -k: keep the data and cache directories\n"
+            "                                         -s: remove shared bundle\n"
             "\n"
             "debug commands:\n"
             " hilog [-h]                            - Show device log, -h for detail\n"
@@ -197,14 +201,19 @@ namespace TranslateCommand {
                 outCmd->bJumpDo = true;
             }
         }
-        if (outCmd->parameters.find(":") != std::string::npos) {
+        size_t pos = outCmd->parameters.find(":");
+        if (pos != std::string::npos) {
             // tcp mode
-            string ip = outCmd->parameters.substr(0, outCmd->parameters.find(":"));
-            string sport = outCmd->parameters.substr(outCmd->parameters.find(":") + 1);
+            string ip = outCmd->parameters.substr(0, pos);
+            string sport = outCmd->parameters.substr(pos + 1);
             if (sport.empty()) {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;
+            }
+            if (ip == "localhost") {
+                ip = "127.0.0.1";
+                outCmd->parameters.replace(0, pos, ip);
             }
             int port = std::stoi(sport);
             sockaddr_in addr;
@@ -281,7 +290,7 @@ namespace TranslateCommand {
     {
         string stringError;
         string input = string(inputRaw, sizeInputRaw);
-        if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size() )) {
+        if (!strncmp(input.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size())) {
             outCmd->cmdFlag = CMD_KERNEL_HELP;
             outCmd->bJumpDo = true;
             if (strstr(input.c_str(), " verbose")) {

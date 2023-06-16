@@ -48,19 +48,12 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
     bool ret = true;
     switch (command) {
         case CMD_APP_CHECK: {
-            string tmpData = "/data/local/tmp/";
-            string tmpSD = "/sdcard/tmp/";
-            string dstPath = tmpData;
+            string dstPath = "/data/local/tmp/";
             string bufString(reinterpret_cast<char *>(payload), payloadSize);
             SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
             // update transferconfig to main context
             ctxNow.master = false;
             ctxNow.fsOpenReq.data = &ctxNow;
-            // -lrtsdpg, -l -r -t -s..,
-            if (ctxNow.transferConfig.functionName == CMDSTR_APP_INSTALL
-                && ctxNow.transferConfig.options.find("s") != std::string::npos) {
-                dstPath = tmpSD;
-            }
 #ifdef HDC_PCDEBUG
             char tmpPath[256] = "";
             size_t size = 256;
@@ -81,7 +74,18 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
         case CMD_APP_UNINSTALL: {
             // This maybe has a command implanting risk, since it is a controllable device, it can be ignored
             string bufString(reinterpret_cast<char *>(payload), payloadSize);
-            PackageShell(false, "", bufString);
+            string options = "";
+            string packages = "";
+            vector<string> segments;
+            Base::SplitString(bufString, " ", segments);
+            for (auto seg: segments) {
+                if (seg[0] == '-') {
+                    options += " " + seg;
+                } else {
+                    packages += " " + seg;
+                }
+            }
+            PackageShell(false, options.c_str(), packages);
             break;
         }
         default:
@@ -117,11 +121,29 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     // asynccmd Other processes, no RunningProtect protection
     chmod(package.c_str(), 0644);  // 0644 : permission
     string doBuf;
-    if (installOrUninstall) {
-        doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
-    } else {
-        doBuf = Base::StringFormat("bm uninstall %s -n %s", options, package.c_str());
+    string opts = string(options);
+    if (installOrUninstall) { // either -p or -s is always required in install
+        if (opts.find("p") == string::npos && opts.find("s") == string::npos) {
+            // basic mode: blank options or both "-s" / "-p" are omitted
+            // eg. hdc install x.hap --> bm install -p x.hap
+            // eg. hdc install -r x.hap --> bm install -r -p x.hap
+            doBuf = Base::StringFormat("bm install %s -p %s", options, package.c_str());
+        } else {
+            // advansed mode for -p/-r/-s and some other options in the future
+            doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
+        }
+    } else {  // -n is always required in uninstall
+        if (opts.find("n") == string::npos) {
+            // basic mode: blank options or "-n" is omitted
+            // eg. hdc uninstall com.xx.xx --> bm uninstall -n com.xx.xx
+            // eg. hdc uninstall -s com.xx.xx --> bm uninstall -s -n com.xx.xx
+            doBuf = Base::StringFormat("bm uninstall %s -n %s", options, package.c_str());
+        } else {
+            // advansed mode for -s/-n and some other options in the future
+            doBuf = Base::StringFormat("bm uninstall %s %s", options, package.c_str());
+        }
     }
+
     funcAppModFinish = std::bind(&HdcDaemonApp::AsyncInstallFinish, this, std::placeholders::_1, std::placeholders::_2,
                                  std::placeholders::_3);
     if (installOrUninstall) {

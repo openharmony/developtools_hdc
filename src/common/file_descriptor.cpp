@@ -61,11 +61,16 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
 
     while (true) {
         if (thisClass->workContinue == false) {
-            return;
+            bFinish = true;
+            break;
         }
 
         if (isWrite) {
             nBytes = write(thisClass->fdIO, buf, bufSize);
+            if (nBytes < 0 && errno == EINTR) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d write interrupt", thisClass->fdIO);
+                continue;
+            }
             bufSize -= nBytes;
         } else {
             if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
@@ -73,6 +78,17 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
                 break;
             }
             nBytes = read(thisClass->fdIO, buf, bufSize);
+            if (nBytes < 0) {
+                if (errno == EAGAIN) {
+                    constexpr int one = 1;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(one));
+                    continue;
+                }
+                if (errno == EINTR) {
+                    WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
+                    continue;
+                }
+            }
         }
         if (nBytes > 0) {
             if (isWrite && bufSize == 0) {
@@ -84,15 +100,25 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             continue;
         } else {
             if (nBytes != 0) {
-                WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, strerror(errno));
+                char buffer[BUF_SIZE_DEFAULT] = { 0 };
+#ifdef HOST_MINGW
+                strerror_s(buffer, BUF_SIZE_DEFAULT, errno);
+#else
+                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+#endif
+                WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, buffer);
             }
             bFinish = true;
             fetalFinish = true;
             break;
         }
     }
-    delete[] buf;
+    if (buf != nullptr) {
+        delete[] buf;
+        buf = nullptr;
+    }
     delete ctxIO;
+    ctxIO = nullptr;
 
     --thisClass->refIO;
     if (bFinish) {

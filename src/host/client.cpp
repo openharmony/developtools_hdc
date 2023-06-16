@@ -204,7 +204,7 @@ string HdcClient::GetHilogPath()
     return exePath;
 }
 
-void HdcClient::RunCommandWin32(const string& command)
+void HdcClient::RunCommandWin32(const string& cmd)
 {
     HANDLE hSubWrite;
     HANDLE hParentRead;
@@ -233,7 +233,7 @@ void HdcClient::RunCommandWin32(const string& command)
     si.wShowWindow = SW_HIDE;
     si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 
-    const char *msg = command.c_str();
+    const char *msg = cmd.c_str();
     char buffer[BUF_SIZE_SMALL] = {0};
     if (strcpy_s(buffer, sizeof(buffer), msg) != EOK) {
         return;
@@ -254,10 +254,10 @@ void HdcClient::RunCommandWin32(const string& command)
     CloseHandle(hSubRead);
 }
 #else
-void HdcClient::RunCommand(const string& command)
+void HdcClient::RunCommand(const string& cmd)
 {
     FILE *procFileInfo = nullptr;
-    procFileInfo = popen(command.c_str(), "r");
+    procFileInfo = popen(cmd.c_str(), "r");
     if (procFileInfo == nullptr) {
         perror("popen execute failed");
         return;
@@ -273,27 +273,26 @@ void HdcClient::RunCommand(const string& command)
 }
 #endif
 
-void HdcClient::RunExecuteCommand(const string& command)
+void HdcClient::RunExecuteCommand(const string& cmd)
 {
 #ifdef _WIN32
-    RunCommandWin32(command);
+    RunCommandWin32(cmd);
 #else
-    RunCommand(command);
+    RunCommand(cmd);
 #endif
 }
 
-bool IsCaptureCommand(const string& command)
+bool IsCaptureCommand(const string& cmd)
 {
     int index = string(CMDSTR_HILOG).length();
-    int length = command.length();
-    const char* str = command.c_str();
+    int length = cmd.length();
     const string captureOption = "parse";
     while (index < length) {
-        if (command[index] == ' ') {
+        if (cmd[index] == ' ') {
             index++;
             continue;
         }
-        if (!strncmp(str + index, captureOption.c_str(), captureOption.size())) {
+        if (!strncmp(cmd.c_str() + index, captureOption.c_str(), captureOption.size())) {
             return true;
         } else {
             return false;
@@ -623,6 +622,9 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     if (g_show) {
         fprintf(stdout, "%s", s.c_str());
         fflush(stdout);
+        if (!strncmp(command.c_str(), (CMDSTR_SHELL + " ").c_str(), CMDSTR_SHELL.size() + 1)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
     }
     return 0;
 }

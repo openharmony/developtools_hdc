@@ -45,7 +45,9 @@ enum LogLevel {
     _rc; })
 #endif
 
-#ifdef HDC_TRACE
+// hitrace will increase ipc thread to upper hdcd memory
+// IPC function SetMaxWorkThreadNum can limit thread num, default 16 threads
+#ifdef HDC_TRACE_TEST // default close, change to open by HDC_TRACE
 #define StartTracePoint(value) StartTrace(HITRACE_TAG_HDCD, value)
 #define FinishTracePoint()     FinishTrace(HITRACE_TAG_HDCD)
 #define StartTraceScope(value) HITRACE_METER_NAME(HITRACE_TAG_HDCD, value)
@@ -511,6 +513,7 @@ struct HdcChannel {
     std::string key;
     RemoteType remote = RemoteType::REMOTE_NONE;
     bool fromClient = false;
+    bool connectLocalDevice = false;
 };
 using HChannel = struct HdcChannel *;
 

@@ -35,6 +35,11 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 
 HdcTransferBase::~HdcTransferBase()
 {
+    if (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish) {
+        WRITE_LOG(LOG_WARN, "~HdcTransferBase channelId:%u result:%d",
+                  taskInfo->channelId,ctxNow.fsOpenReq.result);
+        uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+    }
     WRITE_LOG(LOG_DEBUG, "~HdcTransferBase");
 };
 
@@ -263,7 +268,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     StartTraceScope("HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
-    WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s", context->localPath.c_str());
+    WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
+        context->localPath.c_str(), thisClass->taskInfo->channelId, context->fsOpenReq.result);
     --thisClass->refCount;
     if (req->result < 0) {
         constexpr int bufSize = 1024;
@@ -594,12 +600,16 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
 
 bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize)
 {
+    if (dataSize < static_cast<int>(payloadPrefixReserve)) {
+        WRITE_LOG(LOG_WARN, "unable to parse TransferPayload: invalid dataSize %d", dataSize);
+        return false;
+    }
     uint8_t *clearBuf = nullptr;
-    string serialStrring(reinterpret_cast<char *>(data), payloadPrefixReserve);
+    string serialString(reinterpret_cast<char *>(data), payloadPrefixReserve);
     TransferPayload pld;
     Base::ZeroStruct(pld);
     bool ret = false;
-    SerialStruct::ParseFromString(pld, serialStrring);
+    SerialStruct::ParseFromString(pld, serialString);
     int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
     if (pld.compressSize > 0) {

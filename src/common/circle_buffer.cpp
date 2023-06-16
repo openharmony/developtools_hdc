@@ -81,7 +81,7 @@ uint8_t *CircleBuffer::Malloc()
     }
     uint8_t *buf = nullptr;
     if (Full()) {
-        for (int i = 0; i < CIRCLE_SIZE; i++) {
+        for (uint64_t i = 0; i < CIRCLE_SIZE; i++) {
             buf = new(std::nothrow) uint8_t[BUF_SIZE];
             if (buf == nullptr) {
                 return nullptr;

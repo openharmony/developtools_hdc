@@ -67,7 +67,8 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
     while (true) {
-        if (!ioContext || bytes <= 0) {
+        size_t bufMaxSize = Base::GetUsbffsBulkSize() - payloadPrefixReserve;
+        if (!ioContext || bytes <= 0 || bytes > bufMaxSize) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }
@@ -86,8 +87,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
-            size_t bufMaxSize = Base::GetUsbffsBulkSize();
-            if (bytes > bufMaxSize || memcpy_s(ioContext->bufIO, bufMaxSize, sendBuf, bytes) != EOK) {
+            if (memcpy_s(ioContext->bufIO, bufMaxSize, sendBuf, bytes) != EOK) {
                 WRITE_LOG(LOG_WARN, "SimpleFileIO memcpy error");
                 break;
             }

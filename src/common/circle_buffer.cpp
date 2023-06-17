@@ -14,6 +14,7 @@
  */
 
 #include "circle_buffer.h"
+#include "base.h"
 
 namespace Hdc {
 CircleBuffer::CircleBuffer()
@@ -75,6 +76,7 @@ bool CircleBuffer::FirstMalloc()
 
 uint8_t *CircleBuffer::Malloc()
 {
+    const size_t bufSize = Base::GetUsbffsBulkSize();
     std::unique_lock<std::mutex> lock(mutex_);
     if (!FirstMalloc()) {
         return nullptr;
@@ -82,7 +84,7 @@ uint8_t *CircleBuffer::Malloc()
     uint8_t *buf = nullptr;
     if (Full()) {
         for (uint64_t i = 0; i < CIRCLE_SIZE; i++) {
-            buf = new(std::nothrow) uint8_t[BUF_SIZE];
+            buf = new(std::nothrow) uint8_t[bufSize];
             if (buf == nullptr) {
                 return nullptr;
             }
@@ -94,7 +96,7 @@ uint8_t *CircleBuffer::Malloc()
         }
     }
     buf = buffers_[tail_];
-    (void)memset_s(buf, BUF_SIZE, 0, BUF_SIZE);
+    (void)memset_s(buf, bufSize, 0, bufSize);
     tail_ = (tail_ + 1) % size_;
     begin_ = std::chrono::steady_clock::now();
     return buf;
@@ -172,4 +174,3 @@ int64_t CircleBuffer::Interval()
     return duration.count();
 }
 }
-

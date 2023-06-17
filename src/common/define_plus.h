@@ -34,7 +34,7 @@ enum LogLevel {
     LOG_LAST = LOG_VERBOSE,  // tail, not use
 };
 
-#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(level, fmt, ##__VA_ARGS__)
+#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE__, __LINE__, level, fmt, ##__VA_ARGS__)
 
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(exp) ({         \

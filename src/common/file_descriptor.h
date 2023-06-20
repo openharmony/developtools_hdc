@@ -20,7 +20,7 @@ namespace Hdc {
 class HdcFileDescriptor {
 public:
     // callerContext, normalFinish, errorString
-    using CmdResultCallback = std::function<bool(const void *, const bool, const string)>;
+    using CmdResultCallback = std::function<bool(const void *, const string)>;
     // callerContext, readBuf, readIOByes
     using CallBackWhenRead = std::function<bool(const void *, uint8_t *, const int)>;
     HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *callerContextIn, CallBackWhenRead callbackReadIn,

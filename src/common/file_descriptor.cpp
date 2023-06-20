@@ -56,7 +56,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
     bool bFinish = false;
-    bool fetalFinish = false;
     ssize_t nBytes;
 
     while (true) {
@@ -109,7 +108,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
                 WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, buffer);
             }
             bFinish = true;
-            fetalFinish = true;
             break;
         }
     }
@@ -123,7 +121,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
     --thisClass->refIO;
     if (bFinish) {
         thisClass->workContinue = false;
-        thisClass->callbackFinish(thisClass->callerContext, fetalFinish, STRING_EMPTY);
+        thisClass->callbackFinish(thisClass->callerContext, STRING_EMPTY);
     }
 }
 
@@ -140,7 +138,7 @@ int HdcFileDescriptor::LoopReadOnThread()
             delete[] buf;
         }
         WRITE_LOG(LOG_FATAL, "Memory alloc failed");
-        callbackFinish(callerContext, true, "Memory alloc failed");
+        callbackFinish(callerContext, "Memory alloc failed");
         return -1;
     }
     contextIO->bufIO = buf;
@@ -183,7 +181,7 @@ int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
     if (!contextIO) {
         delete[] data;
         WRITE_LOG(LOG_FATAL, "Memory alloc failed");
-        callbackFinish(callerContext, true, "Memory alloc failed");
+        callbackFinish(callerContext, "Memory alloc failed");
         return -1;
     }
     contextIO->bufIO = data;

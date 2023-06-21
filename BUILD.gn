@@ -123,7 +123,7 @@ template("hdcd_source_set") {
 
     external_deps = [
       "c_utils:utilsbase",
-      "hilog_native:libhilog",
+      "hilog:libhilog",
       "init:libbegetutil",
     ]
 
@@ -143,7 +143,7 @@ template("hdcd_source_set") {
       }
       if (image_name == "system") {
         defines += [ "HDC_TRACE" ]
-        external_deps += [ "hitrace_native:hitrace_meter" ]
+        external_deps += [ "hitrace:hitrace_meter" ]
       }
     }
 

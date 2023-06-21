@@ -22,8 +22,8 @@
         "common",
         "init",
         "c_utils",
-        "hitrace_native",
-        "hilog_native"
+        "hitrace",
+        "hilog"
       ],
       "third_party": [
         "libuv",

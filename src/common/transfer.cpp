@@ -73,7 +73,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     bool ret = false;
     while (true) {
         size_t bufMaxSize = Base::GetUsbffsBulkSize() - payloadPrefixReserve;
-        if (!ioContext || bytes <= 0 || bytes > bufMaxSize) {
+        if (!ioContext || bytes < 0 || bytes > bufMaxSize) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }

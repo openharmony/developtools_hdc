@@ -28,7 +28,7 @@ public:
         USB_OPTION_RESERVE8 = 8,
     };
     // 1)is finish 2)exitStatus 3)resultString(maybe empty)
-    using CmdResultCallback = std::function<bool(bool, int64_t, const string)>;
+    using CmdResultCallback = std::function<bool(bool, const string)>;
     // deprecated, remove it later
     static uint32_t GetDefaultOption()
     {
@@ -41,7 +41,7 @@ public:
     bool ReadyForRelease();
 
 private:
-    static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
+    static bool FinishShellProc(const void *context, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
     int Popen(string command, bool readWrite, int &cpid);
 

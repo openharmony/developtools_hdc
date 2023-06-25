@@ -73,11 +73,11 @@ bool AsyncCmd::Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint
     return true;
 }
 
-bool AsyncCmd::FinishShellProc(const void *context, const bool result, const string exitMsg)
+bool AsyncCmd::FinishShellProc(const void *context, const string exitMsg)
 {
     AsyncCmd *thisClass = static_cast<AsyncCmd *>(const_cast<void *>(context));
     WRITE_LOG(LOG_DEBUG, "FinishShellProc finish pipeRead fd:%d pid:%d", thisClass->fd, thisClass->pid);
-    thisClass->resultCallback(true, result, thisClass->cmdResult + exitMsg);
+    thisClass->resultCallback(true, thisClass->cmdResult + exitMsg);
     --thisClass->refCount;
     return true;
 };
@@ -91,7 +91,7 @@ bool AsyncCmd::ChildReadCallback(const void *context, uint8_t *buf, const int si
         return true;
     }
     string s(reinterpret_cast<char *>(buf), size);
-    return thisClass->resultCallback(false, 0, s);
+    return thisClass->resultCallback(false, s);
 };
 
 #if !defined(_WIN32) && !defined(HDC_HOST)

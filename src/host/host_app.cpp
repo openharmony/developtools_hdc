@@ -116,7 +116,7 @@ void HdcHostApp::CheckMaster(CtxFile *context)
                   bufString.size());
 }
 
-bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const char *msg)
+bool HdcHostApp::CheckInstallContinue(AppModType mode, const char *msg)
 {
     string modeDesc;
     switch (mode) {
@@ -152,17 +152,16 @@ bool HdcHostApp::CommandDispatch(const uint16_t command, uint8_t *payload, const
         return false;
     }
     bool ret = true;
-    constexpr int cmdOffset = 2;
     switch (command) {
         case CMD_APP_INIT: {
             ret = BeginInstall(&ctxNow, (const char *)payload);
             break;
         }
         case CMD_APP_FINISH: {
+            constexpr int cmdOffset = 1;
             AppModType mode = static_cast<AppModType>(payload[0]);
-            bool result = static_cast<bool>(payload[1]);
             string s(reinterpret_cast<char *>(payload + cmdOffset), payloadSize - cmdOffset);
-            ret = CheckInstallContinue(mode, result, s.c_str());
+            ret = CheckInstallContinue(mode, s.c_str());
             break;
         }
         case CMD_APP_UNINSTALL: {

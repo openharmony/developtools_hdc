@@ -73,7 +73,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     bool ret = false;
     while (true) {
         size_t bufMaxSize = Base::GetUsbffsBulkSize() - payloadPrefixReserve;
-        if (!ioContext || bytes <= 0 || bytes > bufMaxSize) {
+        if (!ioContext || bytes < 0 || bytes > bufMaxSize) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }
@@ -92,7 +92,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
-            if (memcpy_s(ioContext->bufIO, bufMaxSize, sendBuf, bytes) != EOK) {
+            if (bytes > 0 && memcpy_s(ioContext->bufIO, bufMaxSize, sendBuf, bytes) != EOK) {
                 WRITE_LOG(LOG_WARN, "SimpleFileIO memcpy error");
                 break;
             }
@@ -634,7 +634,8 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         }
     }
     while (true) {
-        if (static_cast<uint32_t>(clearSize) != pld.uncompressSize) {
+        if (static_cast<uint32_t>(clearSize) != pld.uncompressSize || dataSize - payloadPrefixReserve < clearSize) {
+            WRITE_LOG(LOG_WARN, "invalid data size for fileIO: %d", clearSize);
             break;
         }
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {

@@ -30,7 +30,7 @@
         "openssl",
         "bounds_checking_function",
         "lz4",
-        "thirdparty_selinux",
+        "selinux",
         "thirdparty_libusb",
         "thirdparty_googletest"
       ]

@@ -94,7 +94,7 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
     return ret;
 };
 
-bool HdcDaemonApp::AsyncInstallFinish(bool finish, const string result)
+bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const string result)
 {
     if (mode == APPMOD_INSTALL) {
         unlink(ctxNow.localPath.c_str());
@@ -104,6 +104,7 @@ bool HdcDaemonApp::AsyncInstallFinish(bool finish, const string result)
     echo = Base::ReplaceAll(echo, "\n", " ");
     vector<uint8_t> vecBuf;
     vecBuf.push_back(mode);
+    vecBuf.push_back(exitStatus == 0);
     vecBuf.insert(vecBuf.end(), (uint8_t *)echo.c_str(), (uint8_t *)echo.c_str() + echo.size());
     SendToAnother(CMD_APP_FINISH, vecBuf.data(), vecBuf.size());
     --refCount;
@@ -143,8 +144,8 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
         }
     }
 
-    funcAppModFinish = std::bind(&HdcDaemonApp::AsyncInstallFinish, this,
-        std::placeholders::_1, std::placeholders::_2);
+    funcAppModFinish = std::bind(&HdcDaemonApp::AsyncInstallFinish, this, std::placeholders::_1, std::placeholders::_2,
+                                 std::placeholders::_3);
     if (installOrUninstall) {
         mode = APPMOD_INSTALL;
     } else {

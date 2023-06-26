@@ -221,7 +221,7 @@ int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char 
     return ptm;
 }
 
-bool HdcShell::FinishShellProc(const void *context, const string exitMsg)
+bool HdcShell::FinishShellProc(const void *context, const bool result, const string exitMsg)
 {
     WRITE_LOG(LOG_DEBUG, "FinishShellProc finish");
     HdcShell *thisClass = reinterpret_cast<HdcShell *>(const_cast<void *>(context));

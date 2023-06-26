@@ -26,7 +26,7 @@ public:
     bool ReadyForRelease() override;
 
 private:
-    static bool FinishShellProc(const void *context, const string exitMsg);
+    static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
     int StartShell();
     int CreateSubProcessPTY(const char *cmd, const char *arg0, const char *arg1, pid_t *pid);

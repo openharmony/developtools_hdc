@@ -42,7 +42,7 @@ bool HdcDaemonUnity::ReadyForRelease()
     return true;
 }
 
-bool HdcDaemonUnity::AsyncCmdOut(bool finish, const string result)
+bool HdcDaemonUnity::AsyncCmdOut(bool finish, int64_t exitStatus, const string result)
 {
 #ifdef UNIT_TEST
     Base::WriteBinFile((UT_TMP_PATH + "/execute.result").c_str(), (uint8_t *)result.c_str(), result.size(),
@@ -73,8 +73,8 @@ int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
 {
     do {
         AsyncCmd::CmdResultCallback funcResultOutput;
-        funcResultOutput = std::bind(&HdcDaemonUnity::AsyncCmdOut, this,
-            std::placeholders::_1, std::placeholders::_2);
+        funcResultOutput = std::bind(&HdcDaemonUnity::AsyncCmdOut, this, std::placeholders::_1, std::placeholders::_2,
+                                     std::placeholders::_3);
         if (!asyncCommand.Initial(loopTask, funcResultOutput)) {
             break;
         }

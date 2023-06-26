@@ -27,7 +27,7 @@ public:
 private:
     void WhenTransferFinish(CtxFile *context) override;
     void PackageShell(bool installOrUninstall, const char *options, const string package);
-    bool AsyncInstallFinish(bool finish, const string result);
+    bool AsyncInstallFinish(bool finish, int64_t exitStatus, const string result);
     void Sideload(const char *pathOTA);
 
     AsyncCmd asyncCommand;

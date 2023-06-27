@@ -80,8 +80,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             nBytes = read(thisClass->fdIO, buf, bufSize);
             if (nBytes < 0) {
                 if (errno == EAGAIN) {
-                    constexpr int one = 1;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(one));
                     continue;
                 }
                 if (errno == EINTR) {

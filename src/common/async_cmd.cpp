@@ -151,8 +151,6 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
         if (readWrite) {
             Base::CloseFd(fds[pipeWrite]);
             fcntl(fds[pipeRead], F_SETFD, FD_CLOEXEC);
-            int flags = fcntl(fds[pipeRead], F_GETFL);
-            fcntl(fds[pipeRead], F_SETFL, flags |O_NONBLOCK);
         } else {
             Base::CloseFd(fds[pipeRead]);
             fcntl(fds[pipeWrite], F_SETFD, FD_CLOEXEC);

@@ -76,7 +76,7 @@ bool CircleBuffer::FirstMalloc()
 
 uint8_t *CircleBuffer::Malloc()
 {
-    const size_t bufSize = Base::GetUsbffsBulkSize();
+    const size_t bufSize = static_cast<size_t>(Base::GetUsbffsBulkSize());
     std::unique_lock<std::mutex> lock(mutex_);
     if (!FirstMalloc()) {
         return nullptr;
@@ -130,7 +130,7 @@ void CircleBuffer::FreeMemory()
 
 void CircleBuffer::Timer(void *object)
 {
-    CircleBuffer *cirbuf = (CircleBuffer *)object;
+    CircleBuffer *cirbuf = reinterpret_cast<CircleBuffer *>(object);
     while (cirbuf->run_) {
         cirbuf->FreeMemory();
         cirbuf->TimerSleep();

@@ -19,6 +19,9 @@
 #include "server.h"
 
 namespace Hdc {
+static const int MAX_RETRY_COUNT = 500;
+static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
+
 HdcServerForClient::HdcServerForClient(const bool serverOrClient, const string &addrString, void *pClsServer,
                                        uv_loop_t *loopMainIn)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
@@ -278,7 +281,8 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
         } else {
             uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
             ++(*bRetryCount);
-            if (*bRetryCount > 500 || (hChannel->connectLocalDevice && *bRetryCount > 100)) {
+            if (*bRetryCount > MAX_RETRY_COUNT ||
+                (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT)) {
                 // 5s or localDevice 1s
                 bExitRepet = true;
                 sRet = "Connect failed";

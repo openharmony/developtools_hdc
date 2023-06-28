@@ -24,10 +24,6 @@ public:
     static std::unique_ptr<HdcJdwpFuzzer> Instance(uv_loop_t *loop)
     {
         std::unique_ptr<HdcJdwpFuzzer> jdwp = std::make_unique<HdcJdwpFuzzer>(loop);
-        if (jdwp == nullptr) {
-            WRITE_LOG(LOG_FATAL, "HdcJdwpFuzzer::Instance make_unique failed");
-            return nullptr;
-        }
         return jdwp;
     }
 };

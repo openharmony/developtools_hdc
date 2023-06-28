@@ -201,16 +201,15 @@ namespace Base {
         if (logLevel > g_logLevel) {
             return;
         }
-        string threadIdString;
 
         char buf[BUF_SIZE_DEFAULT4] = { 0 }; // only 4k to avoid stack overflow in 32bit or L0
         va_list vaArgs;
         va_start(vaArgs, msg);
         const int retSize = vsnprintf_s(buf, sizeof(buf), sizeof(buf) - 1, msg, vaArgs);
+        va_end(vaArgs);
         if (retSize < 0) {
             return;
         }
-        va_end(vaArgs);
 
 #ifdef  HDC_HILOG
         string tmpPath = functionName;
@@ -239,6 +238,7 @@ namespace Base {
         }
 #else
         string logLevelString;
+        string threadIdString;
         string sep = "\n";
         string timeString;
         if (string(buf).back() == '\n') {

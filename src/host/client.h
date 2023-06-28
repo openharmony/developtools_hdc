@@ -56,11 +56,11 @@ private:
 
 #ifdef _WIN32
     static string GetHilogPath();
-    void RunCommandWin32(const string& command);
+    void RunCommandWin32(const string& cmd);
 #else
-    void RunCommand(const string& command);
+    static void RunCommand(const string& cmd);
 #endif
-    void RunExecuteCommand(const string& command);
+    void RunExecuteCommand(const string& cmd);
 
 #ifndef _WIN32
     termios terminalState;

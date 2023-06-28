@@ -37,7 +37,7 @@ HdcTransferBase::~HdcTransferBase()
 {
     if (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish) {
         WRITE_LOG(LOG_WARN, "~HdcTransferBase channelId:%u result:%d",
-                  taskInfo->channelId,ctxNow.fsOpenReq.result);
+                  taskInfo->channelId, ctxNow.fsOpenReq.result);
         uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
     }
     WRITE_LOG(LOG_DEBUG, "~HdcTransferBase");
@@ -72,8 +72,8 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     CtxFileIO *ioContext = new CtxFileIO();
     bool ret = false;
     while (true) {
-        size_t bufMaxSize = Base::GetUsbffsBulkSize() - payloadPrefixReserve;
-        if (!ioContext || bytes < 0 || bytes > bufMaxSize) {
+        size_t bufMaxSize = static_cast<size_t>(Base::GetUsbffsBulkSize() - payloadPrefixReserve);
+        if (!ioContext || bytes < 0 || static_cast<size_t>(bytes) > bufMaxSize) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }

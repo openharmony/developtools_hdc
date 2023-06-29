@@ -116,7 +116,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
         buf = nullptr;
     }
     delete ctxIO;
-    ctxIO = nullptr;
 
     --thisClass->refIO;
     if (bFinish) {

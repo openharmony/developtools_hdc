@@ -23,7 +23,7 @@ ohos_executable("jdwp_test") {
   deps = [ "//third_party/libuv:uv" ]
   external_deps = [
     "c_utils:utils",
-    "hiviewdfx_hilog_native:libhilog",
+    "hilog:libhilog",
   ]
   include_dirs = [
     "//third_party/bounds_checking_function/include",

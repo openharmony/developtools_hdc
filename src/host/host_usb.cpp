@@ -255,6 +255,7 @@ bool HdcHostUSB::HasValidDevice(libusb_device *device)
             continue;
         }
         hasValid = true;
+        break;
     }
     return hasValid;
 }

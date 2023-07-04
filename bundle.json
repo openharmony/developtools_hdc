@@ -31,7 +31,7 @@
         "bounds_checking_function",
         "lz4",
         "selinux",
-        "thirdparty_libusb",
+        "libusb",
         "thirdparty_googletest"
       ]
     },

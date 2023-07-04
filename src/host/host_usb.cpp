@@ -229,7 +229,7 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
             continue;
         }
         string sn = szTmpKey;
-        if (HasValidDevice(dev) && !thisClass->DetectMyNeed(dev, sn)) {
+        if (thisClass->HasValidDevice(dev) && !thisClass->DetectMyNeed(dev, sn)) {
             thisClass->ReviewUsbNodeLater(szTmpKey);
         }
     }

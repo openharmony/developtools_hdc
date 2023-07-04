@@ -229,11 +229,34 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
             continue;
         }
         string sn = szTmpKey;
-        if (!thisClass->DetectMyNeed(dev, sn)) {
+        if (HasValidDevice(dev) && !thisClass->DetectMyNeed(dev, sn)) {
             thisClass->ReviewUsbNodeLater(szTmpKey);
         }
     }
     libusb_free_device_list(devs, 1);
+}
+
+bool HdcHostUSB::HasValidDevice(libusb_device *device)
+{
+    struct libusb_config_descriptor *descConfig = nullptr;
+    int ret = libusb_get_active_config_descriptor(device, &descConfig);
+    if (ret != 0) {
+        WRITE_LOG(LOG_WARN, "get active config des fail, errno is %d.", errno);
+        return false;
+    }
+    bool hasValid = false;
+    for (unsigned int j = 0; j < descConfig->bNumInterfaces; ++j) {
+        const struct libusb_interface *interface = &descConfig->interface[j];
+        if (interface->num_altsetting < 1) {
+            continue;
+        }
+        const struct libusb_interface_descriptor *ifDescriptor = &interface->altsetting[0];
+        if (!IsDebuggableDev(ifDescriptor)) {
+            continue;
+        }
+        hasValid = true;
+    }
+    return hasValid;
 }
 
 // Main thread USB operates in this thread

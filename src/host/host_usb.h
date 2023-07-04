@@ -44,6 +44,7 @@ private:
     void CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor *descConfig);
     int CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_device_descriptor& desc);
     int OpenDeviceMyNeed(HUSB hUSB);
+    bool HasValidDevice(libusb_device *device);
     int CheckDescriptor(HUSB hUSB, libusb_device_descriptor& desc);
     bool IsDebuggableDev(const struct libusb_interface_descriptor *ifDescriptor);
     bool ReadyForWorkThread(HSession hSession) override;

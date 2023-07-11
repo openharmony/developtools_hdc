@@ -175,18 +175,18 @@ static struct UsbFunctionDesc config2 = {
 
 template <size_t PropertyNameLength, size_t PropertyDataLength>
 struct UsbOsDescExtProp {
-    uint32_t dwSize = sizeof(*this);
-    uint32_t dwPropertyDataTypen = LONG_LE(1);
-    uint16_t wPropertyNameLength = SHORT_LE(PropertyNameLength);
-    char bPropertyName [PropertyNameLength];
-    uint16_t dPropertyDataLength = LONG_LE(PropertyDataLength);
-    char bProperty [PropertyDataLength];
+    uint32_t size = sizeof(*this);
+    uint32_t propertyDataTypen = LONG_LE(1);
+    uint16_t propertyNameLength = SHORT_LE(PropertyNameLength);
+    char propertyName [PropertyNameLength];
+    uint32_t propertyDataLength = LONG_LE(PropertyDataLength);
+    char property [PropertyDataLength];
 } __attribute__((packed));
 
 using UsbOsDescGuid = UsbOsDescExtProp<20, 39>;
 UsbOsDescGuid osDescGuid = {
-    .bPropertyName = "DeviceInterfaceGUID",
-    .bProperty = "{f21cc96b-063d-52e1-e3fd-f39cc7a34c40}",
+    .propertyName = "DeviceInterfaceGUID",
+    .property = "{f21cc96b-063d-52e1-e3fd-f39cc7a34c40}",
 };
 
 struct UsbExtPropValues {

@@ -125,7 +125,7 @@ void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
     descUsbFfs.config1Count = 3;
     descUsbFfs.config2Count = 3;
     descUsbFfs.config3Count = 5;
-    descUsbFfs.configWosCount = 1;
+    descUsbFfs.configWosCount = 2;
     descUsbFfs.config1Desc = config1;
     descUsbFfs.config2Desc = config2;
     descUsbFfs.config3Desc = config3;

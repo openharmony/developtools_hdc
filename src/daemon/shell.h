@@ -30,9 +30,10 @@ private:
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
     int StartShell();
     int CreateSubProcessPTY(const char *cmd, const char *arg0, const char *arg1, pid_t *pid);
-    int ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1);
+    static int ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1);
     bool SpecialSignal(uint8_t ch);
-    int ShellFork(const char *cmd, const char *arg0, const char *arg1);
+    int ThreadFork(const char *cmd, const char *arg0, const char *arg1);
+    static void *ShellFork(void *arg);
 
     HdcFileDescriptor *childShell;
     pid_t pidShell = 0;
@@ -41,6 +42,18 @@ private:
     const string devPTMX = "/dev/ptmx";
     static std::mutex mutexPty;
     char devname[BUF_SIZE_SMALL] = "";
+};
+
+struct ShellParams {
+    const char *cmdParam;
+    const char *arg0Param;
+    const char *arg1Param;
+    int ptmParam;
+    char *devParam;
+
+    ShellParams(const char *cmdParam, const char *arg0Param, const char *arg1Param, int ptmParam, char *devParam) :
+                cmdParam(cmdParam), arg0Param(arg0Param), arg1Param(arg1Param),
+                ptmParam(ptmParam), devParam(devParam) {};
 };
 }  // namespace Hdc
 #endif

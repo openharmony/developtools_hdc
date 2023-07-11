@@ -21,6 +21,7 @@
 #include "fcntl.h"
 #include "functional"
 #include "new"
+#include <pthread.h>
 #include "unistd.h"
 #include "base.h"
 #include "file_descriptor.h"
@@ -142,7 +143,6 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
     if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
     }
     execl(cmd, cmd, arg0, arg1, nullptr);
-    _Exit(1);
     return 0;
 }
 
@@ -162,8 +162,31 @@ static void SetSelinuxLabel()
 #endif
 }
 
-int HdcShell::ShellFork(const char *cmd, const char *arg0, const char *arg1)
+int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 {
+    ShellParams params = ShellParams(cmd, arg0, arg1, ptm, devname);
+    pthread_t thread_id;
+    void *shellRes;
+    int ret = pthread_create(&thread_id, NULL, reinterpret_cast<void *(*)(void *)>(ShellFork), &params);
+    if (ret != 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        strerror_r(errno, buf, bufSize);
+        WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
+        return ERR_GENERIC;
+    }
+    pthread_join(thread_id, &shellRes);
+    return static_cast<int>(reinterpret_cast<size_t>(shellRes));
+}
+
+void *HdcShell::ShellFork(void *arg)
+{
+    ShellParams params = *(ShellParams *)arg;
+    const char *cmd = params.cmdParam;
+    const char *arg0 = params.arg0Param;
+    const char *arg1 = params.arg1Param;
+    int ptmParam = params.ptmParam;
+    char *devParam = params.devParam;
     pid_t pid;
     pid = fork();
     if (pid < 0) {
@@ -171,24 +194,24 @@ int HdcShell::ShellFork(const char *cmd, const char *arg0, const char *arg1)
         char buf[bufSize] = { 0 };
         strerror_r(errno, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "Fork shell failed:%s", buf);
-        return ERR_GENERIC;
+        return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (pid == 0) {
         Base::DeInitProcess();
         HdcShell::mutexPty.unlock();
         setsid();
         SetSelinuxLabel();
-        Base::CloseFd(ptm);
+        Base::CloseFd(ptmParam);
         int pts = 0;
-        if ((pts = open(devname, O_RDWR | O_CLOEXEC)) < 0) {
-            return -1;
+        if ((pts = open(devParam, O_RDWR | O_CLOEXEC)) < 0) {
+            return reinterpret_cast<void *>(-1);
         }
         ChildForkDo(pts, cmd, arg0, arg1);
         // proc finish
     } else {
-        return pid;
+        return reinterpret_cast<void *>(pid);
     }
-    return 0;
+    return reinterpret_cast<void *>(0);
 }
 
 int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char *arg1, pid_t *pid)
@@ -217,7 +240,7 @@ int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char 
         Base::CloseFd(ptm);
         return ERR_API_FAIL;
     }
-    *pid = ShellFork(cmd, arg0, arg1);
+    *pid = ThreadFork(cmd, arg0, arg1);
     return ptm;
 }
 

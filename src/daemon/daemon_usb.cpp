@@ -129,23 +129,10 @@ void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
     descUsbFfs.config1Desc = config1;
     descUsbFfs.config2Desc = config2;
     descUsbFfs.config3Desc = config3;
-    descUsbFfs.wosHead.interface = 1;
-    descUsbFfs.wosHead.dwLength = LONG_LE(sizeof(descUsbFfs.wosHead) + sizeof(descUsbFfs.wosDesc));
-    descUsbFfs.wosHead.bcdVersion = SHORT_LE(1);
-    descUsbFfs.wosHead.wIndex = SHORT_LE(4);
-    descUsbFfs.wosHead.bCount = 1;
-    descUsbFfs.wosHead.Reserved = 0;
-    descUsbFfs.wosDesc.bFirstInterfaceNumber = 0;
-    descUsbFfs.wosDesc.Reserved1 = 1;
-    descUsbFfs.wosDesc.CompatibleID[0] = 'W';
-    descUsbFfs.wosDesc.CompatibleID[1] = 'I';
-    descUsbFfs.wosDesc.CompatibleID[2] = 'N';
-    descUsbFfs.wosDesc.CompatibleID[3] = 'U';
-    descUsbFfs.wosDesc.CompatibleID[4] = 'S';
-    descUsbFfs.wosDesc.CompatibleID[5] = 'B';
-    descUsbFfs.wosDesc.CompatibleID[6] = '\0';
-    Base::ZeroArray(descUsbFfs.wosDesc.SubCompatibleID);
-    Base::ZeroArray(descUsbFfs.wosDesc.Reserved2);
+    descUsbFfs.wosHead = wosHead;
+    descUsbFfs.wosDesc = wosDesc;
+    descUsbFfs.osPropHead = osPropHead;
+    descUsbFfs.osPropValues = osPropValues;
 }
 
 // DAEMON end USB module USB-FFS EP port connection

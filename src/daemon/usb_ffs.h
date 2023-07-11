@@ -173,6 +173,55 @@ static struct UsbFunctionDesc config2 = {
     },
 };
 
+template <size_t PropertyNameLength, size_t PropertyDataLength>
+struct UsbOsDescExtProp {
+    uint32_t size = sizeof(*this);
+    uint32_t propertyDataTypen = LONG_LE(1);
+    uint16_t propertyNameLength = SHORT_LE(PropertyNameLength);
+    char propertyName [PropertyNameLength];
+    uint32_t propertyDataLength = LONG_LE(PropertyDataLength);
+    char property [PropertyDataLength];
+} __attribute__((packed));
+
+using UsbOsDescGuid = UsbOsDescExtProp<20, 39>;
+UsbOsDescGuid osDescGuid = {
+    .propertyName = "DeviceInterfaceGUID",
+    .property = "{f21cc96b-063d-52e1-e3fd-f39cc7a34c40}",
+};
+
+struct UsbExtPropValues {
+    UsbOsDescGuid guid;
+} __attribute__((packed));
+
+UsbExtPropValues osPropValues = {
+    .guid = osDescGuid,
+};
+
+struct usb_ext_compat_desc wosDesc = {
+    .bFirstInterfaceNumber = 0,
+    .Reserved1 = LONG_LE(1),
+    .CompatibleID = {'W', 'I', 'N', 'U', 'S', 'B', '\0', '\0'},
+    .SubCompatibleID = { 0 },
+    .Reserved2 = { 0 },
+};
+
+struct usb_os_desc_header wosHead = {
+    .interface = LONG_LE(0),
+    .dwLength = LONG_LE(sizeof(wosHead) + sizeof(wosDesc)),
+    .bcdVersion = LONG_LE(1),
+    .wIndex = LONG_LE(4),
+    .bCount = LONG_LE(1),
+    .Reserved = LONG_LE(0),
+};
+
+struct usb_os_desc_header osPropHead = {
+    .interface = LONG_LE(0),
+    .dwLength = LONG_LE(sizeof(wosHead) + sizeof(osPropValues)),
+    .bcdVersion = LONG_LE(1),
+    .wIndex = LONG_LE(5),
+    .wCount = SHORT_LE(1),
+};
+
 struct usb_functionfs_desc_v2 {
     struct usb_functionfs_descs_head_v2 head;
     __le32 config1Count;
@@ -183,6 +232,8 @@ struct usb_functionfs_desc_v2 {
     struct UsbFuncConfig config3Desc;
     struct usb_os_desc_header wosHead;
     struct usb_ext_compat_desc wosDesc;
+    struct usb_os_desc_header osPropHead;
+    struct UsbExtPropValues osPropValues;
 } __attribute__((packed));
 
 }  // namespace Hdc

@@ -202,15 +202,8 @@ struct usb_ext_compat_desc wosDesc = {
     .Reserved1 = LONG_LE(1),
     .CompatibleID = {'W', 'I', 'N', 'U', 'S', 'B', '\0', '\0'},
     .SubCompatibleID = { 0 },
-    .Reserved2 = { 0 };
+    .Reserved2 = { 0 },
 };
-
-    descUsbFfs.wosHead.interface = 1;
-    descUsbFfs.wosHead.dwLength = LONG_LE(sizeof(descUsbFfs.wosHead) + sizeof(descUsbFfs.wosDesc));
-    descUsbFfs.wosHead.bcdVersion = SHORT_LE(1);
-    descUsbFfs.wosHead.wIndex = SHORT_LE(4);
-    descUsbFfs.wosHead.bCount = 1;
-    descUsbFfs.wosHead.Reserved = 0;
 
 struct usb_os_desc_header wosHead = {
     .interface = LONG_LE(0),

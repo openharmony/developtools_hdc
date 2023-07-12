@@ -202,8 +202,8 @@ bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
 inline bool HdcDaemonUnity::GetHiLog(const char *cmd)
 {
     string cmdDo = "hilog";
-    if (cmd && !strcmp(const_cast<char *>(cmd), "v")) {
-        cmdDo += " -v long";
+    if (cmd && !strcmp(const_cast<char *>(cmd), "h")) {
+        cmdDo += " -h";
     }
     ExecuteShell(cmdDo.c_str());
     return true;

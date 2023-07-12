@@ -29,6 +29,7 @@ private:
     bool CheckInstallContinue(AppModType mode, bool lastResult, const char *msg);
     void RunQueue(CtxFile *context);
     bool BeginSideload(CtxFile *context, const char *localPath);
+    size_t printedMsgLen = 0;
 };
 }
 #endif

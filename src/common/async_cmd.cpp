@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "async_cmd.h"
+#include <pthread.h>
 #if !defined(_WIN32) && !defined(HDC_HOST)
 #if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
 #include "selinux/selinux.h"
@@ -112,11 +113,36 @@ static void SetSelinuxLabel()
 }
 #endif
 
-int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
+int AsyncCmd::ThreadFork(string command, bool readWrite, int &cpid)
+{
+    AsyncParams params = AsyncParams(command, readWrite, cpid);
+    pthread_t thread_id;
+    void *popenRes;
+    int ret = pthread_create(&thread_id, NULL, reinterpret_cast<void *(*)(void *)>(Popen), &params);
+    if (ret != 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+#ifdef _WIN32
+        strerror_s(buf, bufSize, errno);
+#else
+        strerror_r(errno, buf, bufSize);
+#endif
+        WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
+        return ERR_GENERIC;
+    }
+    pthread_join(thread_id, &popenRes);
+    return static_cast<int>(reinterpret_cast<size_t>(popenRes));
+}
+
+void *AsyncCmd::Popen(void *arg)
 {
 #ifdef _WIN32
-    return ERR_NO_SUPPORT;
+    return reinterpret_cast<void *>(ERR_NO_SUPPORT);
 #else
+    AsyncParams params = *(AsyncParams *)arg;
+    string command = params.commandParam;
+    bool readWrite = params.readWriteParam;
+    int &cpid = params.cpidParam;
     constexpr uint8_t pipeRead = 0;
     constexpr uint8_t pipeWrite = 1;
     pid_t childPid;
@@ -126,7 +152,7 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
         fds[pipeRead], fds[pipeWrite]);
 
     if ((childPid = fork()) == -1) {
-        return ERR_GENERIC;
+        return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (childPid == 0) {
         Base::DeInitProcess();
@@ -146,7 +172,6 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
 #endif
         string shellPath = Base::GetShellPath();
         execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
-        exit(0);
     } else {
         if (readWrite) {
             Base::CloseFd(fds[pipeWrite]);
@@ -158,9 +183,9 @@ int AsyncCmd::Popen(string command, bool readWrite, int &cpid)
     }
     cpid = childPid;
     if (readWrite) {
-        return fds[pipeRead];
+        return reinterpret_cast<void *>(fds[pipeRead]);
     } else {
-        return fds[pipeWrite];
+        return reinterpret_cast<void *>(fds[pipeWrite]);
     }
 #endif
 }
@@ -169,7 +194,7 @@ bool AsyncCmd::ExecuteCommand(const string &command)
 {
     string cmd = command;
     Base::Trim(cmd, "\"");
-    if ((fd = Popen(cmd, true, pid)) < 0) {
+    if ((fd = ThreadFork(cmd, true, pid)) < 0) {
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);

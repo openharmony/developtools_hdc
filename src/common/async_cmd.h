@@ -43,7 +43,8 @@ public:
 private:
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
-    int Popen(string command, bool readWrite, int &cpid);
+    int ThreadFork(string command, bool readWrite, int &cpid);
+    static void *Popen(void *arg);
 
     uint32_t options = 0;
     int fd = 0;
@@ -53,6 +54,15 @@ private:
     CmdResultCallback resultCallback;
     uv_loop_t *loop = nullptr;
     string cmdResult;
+};
+
+struct AsyncParams {
+    string commandParam;
+    bool readWriteParam;
+    int &cpidParam;
+
+    AsyncParams(string commandParam, bool readWriteParam, int &cpidParam) :
+                commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam) {};
 };
 }  // namespace Hdc
 #endif

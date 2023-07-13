@@ -277,7 +277,12 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         uv_strerror_r((int)req->result, buf, bufSize);
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           context->localPath.c_str());
-        thisClass->TaskFinish();
+        if (context->isDir) {
+            uint8_t payload = 1;
+            thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
+        } else {
+            thisClass->TaskFinish();
+        }
         return;
     }
     thisClass->ResetCtx(context);

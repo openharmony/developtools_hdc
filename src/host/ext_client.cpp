@@ -113,8 +113,7 @@ void ExtClient::Version(const std::string &str)
 
 void ExtClient::Help(const std::string &str)
 {
-    const char *name = "HdcExtHelp";
-    Handle(str, name);
+    return;
 }
 
 void ExtClient::Discover(const std::string &str)

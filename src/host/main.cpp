@@ -425,6 +425,7 @@ void RunExternalClient(string &str, string &connectKey, string &containerInOut)
     ExtClient extClient;
     extClient.connectKey = connectKey;
     extClient.containerInOut = containerInOut;
+    extClient.Init();
     extClient.ExecuteCommand(str);
 }
 }
@@ -457,8 +458,7 @@ int main(int argc, const char *argv[])
         if (!g_isCustomLoglevel) {
             Base::SetLogLevel(LOG_INFO);
         }
-        bool exist = ExtClient::SharedLibraryExist();
-        if (!exist) {
+        if (!ExtClient::SharedLibraryExist()) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
             Hdc::Base::RemoveLogCache();
             return 0;

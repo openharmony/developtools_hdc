@@ -19,41 +19,46 @@
 namespace Hdc {
 ExtClient::ExtClient()
 {
-#ifdef _WIN32
-    const char *path = "libexternal_hdc.dll";
-#elif HOST_MAC
-    const char *path = "libexternal_hdc.dylib";
-#else
-    const char *path = "libexternal_hdc.z.so";
-#endif
-    int rc = uv_dlopen(path, &lib);
-    if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
-    }
-    RegistExecFunc(&lib);
+    lib.handle = nullptr;
 }
 
 ExtClient::~ExtClient()
 {
-    uv_dlclose(&lib);
+    if (lib.handle != nullptr) {
+        uv_dlclose(&lib);
+    }
+}
+
+string ExtClient::GetPath()
+{
+#ifdef _WIN32
+    string path = "libexternal_hdc.dll";
+#elif defined(HOST_MAC)
+    string path = "libexternal_hdc.dylib";
+#else
+    string path = "libexternal_hdc.z.so";
+#endif
+    string hdcPath = Base::GetHdcAbsolutePath();
+    int index = hdcPath.find_last_of(Base::GetPathSep());
+    return (hdcPath.substr(0, index) + Base::GetPathSep() + path);
+}
+
+bool ExtClient::Init()
+{
+    string path = GetPath();
+    int rc = uv_dlopen(path.c_str(), &lib);
+    if (rc != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path.c_str(), uv_dlerror(&lib));
+        return false;
+    }
+    RegistExecFunc(&lib);
+    return true;
 }
 
 bool ExtClient::SharedLibraryExist()
 {
-#ifdef _WIN32
-    const char *path = "libexternal_hdc.dll";
-#elif HOST_MAC
-    const char *path = "libexternal_hdc.dylib";
-#else
-    const char *path = "libexternal_hdc.z.so";
-#endif
-    uv_lib_t lib;
-    int rc = uv_dlopen(path, &lib);
-    if (rc != 0) {
-        return false;
-    }
-    uv_dlclose(&lib);
-    return true;
+    string path = GetPath();
+    return Base::CheckDirectoryOrPath(path.c_str(), true, true);
 }
 
 void ExtClient::ExecuteCommand(const string &command)
@@ -138,7 +143,10 @@ void ExtClient::Kill(const std::string &str)
 void ExtClient::Connect(const std::string &str)
 {
     const char *name = "HdcExtConnect";
-    Handle(str, name);
+    string res = Handle(str, name);
+    if (res.find("connected to") != std::string::npos) {
+        _exit(0);
+    }
 }
 
 void ExtClient::ListTargets(const std::string &str)
@@ -283,7 +291,7 @@ std::string ExtClient::RemoveRemoteCwd(const std::string &str)
     int argc = 0;
     std::string cmd = str;
     char **argv = Base::SplitCommandToArgs(cmd.c_str(), &argc);
-    if(argv == nullptr) {
+    if (argv == nullptr) {
         return cmd;
     }
     for (int i = 0; i < argc; i++) {
@@ -299,10 +307,11 @@ std::string ExtClient::RemoveRemoteCwd(const std::string &str)
     return cmd;
 }
 
-void ExtClient::Handle(const std::string &str, const char *name)
+std::string ExtClient::HandleLib(const std::string &str, const char *name, uv_lib_t &lib)
 {
     typedef void (*HdcExtCommand)(const char *, uint64_t, char *, uint64_t &);
     HdcExtCommand command;
+    std::string strBuf;
     int rc = uv_dlsym(&lib, name, (void **) &command);
     if (rc != 0) {
         WRITE_LOG(LOG_FATAL, "uv_dlsym %s failed %s", name, uv_dlerror(&lib));
@@ -311,15 +320,21 @@ void ExtClient::Handle(const std::string &str, const char *name)
         char *buffer = new(std::nothrow) char[size]();
         if (buffer == nullptr) {
             WRITE_LOG(LOG_FATAL, "new buffer failed with function %s", name);
-            return;
+            return "";
         }
         command(str.c_str(), str.size(), buffer, size);
-        std::string strBuf(buffer);
+        strBuf = buffer;
         if (!strBuf.empty()) {
             Base::PrintMessage("%s", strBuf.c_str());
         }
         delete[] buffer;
     }
+    return strBuf;
+}
+
+std::string ExtClient::Handle(const std::string &str, const char *name)
+{
+    return HandleLib(str, name, this->lib);
 }
 
 std::string ExtClient::WithConnectKey(const string &str)
@@ -337,41 +352,17 @@ std::string ExtClient::WithConnectKey(const string &str)
 
 void ExtClient::WaitForExtent(const std::string &str)
 {
-    uv_lib_t lib;
-#ifdef _WIN32
-    const char *path = "libexternal_hdc.dll";
-#elif HOST_MAC
-    const char *path = "libexternal_hdc.dylib";
-#else
-    const char *path = "libexternal_hdc.z.so";
-#endif
-    int rc = uv_dlopen(path, &lib);
+    uv_lib_t uvLib;
+    string path = GetPath();
+    int rc = uv_dlopen(path.c_str(), &uvLib);
     if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path, uv_dlerror(&lib));
+        WRITE_LOG(LOG_FATAL, "uv_dlopen failed %s %s", path.c_str(), uv_dlerror(&uvLib));
         return;
     }
-    RegistExecFunc(&lib);
+    RegistExecFunc(&uvLib);
     const char *name = "HdcExtWaitFor";
-    typedef void (*HdcExtCommand)(const char *, uint64_t, char *, uint64_t &);
-    HdcExtCommand command;
-    rc = uv_dlsym(&lib, name, (void **) &command);
-    if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "uv_dlsym %s failed %s", name, uv_dlerror(&lib));
-    } else {
-        uint64_t size = 4096;
-        char *buffer = new(std::nothrow) char[size]();
-        if (buffer == nullptr) {
-            WRITE_LOG(LOG_FATAL, "new buffer failed with function %s", name);
-            return;
-        }
-        command(str.c_str(), str.size(), buffer, size);
-        std::string strBuf(buffer);
-        if (!strBuf.empty()) {
-            Base::PrintMessage("%s", strBuf.c_str());
-        }
-        delete[] buffer;
-    }
-    uv_dlclose(&lib);
+    HandleLib(str, name, uvLib);
+    uv_dlclose(&uvLib);
 }
 
 static void OnExit(uv_process_t *req, int64_t exitStatus, int termSignal)
@@ -443,4 +434,3 @@ void ExtClient::RegistExecFunc(uv_lib_t *lib)
     }
 }
 }
-

@@ -137,7 +137,8 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
         ctxNow.taskQueue.pop_back();
     }
     LogMsg(MSG_INFO, "%s path:%s, queuesize:%d, msg:%s", modeDesc.c_str(), ctxNow.localPath.c_str(),
-           ctxNow.taskQueue.size(), msg);
+           ctxNow.taskQueue.size(), msg + printedMsgLen);
+    printedMsgLen = strlen(msg);
     if (singalStop || !ctxNow.taskQueue.size()) {
         LogMsg(MSG_OK, "AppMod finish");
         return false;

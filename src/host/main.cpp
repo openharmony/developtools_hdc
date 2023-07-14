@@ -446,7 +446,7 @@ int main(int argc, const char *argv[])
     InitServerAddr();
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
-    if (cmdOptionResult && !ExtClient::SharedLibraryExist()) {
+    if (cmdOptionResult) {
         return 0;
     }
     if (g_isServerMode) {

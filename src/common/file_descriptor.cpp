@@ -58,9 +58,14 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
     bool bFinish = false;
     bool fetalFinish = false;
     ssize_t nBytes;
+    fd_set rset;
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
 
     while (true) {
         if (thisClass->workContinue == false) {
+            WRITE_LOG(LOG_INFO, "FileIOOnThread fdIO:%d workContinue false", thisClass->fdIO);
             bFinish = true;
             break;
         }
@@ -77,21 +82,26 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
                 WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
                 break;
             }
+            FD_ZERO(&rset);
+            FD_SET(thisClass->fdIO, &rset);
+            int rc = select(thisClass->fdIO + 1, &rset, NULL, NULL, &timeout);
+            if (rc < 0) {
+                WRITE_LOG(LOG_FATAL, "FileIOOnThread select fdIO:%d error:%d", thisClass->fdIO, errno);
+                break;
+            } else if (rc == 0) {
+                continue;
+            }
             nBytes = read(thisClass->fdIO, buf, bufSize);
-            if (nBytes < 0) {
-                if (errno == EAGAIN) {
-                    continue;
-                }
-                if (errno == EINTR) {
-                    WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
-                    continue;
-                }
+            if (nBytes < 0 && errno == EINTR) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
+                continue;
             }
         }
         if (nBytes > 0) {
             if (isWrite && bufSize == 0) {
                 break;
             } else if (!isWrite && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
                 bFinish = true;
                 break;
             }
@@ -106,6 +116,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
 #endif
                 WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, buffer);
             }
+            WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%u", thisClass->fdIO, nBytes);
             bFinish = true;
             fetalFinish = true;
             break;

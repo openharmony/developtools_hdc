@@ -23,7 +23,7 @@
 #include <new>
 #include <securec.h>
 #include <thread>
-#include <vector>
+#include <list>
 
 namespace Hdc {
 constexpr uint64_t CIRCLE_SIZE = 16;
@@ -45,7 +45,7 @@ private:
     uint64_t tail_;
     uint64_t size_;
     std::mutex mutex_;
-    std::vector<uint8_t *> buffers_;
+    std::list<uint8_t *> buffers_;
     bool run_;
     bool mallocInit_;
     std::thread thread_;
@@ -53,6 +53,7 @@ private:
     std::condition_variable timerCv_;
     std::chrono::steady_clock::time_point begin_;
     static void Timer(void *object);
+    void DecreaseMemory();
     void FreeMemory();
     void TimerNotify();
     void TimerSleep();

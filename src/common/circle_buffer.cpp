@@ -27,8 +27,9 @@ CircleBuffer::CircleBuffer()
 CircleBuffer::~CircleBuffer()
 {
     TimerStop();
-    for (size_t i = 0; i < buffers_.size(); i++) {
-        delete[] buffers_[i];
+    for (auto iter = buffers_.begin(); iter != buffers_.end();) {
+        delete[] *iter;
+        iter = buffers_.erase(iter);
     }
 }
 
@@ -82,24 +83,63 @@ uint8_t *CircleBuffer::Malloc()
         return nullptr;
     }
     uint8_t *buf = nullptr;
+    auto tailIter = buffers_.begin();
+    advance(tailIter, tail_);
     if (Full()) {
         for (uint64_t i = 0; i < CIRCLE_SIZE; i++) {
             buf = new(std::nothrow) uint8_t[bufSize];
             if (buf == nullptr) {
                 return nullptr;
             }
-            buffers_.insert(buffers_.begin() + tail_, buf);
+            buffers_.insert(tailIter, buf);
             size_++;
             if (head_ > tail_) {
                 head_ = (head_ + 1) % size_;
             }
         }
     }
-    buf = buffers_[tail_];
+    buf = *tailIter;
     (void)memset_s(buf, bufSize, 0, bufSize);
     tail_ = (tail_ + 1) % size_;
     begin_ = std::chrono::steady_clock::now();
     return buf;
+}
+
+void CircleBuffer::DecreaseMemory()
+{
+    auto headIter = buffers_.begin();
+    auto tailIter = buffers_.begin();
+    advance(headIter, head_);
+    advance(tailIter, tail_);
+    if (head_ < tail_) {
+        auto iter = ++tailIter;
+        while (iter != buffers_.end()) {
+            delete[] *iter;
+            iter = buffers_.erase(iter);
+        }
+
+        for (auto iter = buffers_.begin(); iter != headIter;) {
+            delete[] *iter;
+            iter = buffers_.erase(iter);
+        }
+        tail_ = tail_ - head_;
+        head_ = 0;
+        size_ = tail_ + 1;
+    } else if (head_ > tail_) {
+        auto hIter = tailIter;
+        for (hIter++; hIter != headIter;) {
+            delete[] *hIter;
+            hIter = buffers_.erase(hIter);
+            head_--;
+            size_--;
+        }
+    } else {
+        for (auto iter = buffers_.begin(); iter != buffers_.end();) {
+            delete[] *iter;
+            iter = buffers_.erase(iter);
+        }
+        Init();
+    }
 }
 
 void CircleBuffer::Free()
@@ -115,17 +155,10 @@ void CircleBuffer::Free()
 void CircleBuffer::FreeMemory()
 {
     std::unique_lock<std::mutex> lock(mutex_);
-    int64_t freeTime = 30; // 30s
-    if (!Empty() || Interval() < freeTime) {
-        return;
+    constexpr int64_t decreaseTime = 5; // 5s
+    if (Interval() > decreaseTime) {
+        DecreaseMemory();
     }
-
-    size_t bufferSize = buffers_.size();
-    for (size_t i = bufferSize; i > 0; i--) {
-        delete[] buffers_[i - 1];
-        buffers_.pop_back();
-    }
-    Init();
 }
 
 void CircleBuffer::Timer(void *object)

@@ -146,6 +146,7 @@ namespace Base {
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
     bool IsRoot();
     char GetPathSep();
+    string GetHdcAbsolutePath();
     bool IsAbsolutePath(string &path);
     inline int GetMaxBufSize()
     {

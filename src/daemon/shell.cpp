@@ -181,7 +181,7 @@ int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 
 void *HdcShell::ShellFork(void *arg)
 {
-    ShellParams params = *(ShellParams *)arg;
+    ShellParams params = *reinterpret_cast<ShellParams *>(arg);
     const char *cmd = params.cmdParam;
     const char *arg0 = params.arg0Param;
     const char *arg1 = params.arg1Param;

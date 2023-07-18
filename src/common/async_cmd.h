@@ -43,7 +43,7 @@ public:
 private:
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
-    int ThreadFork(string command, bool readWrite, int &cpid);
+    int ThreadFork(const string &command, bool readWrite, int &cpid);
     static void *Popen(void *arg);
 
     uint32_t options = 0;
@@ -61,7 +61,7 @@ struct AsyncParams {
     bool readWriteParam;
     int &cpidParam;
 
-    AsyncParams(string commandParam, bool readWriteParam, int &cpidParam) :
+    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam) :
                 commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam) {};
 };
 }  // namespace Hdc

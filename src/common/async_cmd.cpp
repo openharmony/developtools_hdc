@@ -113,7 +113,7 @@ static void SetSelinuxLabel()
 }
 #endif
 
-int AsyncCmd::ThreadFork(string command, bool readWrite, int &cpid)
+int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
 {
     AsyncParams params = AsyncParams(command, readWrite, cpid);
     pthread_t thread_id;
@@ -139,7 +139,7 @@ void *AsyncCmd::Popen(void *arg)
 #ifdef _WIN32
     return reinterpret_cast<void *>(ERR_NO_SUPPORT);
 #else
-    AsyncParams params = *(AsyncParams *)arg;
+    AsyncParams params = *reinterpret_cast<AsyncParams *>(arg);
     string command = params.commandParam;
     bool readWrite = params.readWriteParam;
     int &cpid = params.cpidParam;

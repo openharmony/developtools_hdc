@@ -109,16 +109,17 @@ void CircleBuffer::DecreaseMemory()
 {
     auto headIter = buffers_.begin();
     auto tailIter = buffers_.begin();
+    auto iter = buffers_.begin();
     advance(headIter, head_);
     advance(tailIter, tail_);
     if (head_ < tail_) {
-        auto iter = ++tailIter;
+        iter = ++tailIter;
         while (iter != buffers_.end()) {
             delete[] *iter;
             iter = buffers_.erase(iter);
         }
 
-        for (auto iter = buffers_.begin(); iter != headIter;) {
+        for (iter = buffers_.begin(); iter != headIter;) {
             delete[] *iter;
             iter = buffers_.erase(iter);
         }
@@ -126,15 +127,15 @@ void CircleBuffer::DecreaseMemory()
         head_ = 0;
         size_ = tail_ + 1;
     } else if (head_ > tail_) {
-        auto hIter = tailIter;
-        for (hIter++; hIter != headIter;) {
-            delete[] *hIter;
-            hIter = buffers_.erase(hIter);
+        iter = tailIter;
+        for (iter++; iter != headIter;) {
+            delete[] *iter;
+            iter = buffers_.erase(iter);
             head_--;
             size_--;
         }
     } else {
-        for (auto iter = buffers_.begin(); iter != buffers_.end();) {
+        for (iter = buffers_.begin(); iter != buffers_.end();) {
             delete[] *iter;
             iter = buffers_.erase(iter);
         }

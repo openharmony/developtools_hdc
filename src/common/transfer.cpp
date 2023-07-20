@@ -35,7 +35,7 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 
 HdcTransferBase::~HdcTransferBase()
 {
-    if (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish) {
+    if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
         WRITE_LOG(LOG_WARN, "~HdcTransferBase channelId:%u result:%d",
                   taskInfo->channelId, ctxNow.fsOpenReq.result);
         uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
@@ -255,7 +255,11 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             uv_fs_fsync(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, nullptr);
         }
         WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d", thisClass->taskInfo->channelId, context->fsOpenReq.result);
-        uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
+        if (context->lastErrno == 0) {
+            uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
+        } else {
+            thisClass->WhenTransferFinish(context);
+        }
     }
     thisClass->cirbuf.Free();
     --thisClass->refCount;

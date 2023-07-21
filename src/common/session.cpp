@@ -757,15 +757,34 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
     int ret = 0;
     switch (hSession->connType) {
         case CONN_TCP: {
+#ifdef HDC_HOST
             if (echo && !hSession->serverOrDaemon) {
-                ret = WriteUvTcpFd((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen);
+                ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen,
+                                           nullptr, (void *)FinishWriteSessionTCP, bufPtr);
             } else {
                 if (hSession->hWorkThread == uv_thread_self()) {
-                    ret = WriteUvTcpFd((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen);
+                    ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen,
+                                               nullptr, (void *)FinishWriteSessionTCP, bufPtr);
                 } else {
-                    ret = WriteUvTcpFd((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen);
+                    ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr,
+                                               bufLen, nullptr, (void *)FinishWriteSessionTCP,
+                                               bufPtr);
                 }
             }
+            if (ret > 0) {
+                ++hSession->ref;
+            }
+#else
+            if (echo && !hSession->serverOrDaemon) {
+                ret = WriteUvTcpFd(&hSession->hChildWorkTCP, bufPtr, bufLen);
+            } else {
+                if (hSession->hWorkThread == uv_thread_self()) {
+                    ret = WriteUvTcpFd(&hSession->hWorkTCP, bufPtr, bufLen);
+                } else {
+                    ret = WriteUvTcpFd(&hSession->hChildWorkTCP, bufPtr, bufLen);
+                }
+            }
+#endif
             break;
         }
         case CONN_USB: {
@@ -1355,10 +1374,16 @@ void HdcSessionBase::PostStopInstanceMessage(bool restart)
     wantRestart = restart;
 }
 
-int HdcSessionBase::WriteUvTcpFd(uv_stream_t *stream, uint8_t *buf, int size)
+int HdcSessionBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 {
     int cnt = size;
-    int fd = stream->io_watcher.fd;
+    uv_os_fd_t uvfd;
+    uv_fileno((uv_handle_t*) tcp, &uvfd);
+#ifdef _WIN32
+    int fd = (uv_os_sock_t)uvfd;
+#else
+    int fd = (int)uvfd;
+#endif
     while (cnt > 0) {
         int rc = write(fd, buf, cnt);
         if (rc < 0) {

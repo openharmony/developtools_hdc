@@ -205,7 +205,7 @@ private:
     uint32_t GetSessionPseudoUid();
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
-    int WriteUvTcpFd(uv_stream_t *stream, uint8_t *buf, int size);
+    int WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size);
 
     map<uint32_t, HSession> mapSession;
     uv_rwlock_t lockMapSession;

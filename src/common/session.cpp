@@ -758,20 +758,13 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
     switch (hSession->connType) {
         case CONN_TCP: {
             if (echo && !hSession->serverOrDaemon) {
-                ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen,
-                                           nullptr, (void *)FinishWriteSessionTCP, bufPtr);
+                ret = WriteUvTcpFd((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen);
             } else {
                 if (hSession->hWorkThread == uv_thread_self()) {
-                    ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen,
-                                               nullptr, (void *)FinishWriteSessionTCP, bufPtr);
+                    ret = WriteUvTcpFd((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen);
                 } else {
-                    ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr,
-                                               bufLen, nullptr, (void *)FinishWriteSessionTCP,
-                                               bufPtr);
+                    ret = WriteUvTcpFd((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen);
                 }
-            }
-            if (ret > 0) {
-                ++hSession->ref;
             }
             break;
         }
@@ -1360,5 +1353,27 @@ void HdcSessionBase::PostStopInstanceMessage(bool restart)
     PushAsyncMessage(0, ASYNC_STOP_MAINLOOP, nullptr, 0);
     WRITE_LOG(LOG_DEBUG, "StopDaemon has sended restart %d", restart);
     wantRestart = restart;
+}
+
+int HdcSessionBase::WriteUvTcpFd(uv_stream_t *stream, uint8_t *buf, int size)
+{
+    int cnt = size;
+    int fd = stream->io_watcher.fd;
+    while (cnt > 0) {
+        int rc = write(fd, buf, cnt);
+        if (rc < 0) {
+            if (errno == EINTR) {
+                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d write interrupt", fd);
+                continue;
+            } else {
+                WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d write error:%d", fd, errno);
+                cnt = ERR_GENERIC;
+                break;
+            }
+        }
+        cnt -= rc;
+    }
+    delete[] buf;
+    return cnt == 0 ? size : cnt;
 }
 }  // namespace Hdc

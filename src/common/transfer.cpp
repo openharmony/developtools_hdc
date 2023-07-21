@@ -259,6 +259,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
         } else {
             thisClass->WhenTransferFinish(context);
+            --thisClass->refCount;
         }
     }
     thisClass->cirbuf.Free();

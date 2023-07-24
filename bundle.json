@@ -32,7 +32,7 @@
         "lz4",
         "selinux",
         "libusb",
-        "thirdparty_googletest"
+        "googletest"
       ]
     },
     "build": {

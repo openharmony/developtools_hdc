@@ -1382,7 +1382,7 @@ int HdcSessionBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 #ifdef _WIN32
     int fd = (uv_os_sock_t)uvfd;
 #else
-    int fd = (int)uvfd;
+    int fd = reinterpret_cast<int>(uvfd);
 #endif
     while (cnt > 0) {
         int rc = write(fd, buf, cnt);

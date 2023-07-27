@@ -1387,8 +1387,8 @@ int HdcSessionBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
     while (cnt > 0) {
         int rc = write(fd, buf, cnt);
         if (rc < 0) {
-            if (errno == EINTR) {
-                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d write interrupt", fd);
+            if (errno == EINTR || errno == EAGAIN) {
+                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d write interrupt or again", fd);
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d write error:%d", fd, errno);

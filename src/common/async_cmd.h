@@ -61,8 +61,8 @@ struct AsyncParams {
     bool readWriteParam;
     int &cpidParam;
 
-    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam) :
-                commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam) {};
+    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam)
+        :commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam) {};
 };
 }  // namespace Hdc
 #endif

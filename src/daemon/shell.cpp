@@ -165,9 +165,9 @@ static void SetSelinuxLabel()
 int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 {
     ShellParams params = ShellParams(cmd, arg0, arg1, ptm, devname);
-    pthread_t thread_id;
+    pthread_t threadId;
     void *shellRes;
-    int ret = pthread_create(&thread_id, NULL, reinterpret_cast<void *(*)(void *)>(ShellFork), &params);
+    int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(ShellFork), &params);
     if (ret != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
@@ -175,7 +175,7 @@ int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
         WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
         return ERR_GENERIC;
     }
-    pthread_join(thread_id, &shellRes);
+    pthread_join(threadId, &shellRes);
     return static_cast<int>(reinterpret_cast<size_t>(shellRes));
 }
 

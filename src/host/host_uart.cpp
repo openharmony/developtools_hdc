@@ -186,7 +186,7 @@ bool HdcHostUART::EnumSerialPort(bool &portChange)
 #if defined(HOST_LINUX)||defined(HOST_MAC)
     DIR *dir = opendir("/dev");
     dirent *p = NULL;
-    while ((p = readdir(dir)) != NULL) {
+    while (dir != nullptr && ((p = readdir(dir)) != NULL)) {
 #ifdef HOST_LINUX
         if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
 #else
@@ -203,7 +203,9 @@ bool HdcHostUART::EnumSerialPort(bool &portChange)
             }
         }
     }
-    closedir(dir);
+    if (dir != nullptr) {
+        closedir(dir);
+    }
 #endif
     for (auto &oldPort : serialPortInfo) {
         auto it = std::find(newPortInfo.begin(), newPortInfo.end(), oldPort);

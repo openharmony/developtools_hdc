@@ -15,6 +15,8 @@
 #include "file_descriptor.h"
 
 namespace Hdc {
+static const int SECONDS_TIMEOUT = 5;
+
 HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *callerContextIn,
                                      CallBackWhenRead callbackReadIn, CmdResultCallback callbackFinishIn)
 {
@@ -60,7 +62,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
     ssize_t nBytes;
     fd_set rset;
     struct timeval timeout;
-    timeout.tv_sec = 5;
+    timeout.tv_sec = SECONDS_TIMEOUT;
     timeout.tv_usec = 0;
 
     while (true) {
@@ -84,7 +86,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             }
             FD_ZERO(&rset);
             FD_SET(thisClass->fdIO, &rset);
-            int rc = select(thisClass->fdIO + 1, &rset, NULL, NULL, &timeout);
+            int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
             if (rc < 0) {
                 WRITE_LOG(LOG_FATAL, "FileIOOnThread select fdIO:%d error:%d", thisClass->fdIO, errno);
                 break;

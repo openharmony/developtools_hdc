@@ -35,6 +35,8 @@ constexpr auto HDC_USBTF_CFG = 0x02;
 constexpr auto HDC_USBTF_STR = 0x03;
 constexpr auto HDC_USBTF_ITF = 0x04;
 constexpr auto HDC_USBTF_EPS = 0x05;
+constexpr auto PROPERTY_NAME_LENGTH = 20;
+constexpr auto PROPERTY_DATA_LENGTH = 39;
 
 #define SHORT_LE(x) htole16(x)
 #define LONG_LE(x) htole32(x)
@@ -183,7 +185,7 @@ struct UsbOsDescExtProp {
     char property [PropertyDataLength];
 } __attribute__((packed));
 
-using UsbOsDescGuid = UsbOsDescExtProp<20, 39>;
+using UsbOsDescGuid = UsbOsDescExtProp<PROPERTY_NAME_LENGTH, PROPERTY_DATA_LENGTH>;
 UsbOsDescGuid osDescGuid = {
     .propertyName = "DeviceInterfaceGUID",
     .property = "{f21cc96b-063d-52e1-e3fd-f39cc7a34c40}",
@@ -193,11 +195,11 @@ struct UsbExtPropValues {
     UsbOsDescGuid guid;
 } __attribute__((packed));
 
-UsbExtPropValues osPropValues = {
+UsbExtPropValues g_osPropValues = {
     .guid = osDescGuid,
 };
 
-struct usb_ext_compat_desc wosDesc = {
+struct usb_ext_compat_desc g_wosDesc = {
     .bFirstInterfaceNumber = 0,
     .Reserved1 = LONG_LE(1),
     .CompatibleID = {'W', 'I', 'N', 'U', 'S', 'B', '\0', '\0'},
@@ -205,18 +207,18 @@ struct usb_ext_compat_desc wosDesc = {
     .Reserved2 = { 0 },
 };
 
-struct usb_os_desc_header wosHead = {
+struct usb_os_desc_header g_wosHead = {
     .interface = LONG_LE(0),
-    .dwLength = LONG_LE(sizeof(wosHead) + sizeof(wosDesc)),
+    .dwLength = LONG_LE(sizeof(g_wosHead) + sizeof(g_wosDesc)),
     .bcdVersion = LONG_LE(1),
     .wIndex = LONG_LE(4),
     .bCount = LONG_LE(1),
     .Reserved = LONG_LE(0),
 };
 
-struct usb_os_desc_header osPropHead = {
+struct usb_os_desc_header g_osPropHead = {
     .interface = LONG_LE(0),
-    .dwLength = LONG_LE(sizeof(wosHead) + sizeof(osPropValues)),
+    .dwLength = LONG_LE(sizeof(g_wosHead) + sizeof(g_osPropValues)),
     .bcdVersion = LONG_LE(1),
     .wIndex = LONG_LE(5),
     .wCount = SHORT_LE(1),

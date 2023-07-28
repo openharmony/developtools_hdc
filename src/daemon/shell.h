@@ -51,9 +51,8 @@ struct ShellParams {
     int ptmParam;
     char *devParam;
 
-    ShellParams(const char *cmdParam, const char *arg0Param, const char *arg1Param, int ptmParam, char *devParam) :
-                cmdParam(cmdParam), arg0Param(arg0Param), arg1Param(arg1Param),
-                ptmParam(ptmParam), devParam(devParam) {};
+    ShellParams(const char *cmdParam, const char *arg0Param, const char *arg1Param, int ptmParam, char *devParam)
+        :cmdParam(cmdParam), arg0Param(arg0Param), arg1Param(arg1Param), ptmParam(ptmParam), devParam(devParam) {};
 };
 }  // namespace Hdc
 #endif

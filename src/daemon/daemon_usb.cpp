@@ -28,6 +28,10 @@
 #include "usb_ffs.h"
 
 namespace Hdc {
+static constexpr int CONFIG_COUNT2 = 2;
+static constexpr int CONFIG_COUNT3 = 3;
+static constexpr int CONFIG_COUNT5 = 5;
+
 HdcDaemonUSB::HdcDaemonUSB(const bool serverOrDaemonIn, void *ptrMainBase)
     : HdcUSBBase(serverOrDaemonIn, ptrMainBase)
 {
@@ -122,17 +126,17 @@ void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
     descUsbFfs.head.length = LONG_LE(sizeof(descUsbFfs));
     descUsbFfs.head.flags
         = FUNCTIONFS_HAS_FS_DESC | FUNCTIONFS_HAS_HS_DESC | FUNCTIONFS_HAS_SS_DESC | FUNCTIONFS_HAS_MS_OS_DESC;
-    descUsbFfs.config1Count = 3;
-    descUsbFfs.config2Count = 3;
-    descUsbFfs.config3Count = 5;
-    descUsbFfs.configWosCount = 2;
+    descUsbFfs.config1Count = CONFIG_COUNT3;
+    descUsbFfs.config2Count = CONFIG_COUNT3;
+    descUsbFfs.config3Count = CONFIG_COUNT5;
+    descUsbFfs.configWosCount = CONFIG_COUNT2;
     descUsbFfs.config1Desc = config1;
     descUsbFfs.config2Desc = config2;
     descUsbFfs.config3Desc = config3;
-    descUsbFfs.wosHead = wosHead;
-    descUsbFfs.wosDesc = wosDesc;
-    descUsbFfs.osPropHead = osPropHead;
-    descUsbFfs.osPropValues = osPropValues;
+    descUsbFfs.wosHead = g_wosHead;
+    descUsbFfs.wosDesc = g_wosDesc;
+    descUsbFfs.osPropHead = g_osPropHead;
+    descUsbFfs.osPropValues = g_osPropValues;
 }
 
 // DAEMON end USB module USB-FFS EP port connection

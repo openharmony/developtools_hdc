@@ -72,7 +72,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
 
         if (isWrite) {
             nBytes = write(thisClass->fdIO, buf, bufSize);
-            if (nBytes < 0 && errno == EINTR) {
+            if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
                 WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d write interrupt", thisClass->fdIO);
                 continue;
             }
@@ -92,7 +92,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
                 continue;
             }
             nBytes = read(thisClass->fdIO, buf, bufSize);
-            if (nBytes < 0 && errno == EINTR) {
+            if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
                 WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
                 continue;
             }

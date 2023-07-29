@@ -440,9 +440,15 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     size_t handleSize = sizeof(uv_poll_t);
     hSession->pollHandle[STREAM_WORK] = (uv_poll_t *)malloc(handleSize);
     hSession->pollHandle[STREAM_MAIN] = (uv_poll_t *)malloc(handleSize);
-    uv_poll_t *pollHandle = hSession->pollHandle[STREAM_MAIN];
-    uv_poll_init_socket(&loopMain, pollHandle, hSession->ctrlFd[STREAM_MAIN]);
-    uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromSession);
+    uv_poll_t *pollHandleMain = hSession->pollHandle[STREAM_MAIN];
+    if (pollHandleMain == nullptr || hSession->pollHandle[STREAM_WORK] == nullptr) {
+        WRITE_LOG(LOG_FATAL, "MallocSession malloc hSession->pollHandle failed");
+        delete hSession;
+        hSession = nullptr;
+        return nullptr;
+    }
+    uv_poll_init_socket(&loopMain, pollHandleMain, hSession->ctrlFd[STREAM_MAIN]);
+    uv_poll_start(pollHandleMain, UV_READABLE, ReadCtrlFromSession);
     hSession->pollHandle[STREAM_MAIN]->data = hSession;
     hSession->pollHandle[STREAM_WORK]->data = hSession;
     // Activate USB DAEMON's data channel, may not for use

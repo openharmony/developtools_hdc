@@ -27,13 +27,15 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     fdIO = fdToRead;
     refIO = 0;
     callerContext = callerContextIn;
+    ioWriteThread = std::thread(IOWriteThread, this);
 }
 
 HdcFileDescriptor::~HdcFileDescriptor()
 {
-    if (refIO > 0) {
-        WRITE_LOG(LOG_FATAL, "~HdcFileDescriptor refIO > 0");
-    }
+    workContinue = false;
+    NotifyWrite();
+    ioWriteThread.join();
+    WRITE_LOG(LOG_FATAL, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
@@ -197,10 +199,79 @@ int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
         return -1;
     }
     contextIO->bufIO = data;
+    contextIO->size = size;
     contextIO->thisClass = this;
-    ++refIO;
-    ioWriteThread = std::thread(FileIOOnThread, contextIO, size, true);
-    ioWriteThread.detach();
+    PushWrite(contextIO);
+    NotifyWrite();
     return size;
+}
+
+void HdcFileDescriptor::IOWriteThread(void *object)
+{
+    HdcFileDescriptor *hfd = reinterpret_cast<HdcFileDescriptor *>(object);
+    while (hfd->workContinue) {
+        hfd->HandleWrite();
+        hfd->WaitWrite();
+    }
+}
+
+void HdcFileDescriptor::PushWrite(CtxFileIO *cfio)
+{
+    std::unique_lock<std::mutex> lock(writeMutex);
+    writeQueue.push(cfio);
+}
+
+CtxFileIO *HdcFileDescriptor::PopWrite()
+{
+    std::unique_lock<std::mutex> lock(writeMutex);
+    CtxFileIO *cfio = nullptr;
+    if (!writeQueue.empty()) {
+        cfio = writeQueue.front();
+        writeQueue.pop();
+    }
+    return cfio;
+}
+
+void HdcFileDescriptor::NotifyWrite()
+{
+    std::unique_lock<std::mutex> lock(writeMutex);
+    writeCond.notify_one();
+}
+
+void HdcFileDescriptor::WaitWrite()
+{
+    std::unique_lock<std::mutex> lock(writeMutex);
+    writeCond.wait(lock, [&](){return !writeQueue.empty() || !workContinue;});
+}
+
+void HdcFileDescriptor::HandleWrite()
+{
+    CtxFileIO *cfio = nullptr;
+    while ((cfio = PopWrite()) != nullptr) {
+        CtxFileIOWrite(cfio);
+        delete cfio;
+    }
+}
+
+void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
+{
+    std::unique_lock<std::mutex> lock(writeMutex);
+    uint8_t *buf = cfio->bufIO;
+    size_t cnt = cfio->size;
+    while (cnt > 0) {
+        ssize_t rc = write(fdIO, buf, cnt);
+        if (rc < 0 ) {
+            if (errno == EINTR || errno == EAGAIN) {
+                WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt or again", fdIO);
+                continue;
+            } else {
+                WRITE_LOG(LOG_FATAL, "CtxFileIOWrite fdIO:%d rc:%d error:%d", fdIO, rc, errno);
+                cnt = ERR_GENERIC;
+                break;
+            }
+        }
+        cnt -= rc;
+    }
+    delete[] buf;
 }
 }  // namespace Hdc

@@ -98,4 +98,33 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
         hSessionBase->FreeSession(hSession->sessionId);
     }
 }
+
+int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
+{
+    int cnt = size;
+    uv_os_fd_t uvfd;
+    uv_fileno((uv_handle_t*) tcp, &uvfd);
+#ifdef _WIN32
+    int fd = (uv_os_sock_t)uvfd;
+#else
+    int fd = reinterpret_cast<int>(uvfd);
+#endif
+    std::lock_guard<std::mutex> lock(writeTCPMutex);
+    while (cnt > 0) {
+        int rc = write(fd, buf, cnt);
+        if (rc < 0) {
+            if (errno == EINTR || errno == EAGAIN) {
+                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d write interrupt or again", fd);
+                continue;
+            } else {
+                WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d write rc:%d error:%d", fd, rc, errno);
+                cnt = ERR_GENERIC;
+                break;
+            }
+        }
+        cnt -= rc;
+    }
+    delete[] buf;
+    return cnt == 0 ? size : cnt;
+}
 }  // namespace Hdc

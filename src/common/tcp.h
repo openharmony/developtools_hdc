@@ -22,6 +22,7 @@ public:
     HdcTCPBase(const bool serverOrDaemonIn, void *ptrMainBase);
     virtual ~HdcTCPBase();
     static void ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
+    int WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size);
 
 protected:
     virtual void RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf)
@@ -34,6 +35,7 @@ protected:
 
     void *clsMainBase;
     bool serverOrDaemon;
+    std::mutex writeTCPMutex;
 
 private:
     void InitialChildClass(const bool serverOrDaemonIn, void *ptrMainBase);

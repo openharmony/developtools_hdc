@@ -17,6 +17,14 @@
 #include "common.h"
 
 namespace Hdc {
+class HdcFileDescriptor;
+struct CtxFileIO {
+    uv_fs_t fs;
+    uint8_t *bufIO;
+    size_t size;
+    HdcFileDescriptor *thisClass;
+};
+
 class HdcFileDescriptor {
 public:
     // callerContext, normalFinish, errorString
@@ -35,11 +43,6 @@ public:
 
 protected:
 private:
-    struct CtxFileIO {
-        uv_fs_t fs;
-        uint8_t *bufIO;
-        HdcFileDescriptor *thisClass;
-    };
     static void FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite);
     int LoopReadOnThread();
 
@@ -53,6 +56,17 @@ private:
     int refIO;
     std::thread ioReadThread;
     std::thread ioWriteThread;
+
+    static void IOWriteThread(void *object);
+    std::queue<CtxFileIO *> writeQueue;
+    std::mutex writeMutex;
+    std::condition_variable writeCond;
+    void PushWrite(CtxFileIO *cfio);
+    CtxFileIO *PopWrite();
+    void NotifyWrite();
+    void HandleWrite();
+    void WaitWrite();
+    void CtxFileIOWrite(CtxFileIO *cfio);
 };
 }  // namespace Hdc
 

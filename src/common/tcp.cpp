@@ -107,11 +107,19 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
     uv_fileno((uv_handle_t*) tcp, &uvfd);
 #ifdef _WIN32
     int fd = (uv_os_sock_t)uvfd;
+#else
+    int fd = reinterpret_cast<int>(uvfd);
+#endif
     while (cnt > 0) {
         int rc = send(fd, reinterpret_cast<const char*>(buf), cnt, 0);
         if (rc < 0) {
+#ifdef _WIN32
             int err = WSAGetLastError();
             if (err == WSAEINTR || err == WSAEWOULDBLOCK) {
+#else
+            int err = errno;
+            if (err == EINTR || err == EAGAIN) {
+#endif
                 WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d send interrupt or again", fd);
                 continue;
             } else {
@@ -122,23 +130,6 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
         }
         cnt -= rc;
     }
-#else
-    int fd = reinterpret_cast<int>(uvfd);
-    while (cnt > 0) {
-        int rc = write(fd, buf, cnt);
-        if (rc < 0) {
-            if (errno == EINTR || errno == EAGAIN) {
-                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d write interrupt or again", fd);
-                continue;
-            } else {
-                WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d write rc:%d error:%d", fd, rc, errno);
-                cnt = ERR_GENERIC;
-                break;
-            }
-        }
-        cnt -= rc;
-    }
-#endif
     delete[] buf;
     return cnt == 0 ? size : cnt;
 }

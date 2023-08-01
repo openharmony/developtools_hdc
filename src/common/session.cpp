@@ -763,24 +763,6 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
     int ret = 0;
     switch (hSession->connType) {
         case CONN_TCP: {
-#ifdef HDC_HOST
-            if (echo && !hSession->serverOrDaemon) {
-                ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr, bufLen,
-                                           nullptr, (void *)FinishWriteSessionTCP, bufPtr);
-            } else {
-                if (hSession->hWorkThread == uv_thread_self()) {
-                    ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hWorkTCP, bufPtr, bufLen,
-                                               nullptr, (void *)FinishWriteSessionTCP, bufPtr);
-                } else {
-                    ret = Base::SendToStreamEx((uv_stream_t *)&hSession->hChildWorkTCP, bufPtr,
-                                               bufLen, nullptr, (void *)FinishWriteSessionTCP,
-                                               bufPtr);
-                }
-            }
-            if (ret > 0) {
-                ++hSession->ref;
-            }
-#else
             HdcTCPBase *pTCP = ((HdcTCPBase *)hSession->classModule);
             if (echo && !hSession->serverOrDaemon) {
                 ret = pTCP->WriteUvTcpFd(&hSession->hChildWorkTCP, bufPtr, bufLen);
@@ -791,7 +773,6 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
                     ret = pTCP->WriteUvTcpFd(&hSession->hChildWorkTCP, bufPtr, bufLen);
                 }
             }
-#endif
             break;
         }
         case CONN_USB: {

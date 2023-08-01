@@ -101,15 +101,29 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
 
 int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 {
+    std::lock_guard<std::mutex> lock(writeTCPMutex);
     int cnt = size;
     uv_os_fd_t uvfd;
     uv_fileno((uv_handle_t*) tcp, &uvfd);
 #ifdef _WIN32
     int fd = (uv_os_sock_t)uvfd;
+    while (cnt > 0) {
+        int rc = send(fd, reinterpret_cast<const char*>(buf), cnt, 0);
+        if (rc < 0) {
+            int err = WSAGetLastError();
+            if (err == WSAEINTR || err == WSAEWOULDBLOCK) {
+                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d send interrupt or again", fd);
+                continue;
+            } else {
+                WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d send rc:%d err:%d", fd, rc, err);
+                cnt = ERR_GENERIC;
+                break;
+            }
+        }
+        cnt -= rc;
+    }
 #else
     int fd = reinterpret_cast<int>(uvfd);
-#endif
-    std::lock_guard<std::mutex> lock(writeTCPMutex);
     while (cnt > 0) {
         int rc = write(fd, buf, cnt);
         if (rc < 0) {
@@ -124,6 +138,7 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
         }
         cnt -= rc;
     }
+#endif
     delete[] buf;
     return cnt == 0 ? size : cnt;
 }

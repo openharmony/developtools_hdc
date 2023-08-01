@@ -102,6 +102,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
 int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 {
     std::lock_guard<std::mutex> lock(writeTCPMutex);
+    uint8_t *data = buf;
     int cnt = size;
     uv_os_fd_t uvfd;
     uv_fileno((uv_handle_t*) tcp, &uvfd);
@@ -111,7 +112,7 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
     int fd = reinterpret_cast<int>(uvfd);
 #endif
     while (cnt > 0) {
-        int rc = send(fd, reinterpret_cast<const char*>(buf), cnt, 0);
+        int rc = send(fd, reinterpret_cast<const char*>(data), cnt, 0);
         if (rc < 0) {
 #ifdef _WIN32
             int err = WSAGetLastError();
@@ -128,6 +129,7 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
                 break;
             }
         }
+        data += rc;
         cnt -= rc;
     }
     delete[] buf;

@@ -374,6 +374,7 @@ namespace Base {
                     ret = true;
                     break;
                 }
+                usleep(10000);
             } else {
                 ret = true;
                 break;

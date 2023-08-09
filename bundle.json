@@ -19,6 +19,7 @@
     "ram": "1599KB",
     "deps": {
       "components": [
+        "common",
         "init",
         "c_utils",
         "hitrace",

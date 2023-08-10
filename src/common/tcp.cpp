@@ -105,7 +105,7 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
     uint8_t *data = buf;
     int cnt = size;
     uv_os_fd_t uvfd;
-    uv_fileno((uv_handle_t*) tcp, &uvfd);
+    uv_fileno(reinterpret_cast<uv_handle_t*>(tcp), &uvfd);
 #ifdef _WIN32
     int fd = (uv_os_sock_t)uvfd;
 #else

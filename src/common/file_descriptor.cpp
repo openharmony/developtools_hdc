@@ -199,7 +199,7 @@ int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
         return -1;
     }
     contextIO->bufIO = data;
-    contextIO->size = size;
+    contextIO->size = static_cast<size_t>(size);
     contextIO->thisClass = this;
     PushWrite(contextIO);
     NotifyWrite();
@@ -267,12 +267,11 @@ void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "CtxFileIOWrite fdIO:%d rc:%d error:%d", fdIO, rc, errno);
-                cnt = ERR_GENERIC;
                 break;
             }
         }
         data += rc;
-        cnt -= rc;
+        cnt -= static_cast<size_t>(rc);
     }
     delete[] buf;
 }

@@ -241,7 +241,7 @@ void HdcFileDescriptor::NotifyWrite()
 void HdcFileDescriptor::WaitWrite()
 {
     std::unique_lock<std::mutex> lock(writeMutex);
-    writeCond.wait(lock, [&](){return !writeQueue.empty() || !workContinue;});
+    writeCond.wait(lock, [&]() { return !writeQueue.empty() || !workContinue; });
 }
 
 void HdcFileDescriptor::HandleWrite()

@@ -162,8 +162,8 @@ void *AsyncCmd::Popen(void *arg)
             dup2(fds[pipeWrite], STDOUT_FILENO);
             dup2(fds[pipeWrite], STDERR_FILENO);
         }
-        Base::CloseFd(fds[pipeRead]);
-        Base::CloseFd(fds[pipeWrite]);
+        close(fds[pipeRead]);
+        close(fds[pipeWrite]);
 
         setsid();
         setpgid(childPid, childPid);

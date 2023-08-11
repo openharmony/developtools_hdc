@@ -197,6 +197,7 @@ void *HdcShell::ShellFork(void *arg)
         return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (pid == 0) {
+        WRITE_LOG(LOG_DEBUG, "ShellFork close ptmParam:%d", ptmParam);
         Base::DeInitProcess();
         HdcShell::mutexPty.unlock();
         setsid();

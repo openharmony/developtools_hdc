@@ -148,13 +148,15 @@ void *AsyncCmd::Popen(void *arg)
     pid_t childPid;
     int fds[2];
     pipe(fds);
-    WRITE_LOG(LOG_DEBUG, "ExecuteCommand pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
+    WRITE_LOG(LOG_DEBUG, "Popen pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
         fds[pipeRead], fds[pipeWrite]);
 
     if ((childPid = fork()) == -1) {
         return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (childPid == 0) {
+        WRITE_LOG(LOG_DEBUG, "Popen close pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
+            fds[pipeRead], fds[pipeWrite]);
         Base::DeInitProcess();
         // avoid cpu 100% when watch -n 2 ls command
         dup2(fds[pipeRead], STDIN_FILENO);
@@ -162,8 +164,8 @@ void *AsyncCmd::Popen(void *arg)
             dup2(fds[pipeWrite], STDOUT_FILENO);
             dup2(fds[pipeWrite], STDERR_FILENO);
         }
-        Base::CloseFd(fds[pipeRead]);
-        Base::CloseFd(fds[pipeWrite]);
+        close(fds[pipeRead]);
+        close(fds[pipeWrite]);
 
         setsid();
         setpgid(childPid, childPid);

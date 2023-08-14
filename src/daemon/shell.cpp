@@ -132,12 +132,12 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
     dup2(pts, STDIN_FILENO);
     dup2(pts, STDOUT_FILENO);
     dup2(pts, STDERR_FILENO);
-    Base::CloseFd(pts);
+    close(pts);
     string text = "/proc/self/oom_score_adj";
     int fd = 0;
     if ((fd = open(text.c_str(), O_WRONLY)) >= 0) {
         write(fd, "0", 1);
-        Base::CloseFd(fd);
+        close(fd);
     }
     char *env = nullptr;
     if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
@@ -197,11 +197,12 @@ void *HdcShell::ShellFork(void *arg)
         return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (pid == 0) {
+        WRITE_LOG(LOG_DEBUG, "ShellFork close ptmParam:%d", ptmParam);
         Base::DeInitProcess();
         HdcShell::mutexPty.unlock();
         setsid();
         SetSelinuxLabel();
-        Base::CloseFd(ptmParam);
+        close(ptmParam);
         int pts = 0;
         if ((pts = open(devParam, O_RDWR | O_CLOEXEC)) < 0) {
             return reinterpret_cast<void *>(-1);

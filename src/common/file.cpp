@@ -128,7 +128,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         context->isDir = true;
         GetSubFilesRecursively(context->localPath, context->localName, &context->taskQueue);
         if (context->taskQueue.size() == 0) {
-            LogMsg(MSG_FAIL, "Directory empty.");
+            LogMsg(MSG_FAIL, "Operation failed, because the source folder is empty.");
             return false;
         }
         context->fileCnt = 0;

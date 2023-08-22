@@ -55,7 +55,7 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
     }
 }
 
-void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite)
+void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 {
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
@@ -147,7 +147,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax, false);
+    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax);
     ioReadThread.detach();
     return 0;
 }

@@ -55,7 +55,7 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
     }
 }
 
-void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite)
+void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 {
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
@@ -74,37 +74,26 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWri
             break;
         }
 
-        if (isWrite) {
-            nBytes = write(thisClass->fdIO, buf, bufSize);
-            if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d write interrupt", thisClass->fdIO);
-                continue;
-            }
-            bufSize -= nBytes;
-        } else {
-            if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
-                WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
-                break;
-            }
-            FD_ZERO(&rset);
-            FD_SET(thisClass->fdIO, &rset);
-            int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
-            if (rc < 0) {
-                WRITE_LOG(LOG_FATAL, "FileIOOnThread select fdIO:%d error:%d", thisClass->fdIO, errno);
-                break;
-            } else if (rc == 0) {
-                continue;
-            }
-            nBytes = read(thisClass->fdIO, buf, bufSize);
-            if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
-                continue;
-            }
+        if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
+            WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
+            break;
+        }
+        FD_ZERO(&rset);
+        FD_SET(thisClass->fdIO, &rset);
+        int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
+        if (rc < 0) {
+            WRITE_LOG(LOG_FATAL, "FileIOOnThread select fdIO:%d error:%d", thisClass->fdIO, errno);
+            break;
+        } else if (rc == 0) {
+            continue;
+        }
+        nBytes = read(thisClass->fdIO, buf, bufSize);
+        if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
+            continue;
         }
         if (nBytes > 0) {
-            if (isWrite && bufSize == 0) {
-                break;
-            } else if (!isWrite && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
+            if (!thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
                 WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
                 bFinish = true;
                 break;
@@ -158,7 +147,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax, false);
+    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax);
     ioReadThread.detach();
     return 0;
 }

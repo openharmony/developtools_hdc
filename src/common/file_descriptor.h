@@ -43,7 +43,7 @@ public:
 
 protected:
 private:
-    static void FileIOOnThread(CtxFileIO *ctxIO, int bufSize, bool isWrite);
+    static void FileIOOnThread(CtxFileIO *ctxIO, int bufSize);
     int LoopReadOnThread();
 
     std::function<void()> callbackCloseFd;

@@ -289,7 +289,7 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     }
     string version = Base::GetVersion() + HDC_MSG_HASH;
 
-    WRITE_LOG(LOG_FATAL, "receive hs version = %s", handshake.version.c_str());
+    WRITE_LOG(LOG_DEBUG, "receive hs version = %s", handshake.version.c_str());
 
     if (!handshake.version.empty() && handshake.version != version) {
         WRITE_LOG(LOG_FATAL, "DaemonSessionHandshake failed! version not match [%s] vs [%s]",

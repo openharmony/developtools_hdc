@@ -35,7 +35,7 @@ HdcFileDescriptor::~HdcFileDescriptor()
     workContinue = false;
     NotifyWrite();
     ioWriteThread.join();
-    WRITE_LOG(LOG_FATAL, "~HdcFileDescriptor refIO:%d", refIO);
+    WRITE_LOG(LOG_DEBUG, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()

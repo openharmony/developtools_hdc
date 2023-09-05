@@ -19,146 +19,89 @@
 namespace Hdc {
 CircleBuffer::CircleBuffer()
 {
-    Init();
     run_ = false;
-    begin_ = std::chrono::steady_clock::now();
+    TimerStart();
 }
 
 CircleBuffer::~CircleBuffer()
 {
     TimerStop();
     for (auto iter = buffers_.begin(); iter != buffers_.end();) {
-        delete[] *iter;
+        Data *data = *iter;
+        delete data->buf;
+        delete data;
         iter = buffers_.erase(iter);
     }
-}
-
-void CircleBuffer::Init()
-{
-    head_ = 0;
-    tail_ = 0;
-    const int firstSize = 2;
-    size_ = firstSize;
-    mallocInit_ = false;
-}
-
-bool CircleBuffer::Full() const
-{
-    return (tail_ + 1) % size_ == head_;
-}
-
-bool CircleBuffer::Empty() const
-{
-    return tail_ == head_;
-}
-
-bool CircleBuffer::FirstMalloc()
-{
-    if (mallocInit_) {
-        return true;
-    }
-    const int firstSize = 2;
-    for (uint64_t i = 0; i < firstSize; i++) {
-        uint8_t *buf = new(std::nothrow) uint8_t[BUF_SIZE];
-        if (buf == nullptr) {
-            continue;
-        }
-        buffers_.push_back(buf);
-    }
-    if (buffers_.empty()) {
-        return false;
-    }
-
-    TimerStart();
-    mallocInit_ = true;
-    size_ = static_cast<uint64_t>(buffers_.size());
-    return true;
 }
 
 uint8_t *CircleBuffer::Malloc()
 {
     const size_t bufSize = static_cast<size_t>(Base::GetUsbffsBulkSize());
-    std::unique_lock<std::mutex> lock(mutex_);
-    if (!FirstMalloc()) {
-        return nullptr;
-    }
     uint8_t *buf = nullptr;
-    auto tailIter = buffers_.begin();
-    advance(tailIter, tail_);
-    if (Full()) {
-        for (uint64_t i = 0; i < CIRCLE_SIZE; i++) {
-            buf = new(std::nothrow) uint8_t[bufSize];
-            if (buf == nullptr) {
-                return nullptr;
-            }
-            buffers_.insert(tailIter, buf);
-            size_++;
-            if (head_ > tail_) {
-                head_ = (head_ + 1) % size_;
-            }
+    std::unique_lock<std::mutex> lock(mutex_);
+    for (auto iter = buffers_.begin(); iter != buffers_.end(); ++iter) {
+        Data *data = *iter;
+        if (data->used == false) {
+            data->used = true;
+            buf = data->buf;
+            data->begin = std::chrono::steady_clock::now();
+            break;
         }
     }
-    buf = *tailIter;
+    if (buf == nullptr) {
+        Data *data = new(std::nothrow) Data();
+        if (data == nullptr) {
+            return nullptr;
+        }
+        data->used = true;
+        data->begin = std::chrono::steady_clock::now();
+        data->buf = new(std::nothrow) uint8_t[bufSize];
+        if (data->buf == nullptr) {
+            delete data;
+            return nullptr;
+        }
+        buffers_.push_back(data);
+        buf = data->buf;
+    }
     (void)memset_s(buf, bufSize, 0, bufSize);
-    tail_ = (tail_ + 1) % size_;
-    begin_ = std::chrono::steady_clock::now();
     return buf;
 }
 
-void CircleBuffer::DecreaseMemory()
-{
-    auto headIter = buffers_.begin();
-    auto tailIter = buffers_.begin();
-    auto iter = buffers_.begin();
-    advance(headIter, head_);
-    advance(tailIter, tail_);
-    if (head_ < tail_) {
-        iter = ++tailIter;
-        while (iter != buffers_.end()) {
-            delete[] *iter;
-            iter = buffers_.erase(iter);
-        }
-
-        for (iter = buffers_.begin(); iter != headIter;) {
-            delete[] *iter;
-            iter = buffers_.erase(iter);
-        }
-        tail_ = tail_ - head_;
-        head_ = 0;
-        size_ = tail_ + 1;
-    } else if (head_ > tail_) {
-        iter = tailIter;
-        for (iter++; iter != headIter;) {
-            delete[] *iter;
-            iter = buffers_.erase(iter);
-            head_--;
-            size_--;
-        }
-    } else {
-        for (iter = buffers_.begin(); iter != buffers_.end();) {
-            delete[] *iter;
-            iter = buffers_.erase(iter);
-        }
-        Init();
-    }
-}
-
-void CircleBuffer::Free()
+void CircleBuffer::Free(const uint8_t *buf)
 {
     std::unique_lock<std::mutex> lock(mutex_);
-    if (Empty()) {
-        return;
+    for (auto iter = buffers_.begin(); iter != buffers_.end(); ++iter) {
+        Data *data = *iter;
+        if (data->buf == buf) {
+            data->used = false;
+            data->begin = std::chrono::steady_clock::now();
+            break;
+        }
     }
-    head_ = (head_ + 1) % size_;
-    begin_ = std::chrono::steady_clock::now();
 }
 
 void CircleBuffer::FreeMemory()
 {
     std::unique_lock<std::mutex> lock(mutex_);
     constexpr int64_t decreaseTime = 5; // 5s
-    if (Interval() > decreaseTime) {
-        DecreaseMemory();
+    auto end = std::chrono::steady_clock::now();
+    for (auto iter = buffers_.begin(); iter != buffers_.end();) {
+        bool remove = false;
+        Data *data = *iter;
+        if (data->used == false) {
+            auto begin = data->begin;
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+            if (duration.count() > decreaseTime) {
+                remove = true;
+            }
+        }
+        if (remove) {
+            delete data->buf;
+            delete data;
+            iter = buffers_.erase(iter);
+        } else {
+            ++iter;
+        }
     }
 }
 
@@ -175,7 +118,6 @@ void CircleBuffer::TimerStart()
 {
     if (!run_) {
         run_ = true;
-        begin_ = std::chrono::steady_clock::now();
         thread_ = std::thread(Timer, this);
     }
 }
@@ -199,12 +141,5 @@ void CircleBuffer::TimerNotify()
 {
     std::unique_lock<std::mutex> lock(timerMutex_);
     timerCv_.notify_one();
-}
-
-int64_t CircleBuffer::Interval()
-{
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - begin_);
-    return duration.count();
 }
 }

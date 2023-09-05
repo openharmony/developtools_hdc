@@ -32,6 +32,11 @@ static constexpr int CONFIG_COUNT2 = 2;
 static constexpr int CONFIG_COUNT3 = 3;
 static constexpr int CONFIG_COUNT5 = 5;
 
+struct UvData {
+    HdcDaemonUSB *daemonUsb;
+    const uint8_t *buf;
+};
+
 HdcDaemonUSB::HdcDaemonUSB(const bool serverOrDaemonIn, void *ptrMainBase)
     : HdcUSBBase(serverOrDaemonIn, ptrMainBase)
 {
@@ -383,8 +388,11 @@ void HdcDaemonUSB::UvWriteCallback(uv_write_t *req, int status)
         uv_strerror_r(status, buf, bufSize);
         WRITE_LOG(LOG_WARN, "SendCallback failed,status:%d %s", status, buf);
     }
-    HdcDaemonUSB *daemonUsb = (HdcDaemonUSB *) req->data;
-    daemonUsb->cirbuf.Free();
+    UvData *uvData = (UvData *) req->data;
+    if (uvData) {
+        uvData->daemonUsb->cirbuf.Free(uvData->buf);
+        delete uvData;
+    }
     delete req;
 }
 
@@ -395,25 +403,35 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
     uv_write_t *reqWrite = new uv_write_t();
     if (!reqWrite) {
         WRITE_LOG(LOG_WARN, "UsbToStream new write_t failed size:%d", size);
-        cirbuf.Free();
+        cirbuf.Free(buf);
         return ERR_BUF_ALLOC;
     }
     uv_buf_t bfr;
     while (true) {
-        reqWrite->data = reinterpret_cast<void *>(this);
+        UvData *uvData = new(std::nothrow) UvData();
+        if (uvData == nullptr) {
+            WRITE_LOG(LOG_FATAL, "UsbToStream new uvData failed size:%d", size);
+            cirbuf.Free(buf);
+            return ERR_BUF_ALLOC;
+        }
+        uvData->daemonUsb = this;
+        uvData->buf = buf;
+        reqWrite->data = reinterpret_cast<void *>(uvData);
         bfr.base = (char *)buf;
         bfr.len = size;
         if (!uv_is_writable(stream)) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_is_writable false size:%d", size);
             delete reqWrite;
-            cirbuf.Free();
+            cirbuf.Free(buf);
+            delete uvData;
             break;
         }
         ret = uv_write(reqWrite, stream, &bfr, 1, UvWriteCallback);
         if (ret < 0) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_write false ret:%d", ret);
             delete reqWrite;
-            cirbuf.Free();
+            cirbuf.Free(buf);
+            delete uvData;
             ret = ERR_IO_FAIL;
             break;
         }
@@ -433,7 +451,7 @@ int HdcDaemonUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int
     }
     if (memcpy_s(data, dataSize, appendData, dataSize)) {
         WRITE_LOG(LOG_WARN, "UsbToHdcProtocol memory copy failed dataSize:%d", dataSize);
-        cirbuf.Free();
+        cirbuf.Free(data);
         return ERR_BUF_COPY;
     }
     return UsbToStream(stream, data, dataSize);

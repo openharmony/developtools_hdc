@@ -131,8 +131,8 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 int HdcFileDescriptor::LoopReadOnThread()
 {
     int readMax = Base::GetMaxBufSize() * 1.2;
-    auto contextIO = new CtxFileIO();
-    auto buf = new uint8_t[readMax]();
+    auto contextIO = new(std::nothrow) CtxFileIO();
+    auto buf = new(std::nothrow) uint8_t[readMax]();
     if (!contextIO || !buf) {
         if (contextIO) {
             delete contextIO;
@@ -169,7 +169,7 @@ int HdcFileDescriptor::Write(uint8_t *data, int size)
         WRITE_LOG(LOG_WARN, "Write failed, size:%d", size);
         return -1;
     }
-    auto buf = new uint8_t[size];
+    auto buf = new(std::nothrow) uint8_t[size];
     if (!buf) {
         return -1;
     }
@@ -180,7 +180,7 @@ int HdcFileDescriptor::Write(uint8_t *data, int size)
 // Data's memory must be Malloc, and the callback FREE after this function is completed
 int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
 {
-    auto contextIO = new CtxFileIO();
+    auto contextIO = new(std::nothrow) CtxFileIO();
     if (!contextIO) {
         delete[] data;
         WRITE_LOG(LOG_FATAL, "Memory alloc failed");

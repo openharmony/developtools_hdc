@@ -19,14 +19,13 @@
 #include <cstdint>
 #include <chrono>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <new>
 #include <securec.h>
 #include <thread>
-#include <list>
 
 namespace Hdc {
-constexpr uint64_t CIRCLE_SIZE = 16;
 constexpr uint64_t BUF_SIZE = 62464; // MAX_USBFFS_BULK
 
 struct Data {
@@ -44,7 +43,7 @@ public:
 
 private:
     std::mutex mutex_;
-    std::list<Data *> buffers_;
+    std::map<uint64_t, Data *> buffers_;
     bool run_;
     std::thread thread_;
     std::mutex timerMutex_;

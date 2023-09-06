@@ -27,7 +27,7 @@ CircleBuffer::~CircleBuffer()
 {
     TimerStop();
     for (auto iter = buffers_.begin(); iter != buffers_.end();) {
-        Data *data = *iter;
+        Data *data = iter->second;
         delete data->buf;
         delete data;
         iter = buffers_.erase(iter);
@@ -40,11 +40,11 @@ uint8_t *CircleBuffer::Malloc()
     uint8_t *buf = nullptr;
     std::unique_lock<std::mutex> lock(mutex_);
     for (auto iter = buffers_.begin(); iter != buffers_.end(); ++iter) {
-        Data *data = *iter;
+        Data *data = iter->second;
         if (data->used == false) {
             data->used = true;
-            buf = data->buf;
             data->begin = std::chrono::steady_clock::now();
+            buf = data->buf;
             break;
         }
     }
@@ -60,7 +60,8 @@ uint8_t *CircleBuffer::Malloc()
             delete data;
             return nullptr;
         }
-        buffers_.push_back(data);
+        uint64_t key = reinterpret_cast<uint64_t>(data->buf);
+        buffers_[key] = data;
         buf = data->buf;
     }
     (void)memset_s(buf, bufSize, 0, bufSize);
@@ -70,14 +71,10 @@ uint8_t *CircleBuffer::Malloc()
 void CircleBuffer::Free(const uint8_t *buf)
 {
     std::unique_lock<std::mutex> lock(mutex_);
-    for (auto iter = buffers_.begin(); iter != buffers_.end(); ++iter) {
-        Data *data = *iter;
-        if (data->buf == buf) {
-            data->used = false;
-            data->begin = std::chrono::steady_clock::now();
-            break;
-        }
-    }
+    uint64_t key = reinterpret_cast<uint64_t>(buf);
+    Data *data = buffers_[key];
+    data->used = false;
+    data->begin = std::chrono::steady_clock::now();
 }
 
 void CircleBuffer::FreeMemory()
@@ -87,7 +84,7 @@ void CircleBuffer::FreeMemory()
     auto end = std::chrono::steady_clock::now();
     for (auto iter = buffers_.begin(); iter != buffers_.end();) {
         bool remove = false;
-        Data *data = *iter;
+        Data *data = iter->second;
         if (data->used == false) {
             auto begin = data->begin;
             auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - begin);

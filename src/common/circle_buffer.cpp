@@ -28,7 +28,7 @@ CircleBuffer::~CircleBuffer()
     TimerStop();
     for (auto iter = buffers_.begin(); iter != buffers_.end();) {
         Data *data = iter->second;
-        delete data->buf;
+        delete[] data->buf;
         delete data;
         iter = buffers_.erase(iter);
     }
@@ -93,7 +93,7 @@ void CircleBuffer::FreeMemory()
             }
         }
         if (remove) {
-            delete data->buf;
+            delete[] data->buf;
             delete data;
             iter = buffers_.erase(iter);
         } else {

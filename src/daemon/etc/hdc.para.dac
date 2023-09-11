@@ -22,6 +22,7 @@ persist.hdc.control = usb_host:edm:0664
 persist.hdc.control.shell = root:shell:0644
 persist.hdc.control.file = root:shell:0644
 persist.hdc.control.fport = root:shell:0644
+persist.hdc.control_system = system:system:0664
 
 # hdcd can be replaced when it is without uart
 # you should setenforce 0 and mount to write /system

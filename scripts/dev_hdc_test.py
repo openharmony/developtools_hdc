@@ -1,23 +1,39 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2021 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# 0. 运行环境: python 3.10+, pytest
+# 1. 修改 GP 中字段
+# 2. pytest [-k case_name_pattern]
+#    eg. pytest -k file 执行方法名含 file 的用例
+
 import subprocess
-import json
 import os
 import hashlib
 import time
 
 
 class GP():
-    @classmethod
-    def init(cls, params_file):
-        with open(params_file) as f:
-            data = json.load(f)
-            cls.hdc_head = data.get("hdc_head", "hdc.exe")
-            cls.local_path = data.get("local_path")
-            cls.remote_path = data.get("remote_path", "/data/local/tmp")
-            cls.remote_ip = data.get("remote_ip", "auto")
-            cls.remote_port = data.get("remote_port", 8710)
-        assert cls.local_path, "local_path is required in params.json"
+    """ Global Parameters
 
-GP.init("params.json")
+    customize here !!!
+    """
+    hdc_head = "hdc.exe -l1"
+    local_path = "D:\\hdc_test_resource"
+    remote_path = "/data/local/tmp"
+    remote_ip = "auto"
+    remote_port = 8710
 
 
 def _get_local_md5(local):

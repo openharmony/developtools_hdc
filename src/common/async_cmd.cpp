@@ -130,6 +130,7 @@ int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
         WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
         return ERR_GENERIC;
     }
+    pthread_setname_np(threadId, "popen");
     pthread_join(threadId, &popenRes);
     return static_cast<int>(reinterpret_cast<size_t>(popenRes));
 }

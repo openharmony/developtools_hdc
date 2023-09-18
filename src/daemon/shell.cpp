@@ -175,6 +175,7 @@ int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
         WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
         return ERR_GENERIC;
     }
+    pthread_setname_np(threadId, "shell_fork");
     pthread_join(threadId, &shellRes);
     return static_cast<int>(reinterpret_cast<size_t>(shellRes));
 }

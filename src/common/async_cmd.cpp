@@ -130,7 +130,6 @@ int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
         WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
         return ERR_GENERIC;
     }
-    pthread_setname_np(threadId, "hdcd_popen");
     pthread_join(threadId, &popenRes);
     return static_cast<int>(reinterpret_cast<size_t>(popenRes));
 }
@@ -140,6 +139,7 @@ void *AsyncCmd::Popen(void *arg)
 #ifdef _WIN32
     return reinterpret_cast<void *>(ERR_NO_SUPPORT);
 #else
+    pthread_setname_np(pthread_self(), "hdcd_popen");
     AsyncParams params = *reinterpret_cast<AsyncParams *>(arg);
     string command = params.commandParam;
     bool readWrite = params.readWriteParam;

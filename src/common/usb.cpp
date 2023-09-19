@@ -78,8 +78,8 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
     int childRet = 0;
     int ret = ERR_IO_FAIL;
     StartTraceScope("HdcUSBBase::SendUSBBlock");
+    std::lock_guard<std::mutex> lock(hSession->hUSB->lockSendUsbBlock);
     auto header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
-    hSession->hUSB->lockSendUsbBlock.lock();
     do {
         if ((SendUSBRaw(hSession, header.data(), header.size())) <= 0) {
             WRITE_LOG(LOG_FATAL, "SendUSBRaw index failed");
@@ -100,7 +100,6 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
         }
         ret = length;
     } while (false);
-    hSession->hUSB->lockSendUsbBlock.unlock();
     return ret;
 }
 

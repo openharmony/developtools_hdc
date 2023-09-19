@@ -660,7 +660,7 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
             break;
     }
     if (!ret) {
-        EchoClient(hChannel, MSG_FAIL, "Failed to communicate with daemon");
+        EchoClient(hChannel, MSG_FAIL, "Unknown operation command...");
     }
     return ret;
 }

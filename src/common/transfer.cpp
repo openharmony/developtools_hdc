@@ -69,7 +69,12 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr");
         return -1;
     }
-    CtxFileIO *ioContext = new CtxFileIO();
+    CtxFileIO *ioContext = new(std::nothrow) CtxFileIO();
+    if (ioContext == nullptr) {
+        cirbuf.Free(buf);
+        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr");
+        return -1;
+    }
     bool ret = false;
     while (true) {
         size_t bufMaxSize = static_cast<size_t>(Base::GetUsbffsBulkSize() - payloadPrefixReserve);
@@ -107,7 +112,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             delete ioContext;
             ioContext = nullptr;
         }
-        cirbuf.Free();
+        cirbuf.Free(buf);
         return -1;
     }
     return bytes;
@@ -262,7 +267,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             --thisClass->refCount;
         }
     }
-    thisClass->cirbuf.Free();
+    thisClass->cirbuf.Free(bufIO - payloadPrefixReserve);
     --thisClass->refCount;
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }

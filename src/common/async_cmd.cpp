@@ -139,7 +139,11 @@ void *AsyncCmd::Popen(void *arg)
 #ifdef _WIN32
     return reinterpret_cast<void *>(ERR_NO_SUPPORT);
 #else
+#ifndef HOST_MAC
     pthread_setname_np(pthread_self(), "hdcd_popen");
+#else
+    pthread_setname_np("hdcd_popen");
+#endif  
     AsyncParams params = *reinterpret_cast<AsyncParams *>(arg);
     string command = params.commandParam;
     bool readWrite = params.readWriteParam;

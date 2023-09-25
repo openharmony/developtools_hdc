@@ -45,6 +45,9 @@ private:
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
     int ThreadFork(const string &command, bool readWrite, int &cpid);
     static void *Popen(void *arg);
+#if !defined(_WIN32) && !defined(HDC_HOST)
+    bool GetDevItem(const char *key, string &out);
+#endif
 
     uint32_t options = 0;
     int fd = 0;
@@ -60,9 +63,10 @@ struct AsyncParams {
     string commandParam;
     bool readWriteParam;
     int &cpidParam;
+    bool isRoot;
 
-    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam)
-        :commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam) {};
+    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam, bool isRoot)
+        :commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam), isRoot(isRoot) {};
 };
 }  // namespace Hdc
 #endif

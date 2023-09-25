@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "daemon_common.h"
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
 #endif
 using namespace Hdc;
@@ -183,7 +183,7 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
 bool DropRootPrivileges()
 {
     int ret;
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#if defined(SURPPORT_SELINUX)
     setcon("u:r:hdcd:s0");
 #endif
     const char *userName = "shell";

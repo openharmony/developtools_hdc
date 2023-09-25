@@ -14,9 +14,10 @@
  */
 #include "async_cmd.h"
 #include <pthread.h>
-#include "system_depend.h"
 #if !defined(_WIN32) && !defined(HDC_HOST)
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#include "parameter.h"
+#include "base.h"
+#if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
 #endif
 #endif
@@ -97,9 +98,32 @@ bool AsyncCmd::ChildReadCallback(const void *context, uint8_t *buf, const int si
 };
 
 #if !defined(_WIN32) && !defined(HDC_HOST)
-static void SetSelinuxLabel()
+bool AsyncCmd::GetDevItem(const char *key, string &out)
 {
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+    bool ret = true;
+    char tmpStringBuf[BUF_SIZE_MEDIUM] = "";
+#ifdef HARMONY_PROJECT
+    auto res = GetParameter(key, nullptr, tmpStringBuf, BUF_SIZE_MEDIUM);
+    if (res <= 0) {
+        return false;
+    }
+#else
+    string sFailString = Base::StringFormat("Get parameter \"%s\" fail", key);
+    string stringBuf = "param get " + string(key);
+    Base::RunPipeComand(stringBuf.c_str(), tmpStringBuf, BUF_SIZE_MEDIUM - 1, true);
+    if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
+        // failed
+        ret = false;
+        Base::ZeroStruct(tmpStringBuf);
+    }
+#endif
+    out = tmpStringBuf;
+    return ret;
+}
+
+static void SetSelinuxLabel(bool isRoot)
+{
+#if defined(SURPPORT_SELINUX)
     char *con = nullptr;
     if (getcon(&con) != 0) {
         return;
@@ -108,14 +132,11 @@ static void SetSelinuxLabel()
         freecon(con);
         return;
     }
+    WRITE_LOG(LOG_DEBUG, "async shell mode:%d", isRoot);
 #ifdef HDC_BUILD_VARIANT_USER
     setcon("u:r:sh:s0");
 #else
-    string debugMode = "";
-    string rootMode = "";
-    SystemDepend::GetDevItem("const.debuggable", debugMode);
-    SystemDepend::GetDevItem("persist.hdc.root", rootMode);
-    if (debugMode == "1" && rootMode == "1") {
+    if (isRoot) {
         setcon("u:r:su:s0");
     } else {
         setcon("u:r:sh:s0");
@@ -128,7 +149,17 @@ static void SetSelinuxLabel()
 
 int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
 {
-    AsyncParams params = AsyncParams(command, readWrite, cpid);
+    string debugMode = "";
+    string rootMode = "";
+    bool isRoot = false;
+#if !defined(_WIN32) && !defined(HDC_HOST)
+    SystemDepend::GetDevItem("const.debuggable", debugMode);
+    SystemDepend::GetDevItem("persist.hdc.root", rootMode);
+#endif
+    if (debugMode == "1" && rootMode == "1") {
+        isRoot = true;
+    }
+    AsyncParams params = AsyncParams(command, readWrite, cpid, isRoot);
     pthread_t threadId;
     void *popenRes;
     int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(Popen), &params);
@@ -157,13 +188,14 @@ void *AsyncCmd::Popen(void *arg)
     string command = params.commandParam;
     bool readWrite = params.readWriteParam;
     int &cpid = params.cpidParam;
+    bool isRoot = params.isRoot;
     constexpr uint8_t pipeRead = 0;
     constexpr uint8_t pipeWrite = 1;
     pid_t childPid;
     int fds[2];
     pipe(fds);
-    WRITE_LOG(LOG_DEBUG, "Popen pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
-        fds[pipeRead], fds[pipeWrite]);
+    WRITE_LOG(LOG_DEBUG, "Popen pipe fds[pipeRead]:%d fds[pipeWrite]:%d, mode %d",
+        fds[pipeRead], fds[pipeWrite], isRoot);
 
     if ((childPid = fork()) == -1) {
         return reinterpret_cast<void *>(ERR_GENERIC);
@@ -183,8 +215,8 @@ void *AsyncCmd::Popen(void *arg)
 
         setsid();
         setpgid(childPid, childPid);
-#if !defined(HDC_HOST)
-        SetSelinuxLabel();
+#if !defined(_WIN32) && !defined(HDC_HOST)
+        SetSelinuxLabel(isRoot);
 #endif
         string shellPath = Base::GetShellPath();
         execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);

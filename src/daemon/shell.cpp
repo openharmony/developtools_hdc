@@ -26,7 +26,7 @@
 #include "base.h"
 #include "file_descriptor.h"
 #include "system_depend.h"
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
 #endif
 
@@ -149,7 +149,7 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
 
 static void SetSelinuxLabel()
 {
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#if defined(SURPPORT_SELINUX)
     char *con = nullptr;
     if (getcon(&con) != 0) {
         return;

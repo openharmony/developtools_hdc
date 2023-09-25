@@ -14,7 +14,7 @@
  */
 #include "async_cmd.h"
 #include <pthread.h>
-#include "daemon_common.h"
+#include "system_depend.h"
 #if !defined(_WIN32) && !defined(HDC_HOST)
 #if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
 #include "selinux/selinux.h"

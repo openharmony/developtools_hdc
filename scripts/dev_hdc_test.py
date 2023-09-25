@@ -23,18 +23,49 @@ import os
 import hashlib
 import time
 
+import pytest
+
 
 class GP():
     """ Global Parameters
 
     customize here !!!
     """
-    hdc_head = "hdc.exe -l1"
-    local_path = "D:\\hdc_test_resource"
+    hdc_head = "hdc"
+    local_path = "/home/danlei/resource"
     remote_path = "/data/local/tmp"
     remote_ip = "auto"
     remote_port = 8710
 
+    @classmethod
+    def print_options(cls):
+        info = "HDC Tester Default Options: \n\n" \
+        + f"{'hdc execution'.rjust(20, ' ')}: {cls.hdc_head}\n" \
+        + f"{'local storage path'.rjust(20, ' ')}: {cls.local_path}\n" \
+        + f"{'remote storage path'.rjust(20, ' ')}: {cls.remote_path}\n" \
+        + f"{'remote ip'.rjust(20, ' ')}: {cls.remote_ip}\n" \
+        + f"{'remote port'.rjust(20, ' ')}: {cls.remote_port}\n"
+
+        print(info)
+
+    @classmethod
+    def set_options(cls):
+        if opt := input(f"Default hdc execution? [{cls.hdc_head}]\n").strip():
+            cls.hdc_head = opt
+        if opt := input(f"Default local storage path? [{cls.local_path}]\n").strip():
+            cls.local_path = opt
+        if opt := input(f"Default remote storage path? [{cls.remote_path}]\n").strip():
+            cls.remote_path = opt
+        if opt := input(f"Default remote ip? [{cls.remote_ip}]\n").strip():
+            cls.remote_ip = opt
+        if opt := input(f"Default remote port? [{cls.remote_port}]\n").strip():
+            cls.remote_port = int(opt)
+
+def _local_path(path):
+    return os.path.join(GP.local_path, path)
+
+def _remote_path(path):
+    return f"{GP.remote_path}/{path}"
 
 def _get_local_md5(local):
     md5_hash = hashlib.md5()
@@ -72,63 +103,57 @@ def _check_app_installed(bundle, is_shared=False):
     return check_shell(cmd, bundle)
 
 
-def file_send(local, remote):
+def check_file_send(local, remote):
     local_path = os.path.join(GP.local_path, local)
     remote_path = f"{GP.remote_path}/{remote}"
     cmd = f"file send {local_path} {remote_path}"
-    assert check_shell(cmd)
-    assert _check_file(local_path, remote_path)
+    return check_shell(cmd) and _check_file(local_path, remote_path)
 
 
-def file_recv(remote, local):
+def check_file_recv(remote, local):
     local_path = os.path.join(GP.local_path, local)
     remote_path = f"{GP.remote_path}/{remote}"
     cmd = f"file recv {remote_path} {local_path}"
-    assert check_shell(cmd)
-    assert _check_file(local_path, remote_path)
+    return check_shell(cmd) and _check_file(local_path, remote_path)
 
 
-def app_install(app, bundle, args=""):
+def check_app_install(app, bundle, args=""):
     app = os.path.join(GP.local_path, app)
     install_cmd = f"install {args} {app}"
-    assert check_shell(install_cmd, "successfully")
-    assert _check_app_installed(bundle, "s" in args)
+    return check_shell(install_cmd, "successfully") and _check_app_installed(bundle, "s" in args)
 
 
-def app_uninstall(bundle, args=""):
+def check_app_uninstall(bundle, args=""):
     uninstall_cmd = f"uninstall {args} {bundle}"
-    assert check_shell(uninstall_cmd, "successfully")
-    assert not _check_app_installed(bundle, "s" in args)
+    return check_shell(uninstall_cmd, "successfully") and not _check_app_installed(bundle, "s" in args)
 
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):
-        assert check_shell(cmd, "FileTransfer finish")
+        if not check_shell(cmd, "FileTransfer finish"):
+            return False
         if cmd.startswith("file send"):
             local, remote = cmd.split()[-2:]
         else:
             remote, local = cmd.split()[-2:]
-        assert _check_file(local, remote)
+        return _check_file(local, remote)
 
     elif cmd.startswith("install"):
-        bundle = args["bundle"]
+        bundle = args.get("bundle", "invalid")
         opt = " ".join(cmd.split()[1:-1])
-        assert check_shell(cmd, "successfully")
-        assert _check_app_installed(bundle, "s" in opt)
+        return check_shell(cmd, "successfully") and _check_app_installed(bundle, "s" in opt)
 
     elif cmd.startswith("uninstall"):
         bundle = cmd.split()[-1]
         opt = " ".join(cmd.split()[1:-1])
-        assert check_shell(cmd, "successfully")
-        assert not _check_app_installed(bundle, "s" in opt)
+        return check_shell(cmd, "successfully") and not _check_app_installed(bundle, "s" in opt)
 
     else:
         return check_shell(cmd, pattern, **args)
 
 
 class TestCommands:
-    """
-    Usage:
+    """Usage:
 
     check_hdc_cmd(cmd, **args):
         1. cmd = file send / file recv: execute and check if md5 of local and remote matches after transfer
@@ -156,25 +181,31 @@ class TestCommands:
 
     """
 
-    def test_file_send(self):
-        check_hdc_cmd(f"file send {os.path.join(GP.local_path, 'hdc.log')} {GP.remote_path}/hdc.log")
+    def test_empty_file(self):
+        assert check_hdc_cmd(f"file send {_local_path('empty')} {_remote_path('empty')}")
+        assert check_hdc_cmd(f"file recv {_remote_path('empty')} {_local_path('empty_recv')}")
+
+    def test_small_file(self):
+        assert check_hdc_cmd(f"file send {_local_path('small')} {_remote_path('small')}")
+        assert check_hdc_cmd(f"file recv {_remote_path('small')} {_local_path('small_recv')}")
+
+    def test_large_file(self):
+        assert check_hdc_cmd(f"file send {_local_path('large')} {_remote_path('large')}")
+        assert check_hdc_cmd(f"file recv {_remote_path('large')} {_local_path('large_recv')}")
 
     def test_hap_install(self):
-        check_hdc_cmd(f"install -r {os.path.join(GP.local_path, 'entry-default-signed-debug.hap')}", bundle="com.hmos.diagnosis")
-
-    def test_file_cmd(self):
-        file_send("hdc.log", "hdc.log")
-        file_recv("hdc.log", "test.log")
+        assert check_hdc_cmd(f"install -r {_local_path('entry-default-signed-debug.hap')}",
+                             bundle="com.hmos.diagnosis")
 
     def test_app_cmd(self):
-        app_install("entry-default-signed-debug.hap", "com.hmos.diagnosis")
-        app_uninstall("com.hmos.diagnosis")
+        assert check_app_install("entry-default-signed-debug.hap", "com.hmos.diagnosis")
+        assert check_app_uninstall("com.hmos.diagnosis")
 
-        app_install("entry-default-signed-debug.hap", "com.hmos.diagnosis", "-r")
-        app_uninstall("com.hmos.diagnosis")
+        assert check_app_install("entry-default-signed-debug.hap", "com.hmos.diagnosis", "-r")
+        assert check_app_uninstall("com.hmos.diagnosis")
 
-        app_install("analyticshsp-default-signed.hsp", "com.huawei.hms.hsp.analyticshsp", "-s")
-        app_uninstall("com.huawei.hms.hsp.analyticshsp", "-s")
+        assert check_app_install("analyticshsp-default-signed.hsp", "com.huawei.hms.hsp.analyticshsp", "-s")
+        assert check_app_uninstall("com.huawei.hms.hsp.analyticshsp", "-s")
 
     def test_privilege_cmd(self):
         assert check_hdc_cmd("smode -r")
@@ -201,7 +232,7 @@ class TestCommands:
         time.sleep(3)
         assert check_hdc_cmd(f"tconn {GP.remote_ip}:{GP.remote_port}", "Connect OK")
 
-        file_send("hdc.log", "hdc.log")
+        assert check_file_send("hdc.log", "hdc.log")
 
         assert check_hdc_cmd("tmode usb")
         time.sleep(3)
@@ -217,7 +248,7 @@ class TestCommands:
         assert check_hdc_cmd("version", "Ver: 1.3.0a")
         assert check_hdc_cmd("checkserver", "Ver: 1.3.0a")
 
-    def test_port_cmd(self):
+    def test_fport_cmd(self):
         fport = "tcp:5555 tcp:5556"
         rport = "tcp:6666 tcp:6667"
 
@@ -231,3 +262,78 @@ class TestCommands:
         assert not check_hdc_cmd("fport ls", fport)
         assert check_hdc_cmd(f"fport rm {rport}", "success")
         assert not check_hdc_cmd("fport ls", rport)
+
+    def setup_class(self):
+        pass
+
+    def teardown_class(self):
+        pass
+
+def select_cmd():
+    msg = "1) Proceed tester\n" \
+        + "2) Customize tester\n" \
+        + "3) Setup files for transfer\n" \
+        + "4) Cancel\n" \
+        + ">> "
+
+    while True:
+        opt = input(msg).strip()
+        if len(opt) == 1 and '1' <= opt <= '4':
+            return opt
+
+def prepare_source():
+
+    def gen_file(path, size):
+        index = 0
+        path = os.path.abspath(path)
+        with open(path, 'w') as f:
+            while index < size:
+                f.write(hashlib.md5(str(time.time_ns()).encode()).hexdigest())
+                index += 64
+
+    print("generating empty file ...")
+    gen_file(os.path.join(GP.local_path, "empty"), 0)
+
+    print("generating small file ...")
+    gen_file(os.path.join(GP.local_path, "small"), 102400)
+
+    print("generating large file ...")
+    gen_file(os.path.join(GP.local_path, "large"), 2 * 1024 ** 3)
+
+    print("generating dir with small file ...")
+    dir_path = os.path.join(GP.local_path, "normal_dir")
+    subprocess.call(f"rm -rf {dir_path}".split())
+    subprocess.call(f"mkdir -p {dir_path}".split())
+    gen_file(os.path.join(dir_path, "small2"), 102400)
+
+    print("generating empty dir ...")
+    dir_path = os.path.join(GP.local_path, "empty_dir")
+    subprocess.call(f"rm -rf {dir_path}".split())
+    subprocess.call(f"mkdir -p {dir_path}".split())
+
+
+
+def setup_tester():
+    while True:
+        GP.print_options()
+        opt = int(select_cmd())
+        if opt == 1:
+            return True
+        elif opt == 2:
+            GP.set_options()
+        elif opt == 3:
+            prepare_source()
+        else:
+            return False
+
+
+if __name__ == "__main__":
+
+    if setup_tester():
+        print("starting test, plz ensure hap / hsp is in local storage path")
+        msg = "input test case name pattern [file / app / target / fport / ...], blank for all cases\n>> "
+        pattern = input(msg).strip()
+        if pattern:
+            pytest.main(["-s", "-k", pattern])
+        else:
+            pytest.main(["-s"])

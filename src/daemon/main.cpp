@@ -183,9 +183,6 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
 bool DropRootPrivileges()
 {
     int ret;
-#if defined(SURPPORT_SELINUX)
-    setcon("u:r:hdcd:s0");
-#endif
     const char *userName = "shell";
     vector<const char *> groupsNames = { "shell", "log", "readproc" };
     struct passwd *user;
@@ -233,6 +230,11 @@ bool DropRootPrivileges()
     }
 
     free(gids);
+#if defined(SURPPORT_SELINUX)
+    if (setcon("u:r:hdcd:s0") != 0) {
+        WRITE_LOG(LOG_FATAL, "setcon fail, errno %s", userName, strerror(errno));
+    }
+#endif
     return true;
 }
 

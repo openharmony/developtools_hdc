@@ -18,6 +18,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "daemon_common.h"
+#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#include "selinux/selinux.h"
+#endif
 using namespace Hdc;
 
 static bool g_enableUsb = false;
@@ -180,7 +183,9 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
 bool DropRootPrivileges()
 {
     int ret;
+#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
     setcon("u:r:hdcd:s0");
+#endif
     const char *userName = "shell";
     vector<const char *> groupsNames = { "shell", "log", "readproc" };
     struct passwd *user;

@@ -159,7 +159,7 @@ static void SetSelinuxLabel()
     }
 #ifdef HDC_BUILD_VARIANT_USER
     setcon("u:r:sh:s0");
-#elif
+#else
     string debugMode = "";
     string rootMode = "";
     SystemDepend::GetDevItem("const.debuggable", debugMode);

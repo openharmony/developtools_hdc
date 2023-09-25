@@ -180,6 +180,7 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
 bool DropRootPrivileges()
 {
     int ret;
+    setcon("u:r:hdcd:s0");
     const char *userName = "shell";
     vector<const char *> groupsNames = { "shell", "log", "readproc" };
     struct passwd *user;

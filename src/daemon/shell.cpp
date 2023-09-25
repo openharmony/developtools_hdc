@@ -157,7 +157,19 @@ static void SetSelinuxLabel()
         freecon(con);
         return;
     }
+#ifdef HDC_BUILD_VARIANT_USER
     setcon("u:r:sh:s0");
+#elif
+    string debugMode = "";
+    string rootMode = "";
+    SystemDepend::GetDevItem("const.debuggable", debugMode);
+    SystemDepend::GetDevItem("persist.hdc.root", rootMode);
+    if (debugMode == "1" && rootMode == "1") {
+        setcon("u:r:su:s0");
+    } else {
+        setcon("u:r:sh:s0");
+    }
+#endif
     freecon(con);
 #endif
 }

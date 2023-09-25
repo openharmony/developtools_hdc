@@ -25,6 +25,7 @@
 #include "unistd.h"
 #include "base.h"
 #include "file_descriptor.h"
+#include "daemon_common.h"
 #if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
 #include "selinux/selinux.h"
 #endif

@@ -153,8 +153,8 @@ int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
     string rootMode = "";
     bool isRoot = false;
 #if !defined(_WIN32) && !defined(HDC_HOST)
-    SystemDepend::GetDevItem("const.debuggable", debugMode);
-    SystemDepend::GetDevItem("persist.hdc.root", rootMode);
+    GetDevItem("const.debuggable", debugMode);
+    GetDevItem("persist.hdc.root", rootMode);
 #endif
     if (debugMode == "1" && rootMode == "1") {
         isRoot = true;

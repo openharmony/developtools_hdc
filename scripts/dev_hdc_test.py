@@ -32,7 +32,7 @@ class GP():
     customize here !!!
     """
     hdc_head = "hdc"
-    local_path = "/home/danlei/resource"
+    local_path = "/data/resource"
     remote_path = "/data/local/tmp"
     remote_ip = "auto"
     remote_port = 8710

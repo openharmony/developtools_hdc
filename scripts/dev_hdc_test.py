@@ -18,16 +18,14 @@
 # 2. pytest [-k case_name_pattern]
 #    eg. pytest -k file 执行方法名含 file 的用例
 
-import subprocess
-import os
-import sys
 import hashlib
-import time
 import json
+import os
+import subprocess
+import sys
+import time
 
 import pytest
-
-from dataclasses import dataclass
 
 
 class GP(object):
@@ -36,7 +34,7 @@ class GP(object):
     customize here !!!
     """
     hdc_exe = "hdc"
-    local_path = "/data/resource"
+    local_path = "resource"
     remote_path = "/data/local/tmp"
     remote_ip = "auto"
     remote_port = 8710
@@ -62,18 +60,22 @@ class GP(object):
     @classmethod
     def dump(cls):
         content = filter(lambda k: not k[0].startswith("__") and not type(k[1]) == classmethod, cls.__dict__.items())
-        json.dump(dict(content), open(".hdctester.conf", "w"))
+        json_str = json.dumps(dict(content))
+        fd = os.open(".hdctester.conf", os.O_WRONLY | os.O_CREAT, 0o755)
+        os.write(fd, json_str.encode())
+        os.close(fd)
 
     @classmethod
     def load(cls):
-        content = json.load(open(".hdctester.conf"))
-        cls.hdc_exe = content.get("hdc_exe")
-        cls.local_path = content.get("local_path")
-        cls.remote_path = content.get("remote_path")
-        cls.remote_ip = content.get("remote_ip")
-        cls.hdc_head = content.get("hdc_head")
-        cls.tmode = content.get("tmode")
-        cls.device_name = content.get("device_name")
+        with open(".hdctester.conf") as f:
+            content = json.load(f)
+            cls.hdc_exe = content.get("hdc_exe")
+            cls.local_path = content.get("local_path")
+            cls.remote_path = content.get("remote_path")
+            cls.remote_ip = content.get("remote_ip")
+            cls.hdc_head = content.get("hdc_head")
+            cls.tmode = content.get("tmode")
+            cls.device_name = content.get("device_name")
 
     @classmethod
     def print_options(cls):
@@ -120,10 +122,10 @@ class GP(object):
         return True
 
 
-
 def mkdir(path):
     if not os.path.exists(path):
         subprocess.call(f"mkdir -p {path}".split())
+
 
 def rmdir(path):
     try:
@@ -134,11 +136,14 @@ def rmdir(path):
     except OSError:
         pass
 
+
 def get_local_path(path):
     return os.path.join(GP.local_path, path)
 
+
 def get_remote_path(path):
     return f"{GP.remote_path}/{path}"
+
 
 def _get_local_md5(local):
     md5_hash = hashlib.md5()
@@ -154,7 +159,7 @@ def check_shell(cmd, pattern=None, fetch=False):
     if pattern: # check output valid
         output = subprocess.check_output(cmd.split()).decode()
         res = pattern in output
-        print(f"--> pattern {pattern} {'FOUND' if res else 'NOT FOUND'} in output")
+        print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")
         return res
     elif fetch:
         output = subprocess.check_output(cmd.split()).decode()
@@ -232,6 +237,7 @@ def switch_usb():
         GP.hdc_head = f"{GP.hdc_exe} -t {GP.device_name}"
     return res
 
+
 def switch_tcp():
     if not GP.remote_ip: # skip tcp check
         print("!!! remote_ip is none, skip tcp check !!!")
@@ -249,6 +255,7 @@ def switch_tcp():
     if res:
         GP.hdc_head = f"{GP.hdc_exe} -t {GP.remote_ip}:{GP.remote_port}"
     return res
+
 
 class TestCommands:
     r"""Usage:
@@ -349,13 +356,12 @@ class TestCommands:
 
     def setup_class(self):
         print("setting up env ...")
-        # check_hdc_cmd("tmode usb")
-        # check_hdc_cmd("smode")
         check_hdc_cmd("shell rm -rf /data/local/tmp/it_*")
         GP.load()
 
     def teardown_class(self):
         pass
+
 
 def select_cmd():
     msg = "1) Proceed tester\n" \
@@ -369,15 +375,18 @@ def select_cmd():
         if len(opt) == 1 and '1' <= opt <= '4':
             return opt
 
+
 def prepare_source():
 
     def gen_file(path, size):
         index = 0
         path = os.path.abspath(path)
-        with open(path, 'w') as f:
-            while index < size:
-                f.write(hashlib.md5(str(time.time_ns()).encode()).hexdigest())
-                index += 64
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+
+        while index < size:
+            os.write(fd, os.urandom(1024))
+            index += 1024
+        os.close(fd)
 
     print(f"in prepare {GP.local_path}")
 
@@ -402,7 +411,6 @@ def prepare_source():
     mkdir(dir_path)
 
 
-
 def setup_tester():
     while True:
         GP.print_options()
@@ -425,9 +433,9 @@ if __name__ == "__main__":
 
     if setup_tester():
         print("starting test, plz ensure hap / hsp is in local storage path")
-        msg = "input test case name pattern [file / app / target / fport / ...], blank for all cases\n>> "
-        pattern = input(msg).strip()
-        if pattern:
-            pytest.main(["-s", "-k", pattern])
+        req = "input test case name pattern [file / app / target / fport / ...], blank for all cases\n>> "
+        choice = input(req).strip()
+        if choice:
+            pytest.main(["-s", "-k", choice])
         else:
             pytest.main(["-s"])

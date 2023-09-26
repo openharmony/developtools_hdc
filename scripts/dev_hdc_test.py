@@ -20,13 +20,17 @@
 
 import subprocess
 import os
+import sys
 import hashlib
 import time
+import json
 
 import pytest
 
+from dataclasses import dataclass
 
-class GP():
+
+class GP(object):
     """ Global Parameters
 
     customize here !!!
@@ -42,7 +46,10 @@ class GP():
     tmode = "usb"
 
     @classmethod
-    def print_options(cls):
+    def init(cls):
+        if os.path.exists(".hdctester.conf"):
+            cls.load()
+            return
         try:
             targets = subprocess.check_output(f"{cls.hdc_exe} list targets".split()).split()
             cls.device_name = targets[0]
@@ -52,8 +59,25 @@ class GP():
         cls.device_name = cls.targets[0]
         cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
 
+    @classmethod
+    def dump(cls):
+        content = filter(lambda k: not k[0].startswith("__") and not type(k[1]) == classmethod, cls.__dict__.items())
+        json.dump(dict(content), open(".hdctester.conf", "w"))
+
+    @classmethod
+    def load(cls):
+        content = json.load(open(".hdctester.conf"))
+        cls.hdc_exe = content.get("hdc_exe")
+        cls.local_path = content.get("local_path")
+        cls.remote_path = content.get("remote_path")
+        cls.remote_ip = content.get("remote_ip")
+        cls.hdc_head = content.get("hdc_head")
+        cls.tmode = content.get("tmode")
+
+    @classmethod
+    def print_options(cls):
         info = "HDC Tester Default Options: \n\n" \
-        + f"{'hdc execution'.rjust(20, ' ')}: {cls.hdc_head}\n" \
+        + f"{'hdc execution'.rjust(20, ' ')}: {cls.hdc_exe}\n" \
         + f"{'local storage path'.rjust(20, ' ')}: {cls.local_path}\n" \
         + f"{'remote storage path'.rjust(20, ' ')}: {cls.remote_path}\n" \
         + f"{'remote ip'.rjust(20, ' ')}: {cls.remote_ip}\n" \
@@ -71,8 +95,8 @@ class GP():
 
     @classmethod
     def set_options(cls):
-        if opt := input(f"Default hdc execution? [{cls.hdc_head}]\n").strip():
-            cls.hdc_head = opt
+        if opt := input(f"Default hdc execution? [{cls.hdc_exe}]\n").strip():
+            cls.hdc_exe = opt
         if opt := input(f"Default local storage path? [{cls.local_path}]\n").strip():
             cls.local_path = opt
         if opt := input(f"Default remote storage path? [{cls.remote_path}]\n").strip():
@@ -81,9 +105,9 @@ class GP():
             cls.remote_ip = opt
         if opt := input(f"Default remote port? [{cls.remote_port}]\n").strip():
             cls.remote_port = int(opt)
-        if opt := input(f"Default device name? [{cls.device_name}], opts: {cls.targets}").strip():
+        if opt := input(f"Default device name? [{cls.device_name}], opts: {cls.targets}\n").strip():
             cls.device_name = opt
-        if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]").strip():
+        if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]\n").strip():
             cls.tmode = opt
         if cls.tmode == "usb":
             cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
@@ -94,10 +118,25 @@ class GP():
             return False
         return True
 
-def _local_path(path):
+
+
+def mkdir(path):
+    if not os.path.exists(path):
+        subprocess.call(f"mkdir -p {path}".split())
+
+def rmdir(path):
+    try:
+        if sys.platform == "win32":
+            subprocess.call(f"del /Q {path}".split())
+        else:
+            subprocess.call(f"rm -rf {path}".split())
+    except OSError:
+        pass
+
+def get_local_path(path):
     return os.path.join(GP.local_path, path)
 
-def _remote_path(path):
+def get_remote_path(path):
     return f"{GP.remote_path}/{path}"
 
 def _get_local_md5(local):
@@ -240,19 +279,19 @@ class TestCommands:
     """
 
     def test_empty_file(self):
-        assert check_hdc_cmd(f"file send {_local_path('empty')} {_remote_path('it_empty')}")
-        assert check_hdc_cmd(f"file recv {_remote_path('it_empty')} {_local_path('empty_recv')}")
+        assert check_hdc_cmd(f"file send {get_local_path('empty')} {get_remote_path('it_empty')}")
+        assert check_hdc_cmd(f"file recv {get_remote_path('it_empty')} {get_local_path('empty_recv')}")
 
     def test_small_file(self):
-        assert check_hdc_cmd(f"file send {_local_path('small')} {_remote_path('it_small')}")
-        assert check_hdc_cmd(f"file recv {_remote_path('it_small')} {_local_path('small_recv')}")
+        assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
+        assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
 
     def test_large_file(self):
-        assert check_hdc_cmd(f"file send {_local_path('large')} {_remote_path('it_large')}")
-        assert check_hdc_cmd(f"file recv {_remote_path('it_large')} {_local_path('large_recv')}")
+        assert check_hdc_cmd(f"file send {get_local_path('large')} {get_remote_path('it_large')}")
+        assert check_hdc_cmd(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}")
 
     def test_hap_install(self):
-        assert check_hdc_cmd(f"install -r {_local_path('entry-default-signed-debug.hap')}",
+        assert check_hdc_cmd(f"install -r {get_local_path('entry-default-signed-debug.hap')}",
                              bundle="com.hmos.diagnosis")
 
     def test_app_cmd(self):
@@ -312,6 +351,7 @@ class TestCommands:
         # check_hdc_cmd("tmode usb")
         # check_hdc_cmd("smode")
         check_hdc_cmd("shell rm -rf /data/local/tmp/it_*")
+        GP.load()
 
     def teardown_class(self):
         pass
@@ -338,6 +378,8 @@ def prepare_source():
                 f.write(hashlib.md5(str(time.time_ns()).encode()).hexdigest())
                 index += 64
 
+    print(f"in prepare {GP.local_path}")
+
     print("generating empty file ...")
     gen_file(os.path.join(GP.local_path, "empty"), 0)
 
@@ -349,14 +391,14 @@ def prepare_source():
 
     print("generating dir with small file ...")
     dir_path = os.path.join(GP.local_path, "normal_dir")
-    subprocess.call(f"rm -rf {dir_path}".split())
-    subprocess.call(f"mkdir -p {dir_path}".split())
+    rmdir(dir_path)
+    mkdir(dir_path)
     gen_file(os.path.join(dir_path, "small2"), 102400)
 
     print("generating empty dir ...")
     dir_path = os.path.join(GP.local_path, "empty_dir")
-    subprocess.call(f"rm -rf {dir_path}".split())
-    subprocess.call(f"mkdir -p {dir_path}".split())
+    rmdir(dir_path)
+    mkdir(dir_path)
 
 
 
@@ -369,6 +411,7 @@ def setup_tester():
         elif opt == 2:
             if not GP.set_options():
                 return False
+            GP.dump()
         elif opt == 3:
             prepare_source()
         else:
@@ -376,6 +419,8 @@ def setup_tester():
 
 
 if __name__ == "__main__":
+
+    GP.init()
 
     if setup_tester():
         print("starting test, plz ensure hap / hsp is in local storage path")

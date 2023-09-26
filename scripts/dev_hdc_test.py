@@ -73,6 +73,7 @@ class GP(object):
         cls.remote_ip = content.get("remote_ip")
         cls.hdc_head = content.get("hdc_head")
         cls.tmode = content.get("tmode")
+        cls.device_name = content.get("device_name")
 
     @classmethod
     def print_options(cls):
@@ -250,7 +251,7 @@ def switch_tcp():
     return res
 
 class TestCommands:
-    """Usage:
+    r"""Usage:
 
     check_hdc_cmd(cmd, **args):
         1. cmd = file send / file recv: execute and check if md5 of local and remote matches after transfer

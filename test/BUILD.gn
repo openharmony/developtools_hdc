@@ -339,7 +339,7 @@ fuzz_cflags = [
 ]
 
 ohos_fuzztest("JdwpReadStreamFuzzTest") {
-  module_out_path = module_output_path
+  module_out_path = FUZZ_OUTPUT_PATH
   fuzz_config_file = "${hdc_path}/test/fuzztest/jdwpreadstream_fuzzer"
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags

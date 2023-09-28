@@ -173,7 +173,10 @@ int HdcFileDescriptor::Write(uint8_t *data, int size)
     if (!buf) {
         return -1;
     }
-    (void)memcpy_s(buf, size, data, size);
+    if (memcpy_s(buf, size, data, size) != EOK) {
+        delete[] buf;
+        return -1;
+    }
     return WriteWithMem(buf, size);
 }
 

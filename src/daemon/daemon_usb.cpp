@@ -388,7 +388,7 @@ void HdcDaemonUSB::UvWriteCallback(uv_write_t *req, int status)
         uv_strerror_r(status, buf, bufSize);
         WRITE_LOG(LOG_WARN, "SendCallback failed,status:%d %s", status, buf);
     }
-    UvData *uvData = (UvData *) req->data;
+    UvData *uvData = reinterpret_cast<UvData *>(req->data);
     if (uvData) {
         uvData->daemonUsb->cirbuf.Free(uvData->buf);
         delete uvData;

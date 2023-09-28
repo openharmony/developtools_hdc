@@ -18,6 +18,13 @@
 # 2. pytest [-k case_name_pattern]
 #    eg. pytest -k file 执行方法名含 file 的用例
 
+# 打包
+# pip install pyinstaller
+# prepare assert source dir includes your data files
+# pyi-makespec  -D --add-data assert:assert dev_hdc_test.py
+# pyinstaller dev_hdc_test.spec
+# 执行 dev_hdc_test.exe
+
 import hashlib
 import json
 import os
@@ -59,6 +66,10 @@ class GP(object):
 
     @classmethod
     def dump(cls):
+        try:
+            os.remove(".hdctester.conf")
+        except OSError:
+            pass
         content = filter(lambda k: not k[0].startswith("__") and not type(k[1]) == classmethod, cls.__dict__.items())
         json_str = json.dumps(dict(content))
         fd = os.open(".hdctester.conf", os.O_WRONLY | os.O_CREAT, 0o755)
@@ -97,6 +108,16 @@ class GP(object):
             return True
 
     @classmethod
+    def move_assert_files(cls):
+        try:
+            if sys.platform == "win32":
+                subprocess.call(f"xcopy /y _internal\\assert\\ {cls.local_path}".split())
+            else:
+                subprocess.call(f"cp -r _internal/assert/* {cls.local_path}".split())
+        except OSError:
+            pass
+
+    @classmethod
     def set_options(cls):
         if opt := input(f"Default hdc execution? [{cls.hdc_exe}]\n").strip():
             cls.hdc_exe = opt
@@ -112,6 +133,7 @@ class GP(object):
             cls.device_name = opt
         if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]\n").strip():
             cls.tmode = opt
+        cls.move_assert_files()
         if cls.tmode == "usb":
             cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
         elif cls.tconn_tcp():
@@ -121,7 +143,6 @@ class GP(object):
             return False
         return True
 
-
 def mkdir(path):
     if not os.path.exists(path):
         subprocess.call(f"mkdir -p {path}".split())
@@ -130,7 +151,10 @@ def mkdir(path):
 def rmdir(path):
     try:
         if sys.platform == "win32":
-            subprocess.call(f"del /Q {path}".split())
+            if os.path.isfile(path):
+                subprocess.call(f"del {path}".split())
+            else:
+                subprocess.call(f"del /Q {path}".split())
         else:
             subprocess.call(f"rm -rf {path}".split())
     except OSError:
@@ -329,6 +353,9 @@ class TestCommands:
             assert switch_usb()
             assert switch_tcp()
 
+    def test_server_kill(self):
+        assert check_hdc_cmd("kill", "Kill server finish")
+
     def test_target_cmd(self):
         check_hdc_cmd("target boot")
         time.sleep(20)
@@ -439,3 +466,5 @@ if __name__ == "__main__":
             pytest.main(["-s", "-k", choice])
         else:
             pytest.main(["-s"])
+
+        input("test over, press Enter key to continue")

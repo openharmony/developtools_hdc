@@ -134,6 +134,11 @@ ohos_source_set("hdc_common") {
     ":hdc_ut_config",
   ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+  external_deps = [
+    "c_utils:utilsbase",
+    "hilog:libhilog",
+    "init:libbegetutil",
+  ]
 }
 
 ohos_source_set("hdc_daemon") {

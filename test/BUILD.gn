@@ -105,7 +105,7 @@ config("hdc_common_config") {
     "//third_party/libuv",  # used in common.h
     "//third_party/lz4/lib",  # used in transfer.cpp
     "//base/startup/init/interfaces/innerkits/include",  #daemon_unity.cpp
-    "//base/startup/init/interfaces/innerkits/include/syspara",  #async_cmd.cpp
+    "../../../base/startup/init/interfaces/innerkits/include/syspara",  #async_cmd.cpp
   ]
 
   if (hdc_support_uart) {

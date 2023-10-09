@@ -181,7 +181,10 @@ int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 
 void *HdcShell::ShellFork(void *arg)
 {
-    pthread_setname_np(pthread_self(), "hdcd_shellfork");
+    int ret = pthread_setname_np(pthread_self(), "hdcd_shellfork");
+    if (ret != 0) {
+        WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
+    }
     ShellParams params = *reinterpret_cast<ShellParams *>(arg);
     const char *cmd = params.cmdParam;
     const char *arg0 = params.arg0Param;

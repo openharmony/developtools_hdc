@@ -118,7 +118,10 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
             }
             if (payloadSize == 1 && SpecialSignal(payload[0])) {
             } else {
-                childShell->Write(payload, payloadSize);
+                int ret = childShell->Write(payload, payloadSize);
+                if (ret < 0) {
+                    return false;
+                }
             }
             break;
         default:

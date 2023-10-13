@@ -140,9 +140,15 @@ void *AsyncCmd::Popen(void *arg)
     return reinterpret_cast<void *>(ERR_NO_SUPPORT);
 #else
 #ifndef HOST_MAC
-    pthread_setname_np(pthread_self(), "hdcd_popen");
+    int ret = pthread_setname_np(pthread_self(), "hdcd_popen");
+    if (ret != 0) {
+        WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
+    }
 #else
-    pthread_setname_np("hdcd_popen");
+    int ret = pthread_setname_np("hdcd_popen");
+    if (ret != 0) {
+        WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
+    }
 #endif  
     AsyncParams params = *reinterpret_cast<AsyncParams *>(arg);
     string command = params.commandParam;

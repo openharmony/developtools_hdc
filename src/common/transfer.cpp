@@ -57,6 +57,7 @@ bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
     context->indexIO = 0;
     context->lastErrno = 0;
     context->ioFinish = false;
+    context->closeReqSubmitted = false;
     return true;
 }
 

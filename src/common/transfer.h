@@ -76,7 +76,7 @@ protected:
         bool master;  // Document transmission initiative
         bool closeNotify;
         bool ioFinish;
-        std::atomic<bool> closeReqSubmitted = false;
+        bool closeReqSubmitted;
         void *thisClass;
         uint32_t lastErrno;
         uv_loop_t *loop;

@@ -123,6 +123,7 @@ void HdcTransferBase::OnFileClose(uv_fs_t *req)
     StartTraceScope("HdcTransferBase::OnFileClose");
     uv_fs_req_cleanup(req);
     CtxFile *context = (CtxFile *)req->data;
+    context->closeReqSubmitted = false;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     if (context->closeNotify) {
         // close-step2
@@ -259,8 +260,11 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         if (req->fs_type == UV_FS_WRITE) {
             uv_fs_fsync(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, nullptr);
         }
-        WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d", thisClass->taskInfo->channelId, context->fsOpenReq.result);
-        if (context->lastErrno == 0) {
+        WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d fsCloseReq:%p",
+                  thisClass->taskInfo->channelId, context->fsOpenReq.result,
+                  context->closeReqSubmitted, &context->fsCloseReq);
+        if (context->lastErrno == 0 && !context->closeReqSubmitted) {
+            context->closeReqSubmitted = true;
             uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
         } else {
             thisClass->WhenTransferFinish(context);

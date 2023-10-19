@@ -35,6 +35,7 @@ HdcFileDescriptor::~HdcFileDescriptor()
     workContinue = false;
     NotifyWrite();
     ioWriteThread.join();
+    ioReadThread.join();
     WRITE_LOG(LOG_FATAL, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
@@ -159,7 +160,6 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->thisClass = this;
     ++refIO;
     ioReadThread = std::thread(FileIOOnThread, contextIO, readMax, false);
-    ioReadThread.detach();
     return 0;
 }
 

@@ -266,7 +266,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                   context->closeReqSubmitted, &context->fsCloseReq);
         if (context->lastErrno == 0 && !context->closeReqSubmitted) {
             context->closeReqSubmitted = true;
-            WRITE_LOG(LOG_DEBUG, "OnFileIO uv_fs_close");
+            WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
             uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
         } else {
             thisClass->WhenTransferFinish(context);

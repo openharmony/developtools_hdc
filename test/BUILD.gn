@@ -124,6 +124,7 @@ config("hdc_host_common_config") {
 
 ohos_source_set("hdc_common") {
   use_exceptions = true
+  testonly = true
   sources = hdc_common_sources
   if (hdc_support_uart) {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]

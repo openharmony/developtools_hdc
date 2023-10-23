@@ -35,7 +35,9 @@ HdcFileDescriptor::~HdcFileDescriptor()
     workContinue = false;
     NotifyWrite();
     ioWriteThread.join();
-    ioReadThread.join();
+    if (ioReadThread.joinable()) {
+        ioReadThread.join();
+    }
     WRITE_LOG(LOG_DEBUG, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
@@ -64,9 +66,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool fetalFinish = false;
     ssize_t nBytes;
     fd_set rset;
-    struct timeval timeout;
-    timeout.tv_sec = SECONDS_TIMEOUT;
-    timeout.tv_usec = 0;
 
     while (true) {
         if (thisClass->workContinue == false) {
@@ -79,6 +78,9 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
             break;
         }
+        struct timeval timeout;
+        timeout.tv_sec = SECONDS_TIMEOUT;
+        timeout.tv_usec = 0;
         FD_ZERO(&rset);
         FD_SET(thisClass->fdIO, &rset);
         int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
@@ -101,16 +103,8 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             }
             continue;
         } else {
-            if (nBytes != 0) {
-                char buffer[BUF_SIZE_DEFAULT] = { 0 };
-#ifdef HOST_MINGW
-                strerror_s(buffer, BUF_SIZE_DEFAULT, errno);
-#else
-                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
-#endif
-                WRITE_LOG(LOG_DEBUG, "FileIOOnThread fd:%d failed:%s", thisClass->fdIO, buffer);
-            }
-            WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%u", thisClass->fdIO, nBytes);
+            WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%d errno:%d",
+                thisClass->fdIO, nBytes, errno);
             bFinish = true;
             fetalFinish = true;
             break;

@@ -18,6 +18,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "daemon_common.h"
+#if defined(SURPPORT_SELINUX)
+#include "selinux/selinux.h"
+#endif
 using namespace Hdc;
 
 static bool g_enableUsb = false;
@@ -227,6 +230,11 @@ bool DropRootPrivileges()
     }
 
     free(gids);
+#if defined(SURPPORT_SELINUX)
+    if (setcon("u:r:hdcd:s0") != 0) {
+        WRITE_LOG(LOG_FATAL, "setcon fail, errno %s", userName, strerror(errno));
+    }
+#endif
     return true;
 }
 

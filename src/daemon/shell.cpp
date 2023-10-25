@@ -25,7 +25,8 @@
 #include "unistd.h"
 #include "base.h"
 #include "file_descriptor.h"
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#include "system_depend.h"
+#if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
 #endif
 
@@ -151,7 +152,7 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
 
 static void SetSelinuxLabel()
 {
-#if defined(SURPPORT_SELINUX) && defined(UPDATER_MODE)
+#if defined(SURPPORT_SELINUX)
     char *con = nullptr;
     if (getcon(&con) != 0) {
         return;
@@ -160,7 +161,19 @@ static void SetSelinuxLabel()
         freecon(con);
         return;
     }
+#ifdef HDC_BUILD_VARIANT_USER
     setcon("u:r:sh:s0");
+#else
+    string debugMode = "";
+    string rootMode = "";
+    SystemDepend::GetDevItem("const.debuggable", debugMode);
+    SystemDepend::GetDevItem("persist.hdc.root", rootMode);
+    if (debugMode == "1" && rootMode == "1") {
+        setcon("u:r:su:s0");
+    } else {
+        setcon("u:r:sh:s0");
+    }
+#endif
     freecon(con);
 #endif
 }

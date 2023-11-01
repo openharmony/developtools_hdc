@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 #include "file_descriptor.h"
-#ifndef HOST_MINGW
+#ifndef HDC_HOST
 #include <sys/epoll.h>
 #endif
 
@@ -68,16 +68,14 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool bFinish = false;
     bool fetalFinish = false;
     ssize_t nBytes;
-#ifndef HOST_MINGW
-    constexpr int epoll_size = 4;
+#ifndef HDC_HOST
+    constexpr int epoll_size = 1;
     int epfd = epoll_create(epoll_size);
     struct epoll_event ev;
     struct epoll_event events[epoll_size];
     ev.data.fd = thisClass->fdIO;
     ev.events = EPOLLIN | EPOLLET;
     epoll_ctl(epfd, EPOLL_CTL_ADD, thisClass->fdIO, &ev);
-#else
-    fd_set rset;
 #endif
     while (true) {
         if (thisClass->workContinue == false) {
@@ -90,23 +88,35 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
             break;
         }
-#ifndef HOST_MINGW
-        int rc = epoll_wait(epfd, events, epoll_size, SECONDS_TIMEOUT);
+#ifndef HDC_HOST
+        int rc = epoll_wait(epfd, events, epoll_size, SECONDS_TIMEOUT * TIME_BASE);
 #else
         struct timeval timeout;
         timeout.tv_sec = SECONDS_TIMEOUT;
         timeout.tv_usec = 0;
+        fd_set rset;
         FD_ZERO(&rset);
         FD_SET(thisClass->fdIO, &rset);
         int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
 #endif
         if (rc < 0) {
-            WRITE_LOG(LOG_FATAL, "FileIOOnThread select fdIO:%d error:%d", thisClass->fdIO, errno);
+            WRITE_LOG(LOG_FATAL, "FileIOOnThread select/epoll_wait fdIO:%d error:%d",
+                thisClass->fdIO, errno);
             break;
         } else if (rc == 0) {
             continue;
         }
+#ifndef HDC_HOST
+        int fd = events[0].data.fd;
+        if (events[0].events & EPOLLIN) {
+            nBytes = read(fd, buf, bufSize);
+        } else {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d epoll events:%u", fd, events[0].events);
+            nBytes = 0;
+        }
+#else
         nBytes = read(thisClass->fdIO, buf, bufSize);
+#endif
         if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
             WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
             continue;
@@ -126,7 +136,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             break;
         }
     }
-#ifndef HOST_MINGW
+#ifndef HDC_HOST
     close(epfd);
 #endif
     if (buf != nullptr) {

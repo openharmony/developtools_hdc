@@ -69,7 +69,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool fetalFinish = false;
     ssize_t nBytes;
 #ifndef HDC_HOST
-    constexpr int epoll_size = 1;
+    constexpr int epoll_size = 4;
     int epfd = epoll_create(epoll_size);
     struct epoll_event ev;
     struct epoll_event events[epoll_size];
@@ -100,19 +100,25 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
         int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
 #endif
         if (rc < 0) {
-            WRITE_LOG(LOG_FATAL, "FileIOOnThread select/epoll_wait fdIO:%d error:%d",
+            WRITE_LOG(LOG_FATAL, "FileIOOnThread select or epoll_wait fdIO:%d error:%d",
                 thisClass->fdIO, errno);
             break;
         } else if (rc == 0) {
             continue;
         }
 #ifndef HDC_HOST
-        int fd = events[0].data.fd;
-        if (events[0].events & EPOLLIN) {
-            nBytes = read(fd, buf, bufSize);
-        } else {
-            WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d epoll events:%u", fd, events[0].events);
-            nBytes = 0;
+        for (int i = 0; i < rc; i++) {
+            int fd = events[i].data.fd;
+            uint32_t event = events[i].events;
+            if (event & EPOLLIN) {
+                nBytes = read(fd, buf, bufSize);
+            }
+            if (event & EPOLLERR || event & EPOLLHUP || event & EPOLLRDHUP) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
+                Base::CloseFd(fd);
+                nBytes = 0;
+                break;
+            }
         }
 #else
         nBytes = read(thisClass->fdIO, buf, bufSize);

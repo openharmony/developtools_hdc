@@ -69,7 +69,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool fetalFinish = false;
     ssize_t nBytes;
 #ifndef HDC_HOST
-    constexpr int epoll_size = 4;
+    constexpr int epoll_size = 1;
     int epfd = epoll_create(epoll_size);
     struct epoll_event ev;
     struct epoll_event events[epoll_size];
@@ -107,17 +107,14 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             continue;
         }
 #ifndef HDC_HOST
-        for (int i = 0; i < rc; i++) {
-            int fd = events[i].data.fd;
-            uint32_t event = events[i].events;
-            if (event & EPOLLIN) {
-                nBytes = read(fd, buf, bufSize);
-            }
-            if (event & EPOLLERR || event & EPOLLHUP || event & EPOLLRDHUP) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
-                nBytes = 0;
-                break;
-            }
+        int fd = events[0].data.fd;
+        uint32_t event = events[0].events;
+        if (event & EPOLLIN) {
+            nBytes = read(fd, buf, bufSize);
+        }
+        if (event & EPOLLERR || event & EPOLLHUP || event & EPOLLRDHUP) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
+            nBytes = 0;
         }
 #else
         nBytes = read(thisClass->fdIO, buf, bufSize);

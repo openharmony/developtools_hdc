@@ -68,7 +68,6 @@ template("hdcd_source_set") {
 
   ohos_source_set(target_name) {
     use_exceptions = true
-    stack_protector_ret = false
     sources = [
       "src/daemon/daemon.cpp",
       "src/daemon/daemon_app.cpp",

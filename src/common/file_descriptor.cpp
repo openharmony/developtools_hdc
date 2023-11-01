@@ -115,7 +115,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             }
             if (event & EPOLLERR || event & EPOLLHUP || event & EPOLLRDHUP) {
                 WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
-                Base::CloseFd(fd);
                 nBytes = 0;
                 break;
             }

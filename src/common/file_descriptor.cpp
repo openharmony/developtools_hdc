@@ -13,7 +13,9 @@
  * limitations under the License.
  */
 #include "file_descriptor.h"
+#ifndef HOST_MINGW
 #include <sys/epoll.h>
+#endif
 
 namespace Hdc {
 static const int SECONDS_TIMEOUT = 5;
@@ -66,8 +68,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool bFinish = false;
     bool fetalFinish = false;
     ssize_t nBytes;
-    // fd_set rset;
-
+#ifndef HOST_MINGW
     constexpr int epoll_size = 4;
     int epfd = epoll_create(epoll_size);
     struct epoll_event ev;
@@ -75,6 +76,9 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     ev.data.fd = thisClass->fdIO;
     ev.events = EPOLLIN | EPOLLET;
     epoll_ctl(epfd, EPOLL_CTL_ADD, thisClass->fdIO, &ev);
+#else
+    fd_set rset;
+#endif
     while (true) {
         if (thisClass->workContinue == false) {
             WRITE_LOG(LOG_INFO, "FileIOOnThread fdIO:%d workContinue false", thisClass->fdIO);
@@ -86,13 +90,16 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
             break;
         }
-        // struct timeval timeout;
-        // timeout.tv_sec = SECONDS_TIMEOUT;
-        // timeout.tv_usec = 0;
-        // FD_ZERO(&rset);
-        // FD_SET(thisClass->fdIO, &rset);
-        // int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
+#ifndef HOST_MINGW
         int rc = epoll_wait(epfd, events, epoll_size, SECONDS_TIMEOUT);
+#else
+        struct timeval timeout;
+        timeout.tv_sec = SECONDS_TIMEOUT;
+        timeout.tv_usec = 0;
+        FD_ZERO(&rset);
+        FD_SET(thisClass->fdIO, &rset);
+        int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
+#endif
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "FileIOOnThread select fdIO:%d error:%d", thisClass->fdIO, errno);
             break;
@@ -119,7 +126,9 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             break;
         }
     }
+#ifndef HOST_MINGW
     close(epfd);
+#endif
     if (buf != nullptr) {
         delete[] buf;
         buf = nullptr;

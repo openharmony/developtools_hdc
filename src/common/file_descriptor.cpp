@@ -113,6 +113,9 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             nBytes = read(fd, buf, bufSize);
         }
         if (event & EPOLLERR || event & EPOLLHUP || event & EPOLLRDHUP) {
+            if (nBytes > 0 && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread epoll fdIO:%d callbackRead false", thisClass->fdIO);
+            }
             WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
             nBytes = 0;
         }

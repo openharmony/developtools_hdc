@@ -226,10 +226,7 @@ ohos_unittest("hdc_jdwp_unittest") {
   }
   public_deps = [ ":hdc_daemon_platform" ]
 
-  deps = [
-    "//third_party/googletest:gmock_main",
-    "//third_party/googletest:gtest_main",
-  ]
+  deps = [ "//third_party/googletest:gmock_main" ]
 
   sources = [ "unittest/common/HdcJdwpTest.cpp" ]
   deps += [ ":hdc_common" ]
@@ -262,10 +259,7 @@ ohos_unittest("hdc_uart_unittest") {
   configs += [ ":hdc_ut_code_flag" ]
   deps = [ ":hdc_daemon" ]
 
-  deps += [
-    "//third_party/googletest:gmock_main",
-    "//third_party/googletest:gtest_main",
-  ]
+  deps += [ "//third_party/googletest:gmock_main" ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 
@@ -286,10 +280,7 @@ ohos_unittest("hdc_host_uart_unittest") {
 
   deps = [ ":hdc_host" ]
 
-  deps += [
-    "//third_party/googletest:gmock_main",
-    "//third_party/googletest:gtest_main",
-  ]
+  deps += [ "//third_party/googletest:gmock_main" ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 }
 

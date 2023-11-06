@@ -30,8 +30,7 @@
         "bounds_checking_function",
         "lz4",
         "selinux",
-        "libusb",
-        "googletest"
+        "libusb"
       ]
     },
     "build": {

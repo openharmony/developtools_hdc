@@ -109,29 +109,33 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 #ifndef HDC_HOST
         int fd = events[0].data.fd;
         uint32_t event = events[0].events;
+        nBytes = 0;
         if (event & EPOLLIN) {
             nBytes = read(fd, buf, bufSize);
-            if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
-                continue;
-            }
-            if (nBytes > 0) {
-                if (!thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
-                    WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
-                    bFinish = true;
-                    break;
-                }
-                continue;
-            } else {
-                WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%d errno:%d",
-                    thisClass->fdIO, nBytes, errno);
-                bFinish = true;
-                fetalFinish = true;
-                break;
-            }
         }
         if (event & EPOLLERR || event & EPOLLHUP || event & EPOLLRDHUP) {
             WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
+            bFinish = true;
+            fetalFinish = true;
+            if ((nBytes > 0) && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
+            }
+            break;
+        }
+        if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
+            continue;
+        }
+        if (nBytes > 0) {
+            if (!thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
+                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
+                bFinish = true;
+                break;
+            }
+            continue;
+        } else {
+            WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%d errno:%d",
+                thisClass->fdIO, nBytes, errno);
             bFinish = true;
             fetalFinish = true;
             break;

@@ -64,6 +64,7 @@ void *HdcJdwp::MallocContext()
     if ((ctx = new ContextJdwp()) == nullptr) {
         return nullptr;
     }
+    ctx->isDebug = 0;
     ctx->thisClass = this;
     ctx->pipe.data = ctx;
     ++refCount;
@@ -128,11 +129,13 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
             pid = atoi(p);
         } else {  // JS:pid PkgName
 #ifdef JS_JDWP_CONNECT
+            // pid isDebug pkgName/processName
             struct JsMsgHeader *jsMsg = reinterpret_cast<struct JsMsgHeader *>(p);
             if (jsMsg->msgLen == nread) {
                 pid = jsMsg->pid;
                 string pkgName = string((char *)p + sizeof(JsMsgHeader), jsMsg->msgLen - sizeof(JsMsgHeader));
                 ctxJdwp->pkgName = pkgName;
+                ctxJdwp->isDebug = jsMsg->isDebug;
             } else {
                 ret = false;
                 WRITE_LOG(LOG_DEBUG, "HdcJdwp::ReadStream invalid js package size %d:%d.", jsMsg->msgLen, nread);
@@ -142,7 +145,8 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
         if (pid > 0) {
             ctxJdwp->pid = pid;
 #ifdef JS_JDWP_CONNECT
-            WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s", pid, ctxJdwp->pkgName.c_str());
+            WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s isDebug:%d",
+                pid, ctxJdwp->pkgName.c_str(), ctxJdwp->isDebug);
 #else
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d", pid);
 #endif  // JS_JDWP_CONNECT
@@ -283,6 +287,15 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
     return 0;
 }
 
+uint8_t *HdcJdwp::Int2Bytes(int32_t value, uint8_t b[])
+{
+    b[0] = (value & 0xFF);
+    b[1] = (value & 0xFF00) >> 8;
+    b[2] = (value & 0xFF0000) >> 16;
+    b[3] = (value & 0xFF000000) >> 24;
+    return b;
+}
+
 // Working in the main thread, but will be accessed by each session thread, so we need to set thread lock
 void *HdcJdwp::AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJdwp)
 {
@@ -339,10 +352,7 @@ void HdcJdwp::SendCallbackJdwpNewFD(uv_write_t *req, int status)
     } else {
         WRITE_LOG(LOG_WARN, "SendCallbackJdwpNewFD failed %d", ctx->pid);
     }
-    // close my process's fd
-    Base::TryCloseHandle((const uv_handle_t *)&ctx->jvmTCP);
     delete req;
-    --ctx->thisClass->refCount;
 }
 
 // Each session calls the interface through the main thread message queue, which cannot be called directly across
@@ -373,6 +383,48 @@ bool HdcJdwp::SendJdwpNewFD(uint32_t targetPID, int fd)
         ++refCount;
         ret = true;
         WRITE_LOG(LOG_DEBUG, "SendJdwpNewFD successful targetPID:%d fd%d", targetPID, fd);
+        break;
+    }
+    return ret;
+}
+
+bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
+{
+    bool ret = false;
+    while (true) {
+        // str(ark:pid@tid@Debugger)
+        size_t pos = str.find_first_of(':');
+        std::string right = str.substr(pos + 1);
+        pos = right.find_first_of("@");
+        std::string pidstr = right.substr(0, pos);
+        uint32_t pid = std::atoi(pidstr.c_str());
+        HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
+        if (!ctx) {
+            break;
+        }
+        if (uv_tcp_init(loop, &ctx->jvmTCP)) {
+            break;
+        }
+        if (uv_tcp_open(&ctx->jvmTCP, fd)) {
+            break;
+        }
+        // transfer fd to jvm
+        // clang-format off
+        int size = sizeof(int32_t) + str.size();
+        // fd | str(ark:pid@tid@Debugger)
+        uint8_t buf[size];
+        Int2Bytes(fd, buf);
+        if (memcpy_s(buf + sizeof(int32_t), str.size(), str.c_str(), str.size()) != EOK) {
+            WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
+            return false;
+        }
+        if (Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, buf, size, nullptr,
+            (void *)SendCallbackJdwpNewFD, (const void *)ctx) < 0) {
+            break;
+        }
+        // clang-format on
+        ret = true;
+        WRITE_LOG(LOG_DEBUG, "SendArkNewFD successful str:%s fd%d", str.c_str(), fd);
         break;
     }
     return ret;

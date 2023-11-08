@@ -159,6 +159,7 @@ enum InnerCtrlCommand {
     SP_ATTACH_CHANNEL,
     SP_DEATCH_CHANNEL,
     SP_JDWP_NEWFD,
+    SP_ARK_NEWFD,
 };
 
 enum HdcCommand {

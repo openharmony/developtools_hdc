@@ -83,4 +83,63 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
     Base::IdleUvTask(loopTask, ctxPoint, SetupJdwpPointCallBack);
     return ret;
 }
+
+bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
+{
+    HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
+    HdcJdwp *clsJdwp = (HdcJdwp *)daemon->clsJdwp;
+    std::string ark = ctxPoint->localArgs[0]; // ark
+    std::string svr = ctxPoint->localArgs[1]; // pid@tid@Debugger
+    std::size_t found = svr.find_first_of("@");
+    if (found == std::string::npos) {
+        SetupPointContinue(ctxPoint, true);
+        WRITE_LOG(LOG_DEBUG, "SetupArkPoint failed id:%s", svr.c_str());
+        ctxPoint->lastError = ark + ":" + svr + " parameter invalid";
+        return false;
+    }
+    std::string pidstr = svr.substr(0, found);
+    uint32_t pid = std::atoi(pidstr.c_str());
+    bool ret = clsJdwp->CheckPIDExist(pid);
+    if (!ret) {
+        SetupPointContinue(ctxPoint, (int)ret);
+        WRITE_LOG(LOG_WARN, "SetupArkPoint failed pid:%u not exist", pid);
+        ctxPoint->lastError = ark + ":" + svr + " pid invalid";
+        return false;
+    }
+    // do slave connect
+    // fd[0] for forward, fd[1] for ark
+    int fds[2] = { 0 };
+    ret = false;
+    Base::CreateSocketPair(fds);
+    if (uv_tcp_init(loopTask, &ctxPoint->tcp)) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
+    ctxPoint->tcp.data = ctxPoint;
+    if (uv_tcp_open(&ctxPoint->tcp, fds[0])) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
+    std::string str = ark + ":" + svr;
+    int size = 1 + sizeof(int32_t) + str.size();
+    uint8_t buf[size];
+    buf[0] = SP_ARK_NEWFD;
+    if (memcpy_s(buf + 1, sizeof(int32_t), &fds[1], sizeof(int32_t)) ||
+        memcpy_s(buf + 1 + sizeof(int32_t), str.size(), str.c_str(), str.size())) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
+    // buf: SP_ARK_NEWFD | fd[1] | pid@tid@Debugger
+    if (ThreadCtrlCommunicate(buf, size) > 0) {
+        ret = true;
+    }
+    WRITE_LOG(LOG_DEBUG, "SetupArkPoint Finish,ret:%d fd0:%d fd1:%d", ret, fds[0], fds[1]);
+    if (!ret) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
+    ++refCount;
+    Base::IdleUvTask(loopTask, ctxPoint, SetupJdwpPointCallBack);
+    return ret;
+}
 }

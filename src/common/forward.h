@@ -31,6 +31,7 @@ protected:
         FORWARD_TCP,
         FORWARD_DEVICE,
         FORWARD_JDWP,
+        FORWARD_ARK,
         FORWARD_ABSTRACT,
         FORWARD_RESERVED,
         FORWARD_FILESYSTEM,
@@ -60,6 +61,10 @@ protected:
     };
 
     virtual bool SetupJdwpPoint(HCtxForward ctxPoint)
+    {
+        return false;
+    }
+    virtual bool SetupArkPoint(HCtxForward ctxPoint)
     {
         return false;
     }

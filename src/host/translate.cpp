@@ -239,7 +239,8 @@ namespace TranslateCommand {
             const char *p = input + 6;
             // clang-format off
             if (strncmp(p, "tcp:", 4) && strncmp(p, "localabstract:", 14) && strncmp(p, "localreserved:", 14) &&
-                strncmp(p, "localfilesystem:", 16) && strncmp(p, "dev:", 4) && strncmp(p, "jdwp:", 5)) {
+                strncmp(p, "localfilesystem:", 16) && strncmp(p, "dev:", 4) && strncmp(p, "jdwp:", 5) &&
+                strncmp(p, "ark:", 4)) {
                 stringError = "Incorrect forward command";
                 outCmd->bJumpDo = true;
             }

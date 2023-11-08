@@ -24,6 +24,7 @@ public:
 
 private:
     bool SetupJdwpPoint(HCtxForward ctxPoint) override;
+    bool SetupArkPoint(HCtxForward ctxPoint) override;
     static void SetupJdwpPointCallBack(uv_idle_t *handle);
 };
 }  // namespace Hdc

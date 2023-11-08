@@ -187,6 +187,7 @@ void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNot
     switch (ctx->type) {
         case FORWARD_TCP:
         case FORWARD_JDWP:
+        case FORWARD_ARK:
             Base::TryCloseHandle((uv_handle_t *)&ctx->tcp, true, funcHandleClose);
             break;
         case FORWARD_ABSTRACT:
@@ -341,6 +342,8 @@ bool HdcForwardBase::DetechForwardType(HCtxForward ctxPoint)
         ctxPoint->type = FORWARD_FILESYSTEM;
     } else if (sFType == "jdwp") {
         ctxPoint->type = FORWARD_JDWP;
+    } else if (sFType == "ark") {
+        ctxPoint->type = FORWARD_ARK;
     } else {
         return false;
     }
@@ -597,18 +600,37 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
     AdminContext(OP_UPDATE, idSlaveOld, ctxPoint);
     content += forwardParameterBufSize;
     if (!CheckNodeInfo(content, ctxPoint->localArgs)) {
-        return false;
+        WRITE_LOG(LOG_FATAL, "SlaveConnect CheckNodeInfo failed content:%s", content);
+        goto Finish;
     }
-    if ((ctxPoint->checkPoint && slaveCheckWhenBegin) || !ctxPoint->checkPoint) {
-        if (!SetupPoint(ctxPoint)) {
-            WRITE_LOG(LOG_FATAL, "SetupPoint failed");
-            goto Finish;
+    if (!DetechForwardType(ctxPoint)) {
+        WRITE_LOG(LOG_FATAL, "SlaveConnect DetechForwardType failed content:%s", content);
+        goto Finish;
+    }
+    WRITE_LOG(LOG_DEBUG, "id:%u type:%d", ctxPoint->id, ctxPoint->type);
+    if (ctxPoint->type == FORWARD_ARK) {
+        if (ctxPoint->checkPoint) {
+            if (!SetupArkPoint(ctxPoint)) {
+                sError = ctxPoint->lastError;
+                WRITE_LOG(LOG_FATAL, "SlaveConnect SetupArkPoint failed content:%s", content);
+                goto Finish;
+            }
+        } else {
+            SetupPointContinue(ctxPoint, 0);
         }
-        sError = ctxPoint->lastError;
-    } else {
-        SetupPointContinue(ctxPoint, 0);
-    }
-    ret = true;
+        ret = true;
+     } else {
+        if (!ctxPoint->checkPoint) {
+            if (!SetupPoint(ctxPoint)) {
+                sError = ctxPoint->lastError;
+                WRITE_LOG(LOG_FATAL, "SlaveConnect SetupPoint failed content:%s", content);
+                goto Finish;
+            }
+        } else {
+            SetupPointContinue(ctxPoint, 0);
+        }
+        ret = true;
+     }
 Finish:
     if (!ret) {
         FreeContext(ctxPoint, 0, true);
@@ -621,6 +643,7 @@ bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
     switch (ctx->type) {
         case FORWARD_TCP:
         case FORWARD_JDWP:  // jdwp use tcp ->socketpair->jvm
+        case FORWARD_ARK:
             uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
             uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
             break;
@@ -706,7 +729,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         }
         ctxIO->ctxForward = ctx;
         ctxIO->bufIO = pDynBuf;
-        if (ctx->type == FORWARD_TCP || ctx->type == FORWARD_JDWP) {
+        if (ctx->type == FORWARD_TCP || ctx->type == FORWARD_JDWP || ctx->type == FORWARD_ARK) {
             nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->tcp, pDynBuf, size, nullptr,
                                         (void *)SendCallbackForwardBuf, (void *)ctxIO);
         } else {
@@ -720,8 +743,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
 
 bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload)
 {
-    bool ret = true;
-    bool bCheck = static_cast<bool>(payload);
+    bool bCheck = static_cast<bool>(payload[0]);
     LogMsg(bCheck ? MSG_OK : MSG_FAIL, "Forwardport result:%s", bCheck ? "OK" : "Failed");
     if (bCheck) {
         string mapInfo = taskInfo->serverOrDaemon ? "1|" : "0|";
@@ -730,10 +752,9 @@ bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload
         ServerCommand(CMD_FORWARD_SUCCESS, reinterpret_cast<uint8_t *>(const_cast<char *>(mapInfo.c_str())),
                       mapInfo.size() + 1);
     } else {
-        ret = false;
         FreeContext(ctx, 0, false);
     }
-    return ret;
+    return true;
 }
 
 bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
@@ -751,7 +772,7 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
     }
     switch (command) {
         case CMD_FORWARD_CHECK_RESULT: {
-            ret = CommandForwardCheckResult(ctx, payload);
+            ret = CommandForwardCheckResult(ctx, pContent);
             break;
         }
         case CMD_FORWARD_ACTIVE_MASTER: {

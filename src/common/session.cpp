@@ -983,7 +983,8 @@ bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8
     uint8_t flag = *const_cast<uint8_t *>(baseBuf);
 
     switch (flag) {
-        case SP_JDWP_NEWFD: {
+        case SP_JDWP_NEWFD:
+        case SP_ARK_NEWFD: {
             JdwpNewFileDescriptor(baseBuf, bytesIO);
             break;
         }
@@ -1000,7 +1001,7 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     const int size = Base::GetMaxBufSize();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
-    ssize_t nread = Base::ReadFromFd(hSession->ctrlFd[STREAM_WORK], buf, size);
+    ssize_t nread = Base::ReadFromFd(hSession->ctrlFd[STREAM_MAIN], buf, size);
     while (true) {
         if (nread < 0) {
             constexpr int bufSize = 1024;

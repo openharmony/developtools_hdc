@@ -173,13 +173,26 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 }
 
 #ifdef JS_JDWP_CONNECT
-string HdcJdwp::GetProcessListExtendPkgName()
+string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
 {
     string ret;
     uv_rwlock_rdlock(&lockMapContext);
     for (auto &&v : mapCtxJdwp) {
         HCtxJdwp hj = v.second;
-        ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+        if (dr == 0) {
+            // allApp
+            ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+        } else if (dr == 1) {
+            // debugApp
+            if (hj->isDebug) {
+                ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+            }
+        } else {
+            // releaseApp
+            if (!hj->isDebug) {
+                ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+            }
+        }
     }
     uv_rwlock_rdunlock(&lockMapContext);
     return ret;
@@ -449,13 +462,13 @@ string HdcJdwp::GetProcessList()
 }
 // cross thread call finish
 
-size_t HdcJdwp::JdwpProcessListMsg(char *buffer, size_t bufferlen)
+size_t HdcJdwp::JdwpProcessListMsg(char *buffer, size_t bufferlen, uint8_t dr)
 {
     // Message is length-prefixed with 4 hex digits in ASCII.
     static constexpr size_t headerLen = 5;
     char head[headerLen + 2];
 #ifdef JS_JDWP_CONNECT
-    string result = GetProcessListExtendPkgName();
+    string result = GetProcessListExtendPkgName(dr);
 #else
     string result = GetProcessList();
 #endif // JS_JDWP_CONNECT
@@ -504,14 +517,13 @@ void HdcJdwp::ProcessListUpdated(HTaskInfo task)
     static constexpr uint32_t jpidTrackListSize = 1024;
 #endif // JS_JDWP_CONNECT
     std::string data;
-    data.resize(jpidTrackListSize);
-    size_t len = JdwpProcessListMsg(&data[0], data.size());
-    if (len <= 0) {
-        return;
-    }
-    data.resize(len);
     if (task != nullptr) {
-        SendProcessList(task, data);
+        data.resize(jpidTrackListSize);
+        size_t len = JdwpProcessListMsg(&data[0], data.size(), task->debugRelease);
+        if (len > 0) {
+            data.resize(len);
+            SendProcessList(task, data);
+        }
         return;
     }
     for (auto iter = jdwpTrackers.begin(); iter != jdwpTrackers.end();) {
@@ -525,7 +537,12 @@ void HdcJdwp::ProcessListUpdated(HTaskInfo task)
                 return;
             }
         } else {
-            SendProcessList(*iter, data);
+            data.resize(jpidTrackListSize);
+            size_t len = JdwpProcessListMsg(&data[0], data.size(), (*iter)->debugRelease);
+            if (len > 0) {
+                data.resize(len);
+                SendProcessList(*iter, data);
+            }
             iter++;
         }
     }

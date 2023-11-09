@@ -43,9 +43,9 @@ private:
     struct JsMsgHeader {
         uint32_t msgLen;
         uint32_t pid;
-        uint8_t isDebug; // 1:DebugApp 0:releaseApp
+        uint8_t isDebug; // 1:debugApp 0:releaseApp
     };
-    string GetProcessListExtendPkgName();
+    string GetProcessListExtendPkgName(uint8_t dr);
 #endif // JS_JDWP_CONNECT
     struct _PollFd {
         int fd;
@@ -89,7 +89,7 @@ private:
     static void *FdEventPollThread(void *args);
     static uint8_t *Int2Bytes(int32_t value, uint8_t b[]);
     void RemoveFdFromPollList(uint32_t pid);
-    size_t JdwpProcessListMsg(char *buffer, size_t bufferlen);
+    size_t JdwpProcessListMsg(char *buffer, size_t bufferlen, uint8_t dr);
     void *MallocContext();
     void FreeContext(HCtxJdwp ctx);
     void *AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJdwp);

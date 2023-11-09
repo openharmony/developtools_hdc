@@ -283,6 +283,7 @@ struct TaskInformation {
     uint32_t closeRetryCount;
     bool channelTask;
     void *channelClass;
+    uint8_t debugRelease; // 0:allApp 1:debugApp 2:releaseApp
 };
 using HTaskInfo = TaskInformation *;
 

@@ -620,11 +620,25 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     }
     s = ListTargetsAll(s);
     if (g_show) {
+#ifdef _WIN32
         fprintf(stdout, "%s", s.c_str());
         fflush(stdout);
-        if (!strncmp(command.c_str(), (CMDSTR_SHELL + " ").c_str(), CMDSTR_SHELL.size() + 1)) {
+#else
+        constexpr int len = 1024;
+        int size = s.size() / len;
+        int left = s.size() % len;
+        for (int i = 0; i <= size; i++) {
+            int cnt = len;
+            const char *p = reinterpret_cast<char *>(buf) + i * cnt;
+            if (i == size) {
+                cnt = left;
+            }
+            string ss(p, cnt);
+            fprintf(stdout, "%s", ss.c_str());
+            fflush(stdout);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+#endif
     }
     return 0;
 }

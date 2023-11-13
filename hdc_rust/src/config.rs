@@ -1,0 +1,292 @@
+//! config
+#![allow(missing_docs)]
+
+use std::convert::TryFrom;
+
+use log::LevelFilter;
+
+#[allow(unused)]
+pub enum CompressType {
+    None = 0,
+    Lz4,
+    Lz77,
+    Lzma,
+    Brotli,
+}
+
+#[allow(unused)]
+#[derive(Clone, Default)]
+pub enum ConnectType {
+    Usb(String),
+    #[default]
+    Tcp,
+    Uart,
+    Bt,
+}
+
+pub enum ErrCode {
+    Success = 0,
+    ModuleJdwpFailed = -18000,
+}
+
+pub enum NodeType {
+    Server,
+    Daemon,
+}
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+#[repr(u32)]
+pub enum HdcCommand {
+    KernelHelp = 0,
+    KernelHandshake,
+    KernelChannelClose,
+    KernelServerKill,
+    KernelTargetDiscover,
+    KernelTargetList,
+    KernelTargetAny,
+    KernelTargetConnect,
+    KernelTargetDisconnect,
+    KernelEcho,
+    KernelEchoRaw,
+    KernelEnableKeepalive,
+    KernelWakeupSlavetask,
+    KernelCheckServer,
+    KernelCheckDevice,
+    KernelWaitFor,
+
+    // New in refactor
+    KernelServerStart,
+    ClientVersion,
+    ClientKeyGenerate,
+
+    // One-pass simple commands
+    UnityCommandHead = 1000, // not use
+    UnityExecute,
+    UnityRemount,
+    UnityReboot,
+    UnityRunmode,
+    UnityHilog,
+    UnityTerminate,
+    UnityRootrun,
+    JdwpList,
+    JdwpTrack,
+    UnityCommandTail, // not use
+    // It will be separated from unity in the near future
+    UnityBugreportInit,
+    UnityBugreportData,
+    // Shell commands types
+    ShellInit = 2000,
+    ShellData,
+    // Forward commands types
+    ForwardInit = 2500,
+    ForwardCheck,
+    ForwardCheckResult,
+    ForwardActiveSlave,
+    ForwardActiveMaster,
+    ForwardData,
+    ForwardFreeContext,
+    ForwardList,
+    ForwardRemove,
+    ForwardSuccess,
+    // File commands
+    FileInit = 3000,
+    FileCheck,
+    FileBegin,
+    FileData,
+    FileFinish,
+    AppSideload,
+    FileMode,
+    DirMode,
+    // App commands
+    AppInit = 3500,
+    AppCheck,
+    AppBegin,
+    AppData,
+    AppFinish,
+    AppUninstall,
+    // Flashd commands
+    FlashdUpdateInit = 4000,
+    FlashdFlashInit,
+    FlashdCheck,
+    FlashdBegin,
+    FlashdData,
+    FlashdFinish,
+    FlashdErase,
+    FlashdFormat,
+    FlashdProgress,
+}
+
+impl TryFrom<u32> for HdcCommand {
+    type Error = ();
+    fn try_from(cmd: u32) -> Result<Self, ()> {
+        match cmd {
+            0 => Ok(Self::KernelHelp),
+            1 => Ok(Self::KernelHandshake),
+            2 => Ok(Self::KernelChannelClose),
+            3 => Ok(Self::KernelServerKill),
+            4 => Ok(Self::KernelTargetDiscover),
+            5 => Ok(Self::KernelTargetList),
+            6 => Ok(Self::KernelTargetAny),
+            7 => Ok(Self::KernelTargetConnect),
+            8 => Ok(Self::KernelTargetDisconnect),
+            9 => Ok(Self::KernelEcho),
+            10 => Ok(Self::KernelEchoRaw),
+            11 => Ok(Self::KernelEnableKeepalive),
+            12 => Ok(Self::KernelWakeupSlavetask),
+            13 => Ok(Self::KernelCheckServer),
+            14 => Ok(Self::KernelCheckDevice),
+            15 => Ok(Self::KernelWaitFor),
+
+            1000 => Ok(Self::UnityCommandHead),
+            1001 => Ok(Self::UnityExecute),
+            1002 => Ok(Self::UnityRemount),
+            1003 => Ok(Self::UnityReboot),
+            1004 => Ok(Self::UnityRunmode),
+            1005 => Ok(Self::UnityHilog),
+            1006 => Ok(Self::UnityTerminate),
+            1007 => Ok(Self::UnityRootrun),
+            1008 => Ok(Self::JdwpList),
+            1009 => Ok(Self::JdwpTrack),
+            1010 => Ok(Self::UnityCommandTail),
+            1011 => Ok(Self::UnityBugreportInit),
+            1012 => Ok(Self::UnityBugreportData),
+
+            2000 => Ok(Self::ShellInit),
+            2001 => Ok(Self::ShellData),
+
+            2500 => Ok(Self::ForwardInit),
+            2501 => Ok(Self::ForwardCheck),
+            2502 => Ok(Self::ForwardCheckResult),
+            2503 => Ok(Self::ForwardActiveSlave),
+            2504 => Ok(Self::ForwardActiveMaster),
+            2505 => Ok(Self::ForwardData),
+            2506 => Ok(Self::ForwardFreeContext),
+            2507 => Ok(Self::ForwardList),
+            2508 => Ok(Self::ForwardRemove),
+            2509 => Ok(Self::ForwardSuccess),
+
+            3000 => Ok(Self::FileInit),
+            3001 => Ok(Self::FileCheck),
+            3002 => Ok(Self::FileBegin),
+            3003 => Ok(Self::FileData),
+            3004 => Ok(Self::FileFinish),
+            3005 => Ok(Self::AppSideload),
+            3006 => Ok(Self::FileMode),
+            3007 => Ok(Self::DirMode),
+
+            3500 => Ok(Self::AppInit),
+            3501 => Ok(Self::AppCheck),
+            3502 => Ok(Self::AppBegin),
+            3503 => Ok(Self::AppData),
+            3504 => Ok(Self::AppFinish),
+            3505 => Ok(Self::AppUninstall),
+
+            4000 => Ok(Self::FlashdUpdateInit),
+            4001 => Ok(Self::FlashdFlashInit),
+            4002 => Ok(Self::FlashdCheck),
+            4003 => Ok(Self::FlashdBegin),
+            4004 => Ok(Self::FlashdData),
+            4005 => Ok(Self::FlashdFinish),
+            4006 => Ok(Self::FlashdErase),
+            4007 => Ok(Self::FlashdFormat),
+            4008 => Ok(Self::FlashdProgress),
+
+            _ => Err(()),
+        }
+    }
+}
+
+#[allow(unused)]
+pub enum AuthType {
+    None,
+    Token,
+    Signature,
+    Publickey,
+    OK,
+    Fail,
+}
+
+pub enum AppModeType {
+    Install = 1,
+    UnInstall,
+}
+
+impl TryFrom<u8> for AppModeType {
+    type Error = ();
+    fn try_from(cmd: u8) -> Result<Self, ()> {
+        match cmd {
+            1 => Ok(Self::Install),
+            2 => Ok(Self::UnInstall),
+            _ => Err(()),
+        }
+    }
+}
+
+pub const PACKET_FLAG: &[u8] = "HW".as_bytes();
+pub const VER_PROTOCOL: u16 = 1;
+pub const ENABLE_IO_CHECK: bool = false;
+pub const PAYLOAD_VCODE: u8 = 0x09;
+pub const HDC_BUF_MAX_SIZE: usize = 0x7fffffff;
+pub const HANDSHAKE_MESSAGE: &str = "OHOS HDC";
+pub const BANNER_SIZE: usize = 12;
+pub const KEY_MAX_SIZE: usize = 32;
+pub const FILE_PACKAGE_HEAD: usize = 64;
+pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
+
+pub const SHELL_PROG: &str = "sh";
+pub const SHELL_TEMP: &str = "/data/local/tmp/hdc-pty";
+
+pub const LOG_FILE_NAME: &str = "hdc_rust.log"; // TODO: change to hdc.log
+pub const LOG_FILE_SIZE: usize = 1024;
+
+pub const DAEMON_PORT: u16 = 60000;
+pub const SERVER_DEFAULT_PORT: u16 = 9710;
+pub const MAX_PORT_NUM: u16 = 65535;
+pub const IPV4_MAPPING_PREFIX: &str = "::ffff:";
+pub const LOCAL_HOST: &str = "127.0.0.1";
+
+pub const UART_NODE: &str = "/dev/ttyS4";
+pub const UART_DEFAULT_BAUD_RATE: i32 = 1500000;
+pub const UART_DEFAULT_BITS: i32 = 8;
+pub const UART_EVENT: u8 = 78;
+
+pub const USB_FFS_BASE: &str = "/dev/usb-ffs/";
+pub const USB_PACKET_FLAG: &[u8] = "UB".as_bytes();
+pub const USB_QUEUE_LEN: usize = 64;
+
+pub const TRANSFER_FUNC_NAME: &str = "install";
+pub const INSTALL_TMP_DIR: &str = "/data/local/tmp/";
+
+pub const ENV_HDC_MODE: &str = "persist.hdc.mode";
+pub const ENV_HOST_PORT: &str = "persist.hdc.port";
+pub const MODE_USB: &str = "usb";
+pub const MODE_TCP: &str = "tcp";
+pub const PREFIX_PORT: &str = "port ";
+pub const SHELL_PARAM_SET: &str = "param set";
+pub const ENV_ROOT_RUN_MODE: &str = "persist.hdc.root";
+
+pub const RSA_BIT_NUM: usize = 3072;
+pub const RSA_PUBKEY_PATH: &str = "/data/misc/hdc";
+pub const RSA_PUBKEY_NAME: &str = "hdc_keys";
+pub const RSA_PRIKEY_PATH: &str = ".harmony";
+pub const RSA_PRIKEY_NAME: &str = "hdckey";
+
+pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
+    LevelFilter::Off,
+    LevelFilter::Error,
+    LevelFilter::Warn,
+    LevelFilter::Info,
+    LevelFilter::Debug,
+    LevelFilter::Trace,
+    LevelFilter::Trace,
+];
+
+const HDC_VERSION_NUMBER: u32 = 0x10400000;
+
+pub fn get_version() -> String {
+    let major = (HDC_VERSION_NUMBER >> 28) & 0xff;
+    let minor = (HDC_VERSION_NUMBER >> 20) & 0xff;
+    let version = (HDC_VERSION_NUMBER >> 12) & 0xff;
+    let fix = std::char::from_u32(((HDC_VERSION_NUMBER >> 8) & 0xff) + 0x61).unwrap();
+    format!("Ver: {major}.{minor}.{version}{}", fix)
+}

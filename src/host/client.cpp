@@ -624,7 +624,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         fprintf(stdout, "%s", s.c_str());
         fflush(stdout);
 #else
-        constexpr int len = 1024;
+        constexpr int len = 512;
         int size = s.size() / len;
         int left = s.size() % len;
         for (int i = 0; i <= size; i++) {
@@ -633,8 +633,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
             if (i == size) {
                 cnt = left;
             }
-            string ss(p, cnt);
-            fprintf(stdout, "%s", ss.c_str());
+            fprintf(stdout, "%.*s", cnt, p);
             fflush(stdout);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }

@@ -105,7 +105,8 @@ int HdcDaemonUSB::Initial()
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB init");
     basePath = GetDevPath(USB_FFS_BASE);
     if (access((basePath + "/ep0").c_str(), F_OK) != 0) {
-        WRITE_LOG(LOG_DEBUG, "Only support usb-ffs, make sure kernel3.8+ and usb-ffs enabled, usbmode disabled: errno: %d", errno);
+        WRITE_LOG(LOG_DEBUG,"Only support usb-ffs, make sure kernel3.8+ and usb-ffs enabled, "
+                  "usbmode disabled: errno: %d, basePath: %s ", errno, basePath.c_str());
         return ERR_API_FAIL;
     }
     ctxRecv.thisClass = this;

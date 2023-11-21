@@ -447,6 +447,7 @@ int main(int argc, const char *argv[])
     if (cmdOptionResult) {
         return 0;
     }
+    Base::InitProcess();
     if (g_isServerMode) {
         // -m server.Run alone in the background, no -s will be listen loopback address
         Hdc::RunServerMode(g_serverListenString);

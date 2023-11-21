@@ -31,7 +31,7 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     constexpr int DEF_FILE_PERMISSION = 0750;
-#ifndef HDC_HOST
+#ifndef _WIN32
     sigset_t g_blockList;
 #endif
     uint8_t GetLogLevel()
@@ -1634,7 +1634,7 @@ namespace Base {
 
     void InitProcess(void)
     {
-#ifndef HDC_HOST
+#ifndef _WIN32
         umask(0);
         signal(SIGPIPE, SIG_IGN);
         signal(SIGCHLD, SIG_IGN);
@@ -1648,7 +1648,7 @@ namespace Base {
 
     void DeInitProcess(void)
     {
-#ifndef HDC_HOST
+#ifndef _WIN32
         mode_t writePermission = 022;
         umask(writePermission);
         signal(SIGPIPE, SIG_DFL);

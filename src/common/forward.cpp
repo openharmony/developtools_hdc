@@ -747,7 +747,7 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
     sizeContent = payloadSize - DWORD_SERIALIZE_SIZE;
     if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
         WRITE_LOG(LOG_WARN, "Query id failed");
-        return false;
+        return true;
     }
     switch (command) {
         case CMD_FORWARD_CHECK_RESULT: {

@@ -431,16 +431,48 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
             WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
             return false;
         }
-        if (Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, buf, size, nullptr,
-            (void *)SendCallbackJdwpNewFD, (const void *)ctx) < 0) {
-            break;
-        }
-        // clang-format on
+        uv_stream_t *stream = (uv_stream_t *)&ctx->pipe;
+        SendFdToApp(stream->io_watcher.fd, buf, size, fd);
         ret = true;
         WRITE_LOG(LOG_DEBUG, "SendArkNewFD successful str:%s fd%d", str.c_str(), fd);
         break;
     }
     return ret;
+}
+
+bool HdcJdwp::SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
+{
+    struct iovec iov;
+    iov.iov_base = buf;
+    iov.iov_len = size;
+    struct msghdr msg;
+    msg.msg_name = nullptr;
+    msg.msg_namelen = 0;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    int len = CMSG_SPACE(static_cast<unsigned int>(sizeof(fd)));
+    char ctlBuf[len];
+    msg.msg_control = ctlBuf;
+    msg.msg_controllen = sizeof(ctlBuf);
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+    if (cmsg == nullptr) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp cmsg is nullptr");
+        return false;
+    }
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+    if (memcpy_s(CMSG_DATA(cmsg), sizeof(fd), &fd, sizeof(fd)) != 0) {
+        WRITE_LOG(LOG_FATAL,"SendFdToApp memcpy error:%d", errno);
+        return false;
+    }
+    if (sendmsg(sockfd, &msg, 0) < 0) {
+        WRITE_LOG(LOG_FATAL,"SendFdToApp sendmsg errno:%d", errno);
+        return false;
+    }
+    return true;
 }
 
 // cross thread call begin

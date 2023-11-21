@@ -31,6 +31,7 @@ public:
     bool SendJdwpNewFD(uint32_t targetPID, int fd);
     bool SendArkNewFD(const std::string str, int fd);
     bool CheckPIDExist(uint32_t targetPID);
+    bool SendFdToApp(int sockfd, uint8_t *buf, int size, int fd);
 
 #ifdef FUZZ_TEST
 public:

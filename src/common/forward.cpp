@@ -643,7 +643,13 @@ bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
     switch (ctx->type) {
         case FORWARD_TCP:
         case FORWARD_JDWP:  // jdwp use tcp ->socketpair->jvm
+            uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
+            uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
+            break;
         case FORWARD_ARK:
+            WRITE_LOG(LOG_DEBUG, "DoForwardBegin ark socketpair cid:%u fds[0]:%d", ctx->id, fds[0]);
+            uv_tcp_init(loopTask, &ctx->tcp);
+            uv_tcp_open(&ctx->tcp, fds[0]);
             uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
             uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
             break;

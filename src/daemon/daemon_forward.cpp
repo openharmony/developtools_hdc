@@ -108,18 +108,8 @@ bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
     }
     // do slave connect
     // fd[0] for forward, fd[1] for ark
-    int fds[2] = { 0 };
     ret = false;
     Base::CreateSocketPair(fds);
-    if (uv_tcp_init(loopTask, &ctxPoint->tcp)) {
-        Base::CloseSocketPair(fds);
-        return ret;
-    }
-    ctxPoint->tcp.data = ctxPoint;
-    if (uv_tcp_open(&ctxPoint->tcp, fds[0])) {
-        Base::CloseSocketPair(fds);
-        return ret;
-    }
     std::string str = ark + ":" + svr;
     int size = 1 + sizeof(int32_t) + str.size();
     uint8_t buf[size];

@@ -25,6 +25,7 @@ public:
     bool BeginForward(const string &command, string &sError);
     void StopTask() override;
     bool ReadyForRelease() override;
+    int fds[2];
 
 protected:
     enum FORWARD_TYPE {

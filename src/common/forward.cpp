@@ -627,7 +627,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
                 goto Finish;
             }
         } else {
-            SetupPointContinue(ctxPoint, 0);
+            SetupPointContinue(ctxPoint, 1);
         }
         ret = true;
      }

@@ -36,7 +36,7 @@ private:
     bool GetHiLog(const char *cmd);
     bool ListJdwpProcess(void *daemonIn);
     bool AsyncCmdOut(bool finish, int64_t exitStatus, const string result);
-    bool TrackJdwpProcess(void *daemonIn);
+    bool TrackJdwpProcess(void *daemonIn, const string& param);
     void RemoveJdwpTracker();
 
     AsyncCmd asyncCommand;

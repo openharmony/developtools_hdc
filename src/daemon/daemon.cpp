@@ -464,9 +464,18 @@ bool HdcDaemon::ServerCommand(const uint32_t sessionId, const uint32_t channelId
 
 void HdcDaemon::JdwpNewFileDescriptor(const uint8_t *buf, const int bytesIO)
 {
-    uint32_t pid = *reinterpret_cast<uint32_t *>(const_cast<uint8_t *>(buf + 1));
-    uint32_t fd = *reinterpret_cast<uint32_t *>(const_cast<uint8_t *>(buf + 5));  // 5 : fd offset
-    ((HdcJdwp *)clsJdwp)->SendJdwpNewFD(pid, fd);
+    uint8_t spcmd = *const_cast<uint8_t *>(buf);
+    if (spcmd == SP_JDWP_NEWFD) {
+        uint32_t pid = *reinterpret_cast<uint32_t *>(const_cast<uint8_t *>(buf + 1));
+        uint32_t fd = *reinterpret_cast<uint32_t *>(const_cast<uint8_t *>(buf + 5));  // 5 : fd offset
+        ((HdcJdwp *)clsJdwp)->SendJdwpNewFD(pid, fd);
+    } else if (spcmd == SP_ARK_NEWFD) {
+        // SP_ARK_NEWFD | fd[1] | ark:pid@tid@Debugger
+        int32_t fd = *reinterpret_cast<int32_t *>(const_cast<uint8_t *>(buf + 1));
+        std::string arkstr = std::string((char *)buf + 5, bytesIO - 5);  // 5 : fd offset
+        WRITE_LOG(LOG_DEBUG, "JdwpNewFileDescriptor arkstr:%s fd:%d", arkstr.c_str(), fd);
+        ((HdcJdwp *)clsJdwp)->SendArkNewFD(arkstr, fd);
+    }
 }
 
 void HdcDaemon::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)

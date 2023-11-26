@@ -25,12 +25,14 @@ public:
     bool BeginForward(const string &command, string &sError);
     void StopTask() override;
     bool ReadyForRelease() override;
+    int fds[2];
 
 protected:
     enum FORWARD_TYPE {
         FORWARD_TCP,
         FORWARD_DEVICE,
         FORWARD_JDWP,
+        FORWARD_ARK,
         FORWARD_ABSTRACT,
         FORWARD_RESERVED,
         FORWARD_FILESYSTEM,
@@ -60,6 +62,10 @@ protected:
     };
 
     virtual bool SetupJdwpPoint(HCtxForward ctxPoint)
+    {
+        return false;
+    }
+    virtual bool SetupArkPoint(HCtxForward ctxPoint)
     {
         return false;
     }

@@ -12,19 +12,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//! transfer
+//! taskbase
+#![allow(missing_docs)]
 
-pub mod base;
-pub mod buffer;
-pub mod tcp;
-pub mod uart;
-pub mod usb;
-pub use buffer::put;
-pub use buffer::send_channel_data;
-pub use buffer::send_channel_msg;
-pub use buffer::usb_start_recv;
-pub use buffer::ChannelMap;
-pub use buffer::EchoLevel;
-pub use buffer::TcpMap;
-pub use buffer::UartMap;
-pub use buffer::UsbMap;
+use crate::config::HdcCommand;
+
+pub trait TaskBase: Send + Sync + 'static {
+    fn command_dispatch(
+        &mut self,
+        _command: HdcCommand,
+        _payload: &[u8],
+        _payload_size: u16,
+    ) -> bool;
+    fn stop_task(&mut self);
+    fn ready_for_release(&mut self) -> bool;
+    fn channel_id(&self) -> u32 {
+        0
+    }
+    fn task_finish(&self);
+}

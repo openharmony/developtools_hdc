@@ -12,19 +12,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//! transfer
+//! sendmsg
+#![allow(missing_docs)]
+use std::ffi::c_int;
 
-pub mod base;
-pub mod buffer;
-pub mod tcp;
-pub mod uart;
-pub mod usb;
-pub use buffer::put;
-pub use buffer::send_channel_data;
-pub use buffer::send_channel_msg;
-pub use buffer::usb_start_recv;
-pub use buffer::ChannelMap;
-pub use buffer::EchoLevel;
-pub use buffer::TcpMap;
-pub use buffer::UartMap;
-pub use buffer::UsbMap;
+extern "C" {
+    fn SendMsg_(socket_fd: c_int, fd: c_int, data: *mut libc::c_char, size: c_int) -> c_int;
+}
+
+pub fn send_msg(socket_fd: i32, fd: i32, data: &[u8]) -> i32 {
+    unsafe { SendMsg_(socket_fd, fd, data.as_ptr() as *mut u8, data.len() as i32) }
+}

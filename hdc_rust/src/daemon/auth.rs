@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,10 +18,10 @@
 use hdc::config::{self, *};
 use hdc::serializer::native_struct;
 use hdc::serializer::serialize::Serialization;
+use hdc::transfer;
 use hdc::utils;
-use hdc::{common::hsession::*, transfer};
-use hdc::utils::hdc_log::*;
 
+use crate::transfer::base::CheckCompressVersion;
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::sync::RwLock;
@@ -81,6 +81,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
 
     // auth is not required
     if recv.version.as_str() < "Ver: 1.3.1" {
+        CheckCompressVersion::set(false).await;
         return Ok((
             recv.session_id,
             make_ok_message(recv.session_id, task_message.channel_id).await,

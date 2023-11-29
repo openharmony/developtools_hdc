@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,7 +17,7 @@
 
 use ylong_runtime::sync::mpsc::BoundedSender;
 
-use crate::common::hsession::TaskMessage;
+use crate::config::TaskMessage;
 use crate::config::*;
 use crate::serializer;
 use crate::utils;
@@ -25,6 +25,34 @@ use crate::utils;
 use crate::utils::hdc_log::*;
 
 use std::io::{self, Error, ErrorKind};
+use std::sync::Arc;
+use ylong_runtime::sync::Mutex;
+
+type BOOL_ = Arc<Mutex<bool>>;
+
+pub struct CheckCompressVersion {}
+impl CheckCompressVersion {
+    pub fn get_instance() -> BOOL_ {
+        static mut CAN_COMPRESS: Option<BOOL_> = Option::None;
+        unsafe {
+            CAN_COMPRESS
+                .get_or_insert_with(|| Arc::new(Mutex::new(true)))
+                .clone()
+        }
+    }
+
+    pub async fn set(check_version: bool) {
+        let arc = Self::get_instance();
+        let mut mutex = arc.lock().await;
+        *mutex = check_version;
+    }
+
+    pub async fn get() -> bool {
+        let arc = Self::get_instance();
+        let mutex = arc.lock().await;
+        *mutex
+    }
+}
 
 pub trait Writer {
     fn write_all(&self, data: Vec<u8>) -> io::Result<()>;

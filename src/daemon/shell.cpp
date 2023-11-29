@@ -277,7 +277,7 @@ bool HdcShell::FinishShellProc(const void *context, const bool result, const str
 bool HdcShell::ChildReadCallback(const void *context, uint8_t *buf, const int size)
 {
     HdcShell *thisClass = reinterpret_cast<HdcShell *>(const_cast<void *>(context));
-    return thisClass->SendToAnother(CMD_KERNEL_ECHO_RAW, reinterpret_cast<uint8_t *>buf, size);
+    return thisClass->SendToAnother(CMD_KERNEL_ECHO_RAW, reinterpret_cast<uint8_t *>(buf), size);
 };
 
 int HdcShell::StartShell()

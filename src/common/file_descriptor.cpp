@@ -69,10 +69,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool fetalFinish = false;
     ssize_t nBytes;
 #ifndef HDC_HOST
-    constexpr int epoll_size = 1;
-    int epfd = epoll_create(epoll_size);
+    constexpr int epollSize = 1;
+    int epfd = epoll_create(epollSize);
     struct epoll_event ev;
-    struct epoll_event events[epoll_size];
+    struct epoll_event events[epollSize];
     ev.data.fd = thisClass->fdIO;
     ev.events = EPOLLIN | EPOLLET;
     epoll_ctl(epfd, EPOLL_CTL_ADD, thisClass->fdIO, &ev);
@@ -89,7 +89,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             break;
         }
 #ifndef HDC_HOST
-        int rc = epoll_wait(epfd, events, epoll_size, SECONDS_TIMEOUT * TIME_BASE);
+        int rc = epoll_wait(epfd, events, epollSize, SECONDS_TIMEOUT * TIME_BASE);
 #else
         struct timeval timeout;
         timeout.tv_sec = SECONDS_TIMEOUT;

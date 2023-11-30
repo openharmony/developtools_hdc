@@ -15,6 +15,7 @@
 //! forward
 #![allow(missing_docs)]
 use libc::{AF_LOCAL, AF_UNIX, FD_CLOEXEC, F_SETFD};
+use libc::SOCK_STREAM;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Error, ErrorKind};
@@ -180,6 +181,7 @@ impl ForwardTaskMap {
         let map = arc.lock().await;
         let task = map.get(&(session_id, channel_id));
         if task.is_none() {
+            println!("ForwardTaskMap result: is none");
             return Option::None;
         }
 
@@ -228,6 +230,7 @@ pub fn get_id(_payload: &[u8]) -> u32 {
 }
 
 pub async fn check_node_info(value: &String, arg: &mut Vec<String>) -> bool {
+    println!("check_node_info::value {:#?}", value);
     if !value.contains(':') {
         return false;
     }
@@ -339,7 +342,7 @@ pub async fn forward_tcp_start(
     let saddr = format!("127.0.0.1:{}", port);
     let listener: TcpListener = TcpListener::bind(saddr.clone()).await?;
     loop {
-        let (stream, addr) = listener.accept().await?;
+        let (stream, _addr) = listener.accept().await?;
         let (rd, wr) = stream.into_split();
         TcpReadStreamMap::put(cid, rd).await;
         TcpWriteStreamMap::put(cid, wr).await;
@@ -451,6 +454,7 @@ pub async fn handle_client(session_id: u32, channel_id: u32, fd: i32) {
 }
 
 async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: bool) {
+    println!("free_context id = {id}");
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
         return;
@@ -602,7 +606,7 @@ fn get_pid(parameter: &str, forward_type: ForwardType) -> u32 {
 }
 
 pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
+    let task: Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
         return false;
     }
@@ -616,7 +620,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
         return false;
     }
 
-    let result = UdsServer::wrap_pipe();
+    let result = UdsServer::wrap_socketpair(SOCK_STREAM);
     if result.is_err() {
         return false;
     }
@@ -625,6 +629,8 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     if let Ok((fd0, fd1)) = result {
         println!("pipe, fd0:{}, fd1:{}", fd0, fd1);
         local_fd = fd0;
+        task.context_forward.fd = local_fd;
+        ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         target_fd = fd1;
     }
 
@@ -637,6 +643,8 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
                 println!("disconnect, error:{}.", size);
                 break;
             }
+            let str = String::from_utf8(buffer.to_vec()).unwrap();
+            println!("size:{}, recv: {}", size, str);
 
             send_to_task(
                 session_id,
@@ -651,10 +659,9 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     });
 
     let jdwp = Jdwp::get_instance();
-    let mut param = parameter.to_string();
-    if parameter.is_empty() {
-        param = "hdcd_jpid_test".to_string();
-    }
+    let mut param = task.local_args[0].clone();
+    param.push(':');
+    param.push_str(parameter);
 
     let ret = jdwp.send_fd_to_target(pid, target_fd, param.as_str()).await;
     if !ret {
@@ -668,6 +675,18 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
         task_finish(session_id, channel_id).await;
         return false;
     }
+
+    let vec_none = Vec::<u8>::new();
+    send_to_task(
+        session_id,
+        channel_id,
+        HdcCommand::ForwardActiveMaster, // 04
+        &vec_none,
+        0,
+        cid,
+    )
+    .await;
+
     true
 }
 
@@ -1007,8 +1026,6 @@ pub async fn write_forward_bufer(
     }
     let task = &mut task.unwrap();
     if task.forward_type == ForwardType::Tcp
-        || task.forward_type == ForwardType::Jdwp
-        || task.forward_type == ForwardType::Ark
     {
         TcpWriteStreamMap::write(id, content).await;
     } else {
@@ -1104,4 +1121,3 @@ pub async fn command_dispatch(
     }
     true
 }
-

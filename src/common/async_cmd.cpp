@@ -114,7 +114,7 @@ bool AsyncCmd::GetDevItem(const char *key, string &out)
     if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
         // failed
         ret = false;
-        Base::ZeroStruct(tmpStringBuf);
+        Base::ZeroArray(tmpStringBuf);
     }
 #endif
     out = tmpStringBuf;

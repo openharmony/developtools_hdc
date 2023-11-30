@@ -627,7 +627,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
                 goto Finish;
             }
         } else {
-            SetupPointContinue(ctxPoint, 1);
+            SetupPointContinue(ctxPoint, 0);
         }
         ret = true;
      }
@@ -749,7 +749,8 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
 
 bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload)
 {
-    bool bCheck = static_cast<bool>(payload[0]);
+    bool ret = true;
+    bool bCheck = static_cast<bool>(payload);
     LogMsg(bCheck ? MSG_OK : MSG_FAIL, "Forwardport result:%s", bCheck ? "OK" : "Failed");
     if (bCheck) {
         string mapInfo = taskInfo->serverOrDaemon ? "1|" : "0|";
@@ -758,9 +759,10 @@ bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload
         ServerCommand(CMD_FORWARD_SUCCESS, reinterpret_cast<uint8_t *>(const_cast<char *>(mapInfo.c_str())),
                       mapInfo.size() + 1);
     } else {
+        ret = false;
         FreeContext(ctx, 0, false);
     }
-    return true;
+    return ret;
 }
 
 bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)

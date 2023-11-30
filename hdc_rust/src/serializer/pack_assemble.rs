@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 //! packet_assemble
 #![allow(missing_docs)]
 
-use crate::common::hsession::TaskMessage;
+use crate::config::TaskMessage;
 use crate::config::*;
 use crate::serializer::native_struct;
 use crate::serializer::serialize::Serialization;

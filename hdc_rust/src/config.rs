@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -19,13 +19,26 @@ use std::convert::TryFrom;
 
 use log::LevelFilter;
 
-#[allow(unused)]
 pub enum CompressType {
     None = 0,
     Lz4,
     Lz77,
     Lzma,
     Brotli,
+}
+
+impl TryFrom<u8> for CompressType {
+    type Error = ();
+    fn try_from(cmd: u8) -> Result<Self, ()> {
+        match cmd {
+            0 => Ok(Self::None),
+            1 => Ok(Self::Lz4),
+            2 => Ok(Self::Lz77),
+            3 => Ok(Self::Lzma),
+            4 => Ok(Self::Brotli),
+            _ => Err(()),
+        }
+    }
 }
 
 #[allow(unused)]
@@ -46,6 +59,13 @@ pub enum ErrCode {
 pub enum NodeType {
     Server,
     Daemon,
+}
+
+#[derive(Debug)]
+pub struct TaskMessage {
+    pub channel_id: u32,
+    pub command: HdcCommand,
+    pub payload: Vec<u8>,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -246,6 +266,7 @@ pub const BANNER_SIZE: usize = 12;
 pub const KEY_MAX_SIZE: usize = 32;
 pub const FILE_PACKAGE_HEAD: usize = 64;
 pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
+pub const MAX_SIZE_IOBUF: usize = 61440;
 
 pub const SHELL_PROG: &str = "sh";
 pub const SHELL_TEMP: &str = "/data/local/tmp/hdc-pty";
@@ -255,7 +276,8 @@ pub const LOG_FILE_SIZE: usize = 1024;
 
 pub const DAEMON_PORT: u16 = 60000;
 pub const SERVER_DEFAULT_PORT: u16 = 9710;
-pub const MAX_PORT_NUM: u16 = 65535;
+pub const MAX_PORT_NUM: u32 = 65535;
+pub const MAX_PORT_LEN: usize = 5;
 pub const IPV4_MAPPING_PREFIX: &str = "::ffff:";
 pub const LOCAL_HOST: &str = "127.0.0.1";
 
@@ -277,7 +299,10 @@ pub const MODE_USB: &str = "usb";
 pub const MODE_TCP: &str = "tcp";
 pub const PREFIX_PORT: &str = "port ";
 pub const SHELL_PARAM_SET: &str = "param set";
+pub const SHELL_PARAM_GET: &str = "param get";
 pub const ENV_ROOT_RUN_MODE: &str = "persist.hdc.root";
+pub const ENV_STARTUP: &str = "ohos.startup.powerctrl";
+pub const ENV_DEBUGGABLE: &str = "const.debuggable";
 
 pub const RSA_BIT_NUM: usize = 3072;
 pub const RSA_PUBKEY_PATH: &str = "/data/misc/hdc";

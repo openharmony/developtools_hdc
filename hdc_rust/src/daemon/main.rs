@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,24 +17,88 @@
 mod auth;
 mod daemon_app;
 mod daemon_unity;
-mod jdwp;
+use crate::jdwp::Jdwp;
+mod mount;
 mod shell;
 mod task;
-mod uds;
+// mod sendmsg;
 
 use std::io::{self, ErrorKind, Write};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use hdc::common::hsession::TaskMessage;
+use hdc::common::jdwp;
 use hdc::config;
+use hdc::config::TaskMessage;
 use hdc::transfer;
 use hdc::utils;
-use hdc::utils::hdc_log::*;
 
-use jdwp::Jdwp;
 use log::LevelFilter;
+use std::ffi::CString;
 use ylong_runtime::net::{TcpListener, TcpStream};
+
+fn drop_root_privileges() -> bool {
+    let user_name = "shell";
+    let user_str = CString::new(user_name).unwrap();
+    let group_names = vec!["shell", "log", "readproc"];
+    let mut gids: Vec<libc::gid_t> = Vec::with_capacity(group_names.capacity());
+    let user: *mut libc::passwd = unsafe { libc::getpwnam(user_str.as_ptr()) };
+    if user.is_null() {
+        hdc::error!("getpwuid {} fail", user_name);
+        return false;
+    }
+
+    for group_name in &group_names {
+        let g = <&str>::clone(group_name);
+        let group: *mut libc::group = unsafe { libc::getgrnam(g.as_ptr()) };
+        if group.is_null() {
+            hdc::error!("calloc fail");
+        } else {
+            gids.push(unsafe { (*group).gr_gid });
+        }
+    }
+
+    let mut ret = unsafe { libc::setuid((*user).pw_uid) };
+    if ret != 0 {
+        hdc::error!("setuid fail, {}", user_name);
+        return false;
+    }
+
+    ret = unsafe { libc::setgid((*user).pw_gid) };
+    if ret != 0 {
+        hdc::error!("setgid fail, {}", user_name);
+        return false;
+    }
+
+    ret = unsafe { libc::setgroups(group_names.capacity(), gids.as_ptr()) };
+    if ret != 0 {
+        hdc::error!("setgroups fail, {}", user_name);
+        return false;
+    }
+
+    // selinux todo if (setcon)
+    true
+}
+
+fn need_drop_root_privileges() -> bool {
+    let (_, debug_mode) = utils::get_dev_item(config::ENV_DEBUGGABLE);
+    let (_, root_mode) = utils::get_dev_item(config::ENV_ROOT_RUN_MODE);
+
+    if debug_mode.starts_with('1') {
+        if root_mode.starts_with('1') {
+            let rc = unsafe { libc::setuid(0) };
+
+            hdc::debug!("Root run rc: {:#?}", rc);
+        } else if root_mode.starts_with('0') && unsafe { libc::getuid() == 0 } {
+            {
+                return drop_root_privileges();
+            }
+        }
+    } else {
+        return drop_root_privileges();
+    }
+    true
+}
 
 async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
     match res {
@@ -219,18 +283,45 @@ fn get_logger_lv() -> LevelFilter {
     config::LOG_LEVEL_ORDER[lv]
 }
 
+fn get_tcp_port() -> u16 {
+    let shell_command = format!("{} {}", config::SHELL_PARAM_GET, config::ENV_HOST_PORT,);
+    let result = utils::execute_cmd(shell_command);
+    let str_result = String::from_utf8(result);
+    if let Ok(str) = str_result {
+        println!("get_tcp_port from prop,value:{}", str);
+        let mut end = 0;
+        for i in 0..str.len() - 1 {
+            let c = str.as_bytes()[i];
+            if !c.is_ascii_digit() {
+                end = i;
+                break;
+            }
+        }
+        let str2 = str[0..end].to_string();
+        let number = str2.parse::<u16>();
+        if let Ok(num) = number {
+            println!("num:{}", num);
+            return num;
+        } else {
+            println!("num error");
+        }
+    }
+    config::DAEMON_PORT
+}
+
 fn main() {
     logger_init(get_logger_lv());
 
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()
         .worker_stack_size(16 * 1024 * 1024)
-        .worker_num(64)
+        .worker_num(256)
         .keep_alive_time(std::time::Duration::from_secs(10))
         .build_global();
 
     ylong_runtime::block_on(async {
+        need_drop_root_privileges();
         let tcp_task = ylong_runtime::spawn(async {
-            if let Err(e) = tcp_daemon_start(config::DAEMON_PORT).await {
+            if let Err(e) = tcp_daemon_start(get_tcp_port()).await {
                 println!("[Fail]tcp daemon failed: {}", e);
             }
         });

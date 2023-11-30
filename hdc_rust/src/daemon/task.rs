@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,25 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//! task
+ //! task
 #![allow(missing_docs)]
 
-use crate::auth;
+use crate::{auth, daemon_unity};
 
-use super::daemon_app::DaemonAppTask;
-use super::daemon_unity::DaemonUnityTask;
 use super::shell::{PtyMap, PtyTask};
 
-use hdc::common::hdcfile::HdcFile;
-use hdc::common::hsession::*;
+use super::daemon_app::{self, AppTaskMap, DaemonAppTask};
+use hdc::common::forward::{self, ForwardTaskMap, HdcForward};
+use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
 use hdc::config::*;
 use hdc::transfer;
-use hdc::utils::hdc_log::*;
 
 use std::io::{self, Error, ErrorKind};
-use std::sync::Arc;
-
-use ylong_runtime::sync::Mutex;
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
@@ -76,14 +71,8 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
 }
 
 async fn remove_task(session_id: u32, channel_id: u32) {
-    // file & install task
-    if let Some(arc) = admin_session(ActionType::Query(session_id)).await {
-        let mut session = arc.lock().await;
-        if let Some(task) = session.map_tasks.remove(&channel_id) {
-            let guard = &mut task.lock().await;
-            guard.stop_task();
-        }
-    }
+    AppTaskMap::remove(session_id, channel_id).await;
+    FileTaskMap::remove(session_id, channel_id).await;
     // shell & hilog task
     if let Some(pty_task) = PtyMap::get(channel_id).await {
         let _ = &pty_task.tx.send(0x04_u8).await;
@@ -106,59 +95,115 @@ async fn daemon_channel_close(task_message: TaskMessage, session_id: u32) -> io:
     Ok(())
 }
 
-async fn daemon_forward_task(task_message: TaskMessage, _session_id: u32) -> io::Result<()> {
-    hdc::warn!("get shell data payload: {:#?}", task_message.payload);
-    hdc::warn!("get command: {}", task_message.command as u32);
-    Ok(())
-}
-
 async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    let opt = admin_session(ActionType::Query(session_id)).await;
-    if opt.is_none() {
-        admin_session(ActionType::Add(HdcSession::new(
-            session_id,
-            String::from(""),
-            NodeType::Daemon,
-            ConnectType::Tcp,
-        )))
-        .await;
-    }
-    let opt = admin_session(ActionType::Query(session_id)).await;
-
-    let arc = opt.unwrap();
-    let mut session = arc.lock().await;
-    if let std::collections::hash_map::Entry::Vacant(e) =
-        session.map_tasks.entry(task_message.channel_id)
-    {
-        match task_message.command {
-            HdcCommand::AppCheck | HdcCommand::AppUninstall => {
+    match task_message.command {
+        HdcCommand::AppCheck | HdcCommand::AppUninstall => {
+            if !AppTaskMap::exsit(session_id, task_message.channel_id).await {
                 let task = DaemonAppTask::new(session_id, task_message.channel_id);
-                e.insert(Arc::new(Mutex::new(task)));
+                AppTaskMap::put(session_id, task_message.channel_id, task).await;
             }
-            HdcCommand::FileCheck | HdcCommand::FileInit => {
+            daemon_app::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::AppBegin | HdcCommand::AppData => {
+            daemon_app::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::FileCheck | HdcCommand::FileInit => {
+            if !FileTaskMap::exsit(session_id, task_message.channel_id).await {
                 let mut task = HdcFile::new(session_id, task_message.channel_id);
                 task.transfer.server_or_daemon = false;
-                e.insert(Arc::new(Mutex::new(task)));
+                FileTaskMap::put(session_id, task_message.channel_id, task).await;
             }
-            HdcCommand::UnityRunmode
-            | HdcCommand::UnityRootrun
-            | HdcCommand::JdwpList
-            | HdcCommand::JdwpTrack => {
-                let task = DaemonUnityTask::new(session_id, task_message.channel_id);
-                e.insert(Arc::new(Mutex::new(task)));
-            }
-            _ => {
-                println!("other tasks");
-            }
+
+            hdcfile::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::ForwardInit | HdcCommand::ForwardCheck => {
+            let mut task = HdcForward::new(session_id, task_message.channel_id);
+            task.transfer.server_or_daemon = false;
+            ForwardTaskMap::update(session_id, task_message.channel_id, task).await;
+            forward::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::ForwardCheckResult
+        | HdcCommand::ForwardActiveSlave
+        | HdcCommand::ForwardActiveMaster
+        | HdcCommand::ForwardData
+        | HdcCommand::ForwardFreeContext => {
+            println!(
+                "liuwei_daemon_file_task command----: {:#?}",
+                task_message.command
+            );
+            forward::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish => {
+            hdcfile::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::UnityRunmode
+        | HdcCommand::UnityReboot
+        | HdcCommand::UnityRemount
+        | HdcCommand::UnityRootrun
+        | HdcCommand::JdwpList
+        | HdcCommand::JdwpTrack => {
+            daemon_unity::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        _ => {
+            println!("other tasks");
         }
     }
-    let task = session.map_tasks.get(&task_message.channel_id).unwrap();
-    let task_ = &mut task.lock().await;
-    let _ = task_.command_dispatch(
-        task_message.command,
-        &task_message.payload,
-        task_message.payload.len() as u16,
-    );
 
     Ok(())
 }
@@ -222,17 +267,20 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         | HdcCommand::FileFinish
         | HdcCommand::AppCheck
         | HdcCommand::AppData
-        | HdcCommand::AppUninstall => {
+        | HdcCommand::AppUninstall
+        | HdcCommand::ForwardInit
+        | HdcCommand::ForwardCheck
+        | HdcCommand::ForwardCheckResult
+        | HdcCommand::ForwardActiveSlave
+        | HdcCommand::ForwardActiveMaster
+        | HdcCommand::ForwardData
+        | HdcCommand::ForwardFreeContext => {
             hdc::debug!("FileCheck:{}", task_message.command as u32);
             daemon_file_task(task_message, session_id).await
         }
-
-        HdcCommand::ForwardInit | HdcCommand::ForwardCheck => {
-            hdc::debug!("ForwardInit");
-            daemon_forward_task(task_message, session_id).await
-        }
-
         HdcCommand::UnityRunmode
+        | HdcCommand::UnityReboot
+        | HdcCommand::UnityRemount
         | HdcCommand::UnityRootrun
         | HdcCommand::JdwpList
         | HdcCommand::JdwpTrack => {

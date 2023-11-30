@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,10 +15,9 @@
 //! shell
 #![allow(missing_docs)]
 
-use hdc::common::hsession::TaskMessage;
+use hdc::config::TaskMessage;
 use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
 use hdc::transfer;
-use hdc::utils::hdc_log::*;
 
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, Read as _, Write as _};
@@ -236,7 +235,6 @@ async fn subprocess_task(
     let mut buf = [0_u8; 4096];
 
     loop {
-        ylong_runtime::time::sleep(Duration::from_millis(5)).await;
         let mut tv = nix::sys::time::TimeVal::new(0, 5000);
         let mut set = nix::sys::select::FdSet::new();
         set.insert(pty_process.pty_fd);

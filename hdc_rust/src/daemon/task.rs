@@ -239,6 +239,24 @@ async fn daemon_bug_report_task(task_message: TaskMessage, session_id: u32) -> i
 }
 
 pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    let cmd = task_message.command;
+    let handshake_cmd = cmd == HdcCommand::KernelHandshake;
+    let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;
+
+    if !auth_ok && !handshake_cmd {
+        hdc::error!("auth status is nok, cannt accept cmd: {}", cmd as u32);
+        transfer::put(session_id,
+            TaskMessage {
+                channel_id: task_message.channel_id,
+                command: HdcCommand::KernelChannelClose,
+                payload: vec![0],
+            },
+        ).await;
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("auth status is nok, cannt accept cmd: {}", cmd as u32),
+        ));
+    }
     match task_message.command {
         HdcCommand::KernelHandshake => {
             hdc::debug!("KernelHandshake");

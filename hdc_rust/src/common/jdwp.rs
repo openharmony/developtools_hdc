@@ -99,19 +99,13 @@ impl Jdwp {
         let trackers = trackers.lock().await;
         let len = message.as_bytes().len();
         let len_str = format!("{:04x}\n", len);
-        let header = len_str.as_bytes();
+        let mut header = len_str.as_bytes().to_vec();
         let mut buffer = Vec::<u8>::new();
-        for _i in 1..8 - header.len() {
-            buffer.push(48u8);
-        }
-
-        for i in header {
-            buffer.push(*i);
-        }
+        buffer.append(&mut header);
 
         buffer.append(&mut message.as_str().as_bytes().to_vec());
         for (channel_id2, session_id2, is_debug) in trackers.iter() {
-            if !*is_debug || is_debug == debug_or_release {
+            if !*is_debug || *is_debug == debug_or_release {
                 let data = TaskMessage {
                     channel_id: *channel_id2,
                     command: HdcCommand::KernelEchoRaw,
@@ -183,7 +177,7 @@ impl Jdwp {
                     u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
                 println!("debug:{}", debug_or_release);
                 let pkg_name =
-                    String::from_utf8(buffer[u32_size * 4..len as usize].to_vec()).unwrap();
+                    String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
                 println!("pkg name:{}", pkg_name);
 
                 let node_map = node_map.clone();

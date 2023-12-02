@@ -1,0 +1,117 @@
+# Copyright (C) 2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+
+ohos_static_library("serialize_structs") {
+  sources = [
+    "src/cffi/mount.cpp",
+    "src/cffi/mount_wrapper.cpp",
+    "src/cffi/oh_usb.cpp",
+    "src/cffi/sendmsg.cpp",
+    "src/cffi/serial_struct.cpp",
+    "src/cffi/transfer.cpp",
+    "src/cffi/uart.cpp",
+    "src/cffi/uart_wrapper.cpp",
+    "src/cffi/usb_util.cpp",
+    "src/cffi/usb_wrapper.cpp",
+  ]
+  output_extension = "so"
+
+  include_dirs = [
+    "//third_party/bounds_checking_function/include",
+    "//third_party/lz4/lib",
+  ]
+  deps = [
+    "//third_party/bounds_checking_function:libsec_static",
+    "//third_party/lz4:liblz4_static",
+  ]
+
+  if (is_mac) {
+    defines = [ "HOST_MAC" ]
+  }
+
+  subsystem_name = "developtools"
+  part_name = "hdc"
+}
+
+ohos_static_library("hdc_win_dep") {
+  sources = [ "src/cffi/win_dep.cpp" ]
+  include_dirs = [ "//prebuilts/mingw-w64/ohos/linux-x86_64/clang-mingw/x86_64-w64-mingw32/include" ]
+
+  subsystem_name = "developtools"
+  part_name = "hdc"
+}
+
+ohos_rust_shared_library("lib") {
+  crate_name = "hdc"
+  crate_type = "dylib"
+  crate_root = "src/lib.rs"
+  sources = [ "src/lib.rs" ]
+
+  deps = [
+    ":serialize_structs",
+    "//third_party/rust/crates/humantime:lib",
+    "//third_party/rust/crates/libc:lib",
+    "//third_party/rust/crates/log:lib",
+    "//third_party/rust/crates/rust-openssl/openssl:lib",
+  ]
+  external_deps = [
+    "hilog:hilog_rust",
+    "ylong_runtime:ylong_runtime",
+  ]
+  subsystem_name = "developtools"
+  part_name = "hdc"
+}
+
+ohos_rust_executable("hdcd_rust") {
+  sources = [ "src/daemon/main.rs" ]
+  deps = [
+    ":lib",
+    ":serialize_structs",
+    "//third_party/rust/crates/env_logger:lib",
+    "//third_party/rust/crates/humantime:lib",
+    "//third_party/rust/crates/libc:lib",
+    "//third_party/rust/crates/log:lib",
+    "//third_party/rust/crates/nix:lib",
+    "//third_party/rust/crates/rust-openssl/openssl:lib",
+  ]
+  external_deps = [
+    "hilog:hilog_rust",
+    "ylong_runtime:ylong_runtime",
+  ]
+  features = [ "daemon" ]
+  subsystem_name = "developtools"
+  part_name = "hdc"
+}
+
+ohos_rust_executable("hdc_rust") {
+  sources = [ "src/host/main.rs" ]
+  deps = [
+    ":lib",
+    ":serialize_structs",
+    "//third_party/rust/crates/humantime:lib",
+    "//third_party/rust/crates/lazy-static.rs:lib",
+    "//third_party/rust/crates/libc:lib",
+    "//third_party/rust/crates/log:lib",
+    "//third_party/rust/crates/rust-openssl/openssl:lib",
+  ]
+  if (is_mingw) {
+    deps += [ ":hdc_win_dep" ]
+  }
+
+  external_deps = [ "ylong_runtime:ylong_runtime" ]
+
+  subsystem_name = "developtools"
+  part_name = "hdc"
+}

@@ -37,16 +37,18 @@ pub struct PollNode {
     pub revents: i16,
     pub ppid: u32,
     pub pkg_name: String,
+    pub debug_or_release: bool,
 }
 
 impl PollNode {
-    pub fn new(fd: i32, ppid: u32, pkg_name: String) -> Self {
+    pub fn new(fd: i32, ppid: u32, pkg_name: String, debug_or_release: bool) -> Self {
         Self {
             fd,
             events: POLLNVAL | POLLRDHUP | POLLHUP | POLLERR,
             revents: 0,
             ppid,
             pkg_name,
+            debug_or_release,
         }
     }
 }
@@ -201,6 +203,7 @@ impl UdsServer {
         let mut fd_buf = [-1; 2];
         unsafe {
             socketpair(AF_UNIX, flags, 0, fd_buf[..].as_mut_ptr());
+            fcntl(fd_buf[1], 100, 20);
         }
         Ok((fd_buf[0], fd_buf[1]))
     }

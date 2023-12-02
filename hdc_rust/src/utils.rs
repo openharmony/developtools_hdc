@@ -91,19 +91,19 @@ pub fn error_other(msg: String) -> Error {
 }
 
 pub mod hdc_log {
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     pub use hilog_rust::{hilog, HiLogLabel, LogType};
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     pub use std::ffi::{c_char, CString};
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     pub const LOG_LABEL: HiLogLabel = HiLogLabel {
         log_type: LogType::LogCore,
         domain: 0xD002D13,
         tag: "HDC_LOG",
     };
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! trace {
         ($($arg:tt)+) => {
@@ -113,7 +113,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(not(feature = "hdc_daemon"))]
+    #[cfg(feature = "host")]
     #[macro_export]
     macro_rules! trace {
         ($($arg:tt)+) => {
@@ -121,7 +121,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! debug {
         ($($arg:tt)+) => {
@@ -131,7 +131,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(not(feature = "hdc_daemon"))]
+    #[cfg(feature = "host")]
     #[macro_export]
     macro_rules! debug {
         ($($arg:tt)+) => {
@@ -139,7 +139,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! info {
         ($($arg:tt)+) => {
@@ -149,7 +149,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(not(feature = "hdc_daemon"))]
+    #[cfg(feature = "host")]
     #[macro_export]
     macro_rules! info {
         ($($arg:tt)+) => {
@@ -157,7 +157,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! warn {
         ($($arg:tt)+) => {
@@ -167,7 +167,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(not(feature = "hdc_daemon"))]
+    #[cfg(feature = "host")]
     #[macro_export]
     macro_rules! warn {
         ($($arg:tt)+) => {
@@ -175,7 +175,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! error {
         ($($arg:tt)+) => {
@@ -185,7 +185,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(not(feature = "hdc_daemon"))]
+    #[cfg(feature = "host")]
     #[macro_export]
     macro_rules! error {
         ($($arg:tt)+) => {
@@ -193,7 +193,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(feature = "hdc_daemon")]
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! fatal {
         ($($arg:tt)+) => {
@@ -203,7 +203,7 @@ pub mod hdc_log {
         };
     }
 
-    #[cfg(not(feature = "hdc_daemon"))]
+    #[cfg(feature = "host")]
     #[macro_export]
     macro_rules! fatal {
         ($($arg:tt)+) => {

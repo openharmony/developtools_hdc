@@ -149,7 +149,6 @@ pub struct ContextForward {
     session_id: u32,
     channel_id: u32,
     check_order: bool,
-    finish: bool,
     id: u32,
     fd: i32,
     remote_parameters: String,
@@ -422,9 +421,6 @@ async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: 
         return;
     }
     let task = &mut task.unwrap().clone();
-    if task.context_forward.finish {
-        return;
-    }
     if notify_remote {
         let vec_none = Vec::<u8>::new();
         send_to_task(
@@ -437,7 +433,6 @@ async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: 
         )
         .await;
     }
-    task.context_forward.finish = true;
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
 }
 

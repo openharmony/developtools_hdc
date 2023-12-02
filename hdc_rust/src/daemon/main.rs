@@ -28,6 +28,8 @@ use std::io::{self, ErrorKind, Write};
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use crate::utils::hdc_log::*;
+
 use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;

@@ -15,6 +15,7 @@
 //! shell
 #![allow(missing_docs)]
 
+use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
 use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
 use hdc::transfer;

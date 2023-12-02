@@ -25,6 +25,7 @@ use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::sync::RwLock;
 
+use crate::utils::hdc_log::*;
 use std::fs::File;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, Write, prelude::*};

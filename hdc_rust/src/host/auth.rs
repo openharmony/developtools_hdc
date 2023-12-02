@@ -59,13 +59,10 @@ pub async fn handshake_with_daemon(
 
             if recv.auth_type == config::AuthType::OK as u8 {
                 return Ok((recv.buf, recv.version));
-            } else if recv.auth_type == config::AuthType::Publickey as u8 {
+            } else if recv.auth_type == config::AuthType::Token as u8 {
                 // send public key
                 handshake.auth_type = config::AuthType::Publickey as u8;
-                handshake.buf = get_hostname()?;
-                handshake.buf.push(char::from_u32(12).unwrap());
-                let pubkey_pem = get_pubkey_pem(&rsa)?;
-                handshake.buf.push_str(pubkey_pem.as_str());
+                handshake.buf = get_pubkey_pem(&rsa)?;
                 send_handshake_to_daemon(&handshake, channel_id).await;
 
                 // send signature
@@ -170,20 +167,5 @@ fn get_home_dir() -> String {
     } else {
         hdc::warn!("get home dir failed, use current dir instead");
         ".".to_string()
-    }
-}
-
-fn get_hostname() -> io::Result<String> {
-    use sed::process::Command;
-
-    let output = if cfg!(target_os = "windows") {
-        Command::new("cmd").args(["/c", "hostname"]).output();
-    } else {
-        Command::new("cmd").args(["-c", "hostname"]).output();
-    };
-    if let Ok(result) = output {
-        Ok(String::from_utf8(result.stdout).unwrap())
-    } else {
-        Err(Error::new(ErrorKind::Other, "get hostname failed"))
     }
 }

@@ -19,7 +19,6 @@ use hdc::config::{self, *};
 use hdc::serializer::native_struct;
 use hdc::serializer::serialize::Serialization;
 use hdc::transfer;
-use hdc::utils;
 
 use crate::transfer::base::CheckCompressVersion;
 use openssl::base64;
@@ -90,7 +89,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
     }
 
     // auth is required
-    let buf = utils::get_current_time().to_string();
+    let buf = hdc::utils::get_current_time().to_string();
     AuthStatusMap::put(recv.session_id, AuthStatus::Init(buf.clone())).await;
 
     let send = native_struct::SessionHandShake {

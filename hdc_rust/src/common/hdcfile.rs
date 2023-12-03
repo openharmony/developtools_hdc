@@ -249,6 +249,7 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     task.file_size = transconfig.file_size;
     task.transfer.local_path = transconfig.path;
     task.transfer.is_master = false;
+    task.transfer.index = 0;
     let mut error = String::new();
     let local_path = task.transfer.local_path.clone();
     let optional_name = transconfig.optional_name.clone();

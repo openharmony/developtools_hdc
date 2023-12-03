@@ -257,6 +257,7 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
     }
     let task = &mut task.unwrap().clone();
     if !_payload.is_empty() {
+        echo_client(session_id, channel_id, "Forwardport result: Ok").await;
         let map_info = String::from(if task.transfer.server_or_daemon {
             "1|"
         } else {
@@ -281,6 +282,7 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         log::error!("Forwardport result: Ok");
     } else {
         println!("Forwardport result: Failed");
+        echo_client(session_id, channel_id, "Forwardport result: Failed").await;
         free_context(session_id, channel_id, 0, false).await;
         return false;
     }

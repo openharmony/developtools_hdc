@@ -172,7 +172,7 @@ impl UdsServer {
             pollfds[index].revents = node.revents;
         }
         unsafe {
-            let ret = poll(pollfds.as_mut_ptr(), size, timeout);
+            let ret = poll(pollfds.as_mut_ptr(), size as libc::nfds_t, timeout);
             if ret == -1 {
                 ret
             } else {

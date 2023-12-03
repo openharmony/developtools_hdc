@@ -227,7 +227,11 @@ async fn do_jdwp_list(session_id: u32, channel_id: u32) {
     println!("do_jdwp_list");
     let jdwp = Jdwp::get_instance().clone();
     let process_list = jdwp.get_process_list().await;
-    echo_client(session_id, channel_id, process_list.as_str()).await;
+    if process_list.is_empty() {
+        echo_client(session_id, channel_id, "[Empty]").await;
+    } else {
+        echo_client(session_id, channel_id, process_list.as_str()).await;
+    }
     task_finish(session_id, channel_id).await;
 }
 

@@ -105,11 +105,9 @@ fn need_drop_root_privileges() -> bool {
 async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
     match res {
         Ok(msg) => {
-        ylong_runtime::spawn(async move {
             if let Err(e) = task::dispatch_task(msg, session_id).await {
                 hdc::error!("dispatch task failed: {}", e.to_string());
             }
-        });
         }
         Err(e) => {
             if e.kind() == ErrorKind::Other {

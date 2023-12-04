@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include <parameter.h>
+#include "syspara/parameter.h"
 
 extern "C" int SetParameterEx(const char *key, const char *val)
 {

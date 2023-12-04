@@ -32,7 +32,6 @@ ohos_static_library("serialize_structs") {
   include_dirs = [
     "//third_party/bounds_checking_function/include",
     "//third_party/lz4/lib",
-    "//base/startup/init/interfaces/innerkits/include/syspara",
   ]
   deps = [
     "//third_party/bounds_checking_function:libsec_static",
@@ -79,9 +78,6 @@ ohos_rust_shared_library("lib") {
 ohos_rust_executable("hdcd_rust") {
   sources = [ "src/daemon/main.rs" ]
 
-  include_dirs = [
-    "//base/startup/init/interfaces/innerkits/include/syspara",
-  ]
   deps = [
     ":lib",
     ":serialize_structs",

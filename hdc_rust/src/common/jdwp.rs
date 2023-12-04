@@ -337,16 +337,13 @@ impl Jdwp {
 
             drop(stop_flag);
             let waiter = self.new_process_waiter.clone();
-            println!("create_fd_event_poll, new_process_waiter wait...");
             waiter.wait().await;
-            println!("create_fd_event_poll, new_process_waiter wait continue...");
 
             let node_map = self.poll_node_map.clone();
             let node_map_value = node_map.lock().await;
             if !node_map_value.is_empty() {
                 let empty_waiter = self.empty_waiter.clone();
                 empty_waiter.wake_one();
-                println!("create_fd_event_poll, empty_waiter_value wake...");
             }
         }
     }

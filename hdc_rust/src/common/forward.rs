@@ -14,8 +14,8 @@
  */
 //! forward
 #![allow(missing_docs)]
-use libc::{AF_LOCAL, AF_UNIX, FD_CLOEXEC, F_SETFD};
 use libc::SOCK_STREAM;
+use libc::{AF_LOCAL, AF_UNIX, FD_CLOEXEC, F_SETFD};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Error, ErrorKind};
@@ -54,14 +54,14 @@ impl TcpReadStreamMap {
                 .clone()
         }
     }
-
+    #[allow(unused)]
     async fn put(id: u32, rd: SplitReadHalf) {
         let instance = Self::get_instance();
         let mut map = instance.write().await;
         let arc_rd = Arc::new(Mutex::new(rd));
         map.insert(id, arc_rd);
     }
-
+    #[allow(unused)]
     async fn read(session_id: u32, channel_id: u32, cid: u32) {
         let arc_map = Self::get_instance();
         let map = arc_map.read().await;
@@ -112,23 +112,32 @@ impl TcpWriteStreamMap {
                 .clone()
         }
     }
-
+    #[allow(unused)]
     async fn put(id: u32, wr: SplitWriteHalf) {
         let instance = Self::get_instance();
         let mut map = instance.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         map.insert(id, arc_wr);
     }
-
+    #[allow(unused)]
     async fn write(id: u32, data: Vec<u8>) {
         let arc_map = Self::get_instance();
-        let map = arc_map.read().await;
+        let map = arc_map.write().await;
         if map.get(&id).is_none() {
             return;
         }
         let arc_wr = map.get(&id).unwrap();
         let mut wr = arc_wr.lock().await;
         let _ = wr.write_all(data.as_slice()).await;
+    }
+
+    pub async fn end(id: u32) {
+        let instance = Self::get_instance();
+        let mut map = instance.write().await;
+        if let Some(arc_wr) = map.remove(&id) {
+            let mut wr = arc_wr.lock().await;
+            let _ = wr.shutdown().await;
+        }
     }
 }
 
@@ -344,9 +353,40 @@ pub async fn forward_tcp_accept(
     loop {
         let (stream, _addr) = listener.accept().await?;
         let (rd, wr) = stream.into_split();
-        TcpReadStreamMap::put(cid, rd).await;
         TcpWriteStreamMap::put(cid, wr).await;
         ylong_runtime::spawn(on_accept(session_id, channel_id, value.clone(), cid));
+        recv_tcp_masg(session_id, channel_id, rd, cid).await;
+    }
+}
+
+pub async fn recv_tcp_masg(session_id: u32, channel_id: u32, mut rd: SplitReadHalf, cid: u32) {
+    let mut data = vec![0_u8; SOCKET_BUFFER_SIZE];
+    loop {
+        match rd.read(&mut data).await {
+            Ok(recv_size) => {
+                if recv_size == 0 {
+                    free_context(session_id, channel_id, 0, true).await;
+                    drop(rd);
+                    println!("tcp close shutdown");
+                    return;
+                }
+                if send_to_task(
+                    session_id,
+                    channel_id,
+                    HdcCommand::ForwardData,
+                    &data[0..recv_size],
+                    recv_size,
+                    cid,
+                )
+                .await
+                {
+                    println!("send task success");
+                }
+            }
+            Err(_e) => {
+                println!("send task failed");
+            }
+        }
     }
 }
 
@@ -371,7 +411,6 @@ pub async fn on_accept(session_id: u32, channel_id: u32, value: String, cid: u32
 
 pub async fn daemon_connect_tcp(session_id: u32, channel_id: u32, port: u32, cid: u32) {
     let saddr = format!("127.0.0.1:{}", port);
-
     let stream = match TcpStream::connect(saddr).await {
         Err(err) => {
             println!("TcpStream::stream failed {:#?}", err);
@@ -380,14 +419,13 @@ pub async fn daemon_connect_tcp(session_id: u32, channel_id: u32, port: u32, cid
         }
         Ok(addr) => addr,
     };
-    let (rd, wr) = stream.into_split();
-    TcpReadStreamMap::put(cid, rd).await;
-    TcpWriteStreamMap::put(cid, wr).await;
     send_active_master(session_id, channel_id).await;
-    let _ret = read_data_to_forward(session_id, channel_id).await;
+    let (rd, wr) = stream.into_split();
+    TcpWriteStreamMap::put(cid, wr).await;
+    recv_tcp_masg(session_id, channel_id, rd, cid).await;
 }
 
-pub async fn deamon_read_msg(session_id: u32, channel_id: u32, fd: i32) {
+pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
         return;
@@ -435,6 +473,17 @@ async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: 
         )
         .await;
     }
+    match task.forward_type {
+        ForwardType::Tcp | ForwardType::Jdwp | ForwardType::Ark => {
+            TcpWriteStreamMap::end(task.context_forward.id).await;
+        }
+        ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
+            UdsServer::wrap_close(task.context_forward.fd);
+        }
+        ForwardType::Device => {
+            return;
+        }
+    }
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
 }
 
@@ -475,7 +524,7 @@ async fn server_socket_bind_listen(session_id: u32, channel_id: u32, path: Strin
     });
     let addr = UdsAddr::parse_abstract(&socket_name[1..]);
     if let Ok(addr_obj) = &addr {
-       let ret = UdsServer::wrap_bind(fd, addr_obj);
+        let ret = UdsServer::wrap_bind(fd, addr_obj);
         if ret.is_err() {
             println!("bind fail");
             return;
@@ -606,6 +655,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             let size = UdsServer::wrap_read(local_fd, &mut buffer);
             if size < 0 {
                 println!("disconnect, error:{}.", size);
+                free_context(session_id, channel_id, 0, true).await;
                 break;
             }
             let str = String::from_utf8(buffer.to_vec()).unwrap();
@@ -701,7 +751,8 @@ pub async fn setup_file_point(session_id: u32, channel_id: u32) -> bool {
         {
             let _ = fs::remove_file(s_node_cfg.clone());
         }
-        server_socket_bind_listen(session_id, channel_id, s_node_cfg, task.context_forward.id).await;
+        server_socket_bind_listen(session_id, channel_id, s_node_cfg, task.context_forward.id)
+            .await;
     } else if task.forward_type == ForwardType::Abstract {
         let fd: i32 = UdsClient::wrap_socket(AF_LOCAL);
         unsafe {
@@ -742,7 +793,8 @@ pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
                 task.context_forward.last_error = String::from("Not support forward-type");
             }
         }
-        ForwardType::Jdwp | ForwardType::Ark => {
+        ForwardType::Jdwp | ForwardType::Ark =>
+        {
             #[cfg(not(target_os = "windows"))]
             if !setup_jdwp_point(session_id, channel_id).await {
                 ret = false;
@@ -955,7 +1007,7 @@ pub async fn read_data_to_forward(session_id: u32, channel_id: u32) -> bool {
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             let fd = task.context_forward.fd;
             ylong_runtime::spawn(async move {
-                deamon_read_msg(session_id, channel_id, fd).await
+                deamon_read_socket_msg(session_id, channel_id, fd).await
             });
         }
         ForwardType::Device => {
@@ -978,8 +1030,7 @@ pub async fn write_forward_bufer(
         return false;
     }
     let task = &mut task.unwrap();
-    if task.forward_type == ForwardType::Tcp
-    {
+    if task.forward_type == ForwardType::Tcp {
         TcpWriteStreamMap::write(id, content).await;
     } else {
         let fd = task.context_forward.fd;
@@ -1008,9 +1059,6 @@ pub async fn forward_command_dispatch(
     match command {
         HdcCommand::ForwardCheckResult => {
             ret = check_command(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::ForwardActiveMaster => {
-            ret = read_data_to_forward(session_id, channel_id).await;
         }
         HdcCommand::ForwardData => {
             ret = write_forward_bufer(session_id, channel_id, task.context_forward.id, send_msg)
@@ -1048,9 +1096,7 @@ pub async fn command_dispatch(
         HdcCommand::ForwardInit => {
             let s = String::from_utf8(_payload.to_vec());
             if let Ok(command) = s {
-                let mut error: String = String::from("");
                 begin_forward(session_id, channel_id, _payload, &command).await;
-                print_error_info(&mut error);
             }
             return false;
         }

@@ -24,12 +24,13 @@ use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::sync::RwLock;
 
+use crate::utils::hdc_log::*;
 use std::fs::File;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, Write, prelude::*};
 use std::path::Path;
 use std::sync::Arc;
-use std::process::Command;
+// use std::process::Command;
 use std::string::ToString;
 use super::sys_para::{*};
 
@@ -315,23 +316,7 @@ fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
 }
 
 fn call_setting_ability() -> bool {
-    let cmd = "aa start -a com.huawei.hmos.settings.MainAbility -b com.huawei.hmos.settings";
-    let result = Command::new(config::SHELL_PROG).args(["-c", cmd]).output();
-
-    match result {
-        Ok(output) => {
-            if output.stderr.is_empty() {
-                true
-            } else {
-                hdc::error!("start setting ability failed: {}", String::from_utf8(output.stderr).unwrap());
-                false
-            }
-        },
-        Err(e) => {
-            hdc::error!("start setting ability failed: {}", e.to_string());
-            false
-        }
-    }
+    true
 }
 
 pub async fn is_auth_enable() -> bool {

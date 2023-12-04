@@ -25,12 +25,14 @@ ohos_static_library("serialize_structs") {
     "src/cffi/uart_wrapper.cpp",
     "src/cffi/usb_util.cpp",
     "src/cffi/usb_wrapper.cpp",
+    "src/cffi/sys_para.cpp",
   ]
   output_extension = "so"
 
   include_dirs = [
     "//third_party/bounds_checking_function/include",
     "//third_party/lz4/lib",
+    "//base/startup/init/interfaces/innerkits/include/syspara",
   ]
   deps = [
     "//third_party/bounds_checking_function:libsec_static",
@@ -76,6 +78,10 @@ ohos_rust_shared_library("lib") {
 
 ohos_rust_executable("hdcd_rust") {
   sources = [ "src/daemon/main.rs" ]
+
+  include_dirs = [
+    "//base/startup/init/interfaces/innerkits/include/syspara",
+  ]
   deps = [
     ":lib",
     ":serialize_structs",
@@ -89,10 +95,15 @@ ohos_rust_executable("hdcd_rust") {
   external_deps = [
     "hilog:hilog_rust",
     "ylong_runtime:ylong_runtime",
+    "init:libbegetutil",
   ]
   features = [ "daemon" ]
   subsystem_name = "developtools"
   part_name = "hdc"
+
+  if (build_variant == "root") {
+    features += [ "build_variant_root" ]
+  }
 }
 
 ohos_rust_executable("hdc_rust") {

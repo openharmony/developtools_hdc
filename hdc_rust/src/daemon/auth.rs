@@ -89,6 +89,14 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
 
+    // auth is not required
+    if cfg!(not(disable_auth)) {
+        return Ok((
+            recv.session_id,
+            make_ok_message(recv.session_id, task_message.channel_id).await,
+        ));
+    }
+
     // auth is required
     let buf = generate_token_wait().await;
 

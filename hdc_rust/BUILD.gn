@@ -37,6 +37,9 @@ ohos_static_library("serialize_structs") {
     "//third_party/bounds_checking_function:libsec_static",
     "//third_party/lz4:liblz4_static",
   ]
+  external_deps = [
+    "init:libbegetutil",
+  ]
 
   if (is_mac) {
     defines = [ "HOST_MAC" ]
@@ -91,7 +94,6 @@ ohos_rust_executable("hdcd_rust") {
   external_deps = [
     "hilog:hilog_rust",
     "ylong_runtime:ylong_runtime",
-    "init:libbegetutil",
   ]
   features = [ "daemon" ]
   subsystem_name = "developtools"

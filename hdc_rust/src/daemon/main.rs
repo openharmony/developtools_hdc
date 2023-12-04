@@ -105,9 +105,11 @@ fn need_drop_root_privileges() -> bool {
 async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
     match res {
         Ok(msg) => {
+        ylong_runtime::spawn(async move {
             if let Err(e) = task::dispatch_task(msg, session_id).await {
                 hdc::error!("dispatch task failed: {}", e.to_string());
             }
+        });
         }
         Err(e) => {
             if e.kind() == ErrorKind::Other {
@@ -242,9 +244,11 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
     loop {
         match rx.recv().await {
             Ok(msg) => {
-                if let Err(e) = task::dispatch_task(msg, session_id).await {
-                    hdc::error!("dispatch task failed: {}", e.to_string());
-                }
+                ylong_runtime::spawn(async move {
+                    if let Err(e) = task::dispatch_task(msg, session_id).await {
+                        hdc::error!("dispatch task failed: {}", e.to_string());
+                    }
+                });
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());

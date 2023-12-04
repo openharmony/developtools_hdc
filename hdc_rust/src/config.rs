@@ -312,6 +312,13 @@ pub const RSA_PUBKEY_PATH: &str = "/data/misc/hdc";
 pub const RSA_PUBKEY_NAME: &str = "hdc_keys";
 pub const RSA_PRIKEY_PATH: &str = ".harmony";
 pub const RSA_PRIKEY_NAME: &str = "hdckey";
+// "\f" asicc is 0x0C
+pub const HDC_HOST_DAEMON_BUF_SEPARATOR: char = '\x0C';
+// the API WaitParameter can only accept max 96 bytes value
+pub const HDC_PARAMETER_VALUE_MAX_LEN: usize = 96;
+pub const HDC_HOSTNAME_MAX_LEN: usize = HDC_PARAMETER_VALUE_MAX_LEN;
+pub const HDC_WAIT_PARAMETER_FOREVER: i32 = 0;
+pub const HDC_HANDSHAKE_TOKEN_LEN: usize = 32;
 
 pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
     LevelFilter::Off,

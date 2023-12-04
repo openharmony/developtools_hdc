@@ -17,6 +17,7 @@ group("daemon_etc") {
   deps = [
     ":hdc.para.dac",
     ":hdcd.cfg",
+    ":hdcd.para",
   ]
 }
 
@@ -43,5 +44,21 @@ ohos_prebuilt_etc("hdc.para.dac") {
     "updater",
   ]
   part_name = "hdc"
+  subsystem_name = "developtools"
+}
+
+ohos_prebuilt_etc("hdcd.para") {
+  source = "hdcd.root.para"
+  relative_install_dir = "param"
+  if (build_variant == "user") {
+    source = "hdcd.cfg"
+  }
+  install_images = [
+    "system",
+    "updater",
+  ]
+  output = "hdcd.para"
+  part_name = "hdc"
+  module_install_dir = "etc/param"
   subsystem_name = "developtools"
 }

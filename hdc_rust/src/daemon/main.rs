@@ -22,6 +22,7 @@ mod mount;
 mod shell;
 mod task;
 // mod sendmsg;
+mod sys_para;
 
 use std::io::{self, ErrorKind, Write};
 use std::sync::Arc;
@@ -341,9 +342,13 @@ fn main() {
         let jdwp_server_task = ylong_runtime::spawn(async {
             jdwp_daemon_start(lock_value).await;
         });
+        let auth_monitor_task = ylong_runtime::spawn(async {
+            auth::auth_cancel_monitor().await;
+        });
         let _ = tcp_task.await;
         let _ = usb_task.await;
         let _ = uart_task.await;
         let _ = jdwp_server_task.await;
+        let _ = auth_monitor_task.await;
     });
 }

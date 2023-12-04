@@ -491,4 +491,297 @@ void FreeKey(bool publicOrPrivate, list<void *> *listKey)
     }
     listKey->clear();
 }
+
+#ifdef HDC_HOST
+EVP_PKEY *GenerateNewKey(void)
+{
+    bool success = false;
+    int bits = RSA_KEY_BITS;
+    RSA *rsa = RSA_new();
+    BIGNUM *e = BN_new();
+    EVP_PKEY *evp = EVP_PKEY_new();
+
+    while (true) {
+        if (!evp || !e || !rsa) {
+            WRITE_LOG(LOG_FATAL, "allocate key failed");
+            break;
+        }
+
+        BN_set_word(e, RSA_F4);
+        if (!RSA_generate_key_ex(rsa, bits, e, nullptr)) {
+            WRITE_LOG(LOG_FATAL, "generate rsa key failed");
+            break;
+        }
+        if (!EVP_PKEY_set1_RSA(evp, rsa)) {
+            WRITE_LOG(LOG_FATAL, "evp set rsa failed");
+            break;
+        }
+
+        WRITE_LOG(LOG_INFO, "generate key pair success");
+        success = true;
+    }
+
+    if (e)
+        BN_free(e);
+    if (success) {
+        return evp;
+    }
+
+    // if fail, need free rsa and evp
+    if (rsa)
+        RSA_free(rsa);
+    if (evp)
+        EVP_PKEY_free(evp);
+
+    return nullptr;
+}
+bool GenerateKeyPair(string prikey_filename, string pubkey_filename)
+{
+    bool ret = false;
+    FILE *file_prikey = nullptr;
+    FILE *file_pubkey = nullptr;
+    EVP_PKEY *evp = nullptr;
+    mode_t old_mask = umask(077);  // 077:permission
+
+    while (true) {
+        evp = GenerateNewKey();
+        if (!evp) {
+            WRITE_LOG(LOG_FATAL, "generate new key failed");
+            break;
+        }
+
+        file_prikey = fopen(prikey_filename.c_str(), "w");
+        if (!file_prikey) {
+            WRITE_LOG(LOG_FATAL, "open %s failed", prikey_filename.c_str());
+            break;
+        }
+        if (!PEM_write_PrivateKey(file_prikey, evp, nullptr, nullptr, 0, nullptr, nullptr)) {
+            WRITE_LOG(LOG_FATAL, "write private key failed");
+            break;
+        }
+        file_pubkey = fopen(pubkey_filename.c_str(), "w");
+        if (!file_pubkey) {
+            WRITE_LOG(LOG_FATAL, "open %s failed", pubkey_filename.c_str());
+            break;
+        }
+        if (!PEM_write_PUBKEY(file_pubkey, evp)) {
+            WRITE_LOG(LOG_FATAL, "write public key file failed");
+            break;
+        }
+        WRITE_LOG(LOG_INFO, "generate key pair success");
+        ret = true;
+        break;
+    }
+
+    if (evp)
+        EVP_PKEY_free(evp);
+    if (file_prikey)
+        fclose(file_prikey);
+    if (file_pubkey)
+        fclose(file_pubkey);
+    umask(old_mask);
+
+    return ret;
+}
+
+bool LoadPublicKey(string pubkey_filename, string &pubkey)
+{
+    bool ret = false;
+    BIO *bio = nullptr;
+    EVP_PKEY *evp = nullptr;
+    FILE *file_pubkey = nullptr;
+
+    do {
+        file_pubkey = fopen(pubkey_filename.c_str(), "r");
+        if (!file_pubkey) {
+            WRITE_LOG(LOG_FATAL, "open file %s failed", pubkey_filename.c_str());
+            break;
+        }
+        evp = PEM_read_PUBKEY(file_pubkey, NULL, NULL, NULL);
+        if (!evp) {
+            WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", pubkey_filename.c_str());
+            break;
+        }
+        bio = BIO_new(BIO_s_mem());
+        if (!bio) {
+            WRITE_LOG(LOG_FATAL, "alloc bio mem failed");
+            break;
+        }
+        if (!PEM_write_bio_PUBKEY(bio, evp)) {
+            WRITE_LOG(LOG_FATAL, "write bio failed");
+            break;
+        }
+        size_t len = 0;
+        char buf[RSA_KEY_BITS] = {0};
+        if (BIO_read_ex(bio, buf, sizeof(buf), &len) <= 0) {
+            WRITE_LOG(LOG_FATAL, "read bio failed");
+            break;
+        }
+        pubkey = string(buf, len);
+        ret = true;
+        WRITE_LOG(LOG_INFO, "load pubkey from file(%s) success", pubkey_filename.c_str());
+    } while (0);
+
+    if (evp) {
+        EVP_PKEY_free(evp);
+        evp = nullptr;
+    }
+    if (bio) {
+        BIO_free(bio);
+        bio = nullptr;
+    }
+    if (file_pubkey) {
+        fclose(file_pubkey);
+        file_pubkey = nullptr;
+    }
+    return ret;
+}
+
+bool TryLoadPublicKey(string &pubkey)
+{
+    string prikey_filename;
+    struct stat status;
+    if (!GetUserKeyPath(prikey_filename)) {
+        WRITE_LOG(LOG_FATAL, "get key path failed");
+        return false;
+    }
+    string pubkey_filename = prikey_filename + ".pub";
+    if (stat(prikey_filename.c_str(), &status) == -1) {
+        if (!GenerateKeyPair(prikey_filename, pubkey_filename)) {
+            WRITE_LOG(LOG_FATAL, "generate new key failed");
+            return false;
+        }
+    }
+    if (!LoadPublicKey(pubkey_filename, pubkey)) {
+        WRITE_LOG(LOG_FATAL, "load key failed");
+        return false;
+    }
+
+    WRITE_LOG(LOG_INFO, "load pubkey success");
+
+    return true;
+}
+
+bool GetHostName(string &hostname)
+{
+    int ret;
+    char buf[BUF_SIZE_DEFAULT] = {0};
+    size_t bufsize = sizeof(buf);
+
+    ret = uv_os_gethostname(buf, &bufsize);
+    if (ret != 0) {
+        WRITE_LOG(LOG_FATAL, "get hostname failed: %d", ret);
+        return false;
+    }
+
+    hostname = string(buf, bufsize);
+
+    WRITE_LOG(LOG_INFO, "hostname: %s", hostname.c_str());
+
+    return true;
+}
+
+bool GetPublicKeyinfo(string &pubkey_info)
+{
+    string hostname;
+    if (!GetHostName(hostname)) {
+        WRITE_LOG(LOG_FATAL, "gethostname failed");
+        return false;
+    }
+    string pubkey;
+    if (!HdcAuth::TryLoadPublicKey(pubkey)) {
+        WRITE_LOG(LOG_FATAL, "load public key failed");
+        return false;
+    }
+    pubkey_info = hostname;
+    pubkey_info.append(HDC_HOST_DAEMON_BUF_SEPARATOR);
+    pubkey_info.append(pubkey);
+
+    WRITE_LOG(LOG_INFO, "Get pubkey info success");
+
+    return true;
+}
+
+RSA *LoadPrivateKey(string prikey_filename)
+{
+    RSA *rsa = nullptr;
+    EVP_PKEY *evp = nullptr;
+    FILE *file_prikey = nullptr;
+
+    do {
+        file_prikey = fopen(prikey_filename.c_str(), "r");
+        if (!file_prikey) {
+            WRITE_LOG(LOG_FATAL, "open file %s failed", prikey_filename.c_str());
+            break;
+        }
+        evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, NULL);
+        if (!evp) {
+            WRITE_LOG(LOG_FATAL, "read prikey from %s failed", prikey_filename.c_str());
+            break;
+        }
+        rsa = EVP_PKEY_get1_RSA(evp);
+        WRITE_LOG(LOG_FATAL, "load prikey success");
+    } while (0);
+
+    if (evp) {
+        EVP_PKEY_free(evp);
+        evp = nullptr;
+    }
+    if (file_prikey) {
+        fclose(file_prikey);
+        file_prikey = nullptr;
+    }
+
+    return rsa;
+}
+
+bool RsaSignAndBase64(string &buf)
+{
+    RSA *rsa = nullptr;
+    string prikey_filename;
+    int sign_ori_size, sign_out_size;
+    unsigned char sign_ori[BUF_SIZE_DEFAULT2] = { 0 };
+    unsigned char *sign_out = nullptr;
+    int in_size = buf.size();
+    const unsigned char *in = reinterpret_cast<const unsigned char *>(buf.c_str());
+
+    WRITE_LOG(LOG_INFO, "plain(%s)", buf.c_str());
+    if (!GetUserKeyPath(prikey_filename)) {
+        WRITE_LOG(LOG_FATAL, "get key path failed");
+        return false;
+    }
+
+    rsa = LoadPrivateKey(prikey_filename);
+    if (!rsa) {
+        WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikey_filename.c_str());
+        return false;
+    }
+    sign_ori_size = RSA_private_encrypt(in_size, in, sign_ori, rsa, RSA_PKCS1_PADDING);
+    if (sign_ori_size <= 0) {
+        WRITE_LOG(LOG_FATAL, "encrypt failed");
+        return false;
+    }
+    sign_out = new unsigned char[sign_ori_size * 2];
+    if (!sign_out) {
+        WRITE_LOG(LOG_FATAL, "alloc mem failed");
+        return false;
+    }
+    sign_out_size = EVP_EncodeBlock(sign_out, sign_ori, sign_ori_size);
+    if (sign_out_size <= 0) {
+        WRITE_LOG(LOG_FATAL, "encode buf failed");
+        delete[] sign_out;
+        sign_out = nullptr;
+        return false;
+    }
+
+    buf = string(reinterpret_cast<char *>(sign_out), sign_out_size);
+
+    WRITE_LOG(LOG_INFO, "sign success");
+
+    delete[] sign_out;
+    sign_out = nullptr;
+
+    return true;
+}
+#endif
 }

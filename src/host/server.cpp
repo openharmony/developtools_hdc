@@ -426,53 +426,38 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
 
 bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
 {
-    bool ret = false;
-    int retChild = 0;
     string bufString;
     switch (handshake.authType) {
-        case AUTH_TOKEN: {
-            void *ptr = nullptr;
-            bool retChildForToken = HdcAuth::KeylistIncrement(hSession->listKey, hSession->authKeyIndex, &ptr);
-            // HdcAuth::FreeKey will be effect at function 'FreeSession'
-            if (!retChildForToken) {
-                // Iteration call certificate authentication
-                handshake.authType = AUTH_PUBLICKEY;
-                ret = HandServerAuth(hSession, handshake);
-                break;
-            }
-            char sign[BUF_SIZE_DEFAULT2] = { 0 };
-            retChildForToken = HdcAuth::AuthSign(ptr, reinterpret_cast<const unsigned char *>(handshake.buf.c_str()),
-                                                 handshake.buf.size(), sign);
-            if (!retChildForToken) {
-                break;
-            }
-            handshake.buf = string(sign, retChildForToken);
-            handshake.authType = AUTH_SIGNATURE;
-            bufString = SerialStruct::SerializeToString(handshake);
-            Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
-                 reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
-            ret = true;
-            break;
-        }
         case AUTH_PUBLICKEY: {
-            char bufPrivateKey[BUF_SIZE_DEFAULT2] = "";
-            retChild = HdcAuth::GetPublicKeyFileBuf(reinterpret_cast<unsigned char *>(bufPrivateKey),
-                                                    sizeof(bufPrivateKey));
-            if (!retChild) {
-                break;
+            WRITE_LOG(LOG_INFO, "recive get publickey cmd");
+            if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
+                WRITE_LOG(LOG_FATAL, "load public key failed");
+                return false;
             }
-            handshake.buf = string(bufPrivateKey, retChild);
             handshake.authType = AUTH_PUBLICKEY;
             bufString = SerialStruct::SerializeToString(handshake);
             Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
                  reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
-            ret = true;
-            break;
+
+            WRITE_LOG(LOG_INFO, "send pubkey over");
+            return true;
+        }
+        case AUTH_SIGNATURE: {
+            WRITE_LOG(LOG_INFO, "recive auth signture cmd");
+            if (!HdcAuth::RsaSignAndBase64(handshake.buf)) {
+                WRITE_LOG(LOG_FATAL, "sign failed");
+                return false;
+            }
+            handshake.authType = AUTH_SIGNATURE;
+            bufString = SerialStruct::SerializeToString(handshake);
+            Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
+                 reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+            WRITE_LOG(LOG_INFO, "response auth signture success");
+            return true;
         }
         default:
-            break;
+            return false;
     }
-    return ret;
 }
 
 bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize)

@@ -20,12 +20,12 @@ ohos_static_library("serialize_structs") {
     "src/cffi/oh_usb.cpp",
     "src/cffi/sendmsg.cpp",
     "src/cffi/serial_struct.cpp",
+    "src/cffi/sys_para.cpp",
     "src/cffi/transfer.cpp",
     "src/cffi/uart.cpp",
     "src/cffi/uart_wrapper.cpp",
     "src/cffi/usb_util.cpp",
     "src/cffi/usb_wrapper.cpp",
-    "src/cffi/sys_para.cpp",
   ]
   output_extension = "so"
 
@@ -37,9 +37,7 @@ ohos_static_library("serialize_structs") {
     "//third_party/bounds_checking_function:libsec_static",
     "//third_party/lz4:liblz4_static",
   ]
-  external_deps = [
-    "init:libbegetutil",
-  ]
+  external_deps = [ "init:libbegetutil" ]
 
   if (is_mac) {
     defines = [ "HOST_MAC" ]

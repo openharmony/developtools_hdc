@@ -303,9 +303,9 @@ pub const SHELL_PARAM_GET: &str = "param get";
 pub const ENV_ROOT_RUN_MODE: &str = "persist.hdc.root";
 pub const ENV_STARTUP: &str = "ohos.startup.powerctrl";
 pub const ENV_DEBUGGABLE: &str = "const.debuggable";
-// pub const ENV_SHELL_CONTROL: &str = "persist.hdc.control.shell";
-// pub const ENV_FILE_CONTROL: &str = "persist.hdc.control.file";
-// pub const ENV_FPORT_CONTROL: &str = "persist.hdc.control.fport";
+pub const ENV_SHELL_CONTROL: &str = "persist.hdc.control.shell";
+pub const ENV_FILE_CONTROL: &str = "persist.hdc.control.file";
+pub const ENV_FPORT_CONTROL: &str = "persist.hdc.control.fport";
 
 pub const RSA_BIT_NUM: usize = 3072;
 pub const RSA_PUBKEY_PATH: &str = "/data/misc/hdc";

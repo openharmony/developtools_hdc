@@ -21,7 +21,6 @@ use std::fs::{self, File};
 use std::io::{self, Error, ErrorKind};
 use ylong_runtime::sync::{Mutex, RwLock};
 
-use crate::utils::hdc_log::*;
 use crate::common::base::Base;
 use crate::common::hdctransfer::transfer_task_finish;
 use crate::common::hdctransfer::HdcTransferBase;
@@ -31,6 +30,7 @@ use crate::config;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::transfer;
+use crate::utils::hdc_log::*;
 use std::io::Read;
 use std::sync::Arc;
 use ylong_runtime::io::AsyncReadExt;

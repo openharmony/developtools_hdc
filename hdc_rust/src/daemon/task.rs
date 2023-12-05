@@ -35,7 +35,12 @@ extern "C" {
 }
 
 pub fn get_parameter(key: String, out: &mut [u8]) -> i32 {
-    unsafe { GetParam(key.as_str().as_ptr() as *const libc::c_char, out.as_ptr() as *mut libc::c_char) }
+    unsafe {
+        GetParam(
+            key.as_str().as_ptr() as *const libc::c_char,
+            out.as_ptr() as *mut libc::c_char,
+        )
+    }
 }
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
@@ -261,12 +266,12 @@ fn check_control(command: HdcCommand) -> bool {
         | HdcCommand::UnityReboot
         | HdcCommand::UnityRemount
         | HdcCommand::UnityRootrun
-	    | HdcCommand::ShellInit
-	    | HdcCommand::ShellData
-	    | HdcCommand::UnityExecute
+        | HdcCommand::ShellInit
+        | HdcCommand::ShellData
+        | HdcCommand::UnityExecute
         | HdcCommand::UnityHilog
-	    | HdcCommand::UnityBugreportInit
-	    | HdcCommand::JdwpList
+        | HdcCommand::UnityBugreportInit
+        | HdcCommand::JdwpList
         | HdcCommand::JdwpTrack => {
             control_param = ENV_SHELL_CONTROL;
         }
@@ -305,22 +310,36 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
 
     if !auth_ok && !handshake_cmd {
         hdc::error!("auth status is nok, cannt accept cmd: {}", cmd as u32);
-        transfer::put(session_id,
+        transfer::put(
+            session_id,
             TaskMessage {
                 channel_id: task_message.channel_id,
                 command: HdcCommand::KernelChannelClose,
                 payload: vec![0],
             },
-        ).await;
+        )
+        .await;
         return Err(Error::new(
             ErrorKind::Other,
             format!("auth status is nok, cannt accept cmd: {}", cmd as u32),
         ));
     }
     if !check_control(task_message.command) {
-        hdc::common::hdctransfer::echo_client(session_id, task_message.channel_id, format!("check_permission param false: {}", task_message.command as u32).into_bytes()).await;
+        hdc::common::hdctransfer::echo_client(
+            session_id,
+            task_message.channel_id,
+            format!(
+                "check_permission param false: {}",
+                task_message.command as u32
+            )
+            .into_bytes(),
+        )
+        .await;
         hdc::common::hdctransfer::transfer_task_finish(task_message.channel_id, session_id).await;
-        hdc::debug!("check_permission param false: {}", task_message.command as u32);
+        hdc::debug!(
+            "check_permission param false: {}",
+            task_message.command as u32
+        );
 
         return Ok(());
     }

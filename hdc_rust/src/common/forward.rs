@@ -21,6 +21,7 @@ use std::fs::{self, File};
 use std::io::{self, Error, ErrorKind};
 use ylong_runtime::sync::{Mutex, RwLock};
 
+use crate::utils::hdc_log::*;
 use crate::common::base::Base;
 use crate::common::hdctransfer::transfer_task_finish;
 use crate::common::hdctransfer::HdcTransferBase;
@@ -653,20 +654,18 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             let mut buffer = [0u8; 1024];
             println!("jdwp pipe read....");
             let size = UdsServer::wrap_read(local_fd, &mut buffer);
+            crate::info!("jdwp pipe read.... size: {:#?}", size);
             if size < 0 {
                 println!("disconnect, error:{}.", size);
                 free_context(session_id, channel_id, 0, true).await;
                 break;
             }
-            let str = String::from_utf8(buffer.to_vec()).unwrap();
-            println!("size:{}, recv: {}", size, str);
-
             send_to_task(
                 session_id,
                 channel_id,
                 HdcCommand::ForwardData,
-                &buffer,
-                1024,
+                &buffer[0..size as usize],
+                size as usize,
                 cid,
             )
             .await;
@@ -773,6 +772,7 @@ pub async fn setup_file_point(session_id: u32, channel_id: u32) -> bool {
 
 pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
     if !detech_forward_type(session_id, channel_id).await {
+        crate::error!("forward type is not true");
         return false;
     }
     let task = ForwardTaskMap::get(session_id, channel_id).await;
@@ -892,9 +892,10 @@ pub async fn begin_forward(
     _payload: &[u8],
     command: &String,
 ) -> bool {
-    println!("begin_forward, command: {:#?}", command);
+    crate::info!("begin_forward, command: {:#?}", command);
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!("begin_forward get task is none");
         return false;
     }
     let task = &mut task.unwrap().clone();
@@ -970,7 +971,7 @@ pub async fn slave_connect(
     if let Ok((content, id)) = filter_command(_payload).await {
         let content = &content[8..].trim_end_matches('\0').to_string();
         if !check_node_info(content, &mut task.local_args).await {
-            println!("check_node_info false");
+            crate::error!("check local args is false");
             return false;
         }
         task.context_forward.id = id;
@@ -1092,6 +1093,7 @@ pub async fn command_dispatch(
 ) -> bool {
     let mut error = String::from("");
     println!("command_dispatch_command recv: {:#?}", _command);
+    crate::info!("command_dispatch command recv: {:#?}", _command);
     match _command {
         HdcCommand::ForwardInit => {
             let s = String::from_utf8(_payload.to_vec());

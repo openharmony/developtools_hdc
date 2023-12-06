@@ -19,6 +19,7 @@ use crate::transfer;
 use std::fs::metadata;
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use ylong_runtime::sync::Mutex;
 
@@ -212,7 +213,7 @@ async fn set_master_parameters(
         }
         task.transfer.is_dir = true;
         task.transfer.task_queue = get_sub_files_resurively(&task.transfer.local_path.clone());
-        task.transfer.base_local_path = task.transfer.local_path.clone();
+        task.transfer.base_local_path = get_base_path(task.transfer.local_path.clone());
 
         if !task.transfer.task_queue.is_empty() {
             task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
@@ -225,6 +226,16 @@ async fn set_master_parameters(
         return false;
     }
     true
+}
+
+fn get_base_path(path: String) -> String {
+    let p = Path::new(path.as_str());
+    let parent_path = p.parent();
+    if let Some(pp) = parent_path {
+        pp.display().to_string()
+    } else {
+        path
+    }
 }
 
 async fn put_file_check(session_id: u32, channel_id: u32) {

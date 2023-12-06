@@ -166,9 +166,11 @@ static void SetSelinuxLabel()
 #else
     string debugMode = "";
     string rootMode = "";
+    string flashdMode = "";
     SystemDepend::GetDevItem("const.debuggable", debugMode);
     SystemDepend::GetDevItem("persist.hdc.root", rootMode);
-    if (debugMode == "1" && rootMode == "1") {
+    SystemDepend::GetDevItem("updater.flashd.configfs", flashdMode);
+    if ((debugMode == "1" && rootMode == "1") || (debugMode == "1" && flashdMode == "1")) {
         setcon("u:r:su:s0");
     } else {
         setcon("u:r:sh:s0");

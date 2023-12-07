@@ -89,8 +89,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
 
-    // auth is not required
-    if cfg!(not(disable_auth)) {
+    if !is_auth_enable().await {
         return Ok((
             recv.session_id,
             make_ok_message(recv.session_id, task_message.channel_id).await,
@@ -328,9 +327,9 @@ fn call_setting_ability() -> bool {
 }
 
 pub async fn is_auth_enable() -> bool {
-    match get_dev_item("const.hdc.auth_enable", "false") {
+    match get_dev_item("const.hdc.secure", "false") {
         (false, _) => true,
-        (true, auth_enable) => auth_enable.trim().to_lowercase() == "true",
+        (true, auth_enable) => auth_enable.trim().to_lowercase() != "false",
     }
 }
 
@@ -367,14 +366,11 @@ pub async fn auth_cancel_monitor() {
 }
 
 async fn require_user_permittion(hostname: &str) -> UserPermit {
-
-    if !is_auth_enable().await {
-        log::error!("auth is not enable, will allow forever automatic");
-        return UserPermit::AllowForever;
-    }
-
+    // (UserPermit::Invalid as u32).to_string().as_str();
+    // todo: debug for test, release must use invalid as default
+    let default_permit = "auth_result:2";
     // clear result first
-    if !set_dev_item("rw.hdc.daemon.auth_result", (UserPermit::Invalid as u32).to_string().as_str()) {
+    if !set_dev_item("rw.hdc.daemon.auth_result", default_permit) {
         log::error!("clear param failed.");
         return UserPermit::Refuse;
     }

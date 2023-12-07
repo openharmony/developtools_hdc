@@ -96,10 +96,6 @@ ohos_rust_executable("hdcd_rust") {
   features = [ "daemon" ]
   subsystem_name = "developtools"
   part_name = "hdc"
-
-  if (build_variant == "root") {
-    features += [ "build_variant_root" ]
-  }
 }
 
 ohos_rust_executable("hdc_rust") {

@@ -804,7 +804,7 @@ pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
         task.context_forward.last_error = String::from("Not support forward-type");
         return false;
     }
-
+    ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
     let ret = match task.forward_type {
         ForwardType::Tcp => setup_tcp_point(session_id, channel_id).await,
         ForwardType::Device => setup_device_point(session_id, channel_id).await,
@@ -922,7 +922,6 @@ pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         return false;
     }
     task.remote_parameters = argv[1].clone();
-
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
     if !setup_point(session_id, channel_id).await {
         crate::error!("setup point return false");
@@ -1075,6 +1074,9 @@ pub async fn forward_command_dispatch(
         HdcCommand::ForwardFreeContext => {
             free_context(session_id, channel_id, 0, false).await;
         }
+        HdcCommand::ForwardActiveMaster => {
+            ret = true;
+        }
         _ => {
             ret = false;
         }
@@ -1085,7 +1087,7 @@ pub async fn forward_command_dispatch(
 
 pub async fn print_error_info(session_id: u32, channel_id: u32, error: &mut String) {
     if error.is_empty() {
-        echo_client(session_id, channel_id, "Forwardport result: Failed").await;
+        echo_client(session_id, channel_id, "forward arguments parse is fail").await;
     } else {
         echo_client(session_id, channel_id, error.as_str()).await;
     }

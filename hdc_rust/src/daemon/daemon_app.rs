@@ -33,12 +33,14 @@ use std::process::Command;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DaemonAppTask {
+    pub result_msg: Vec<u8>,
     pub transfer: HdcTransferBase,
 }
 
 impl DaemonAppTask {
     pub fn new(_session_id: u32, _channel_id: u32) -> Self {
         Self {
+            result_msg: vec![],
             transfer: HdcTransferBase::new(_session_id, _channel_id),
         }
     }
@@ -97,6 +99,7 @@ async fn do_app_check(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool
     task.transfer.is_master = false;
     task.transfer.local_path = local_path;
     task.transfer.file_size = transconfig.file_size;
+    task.transfer.index = 0;
     let state = metadata(tmp_dir.clone());
     if let Ok(metadata_obj) = state {
         if metadata_obj.is_dir() {
@@ -128,7 +131,10 @@ async fn put_app_finish(
     let mut msg = Vec::<u8>::new();
     msg.push(mode);
     msg.push(exit_status);
-    msg.append(&mut result.to_owned());
+    let arc = AppTaskMap::get(session_id, channel_id).await;
+    let mut task = arc.lock().await;
+    task.result_msg.append(&mut result.to_vec());
+    msg.append(&mut task.result_msg.clone());
 
     let app_finish_message = TaskMessage {
         channel_id,
@@ -163,7 +169,7 @@ async fn handle_execute_result(
 ) {
     match &result {
         Ok(message) => {
-            let mut m = message.clone();
+            let mut m: Vec<u8> = message.clone();
             put_app_finish(session_id, channel_id, mode, 1, &mut m[..]).await;
         }
         Err(err) => {
@@ -230,6 +236,17 @@ async fn on_transfer_finish(session_id: u32, channel_id: u32) {
     }
 }
 
+async fn transfer_fail(session_id: u32, channel_id: u32, error: &str) {
+    let mode = config::AppModeType::Install as u8;
+    put_app_finish(
+        session_id,
+        channel_id,
+        mode,
+        0,
+        &mut error.to_string().into_bytes()[..],
+    ).await;
+}
+
 pub async fn command_dispatch(
     session_id: u32,
     channel_id: u32,
@@ -243,7 +260,7 @@ pub async fn command_dispatch(
             if do_app_check(session_id, channel_id, _payload).await {
                 put_file_begin(session_id, channel_id).await;
             } else {
-                task_finish(session_id, channel_id).await;
+                transfer_fail(session_id, channel_id, "check file fail.").await;
             }
         }
         HdcCommand::AppUninstall => {
@@ -255,7 +272,6 @@ pub async fn command_dispatch(
             if hdctransfer::transfer_data(&mut task.transfer, _payload) {
                 drop(task);
                 on_transfer_finish(session_id, channel_id).await;
-                task_finish(session_id, channel_id).await;
             }
         }
         _ => {
@@ -265,6 +281,3 @@ pub async fn command_dispatch(
     true
 }
 
-async fn task_finish(session_id: u32, channel_id: u32) {
-    hdctransfer::transfer_task_finish(channel_id, session_id).await;
-}

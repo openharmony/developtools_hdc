@@ -236,9 +236,9 @@ async fn do_jdwp_list(session_id: u32, channel_id: u32) {
 }
 
 async fn do_jdwp_track(session_id: u32, channel_id: u32, payload: &[u8]) {
-    let mut debug_or_release = false;
+    let mut debug_or_release = true;
     if !payload.is_empty() && payload[0] == b'p' {
-        debug_or_release = true;
+        debug_or_release = false;
     }
     println!("do_jdwp_track");
     let jdwp = Jdwp::get_instance().clone();

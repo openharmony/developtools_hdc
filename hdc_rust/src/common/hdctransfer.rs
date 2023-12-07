@@ -74,7 +74,6 @@ pub struct HdcTransferBase {
     pub dir_begin_time: u64,
 
     pub transfer_config: TransferConfig,
-    pub file_buffer: Vec<u8>,
 }
 
 impl HdcTransferBase {
@@ -102,7 +101,6 @@ impl HdcTransferBase {
             file_begin_time: 0,
             dir_begin_time: 0,
             transfer_config: TransferConfig::default(),
-            file_buffer: vec![],
         }
     }
 }
@@ -282,52 +280,45 @@ pub async fn read_and_send_data(
 }
 
 pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
-    let buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
-    let decompress_size;
+    let mut header = TransferPayload {
+        ..Default::default()
+    };
+    let _ = header.parse(_data[..FILE_PACKAGE_HEAD].to_vec());
+    let file_index = header.index;
+    let mut buffer = _data[FILE_PACKAGE_HEAD..].to_vec();
     let compress_type = match CompressType::try_from(tbase.transfer_config.compress_type) {
         Ok(compress_type) => compress_type,
         Err(_) => CompressType::None,
     };
 
-    match compress_type {
-        CompressType::Lz4 => {
-            let mut header = TransferPayload {
-                ..Default::default()
-            };
-
-            let _ = header.parse(_data[..FILE_PACKAGE_HEAD].to_vec());
-            unsafe {
-                decompress_size = LZ4_decompress_transfer(
-                    _data[FILE_PACKAGE_HEAD..].as_ptr() as *const libc::c_char,
-                    buf.as_ptr() as *mut libc::c_char,
-                    header.compress_size as i32,
-                    header.uncompress_size as i32,
-                );
-            }
-            if decompress_size > 0 {
-                tbase
-                    .file_buffer
-                    .append(&mut buf[..(decompress_size as usize)].to_vec());
-            }
-        }
-        _ => {
-            tbase
-                .file_buffer
-                .append(&mut _data[FILE_PACKAGE_HEAD..].to_vec());
+    if let CompressType::Lz4 = compress_type {
+        let buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
+        let decompress_size = unsafe {
+            LZ4_decompress_transfer(
+                _data[FILE_PACKAGE_HEAD..].as_ptr() as *const libc::c_char,
+                buf.as_ptr() as *mut libc::c_char,
+                header.compress_size as i32,
+                header.uncompress_size as i32,
+            )
+        };
+        if decompress_size > 0 {
+            buffer = buf[..(decompress_size as usize)].to_vec();
         }
     }
 
-    let buf_len = tbase.file_buffer.len() as u64;
-    if tbase.index + buf_len >= tbase.file_size || buf_len >= 1024 * 1024 {
-        let buffer = tbase.file_buffer.clone();
-        let path = tbase.local_path.clone();
-        ylong_runtime::spawn(async move {
-            let mut file = OpenOptions::new().append(true).open(&path).unwrap();
-            file.write_all(buffer.as_slice()).unwrap();
-        });
-        tbase.file_buffer = vec![];
-        tbase.index += buf_len;
-    }
+    let path = tbase.local_path.clone();
+    let write_buf = buffer.clone();
+    ylong_runtime::spawn(async move {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path)
+            .unwrap();
+        let _ = file.seek(std::io::SeekFrom::Start(file_index));
+        file.write_all(write_buf.as_slice()).unwrap();
+    });
+
+    tbase.index += buffer.len() as u64;
     if tbase.index >= tbase.file_size {
         return true;
     }

@@ -243,9 +243,11 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
     loop {
         match rx.recv().await {
             Ok(msg) => {
-                if let Err(e) = task::dispatch_task(msg, session_id).await {
-                    hdc::error!("dispatch task failed: {}", e.to_string());
-                }
+                ylong_runtime::spawn(async move {
+                    if let Err(e) = task::dispatch_task(msg, session_id).await {
+                        hdc::error!("dispatch task failed: {}", e.to_string());
+                    }
+                });
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());
@@ -313,6 +315,11 @@ fn get_tcp_port() -> u16 {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 2 && args[1] == "-v" {
+        println!("Ver 2.0.0a");
+        return;
+    }
     logger_init(get_logger_lv());
 
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()

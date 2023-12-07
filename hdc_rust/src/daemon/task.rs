@@ -28,6 +28,21 @@ use hdc::transfer;
 
 use std::io::{self, Error, ErrorKind};
 
+use std::ffi::c_int;
+
+extern "C" {
+    fn GetParam(key: *const libc::c_char, out: *mut libc::c_char) -> c_int;
+}
+
+pub fn get_parameter(key: String, out: &mut [u8]) -> i32 {
+    unsafe {
+        GetParam(
+            key.as_str().as_ptr() as *const libc::c_char,
+            out.as_ptr() as *mut libc::c_char,
+        )
+    }
+}
+
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
         HdcCommand::ShellInit => {
@@ -235,57 +250,58 @@ async fn daemon_bug_report_task(task_message: TaskMessage, session_id: u32) -> i
     Ok(())
 }
 
-// fn get_control_permission(param: &str) -> bool {
-//     let (_, control_ret) = hdc::utils::get_dev_item(param);
-//     if control_ret.starts_with('0') {
-//         return false;
-//     }
-//     true
-// }
+fn get_control_permission(param: &str) -> bool {
+    let mut value = [0u8; 512];
+    let _ret = get_parameter(param.to_string(), &mut value);
+    if value[0] == b'0' {
+        return false;
+    }
+    true
+}
 
-// fn check_control(command: HdcCommand) -> bool {
-//     let mut control_param = "";
-//     match command {
-//         HdcCommand::UnityRunmode
-//         | HdcCommand::UnityReboot
-//         | HdcCommand::UnityRemount
-//         | HdcCommand::UnityRootrun
-// 	    | HdcCommand::ShellInit
-// 	    | HdcCommand::ShellData
-// 	    | HdcCommand::UnityExecute
-//         | HdcCommand::UnityHilog
-// 	    | HdcCommand::UnityBugreportInit
-// 	    | HdcCommand::JdwpList
-//         | HdcCommand::JdwpTrack => {
-//             control_param = ENV_SHELL_CONTROL;
-//         }
-//         HdcCommand::FileInit
-//         | HdcCommand::FileCheck
-//         | HdcCommand::FileData
-//         | HdcCommand::FileBegin
-//         | HdcCommand::FileFinish
-//         | HdcCommand::AppCheck
-//         | HdcCommand::AppData
-//         | HdcCommand::AppUninstall => {
-//             control_param = ENV_FILE_CONTROL;
-//         }
-//         HdcCommand::ForwardInit
-//         | HdcCommand::ForwardCheck
-//         | HdcCommand::ForwardCheckResult
-//         | HdcCommand::ForwardActiveSlave
-//         | HdcCommand::ForwardActiveMaster
-//         | HdcCommand::ForwardData
-//         | HdcCommand::ForwardFreeContext => {
-//             control_param = ENV_FPORT_CONTROL;
-//         }
-//         _ => {}
-//     }
-//     // (_, run_debug) = hdc::utils::get_dev_item(param);
-//     if !control_param.is_empty() && !get_control_permission(control_param) {
-//         return false;
-//     }
-//     true
-// }
+fn check_control(command: HdcCommand) -> bool {
+    let mut control_param = "";
+    match command {
+        HdcCommand::UnityRunmode
+        | HdcCommand::UnityReboot
+        | HdcCommand::UnityRemount
+        | HdcCommand::UnityRootrun
+        | HdcCommand::ShellInit
+        | HdcCommand::ShellData
+        | HdcCommand::UnityExecute
+        | HdcCommand::UnityHilog
+        | HdcCommand::UnityBugreportInit
+        | HdcCommand::JdwpList
+        | HdcCommand::JdwpTrack => {
+            control_param = ENV_SHELL_CONTROL;
+        }
+        HdcCommand::FileInit
+        | HdcCommand::FileCheck
+        | HdcCommand::FileData
+        | HdcCommand::FileBegin
+        | HdcCommand::FileFinish
+        | HdcCommand::AppCheck
+        | HdcCommand::AppData
+        | HdcCommand::AppUninstall => {
+            control_param = ENV_FILE_CONTROL;
+        }
+        HdcCommand::ForwardInit
+        | HdcCommand::ForwardCheck
+        | HdcCommand::ForwardCheckResult
+        | HdcCommand::ForwardActiveSlave
+        | HdcCommand::ForwardActiveMaster
+        | HdcCommand::ForwardData
+        | HdcCommand::ForwardFreeContext => {
+            control_param = ENV_FPORT_CONTROL;
+        }
+        _ => {}
+    }
+    // (_, run_debug) = hdc::utils::get_dev_item(param);
+    if !control_param.is_empty() && !get_control_permission(control_param) {
+        return false;
+    }
+    true
+}
 
 pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     let cmd = task_message.command;
@@ -294,25 +310,39 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
 
     if !auth_ok && !handshake_cmd {
         hdc::error!("auth status is nok, cannt accept cmd: {}", cmd as u32);
-        transfer::put(session_id,
+        transfer::put(
+            session_id,
             TaskMessage {
                 channel_id: task_message.channel_id,
                 command: HdcCommand::KernelChannelClose,
                 payload: vec![0],
             },
-        ).await;
+        )
+        .await;
         return Err(Error::new(
             ErrorKind::Other,
             format!("auth status is nok, cannt accept cmd: {}", cmd as u32),
         ));
     }
-    // if !check_control(task_message.command) {
-    //     hdc::common::hdctransfer::echo_client(session_id, task_message.channel_id, format!("check_permission param false: {}", task_message.command as u32).into_bytes()).await;
-    //     hdc::common::hdctransfer::transfer_task_finish(task_message.channel_id, session_id).await;
-    //     hdc::debug!("check_permission param false: {}", task_message.command as u32);
+    if !check_control(task_message.command) {
+        hdc::common::hdctransfer::echo_client(
+            session_id,
+            task_message.channel_id,
+            format!(
+                "check_permission param false: {}",
+                task_message.command as u32
+            )
+            .into_bytes(),
+        )
+        .await;
+        hdc::common::hdctransfer::transfer_task_finish(task_message.channel_id, session_id).await;
+        hdc::debug!(
+            "check_permission param false: {}",
+            task_message.command as u32
+        );
 
-    //     return Ok(());
-    // }
+        return Ok(());
+    }
     match task_message.command {
         HdcCommand::KernelHandshake => {
             hdc::debug!("KernelHandshake");

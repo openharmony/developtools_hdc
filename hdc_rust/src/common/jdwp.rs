@@ -34,7 +34,6 @@ type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
 
 pub trait JdwpBase: Send + Sync + 'static {}
 pub struct Jdwp {
-    is_stopping: Arc<Mutex<bool>>,
     poll_node_map: NodeMap,
     empty_waiter: Arc<Waiter>,
     new_process_waiter: Arc<Waiter>,
@@ -63,7 +62,6 @@ impl Jdwp {
 
     pub fn new() -> Self {
         Self {
-            is_stopping: Arc::new(Mutex::new(false)),
             poll_node_map: Arc::new(Mutex::new(HashMap::default())),
             empty_waiter: Arc::new(Waiter::new()),
             new_process_waiter: Arc::new(Waiter::new()),
@@ -95,24 +93,23 @@ impl Jdwp {
         false
     }
 
-    async fn send_process_list(trackers: Trackers, message: String, debug_or_release: bool) {
+    async fn send_process_list(trackers: Trackers, node_map: NodeMap) {
         let trackers = trackers.lock().await;
-        let len = message.as_bytes().len();
-        let len_str = format!("{:04x}\n", len);
-        let mut header = len_str.as_bytes().to_vec();
-        let mut buffer = Vec::<u8>::new();
-        buffer.append(&mut header);
-
-        buffer.append(&mut message.as_str().as_bytes().to_vec());
         for (channel_id2, session_id2, is_debug) in trackers.iter() {
-            if !*is_debug || *is_debug == debug_or_release {
-                let data = TaskMessage {
-                    channel_id: *channel_id2,
-                    command: HdcCommand::KernelEchoRaw,
-                    payload: buffer.to_vec(),
-                };
-                transfer::put(*session_id2, data).await;
-            }
+            let message = Self::get_process_list_with_pkg_name(node_map.clone(), *is_debug).await;
+            let len = message.as_bytes().len();
+            let len_str = format!("{:04x}\n", len);
+            let mut header = len_str.as_bytes().to_vec();
+            let mut buffer = Vec::<u8>::new();
+            buffer.append(&mut header);
+            buffer.append(&mut message.as_str().as_bytes().to_vec());
+
+            let data = TaskMessage {
+                channel_id: *channel_id2,
+                command: HdcCommand::KernelEchoRaw,
+                payload: buffer.to_vec(),
+            };
+            transfer::put(*session_id2, data).await;
         }
     }
 
@@ -122,8 +119,7 @@ impl Jdwp {
         drop(trackers_lock);
 
         let node_map = self.poll_node_map.clone();
-        let message = Self::get_process_list_with_pkg_name(node_map, debug_or_release).await;
-        Self::send_process_list(self.trackers.clone(), message, debug_or_release).await;
+        Self::send_process_list(self.trackers.clone(), node_map).await;
     }
 
     pub async fn get_process_list(&self) -> String {
@@ -196,11 +192,8 @@ impl Jdwp {
                 drop(map);
 
                 let trackers = trackers.clone();
-
                 let node_map = node_map.clone();
-                let message =
-                    Self::get_process_list_with_pkg_name(node_map, debug_or_release).await;
-                Self::send_process_list(trackers, message, debug_or_release).await;
+                Self::send_process_list(trackers, node_map).await;
 
                 waiter.wake_one();
             } else if size <= 0 {
@@ -230,16 +223,9 @@ impl Jdwp {
             }
             let node_map = self.poll_node_map.clone();
             let trackers = self.trackers.clone();
-            let stop = self.is_stopping.clone();
             let waiter = self.new_process_waiter.clone();
             ylong_runtime::spawn(async move {
                 loop {
-                    let stop_flag = stop.lock().await;
-                    if *stop_flag {
-                        return;
-                    }
-
-                    drop(stop_flag);
                     let client_fd = UdsServer::wrap_accept(fd);
                     if client_fd == -1 {
                         break;
@@ -260,15 +246,9 @@ impl Jdwp {
     pub fn start_data_looper(&self) {
         let node_map = self.poll_node_map.clone();
         let waiter = self.empty_waiter.clone();
-        let stop = self.is_stopping.clone();
         let trackers = self.trackers.clone();
         ylong_runtime::spawn(async move {
             loop {
-                let stop_flag = stop.lock().await;
-                if *stop_flag {
-                    return;
-                }
-                drop(stop_flag);
                 let mut poll_nodes = Vec::<PollNode>::new();
                 let mut size = poll_nodes.len();
                 let node_map_value = node_map.lock().await;
@@ -299,8 +279,6 @@ impl Jdwp {
                 drop(node_map_value);
                 UdsServer::wrap_poll(poll_nodes.as_mut_slice(), size.try_into().unwrap(), -1);
                 let mut node_map_value = node_map.lock().await;
-                let mut is_change = false;
-                let mut debug_or_release = false;
                 for pnode in &poll_nodes {
                     println!(
                         "after poll, node:{},{},{},{}",
@@ -310,43 +288,27 @@ impl Jdwp {
                     if pnode.revents & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR) != 0 {
                         node_map_value.remove(&pnode.fd);
                         UdsServer::wrap_close(pnode.fd);
-                        is_change = true;
-                        debug_or_release = pnode.debug_or_release;
                         break;
                     }
                 }
                 drop(node_map_value);
-                if is_change {
-                    let trackers = trackers.clone();
-                    let node_map = node_map.clone();
-                    let message =
-                        Self::get_process_list_with_pkg_name(node_map, debug_or_release).await;
-                    Self::send_process_list(trackers, message, debug_or_release).await;
-                }
+                let trackers = trackers.clone();
+                let node_map = node_map.clone();
+                Self::send_process_list(trackers, node_map).await;
             }
         });
     }
 
     pub async fn create_fd_event_poll(&self) {
         loop {
-            let is_stopping = self.is_stopping.clone();
-            let stop_flag = is_stopping.lock().await;
-            if *stop_flag {
-                return;
-            }
-
-            drop(stop_flag);
             let waiter = self.new_process_waiter.clone();
-            println!("create_fd_event_poll, new_process_waiter wait...");
             waiter.wait().await;
-            println!("create_fd_event_poll, new_process_waiter wait continue...");
 
             let node_map = self.poll_node_map.clone();
             let node_map_value = node_map.lock().await;
             if !node_map_value.is_empty() {
                 let empty_waiter = self.empty_waiter.clone();
                 empty_waiter.wake_one();
-                println!("create_fd_event_poll, empty_waiter_value wake...");
             }
         }
     }

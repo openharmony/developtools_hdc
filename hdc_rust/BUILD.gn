@@ -15,6 +15,7 @@ import("//build/ohos.gni")
 
 ohos_static_library("serialize_structs") {
   sources = [
+    "src/cffi/getparameter.cpp",
     "src/cffi/mount.cpp",
     "src/cffi/mount_wrapper.cpp",
     "src/cffi/oh_usb.cpp",
@@ -37,6 +38,8 @@ ohos_static_library("serialize_structs") {
     "//third_party/bounds_checking_function:libsec_static",
     "//third_party/lz4:liblz4_static",
   ]
+  external_deps = [ "init:libbegetutil" ]
+
   external_deps = [ "init:libbegetutil" ]
 
   if (is_mac) {

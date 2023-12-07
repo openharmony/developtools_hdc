@@ -90,6 +90,18 @@ pub fn error_other(msg: String) -> Error {
     Error::new(ErrorKind::Other, msg)
 }
 
+pub fn bytes_to_string(message: Vec<u8>) -> String {
+    let msg = String::from_utf8(message);
+    match msg {
+        Ok(str) => {
+            str
+        }
+        Err(_e) => {
+            "".to_string()
+        }
+    }
+}
+
 pub mod hdc_log {
     #[cfg(not(feature = "host"))]
     pub use hilog_rust::{hilog, HiLogLabel, LogType};

@@ -40,8 +40,6 @@ ohos_static_library("serialize_structs") {
   ]
   external_deps = [ "init:libbegetutil" ]
 
-  external_deps = [ "init:libbegetutil" ]
-
   if (is_mac) {
     defines = [ "HOST_MAC" ]
   }

@@ -327,9 +327,9 @@ fn call_setting_ability() -> bool {
 }
 
 pub async fn is_auth_enable() -> bool {
-    match get_dev_item("const.hdc.secure", "false") {
+    match get_dev_item("const.secure", "1") {
         (false, _) => true,
-        (true, auth_enable) => auth_enable.trim().to_lowercase() != "false",
+        (true, auth_enable) => auth_enable.trim().to_lowercase() == "1",
     }
 }
 

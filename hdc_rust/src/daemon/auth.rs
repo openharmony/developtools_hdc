@@ -89,6 +89,13 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
 
+    if recv.version.as_str() < "Ver: 1.3.1" {
+        hdc::info!("client version({}) is too low, return OK for session:{}", recv.version.as_str(), recv.session_id);
+        return Ok((
+            recv.session_id,
+            make_ok_message(recv.session_id, task_message.channel_id).await,
+        ));
+    }
     if !is_auth_enable().await {
         hdc::info!("auth enable is false, return OK for session:{}", recv.session_id);
         return Ok((

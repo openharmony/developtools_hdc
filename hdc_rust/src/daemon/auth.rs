@@ -343,10 +343,12 @@ pub async fn is_auth_enable() -> bool {
 }
 
 pub async fn auth_cancel_monitor() {
-    if !is_auth_enable().await {
-        hdc::error!("auth is not enable");
-        return;
-    }
+    // if !is_auth_enable().await {
+    //     hdc::error!("auth is not enable");
+    //     return;
+    // }
+
+    return;
 
     loop {
         // clear result first

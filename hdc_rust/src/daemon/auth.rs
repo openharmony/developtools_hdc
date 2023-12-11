@@ -347,8 +347,13 @@ pub async fn auth_cancel_monitor() {
     //     hdc::error!("auth is not enable");
     //     return;
     // }
-
-    return;
+    let secure = match get_dev_item("const.secure", "1") {
+        (false, _) => true,
+        (true, auth_enable) => auth_enable.trim().to_lowercase() == "1",
+    };
+    if !secure {
+        return;
+    }
 
     loop {
         // clear result first

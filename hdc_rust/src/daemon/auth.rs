@@ -90,6 +90,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
     }
 
     if !is_auth_enable().await {
+        hdc::info!("auth enable is false, return OK for session:{}", recv.session_id);
         return Ok((
             recv.session_id,
             make_ok_message(recv.session_id, task_message.channel_id).await,
@@ -394,7 +395,7 @@ async fn require_user_permittion(hostname: &str) -> UserPermit {
         let default_permit = "auth_result:2";
         // clear result first
         if !set_dev_item("rw.hdc.daemon.auth_result", default_permit) {
-            hdc::error!("clear param failed.");
+            hdc::error!("debug auth result failed, so refuse this connect.");
             return UserPermit::Refuse;
         }
     }
@@ -405,9 +406,11 @@ async fn require_user_permittion(hostname: &str) -> UserPermit {
     }
     // call setting ability
     if !call_setting_ability() {
+        hdc::error!("show dialog failed, so refuse this connect.");
         return UserPermit::Refuse;
     }
     if !wait_dev_item("rw.hdc.daemon.auth_result", "auth_result:*", HDC_WAIT_PARAMETER_FOREVER) {
+        hdc::error!("wait for auth result failed, so refuse this connect.");
         return UserPermit::Refuse;
     }
     let permit_result = match get_dev_item("rw.hdc.daemon.auth_result", "_") {

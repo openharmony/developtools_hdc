@@ -202,9 +202,17 @@ async fn uart_daemon_start() -> io::Result<()> {
 
 async fn usb_daemon_start() -> io::Result<()> {
     loop {
-        let (config_fd, bulkin_fd, bulkout_fd) = transfer::usb::usb_init()?;
-        let _ = usb_handle_client(config_fd, bulkin_fd, bulkout_fd).await;
-        transfer::usb::usb_close(config_fd, bulkin_fd, bulkout_fd);
+        let ret = transfer::usb::usb_init();
+        match ret {
+            Ok((config_fd, bulkin_fd, bulkout_fd)) => {
+                let _ = usb_handle_client(config_fd, bulkin_fd, bulkout_fd).await;
+                transfer::usb::usb_close(config_fd, bulkin_fd, bulkout_fd);
+            }
+            Err(e) => {
+                hdc::error!("usb inut failure and restart hdcd error is {:#?}", e);
+                std::process::exit(0);
+            }
+        }
     }
 }
 

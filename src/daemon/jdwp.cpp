@@ -303,9 +303,9 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
 uint8_t *HdcJdwp::Int2Bytes(int32_t value, uint8_t b[])
 {
     b[0] = (value & 0xFF);
-    b[1] = (value & 0xFF00) >> 8;
-    b[2] = (value & 0xFF0000) >> 16;
-    b[3] = (value & 0xFF000000) >> 24;
+    b[1] = (value & 0xFF00) >> 8; // the 1 bit offset 8.
+    b[2] = (value & 0xFF0000) >> 16; // the 2 bit offset 16.
+    b[3] = (value & 0xFF000000) >> 24; // the 3 bit offset 24.
     return b;
 }
 
@@ -465,11 +465,11 @@ bool HdcJdwp::SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
     cmsg->cmsg_type = SCM_RIGHTS;
     cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
     if (memcpy_s(CMSG_DATA(cmsg), sizeof(fd), &fd, sizeof(fd)) != 0) {
-        WRITE_LOG(LOG_FATAL,"SendFdToApp memcpy error:%d", errno);
+        WRITE_LOG(LOG_FATAL, "SendFdToApp memcpy error:%d", errno);
         return false;
     }
     if (sendmsg(sockfd, &msg, 0) < 0) {
-        WRITE_LOG(LOG_FATAL,"SendFdToApp sendmsg errno:%d", errno);
+        WRITE_LOG(LOG_FATAL, "SendFdToApp sendmsg errno:%d", errno);
         return false;
     }
     return true;

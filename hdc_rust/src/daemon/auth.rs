@@ -335,7 +335,6 @@ fn call_setting_ability() -> bool {
 }
 
 pub async fn is_auth_enable() -> bool {
-
     let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_enable", "_");
     debug_auth_enable.trim().to_lowercase() == "true"
 

@@ -335,23 +335,22 @@ fn call_setting_ability() -> bool {
 }
 
 pub async fn is_auth_enable() -> bool {
-    // match get_dev_item("const.secure", "1") {
-    //     (false, _) => true,
-    //     (true, auth_enable) => auth_enable.trim().to_lowercase() == "1",
-    // }
-    true
+
+    let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_enable", "_");
+    debug_auth_enable.trim().to_lowercase() == "true"
+
+    // let (_, auth_enable) = get_dev_item("const.secure", "_");
+    // auth_enable.trim().to_lowercase() == "1"
 }
 
 pub async fn auth_cancel_monitor() {
-    // if !is_auth_enable().await {
-    //     hdc::error!("auth is not enable");
-    //     return;
-    // }
-    let secure = match get_dev_item("const.secure", "1") {
-        (false, _) => true,
-        (true, auth_enable) => auth_enable.trim().to_lowercase() == "1",
-    };
-    if !secure {
+    let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_cancel", "_");
+    if debug_auth_enable.trim().to_lowercase() != "true" {
+        return;
+    }
+
+    if !is_auth_enable().await {
+        hdc::error!("auth is not enable");
         return;
     }
 

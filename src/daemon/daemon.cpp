@@ -472,7 +472,7 @@ void HdcDaemon::JdwpNewFileDescriptor(const uint8_t *buf, const int bytesIO)
     } else if (spcmd == SP_ARK_NEWFD) {
         // SP_ARK_NEWFD | fd[1] | ark:pid@tid@Debugger
         int32_t fd = *reinterpret_cast<int32_t *>(const_cast<uint8_t *>(buf + 1));
-        std::string arkstr = std::string(reintepret_cast<char *>(buf) + 5, bytesIO - 5);  // 5 : fd offset
+        std::string arkstr = std::string(reinterpret_cast<char *>(buf) + 5, bytesIO - 5);  // 5 : fd offset
         WRITE_LOG(LOG_DEBUG, "JdwpNewFileDescriptor arkstr:%s fd:%d", arkstr.c_str(), fd);
         ((HdcJdwp *)clsJdwp)->SendArkNewFD(arkstr, fd);
     }

@@ -519,6 +519,7 @@ EVP_PKEY *GenerateNewKey(void)
 
         WRITE_LOG(LOG_INFO, "generate key pair success");
         success = true;
+        break;
     }
 
     if (e)

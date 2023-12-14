@@ -322,11 +322,6 @@ fn get_tcp_port() -> u16 {
 }
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() == 2 && args[1] == "-v" {
-        println!("Ver 2.0.0a");
-        return;
-    }
     logger_init(get_logger_lv());
 
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()

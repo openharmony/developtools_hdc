@@ -34,6 +34,7 @@ type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
 
 pub trait JdwpBase: Send + Sync + 'static {}
 pub struct Jdwp {
+    is_stopping: Arc<Mutex<bool>>,
     poll_node_map: NodeMap,
     empty_waiter: Arc<Waiter>,
     new_process_waiter: Arc<Waiter>,
@@ -62,6 +63,7 @@ impl Jdwp {
 
     pub fn new() -> Self {
         Self {
+            is_stopping: Arc::new(Mutex::new(false)),
             poll_node_map: Arc::new(Mutex::new(HashMap::default())),
             empty_waiter: Arc::new(Waiter::new()),
             new_process_waiter: Arc::new(Waiter::new()),
@@ -223,9 +225,16 @@ impl Jdwp {
             }
             let node_map = self.poll_node_map.clone();
             let trackers = self.trackers.clone();
+            let stop = self.is_stopping.clone();
             let waiter = self.new_process_waiter.clone();
             ylong_runtime::spawn(async move {
                 loop {
+                    let stop_flag = stop.lock().await;
+                    if *stop_flag {
+                        return;
+                    }
+
+                    drop(stop_flag);
                     let client_fd = UdsServer::wrap_accept(fd);
                     if client_fd == -1 {
                         break;
@@ -246,9 +255,15 @@ impl Jdwp {
     pub fn start_data_looper(&self) {
         let node_map = self.poll_node_map.clone();
         let waiter = self.empty_waiter.clone();
+        let stop = self.is_stopping.clone();
         let trackers = self.trackers.clone();
         ylong_runtime::spawn(async move {
             loop {
+                let stop_flag = stop.lock().await;
+                if *stop_flag {
+                    return;
+                }
+                drop(stop_flag);
                 let mut poll_nodes = Vec::<PollNode>::new();
                 let mut size = poll_nodes.len();
                 let node_map_value = node_map.lock().await;
@@ -301,6 +316,13 @@ impl Jdwp {
 
     pub async fn create_fd_event_poll(&self) {
         loop {
+            let is_stopping = self.is_stopping.clone();
+            let stop_flag = is_stopping.lock().await;
+            if *stop_flag {
+                return;
+            }
+
+            drop(stop_flag);
             let waiter = self.new_process_waiter.clone();
             waiter.wait().await;
 

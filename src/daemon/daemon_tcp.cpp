@@ -137,6 +137,7 @@ int HdcDaemonTCP::SetTCPListen()
         return ERR_API_FAIL;
     }
     tcpListenPort = ntohs(addr.sin_port);
+    SystemDepend::SetDevItem("persist.hdc.port", std::to_string(tcpListenPort).c_str());
     return RET_SUCCESS;
 }
 

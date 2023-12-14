@@ -31,9 +31,6 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     constexpr int DEF_FILE_PERMISSION = 0750;
-#ifndef _WIN32
-    sigset_t g_blockList;
-#endif
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -1639,10 +1636,6 @@ namespace Base {
         signal(SIGPIPE, SIG_IGN);
         signal(SIGCHLD, SIG_IGN);
         signal(SIGALRM, SIG_IGN);
-        sigemptyset(&g_blockList);
-        constexpr int crashSignal = 35;
-        sigaddset(&g_blockList, crashSignal);
-        sigprocmask(SIG_BLOCK, &g_blockList, NULL);
 #endif
     }
 

@@ -19,6 +19,8 @@ namespace Hdc {
 HdcForwardBase::HdcForwardBase(HTaskInfo hTaskInfo)
     : HdcTaskBase(hTaskInfo)
 {
+    fds[0] = -1;
+    fds[1] = -1;
 }
 
 HdcForwardBase::~HdcForwardBase()

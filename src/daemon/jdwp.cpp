@@ -300,7 +300,7 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
     return 0;
 }
 
-uint8_t *HdcJdwp::Int2Bytes(int32_t value, uint8_t b[])
+uint8_t *HdcJdwp::Int2Bytes(uint32_t value, uint8_t b[])
 {
     b[0] = (value & 0xFF);
     b[1] = (value & 0xFF00) >> 8; // the 1 bit offset 8.
@@ -410,7 +410,7 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         std::string right = str.substr(pos + 1);
         pos = right.find_first_of("@");
         std::string pidstr = right.substr(0, pos);
-        uint32_t pid = std::atoi(pidstr.c_str());
+        uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
         HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
         if (!ctx) {
             break;
@@ -423,10 +423,10 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         }
         // transfer fd to jvm
         // clang-format off
-        int size = sizeof(int32_t) + str.size();
+        uint32_t size = sizeof(int32_t) + str.size();
         // fd | str(ark:pid@tid@Debugger)
         uint8_t buf[size];
-        Int2Bytes(fd, buf);
+        Int2Bytes(static_cast<uint32_t>(fd), buf);
         if (memcpy_s(buf + sizeof(int32_t), str.size(), str.c_str(), str.size()) != EOK) {
             WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
             return false;
@@ -444,7 +444,7 @@ bool HdcJdwp::SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
 {
     struct iovec iov;
     iov.iov_base = buf;
-    iov.iov_len = size;
+    iov.iov_len = static_cast<unsigned int>(size);
     struct msghdr msg;
     msg.msg_name = nullptr;
     msg.msg_namelen = 0;

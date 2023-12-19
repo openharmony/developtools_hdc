@@ -164,16 +164,6 @@ bool HdcJdwpSimulator::Connect()
     return true;
 }
 
-int32_t HdcJdwpSimulator::Bytes2Int(uint8_t b[])
-{
-    int32_t value = 0;
-    value = (b[0] & 0xFF);
-    value |= ((b[1] << 8) & 0xFF00);
-    value |= ((b[2] << 16) & 0xFF0000);
-    value |= ((b[3] << 24) & 0xFF000000);
-    return value;
-}
-
 void HdcJdwpSimulator::ReadStart()
 {
     readThread_ = std::thread(ReadWork, this);
@@ -224,7 +214,7 @@ void HdcJdwpSimulator::Read()
         } else if (0 < cnt && cnt < 5) {
             continue;
         }
-        int32_t fd = Bytes2Int(buf);
+        int32_t fd = *reinterpret_cast<int32_t *>(buf);
         std::string str = (char *)(buf + 4);
         OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
         struct cmsghdr *cmsg;

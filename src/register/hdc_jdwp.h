@@ -53,7 +53,6 @@ private:
     int cfd_;
     std::atomic<bool> disconnectFlag_;
 
-    static int32_t Bytes2Int(uint8_t b[]);
     std::thread readThread_;
     static void ReadWork(void *param);
     void Read();

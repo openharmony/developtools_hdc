@@ -36,7 +36,8 @@
     "build": {
       "sub_component": [
         "//developtools/hdc:hdcd_system",
-        "//developtools/hdc:hdcd_updater"
+        "//developtools/hdc:hdcd_updater",
+        "//developtools/hdc:hdc_register"
       ],
       "test": [ "//developtools/hdc/test:hdc_fuzztest" ]
     }

@@ -297,6 +297,7 @@ group("hdc_unittest") {
     ":hdc_jdwp_unittest",
     ":hdc_uart_unittest",
     ":hdc_uart_unittest(${host_toolchain})",
+    ":hdc_register_unittest",
   ]
 }
 
@@ -325,6 +326,24 @@ config("hdc_test_config") {
   ]
 }
 
+config("hdc_register_config") {
+  cflags = code_check_flag
+  ldflags = []
+  defines = [ "HDC_HILOG" ]
+
+  if (hdc_test_coverage && is_ohos) {
+    defines += [ "TEST_COVERAGE" ]
+    cflags += [
+      "-fprofile-arcs",
+      "-ftest-coverage",
+    ]
+    ldflags += [ "--coverage" ]
+  }
+  if (js_jdwp_connect) {
+    defines += [ "JS_JDWP_CONNECT" ]
+  }
+}
+
 fuzz_cflags = [
   "-O0",
   "-Wno-unused-variable",
@@ -347,4 +366,33 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
 group("hdc_fuzztest") {
   testonly = true
   deps = [ ":JdwpReadStreamFuzzTest" ]
+}
+
+ohos_unittest("hdc_register_unittest") {
+  module_out_path = module_output_path
+  resource_config_file = "unittest/resource/ohos_test.xml"
+
+  sources = [
+    "${hdc_path}/src/register/hdc_connect.cpp",
+    "${hdc_path}/src/register/hdc_jdwp.cpp",
+    "unittest/register/register_test.cpp",
+  ]
+
+  include_dirs = [
+    "${hdc_path}/src/register/"
+  ]
+
+  configs = [ ":hdc_register_config" ]
+
+  deps = [
+    "//third_party/googletest:gmock_main",
+    "//third_party/libuv:uv",
+  ]
+  external_deps = [
+    "c_utils:utils",
+    "hilog:libhilog",
+  ]
+
+  subsystem_name = "developtools"
+  part_name = "hdc"
 }

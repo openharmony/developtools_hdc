@@ -302,6 +302,7 @@ group("hdc_target") {
     ":hdc",
     ":hdcd_system",
     ":hdcd_updater",
+    ":hdc_register",
   ]
 }
 
@@ -332,4 +333,47 @@ action("hdc_hash_gen") {
     rebase_path("$py_out_dir" + "/", root_build_dir),
   ]
   public_configs = [ ":hdc_config" ]
+}
+
+config("hdc_register_config") {
+  cflags_cc = [
+    "-fexceptions",
+    "-fno-complete-member-pointers",
+    "-Wno-implicit-fallthrough",
+    "-fvisibility=default",
+    "-frtti",
+    "-std=c++17",
+  ]
+}
+
+ohos_shared_library("hdc_register") {
+  deps = []
+  defines = [
+    "JS_JDWP_CONNECT",
+    "HDC_HILOG",
+  ]
+
+  external_deps = [
+    "hilog:libhilog",
+    "c_utils:utilsbase",
+  ]
+
+  deps += [
+    "//third_party/bounds_checking_function:libsec_shared",
+    "//third_party/libuv:uv",
+  ]
+
+  include_dirs = [
+    "//commonlibrary/c_utils/base/include",
+  ]
+
+  sources = [
+    "src/register/hdc_connect.cpp",
+    "src/register/hdc_jdwp.cpp",
+  ]
+
+  configs = [ ":hdc_register_config" ]
+
+  subsystem_name = "developtools"
+  part_name = "hdc"
 }

@@ -164,6 +164,11 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 #endif
     }
 #ifndef HDC_HOST
+    WRITE_LOG(LOG_INFO, "FileIOOnThread free fd:%d, epfd:%d", thisClass->fdIO, epfd);
+    if (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1) {
+        WRITE_LOG(LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epfd:%d errno:%d",
+                thisClass->fdIO, epfd, errno);
+    }
     close(epfd);
 #endif
     if (buf != nullptr) {

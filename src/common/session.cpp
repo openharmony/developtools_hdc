@@ -539,6 +539,7 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     thisClass->AdminSession(OP_REMOVE, hSession->sessionId, nullptr);
     WRITE_LOG(LOG_DEBUG, "!!!FreeSessionFinally sessionId:%u finish", hSession->sessionId);
     HdcAuth::FreeKey(!hSession->serverOrDaemon, hSession->listKey);
+    Base::CloseFd(HSession->dataFd[STREAM_MAIN]);
     delete hSession;
     hSession = nullptr;  // fix CodeMars SetNullAfterFree issue
     Base::TryCloseHandle((const uv_handle_t *)handle, Base::CloseIdleCallback);
@@ -553,6 +554,8 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
         if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
+            Base::CloseFd(hSession->ctrlFd[STREAM_MAIN]);
+            Base::CloseFd(hSession->ctrlFd[STREAM_WORK]);
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };

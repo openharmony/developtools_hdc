@@ -300,15 +300,6 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
     return 0;
 }
 
-uint8_t *HdcJdwp::Int2Bytes(uint32_t value, uint8_t b[])
-{
-    b[0] = (value & 0xFF);
-    b[1] = (value & 0xFF00) >> 8; // the 1 bit offset 8.
-    b[2] = (value & 0xFF0000) >> 16; // the 2 bit offset 16.
-    b[3] = (value & 0xFF000000) >> 24; // the 3 bit offset 24.
-    return b;
-}
-
 // Working in the main thread, but will be accessed by each session thread, so we need to set thread lock
 void *HdcJdwp::AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJdwp)
 {
@@ -426,7 +417,10 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         uint32_t size = sizeof(int32_t) + str.size();
         // fd | str(ark:pid@tid@Debugger)
         uint8_t buf[size];
-        Int2Bytes(static_cast<uint32_t>(fd), buf);
+        if (memcpy_s(buf, sizeof(int32_t), &fd, sizeof(int32_t)) != EOK) {
+            WRITE_LOG(LOG_WARN, "From fd Create buf failed, fd:%d", fd);
+            return false;
+        }
         if (memcpy_s(buf + sizeof(int32_t), str.size(), str.c_str(), str.size()) != EOK) {
             WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
             return false;

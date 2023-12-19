@@ -19,6 +19,8 @@ namespace Hdc {
 HdcForwardBase::HdcForwardBase(HTaskInfo hTaskInfo)
     : HdcTaskBase(hTaskInfo)
 {
+    fds[0] = -1;
+    fds[1] = -1;
 }
 
 HdcForwardBase::~HdcForwardBase()
@@ -621,7 +623,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
             SetupPointContinue(ctxPoint, 0);
         }
         ret = true;
-     } else {
+    } else {
         if (!ctxPoint->checkPoint) {
             if (!SetupPoint(ctxPoint)) {
                 sError = ctxPoint->lastError;
@@ -632,7 +634,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
             SetupPointContinue(ctxPoint, 0);
         }
         ret = true;
-     }
+    }
 Finish:
     if (!ret) {
         FreeContext(ctxPoint, 0, true);

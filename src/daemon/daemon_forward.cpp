@@ -98,7 +98,7 @@ bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
         return false;
     }
     std::string pidstr = svr.substr(0, found);
-    uint32_t pid = std::atoi(pidstr.c_str());
+    uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
     bool ret = clsJdwp->CheckPIDExist(pid);
     if (!ret) {
         SetupPointContinue(ctxPoint, (int)ret);
@@ -111,7 +111,7 @@ bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
     ret = false;
     Base::CreateSocketPair(fds);
     std::string str = ark + ":" + svr;
-    int size = 1 + sizeof(int32_t) + str.size();
+    uint32_t size = 1 + sizeof(int32_t) + str.size();
     uint8_t buf[size];
     buf[0] = SP_ARK_NEWFD;
     if (memcpy_s(buf + 1, sizeof(int32_t), &fds[1], sizeof(int32_t)) ||

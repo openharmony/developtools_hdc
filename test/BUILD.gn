@@ -295,9 +295,9 @@ group("hdc_unittest") {
     ":hdc_host_uart_unittest",
     ":hdc_host_uart_unittest(${host_toolchain})",
     ":hdc_jdwp_unittest",
+    ":hdc_register_unittest",
     ":hdc_uart_unittest",
     ":hdc_uart_unittest(${host_toolchain})",
-    ":hdc_register_unittest",
   ]
 }
 
@@ -378,9 +378,7 @@ ohos_unittest("hdc_register_unittest") {
     "unittest/register/register_test.cpp",
   ]
 
-  include_dirs = [
-    "${hdc_path}/src/register/"
-  ]
+  include_dirs = [ "${hdc_path}/src/register/" ]
 
   configs = [ ":hdc_register_config" ]
 

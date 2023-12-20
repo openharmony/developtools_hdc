@@ -553,6 +553,8 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
         if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
+            Base::CloseFd(hSession->ctrlFd[STREAM_MAIN]);
+            Base::CloseFd(hSession->ctrlFd[STREAM_WORK]);
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };

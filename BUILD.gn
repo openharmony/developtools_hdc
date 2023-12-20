@@ -363,8 +363,6 @@ ohos_shared_library("hdc_register") {
     "//third_party/libuv:uv",
   ]
 
-  include_dirs = [ "//commonlibrary/c_utils/base/include" ]
-
   sources = [
     "src/register/hdc_connect.cpp",
     "src/register/hdc_jdwp.cpp",

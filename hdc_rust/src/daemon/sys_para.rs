@@ -21,6 +21,7 @@ use hdc::config::{*};
 extern "C" {
     fn SetParameterEx(key: *const libc::c_char, val: *const libc::c_char) -> libc::c_int;
     fn GetParameterEx(key: *const libc::c_char, def: *const libc::c_char, val: *mut libc::c_char, len: libc::c_uint) -> libc::c_int;
+    #[allow(dead_code)]
     fn WaitParameterEx(key: *const libc::c_char, val: *const libc::c_char, timeout: libc::c_int) -> libc::c_int;
 }
 
@@ -49,6 +50,7 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
     }
 }
 
+#[allow(dead_code)]
 pub fn wait_dev_item(key: &str, val: &str, timeout: i32) -> bool {
     let ckey = CString::new(key).unwrap();
     let cval = CString::new(val).unwrap();

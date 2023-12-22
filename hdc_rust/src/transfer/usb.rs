@@ -125,7 +125,7 @@ impl base::Reader for UsbReader {
         Ok(buf_to_vec(buf))
     }
 
-    fn check_protocol_head(&self) -> io::Result<u32> {
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
         let buf = self.read_frame(serializer::USB_HEAD_SIZE)?;
         if buf[..config::USB_PACKET_FLAG.len()] != config::USB_PACKET_FLAG[..] {
             return Err(Error::new(
@@ -139,7 +139,7 @@ impl base::Reader for UsbReader {
             crate::warn!("parse usb head error: {}", e.to_string());
             return Err(e);
         }
-        Ok(u32::from_be(head.data_size))
+        Ok((u32::from_be(head.data_size), 0))
     }
 }
 

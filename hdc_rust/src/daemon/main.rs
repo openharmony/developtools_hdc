@@ -33,11 +33,14 @@ use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;
 use hdc::transfer;
+use hdc::transfer::base::Reader;
+use hdc::transfer::uart_wrapper;
 use hdc::utils;
 
 use log::LevelFilter;
 use std::ffi::CString;
 use ylong_runtime::net::{TcpListener, TcpStream};
+use ylong_runtime::sync::mpsc;
 
 fn drop_root_privileges() -> bool {
     let user_name = "shell";
@@ -165,40 +168,96 @@ async fn tcp_daemon_start(port: u16) -> io::Result<()> {
 }
 
 async fn uart_daemon_start() -> io::Result<()> {
-    Ok(())
-    // loop {
-    //     let fd = transfer::uart::uart_init()?;
-    //     uart_handle_client(fd).await?;
-    // }
+    loop {
+        let fd = transfer::uart::uart_init()?;
+        println!("uart loop...");
+        let _ret = uart_handle_client(fd).await;
+        transfer::uart::uart_close(fd);
+    }
 }
 
-// async fn uart_handle_client(_fd: i32) -> io::Result<()> {
-//     Ok(())
-// let rd = transfer::uart::UartReader { fd };
-// let wr = transfer::uart::UartWriter { fd };
+async fn uart_handle_client(fd: i32) -> io::Result<()> {
+    let wr = transfer::uart::UartWriter { fd };
+    let mut rd = transfer::uart::UartReader { fd, head: None };
+    let (packet_size, package_index) = rd.check_protocol_head()?;
+    let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
+    ylong_runtime::spawn(async move {
+        let mut rd = transfer::uart::UartReader { fd, head: None };
+        if let Err(e) =
+            transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
+        {
+            hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
+        }
+    });
 
-// let recv_msg = transfer::base::unpack_task_message(&rd)?;
-// let (session_id, send_msg) = auth::handshake_init(recv_msg).await?;
-// let channel_id = send_msg.channel_id;
+    let handshake_message = rx.recv().await.unwrap();
+    let _ = rx.recv().await;
 
-// transfer::UartMap::start(session_id, wr).await;
-// transfer::put(session_id, send_msg).await;
-// if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
-//     transfer::put(
-//         session_id,
-//         TaskMessage {
-//             channel_id,
-//             command: config::HdcCommand::KernelChannelClose,
-//             payload: vec![0],
-//         },
-//     )
-//     .await;
-// }
+    let (session_id, send_msg) = auth::handshake_init(handshake_message).await?;
+    let channel_id = send_msg.channel_id;
 
-// loop {
-//     handle_message(transfer::base::unpack_task_message(&rd), session_id).await?;
-// }
-// }
+    transfer::start_uart(session_id, wr).await;
+    transfer::start_session(session_id).await;
+
+    let head = rd.head.clone().unwrap();
+    uart_wrapper::on_read_head(head).await;
+    transfer::wrap_put(session_id, send_msg, package_index, 0).await;
+
+    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
+        println!("uart auth channel close.");
+        transfer::put(
+            session_id,
+            TaskMessage {
+                channel_id,
+                command: config::HdcCommand::KernelChannelClose,
+                payload: vec![0],
+            },
+        )
+        .await;
+        println!("uart put channel close end");
+    }
+
+    loop {
+        let (packet_size, _package_index) = rd.check_protocol_head()?;
+        let head = rd.head.clone().unwrap();
+        let session_id = head.session_id;
+        uart_wrapper::on_read_head(head).await;
+        if packet_size == 0 {
+            continue;
+        }
+
+        let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
+        ylong_runtime::spawn(async move {
+            let mut rd = transfer::uart::UartReader { fd, head: None };
+            if let Err(e) =
+                transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
+            {
+                hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
+            }
+        });
+
+        loop {
+            match rx.recv().await {
+                Ok(message) => {
+                    if message.command == config::HdcCommand::UartFinish {
+                        println!("uart finish break");
+                        break;
+                    }
+                    if let Err(e) = task::dispatch_task(message, session_id).await {
+                        log::error!("dispatch task failed: {}", e.to_string());
+                        println!("dispatch task fail: {:#?}", e);
+                    } else {
+                        println!("dispatch task ok");
+                    }
+                }
+                Err(_e) => {
+                    println!("uart recv error");
+                }
+            }
+        }
+        println!("uart next command.");
+    }
+}
 
 async fn usb_daemon_start() -> io::Result<()> {
     loop {
@@ -221,8 +280,8 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
     let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
 
     let mut rx = transfer::usb_start_recv(bulkin_fd, 0);
-    let recv_msg = match rx.recv().await {
-        Ok(msg) => msg,
+    let (recv_msg, _package_index) = match rx.recv().await {
+        Ok((msg, index)) => (msg, index),
         Err(_) => {
             return Err(utils::error_other("usb recv failed, reopen...".to_string()));
         }
@@ -249,7 +308,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
 
     loop {
         match rx.recv().await {
-            Ok(msg) => {
+            Ok((msg, _index)) => {
                 ylong_runtime::spawn(async move {
                     if let Err(e) = task::dispatch_task(msg, session_id).await {
                         hdc::error!("dispatch task failed: {}", e.to_string());

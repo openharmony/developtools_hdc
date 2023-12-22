@@ -150,6 +150,16 @@ namespace RustStruct {
         uint32_t sessionId;
         uint32_t dataSize;
     } __attribute__((packed));
+
+    struct UartHead {
+        uint8_t flag[2];
+        uint16_t option;
+        uint32_t sessionId;
+        uint32_t dataSize;
+        uint32_t package_index;
+        uint32_t data_checksum;
+        uint32_t head_checksum;
+    } __attribute__((packed));
 } // RustStruct
 
 namespace SerialStruct {

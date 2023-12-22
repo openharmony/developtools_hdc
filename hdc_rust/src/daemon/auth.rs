@@ -195,7 +195,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
             }
         }
     } else {
-        handshake_fail(session_id, channel_id, "auth failed".to_string()).await;
+        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
     }
     Ok(())
 }

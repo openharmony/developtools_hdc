@@ -148,6 +148,8 @@ pub enum HdcCommand {
     FlashdErase,
     FlashdFormat,
     FlashdProgress,
+
+    UartFinish,
 }
 
 impl TryFrom<u32> for HdcCommand {
@@ -285,6 +287,7 @@ pub const UART_NODE: &str = "/dev/ttyS4";
 pub const UART_DEFAULT_BAUD_RATE: i32 = 1500000;
 pub const UART_DEFAULT_BITS: i32 = 8;
 pub const UART_EVENT: u8 = 78;
+pub const MAX_UART_SIZE_IOBUF: u32 = 4096;
 
 pub const USB_FFS_BASE: &str = "/dev/usb-ffs/";
 pub const USB_PACKET_FLAG: &[u8] = "UB".as_bytes();

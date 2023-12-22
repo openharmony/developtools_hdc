@@ -118,6 +118,13 @@ extern "C" SerializedBuffer SerializeUsbHead(RustStruct::USBHead &value) {
     return SerializedBuffer{ptr, len};
 }
 
+extern "C" SerializedBuffer SerializeUartHead(RustStruct::UartHead &value) {
+    size_t len = sizeof(value);
+    char *ptr = (char *)malloc(len);
+    memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
+    return SerializedBuffer{ptr, len};
+}
+
 extern "C" uint8_t ParseSessionHandShake(RustStruct::SessionHandShake &value, SerializedBuffer buf) {
     BaseStruct::SessionHandShake shs = {};
     if(!SerialStruct::ParseFromString(shs, string(buf.ptr, buf.size))) {
@@ -207,6 +214,11 @@ extern "C" uint8_t ParsePayloadHead(RustStruct::PayloadHead &value, SerializedBu
 
 extern "C" uint8_t ParseUsbHead(RustStruct::USBHead &value, SerializedBuffer buf) {
     memcpy_s(&value, buf.size, reinterpret_cast<struct USBHead *>(buf.ptr), buf.size);
+    return 1;
+}
+
+extern "C" uint8_t ParseUartHead(RustStruct::UartHead &value, SerializedBuffer buf) {
+    memcpy_s(&value, buf.size, reinterpret_cast<struct UartHead *>(buf.ptr), buf.size);
     return 1;
 }
 

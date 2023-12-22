@@ -25,6 +25,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::io::{self, Error, ErrorKind};
 
+use super::native_struct::UartHead;
 use super::native_struct::UsbHead;
 
 // use tokio::io::Result;
@@ -57,6 +58,7 @@ extern "C" {
     fn SerializeTransferPayload(value: *const TransferPayloadPack) -> SerializedBuffer;
     fn SerializePayloadHead(value: *const PayloadHeadPack) -> SerializedBuffer;
     fn SerializeUsbHead(value: *const UsbHeadPack) -> SerializedBuffer;
+    fn SerializeUartHead(value: *const UartHeadPack) -> SerializedBuffer;
 
     fn ParseSessionHandShake(
         value: *mut SessionHandShakePack,
@@ -71,6 +73,7 @@ extern "C" {
     ) -> libc::c_uchar;
     fn ParsePayloadHead(value: *mut PayloadHeadPack, buf: SerializedBuffer) -> libc::c_uchar;
     fn ParseUsbHead(value: *mut UsbHeadPack, buf: SerializedBuffer) -> libc::c_uchar;
+    fn ParseUartHead(value: *mut UartHeadPack, buf: SerializedBuffer) -> libc::c_uchar;
 }
 
 pub trait Serialization {
@@ -379,6 +382,43 @@ impl Serialization for UsbHead {
         self.option = pack.option;
         self.session_id = pack.session_id;
         self.data_size = pack.data_size;
+
+        Ok(())
+    }
+}
+
+impl Serialization for UartHead {
+    fn serialize(&self) -> Vec<u8> {
+        let pack = UartHeadPack {
+            flag: self.flag,
+            option: self.option,
+            session_id: self.session_id,
+            data_size: self.data_size,
+            package_index: self.package_index,
+            data_checksum: self.data_checksum,
+            head_checksum: self.head_checksum,
+        };
+        let buf = unsafe { SerializeUartHead(&pack) };
+        buf_to_vec(buf)
+    }
+
+    fn parse(&mut self, input: Vec<u8>) -> io::Result<()> {
+        let mut pack = UartHeadPack::default();
+        let buf = SerializedBuffer {
+            ptr: input.as_ptr() as *const libc::c_char,
+            size: input.len() as u64,
+        };
+        if unsafe { ParseUartHead(&mut pack, buf) == 0 } {
+            return Err(Error::new(ErrorKind::Other, "cffi ParseUartHead failed"));
+        }
+
+        self.flag = pack.flag;
+        self.option = pack.option;
+        self.session_id = pack.session_id;
+        self.data_size = pack.data_size;
+        self.package_index = pack.package_index;
+        self.data_checksum = pack.data_checksum;
+        self.head_checksum = pack.head_checksum;
 
         Ok(())
     }

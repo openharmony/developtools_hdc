@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef HDC_REGISTER_H
-#define HDC_REGISTER_H
+#ifndef HDC_DEFINE_REGISTER_H
+#define HDC_DEFINE_REGISTER_H
 
 #include <cinttypes>
 #include <cstdint>
@@ -32,17 +32,11 @@
 #ifdef HDC_HILOG
 #include "hilog/log.h"
 #endif
-
-static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
-
 using std::string;
-using std::vector;
-enum class RetErrCode {
-    SUCCESS = 0,
-    ERR_GENERIC = -1,
-    ERR_BUF_ALLOC = -2,
-};
-const string HANDSHAKE_MESSAGE = "OHOS HDC-HELLO";
+
+namespace Hdc {
+static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
 // str one of ark:pid@com.xxx.xxxx, ark:pid@Debugger, ark:pid@tid@Debugger
 using Callback = std::function<void(int fd, std::string str)>;
-#endif // end HDC_REGISTER_H
+}
+#endif // end HDC_DEFINE_REGISTER_H

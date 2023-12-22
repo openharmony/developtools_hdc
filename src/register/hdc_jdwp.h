@@ -57,7 +57,6 @@ private:
     static void ReadWork(HdcJdwpSimulator *param);
     void Read();
     void ReadStart();
-    void TidCallback(std::string id, int fd);
 };
 } // namespace Hdc
 #endif  // REGISTER_HDC_JDWP_H

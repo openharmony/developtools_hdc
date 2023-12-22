@@ -72,7 +72,7 @@ bool HdcJdwpSimulator::SendToJpid(int fd, const uint8_t *buf, const int bufLen)
 
 bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
 {
-    uint32_t pid_curr = static_cast<uint32_t>(getpid());
+    uint32_t pidCurr = static_cast<uint32_t>(getpid());
     HdcJdwpSimulator *thisClass = param;
 #ifdef JS_JDWP_CONNECT
     string processName = thisClass->processName_;
@@ -95,7 +95,7 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
     }
     JsMsgHeader *jsMsg = reinterpret_cast<JsMsgHeader *>(info);
     jsMsg->msgLen = ppSize;
-    jsMsg->pid = pid_curr;
+    jsMsg->pid = pidCurr;
     jsMsg->isDebug = isDebug;
     OHOS::HiviewDFX::HiLog::Info(LOG_LABEL,
         "ConnectJpid send pid:%{public}d, pp:%{public}s, isDebug:%{public}d, msglen:%{public}d",
@@ -216,20 +216,24 @@ void HdcJdwpSimulator::Read()
             continue;
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);
-        std::string str = (char *)(buf + 4);
+        std::string str(reinterpret_cast<char *>(buf + sizeof(int32_t)), cnt - sizeof(int32_t));
         OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
-        struct cmsghdr *cmsg;
-        for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-            if (cmsg->cmsg_type != SCM_RIGHTS) {
-                continue;
-            }
-            int *newfd = (int *) CMSG_DATA(cmsg);
-            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
-                fd, *newfd, str.c_str());
-            if (cb_) {
-                cb_(*newfd, str);
-            }
-            break;
+        struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+        if (cmsg == nullptr) {
+            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read cmsg is nullptr");
+            continue;
+        }
+        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS ||
+            cmsg->cmsg_len != CMSG_LEN(sizeof(int))) {
+            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read level:%{public}d type:%{public}d len:%{public}d",
+                cmsg->cmsg_level, cmsg->cmsg_type, cmsg->cmsg_len);
+            continue;
+        }
+        int newfd = *(reinterpret_cast<int *>(CMSG_DATA(cmsg)));
+        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
+            fd, newfd, str.c_str());
+        if (cb_) {
+            cb_(newfd, str);
         }
     }
 }

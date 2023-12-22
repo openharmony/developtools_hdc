@@ -19,7 +19,7 @@
 namespace Hdc {
 
 std::unique_ptr<ConnectManagement> g_connectManagement = nullptr;
-static HdcJdwpSimulator *clsHdcJdwpSimulator = nullptr;
+static HdcJdwpSimulator *g_clsHdcJdwpSimulator = nullptr;
 
 void ConnectManagement::SetProcessName(const std::string &processName)
 {
@@ -63,12 +63,12 @@ Callback ConnectManagement::GetCallback()
 
 void FreeInstance()
 {
-    if (clsHdcJdwpSimulator == nullptr) {
-        return; // if clsHdcJdwpSimulator is nullptr, should return immediately.
+    if (g_clsHdcJdwpSimulator == nullptr) {
+        return;
     }
-    clsHdcJdwpSimulator->Disconnect();
-    delete clsHdcJdwpSimulator;
-    clsHdcJdwpSimulator = nullptr;
+    g_clsHdcJdwpSimulator->Disconnect();
+    delete g_clsHdcJdwpSimulator;
+    g_clsHdcJdwpSimulator = nullptr;
 }
 
 void Stop(int signo)
@@ -93,8 +93,8 @@ void* HdcConnectRun(void* pkgContent)
     std::string pkgName = static_cast<ConnectManagement*>(pkgContent)->GetPkgName();
     bool isDebug = static_cast<ConnectManagement*>(pkgContent)->GetDebug();
     Callback cb = static_cast<ConnectManagement*>(pkgContent)->GetCallback();
-    clsHdcJdwpSimulator = new (std::nothrow) HdcJdwpSimulator(processName, pkgName, isDebug, cb);
-    if (!clsHdcJdwpSimulator->Connect()) {
+    g_clsHdcJdwpSimulator = new (std::nothrow) HdcJdwpSimulator(processName, pkgName, isDebug, cb);
+    if (!g_clsHdcJdwpSimulator->Connect()) {
         OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Connect fail.");
         return nullptr;
     }
@@ -103,7 +103,7 @@ void* HdcConnectRun(void* pkgContent)
 
 void StartConnect(const std::string& processName, const std::string& pkgName, bool isDebug, Callback cb)
 {
-    if (clsHdcJdwpSimulator != nullptr) {
+    if (g_clsHdcJdwpSimulator != nullptr) {
         return;
     }
     pthread_t tid;

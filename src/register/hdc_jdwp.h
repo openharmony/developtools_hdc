@@ -43,7 +43,7 @@ private:
         uint8_t isDebug; // 1:debug 0:release
     };
     void *MallocContext();
-    static bool ConnectJpid(void *param);
+    static bool ConnectJpid(HdcJdwpSimulator *param);
     static bool SendToJpid(int fd, const uint8_t *buf, const int bufLen);
     HCtxJdwpSimulator ctxPoint_;
     string processName_;
@@ -54,7 +54,7 @@ private:
     std::atomic<bool> disconnectFlag_;
 
     std::thread readThread_;
-    static void ReadWork(void *param);
+    static void ReadWork(HdcJdwpSimulator *param);
     void Read();
     void ReadStart();
     void TidCallback(std::string id, int fd);

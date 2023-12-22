@@ -168,7 +168,7 @@ HWTEST_F(RegisterTest, CastToRegisterTest006, TestSize.Level1)
      * @tc.expected: step1. connect ok, the thread is runed.
      */
     auto hdcJdwpSimulator = std::make_unique<HdcJdwpSimulator>("", "test_pkt_name", true, nullptr);
-    auto retFlag = hdcJdwpSimulator->ConnectJpid((void*)hdcJdwpSimulator.get());
+    auto retFlag = hdcJdwpSimulator->ConnectJpid(hdcJdwpSimulator.get());
 
     EXPECT_FALSE(retFlag);
 }

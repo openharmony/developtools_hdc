@@ -70,10 +70,10 @@ bool HdcJdwpSimulator::SendToJpid(int fd, const uint8_t *buf, const int bufLen)
     return true;
 }
 
-bool HdcJdwpSimulator::ConnectJpid(void *param)
+bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
 {
     uint32_t pid_curr = static_cast<uint32_t>(getpid());
-    HdcJdwpSimulator *thisClass = static_cast<HdcJdwpSimulator *>(param);
+    HdcJdwpSimulator *thisClass = param;
 #ifdef JS_JDWP_CONNECT
     string processName = thisClass->processName_;
     string pkgName = thisClass->pkgName_;
@@ -97,7 +97,8 @@ bool HdcJdwpSimulator::ConnectJpid(void *param)
     jsMsg->msgLen = ppSize;
     jsMsg->pid = pid_curr;
     jsMsg->isDebug = isDebug;
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "ConnectJpid send pid:%{public}d, pp:%{public}s, isDebug:%{public}d, msglen:%{public}d",
+    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL,
+        "ConnectJpid send pid:%{public}d, pp:%{public}s, isDebug:%{public}d, msglen:%{public}d",
         jsMsg->pid, pp.c_str(), isDebug, jsMsg->msgLen);
     bool ret = true;
     if (memcpy_s(info + sizeof(JsMsgHeader), pp.size(), &pp[0], pp.size()) != EOK) {
@@ -169,9 +170,9 @@ void HdcJdwpSimulator::ReadStart()
     readThread_ = std::thread(ReadWork, this);
 }
 
-void HdcJdwpSimulator::ReadWork(void *param)
+void HdcJdwpSimulator::ReadWork(HdcJdwpSimulator *param)
 {
-    HdcJdwpSimulator *jdwp = (HdcJdwpSimulator *)param;
+    HdcJdwpSimulator *jdwp = param;
     jdwp->Read();
 }
 
@@ -223,7 +224,8 @@ void HdcJdwpSimulator::Read()
                 continue;
             }
             int *newfd = (int *) CMSG_DATA(cmsg);
-            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d newfd:%{public}d str:%{public}s", fd, *newfd, str.c_str());
+            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
+                fd, *newfd, str.c_str());
             if (cb_) {
                 cb_(*newfd, str);
             }

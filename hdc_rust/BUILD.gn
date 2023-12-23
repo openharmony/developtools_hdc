@@ -21,6 +21,7 @@ ohos_static_library("serialize_structs") {
     "src/cffi/oh_usb.cpp",
     "src/cffi/sendmsg.cpp",
     "src/cffi/serial_struct.cpp",
+    "src/cffi/sys_para.cpp",
     "src/cffi/transfer.cpp",
     "src/cffi/uart.cpp",
     "src/cffi/uart_wrapper.cpp",

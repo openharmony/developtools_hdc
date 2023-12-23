@@ -93,12 +93,8 @@ pub fn error_other(msg: String) -> Error {
 pub fn bytes_to_string(message: Vec<u8>) -> String {
     let msg = String::from_utf8(message);
     match msg {
-        Ok(str) => {
-            str
-        }
-        Err(_e) => {
-            "".to_string()
-        }
+        Ok(str) => str,
+        Err(_e) => "".to_string(),
     }
 }
 

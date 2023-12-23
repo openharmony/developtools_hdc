@@ -17,14 +17,19 @@
 
 use super::base;
 
+use super::uart_wrapper;
 use crate::config;
+use crate::serializer;
+#[allow(unused)]
+use crate::serializer::native_struct::UartHead;
+use crate::serializer::serialize::Serialization;
 use crate::serializer::serialize::SerializedBuffer;
 use crate::utils;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 
 use std::ffi::CString;
-use std::io;
+use std::io::{self, Error, ErrorKind};
 
 #[allow(unused)]
 extern "C" {
@@ -66,8 +71,15 @@ pub fn uart_init() -> io::Result<i32> {
     Ok(fd)
 }
 
+pub fn uart_close(fd: i32) {
+    unsafe {
+        CloseSerialPortExt(fd);
+    }
+}
+
 pub struct UartReader {
     pub fd: i32,
+    pub head: Option<UartHead>,
 }
 
 pub struct UartWriter {
@@ -94,8 +106,39 @@ impl base::Reader for UartReader {
             };
             data = [data, buf].concat();
         }
-        crate::warn!("uart read frame: {:#?}", data);
         Ok(data)
+    }
+
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
+        // println!("check_protocol_head....");
+        let buf = self.read_frame(serializer::UART_HEAD_SIZE)?;
+        if buf[..config::PACKET_FLAG.len()] != config::PACKET_FLAG[..] {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("uart PACKET_FLAG incorrect, content: {:#?}", buf),
+            ));
+        }
+        let mut head = serializer::native_struct::UartHead::default();
+
+        if let Err(e) = head.parse(buf) {
+            println!("parse uart head error {:#?}", e);
+            log::warn!("parse uart head error: {}", e.to_string());
+            return Err(e);
+        }
+
+        self.head = Some(head.clone());
+
+        Ok((head.data_size, head.package_index))
+    }
+
+    #[allow(unused)]
+    fn process_head(&self) {
+        let head = self.head.clone();
+        if let Some(head) = head {
+            ylong_runtime::block_on(async move {
+                uart_wrapper::on_read_head(head).await;
+            });
+        }
     }
 }
 
@@ -105,10 +148,43 @@ impl base::Writer for UartWriter {
             ptr: data.as_ptr() as *const libc::c_char,
             size: data.len() as u64,
         };
-        if unsafe { WriteUartDevExt(self.fd, buf) } < 0 {
+        println!("write all start, fd:{}...", self.fd);
+        let write_count = unsafe { WriteUartDevExt(self.fd, buf) };
+        println!("write count:{}", write_count);
+        if write_count < 0 {
             Err(utils::error_other("uart write failed".to_string()))
         } else {
             Ok(())
         }
+    }
+}
+
+pub fn build_header(session_id: u32, option: u16, length: usize, package_index: u32) -> Vec<u8> {
+    UartHead {
+        session_id: u32::to_le(session_id),
+        flag: [config::PACKET_FLAG[0], config::PACKET_FLAG[1]],
+        option,
+        data_size: u32::to_le(length as u32),
+        package_index,
+        data_checksum: 0,
+        head_checksum: 0,
+    }
+    .serialize()
+}
+
+pub fn build_header_obj(
+    session_id: u32,
+    option: u16,
+    length: usize,
+    package_index: u32,
+) -> UartHead {
+    UartHead {
+        session_id: u32::to_le(session_id),
+        flag: [config::PACKET_FLAG[0], config::PACKET_FLAG[1]],
+        option,
+        data_size: u32::to_le(length as u32),
+        package_index,
+        data_checksum: 0,
+        head_checksum: 0,
     }
 }

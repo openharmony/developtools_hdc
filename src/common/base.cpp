@@ -362,17 +362,15 @@ namespace Base {
                 }
                 auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
                 uv_walk(ptrLoop, clearLoopTask, nullptr);
-                // If all processing ends, Then return0,this call will block
-                if (!ptrLoop->active_handles) {
-                    ret = true;
-                    break;
-                }
-                if (!uv_run(ptrLoop, UV_RUN_ONCE)) {
-                    ret = true;
-                    break;
-                }
-                usleep(10000);
+                int r = 0;
+                int count = 0;
+                do {
+                    count++;
+                    r = uv_run(ptrLoop, UV_RUN_ONCE);
+                    uv_sleep(MILL_SECONDS); //10 millseconds
+                } while (r != 0 && count <= COUNT);
             } else {
+                WRITE_LOG(LOG_DEBUG, "Try close loop success");
                 ret = true;
                 break;
             }

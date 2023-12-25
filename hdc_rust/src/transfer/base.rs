@@ -164,7 +164,7 @@ pub fn unpack_task_message(
     let (pack_size, package_index) = rd.check_protocol_head()?;
     if pack_size == 0 {
         println!("dummy package.");
-        return Err(Error::new(ErrorKind::WriteZero, "dummy package"));
+        return Ok(());
     }
 
     let data = rd.read_frame(pack_size as usize)?;

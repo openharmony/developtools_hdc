@@ -306,12 +306,37 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
         )
         .await;
     }
-
+    let mut real_session_id = session_id;
     loop {
         match rx.recv().await {
             Ok((msg, _index)) => {
+                if msg.command == config::HdcCommand::KernelHandshake {
+                    if let Ok(id) = auth::get_new_session_id(&msg).await {
+                        if real_session_id != id {
+                            let (new_session_id, new_send_msg) = auth::handshake_init(msg.clone()).await?;
+                            let channel_id = new_send_msg.channel_id;
+
+                            let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
+                            transfer::UsbMap::start(new_session_id, wr).await;
+                            transfer::put(new_session_id, new_send_msg).await;
+
+                            if auth::AuthStatusMap::get(new_session_id).await == auth::AuthStatus::Ok {
+                                transfer::put(
+                                    new_session_id,
+                                    TaskMessage {
+                                        channel_id,
+                                        command: config::HdcCommand::KernelChannelClose,
+                                        payload: vec![0],
+                                    },
+                                )
+                                .await;
+                            }
+                            real_session_id = new_session_id;
+                        }
+                    }
+                }
                 ylong_runtime::spawn(async move {
-                    if let Err(e) = task::dispatch_task(msg, session_id).await {
+                    if let Err(e) = task::dispatch_task(msg, real_session_id).await {
                         hdc::error!("dispatch task failed: {}", e.to_string());
                     }
                 });

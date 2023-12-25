@@ -16,6 +16,26 @@
 #define HDC_BASE_H
 #include "common.h"
 
+#ifdef HDC_HILOG
+#ifdef LOG_DOMAIN
+#undef LOG_DOMAIN
+#endif // LOG_DOMAIN
+
+#define LOG_DOMAIN 0xD002D13
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif // LOG_TAG
+
+#define LOG_TAG "HDC_LOG"
+
+#define HDC_DEBUG(...) ((void)HILOG_IMPL(LOG_CORE, LogLevel::LOG_DEBUG, LOG_DOMAIN, LOG_TAG, __VA_ARGS__))
+#define HDC_INFO(...) ((void)HILOG_IMPL(LOG_CORE, LogLevel::LOG_INFO, LOG_DOMAIN, LOG_TAG, __VA_ARGS__))
+#define HDC_WARN(...) ((void)HILOG_IMPL(LOG_CORE, LogLevel::LOG_WARN, LOG_DOMAIN, LOG_TAG, __VA_ARGS__))
+#define HDC_ERROR(...) ((void)HILOG_IMPL(LOG_CORE, LogLevel::LOG_ERROR, LOG_DOMAIN, LOG_TAG, __VA_ARGS__))
+#define HDC_FATAL(...) ((void)HILOG_IMPL(LOG_CORE, LogLevel::LOG_FATAL, LOG_DOMAIN, LOG_TAG, __VA_ARGS__))
+
+#endif // HDC_HILOG
+
 namespace Hdc {
 namespace Base {
     uint8_t GetLogLevel();

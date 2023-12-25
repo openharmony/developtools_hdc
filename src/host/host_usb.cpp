@@ -587,7 +587,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         auto server = reinterpret_cast<HdcServer *>(clsMainBase);
         hUSB->hostBulkIn.isShutdown = true;
         server->FreeSession(hSession->sessionId);
-        string szTmpKey = Base::StringFormoat("%d-%d", libusb_get_bus_number(hUSB->device),
+        string szTmpKey = Base::StringFormat("%d-%d", libusb_get_bus_number(hUSB->device),
                                               libusb_get_device_address(hUSB->device));
         RemoveIgnoreDevice(szTmpKey);
         WRITE_LOG(LOG_DEBUG, "Usb loop read finish");
@@ -683,7 +683,7 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
             if (!childRet) {
                 ret = true;
             } else {
-                string szTmpKey = Base::StringFormoat("%d-%d", curBus, curDev);
+                string szTmpKey = Base::StringFormat("%d-%d", curBus, curDev);
                 RemoveIgnoreDevice(szTmpKey);
             }
             break;

@@ -61,10 +61,10 @@ HdcJdwpSimulator::~HdcJdwpSimulator()
 
 bool HdcJdwpSimulator::SendToJpid(int fd, const uint8_t *buf, const int bufLen)
 {
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "SendToJpid: %{public}s, %{public}d", buf, bufLen);
+    HILOG_INFO(LOG_CORE, "SendToJpid: %{public}s, %{public}d", buf, bufLen);
     ssize_t rc = write(fd, buf, bufLen);
     if (rc < 0) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "SendToJpid failed errno:%{public}d", errno);
+        HILOG_FATAL(LOG_CORE, "SendToJpid failed errno:%{public}d", errno);
         return false;
     }
     return true;
@@ -85,7 +85,7 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
     uint32_t ppSize = pp.size() + sizeof(JsMsgHeader);
     uint8_t* info = new (std::nothrow) uint8_t[ppSize]();
     if (info == nullptr) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "ConnectJpid new info fail.");
+        HILOG_FATAL(LOG_CORE, "ConnectJpid new info fail.");
         return false;
     }
     if (memset_s(info, ppSize, 0, ppSize) != EOK) {
@@ -97,15 +97,15 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
     jsMsg->msgLen = ppSize;
     jsMsg->pid = pidCurr;
     jsMsg->isDebug = isDebug;
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL,
+    HILOG_INFO(LOG_CORE,
         "ConnectJpid send pid:%{public}d, pp:%{public}s, isDebug:%{public}d, msglen:%{public}d",
         jsMsg->pid, pp.c_str(), isDebug, jsMsg->msgLen);
     bool ret = true;
     if (memcpy_s(info + sizeof(JsMsgHeader), pp.size(), &pp[0], pp.size()) != EOK) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "ConnectJpid memcpy_s fail :%{public}s.", pp.c_str());
+        HILOG_FATAL(LOG_CORE, "ConnectJpid memcpy_s fail :%{public}s.", pp.c_str());
         ret = false;
     } else {
-        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "ConnectJpid send JS msg:%{public}s", info);
+        HILOG_INFO(LOG_CORE, "ConnectJpid send JS msg:%{public}s", info);
         ret = SendToJpid(thisClass->ctxPoint_->cfd, (uint8_t*)info, ppSize);
     }
     delete[] info;
@@ -129,12 +129,12 @@ bool HdcJdwpSimulator::Connect()
 {
     const char jdwp[] = { '\0', 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
     if (ctxPoint_ == nullptr) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "MallocContext failed");
+        HILOG_FATAL(LOG_CORE, "MallocContext failed");
         return false;
     }
     struct sockaddr_un caddr;
     if (memset_s(&caddr, sizeof(caddr), 0, sizeof(caddr)) != EOK) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "memset_s failed");
+        HILOG_FATAL(LOG_CORE, "memset_s failed");
         return false;
     }
     caddr.sun_family = AF_UNIX;
@@ -143,7 +143,7 @@ bool HdcJdwpSimulator::Connect()
     }
     cfd_ = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (cfd_ < 0) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "socket failed errno:%{public}d", errno);
+        HILOG_FATAL(LOG_CORE, "socket failed errno:%{public}d", errno);
         return false;
     }
     ctxPoint_->cfd = cfd_;
@@ -155,7 +155,7 @@ bool HdcJdwpSimulator::Connect()
     size_t caddrLen = sizeof(caddr.sun_family) + sizeof(jdwp) - 1;
     int rc = connect(cfd_, reinterpret_cast<struct sockaddr *>(&caddr), caddrLen);
     if (rc != 0) {
-        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "connect failed errno:%{public}d", errno);
+        HILOG_INFO(LOG_CORE, "connect failed errno:%{public}d", errno);
         close(cfd_);
         return false;
     }
@@ -191,7 +191,7 @@ void HdcJdwpSimulator::Read()
         FD_SET(cfd_, &rset);
         int rc = select(cfd_ + 1, &rset, nullptr, nullptr, &timeout);
         if (rc < 0) {
-            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read select fd:%{public}d error:%{public}d", cfd_, errno);
+            HILOG_FATAL(LOG_CORE, "Read select fd:%{public}d error:%{public}d", cfd_, errno);
             break;
         } else if (rc == 0) {
             continue;
@@ -217,20 +217,20 @@ void HdcJdwpSimulator::Read()
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);
         std::string str(reinterpret_cast<char *>(buf + sizeof(int32_t)), cnt - sizeof(int32_t));
-        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
+        HILOG_INFO(LOG_CORE, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
         struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
         if (cmsg == nullptr) {
-            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read cmsg is nullptr");
+            HILOG_FATAL(LOG_CORE, "Read cmsg is nullptr");
             continue;
         }
         if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS ||
             cmsg->cmsg_len != CMSG_LEN(sizeof(int))) {
-            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read level:%{public}d type:%{public}d len:%{public}d",
+            HILOG_INFO(LOG_CORE, "Read level:%{public}d type:%{public}d len:%{public}d",
                 cmsg->cmsg_level, cmsg->cmsg_type, cmsg->cmsg_len);
             continue;
         }
         int newfd = *(reinterpret_cast<int *>(CMSG_DATA(cmsg)));
-        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
+        HILOG_INFO(LOG_CORE, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
             fd, newfd, str.c_str());
         if (cb_) {
             cb_(newfd, str);

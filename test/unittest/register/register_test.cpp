@@ -108,7 +108,7 @@ HWTEST_F(RegisterTest, CastToRegisterTest003, TestSize.Level1)
 
 HdcJdwpSimulator* g_hdcJdwpSimulator = nullptr;
 bool g_threadRunning = false;
-void* HdcConnectRun_Test(void* pkgContent)
+void* HdcConnectRunTest(void* pkgContent)
 {
     g_threadRunning = true;
     std::string pkgName = static_cast<ConnectManagement*>(pkgContent)->GetPkgName();
@@ -116,7 +116,7 @@ void* HdcConnectRun_Test(void* pkgContent)
     bool isDebug = static_cast<ConnectManagement*>(pkgContent)->GetDebug();
     g_hdcJdwpSimulator = new (std::nothrow) HdcJdwpSimulator(processName, pkgName, isDebug, nullptr);
     if (!g_hdcJdwpSimulator->Connect()) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Connect fail.");
+        HILOG_FATAL(LOG_CORE, "Connect fail.");
         g_threadRunning = false;
         return nullptr;
     }
@@ -138,8 +138,8 @@ HWTEST_F(RegisterTest, CastToRegisterTest005, TestSize.Level1)
     pthread_t tid;
     g_connectManagement = std::make_unique<ConnectManagement>();
     g_connectManagement->SetPkgName("test_pkt_name");
-    if (pthread_create(&tid, nullptr, &HdcConnectRun_Test, static_cast<void*>(g_connectManagement.get())) != 0) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "pthread_create fail!");
+    if (pthread_create(&tid, nullptr, &HdcConnectRunTest, static_cast<void*>(g_connectManagement.get())) != 0) {
+        HILOG_FATAL(LOG_CORE, "pthread_create fail!");
         return;
     }
     sleep(3);
@@ -188,7 +188,7 @@ void* ConnectJpidTest(void* pkgName)
     }
 
     if (!g_hdcJdwpSimulator->Connect()) {
-        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Connect fail.");
+        HILOG_FATAL(LOG_CORE, "Connect fail.");
     }
     g_threadRunning = false;
     return nullptr;

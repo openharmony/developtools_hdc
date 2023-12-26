@@ -69,13 +69,9 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
             let channel_id = task_message.channel_id;
             if let Some(pty_task) = PtyMap::get(channel_id).await {
                 hdc::debug!("get shell data pty");
-                for byte in task_message.payload.iter() {
-                    let _ = &pty_task.tx.send(*byte).await;
-
-                    if *byte == 0x4_u8 {
-                        PtyMap::del(channel_id).await;
-                        break;
-                    }
+                let _ = &pty_task.tx.send(task_message.payload.clone()).await;
+                if task_message.payload[..].contains(&0x4_u8) {
+                    PtyMap::del(channel_id).await;
                 }
                 return Ok(());
             } else {
@@ -91,7 +87,7 @@ async fn remove_task(session_id: u32, channel_id: u32) {
     FileTaskMap::remove(session_id, channel_id).await;
     // shell & hilog task
     if let Some(pty_task) = PtyMap::get(channel_id).await {
-        let _ = &pty_task.tx.send(0x04_u8).await;
+        let _ = &pty_task.tx.send(vec![0x04_u8]).await;
         PtyMap::del(channel_id).await;
     }
 }

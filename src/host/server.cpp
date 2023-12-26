@@ -700,7 +700,6 @@ void HdcServer::UsbPreConnect(uv_timer_t *handle)
     HSession hSession = (HSession)handle->data;
     bool stopLoop = false;
     HdcServer *hdcServer = (HdcServer *)hSession->classInstance;
-    const int usbConnectRetryMax = 5;
     while (true) {
         WRITE_LOG(LOG_DEBUG, "HdcServer::UsbPreConnect");
         HDaemonInfo pDi = nullptr;

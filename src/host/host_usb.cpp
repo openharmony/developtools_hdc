@@ -587,9 +587,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         auto server = reinterpret_cast<HdcServer *>(clsMainBase);
         hUSB->hostBulkIn.isShutdown = true;
         server->FreeSession(hSession->sessionId);
-        string szTmpKey = Base::StringFormat("%d-%d", libusb_get_bus_number(hUSB->device),
-            libusb_get_device_address(hUSB->device));
-        RemoveIgnoreDevice(szTmpKey);
+        RemoveIgnoreDevice(hUSB->usbMountPoint);
         WRITE_LOG(LOG_DEBUG, "Usb loop read finish");
     }).detach();
 }
@@ -683,8 +681,8 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
             if (!childRet) {
                 ret = true;
             } else {
-                string szTmpKey = Base::StringFormat("%d-%d", curBus, curDev);
-                RemoveIgnoreDevice(szTmpKey);
+                string key = string(usbMountPoint);
+                RemoveIgnoreDevice(key);
             }
             break;
         }
@@ -708,9 +706,7 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
     hUSB->ctxUSB = ctxUSB;
     if (!FindDeviceByID(hUSB, hUSB->usbMountPoint.c_str(), hUSB->ctxUSB)) {
         pServer->FreeSession(hSession->sessionId);
-        string szTmpKey = Base::StringFormat("%d-%d", libusb_get_bus_number(hUSB->device),
-            libusb_get_device_address(hUSB->device));
-        RemoveIgnoreDevice(szTmpKey);
+        RemoveIgnoreDevice(hUSB->usbMountPoint);
         WRITE_LOG(LOG_DEBUG, "FindDeviceByID fail");
         return nullptr;
     }

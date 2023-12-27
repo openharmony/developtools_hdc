@@ -226,6 +226,7 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
 
     let session_id = uart_handshake(handshake_message.clone(), fd, &rd, package_index).await?;
 
+    uart_wrapper::stop_other_session(session_id).await;
     let mut real_session_id = session_id;
     loop {
         let (packet_size, _package_index) = rd.check_protocol_head()?;
@@ -233,6 +234,9 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
         let package_index = head.package_index;
         let session_id = head.session_id;
         uart_wrapper::on_read_head(head).await;
+        if real_session_id != session_id {
+            uart_wrapper::stop_other_session(session_id).await;
+        }
         if packet_size == 0 {
             continue;
         }

@@ -177,8 +177,38 @@ async fn uart_daemon_start() -> io::Result<()> {
     }
 }
 
-async fn uart_handle_client(fd: i32) -> io::Result<()> {
+async fn uart_handshake(
+    handshake_message: TaskMessage,
+    fd: i32,
+    rd: &UartReader,
+    package_index: u32,
+) -> io::Result<u32> {
+    let (session_id, send_msg) = auth::handshake_init(handshake_message).await?;
+    let channel_id = send_msg.channel_id;
+
     let wr = transfer::uart::UartWriter { fd };
+    transfer::start_uart(session_id, wr).await;
+    transfer::start_session(session_id).await;
+
+    let head = rd.head.clone().unwrap();
+    uart_wrapper::on_read_head(head).await;
+    transfer::wrap_put(session_id, send_msg, package_index, 0).await;
+
+    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
+        transfer::put(
+            session_id,
+            TaskMessage {
+                channel_id,
+                command: config::HdcCommand::KernelChannelClose,
+                payload: vec![0],
+            },
+        )
+        .await;
+    }
+    Ok(session_id)
+}
+
+async fn uart_handle_client(fd: i32) -> io::Result<()> {
     let mut rd = transfer::uart::UartReader { fd, head: None };
     let (packet_size, package_index) = rd.check_protocol_head()?;
     let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
@@ -194,33 +224,13 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
     let handshake_message = rx.recv().await.unwrap();
     let _ = rx.recv().await;
 
-    let (session_id, send_msg) = auth::handshake_init(handshake_message).await?;
-    let channel_id = send_msg.channel_id;
+    let session_id = uart_handshake(handshake_message.clone(), fd, &rd, package_index).await?;
 
-    transfer::start_uart(session_id, wr).await;
-    transfer::start_session(session_id).await;
-
-    let head = rd.head.clone().unwrap();
-    uart_wrapper::on_read_head(head).await;
-    transfer::wrap_put(session_id, send_msg, package_index, 0).await;
-
-    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
-        println!("uart auth channel close.");
-        transfer::put(
-            session_id,
-            TaskMessage {
-                channel_id,
-                command: config::HdcCommand::KernelChannelClose,
-                payload: vec![0],
-            },
-        )
-        .await;
-        println!("uart put channel close end");
-    }
-
+    let mut real_session_id = session_id;
     loop {
         let (packet_size, _package_index) = rd.check_protocol_head()?;
         let head = rd.head.clone().unwrap();
+        let package_index = head.package_index;
         let session_id = head.session_id;
         uart_wrapper::on_read_head(head).await;
         if packet_size == 0 {
@@ -244,7 +254,14 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                         println!("uart finish break");
                         break;
                     }
-                    if let Err(e) = task::dispatch_task(message, session_id).await {
+
+                    if message.command == config::HdcCommand::KernelHandshake {
+                        real_session_id =
+                            uart_handshake(message.clone(), fd, &rd, package_index).await?;
+                        continue;
+                    }
+
+                    if let Err(e) = task::dispatch_task(message, real_session_id).await {
                         log::error!("dispatch task failed: {}", e.to_string());
                         println!("dispatch task fail: {:#?}", e);
                     } else {

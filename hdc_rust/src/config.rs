@@ -61,7 +61,7 @@ pub enum NodeType {
     Daemon,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaskMessage {
     pub channel_id: u32,
     pub command: HdcCommand,

@@ -173,7 +173,6 @@ template("build_hdc") {
   ohos_executable("hdcd_${image_name}_exe") {
     deps = [ ":hdcd_${image_name}_source" ]
     output_name = "hdcd_${image_name}"
-    external_deps = [ "hilog:libhilog" ]
     install_enable = false
     subsystem_name = "developtools"
     part_name = "hdc"

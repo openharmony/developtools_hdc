@@ -1226,7 +1226,7 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
     Base::TimerUvTask(&hSession->childLoop, hSession, clearTaskForSessionFinish, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);
     // clear
-    Base::TryCloseLoop(&hSession->childLoop, "Session childUV");
+    Base::TryCloseChildLoop(&hSession->childLoop, "Session childUV");
 }
 
 void HdcSessionBase::SessionWorkThread(uv_work_t *arg)

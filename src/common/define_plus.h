@@ -23,7 +23,7 @@
 
 namespace Hdc {
 // ############################# enum define ###################################
-enum HdcLogLevel {
+enum LogLevel {
     LOG_OFF,
     LOG_FATAL,
     LOG_WARN,

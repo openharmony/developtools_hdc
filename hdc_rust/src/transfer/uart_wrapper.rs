@@ -173,6 +173,7 @@ impl QueueManager {
         }
     }
 
+
     async fn get_package(session_id: u32, index: usize) -> Option<OutputData> {
         let instance = Self::get_instance();
         let mtx = instance.lock().await;
@@ -183,17 +184,7 @@ impl QueueManager {
                 let arc = vec.get(index).unwrap();
                 let data_mtx = arc.lock().await;
                 return Some(data_mtx.clone());
-            } else {
-                println!(
-                    "get_package none because vec is empty, session_id:{}",
-                    session_id
-                );
             }
-        } else {
-            println!(
-                "get_package none because vec is none, session_id:{}",
-                session_id
-            );
         }
         None
     }
@@ -206,14 +197,12 @@ impl QueueManager {
             let mut vec = vec.lock().await;
             let item = Arc::new(Mutex::new(data));
             vec.push(item);
-            println!("put_package 1: session_id:{}", session_id);
         } else {
             let mut vec = Vec::<Arc<Mutex<OutputData>>>::new();
             let d = Arc::new(Mutex::new(data));
             vec.push(d);
             let v = Arc::new(Mutex::new(vec));
             data_map.insert(session_id, v);
-            println!("put_package 2, session:{}", session_id);
         }
     }
 
@@ -267,6 +256,22 @@ impl QueueManager {
         false
     }
 
+    async fn remove_session(session_id: u32) {
+        let instance = Self::get_instance();
+        let mut mtx = instance.lock().await;
+        mtx.data_map.remove(&session_id);
+        mtx.stop_flag_map.remove(&session_id);
+        mtx.thread_map.remove(&session_id);
+        println!("remove_session:{session_id}");
+    }
+
+    async fn check_stop(session_id: u32) -> bool {
+        if let Some(stop) = Self::get_stop_flag(session_id).await {
+            return stop == 0;
+        }
+        false
+    }
+
     async fn session_loop(session_id: u32) {
         // 1. 取第[0]个outputdata, 如果是WaitSend 则发送 改变状态为WaitResponse 同时wait
         //   2. 收到response, 如果是ACK 则改变为ResponseOK 同时wakeup
@@ -275,23 +280,20 @@ impl QueueManager {
         //      retry count为0， 则表示连接中断，stop session
         println!("session_loop for {}", session_id);
         loop {
-            if let Some(stop) = Self::get_stop_flag(session_id).await {
-                if stop == 0 {
-                    break;
-                }
+            if Self::check_stop(session_id).await {
+                break;
             }
             let mut first_pkg = Self::get_package(session_id, 0).await;
             while first_pkg.is_none() {
-                println!("empty wait, session:{}", session_id);
                 WaiterManager::wait_empty(session_id).await;
                 first_pkg = Self::get_package(session_id, 0).await;
-            }
-            if let Some(stop) = Self::get_stop_flag(session_id).await {
-                if stop == 0 {
+                if Self::check_stop(session_id).await {
                     break;
                 }
             }
-            println!("pkg not empty.");
+            if Self::check_stop(session_id).await {
+                break;
+            }
             let mut first_pkg = first_pkg.unwrap();
             let mut status = first_pkg.status;
             let mut retry_count = first_pkg.retry_count;
@@ -300,19 +302,9 @@ impl QueueManager {
             if status == OutputDataStatus::WaitSend {
                 // 发送数据
                 let data = first_pkg.data.clone();
-                let ret = UartMap::put(session_id, data).await;
-                match ret {
-                    Ok(()) => {
-                        println!("uart write ok");
-                    }
-                    Err(e) => {
-                        println!("uart write error:{:#?}", e);
-                    }
-                }
+                let _ret = UartMap::put(session_id, data).await;
                 // 如果是ack报文 则不需要等待回应
-                println!("response1:{}", first_pkg.response);
                 if first_pkg.response {
-                    println!("response continue.");
                     QueueManager::remove_package(session_id, 0).await;
                     continue;
                 }
@@ -325,13 +317,16 @@ impl QueueManager {
                 // 等待response
                 // println!("wait response:{}.", first_pkg);
                 WaiterManager::wait_response(session_id).await;
+
+                if Self::check_stop(session_id).await {
+                    break;
+                }
                 // 收到回复
                 // 重新获取数据
 
                 let first_pkg = Self::get_package(session_id, 0).await;
 
                 let mut first_pkg = first_pkg.unwrap();
-
                 // println!("wait response continue {}...", first_pkg);
                 // 得到新状态
                 status = first_pkg.status;
@@ -352,17 +347,12 @@ impl QueueManager {
 
                     // 再次发送数据
                     let data = first_pkg.data.clone();
-                    let ret = UartMap::put(session_id, data).await;
-                    match ret {
-                        Ok(()) => {
-                            println!("retry uart write ok");
-                        }
-                        Err(e) => {
-                            println!("retry uart write error:{:#?}", e);
-                        }
-                    }
-
+                    let _ret = UartMap::put(session_id, data).await;
                     WaiterManager::wait_response(session_id).await;
+
+                    if Self::check_stop(session_id).await {
+                        break;
+                    }
 
                     let first_pkg = Self::get_package(session_id, 0).await;
 
@@ -379,7 +369,6 @@ impl QueueManager {
                         }
 
                         OutputDataStatus::WaitResponse => {
-                            println!("retry go on...");
                             // 继续重试
                             let first_pkg = Self::get_package(session_id, 0).await;
                             let first_pkg = first_pkg.unwrap();
@@ -397,6 +386,7 @@ impl QueueManager {
                 }
             }
         }
+        Self::remove_session(session_id).await;
         println!("session_loop for {} end.", session_id);
     }
 }
@@ -429,6 +419,22 @@ async fn stop_session(session_id: u32) {
     WaiterManager::wakeup_response_wait(session_id).await;
 }
 
+pub async fn stop_other_session(session_id: u32) {
+    let instance = QueueManager::get_instance();
+    let mtx = instance.lock().await;
+    let session_ids = mtx.data_map.keys();
+    let mut remove_sessions = Vec::new();
+    for k in session_ids {
+        if *k != session_id {
+            remove_sessions.push(*k);
+        }
+    }
+    drop(mtx);
+    for id in remove_sessions {
+        stop_session(id).await;
+    }
+}
+
 async fn output_package(
     session_id: u32,
     response: bool,
@@ -447,7 +453,6 @@ async fn output_package(
     };
     QueueManager::put_package(session_id, pkg).await;
     WaiterManager::wakeup_empty_wait(session_id).await;
-    println!("output_package wakeupt empty wait");
 }
 
 #[allow(unused)]
@@ -457,7 +462,6 @@ fn is_response(option: u8) -> bool {
 }
 
 pub async fn on_read_head(head: UartHead) {
-    println!("on_read_frame, option:{:#?}", head.option);
     let session_id = head.session_id;
     let option = head.option;
     let package_index = head.package_index;
@@ -466,7 +470,6 @@ pub async fn on_read_head(head: UartHead) {
         return;
     }
     if is_response(option as u8) {
-        println!("on_read_frame is a response, op:{:#?}...", option);
         let pkg = QueueManager::get_package(session_id, 0).await;
         let mut pkg = pkg.unwrap();
         pkg.status = if option & (UartOption::Ack as u16) > 1 {
@@ -476,7 +479,6 @@ pub async fn on_read_head(head: UartHead) {
         };
         QueueManager::update_package(session_id, 0, pkg).await;
         WaiterManager::wakeup_response_wait(session_id).await;
-        println!("on_read_frame wakeup response for a request...");
     } else {
         let mut header_obj =
             uart::build_header_obj(session_id, UartOption::Ack as u16, 0, package_index);
@@ -485,7 +487,6 @@ pub async fn on_read_head(head: UartHead) {
         header_obj.head_checksum = u32::to_le(head_sum);
         let data = header_obj.serialize();
         output_package(session_id, true, UartOption::Ack as u8, package_index, data).await;
-        println!("on_read_frame to response, wakeup empty...");
     }
 }
 

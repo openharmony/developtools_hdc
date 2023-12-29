@@ -406,14 +406,6 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         if (!ctx) {
             break;
         }
-        if (uv_tcp_init(loop, &ctx->jvmTCP)) {
-            break;
-        }
-        if (uv_tcp_open(&ctx->jvmTCP, fd)) {
-            break;
-        }
-        // transfer fd to jvm
-        // clang-format off
         uint32_t size = sizeof(int32_t) + str.size();
         // fd | str(ark:pid@tid@Debugger)
         uint8_t buf[size];
@@ -429,6 +421,7 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         SendFdToApp(stream->io_watcher.fd, buf, size, fd);
         ret = true;
         WRITE_LOG(LOG_DEBUG, "SendArkNewFD successful str:%s fd%d", str.c_str(), fd);
+        Base::CloseFd(fd);
         break;
     }
     return ret;

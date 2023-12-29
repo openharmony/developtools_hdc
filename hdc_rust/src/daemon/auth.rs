@@ -30,7 +30,7 @@ use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, Write, prelude::*};
 use std::path::Path;
 use std::sync::Arc;
-// use std::process::Command;
+use std::process::Command;
 use std::string::ToString;
 use super::sys_para::{*};
 
@@ -46,8 +46,6 @@ pub enum UserPermit {
     Refuse = 0,
     AllowOnce = 1,
     AllowForever = 2,
-    Cancel = 3,
-    Invalid = 5,
 }
 
 type AuthStatusMap_ = Arc<RwLock<HashMap<u32, AuthStatus>>>;
@@ -89,7 +87,8 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
 
-    if recv.version.as_str() < "Ver: 1.3.1" {
+    hdc::info!("client version({}) for session:{}", recv.version.as_str(), recv.session_id);
+    if recv.version.as_str() < "Ver: 2.0.0" {
         hdc::info!("client version({}) is too low, return OK for session:{}", recv.version.as_str(), recv.session_id);
         return Ok((
             recv.session_id,
@@ -179,15 +178,30 @@ pub async fn get_new_session_id(task_message: &TaskMessage) -> io::Result<u32> {
 }
 
 pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    let mut recv = native_struct::SessionHandShake::default();
-    recv.parse(task_message.payload)?;
+
+    if let AuthStatus::Ok = AuthStatusMap::get(session_id).await {
+        hdc::info!("session {} already auth ok", session_id);
+        return Ok(());
+    }
 
     let channel_id = task_message.channel_id;
 
+    if !is_auth_enable().await {
+        hdc::info!("auth enable is false, return OK for session:{}", session_id);
+        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
+        return Ok(());
+    }
+
+    let mut recv = native_struct::SessionHandShake::default();
+    recv.parse(task_message.payload)?;
+    hdc::info!("recv handshake: {:#?}", recv);
+
     if recv.auth_type == AuthType::Publickey as u8 {
         let plain = if let AuthStatus::Init(buf) = AuthStatusMap::get(session_id).await {
+            hdc::info!("get plain success for session {}", session_id);
             buf
         } else {
+            hdc::error!("get plain failed for session {}", session_id);
             handshake_fail(session_id, channel_id, "auth failed".to_string()).await;
             return Ok(());
         };
@@ -248,7 +262,6 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
                     },
                 )
                 .await;
-                AuthStatusMap::put(session_id, AuthStatus::Ok).await;
             }
             Err(e) => {
                 let errlog = e.to_string();
@@ -257,7 +270,8 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
             }
         }
     } else {
-        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
+        hdc::error!("invalid auth_type: {} for session {}", recv.auth_type, session_id);
+        // handshake_fail session_id, channel_id auth failed await
     }
     Ok(())
 }
@@ -336,104 +350,57 @@ fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
     Ok(())
 }
 
-fn call_setting_ability() -> bool {
-    true
+fn show_permit_dialog() -> bool {
+    let cmd = "/system/bin/hdcd_user_permit";
+    let result = Command::new(config::SHELL_PROG).args(["-c", cmd]).output();
+    match result {
+        Ok(output) => {
+            let msg = [output.stdout, output.stderr].concat();
+            let mut str = String::from_utf8(msg).unwrap();
+            str = str.replace('\n', " ");
+            hdc::error!("show dialog over, {}.", str);
+            true
+        }
+        Err(e) => {
+            hdc::error!("show dialog failed, {}.", e.to_string());
+            false
+        }
+    }
 }
 
 pub async fn is_auth_enable() -> bool {
     let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_enable", "_");
     debug_auth_enable.trim().to_lowercase() == "true"
 
-    // let (_, auth_enable) = get_dev_item("const.secure", "_");
+    // let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
     // auth_enable.trim().to_lowercase() == "1"
 }
 
-pub async fn auth_cancel_monitor() {
-    let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_cancel", "_");
-    if debug_auth_enable.trim().to_lowercase() != "true" {
-        return;
-    }
-
-    if !is_auth_enable().await {
-        hdc::error!("auth is not enable");
-        return;
-    }
-
-    loop {
-        // clear result first
-        if !set_dev_item("rw.hdc.daemon.auth_result", (UserPermit::Invalid as u32).to_string().as_str()) {
-            hdc::error!("clear param failed.");
-            continue;
-        }
-        if !wait_dev_item("rw.hdc.daemon.auth_result", "auth_cancel:*", HDC_WAIT_PARAMETER_FOREVER) {
-            continue;
-        }
-        match get_dev_item("rw.hdc.daemon.auth_result", "_") {
-            (false, _) => continue,
-            (true, cancel_result) => {
-                if cancel_result.strip_prefix("auth_cancel:").unwrap().trim() == (UserPermit::Cancel as u32).to_string() {
-                    hdc::error!("user cancel the auth, hdcd will restart now.");
-                    // must clear the auth_result, otherwise next auth cancel will fail
-                    if !set_dev_item("rw.hdc.daemon.auth_cancel", (UserPermit::Invalid as u32).to_string().as_str()) {
-                        hdc::error!("clear param failed before restart, next cancel maybe fail.");
-                    }
-                    // restart my self
-                    // hdc_fork();
-                }
-            }
-        }
-    }
-}
-
-async fn predeal_debug_permit() -> bool {
-    let (auth_debug, auth_result) = get_dev_item("rw.hdc.daemon.auth_debug", "_");
-    if !auth_debug || auth_result == "_" {
-        hdc::info!("not debug auth result");
-        return false;
-    }
-
-    if !set_dev_item("rw.hdc.daemon.auth_result", auth_result.trim()) {
-        hdc::error!("set debug value({}) for auth result failed", auth_result);
-        return false;
-    }
-
-    if !set_dev_item("rw.hdc.daemon.auth_debug", "_") {
-        hdc::error!("set rw.hdc.daemon.auth_debug failed");
-    }
-
-    hdc::info!("debug for auth result");
-
-    true
-}
-
 async fn require_user_permittion(hostname: &str) -> UserPermit {
-    // (UserPermit::Invalid as u32).to_string().as_str();
-    // todo: debug for test, release must use invalid as default
-    if !predeal_debug_permit().await {
-        let default_permit = "auth_result:2";
-        // clear result first
-        if !set_dev_item("rw.hdc.daemon.auth_result", default_permit) {
-            hdc::error!("debug auth result failed, so refuse this connect.");
-            return UserPermit::Refuse;
-        }
+    // todo debug
+    let default_permit = "auth_result_none";
+    // clear result first
+    if !set_dev_item("persist.hdc.daemon.auth_result", default_permit) {
+        hdc::error!("debug auth result failed, so refuse this connect.");
+        return UserPermit::Refuse;
     }
+
     // then write para for setting
-    if !set_dev_item("rw.hdc.client.hostname", hostname) {
+    if !set_dev_item("persist.hdc.client.hostname", hostname) {
         hdc::error!("set param({}) failed.", hostname);
         return UserPermit::Refuse;
     }
-    // call setting ability
-    if !call_setting_ability() {
+    if !show_permit_dialog() {
         hdc::error!("show dialog failed, so refuse this connect.");
         return UserPermit::Refuse;
     }
-    if !wait_dev_item("rw.hdc.daemon.auth_result", "auth_result:*", HDC_WAIT_PARAMETER_FOREVER) {
-        hdc::error!("wait for auth result failed, so refuse this connect.");
-        return UserPermit::Refuse;
-    }
-    let permit_result = match get_dev_item("rw.hdc.daemon.auth_result", "_") {
-        (false, _) => UserPermit::Refuse,
+    let permit_result = match get_dev_item("persist.hdc.daemon.auth_result", "_") {
+        (false, _) => {
+            hdc::error!("get_dev_item auth_result failed");
+            UserPermit::Refuse
+        }
         (true, auth_result) => {
+            hdc::error!("user permit result is:({})", auth_result);
             match auth_result.strip_prefix("auth_result:").unwrap().trim() {
                 "1" => UserPermit::AllowOnce,
                 "2" => UserPermit::AllowForever,
@@ -441,11 +408,6 @@ async fn require_user_permittion(hostname: &str) -> UserPermit {
             }
         }
     };
-    // clear result at the end for auth_cancel
-    if !set_dev_item("rw.hdc.daemon.auth_result", (UserPermit::Invalid as u32).to_string().as_str()) {
-        hdc::error!("clear param at the end failed.");
-        return UserPermit::Refuse;
-    }
     permit_result
 }
 

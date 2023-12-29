@@ -456,6 +456,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             return true;
         }
         default:
+            WRITE_LOG(LOG_FATAL, "invalid auth type %d", handshake.authType);
             return false;
     }
 }

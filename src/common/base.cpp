@@ -394,11 +394,11 @@ namespace Base {
         constexpr int maxRetry = 3;
         for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
             if (uv_loop_close(ptrLoop) == UV_EBUSY) {
-                if (closeRetry > 2) {
+                if (closeRetry > 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
                     WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
                 }
 
-                if (ptrLoop->active_handles >= 2) {
+                if (ptrLoop->active_handles >= 2) { // 2:at least 2 handles for read & write.
                     WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
                 }
                 auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
@@ -497,10 +497,6 @@ namespace Base {
                 delete reqWrite;
                 break;
             }
-#ifdef HDC_DEBUG
-            WRITE_LOG(LOG_ALL, "SendToStreamEx %p, uv_write %p:%p, size:%lu", handleStream,
-                      reqWrite, reqWrite->data, bfr.len);
-#endif
             // handleSend must be a TCP socket or pipe, which is a server or a connection (listening or
             // connected state). Bound sockets or pipes will be assumed to be servers.
             if (handleSend) {

@@ -19,6 +19,8 @@ namespace Hdc {
 HdcForwardBase::HdcForwardBase(HTaskInfo hTaskInfo)
     : HdcTaskBase(hTaskInfo)
 {
+    fds[0] = -1;
+    fds[1] = -1;
 }
 
 HdcForwardBase::~HdcForwardBase()
@@ -424,8 +426,10 @@ bool HdcForwardBase::LocalAbstractConnect(uv_pipe_t *pipe, string &sNodeCfg)
         if (memcpy_s(addr.sun_path + 1, sizeof(addr.sun_path) - 1, sNodeCfg.c_str(), sNodeCfg.size()) != EOK) {
             break;
         };
-        // local connect, ignore timeout
+        struct timeval timeout = { 3, 0 };
+        setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
         if (connect(s, reinterpret_cast<struct sockaddr *>(&addr), addrLen) < 0) {
+            WRITE_LOG(LOG_FATAL, "LocalAbstractConnect failed errno:%d", errno);
             break;
         }
         if (uv_pipe_open(pipe, s)) {
@@ -619,7 +623,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
             SetupPointContinue(ctxPoint, 0);
         }
         ret = true;
-     } else {
+    } else {
         if (!ctxPoint->checkPoint) {
             if (!SetupPoint(ctxPoint)) {
                 sError = ctxPoint->lastError;
@@ -630,7 +634,7 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sEr
             SetupPointContinue(ctxPoint, 0);
         }
         ret = true;
-     }
+    }
 Finish:
     if (!ret) {
         FreeContext(ctxPoint, 0, true);

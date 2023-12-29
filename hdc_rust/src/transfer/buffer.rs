@@ -16,9 +16,9 @@
 #![allow(missing_docs)]
 
 use super::base::{self, Writer};
-use super::tcp;
 use super::uart::UartWriter;
 use super::usb::{self, UsbReader, UsbWriter};
+use super::{tcp, uart_wrapper};
 
 use crate::config::TaskMessage;
 use crate::config::{self, ConnectType};
@@ -171,19 +171,24 @@ impl UartMap {
         }
     }
 
-    async fn put(session_id: u32, data: TaskMessage) {
-        let send = serializer::concat_pack(data);
+    #[allow(unused)]
+    pub async fn put(session_id: u32, data: Vec<u8>) -> io::Result<()> {
         let instance = Self::get_instance();
         let map = instance.read().await;
         let arc_wr = map.get(&session_id).unwrap();
         let wr = arc_wr.lock().await;
-        let _ = wr.write_all(send);
+        wr.write_all(data)?;
+        Ok(())
     }
 
     pub async fn start(session_id: u32, wr: UartWriter) {
         let instance = Self::get_instance();
         let mut map = instance.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
+        if map.contains_key(&session_id) {
+            println!("uart start, contain session:{}", session_id);
+            return;
+        }
         map.insert(session_id, arc_wr);
         ConnectTypeMap::put(session_id, ConnectType::Uart).await;
     }
@@ -200,7 +205,7 @@ pub async fn put(session_id: u32, data: TaskMessage) {
             }
         }
         ConnectType::Uart => {
-            UartMap::put(session_id, data).await;
+            uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
         ConnectType::Bt => {}
     }
@@ -256,12 +261,12 @@ impl ChannelMap {
     }
 }
 
-pub fn usb_start_recv(fd: i32, _session_id: u32) -> mpsc::BoundedReceiver<TaskMessage> {
-    let (tx, rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
+pub fn usb_start_recv(fd: i32, _session_id: u32) -> mpsc::BoundedReceiver<(TaskMessage, u32)> {
+    let (tx, rx) = mpsc::bounded_channel::<(TaskMessage, u32)>(config::USB_QUEUE_LEN);
     ylong_runtime::spawn(async move {
-        let rd = UsbReader { fd };
+        let mut rd = UsbReader { fd };
         loop {
-            if let Err(e) = base::unpack_task_message(&rd, tx.clone()) {
+            if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()) {
                 crate::warn!("unpack task failed: {}, reopen fd...", e.to_string());
                 break;
             }

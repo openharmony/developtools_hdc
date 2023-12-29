@@ -171,6 +171,12 @@ pub fn get_host_pubkey_info(buf: &str) -> (String, String) {
     }
 }
 
+pub async fn get_new_session_id(task_message: &TaskMessage) -> io::Result<u32> {
+    let mut recv = native_struct::SessionHandShake::default();
+    recv.parse(task_message.payload.clone())?;
+    Ok(recv.session_id)
+}
+
 pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
 
     if let AuthStatus::Ok = AuthStatusMap::get(session_id).await {

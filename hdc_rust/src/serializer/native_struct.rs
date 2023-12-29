@@ -43,7 +43,7 @@ pub struct PayloadHead {
 }
 
 #[allow(unused)]
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct UartHead {
     pub flag: [u8; 2],
     pub option: u16,

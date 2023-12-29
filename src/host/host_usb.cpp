@@ -587,6 +587,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         auto server = reinterpret_cast<HdcServer *>(clsMainBase);
         hUSB->hostBulkIn.isShutdown = true;
         server->FreeSession(hSession->sessionId);
+        RemoveIgnoreDevice(hUSB->usbMountPoint);
         WRITE_LOG(LOG_DEBUG, "Usb loop read finish");
     }).detach();
 }
@@ -596,7 +597,9 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
 {
     libusb_device *device = hUSB->device;
     int ret = -1;
-    if (LIBUSB_SUCCESS != libusb_open(device, &hUSB->devHandle)) {
+    int OpenRet = libusb_open(device, &hUSB->devHandle);
+    if (OpenRet != LIBUSB_SUCCESS) {
+        WRITE_LOG(LOG_DEBUG, "libusb_open fail xret %d", OpenRet);
         return -100;
     }
     while (modRunning) {
@@ -677,6 +680,9 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
             WRITE_LOG(LOG_DEBUG, "OpenDeviceMyNeed childRet:%d", childRet);
             if (!childRet) {
                 ret = true;
+            } else {
+                string key = string(usbMountPoint);
+                RemoveIgnoreDevice(key);
             }
             break;
         }
@@ -700,6 +706,8 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
     hUSB->ctxUSB = ctxUSB;
     if (!FindDeviceByID(hUSB, hUSB->usbMountPoint.c_str(), hUSB->ctxUSB)) {
         pServer->FreeSession(hSession->sessionId);
+        RemoveIgnoreDevice(hUSB->usbMountPoint);
+        WRITE_LOG(LOG_DEBUG, "FindDeviceByID fail");
         return nullptr;
     }
     UpdateUSBDaemonInfo(hUSB, hSession, STATUS_CONNECTED);

@@ -60,15 +60,111 @@ pub trait Writer {
 
 pub trait Reader: Send + Sync + 'static {
     fn read_frame(&self, expected_size: usize) -> io::Result<Vec<u8>>;
-    fn check_protocol_head(&self) -> io::Result<u32> {
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
         Err(utils::error_other("not implemeted".to_string()))
+    }
+    fn process_head(&self) {}
+}
+
+pub async fn unpack_task_message_lock(
+    rd: &mut dyn Reader,
+    pack_size: u32,
+    tx: BoundedSender<TaskMessage>,
+) -> io::Result<()> {
+    let data = rd.read_frame(pack_size as usize)?;
+    let (head, body) = data.split_at(serializer::HEAD_SIZE);
+    let payload_head = serializer::unpack_payload_head(head.to_vec());
+    match payload_head {
+        Ok(payload_head) => {
+            let expected_head_size = u16::from_be(payload_head.head_size) as usize;
+            let expected_data_size = u32::from_be(payload_head.data_size) as usize;
+
+            if serializer::HEAD_SIZE + expected_head_size + expected_data_size != pack_size as usize
+            {
+                crate::warn!(
+            "protocol size diff: {pack_size} != {} + {expected_head_size} + {expected_data_size}",
+            serializer::HEAD_SIZE
+        );
+            }
+
+            if expected_head_size + expected_data_size == 0
+                || expected_head_size + expected_data_size > HDC_BUF_MAX_SIZE
+            {
+                return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
+            }
+
+            let (protect, payload) = body.split_at(expected_head_size);
+
+            let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
+            let channel_id = payload_protect.channel_id;
+
+            let command = match HdcCommand::try_from(payload_protect.command_flag) {
+                Ok(command) => command,
+                Err(_) => {
+                    return Err(Error::new(ErrorKind::Other, "unknown command"));
+                }
+            };
+
+            let _ = tx
+                .send(TaskMessage {
+                    channel_id,
+                    command,
+                    payload: payload.to_vec(),
+                })
+                .await;
+            let mut remaining = (expected_data_size - payload.len()) as i32;
+            let mut total_payload = payload.to_vec();
+            while remaining > 0 {
+                let head_result = rd.check_protocol_head();
+                rd.process_head();
+                match head_result {
+                    Ok((packet_size, _pkg_index)) => {
+                        let mut payload1 = rd.read_frame(packet_size as usize).unwrap();
+                        total_payload.append(&mut payload1);
+                        remaining -= packet_size as i32;
+                        println!("remaining:{}, packet_size:{}", remaining, packet_size);
+                        if remaining == 0 {
+                            let _ = tx
+                                .send(TaskMessage {
+                                    channel_id,
+                                    command,
+                                    payload: total_payload,
+                                })
+                                .await;
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        println!("check head error: {:#?}", e);
+                        return Err(e);
+                    }
+                }
+            }
+
+            let _ = tx
+                .send(TaskMessage {
+                    channel_id,
+                    command: HdcCommand::UartFinish,
+                    payload: vec![],
+                })
+                .await;
+            Ok(())
+        }
+        Err(e) => {
+            println!("uart unpack_task_message_lock, err:{:#?}", e);
+            Err(e)
+        }
     }
 }
 
-pub fn unpack_task_message(rd: &dyn Reader, tx: BoundedSender<TaskMessage>) -> io::Result<()> {
-    let pack_size = rd.check_protocol_head()?;
+pub fn unpack_task_message(
+    rd: &mut dyn Reader,
+    tx: BoundedSender<(TaskMessage, u32)>,
+) -> io::Result<()> {
+    let (pack_size, package_index) = rd.check_protocol_head()?;
     if pack_size == 0 {
-        return Err(Error::new(ErrorKind::WriteZero, "dummy package"));
+        println!("dummy package.");
+        return Ok(());
     }
 
     let data = rd.read_frame(pack_size as usize)?;
@@ -104,11 +200,14 @@ pub fn unpack_task_message(rd: &dyn Reader, tx: BoundedSender<TaskMessage>) -> i
         };
 
         let _ = tx
-            .send(TaskMessage {
-                channel_id,
-                command,
-                payload: payload.to_vec(),
-            })
+            .send((
+                TaskMessage {
+                    channel_id,
+                    command,
+                    payload: payload.to_vec(),
+                },
+                package_index,
+            ))
             .await;
         Ok(())
     });

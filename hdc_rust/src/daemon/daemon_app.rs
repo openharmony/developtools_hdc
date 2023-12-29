@@ -244,7 +244,8 @@ async fn transfer_fail(session_id: u32, channel_id: u32, error: &str) {
         mode,
         0,
         &mut error.to_string().into_bytes()[..],
-    ).await;
+    )
+    .await;
 }
 
 pub async fn command_dispatch(
@@ -280,4 +281,3 @@ pub async fn command_dispatch(
     }
     true
 }
-

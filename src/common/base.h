@@ -48,6 +48,7 @@ namespace Base {
     void FinishWorkThread(uv_work_t *req, int status);
     int GetMaxBufSize();
     bool TryCloseLoop(uv_loop_t *ptrLoop, const char *callerName);
+    bool TryCloseChildLoop(uv_loop_t *ptrLoop, const char *callerName);
     void TryCloseHandle(const uv_handle_t *handle);
     void TryCloseHandle(const uv_handle_t *handle, uv_close_cb closeCallBack);
     void TryCloseHandle(const uv_handle_t *handle, bool alwaysCallback, uv_close_cb closeCallBack);

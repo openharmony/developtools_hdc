@@ -553,6 +553,8 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
         if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
+            Base::CloseFd(hSession->ctrlFd[STREAM_MAIN]);
+            Base::CloseFd(hSession->ctrlFd[STREAM_WORK]);
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };
@@ -1224,7 +1226,7 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
     Base::TimerUvTask(&hSession->childLoop, hSession, clearTaskForSessionFinish, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);
     // clear
-    Base::TryCloseLoop(&hSession->childLoop, "Session childUV");
+    Base::TryCloseChildLoop(&hSession->childLoop, "Session childUV");
 }
 
 void HdcSessionBase::SessionWorkThread(uv_work_t *arg)

@@ -88,7 +88,6 @@ private:
     static void ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf);
     static void SendCallbackJdwpNewFD(uv_write_t *req, int status);
     static void *FdEventPollThread(void *args);
-    static uint8_t *Int2Bytes(int32_t value, uint8_t b[]);
     void RemoveFdFromPollList(uint32_t pid);
     size_t JdwpProcessListMsg(char *buffer, size_t bufferlen, uint8_t dr);
     void *MallocContext();

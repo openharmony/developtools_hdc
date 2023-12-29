@@ -31,9 +31,6 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     constexpr int DEF_FILE_PERMISSION = 0750;
-#ifndef _WIN32
-    sigset_t g_blockList;
-#endif
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -356,11 +353,11 @@ namespace Base {
         constexpr int maxRetry = 3;
         for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
             if (uv_loop_close(ptrLoop) == UV_EBUSY) {
-                if (closeRetry > 2) {
+                if (closeRetry > 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
                     WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
                 }
 
-                if (ptrLoop->active_handles >= 2) {
+                if (ptrLoop->active_handles >= 2) { // 2:at least 2 handles for read & write.
                     WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
                 }
                 auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
@@ -374,8 +371,60 @@ namespace Base {
                     ret = true;
                     break;
                 }
-                usleep(10000);
+                usleep(10000); // 10000:sleep for 10s
             } else {
+                WRITE_LOG(LOG_DEBUG, "Try close loop success");
+                ret = true;
+                break;
+            }
+        }
+        return ret;
+    }
+
+    // xxx must keep sync with uv_loop_close/uv_walk etc.
+    bool TryCloseChildLoop(uv_loop_t *ptrLoop, const char *callerName)
+    {
+        // UV_RUN_DEFAULT: Runs the event loop until the reference count drops to zero. Always returns zero.
+        // UV_RUN_ONCE:    Poll for new events once. Note that this function blocks if there are no pending events.
+        //                 Returns zero when done (no active handles or requests left), or non-zero if more events are
+        //                 expected meaning you should run the event loop again sometime in the future).
+        // UV_RUN_NOWAIT:  Poll for new events once but don't block if there are no pending events.
+        uint8_t closeRetry = 0;
+        bool ret = false;
+        constexpr int maxRetry = 3;
+        for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
+            if (uv_loop_close(ptrLoop) == UV_EBUSY) {
+                if (closeRetry > 2) {
+                    WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
+                }
+
+                if (ptrLoop->active_handles >= 2) {
+                    WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
+                }
+                auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
+                uv_walk(ptrLoop, clearLoopTask, nullptr);
+#ifdef HDC_HOST
+                // If all processing ends, Then return0,this call will block
+                if (!ptrLoop->active_handles) {
+                    ret = true;
+                    break;
+                }
+                if (!uv_run(ptrLoop, UV_RUN_ONCE)) {
+                    ret = true;
+                    break;
+                }
+                usleep(10000); // 10000:sleep for 10s
+#else
+                int r = 0;
+                int count = 0;
+                do {
+                    count++;
+                    r = uv_run(ptrLoop, UV_RUN_ONCE);
+                    uv_sleep(MILL_SECONDS); //10 millseconds
+                } while (r != 0 && count <= COUNT);
+#endif
+            } else {
+                WRITE_LOG(LOG_DEBUG, "Try close loop success");
                 ret = true;
                 break;
             }
@@ -1639,10 +1688,6 @@ namespace Base {
         signal(SIGPIPE, SIG_IGN);
         signal(SIGCHLD, SIG_IGN);
         signal(SIGALRM, SIG_IGN);
-        sigemptyset(&g_blockList);
-        constexpr int crashSignal = 35;
-        sigaddset(&g_blockList, crashSignal);
-        sigprocmask(SIG_BLOCK, &g_blockList, NULL);
 #endif
     }
 

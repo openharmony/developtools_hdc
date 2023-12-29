@@ -39,6 +39,7 @@ AsyncCmd::~AsyncCmd()
 
 bool AsyncCmd::ReadyForRelease()
 {
+    WRITE_LOG(LOG_INFO, "AsyncCmd::ReadyForRelease start");
     if (childShell != nullptr && !childShell->ReadyForRelease()) {
         return false;
     }
@@ -49,6 +50,7 @@ bool AsyncCmd::ReadyForRelease()
         delete childShell;
         childShell = nullptr;
     }
+    WRITE_LOG(LOG_INFO, "AsyncCmd::ReadyForRelease fd = %d", fd);
     Base::CloseFd(fd);
     return true;
 }
@@ -59,6 +61,7 @@ void AsyncCmd::DoRelease()
     if (childShell != nullptr) {
         childShell->StopWorkOnThread(false, nullptr);
     }
+    Base::CloseFd(fd);
     if (pid > 0) {
         uv_kill(pid, SIGTERM);
     }

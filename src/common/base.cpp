@@ -1657,9 +1657,6 @@ namespace Base {
     int CloseFd(int &fd)
     {
         int rc = 0;
-#ifndef HDC_HOST
-        WRITE_LOG(LOG_INFO, "CloseFd fd:%d", fd);
-#endif
         if (fd > 0) {
             rc = close(fd);
             if (rc < 0) {
@@ -1669,7 +1666,7 @@ namespace Base {
 #else
                 strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
 #endif
-                WRITE_LOG(LOG_WARN, "close failed errno:%d %s", errno, buffer);
+                WRITE_LOG(LOG_WARN, "close fd: %d failed errno:%d %s", fd, errno, buffer);
             } else {
                 fd = -1;
             }

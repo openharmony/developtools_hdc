@@ -41,7 +41,6 @@ HdcFileDescriptor::~HdcFileDescriptor()
     if (ioReadThread.joinable()) {
         ioReadThread.join();
     }
-    WRITE_LOG(LOG_DEBUG, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()

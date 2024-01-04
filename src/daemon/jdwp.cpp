@@ -527,7 +527,6 @@ void HdcJdwp::SendProcessList(HTaskInfo t, string data)
 void HdcJdwp::ProcessListUpdated(HTaskInfo task)
 {
     if (jdwpTrackers.size() <= 0) {
-        WRITE_LOG(LOG_DEBUG, "None jdwpTrackers.");
         return;
     }
 #ifdef JS_JDWP_CONNECT

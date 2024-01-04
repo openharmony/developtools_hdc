@@ -34,12 +34,10 @@ AsyncCmd::~AsyncCmd()
         delete childShell;
         childShell = nullptr;
     }
-    WRITE_LOG(LOG_DEBUG, "~AsyncCmd");
 };
 
 bool AsyncCmd::ReadyForRelease()
 {
-    WRITE_LOG(LOG_INFO, "AsyncCmd::ReadyForRelease start");
     if (childShell != nullptr && !childShell->ReadyForRelease()) {
         return false;
     }
@@ -50,14 +48,12 @@ bool AsyncCmd::ReadyForRelease()
         delete childShell;
         childShell = nullptr;
     }
-    WRITE_LOG(LOG_INFO, "AsyncCmd::ReadyForRelease fd = %d", fd);
     Base::CloseFd(fd);
     return true;
 }
 
 void AsyncCmd::DoRelease()
 {
-    WRITE_LOG(LOG_DEBUG, "AsyncCmd::DoRelease finish");
     if (childShell != nullptr) {
         childShell->StopWorkOnThread(false, nullptr);
     }
@@ -135,7 +131,6 @@ static void SetSelinuxLabel(bool isRoot)
         freecon(con);
         return;
     }
-    WRITE_LOG(LOG_DEBUG, "async shell mode:%d", isRoot);
 #ifdef HDC_BUILD_VARIANT_USER
     setcon("u:r:sh:s0");
 #else
@@ -214,8 +209,6 @@ void *AsyncCmd::Popen(void *arg)
         return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (childPid == 0) {
-        WRITE_LOG(LOG_DEBUG, "Popen close pipe fds[pipeRead]:%d fds[pipeWrite]:%d",
-            fds[pipeRead], fds[pipeWrite]);
         Base::DeInitProcess();
         // avoid cpu 100% when watch -n 2 ls command
         dup2(fds[pipeRead], STDIN_FILENO);

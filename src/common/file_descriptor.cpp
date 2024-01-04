@@ -41,7 +41,6 @@ HdcFileDescriptor::~HdcFileDescriptor()
     if (ioReadThread.joinable()) {
         ioReadThread.join();
     }
-    WRITE_LOG(LOG_DEBUG, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
@@ -115,7 +114,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             nBytes = read(fd, buf, bufSize);
         }
         if ((event & EPOLLERR) || (event & EPOLLHUP) || (event & EPOLLRDHUP)) {
-            WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
             bFinish = true;
             fetalFinish = true;
             if ((nBytes > 0) && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
@@ -164,7 +162,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 #endif
     }
 #ifndef HDC_HOST
-    WRITE_LOG(LOG_INFO, "FileIOOnThread free fd:%d, epfd:%d", thisClass->fdIO, epfd);
     if (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1) {
         WRITE_LOG(LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epfd:%d errno:%d",
             thisClass->fdIO, epfd, errno);

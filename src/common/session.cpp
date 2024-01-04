@@ -721,10 +721,6 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
 
     switch (op) {
         case OP_ADD:
-#ifndef HDC_HOST
-            // uv sub-thread confiured by threadPoolCount, reserve 2 for main & communicate
-            WRITE_LOG(LOG_WARN, "mapTask.size:%d", mapTask.size());
-#endif
             hRet = mapTask[channelId];
             if (hRet != nullptr) {
                 delete hRet;

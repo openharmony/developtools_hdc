@@ -1005,12 +1005,12 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
             uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
-            WRITE_LOG(LOG_DEBUG, "SessionCtrl failed,%s", buffer);
+            WRITE_LOG(LOG_DEBUG, "ReadCtrlFromSession failed,%s", buffer);
             uv_poll_stop(poll);
             break;
         }
-        if (nread > 64) {  // 64 : max length
-            WRITE_LOG(LOG_WARN, "HdcSessionBase read overlap data");
+        if (nread == 0) {
+            WRITE_LOG(LOG_FATAL, "ReadCtrlFromSession read data zero byte");
             break;
         }
         // only one command, no need to split command from stream

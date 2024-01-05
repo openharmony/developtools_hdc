@@ -22,11 +22,7 @@
         "init",
         "c_utils",
         "hitrace",
-        "hilog",
-        "ipc",
-        "ability_base",
-        "ability_runtime",
-        "window_manager",
+        "hilog"
 	"ylong_runtime"
       ],
       "third_party": [
@@ -40,8 +36,6 @@
     },
     "build": {
       "sub_component": [
-        "//developtools/hdc/hdcd_user_permit:hdcd_user_permit",
-        "//developtools/hdc/hdc_rust:hdcd_rust",
         "//developtools/hdc:hdc_register",
         "//developtools/hdc:hdcd_system",
         "//developtools/hdc:hdcd_updater"

@@ -370,10 +370,16 @@ fn show_permit_dialog() -> bool {
 
 pub async fn is_auth_enable() -> bool {
     let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_enable", "_");
-    debug_auth_enable.trim().to_lowercase() == "true"
-
-    // let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
-    // auth_enable.trim().to_lowercase() == "1"
+    hdc::error!("debug_auth_enable is {}.", debug_auth_enable);
+    match debug_auth_enable.trim() {
+        "force" => true,
+        "true" => {
+            let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
+            hdc::error!("const.hdc.secure is {}.", auth_enable);
+            auth_enable.trim().to_lowercase() == "1"
+        }
+        _ => false
+    }
 }
 
 async fn require_user_permittion(hostname: &str) -> UserPermit {

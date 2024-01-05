@@ -34,6 +34,7 @@ use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;
 use hdc::transfer;
+use hdc::transfer::uart::UartReader;
 use hdc::transfer::base::Reader;
 use hdc::transfer::uart_wrapper;
 use hdc::utils;

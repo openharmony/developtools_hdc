@@ -23,7 +23,6 @@
         "c_utils",
         "hitrace",
         "hilog"
-	"ylong_runtime"
       ],
       "third_party": [
         "libuv",

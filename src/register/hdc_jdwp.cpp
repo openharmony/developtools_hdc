@@ -191,6 +191,9 @@ void HdcJdwpSimulator::Read()
         FD_SET(cfd_, &rset);
         int rc = select(cfd_ + 1, &rset, nullptr, nullptr, &timeout);
         if (rc < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
             HILOG_FATAL(LOG_CORE, "Read select fd:%{public}d error:%{public}d", cfd_, errno);
             break;
         } else if (rc == 0) {

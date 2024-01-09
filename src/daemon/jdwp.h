@@ -39,8 +39,8 @@ public:
 private:
 #endif
 #ifdef JS_JDWP_CONNECT
-    static constexpr uint8_t JS_PKG_MIN_SIZE = 15;  // JsMsgHeader + "pkgName:"uint8_t[7~127]
-    static constexpr uint8_t JS_PKG_MX_SIZE = 135;
+    static constexpr uint8_t JS_PKG_MIN_SIZE = 7;  // JsMsgHeader + "pkgName:"uint8_t[7~128]
+    static constexpr uint8_t JS_PKG_MAX_SIZE = 128;
     struct JsMsgHeader {
         uint32_t msgLen;
         uint32_t pid;
@@ -71,7 +71,7 @@ private:
         HdcJdwp *thisClass;
         bool finish;
 #ifdef JS_JDWP_CONNECT
-        char buf[JS_PKG_MX_SIZE];
+        char buf[JS_PKG_MAX_SIZE + sizeof(JsMsgHeader)];
         string pkgName;
 #else
         char buf[sizeof(uint32_t)];

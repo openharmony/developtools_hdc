@@ -28,6 +28,7 @@ HdcJdwpSimulator::HdcJdwpSimulator(const std::string processName, const std::str
     cfd_ = -1;
     ctxPoint_ = (HCtxJdwpSimulator)MallocContext();
     disconnectFlag_ = false;
+    reconnect_ = false;
 }
 
 void HdcJdwpSimulator::Disconnect()
@@ -160,7 +161,9 @@ bool HdcJdwpSimulator::Connect()
         return false;
     }
     if (ConnectJpid(this)) {
-        ReadStart();
+        if (!reconnect_) {
+            ReadStart();
+        }
     }
     return true;
 }
@@ -213,9 +216,16 @@ void HdcJdwpSimulator::Read()
         msg.msg_controllen = sizeof(ctlBuf);
         msg.msg_control = ctlBuf;
         cnt = recvmsg(cfd_, &msg, 0);
-        if (cnt <= 0) {
+        if (cnt < 0) {
+            HILOG_FATAL(LOG_CORE,"Read recvmsg cfd:%{public}d errno:%{public}d", cfd_, errno);
             break;
-        } else if (0 < cnt && cnt < 5) {
+        } else if (cnt == 0) {
+            HILOG_WARN(LOG_CORE,"Read recvmsg socket peer closed cfd:%{public}d", cfd_);
+            close(cfd_);
+            Reconnect();
+            continue;
+        } else if (cnt < 5) {
+            HILOG_WARN(LOG_CORE,"Read recvmsg cnt:%{public}d cfd:%{public}d", cnt, cfd_);
             continue;
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);
@@ -239,5 +249,19 @@ void HdcJdwpSimulator::Read()
             cb_(newfd, str);
         }
     }
+}
+
+void HdcJdwpSimulator::Reconnect()
+{
+    constexpr int timeout = 3;
+    reconnect_ = true;
+    // wait for hdcd restart
+    sleep(timeout);
+    while (!Connect() && !disconnectFlag_) {
+        HILOG_WARN(LOG_CORE,"Reconnect cfd:%{public}d", cfd_);
+        sleep(timeout);
+    }
+    reconnect_ = false;
+    HILOG_INFO(LOG_CORE,"Reconnect success cfd:%{public}d", cfd_);
 }
 } // namespace Hdc

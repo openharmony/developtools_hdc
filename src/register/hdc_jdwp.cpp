@@ -184,7 +184,7 @@ void HdcJdwpSimulator::Read()
     constexpr size_t size = 256;
     constexpr long sec = 5;
     uint8_t buf[size] = { 0 };
-    while(!disconnectFlag_ && cfd_ > -1) {
+    while (!disconnectFlag_ && cfd_ > -1) {
         ssize_t cnt = 0;
         ssize_t minlen = sizeof(int32_t);
         fd_set rset;

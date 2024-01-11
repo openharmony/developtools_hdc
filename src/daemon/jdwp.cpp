@@ -84,10 +84,15 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         AdminContext(OP_REMOVE, ctx->pid, nullptr);
     }
     auto funcReqClose = [](uv_idle_t *handle) -> void {
-        HCtxJdwp ctx = (HCtxJdwp)handle->data;
-        --ctx->thisClass->refCount;
+        HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
+        --ctxIn->thisClass->refCount;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
-        delete ctx;
+#ifndef HDC_EMULATOR
+	if (ctxIn != nullptr) {
+            delete ctxIn;
+            ctxIn = nullptr;
+        }
+#endif
     };
     Base::IdleUvTask(loop, ctx, funcReqClose);
 }

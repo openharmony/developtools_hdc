@@ -28,14 +28,14 @@
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
 import csv
 import pytest
-import binascii
-import difflib
 import pkg_resources
+
 
 class GP(object):
     """ Global Parameters
@@ -62,32 +62,33 @@ class GP(object):
             return
         else:
             cls.set_options()
-            cls.print_options ()
+            cls.print_options()
             cls.dump()
         try:
             targets = subprocess.check_output(f"{cls.hdc_exe} list targets".split()).split()
         except (OSError, IndexError):
             targets = [b"failed to auto detect device"]
         cls.targets = [t.decode() for t in targets]
-        if len(cls.targets)>1:
+        if len(cls.targets) > 1:
             print("Multiple device detected, please select one:")
-            for i,t in enumerate(cls.targets):
+            for i, t in enumerate(cls.targets):
                 print(f"{i+1}. {t}")
             print("input the nums of the device above:")
-            cls.device_name = cls.targets[int(input())-1]
+            cls.device_name = cls.targets[int(input()) - 1]
         else:
             cls.device_name = cls.targets[0]
         if cls.device_name == "failed to auto detect device":
             print("No device detected, please check your device connection")
-            exit(0)  
+            return
         if cls.device_name == "":
             cls.device_name = subprocess.run(['hdc', 'list', 'targets'],
                                               stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
         elif cls.device_name == "[empty]":
-            print("No hdc device detected,Press q to quit,Press Others to continue.")
-            exit()
+            print("No hdc device detected.")
+            return
         cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
         return
+
 
     @classmethod
     def dump(cls):
@@ -96,15 +97,12 @@ class GP(object):
         except OSError:
             pass
         content = filter(lambda k: not k[0].startswith("__") and not type(k[1]) == classmethod, cls.__dict__.items())
-        # for i in cls.__dict__.items():
-        #     print(i)
-        # print(content)
-        # for i in dict(content):
-        #     print(i)
         json_str = json.dumps(dict(content))
         fd = os.open(".hdctester.conf", os.O_WRONLY | os.O_CREAT, 0o755)
         os.write(fd, json_str.encode())
         os.close(fd)
+        return True
+
 
     @classmethod
     def load(cls):
@@ -120,6 +118,8 @@ class GP(object):
             cls.changed_testcase = content.get("changed_testcase")
             cls.testcase_path = content.get("testcase_path")
             cls.loaded_testcase = content.get("load_testcase")
+        return True
+
 
     @classmethod
     def print_options(cls):
@@ -135,14 +135,17 @@ class GP(object):
         + f"{'changed testcase'.rjust(20, ' ')}: {cls.changed_testcase}\n" \
         + f"{'testcase path'.rjust(20, ' ')}: {cls.testcase_path}\n" \
         + f"{'loaded testcase'.rjust(20, ' ')}: {cls.loaded_testcase}\n"
-
         print(info)
+
 
     @classmethod
     def tconn_tcp(cls):
         res = subprocess.check_output(f"{cls.hdc_exe} tconn {cls.remote_ip}:{cls.remote_port}".split()).decode()
         if "Connect OK" in res:
             return True
+        else:
+            return False
+
 
     @classmethod
     def set_options(cls):
@@ -160,7 +163,6 @@ class GP(object):
             cls.device_name = opt
         if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]\n").strip():
             cls.tmode = opt
-        # cls.move_assert_files()
         if cls.tmode == "usb":
             if cls.device_name == "":
                 cls.device_name = subprocess.run(['hdc', 'list', 'targets'],
@@ -173,6 +175,7 @@ class GP(object):
             return False
         return True
     
+
     @classmethod
     def change_testcase(cls):
         if opt := input(f"Change default testcase?(Y/n) [{cls.changed_testcase}]\n").strip():
@@ -184,32 +187,12 @@ class GP(object):
         cls.print_options()
         return True
     
+
     @classmethod
     def load_testcase(cls):
-        if cls.change_testcase():
-            cls.testcase_list = []
-            with open(cls.testcase_path, "r") as file:
-                csv_reader = csv.reader(file)
-                for row in csv_reader:
-                    # print(row)
-                    testcase_dict = {}
-                    testcase_dict["case"] = row[0]
-                    testcase_dict["expect"] = row[1]
-                    if (row[2]!=""):
-                        testcase_dict["times"] = row[2]
-                    else:
-                        testcase_dict["times"] = 1
-                    cls.testcase_list.append(testcase_dict)
-                    testcase_dict.__delitem__
-            cls.loaded_testcase = 1
-            for item in cls.testcase_list:
-                print(item)
-            return True
-        else:
-            print("No testcase loaded")
-            cls.loaded_testcase = 0
-            return False
-
+        print("this fuction will coming soon.")
+        return False
+    
 
 def rmdir(path):
     try:
@@ -239,23 +222,6 @@ def _get_local_md5(local):
             md5_hash.update(byte_block)
     return md5_hash.hexdigest()
 
-def file_print_check(local, remote):
-    local_path = os.path.join(GP.local_path, local)
-    remote_path = f"{GP.remote_path}/{remote}"
-    local_output = ""
-    remote_output = ""
-    with open(local_path, "rb") as f:
-        local_output = f.read()
-        # local_md5 = hashlib.md5(local_output).hexdigest()
-   
-    cmd = f"{GP.hdc_head} shell cat {remote_path}"
-    remote_output = subprocess.check_output(cmd.split()).strip()
-    diff = difflib.Differ().compare(local_output, remote_output)
-    diff_list = list(diff)
-    print(diff_list)
-    res = len(diff_list)
-    print(f"-->local compare with remote has {'difference' if res else 'no difference'}")
-    return not res
 
 def check_shell(cmd, pattern=None, fetch=False):
     cmd = f"{GP.hdc_head} {cmd}"
@@ -357,8 +323,9 @@ def switch_tcp():
             return True
         GP.remote_ip = ipconf.split(":")[1].split()[0]
         print(f"fetch remote ip: {GP.remote_ip}")
-    check_hdc_cmd(f"tmode port {GP.remote_port}")
-    time.sleep(3)
+    ret = check_hdc_cmd(f"tmode port {GP.remote_port}")
+    if ret:
+        time.sleep(3)
     res = check_hdc_cmd(f"tconn {GP.remote_ip}:{GP.remote_port}", "Connect OK")
     if res:
         GP.hdc_head = f"{GP.hdc_exe} -t {GP.remote_ip}:{GP.remote_port}"
@@ -396,21 +363,14 @@ def prepare_source():
         path = os.path.abspath(path)
         if chcp_type == "numbers":
             with open(path, "w") as f:
-                for i in range(1, 10000):
-                    try:
-                        nums_str = "1234567890"
-                        f.write(nums_str)
-                    except UnicodeError:
-                        pass
+                for i in range(1, 200):
+                    nums_str = "1234567890"
+                    f.write(nums_str)
         else:
-            with open(path, "w", encoding = chcp_type) as f:
+            with open(path, "w", encoding=chcp_type) as f:
                 for i in range(1, 0x10FFFF + 1):
-                    try:
-                        char = chr(i)
-                        f.write(char)
-                    except UnicodeError:
-                        pass
-
+                    char = chr(i)
+                    f.write(char)
 
     print(f"in prepare {GP.local_path},wait for 2 mins.")
     current_path = os.getcwd()
@@ -429,17 +389,21 @@ def prepare_source():
     rmdir(dir_path)
     os.mkdir(dir_path)
     gen_file(os.path.join(dir_path, "small2"), 102400)
-    print("generating utf-8 file ...")
-    gen_word_file("utf-8")
-    print("generating gbk file ...")
-    gen_word_file("gbk")
-    print("generating numbers file ...")
-    gen_word_file("numbers")
 
     print("generating empty dir ...")
     dir_path = os.path.join(GP.local_path, "empty_dir")
     rmdir(dir_path)
     os.mkdir(dir_path)
+    
+    if os.path.exists("entry-default-signed-debug.hap"):
+        print("copy the hap file to resource dir...")
+        shutil.copy("entry-default-signed-debug.hap", GP.local_path)
+    else:
+        print("No hap File!")
+    if os.path.exists("panalyticshsp-default-signed.hsp"):
+        shutil.copy("panalyticshsp-default-signed.hsp", GP.local_path)
+    else:
+        print("No hsp File!")
 
 
 def setup_tester():
@@ -462,12 +426,14 @@ def setup_tester():
         else:
             return False
 
+
 def load_testcase():
     if not GP.load_testcase:
         print("load testcase failed")
         return False
     print("load testcase success")
     return True
+
 
 def check_library_installation(library_name):
     try:

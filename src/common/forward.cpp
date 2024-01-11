@@ -821,6 +821,7 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
 
 bool HdcForwardBase::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
+    WRITE_LOG(LOG_DEBUG, "forward Command %d dispatch", command);
     bool ret = true;
     string sError;
     // prepare

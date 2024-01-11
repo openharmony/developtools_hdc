@@ -305,6 +305,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         // init master
         uv_fs_t fs = {};
         uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
+        WRITE_LOG(LOG_DEBUG, "uv_fs_fstat result: %d", context->fsOpenReq.result);
         TransferConfig &st = context->transferConfig;
         st.fileSize = fs.statbuf.st_size;
         st.optionalName = context->localName;

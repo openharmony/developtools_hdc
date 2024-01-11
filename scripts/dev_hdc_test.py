@@ -31,9 +31,11 @@ import os
 import subprocess
 import sys
 import time
-
+import csv
 import pytest
-
+import binascii
+import difflib
+import pkg_resources
 
 class GP(object):
     """ Global Parameters
@@ -42,27 +44,50 @@ class GP(object):
     """
     hdc_exe = "hdc"
     local_path = "resource"
-    remote_path = "/data/local/tmp"
+    remote_path = "data/local/tmp"
     remote_ip = "auto"
     remote_port = 8710
     hdc_head = "hdc"
     device_name = ""
     targets = []
     tmode = "usb"
+    changed_testcase = "n"
+    testcase_path = "ts_windows.csv"
+    loaded_testcase = 0
 
     @classmethod
     def init(cls):
         if os.path.exists(".hdctester.conf"):
             cls.load()
             return
+        else:
+            cls.set_options()
+            cls.print_options ()
+            cls.dump()
         try:
             targets = subprocess.check_output(f"{cls.hdc_exe} list targets".split()).split()
-            cls.device_name = targets[0]
         except (OSError, IndexError):
             targets = [b"failed to auto detect device"]
         cls.targets = [t.decode() for t in targets]
-        cls.device_name = cls.targets[0]
+        if len(cls.targets)>1:
+            print("Multiple device detected, please select one:")
+            for i,t in enumerate(cls.targets):
+                print(f"{i+1}. {t}")
+            print("input the nums of the device above:")
+            cls.device_name = cls.targets[int(input())-1]
+        else:
+            cls.device_name = cls.targets[0]
+        if cls.device_name == "failed to auto detect device":
+            print("No device detected, please check your device connection")
+            exit(0)  
+        if cls.device_name == "":
+            cls.device_name = subprocess.run(['hdc', 'list', 'targets'],
+                                              stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+        elif cls.device_name == "[empty]":
+            print("No hdc device detected,Press q to quit,Press Others to continue.")
+            exit()
         cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
+        return
 
     @classmethod
     def dump(cls):
@@ -71,6 +96,11 @@ class GP(object):
         except OSError:
             pass
         content = filter(lambda k: not k[0].startswith("__") and not type(k[1]) == classmethod, cls.__dict__.items())
+        # for i in cls.__dict__.items():
+        #     print(i)
+        # print(content)
+        # for i in dict(content):
+        #     print(i)
         json_str = json.dumps(dict(content))
         fd = os.open(".hdctester.conf", os.O_WRONLY | os.O_CREAT, 0o755)
         os.write(fd, json_str.encode())
@@ -87,6 +117,9 @@ class GP(object):
             cls.hdc_head = content.get("hdc_head")
             cls.tmode = content.get("tmode")
             cls.device_name = content.get("device_name")
+            cls.changed_testcase = content.get("changed_testcase")
+            cls.testcase_path = content.get("testcase_path")
+            cls.loaded_testcase = content.get("load_testcase")
 
     @classmethod
     def print_options(cls):
@@ -97,7 +130,11 @@ class GP(object):
         + f"{'remote ip'.rjust(20, ' ')}: {cls.remote_ip}\n" \
         + f"{'remote port'.rjust(20, ' ')}: {cls.remote_port}\n" \
         + f"{'device name'.rjust(20, ' ')}: {cls.device_name}\n" \
-        + f"{'connect type'.rjust(20, ' ')}: {cls.tmode}\n"
+        + f"{'connect type'.rjust(20, ' ')}: {cls.tmode}\n" \
+        + f"{'hdc head'.rjust(20, ' ')}: {cls.hdc_head}\n" \
+        + f"{'changed testcase'.rjust(20, ' ')}: {cls.changed_testcase}\n" \
+        + f"{'testcase path'.rjust(20, ' ')}: {cls.testcase_path}\n" \
+        + f"{'loaded testcase'.rjust(20, ' ')}: {cls.loaded_testcase}\n"
 
         print(info)
 
@@ -106,16 +143,6 @@ class GP(object):
         res = subprocess.check_output(f"{cls.hdc_exe} tconn {cls.remote_ip}:{cls.remote_port}".split()).decode()
         if "Connect OK" in res:
             return True
-
-    @classmethod
-    def move_assert_files(cls):
-        try:
-            if sys.platform == "win32":
-                subprocess.call(f"xcopy /y _internal\\assert\\ {cls.local_path}".split())
-            else:
-                subprocess.call(f"cp -r _internal/assert/* {cls.local_path}".split())
-        except OSError:
-            pass
 
     @classmethod
     def set_options(cls):
@@ -133,8 +160,11 @@ class GP(object):
             cls.device_name = opt
         if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]\n").strip():
             cls.tmode = opt
-        cls.move_assert_files()
+        # cls.move_assert_files()
         if cls.tmode == "usb":
+            if cls.device_name == "":
+                cls.device_name = subprocess.run(['hdc', 'list', 'targets'],
+                                               stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
             cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
         elif cls.tconn_tcp():
             cls.hdc_head = f"{cls.hdc_exe} -t {cls.remote_ip}:{cls.remote_port}"
@@ -142,10 +172,43 @@ class GP(object):
             print(f"tconn {cls.remote_ip}:{cls.remote_port} failed")
             return False
         return True
-
-def mkdir(path):
-    if not os.path.exists(path):
-        subprocess.call(f"mkdir -p {path}".split())
+    
+    @classmethod
+    def change_testcase(cls):
+        if opt := input(f"Change default testcase?(Y/n) [{cls.changed_testcase}]\n").strip():
+            cls.changed_testcase = opt
+            if opt == "n":
+                return False
+        if opt := input(f"Use default testcase path?(Y/n) [{cls.testcase_path}]\n").strip():
+            cls.testcase_path =  os.path.join(opt)
+        cls.print_options()
+        return True
+    
+    @classmethod
+    def load_testcase(cls):
+        if cls.change_testcase():
+            cls.testcase_list = []
+            with open(cls.testcase_path, "r") as file:
+                csv_reader = csv.reader(file)
+                for row in csv_reader:
+                    # print(row)
+                    testcase_dict = {}
+                    testcase_dict["case"] = row[0]
+                    testcase_dict["expect"] = row[1]
+                    if (row[2]!=""):
+                        testcase_dict["times"] = row[2]
+                    else:
+                        testcase_dict["times"] = 1
+                    cls.testcase_list.append(testcase_dict)
+                    testcase_dict.__delitem__
+            cls.loaded_testcase = 1
+            for item in cls.testcase_list:
+                print(item)
+            return True
+        else:
+            print("No testcase loaded")
+            cls.loaded_testcase = 0
+            return False
 
 
 def rmdir(path):
@@ -176,6 +239,23 @@ def _get_local_md5(local):
             md5_hash.update(byte_block)
     return md5_hash.hexdigest()
 
+def file_print_check(local, remote):
+    local_path = os.path.join(GP.local_path, local)
+    remote_path = f"{GP.remote_path}/{remote}"
+    local_output = ""
+    remote_output = ""
+    with open(local_path, "rb") as f:
+        local_output = f.read()
+        # local_md5 = hashlib.md5(local_output).hexdigest()
+   
+    cmd = f"{GP.hdc_head} shell cat {remote_path}"
+    remote_output = subprocess.check_output(cmd.split()).strip()
+    diff = difflib.Differ().compare(local_output, remote_output)
+    diff_list = list(diff)
+    print(diff_list)
+    res = len(diff_list)
+    print(f"-->local compare with remote has {'difference' if res else 'no difference'}")
+    return not res
 
 def check_shell(cmd, pattern=None, fetch=False):
     cmd = f"{GP.hdc_head} {cmd}"
@@ -204,6 +284,11 @@ def _check_app_installed(bundle, is_shared=False):
     cmd = f"shell bm {dump} -a"
     return check_shell(cmd, bundle)
 
+def check_hdc_targets():
+    cmd = f"{GP.hdc_head} list targets"
+    print(GP.device_name)
+    return check_shell(cmd, GP.device_name)
+
 
 def check_file_send(local, remote):
     local_path = os.path.join(GP.local_path, local)
@@ -228,7 +313,6 @@ def check_app_install(app, bundle, args=""):
 def check_app_uninstall(bundle, args=""):
     uninstall_cmd = f"uninstall {args} {bundle}"
     return check_shell(uninstall_cmd, "successfully") and not _check_app_installed(bundle, "s" in args)
-
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):
@@ -281,125 +365,17 @@ def switch_tcp():
     return res
 
 
-class TestCommands:
-    r"""Usage:
-
-    check_hdc_cmd(cmd, **args):
-        1. cmd = file send / file recv: execute and check if md5 of local and remote matches after transfer
-            执行file命令 验证两端md5
-            eg. check_hdc_cmd("file send D:\somefile.log /data/local/tmp/test.log")
-        2. cmd = install, with "bundle" in args: execute and check if bundle added after execution
-            执行install命令 验证bundle添加
-            eg. check_hdc_cmd("install D:\somepack.hap", bundle="com.hmos.test")
-        3. cmd = uninstall: execute and check if bundle removed after execution
-            执行uninstall命令 验证bundle删除
-            eg. check_hdc_cmd("uninstall -s com.hmos.test")
-        4. other cmd: check if execution returns 0
-            其他命令 返回值为命令retcode
-            eg. check_hdc_cmd("tmode port 6666")
-
-    check_hdc_cmd(cmd, pattern):
-        check if <pattern> string in stdout of cmd execution
-            其他命令 验证pattern是否在stdout中
-            eg. check_hdc_cmd("target mount", "Mount finish")
-
-    check_hdc_cmd(cmd, fetch=True):
-        return stdout of cmd execution
-            其他命令 返回stdout
-            eg. devices = check_hdc_cmd("list targets", fetch=True)
-
-    """
-
-    def test_empty_file(self):
-        assert check_hdc_cmd(f"file send {get_local_path('empty')} {get_remote_path('it_empty')}")
-        assert check_hdc_cmd(f"file recv {get_remote_path('it_empty')} {get_local_path('empty_recv')}")
-
-    def test_small_file(self):
-        assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
-        assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
-
-    def test_large_file(self):
-        assert check_hdc_cmd(f"file send {get_local_path('large')} {get_remote_path('it_large')}")
-        assert check_hdc_cmd(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}")
-
-    def test_hap_install(self):
-        assert check_hdc_cmd(f"install -r {get_local_path('entry-default-signed-debug.hap')}",
-                             bundle="com.hmos.diagnosis")
-
-    def test_app_cmd(self):
-        assert check_app_install("entry-default-signed-debug.hap", "com.hmos.diagnosis")
-        assert check_app_uninstall("com.hmos.diagnosis")
-
-        assert check_app_install("entry-default-signed-debug.hap", "com.hmos.diagnosis", "-r")
-        assert check_app_uninstall("com.hmos.diagnosis")
-
-        assert check_app_install("analyticshsp-default-signed.hsp", "com.huawei.hms.hsp.analyticshsp", "-s")
-        assert check_app_uninstall("com.huawei.hms.hsp.analyticshsp", "-s")
-
-    def test_smode(self):
-        assert check_hdc_cmd("smode -r")
-        time.sleep(5)
-        assert check_hdc_cmd("shell whoami", "shell")
-
-        assert check_hdc_cmd("smode")
-        time.sleep(5)
-        assert check_hdc_cmd("shell whoami", "root")
-
-    def test_tmode(self):
-        if GP.tmode == "usb":
-            assert switch_tcp()
-            assert switch_usb()
-        else:
-            assert switch_usb()
-            assert switch_tcp()
-
-    def test_server_kill(self):
-        assert check_hdc_cmd("kill", "Kill server finish")
-
-    def test_target_cmd(self):
-        check_hdc_cmd("target boot")
-        time.sleep(20)
-        assert check_hdc_cmd("target mount", "Mount finish")
-
-    def test_version_cmd(self):
-        assert check_hdc_cmd("-v", "Ver: 1.3.0a")
-        assert check_hdc_cmd("version", "Ver: 1.3.0a")
-        assert check_hdc_cmd("checkserver", "Ver: 1.3.0a")
-
-    def test_fport_cmd(self):
-        fport = "tcp:5555 tcp:5556"
-        rport = "tcp:6666 tcp:6667"
-
-        assert check_hdc_cmd(f"fport {fport}", "Forwardport result:OK")
-        assert check_hdc_cmd("fport ls", fport)
-
-        assert check_hdc_cmd(f"rport {rport}", "Forwardport result:OK")
-        assert check_hdc_cmd("fport ls", rport)
-
-        assert check_hdc_cmd(f"fport rm {fport}", "success")
-        assert not check_hdc_cmd("fport ls", fport)
-        assert check_hdc_cmd(f"fport rm {rport}", "success")
-        assert not check_hdc_cmd("fport ls", rport)
-
-    def setup_class(self):
-        print("setting up env ...")
-        check_hdc_cmd("shell rm -rf /data/local/tmp/it_*")
-        GP.load()
-
-    def teardown_class(self):
-        pass
-
-
 def select_cmd():
     msg = "1) Proceed tester\n" \
         + "2) Customize tester\n" \
         + "3) Setup files for transfer\n" \
-        + "4) Cancel\n" \
+        + "4) Load custom testcase(default unused) \n" \
+        + "5) Exit\n" \
         + ">> "
 
     while True:
         opt = input(msg).strip()
-        if len(opt) == 1 and '1' <= opt <= '4':
+        if len(opt) == 1 and '1' <= opt <= '5':
             return opt
 
 
@@ -415,8 +391,30 @@ def prepare_source():
             index += 1024
         os.close(fd)
 
-    print(f"in prepare {GP.local_path}")
+    def gen_word_file(chcp_type):
+        path = os.path.join(GP.local_path, f"{chcp_type}.txt")
+        path = os.path.abspath(path)
+        if chcp_type == "numbers":
+            with open(path, "w") as f:
+                for i in range(1, 10000):
+                    try:
+                        nums_str = "1234567890"
+                        f.write(nums_str)
+                    except UnicodeError:
+                        pass
+        else:
+            with open(path, "w", encoding = chcp_type) as f:
+                for i in range(1, 0x10FFFF + 1):
+                    try:
+                        char = chr(i)
+                        f.write(char)
+                    except UnicodeError:
+                        pass
 
+
+    print(f"in prepare {GP.local_path},wait for 2 mins.")
+    current_path = os.getcwd()
+    os.mkdir(GP.local_path)
     print("generating empty file ...")
     gen_file(os.path.join(GP.local_path, "empty"), 0)
 
@@ -429,13 +427,19 @@ def prepare_source():
     print("generating dir with small file ...")
     dir_path = os.path.join(GP.local_path, "normal_dir")
     rmdir(dir_path)
-    mkdir(dir_path)
+    os.mkdir(dir_path)
     gen_file(os.path.join(dir_path, "small2"), 102400)
+    print("generating utf-8 file ...")
+    gen_word_file("utf-8")
+    print("generating gbk file ...")
+    gen_word_file("gbk")
+    print("generating numbers file ...")
+    gen_word_file("numbers")
 
     print("generating empty dir ...")
     dir_path = os.path.join(GP.local_path, "empty_dir")
     rmdir(dir_path)
-    mkdir(dir_path)
+    os.mkdir(dir_path)
 
 
 def setup_tester():
@@ -450,21 +454,27 @@ def setup_tester():
             GP.dump()
         elif opt == 3:
             prepare_source()
+        elif opt == 4:
+            if not GP.load_testcase():
+                return False
+        elif opt == 5:
+            return False
         else:
             return False
 
+def load_testcase():
+    if not GP.load_testcase:
+        print("load testcase failed")
+        return False
+    print("load testcase success")
+    return True
 
-if __name__ == "__main__":
-
-    GP.init()
-
-    if setup_tester():
-        print("starting test, plz ensure hap / hsp is in local storage path")
-        req = "input test case name pattern [file / app / target / fport / ...], blank for all cases\n>> "
-        choice = input(req).strip()
-        if choice:
-            pytest.main(["-s", "-k", choice])
-        else:
-            pytest.main(["-s"])
-
-        input("test over, press Enter key to continue")
+def check_library_installation(library_name):
+    try:
+        pkg_resources.get_distribution(library_name)
+        return 0
+    except pkg_resources.DistributionNotFound:
+        print(f"\n\n{library_name} is not installed.\n\n")
+        print(f"try to use command below:")
+        print(f"pip install {library_name}")
+        return 1

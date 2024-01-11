@@ -103,6 +103,9 @@ template("hdcd_source_set") {
     if (build_variant == "user") {
       defines += [ "HDC_BUILD_VARIANT_USER" ]
     }
+    if (is_emulator) {
+      defines += [ "HDC_EMULATOR" ]
+    }
     configs = [ ":hdc_config" ]
 
     deps = [

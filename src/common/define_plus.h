@@ -535,6 +535,7 @@ struct HdcForwardInformation {
     bool forwardDirection;  // true for forward, false is reverse;
     uint32_t sessionId;
     uint32_t channelId;
+    std::string connectKey;
 };
 using HForwardInfo = struct HdcForwardInformation *;
 }

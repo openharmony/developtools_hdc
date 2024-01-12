@@ -77,7 +77,7 @@ def test_app_cmd():
 
 def test_server_kill():
     assert check_hdc_cmd("kill", "Kill server finish")
-    os.system("hdc start server")
+    assert check_hdc_cmd("start server", "")
 
 
 def test_target_cmd():
@@ -117,7 +117,7 @@ def test_fport_cmd():
 
 def setup_class():
     print("setting up env ...")
-    check_hdc_cmd("shell rm -rf /data/local/tmp/it_*")
+    check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
     GP.load()
 
 

@@ -64,6 +64,10 @@ class GP(object):
             cls.set_options()
             cls.print_options()
             cls.dump()
+        return
+
+    @classmethod
+    def targets(cls):
         try:
             targets = subprocess.check_output(f"{cls.hdc_exe} list targets".split()).split()
         except (OSError, IndexError):
@@ -79,16 +83,12 @@ class GP(object):
             cls.device_name = cls.targets[0]
         if cls.device_name == "failed to auto detect device":
             print("No device detected, please check your device connection")
-            return
-        if cls.device_name == "":
-            cls.device_name = subprocess.run(['hdc', 'list', 'targets'],
-                                              stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+            return False
         elif cls.device_name == "[empty]":
             print("No hdc device detected.")
-            return
+            return False
         cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
-        return
-
+        return True
 
     @classmethod
     def dump(cls):
@@ -164,10 +164,7 @@ class GP(object):
         if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]\n").strip():
             cls.tmode = opt
         if cls.tmode == "usb":
-            if cls.device_name == "":
-                cls.device_name = subprocess.run(['hdc', 'list', 'targets'],
-                                               stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
-            cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
+            cls.targets()
         elif cls.tconn_tcp():
             cls.hdc_head = f"{cls.hdc_exe} -t {cls.remote_ip}:{cls.remote_port}"
         else:
@@ -279,6 +276,7 @@ def check_app_install(app, bundle, args=""):
 def check_app_uninstall(bundle, args=""):
     uninstall_cmd = f"uninstall {args} {bundle}"
     return check_shell(uninstall_cmd, "successfully") and not _check_app_installed(bundle, "s" in args)
+
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):

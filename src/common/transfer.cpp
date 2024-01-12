@@ -324,6 +324,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
             return;
         }
 #endif
+
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.u_id = fs.statbuf.st_uid;
         context->fileMode.g_id = fs.statbuf.st_gid;

@@ -52,6 +52,9 @@ HdcJdwpSimulator::~HdcJdwpSimulator()
             shutdown(ctxPoint_->cfd, SHUT_RDWR);
             close(ctxPoint_->cfd);
             ctxPoint_->cfd = -1;
+            if (readThread_.joinable()) {
+                readThread_.join();
+            }
         }
         delete ctxPoint_;
         ctxPoint_ = nullptr;

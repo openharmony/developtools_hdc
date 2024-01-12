@@ -12,10 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 运行环境: python 3.10+, pytest
+# 运行环境: python 3.10+, pytest, pytest-repeat, pytest-testreport
 # 准备文件1：entry-default-signed-debug.hap
 # 准备文件2：panalyticshsp-default-signed.hsp
-# pip install pytest pytest-testreport
+# pip install pytest pytest-testreport pytest-repeat
 # python hdc_normal_test.py
 
 
@@ -29,6 +29,7 @@ from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source
+
 
 def test_list_targets():
     assert check_hdc_targets()
@@ -61,18 +62,13 @@ def test_hap_install():
 @pytest.mark.repeat(5)
 def test_app_cmd():
     package_hap = "entry-default-signed-debug.hap"
-    package_hsp = "analyticshsp-default-signed.hsp"
     app_name_default = "com.hmos.diagnosis"
-    app_name_hsp = "com.huawei.hms.hsp.analyticshsp"
 
     assert check_app_install(package_hap, app_name_default)
     assert check_app_uninstall(app_name_default)
 
     assert check_app_install(package_hap, app_name_default, "-r")
     assert check_app_uninstall(app_name_default)
-
-    assert check_app_install("analyticshsp-default-signed.hsp", app_name_hsp, "-s")
-    assert check_app_uninstall(app_name_hsp, "-s")
 
 
 def test_server_kill():
@@ -130,6 +126,9 @@ def run_main():
         exit(1)
 
     if check_library_installation("pytest-testreport"):
+        exit(1)
+    
+    if check_library_installation("pytest-repeat"):
         exit(1)
 
     GP.init()

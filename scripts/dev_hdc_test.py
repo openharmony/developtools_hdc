@@ -66,6 +66,7 @@ class GP(object):
             cls.dump()
         return
 
+
     @classmethod
     def targets(cls):
         try:
@@ -89,6 +90,7 @@ class GP(object):
             return False
         cls.hdc_head = f"{cls.hdc_exe} -t {cls.device_name}"
         return True
+
 
     @classmethod
     def dump(cls):
@@ -355,20 +357,6 @@ def prepare_source():
             os.write(fd, os.urandom(1024))
             index += 1024
         os.close(fd)
-
-    def gen_word_file(chcp_type):
-        path = os.path.join(GP.local_path, f"{chcp_type}.txt")
-        path = os.path.abspath(path)
-        if chcp_type == "numbers":
-            with open(path, "w") as f:
-                for i in range(1, 200):
-                    nums_str = "1234567890"
-                    f.write(nums_str)
-        else:
-            with open(path, "w", encoding=chcp_type) as f:
-                for i in range(1, 0x10FFFF + 1):
-                    char = chr(i)
-                    f.write(char)
 
     print(f"in prepare {GP.local_path},wait for 2 mins.")
     current_path = os.getcwd()

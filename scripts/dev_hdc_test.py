@@ -57,6 +57,7 @@ class GP(object):
 
     @classmethod
     def init(cls):
+        cls.list_targets()
         if os.path.exists(".hdctester.conf"):
             cls.load()
             return
@@ -68,12 +69,19 @@ class GP(object):
 
 
     @classmethod
-    def targets(cls):
+    def list_targets(cls):
         try:
             targets = subprocess.check_output(f"{cls.hdc_exe} list targets".split()).split()
         except (OSError, IndexError):
             targets = [b"failed to auto detect device"]
+            cls.targets = [targets[0].decode()]
+            return False
         cls.targets = [t.decode() for t in targets]
+        return True
+
+
+    @classmethod
+    def get_device(cls):
         if len(cls.targets) > 1:
             print("Multiple device detected, please select one:")
             for i, t in enumerate(cls.targets):
@@ -98,7 +106,8 @@ class GP(object):
             os.remove(".hdctester.conf")
         except OSError:
             pass
-        content = filter(lambda k: not k[0].startswith("__") and not type(k[1]) == classmethod, cls.__dict__.items())
+        content = filter(
+            lambda k: not k[0].startswith("__") and not isinstance(k[1], classmethod), cls.__dict__.items())
         json_str = json.dumps(dict(content))
         fd = os.open(".hdctester.conf", os.O_WRONLY | os.O_CREAT, 0o755)
         os.write(fd, json_str.encode())
@@ -166,7 +175,9 @@ class GP(object):
         if opt := input(f"Default connect type? [{cls.tmode}], opt: [usb, tcp]\n").strip():
             cls.tmode = opt
         if cls.tmode == "usb":
-            cls.targets()
+            ret = cls.get_device()
+            if ret:
+                print("USB device detected.")
         elif cls.tconn_tcp():
             cls.hdc_head = f"{cls.hdc_exe} -t {cls.remote_ip}:{cls.remote_port}"
         else:
@@ -182,7 +193,7 @@ class GP(object):
             if opt == "n":
                 return False
         if opt := input(f"Use default testcase path?(Y/n) [{cls.testcase_path}]\n").strip():
-            cls.testcase_path =  os.path.join(opt)
+            cls.testcase_path = os.path.join(opt)
         cls.print_options()
         return True
     
@@ -248,6 +259,7 @@ def _check_app_installed(bundle, is_shared=False):
     dump = "dump-shared" if is_shared else "dump"
     cmd = f"shell bm {dump} -a"
     return check_shell(cmd, bundle)
+
 
 def check_hdc_targets():
     cmd = f"{GP.hdc_head} list targets"

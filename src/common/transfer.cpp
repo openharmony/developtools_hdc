@@ -318,10 +318,10 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileSize = st.fileSize;
 
         context->fileMode.perm = fs.statbuf.st_mode;
-        context->fileMode.u_id = fs.statbuf.st_uid;
-        context->fileMode.g_id = fs.statbuf.st_gid;
-        WRITE_LOG(LOG_DEBUG, "permissions: %o u_id = %u, g_id = %u", context->fileMode.perm,
-                  context->fileMode.u_id, context->fileMode.g_id);
+        context->fileMode.uId = fs.statbuf.st_uid;
+        context->fileMode.gId = fs.statbuf.st_gid;
+        WRITE_LOG(LOG_DEBUG, "permissions: %o uId = %u, gId = %u", context->fileMode.perm,
+                  context->fileMode.uId, context->fileMode.gId);
 
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
@@ -338,9 +338,9 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         if (context->fileModeSync) {
             FileMode &mode = context->fileMode;
             uv_fs_t fs = {};
-            WRITE_LOG(LOG_DEBUG, "file mode: %o u_id = %u, g_id = %u", mode.perm, mode.u_id, mode.g_id);
+            WRITE_LOG(LOG_DEBUG, "file mode: %o uId = %u, gId = %u", mode.perm, mode.uId, mode.gId);
             uv_fs_chmod(nullptr, &fs, context->localPath.c_str(), mode.perm, nullptr);
-            uv_fs_chown(nullptr, &fs, context->localPath.c_str(), mode.u_id, mode.g_id, nullptr);
+            uv_fs_chown(nullptr, &fs, context->localPath.c_str(), mode.uId, mode.gId, nullptr);
             uv_fs_req_cleanup(&fs);
 
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
@@ -430,8 +430,8 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         FileMode mode;
         mode.fullName = currentDirname;
         mode.perm = fs.statbuf.st_mode;
-        mode.u_id = fs.statbuf.st_uid;
-        mode.g_id = fs.statbuf.st_gid;
+        mode.uId = fs.statbuf.st_uid;
+        mode.gId = fs.statbuf.st_gid;
 
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
@@ -442,8 +442,8 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         }
 #endif
         ctxNow.dirMode.push_back(mode);
-        WRITE_LOG(LOG_DEBUG, "dir mode: %o u_id = %u, g_id = %u, context = %s",
-                  mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+        WRITE_LOG(LOG_DEBUG, "dir mode: %o uId = %u, gId = %u, context = %s",
+                  mode.perm, mode.uId, mode.gId, mode.context.c_str());
     }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
         // Skip. File
@@ -573,12 +573,12 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
                 auto it = ctxNow.dirModeMap.find(shortPath);
                 if (it != ctxNow.dirModeMap.end()) {
                     auto mode = it->second;
-                    WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u context = %s",
-                        mode.fullName.c_str(), mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+                    WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o uId = %u, gId = %u context = %s",
+                        mode.fullName.c_str(), mode.perm, mode.uId, mode.gId, mode.context.c_str());
 
                     uv_fs_t fs = {};
                     uv_fs_chmod(nullptr, &fs, localPath.c_str(), mode.perm, nullptr);
-                    uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.u_id, mode.g_id, nullptr);
+                    uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.uId, mode.gId, nullptr);
                     uv_fs_req_cleanup(&fs);
 #if (!(defined(HOST_MINGW) || defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
                     if (!mode.context.empty()) {

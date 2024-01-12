@@ -25,12 +25,12 @@ static constexpr int CONFIG_COUNT3 = 3;
 static constexpr int CONFIG_COUNT5 = 5;
 
 // make gnuc++ happy. Clang support direct assignment value to structure, buf g++ weakness
-void FillUsbV2Head(struct Hdc::usb_functionfs_desc_v2 &descUsbFfs)
+void FillUsbV2Head(struct Hdc::UsbFunctionfsDescV2 &descUsbFfs)
 {
     descUsbFfs.head.magic = LONG_LE(FUNCTIONFS_DESCRIPTORS_MAGIC_V2);
     descUsbFfs.head.length = LONG_LE(sizeof(descUsbFfs));
-    descUsbFfs.head.flags
-        = FUNCTIONFS_HAS_FS_DESC | FUNCTIONFS_HAS_HS_DESC | FUNCTIONFS_HAS_SS_DESC | FUNCTIONFS_HAS_MS_OS_DESC;
+    descUsbFfs.head.flags = FUNCTIONFS_HAS_FS_DESC | FUNCTIONFS_HAS_HS_DESC |
+                            FUNCTIONFS_HAS_SS_DESC | FUNCTIONFS_HAS_MS_OS_DESC;
     descUsbFfs.config1Count = CONFIG_COUNT3;
     descUsbFfs.config2Count = CONFIG_COUNT3;
     descUsbFfs.config3Count = CONFIG_COUNT5;
@@ -46,7 +46,7 @@ void FillUsbV2Head(struct Hdc::usb_functionfs_desc_v2 &descUsbFfs)
 
 int ConfigEpPoint(int& controlEp, const std::string& path)
 {
-    struct Hdc::usb_functionfs_desc_v2 descUsbFfs = {};
+    struct Hdc::UsbFunctionfsDescV2 descUsbFfs = {};
     FillUsbV2Head(descUsbFfs);
     while (true) {
         if (controlEp <= 0) {
@@ -76,7 +76,7 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
     return ERR_GENERIC;
 }
 
-int OpenEpPoint(int &fd, std::string path)
+int OpenEpPoint(int &fd, const std::string path)
 {
     if ((fd = open(path.c_str(), O_RDWR)) < 0) {
         printf("%s: cannot open ep: errno=%d\n", path.c_str(), errno);

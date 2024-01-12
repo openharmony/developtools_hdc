@@ -54,7 +54,7 @@ private:
     void ResetOldSession(uint32_t sessionId);
     int GetMaxPacketSize(int fdFfs);
     int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
-    void FillUsbV2Head(struct usb_functionfs_desc_v2 &descUsbFfs);
+    void FillUsbV2Head(struct UsbFunctionfsDescV2 &descUsbFfs);
     int UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int size);
 
     HdcUSB usbHandle = {};

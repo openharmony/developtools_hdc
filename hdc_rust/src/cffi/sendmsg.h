@@ -15,6 +15,6 @@
 #ifndef FFI_SENDMSG_H
 #define FFI_SENDMSG_H
 
-int SendMsg_(int socket_fd, int fd, char* data, int size);
+int SendMsg(int socket_fd, int fd, char* data, int size);
 
 #endif

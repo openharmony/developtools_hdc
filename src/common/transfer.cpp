@@ -316,6 +316,12 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         st.path = context->remotePath;
         // update ctxNow=context child value
         context->fileSize = st.fileSize;
+        if (context->fileSize == 0) {
+            uv_fs_req_cleanup(&fs);
+            uint8_t payload = 1;
+            thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
+            return;
+        }
 
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.u_id = fs.statbuf.st_uid;

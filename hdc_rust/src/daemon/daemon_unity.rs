@@ -42,19 +42,6 @@ async fn echo_client(session_id: u32, channel_id: u32, message: &str) {
     transfer::put(session_id, echo_message).await;
 }
 
-// fn execute_shell_cmd(cmd: String) -> (bool, Vec<u8>) {
-//     println!("exe:{}", cmd);
-//     let result = Command::new(config::SHELL_PROG).args(["-c", &cmd]).output();
-
-//     match result {
-//         Ok(output) => (
-//             output.stderr.is_empty(),
-//             [output.stdout, output.stderr].concat(),
-//         ),
-//         Err(e) => (false, e.to_string().into_bytes()),
-//     }
-// }
-
 async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool, message: Vec<u8>) {
     if result {
         echo_client(session_id, channel_id, "Set device run mode successful.").await;

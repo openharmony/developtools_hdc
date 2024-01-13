@@ -335,15 +335,20 @@ fn read_known_hosts_pubkey() -> Vec<String> {
 fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
     let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
     if !file_name.exists() {
-        hdc::info!("create pubkeys file at {:#?}", file_name);
-        let _ = std::fs::create_dir_all(config::RSA_PUBKEY_PATH);
-        let _ = std::fs::File::create(&file_name).unwrap();
+        hdc::info!("will create pubkeys file at {:#?}", file_name);
+
+        if let Err(e) = std::fs::create_dir_all(config::RSA_PUBKEY_PATH) {
+            log::error!("create pubkeys dir: {}", e.to_string());
+        }
+        if let Err(e) = std::fs::File::create(&file_name) {
+            log::error!("create pubkeys file: {}", e.to_string());
+        }
     }
 
     let _ = match std::fs::File::options().append(true).open(file_name) {
         Ok(mut f) => writeln!(&mut f, "{}", pubkey),
         Err(e) => {
-            hdc::error!("write pubkey err: {e}");
+            hdc::error!("write pubkey err: {}", e.to_string());
             return Err(e);
         }
     };

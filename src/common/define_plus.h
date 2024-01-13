@@ -333,7 +333,7 @@ struct HdcUSB {
     std::string usbMountPoint;
     HostUSBEndpoint hostBulkIn;
     HostUSBEndpoint hostBulkOut;
-    HdcUSB(): hostBulkIn(63488), hostBulkOut(62464) {}
+    HdcUSB(): hostBulkIn(63488), hostBulkOut(62464) {} // 62464 MAX_USBFFS_BULK + 1024 = 63488 
 
 #else
     // usb accessory FunctionFS

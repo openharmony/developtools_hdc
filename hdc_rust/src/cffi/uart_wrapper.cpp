@@ -19,42 +19,53 @@
 
 namespace Hdc {
 
-extern "C" int32_t GetUartSpeedExt(int32_t speed) {
-    return (int32_t)GetUartSpeed((int)speed);
+extern "C" int32_t GetUartSpeedExt(int32_t speed)
+{
+    return static_cast<int32_t>(GetUartSpeed(static_cast<int>(speed)));
 }
 
-extern "C" int32_t GetUartBitsExt(int32_t bits) {
-    return (int32_t)GetUartBits((int)bits);
+extern "C" int32_t GetUartBitsExt(int32_t bits)
+{
+    return static_cast<int32_t>(GetUartBits(static_cast<int>(bits)));
 }
 
-extern "C" int32_t OpenSerialPortExt(const char* portName) {
-    return (int32_t)OpenSerialPort(std::string(portName));
+extern "C" int32_t OpenSerialPortExt(const char* portName)
+{
+    return static_cast<int32_t>(OpenSerialPort(std::string(portName)));
 }
 
-extern "C" int32_t SetSerialExt(int32_t fd, int32_t nSpeed, int32_t nBits, uint8_t nEvent, int32_t nStop) {
-    return (int32_t)SetSerial((int)fd, (int)nSpeed, (int)nBits, (char)nEvent, (int)nStop);
+extern "C" int32_t SetSerialExt(int32_t fd, int32_t nSpeed, int32_t nBits, uint8_t nEvent, int32_t nStop)
+{
+    return static_cast<int32_t>(SetSerial(static_cast<int>(fd), static_cast<int>(nSpeed),
+                                          static_cast<int>(nBits), static_cast<char>(nEvent),
+                                          static_cast<int>(nStop)));
 }
 
-extern "C" SerializedBuffer ReadUartDevExt(int32_t fd, uint32_t expectedSize) {
+extern "C" SerializedBuffer ReadUartDevExt(int32_t fd, uint32_t expectedSize)
+{
     std::vector<uint8_t> readBuf;
     ssize_t length = 0;
     while (length == 0) {
-        length = ReadUartDev((int)fd, readBuf, (size_t)expectedSize);
+        length = ReadUartDev(static_cast<int>(fd), readBuf, static_cast<size_t>(expectedSize));
     }
 
-    char *buf_ret = (char *)malloc(length);
-    memset_s(buf_ret, length, 0, length);
-    memcpy_s(buf_ret, length, readBuf.data(), length);
-    return SerializedBuffer{buf_ret, (uint64_t)length};
+    char *bufRet = new char;
+    memset_s(bufRet, length, 0, length);
+    if (memcpy_s(bufRet, length, readBuf.data(), length) != EOK) {
+        return SerializedBuffer{bufRet, static_cast<uint64_t>(length)};
+    }
+    return SerializedBuffer{bufRet, static_cast<uint64_t>(length)};
 }
 
-
-extern "C" int32_t WriteUartDevExt(int32_t fd, SerializedBuffer buf) {
-    return (int32_t)WriteUartDev((int)fd, reinterpret_cast<uint8_t *>(buf.ptr), (size_t)buf.size);
+extern "C" int32_t WriteUartDevExt(int32_t fd, SerializedBuffer buf)
+{
+    return static_cast<int32_t>(WriteUartDev(static_cast<int>(fd), reinterpret_cast<uint8_t *>(buf.ptr),
+                                             static_cast<size_t>(buf.size)));
 }
 
-extern "C" uint8_t CloseSerialPortExt(int32_t fd) {
-    return (uint8_t)CloseSerialPort(fd);
+extern "C" uint8_t CloseSerialPortExt(int32_t fd)
+{
+    return static_cast<uint8_t>(CloseSerialPort(fd));
 }
 
 }

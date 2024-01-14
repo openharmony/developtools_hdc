@@ -16,20 +16,20 @@
 #ifndef HDC_UART_H
 #define HDC_UART_H
 
-#include <assert.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
-#include <functional>
+#include <cassert>
 #include <chrono>
+#include <cinttypes>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <fcntl.h>
+#include <functional>
 #include <numeric>
 #include <sstream>
+#include <sys/types.h>
 #include <unordered_set>
+#include <unistd.h>
 #include <vector>
 
 #ifdef HOST_MINGW
@@ -71,15 +71,15 @@ enum UartSetSerialNStop {
 const std::string CMDSTR_TMODE_UART = "uart";
 const std::string UART_HDC_NODE = "/dev/ttyS4";
 const std::string CONSOLE_ACTIVE_NODE = "/sys/class/tty/console/active";
-constexpr int uartIOWaitTime100 = 100;
-constexpr int uartIOWaitTime = 1000;
+constexpr int UART_IO_WAIT_TIME_100 = 100;
+constexpr int UART_IO_WAIT_TIME = 1000;
 
 const int ERR_GENERIC = -1;
 const int ERR_SUCCESS = 0;
 constexpr uint16_t MAX_UART_SIZE_IOBUF = 4096; // MAX_SIZE_IOBUF;
 constexpr size_t MAX_READ_BUFFER = MAX_UART_SIZE_IOBUF * 10;
-constexpr int WaitResponseTimeOutMs = 1000; // 1000ms
-constexpr int ReadGiveUpTimeOutTimeMs = 500; // 500ms
+constexpr int WAIT_RESPONSE_TIME_OUT_MS = 1000; // 1000ms
+constexpr int READ_GIVE_UP_TIME_OUT_TIME_MS = 500; // 500ms
 constexpr uint16_t BUF_SIZE_DEFAULT = 1024;
 constexpr uint32_t DEFAULT_BAUD_RATE_VALUE = 1500000;
 
@@ -97,9 +97,9 @@ int OpenSerialPort(std::string portName);
 int SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop);
 #endif
 
-ssize_t ReadUartDev(int fd, std::vector<uint8_t> &readBuf, size_t expectedSize);
-ssize_t WriteUartDev(int fd, uint8_t *data, const size_t length);
-bool CloseSerialPort(int& fd);
+ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSize);
+ssize_t WriteUartDev(int handle, uint8_t *data, const size_t length);
+bool CloseSerialPort(int& handle);
 int CloseFd(int &fd);
 
 #endif

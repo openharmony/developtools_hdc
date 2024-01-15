@@ -567,10 +567,11 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
     std::thread([this, hSession, hUSB]() {
         int childRet = 0;
         int nextReadSize = 0;
+        int bulkInSize = hUSB->hostBulkIn.sizeEpBuf;
         while (!hSession->isDead) {
             // if readIO < wMaxPacketSizeSend, libusb report overflow
-            nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ? hUSB->wMaxPacketSizeSend
-                                                                : std::min(childRet, Base::GetUsbffsBulkSize()));
+            nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ? 
+                            hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
             if (childRet < 0) {
                 WRITE_LOG(LOG_FATAL, "Read usb failed, ret:%d", childRet);

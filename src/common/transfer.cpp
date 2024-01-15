@@ -286,7 +286,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
     WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
         context->localPath.c_str(), thisClass->taskInfo->channelId, context->fsOpenReq.result);
     --thisClass->refCount;
-    if (req->result < 0) {
+    if (req->result <= 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_strerror_r((int)req->result, buf, bufSize);

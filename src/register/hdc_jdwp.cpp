@@ -33,8 +33,8 @@ HdcJdwpSimulator::HdcJdwpSimulator(const std::string processName, const std::str
 
 void HdcJdwpSimulator::Disconnect()
 {
+    disconnectFlag_ = true;
     if (ctxPoint_ != nullptr && ctxPoint_->cfd > -1) {
-        disconnectFlag_ = true;
         shutdown(ctxPoint_->cfd, SHUT_RDWR);
         close(ctxPoint_->cfd);
         ctxPoint_->cfd = -1;
@@ -46,16 +46,16 @@ void HdcJdwpSimulator::Disconnect()
 
 HdcJdwpSimulator::~HdcJdwpSimulator()
 {
+    disconnectFlag_ = true;
+    if (ctxPoint_ != nullptr && ctxPoint_->cfd > -1) {
+        shutdown(ctxPoint_->cfd, SHUT_RDWR);
+        close(ctxPoint_->cfd);
+        ctxPoint_->cfd = -1;
+    }
+    if (readThread_.joinable()) {
+        readThread_.join();
+    }
     if (ctxPoint_ != nullptr) {
-        if (ctxPoint_->cfd > -1) {
-            disconnectFlag_ = true;
-            shutdown(ctxPoint_->cfd, SHUT_RDWR);
-            close(ctxPoint_->cfd);
-            ctxPoint_->cfd = -1;
-        }
-        if (readThread_.joinable()) {
-            readThread_.join();
-        }
         delete ctxPoint_;
         ctxPoint_ = nullptr;
     }

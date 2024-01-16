@@ -117,8 +117,8 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     } else if (nread == 0) {
         return;
 #ifdef JS_JDWP_CONNECT
-    } else if (nread < JS_PKG_MIN_SIZE + sizeof(JsMsgHeader) ||
-               nread > JS_PKG_MAX_SIZE + sizeof(JsMsgHeader)) {
+    } else if (nread < signed(JS_PKG_MIN_SIZE + sizeof(JsMsgHeader)) ||
+               nread > signed(JS_PKG_MAX_SIZE + sizeof(JsMsgHeader))) {
 #else
     } else if (nread < 0 || nread != 4) {  // 4 : 4 bytes
 #endif  // JS_JDWP_CONNECT

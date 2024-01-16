@@ -740,7 +740,8 @@ bool RsaSignAndBase64(string &buf)
 {
     RSA *rsa = nullptr;
     string prikey_filename;
-    int sign_ori_size, sign_out_size;
+    int sign_ori_size;
+    int sign_out_size;
     unsigned char sign_ori[BUF_SIZE_DEFAULT2] = { 0 };
     unsigned char *sign_out = nullptr;
     int in_size = buf.size();

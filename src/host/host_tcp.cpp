@@ -152,7 +152,8 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
 void HdcHostTCP::FindLanDaemon()
 {
     uv_interface_address_t *info;
-    int count, i;
+    int count;
+    int i;
     char ipAddr[BUF_SIZE_TINY] = "";
     if (broadcastFindWorking) {
         return;

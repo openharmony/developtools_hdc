@@ -24,7 +24,7 @@ std::map<std::string, std::string> g_lists;
 bool g_show = true;
 
 namespace Hdc {
-bool terminalStateChange = false;
+bool g_terminalStateChange = false;
 HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
@@ -39,7 +39,7 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
 HdcClient::~HdcClient()
 {
 #ifndef _WIN32
-    if (terminalStateChange) {
+    if (g_terminalStateChange) {
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalState);
     }
 #endif
@@ -414,7 +414,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         tio.c_cc[VTIME] = 0;
         tio.c_cc[VMIN] = 1;
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &tio);
-        terminalStateChange = true;
+        g_terminalStateChange = true;
 #endif
         break;
     }

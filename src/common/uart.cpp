@@ -136,7 +136,8 @@ int HdcUARTBase::GetUartBits(int bits)
 int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
     WRITE_LOG(LOG_DEBUG, "mac SetSerial rate = %d", nSpeed);
-    struct termios options, oldttys1;
+    struct termios options;
+    struct termios oldttys1;
     if (tcgetattr(fd, &oldttys1) != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
@@ -173,7 +174,8 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
 #else
 int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
-    struct termios newttys1, oldttys1;
+    struct termios newttys1;
+    struct termios oldttys1;
     if (tcgetattr(fd, &oldttys1) != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };

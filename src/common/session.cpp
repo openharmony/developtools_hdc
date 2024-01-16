@@ -475,7 +475,7 @@ void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
 {
     WRITE_LOG(LOG_DEBUG, "FreeSessionByConnectType %s", hSession->ToDebugString().c_str());
 
-    if (CONN_USB == hSession->connType) {
+    if (hSession->connType == CONN_USB) {
         // ibusb All context is applied for sub-threaded, so it needs to be destroyed in the subline
         if (!hSession->hUSB) {
             return;
@@ -558,7 +558,7 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };
-    if (CONN_TCP == hSession->connType) {
+    if (hSession->connType == CONN_TCP) {
         // Turn off TCP to prevent continuing writing
         Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP, true, closeSessionTCPHandle);
     }

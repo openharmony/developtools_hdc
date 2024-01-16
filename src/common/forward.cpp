@@ -71,9 +71,8 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
             break;
         }
         // clang-format on
-        // pre 8bytes preserve for param bits
         SendToTask(ctxClient->id, CMD_FORWARD_ACTIVE_SLAVE, reinterpret_cast<uint8_t *>(buf),
-                   strlen(buf + forwardParameterBufSize) + 9);
+                   strlen(buf + forwardParameterBufSize) + 9); // 9: pre 8bytes preserve for param bits
         ret = true;
         break;
     }

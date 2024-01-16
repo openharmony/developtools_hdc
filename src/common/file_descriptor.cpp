@@ -305,7 +305,7 @@ void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
     size_t cnt = cfio->size;
     while (cnt > 0) {
         ssize_t rc = write(fdIO, data, cnt);
-        if (rc < 0 ) {
+        if (rc < 0) {
             if (errno == EINTR || errno == EAGAIN) {
                 WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt or again", fdIO);
                 continue;

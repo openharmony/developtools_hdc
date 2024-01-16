@@ -556,7 +556,7 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         sizeCmdFlag = 10;  // 10: cmdFlag bugreport size
     } else if (formatCommand->cmdFlag == CMD_APP_SIDELOAD) {
         cmdFlag = "sideload ";
-        sizeCmdFlag = 9;
+        sizeCmdFlag = 9; // 9: cmdFlag sideload size
     } else if (formatCommand->cmdFlag == CMD_FLASHD_UPDATE_INIT) {
         cmdFlag = "update ";
         sizeCmdFlag = 7; // 7: cmdFlag update size

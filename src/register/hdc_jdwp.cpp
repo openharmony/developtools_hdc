@@ -181,7 +181,7 @@ void HdcJdwpSimulator::Read()
     constexpr size_t size = 256;
     constexpr long sec = 5;
     uint8_t buf[size] = { 0 };
-    while(!disconnectFlag_) {
+    while (!disconnectFlag_) {
         ssize_t cnt = 0;
         fd_set rset;
         struct timeval timeout;
@@ -215,7 +215,7 @@ void HdcJdwpSimulator::Read()
         cnt = recvmsg(cfd_, &msg, 0);
         if (cnt <= 0) {
             break;
-        } else if (0 < cnt && cnt < 5) {
+        } else if (0 < cnt && cnt < sec) {
             continue;
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);

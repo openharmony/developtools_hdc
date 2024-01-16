@@ -902,7 +902,7 @@ namespace Base {
         fl.l_whence = SEEK_SET;
         fl.l_len = 0;
         int retChild = fcntl(fd, F_SETLK, &fl);
-        if (-1 == retChild) {
+        if (retChild == -1) {
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
             uv_fs_close(nullptr, &req, fd, nullptr);
             return 1;

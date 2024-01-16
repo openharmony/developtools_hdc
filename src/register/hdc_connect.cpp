@@ -87,7 +87,7 @@ void StopConnect()
 void* HdcConnectRun(void* pkgContent)
 {
     if (signal(SIGINT, Stop) == SIG_ERR) {
-        HILOG_FATAL(LOG_CORE, "jdwp_process signal fail.");
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "jdwp_process signal fail.");
     }
     std::string processName = static_cast<ConnectManagement*>(pkgContent)->GetProcessName();
     std::string pkgName = static_cast<ConnectManagement*>(pkgContent)->GetPkgName();
@@ -95,7 +95,7 @@ void* HdcConnectRun(void* pkgContent)
     Callback cb = static_cast<ConnectManagement*>(pkgContent)->GetCallback();
     g_clsHdcJdwpSimulator = new (std::nothrow) HdcJdwpSimulator(processName, pkgName, isDebug, cb);
     if (!g_clsHdcJdwpSimulator->Connect()) {
-        HILOG_FATAL(LOG_CORE, "Connect fail.");
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Connect fail.");
         return nullptr;
     }
     return nullptr;
@@ -113,7 +113,7 @@ void StartConnect(const std::string& processName, const std::string& pkgName, bo
     g_connectManagement->SetDebug(isDebug);
     g_connectManagement->SetCallback(cb);
     if (pthread_create(&tid, nullptr, &HdcConnectRun, static_cast<void*>(g_connectManagement.get())) != 0) {
-        HILOG_FATAL(LOG_CORE, "pthread_create fail!");
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "pthread_create fail!");
         return;
     }
 }

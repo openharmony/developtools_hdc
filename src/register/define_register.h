@@ -31,21 +31,12 @@
 #include <uv.h>
 #ifdef HDC_HILOG
 #include "hilog/log.h"
-#ifdef LOG_DOMAIN
-#undef LOG_DOMAIN
-#endif // LOG_DOMAIN
-
-#define LOG_DOMAIN 0xD002D13
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif // LOG_TAG
-
-#define LOG_TAG "HDC_LOG"
-#endif // HDC_HILOG
+#endif
 
 using std::string;
 
 namespace Hdc {
+static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
 // str one of ark:pid@com.xxx.xxxx, ark:pid@Debugger, ark:pid@tid@Debugger
 using Callback = std::function<void(int fd, std::string str)>;
 }

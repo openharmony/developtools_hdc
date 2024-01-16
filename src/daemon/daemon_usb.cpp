@@ -126,7 +126,7 @@ int HdcDaemonUSB::Initial()
 }
 
 // make gnuc++ happy. Clang support direct assignment value to structure, buf g++ weakness
-void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
+void HdcDaemonUSB::FillUsbV2Head(UsbFunctionfsDescV2 &descUsbFfs)
 {
     descUsbFfs.head.magic = LONG_LE(FUNCTIONFS_DESCRIPTORS_MAGIC_V2);
     descUsbFfs.head.length = LONG_LE(sizeof(descUsbFfs));
@@ -149,7 +149,7 @@ void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
 int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
 {
     int ret = ERR_GENERIC;
-    struct usb_functionfs_desc_v2 descUsbFfs = {};
+    struct UsbFunctionfsDescV2 descUsbFfs = {};
     FillUsbV2Head(descUsbFfs);
     while (true) {
         if (controlEp <= 0) {

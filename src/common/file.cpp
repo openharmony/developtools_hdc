@@ -195,8 +195,8 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
                   ctxNow.dirMode.size());
         if (ctxNow.dirMode.size() > 0) {
             auto mode = ctxNow.dirMode.back();
-            WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u conext = %s",
-                mode.fullName.c_str(), mode.perm, mode.u_id, mode.g_id, mode.context.c_str());
+            WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o uId = %u, gId = %u conext = %s",
+                mode.fullName.c_str(), mode.perm, mode.uId, mode.gId, mode.context.c_str());
             string s = SerialStruct::SerializeToString(mode);
             ctxNow.dirMode.pop_back();
             SendToAnother(CMD_DIR_MODE, reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
@@ -213,8 +213,8 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
             FileMode dirMode;
             SerialStruct::ParseFromString(dirMode, serialString);
 
-            WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o u_id = %u, g_id = %u context = %s",
-                dirMode.fullName.c_str(), dirMode.perm, dirMode.u_id, dirMode.g_id, dirMode.context.c_str());
+            WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o uId = %u, gId = %u context = %s",
+                dirMode.fullName.c_str(), dirMode.perm, dirMode.uId, dirMode.gId, dirMode.context.c_str());
 
             vector<string> dirsOfOptName;
             if (dirMode.fullName.find('/') != string::npos) {
@@ -235,8 +235,8 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
                     dirMode.fullName = dirMode.fullName + Base::GetPathSep() + s;
                 }
             }
-            WRITE_LOG(LOG_DEBUG, "dir = %s permissions: %o u_id = %u, g_id = %u context = %s",
-                dirMode.fullName.c_str(), dirMode.perm, dirMode.u_id, dirMode.g_id, dirMode.context.c_str());
+            WRITE_LOG(LOG_DEBUG, "dir = %s permissions: %o uId = %u, gId = %u context = %s",
+                dirMode.fullName.c_str(), dirMode.perm, dirMode.uId, dirMode.gId, dirMode.context.c_str());
             ctxNow.dirModeMap.insert(std::make_pair(dirMode.fullName, dirMode));
         }
         SendToAnother(CMD_FILE_MODE, nullptr, 0);

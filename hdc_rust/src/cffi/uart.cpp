@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "securec.h"
 #include "uart.h"
 #include "fcntl.h"
 #include <dirent.h>
@@ -19,10 +20,11 @@
 
 using namespace std;
 
-bool ioCancel = false;
+bool g_ioCancel = false;
 
 // review why not use QueryDosDevice ?
-bool EnumSerialPort(bool &portChange) {
+bool EnumSerialPort(bool &portChange)
+{
     std::vector<string> newPortInfo;
     std::vector<string> serialPortInfo;
     std::vector<string> serialPortRemoved;
@@ -48,11 +50,11 @@ bool EnumSerialPort(bool &portChange) {
     LSTATUS iRet = -1;
     std::string port;
     TCHAR strDSName[MAX_VALUE_NAME];
-    // if (memset_s(strDSName, sizeof(TCHAR) * MAX_VALUE_NAME, 0, sizeof(TCHAR) * MAX_VALUE_NAME) !=
-    //     EOK) {
-    //     return false;
-    // }
-    memset(strDSName, 0, sizeof(TCHAR) * MAX_VALUE_NAME);
+    errno_t nRet = 0;
+    nRet = memset_s(strDSName, sizeof(TCHAR) * MAX_VALUE_NAME, 0, sizeof(TCHAR) * MAX_VALUE_NAME);
+    if (nRet != EOK) {
+        return ERR_GENERIC;
+    }
     DWORD nBuffLen = 10;
     if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("HARDWARE\\DEVICEMAP\\SERIALCOMM"), 0,
                                       KEY_READ, &hKey)) {
@@ -77,26 +79,22 @@ bool EnumSerialPort(bool &portChange) {
                     auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
                     if (it == serialPortInfo.end()) {
                         portChange = true;
-                        // printf( "%s:new port %s", __FUNCTION__, port.c_str());
                     }
                 } else {
                     bRet = false;
-                    // printf( "%s RegEnumValue fail. %d", __FUNCTION__, GetLastError());
                 }
             }
         } else {
             bRet = false;
-            // printf( "%s RegQueryInfoKey failed %d", __FUNCTION__, GetLastError());
         }
     } else {
         bRet = false;
-        // printf( "%s RegOpenKeyEx fail %d", __FUNCTION__, GetLastError());
     }
     RegCloseKey(hKey);
 #else
     DIR *dir = opendir("/dev");
     dirent *p = NULL;
-    while (dir != nullptr && ((p = readdir(dir)) != NULL)) {
+    while (dir != nullptr && ((p = readdir(dir)) != nullptr)) {
 #ifdef HOST_LINUX
         if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
 #else
@@ -108,7 +106,6 @@ bool EnumSerialPort(bool &portChange) {
                 auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
                 if (it == serialPortInfo.end()) {
                     portChange = true;
-                    // printf( "new port:%s", port.c_str());
                     printf("new port:%s", port.c_str());
                 }
             }
@@ -194,13 +191,13 @@ bool WinSetSerialPort(HANDLE devUartHandle, string serialport, int byteSize, int
     constexpr int max = DEFAULT_BAUD_RATE_VALUE / 8 * 2; // 2 second buffer size
     do {
         if (!SetupComm(devUartHandle, max, max)) {
-            printf( "SetupComm %s fail, err:%lu.", serialport.c_str(), GetLastError());
+            printf("SetupComm %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
             break;
         }
         DCB dcb;
         if (!GetCommState(devUartHandle, &dcb)) {
-            printf( "GetCommState %s fail, err:%lu.", serialport.c_str(),
+            printf("GetCommState %s fail, err:%lu.", serialport.c_str(),
                       GetLastError());
             winRet = false;
         }
@@ -210,21 +207,21 @@ bool WinSetSerialPort(HANDLE devUartHandle, string serialport, int byteSize, int
         dcb.ByteSize = byteSize;
         dcb.StopBits = ONESTOPBIT;
         if (!SetCommState(devUartHandle, &dcb)) {
-            printf( "SetCommState %s fail, err:%lu.", serialport.c_str(),
+            printf("SetCommState %s fail, err:%lu.", serialport.c_str(),
                       GetLastError());
             winRet = false;
             break;
         }
         if (!PurgeComm(devUartHandle,
                        PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT)) {
-            printf( "PurgeComm  %s fail, err:%lu.", serialport.c_str(), GetLastError());
+            printf("PurgeComm  %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
             break;
         }
         DWORD dwError;
         COMSTAT cs;
         if (!ClearCommError(devUartHandle, &dwError, &cs)) {
-            printf( "ClearCommError %s fail, err:%lu.", serialport.c_str(),
+            printf("ClearCommError %s fail, err:%lu.", serialport.c_str(),
                       GetLastError());
             winRet = false;
             break;
@@ -257,7 +254,7 @@ ssize_t WinReadUartDev(HANDLE handle, std::vector<uint8_t> &readBuf, size_t expe
         if (!bReadStatus) {
             if (GetLastError() == ERROR_IO_PENDING) {
                 bytesRead = 0;
-                DWORD dwMilliseconds = ReadGiveUpTimeOutTimeMs;
+                DWORD dwMilliseconds = READ_GIVE_UP_TIME_OUT_TIME_MS;
                 if (expectedSize == 0) {
                     dwMilliseconds = INFINITE;
                 }
@@ -267,22 +264,22 @@ ssize_t WinReadUartDev(HANDLE handle, std::vector<uint8_t> &readBuf, size_t expe
                     DWORD error = GetLastError();
                     if (error == ERROR_OPERATION_ABORTED) {
                         totalBytesRead += bytesRead;
-                        printf( "%s error cancel read. %lu %zd", __FUNCTION__,
+                        printf("%s error cancel read. %lu %zd", __FUNCTION__,
                                   bytesRead, totalBytesRead);
                         return totalBytesRead;
                     } else if (error == WAIT_TIMEOUT) {
                         totalBytesRead += bytesRead;
-                        printf( "%s error timeout. %lu %zd", __FUNCTION__, bytesRead,
+                        printf("%s error timeout. %lu %zd", __FUNCTION__, bytesRead,
                                   totalBytesRead);
                         return totalBytesRead;
                     } else {
-                        printf( "%s error wait io:%lu.", __FUNCTION__, GetLastError());
+                        printf("%s error wait io:%lu.", __FUNCTION__, GetLastError());
                     }
                     return -1;
                 }
             } else {
                 // not ERROR_IO_PENDING
-                printf( "%s  err:%lu. ", __FUNCTION__, GetLastError());
+                printf("%s  err:%lu. ", __FUNCTION__, GetLastError());
                 return -1;
             }
         }
@@ -302,12 +299,12 @@ ssize_t WinWriteUartDev(HANDLE handle, uint8_t *data, const size_t length, OVERL
         if (!bWriteStat) {
             if (GetLastError() == ERROR_IO_PENDING) {
                 if (!GetOverlappedResult(handle, &ovWrite, &bytesWrite, TRUE)) {
-                    printf( "%s error wait io:%lu. bytesWrite %lu", __FUNCTION__,
-                              GetLastError(), bytesWrite);
+                    printf("%s error wait io:%lu. bytesWrite %lu", __FUNCTION__,
+                            GetLastError(), bytesWrite);
                     return -1;
                 }
             } else {
-                printf( "%s err:%lu. bytesWrite %lu", __FUNCTION__, GetLastError(),
+                printf("%s err:%lu. bytesWrite %lu", __FUNCTION__, GetLastError(),
                           bytesWrite);
                 return -1;
             }
@@ -323,24 +320,18 @@ int GetUartSpeed(int speed) {
     switch (speed) {
         case UART_SPEED2400:
             return (B2400);
-            break;
         case UART_SPEED4800:
             return (B4800);
-            break;
         case UART_SPEED9600:
             return (B9600);
-            break;
         case UART_SPEED115200:
             return (B115200);
-            break;
         case UART_SPEED921600:
             return (B921600);
-            break;
         case UART_SPEED1500000:
             return (B1500000);
         default:
             return (B921600);
-            break;
     }
 }
 
@@ -364,7 +355,7 @@ int OpenSerialPort(std::string portName) {
         printf("%s: cannot open uartHandle: errno=%d\n", portName.c_str(), errno);
         return -1;
     }
-    usleep(uartIOWaitTime100);
+    usleep(UART_IO_WAIT_TIME_100);
     // cannot open with O_CLOEXEC, must fcntl
     fcntl(uartHandle, F_SETFD, FD_CLOEXEC);
     int flag = fcntl(uartHandle, F_GETFL);
@@ -376,20 +367,19 @@ int OpenSerialPort(std::string portName) {
 
 #ifdef HOST_MAC
 int SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop) {
-    // // // // printf( "mac SetSerial rate = %d", nSpeed);
     struct termios options, oldttys1;
     if (tcgetattr(fd, &oldttys1) != 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        strerror_r(errno, buf, bufSize);
-        // // // printf( "tcgetattr failed with %s\n", buf);
+        constexpr int buf_size = 1024;
+        char buf[buf_size] = { 0 };
+        strerror_r(errno, buf, buf_size);
         return ERR_GENERIC;
     }
 
-    // if (memcpy_s(&options, sizeof(options), &oldttys1, sizeof(options)) != EOK) {
-    //     return ERR_GENERIC;
-    // }
-    memcpy(&options, &oldttys1, sizeof(options));
+    errno_t nRet = 0;
+    nRet = memcpy_s(&options, sizeof(options), &oldttys1, sizeof(options));
+    if (nRet != EOK) {
+        return ERR_GENERIC;
+    }
     cfmakeraw(&options);
     options.c_cc[VMIN] = 0;
     options.c_cc[VTIME] = 10; // 10 * 1/10 sec : 1 sec
@@ -400,26 +390,21 @@ int SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop) {
 
     speed_t speed = nSpeed;
     if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
-        // // // printf( "set speed errno %d", errno);
     }
     if ((tcsetattr(fd, TCSANOW, &options)) != 0) {
-        // // // printf( "com set error errno = %d", errno);
         return ERR_GENERIC;
     }
     if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
-        // // // printf( "set speed errno %d", errno);
     }
-    // // // printf( " SetSerial OK rate = %d", nSpeed);
     return RET_SUCCESS;
 }
 #else
 int SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop) {
     struct termios newttys1, oldttys1;
     if (tcgetattr(fd, &oldttys1) != 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        strerror_r(errno, buf, bufSize);
-        // // // printf( "tcgetattr failed with %s\n", buf);
+        constexpr int buf_size = 1024;
+        char buf[buf_size] = { 0 };
+        strerror_r(errno, buf, buf_size);
         return ERR_GENERIC;
     }
     bzero(&newttys1, sizeof(newttys1));
@@ -453,14 +438,11 @@ int SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop) {
     newttys1.c_cc[VTIME] = 0;
     newttys1.c_cc[VMIN] = 0;
     if (tcflush(fd, TCIOFLUSH)) {
-        // // // printf( " tcflush error.");
         return ERR_GENERIC;
     }
     if ((tcsetattr(fd, TCSANOW, &newttys1)) != 0) {
-        // // // printf( "com set error errno = %d", errno);
         return ERR_GENERIC;
     }
-    // // // printf( " SetSerial OK rate = %d", nSpeed);
     return ERR_SUCCESS;
 }
 #endif
@@ -482,10 +464,9 @@ ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSi
         tv.tv_sec = 0;
 
         if (expectedSize == 0) {
-            tv.tv_usec = WaitResponseTimeOutMs * msTous;
+            tv.tv_usec = WAIT_RESPONSE_TIME_OUT_MS * msTous;
             tv.tv_sec = tv.tv_usec / sTous;
             tv.tv_usec = tv.tv_usec % sTous;
-            // // printf( "time  =  %d %d", tv.tv_sec, tv.tv_sec);
 #ifdef HDC_HOST
             // only host side need this
             // in this caes
@@ -497,26 +478,23 @@ ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSi
 #endif
         } else {
             // when we have expect size , we need timeout for link data drop issue
-            tv.tv_usec = ReadGiveUpTimeOutTimeMs * msTous;
+            tv.tv_usec = READ_GIVE_UP_TIME_OUT_TIME_MS * msTous;
             tv.tv_sec = tv.tv_usec / sTous;
             tv.tv_usec = tv.tv_usec % sTous;
             ret = select(handle + 1, &readFds, nullptr, nullptr, &tv);
         }
         if (ret == 0 and expectedSize == 0) {
             // no expect but timeout
-            if (ioCancel) {
-                // // printf( "%s:uart select time out and io cancel", __FUNCTION__);
-                ioCancel = true;
+            if (g_ioCancel) {
+                g_ioCancel = true;
                 return totalBytesRead;
             } else {
                 continue;
             }
         } else if (ret == 0) {
-            // // printf( "%s:uart select time out!", __FUNCTION__);
             // we expected some byte , but not arrive before timeout
             return totalBytesRead;
         } else if (ret < 0) {
-            // // printf( "%s:uart select error! %d", __FUNCTION__, errno);
             return -1; // wait failed.
         } else {
             // select > 0
@@ -527,7 +505,6 @@ ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSi
             bytesRead = read(handle, uartReadBuffer, maxReadSize);
             if (bytesRead <= 0) {
                 // read failed !
-                // // printf( "%s:read failed! %zd:%d", __FUNCTION__, bytesRead, errno);
                 return -1;
             }
         }
@@ -546,15 +523,13 @@ ssize_t WriteUartDev(int handle, uint8_t *data, const size_t length) {
         bytesWrite = write(handle, data + totalBytesWrite, length - totalBytesWrite);
         if (bytesWrite < 0) {
             if (errno == EINTR or errno == EAGAIN) {
-                // printf( "EINTR/EAGAIN, try again");
                 continue;
             } else {
                 // we don't know how to recory in this function
                 // need reopen device ?
-                constexpr int bufSize = 1024;
-                char buf[bufSize] = { 0 };
-                strerror_r(errno, buf, bufSize);
-                // WRITE_LOG(LOG_FATAL, "write fatal errno %d:%s", errno, buf);
+                constexpr int buf_size = 1024;
+                char buf[buf_size] = { 0 };
+                strerror_r(errno, buf, buf_size);
                 return -1;
             }
         } else {
@@ -579,7 +554,6 @@ bool CloseSerialPort(int &handle) {
 int CloseFd(int &fd) {
     int rc = 0;
 #ifndef HDC_HOST
-    //printf( "CloseFd fd:%d", fd);
 #endif
     if (fd > 0) {
         rc = close(fd);
@@ -590,7 +564,6 @@ int CloseFd(int &fd) {
 #else
             strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
 #endif
-            //printf( "close failed errno:%d %s", errno, buffer);
         } else {
             fd = -1;
         }

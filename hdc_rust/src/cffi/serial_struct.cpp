@@ -12,22 +12,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "ffi_utils.h"
-#include "serial_struct.h"
 #include <iostream>
 #include <cstring>
+#include "ffi_utils.h"
+#include "serial_struct.h"
 
 namespace Hdc {
 
-char *StringToHeapPtr(std::string input) {
+char *StringToHeapPtr(std::string input)
+{
     size_t buf_size = input.length() + 1;
-    char *buf_ret = (char *)malloc(buf_size);
-    memset_s(buf_ret, buf_size, 0, buf_size);
-    memcpy_s(buf_ret, buf_size, input.c_str(), buf_size);
-    return buf_ret;
+    char *bufRet = (char *)malloc(buf_size);
+    if (bufRet == nullptr) {
+        return bufRet;
+    }
+    memset_s(bufRet, buf_size, 0, buf_size);
+    memcpy_s(bufRet, buf_size, input.c_str(), buf_size);
+    return bufRet;
 }
 
-extern "C" SerializedBuffer SerializeSessionHandShake(const RustStruct::SessionHandShake &value) {
+extern "C" SerializedBuffer SerializeSessionHandShake(const RustStruct::SessionHandShake &value)
+{
     BaseStruct::SessionHandShake shs = {
         .banner = string(value.banner),
         .authType = value.authType,
@@ -42,7 +47,8 @@ extern "C" SerializedBuffer SerializeSessionHandShake(const RustStruct::SessionH
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializePayloadProtect(const RustStruct::PayloadProtect &value) {
+extern "C" SerializedBuffer SerializePayloadProtect(const RustStruct::PayloadProtect &value)
+{
     BaseStruct::PayloadProtect pp = {
         .channelId = value.channelId,
         .commandFlag = value.commandFlag,
@@ -55,7 +61,8 @@ extern "C" SerializedBuffer SerializePayloadProtect(const RustStruct::PayloadPro
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializeTransferConfig(const RustStruct::TransferConfig &value) {
+extern "C" SerializedBuffer SerializeTransferConfig(const RustStruct::TransferConfig &value)
+{
     BaseStruct::TransferConfig tc = {
         .fileSize = value.fileSize,
         .atime = value.atime,
@@ -77,7 +84,8 @@ extern "C" SerializedBuffer SerializeTransferConfig(const RustStruct::TransferCo
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializeFileMode(const RustStruct::FileMode &value) {
+extern "C" SerializedBuffer SerializeFileMode(const RustStruct::FileMode &value)
+{
     BaseStruct::FileMode fm = {
         .perm = value.perm,
         .u_id = value.u_id,
@@ -91,7 +99,8 @@ extern "C" SerializedBuffer SerializeFileMode(const RustStruct::FileMode &value)
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializeTransferPayload(const RustStruct::TransferPayload &value) {
+extern "C" SerializedBuffer SerializeTransferPayload(const RustStruct::TransferPayload &value)
+{
     BaseStruct::TransferPayload tp = {
         .index = value.index,
         .compressType = value.compressType,
@@ -104,30 +113,43 @@ extern "C" SerializedBuffer SerializeTransferPayload(const RustStruct::TransferP
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializePayloadHead(RustStruct::PayloadHead &value) {
+extern "C" SerializedBuffer SerializePayloadHead(RustStruct::PayloadHead &value)
+{
     size_t len = sizeof(value);
     char *ptr = (char *)malloc(len);
+    if (ptr == nullptr) {
+        return SerializedBuffer{ptr, len};
+    }
     memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializeUsbHead(RustStruct::USBHead &value) {
+extern "C" SerializedBuffer SerializeUsbHead(RustStruct::USBHead &value)
+{
     size_t len = sizeof(value);
     char *ptr = (char *)malloc(len);
+    if (ptr == nullptr) {
+        return SerializedBuffer{ptr, len};
+    }
     memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" SerializedBuffer SerializeUartHead(RustStruct::UartHead &value) {
+extern "C" SerializedBuffer SerializeUartHead(RustStruct::UartHead &value)
+{
     size_t len = sizeof(value);
     char *ptr = (char *)malloc(len);
+    if (ptr == nullptr) {
+        return SerializedBuffer{ptr, len};
+    }
     memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
     return SerializedBuffer{ptr, len};
 }
 
-extern "C" uint8_t ParseSessionHandShake(RustStruct::SessionHandShake &value, SerializedBuffer buf) {
+extern "C" uint8_t ParseSessionHandShake(RustStruct::SessionHandShake &value, SerializedBuffer buf)
+{
     BaseStruct::SessionHandShake shs = {};
-    if(!SerialStruct::ParseFromString(shs, string(buf.ptr, buf.size))) {
+    if (!SerialStruct::ParseFromString(shs, string(buf.ptr, buf.size))) {
         return 0;
     }
     value = {
@@ -141,9 +163,10 @@ extern "C" uint8_t ParseSessionHandShake(RustStruct::SessionHandShake &value, Se
     return 1;
 }
 
-extern "C" uint8_t ParsePayloadProtect(RustStruct::PayloadProtect &value, SerializedBuffer buf) {
+extern "C" uint8_t ParsePayloadProtect(RustStruct::PayloadProtect &value, SerializedBuffer buf)
+{
     BaseStruct::PayloadProtect pp = {};
-    if(!SerialStruct::ParseFromString(pp, string(buf.ptr, buf.size))) {
+    if (!SerialStruct::ParseFromString(pp, string(buf.ptr, buf.size))) {
         return 0;
     }
     value = {
@@ -155,9 +178,10 @@ extern "C" uint8_t ParsePayloadProtect(RustStruct::PayloadProtect &value, Serial
     return 1;
 }
 
-extern "C" uint8_t ParseTransferConfig(RustStruct::TransferConfig &value, SerializedBuffer buf) {
+extern "C" uint8_t ParseTransferConfig(RustStruct::TransferConfig &value, SerializedBuffer buf)
+{
     BaseStruct::TransferConfig tc = {};
-    if(!SerialStruct::ParseFromString(tc, string(buf.ptr, buf.size))) {
+    if (!SerialStruct::ParseFromString(tc, string(buf.ptr, buf.size))) {
         return 0;
     }
     value = {
@@ -178,9 +202,10 @@ extern "C" uint8_t ParseTransferConfig(RustStruct::TransferConfig &value, Serial
     return 1;
 }
 
-extern "C" uint8_t ParseFileMode(RustStruct::FileMode &value, SerializedBuffer buf) {
+extern "C" uint8_t ParseFileMode(RustStruct::FileMode &value, SerializedBuffer buf)
+{
     BaseStruct::FileMode fm = {};
-    if(!SerialStruct::ParseFromString(fm, string(buf.ptr, buf.size))) {
+    if (!SerialStruct::ParseFromString(fm, string(buf.ptr, buf.size))) {
         return 0;
     }
     value = {
@@ -193,9 +218,10 @@ extern "C" uint8_t ParseFileMode(RustStruct::FileMode &value, SerializedBuffer b
     return 1;
 }
 
-extern "C" uint8_t ParseTransferPayload(RustStruct::TransferPayload &value, SerializedBuffer buf) {
+extern "C" uint8_t ParseTransferPayload(RustStruct::TransferPayload &value, SerializedBuffer buf)
+{
     BaseStruct::TransferPayload tp = {};
-    if(!SerialStruct::ParseFromString(tp, string(buf.ptr, buf.size))) {
+    if (!SerialStruct::ParseFromString(tp, string(buf.ptr, buf.size))) {
         return 0;
     }
     value = {
@@ -207,17 +233,20 @@ extern "C" uint8_t ParseTransferPayload(RustStruct::TransferPayload &value, Seri
     return 1;
 }
 
-extern "C" uint8_t ParsePayloadHead(RustStruct::PayloadHead &value, SerializedBuffer buf) {
+extern "C" uint8_t ParsePayloadHead(RustStruct::PayloadHead &value, SerializedBuffer buf)
+{
     memcpy_s(&value, buf.size, reinterpret_cast<struct PayloadHead *>(buf.ptr), buf.size);
     return 1;
 }
 
-extern "C" uint8_t ParseUsbHead(RustStruct::USBHead &value, SerializedBuffer buf) {
+extern "C" uint8_t ParseUsbHead(RustStruct::USBHead &value, SerializedBuffer buf)
+{
     memcpy_s(&value, buf.size, reinterpret_cast<struct USBHead *>(buf.ptr), buf.size);
     return 1;
 }
 
-extern "C" uint8_t ParseUartHead(RustStruct::UartHead &value, SerializedBuffer buf) {
+extern "C" uint8_t ParseUartHead(RustStruct::UartHead &value, SerializedBuffer buf)
+{
     memcpy_s(&value, buf.size, reinterpret_cast<struct UartHead *>(buf.ptr), buf.size);
     return 1;
 }

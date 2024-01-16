@@ -52,11 +52,12 @@ private:
     Callback cb_;
     int cfd_;
     std::atomic<bool> disconnectFlag_;
-
+    std::atomic<bool> startOnce_;
     std::thread readThread_;
     static void ReadWork(HdcJdwpSimulator *param);
     void Read();
     void ReadStart();
+    void Reconnect();
 };
 } // namespace Hdc
 #endif  // REGISTER_HDC_JDWP_H

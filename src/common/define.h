@@ -110,8 +110,8 @@ const string SPLIT = "\\";
 const string CMDSTR_TMODE_UART = "uart";
 const string UART_HDC_NODE = "/dev/ttyS4";
 const string CONSOLE_ACTIVE_NODE = "/sys/class/tty/console/active";
-constexpr int uartIOWaitTime100 = 100;
-constexpr int uartIOWaitTime = 1000;
+constexpr int UART_IO_WAIT_TIME_100 = 100;
+constexpr int UART_IO_WAIT_TIME = 1000;
 constexpr uint16_t MAX_UART_SIZE_IOBUF = 4096; // MAX_SIZE_IOBUF;
 #endif
 const string CMDSTR_TMODE_TCP = "tcp";

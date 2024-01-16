@@ -295,7 +295,7 @@ int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig)
     if (!RSA_sign(NID_sha256, token, tokenSize, (unsigned char *)sig, &len, (RSA *)rsa)) {
         return 0;
     }
-    return (int)len;
+    return static_cast<int>(len);
 }
 
 int GetPublicKeyFileBuf(unsigned char *data, size_t len)

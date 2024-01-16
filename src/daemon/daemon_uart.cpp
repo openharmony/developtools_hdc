@@ -140,7 +140,7 @@ int HdcDaemonUART::OpenUartDevice()
             WRITE_LOG(LOG_WARN, "%s: cannot open uartHandle: errno=%d", devPath.c_str(), errno);
             break;
         }
-        uv_sleep(uartIOWaitTime100);
+        uv_sleep(UART_IO_WAIT_TIME_100);
         // cannot open with O_CLOEXEC, must fcntl
         fcntl(uartHandle, F_SETFD, FD_CLOEXEC);
         int flag = fcntl(uartHandle, F_GETFL);

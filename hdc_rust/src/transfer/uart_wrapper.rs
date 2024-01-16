@@ -173,7 +173,6 @@ impl QueueManager {
         }
     }
 
-
     async fn get_package(session_id: u32, index: usize) -> Option<OutputData> {
         let instance = Self::get_instance();
         let mtx = instance.lock().await;

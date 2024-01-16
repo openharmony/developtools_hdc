@@ -34,8 +34,8 @@ use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;
 use hdc::transfer;
-use hdc::transfer::uart::UartReader;
 use hdc::transfer::base::Reader;
+use hdc::transfer::uart::UartReader;
 use hdc::transfer::uart_wrapper;
 use hdc::utils;
 
@@ -275,6 +275,7 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                 }
                 Err(_e) => {
                     println!("uart recv error");
+                    break;
                 }
             }
         }
@@ -335,14 +336,17 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(id) = auth::get_new_session_id(&msg).await {
                         if real_session_id != id {
-                            let (new_session_id, new_send_msg) = auth::handshake_init(msg.clone()).await?;
+                            let (new_session_id, new_send_msg) =
+                                auth::handshake_init(msg.clone()).await?;
                             let channel_id = new_send_msg.channel_id;
 
                             let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
                             transfer::UsbMap::start(new_session_id, wr).await;
                             transfer::put(new_session_id, new_send_msg).await;
 
-                            if auth::AuthStatusMap::get(new_session_id).await == auth::AuthStatus::Ok {
+                            if auth::AuthStatusMap::get(new_session_id).await
+                                == auth::AuthStatus::Ok
+                            {
                                 transfer::put(
                                     new_session_id,
                                     TaskMessage {

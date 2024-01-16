@@ -104,15 +104,16 @@ pub async fn unpack_task_message_lock(
                     return Err(Error::new(ErrorKind::Other, "unknown command"));
                 }
             };
-
-            let _ = tx
-                .send(TaskMessage {
-                    channel_id,
-                    command,
-                    payload: payload.to_vec(),
-                })
-                .await;
             let mut remaining = (expected_data_size - payload.len()) as i32;
+            if remaining == 0 {
+                let _ = tx
+                    .send(TaskMessage {
+                        channel_id,
+                        command,
+                        payload: payload.to_vec(),
+                    })
+                    .await;
+            }
             let mut total_payload = payload.to_vec();
             while remaining > 0 {
                 let head_result = rd.check_protocol_head();

@@ -755,6 +755,7 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
 {
     StartTraceScope("HdcSessionBase::SendByProtocol");
     if (hSession->isDead) {
+        delete[] bufPtr;
         WRITE_LOG(LOG_WARN, "SendByProtocol session dead error");
         return ERR_SESSION_NOFOUND;
     }

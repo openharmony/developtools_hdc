@@ -50,7 +50,7 @@ extern "C" SerializedBuffer ReadUartDevExt(int32_t fd, uint32_t expectedSize)
     }
 
     char *bufRet = new char;
-    memset_s(bufRet, length, 0, length);
+    (void)memset_s(bufRet, length, 0, length);
     if (memcpy_s(bufRet, length, readBuf.data(), length) != EOK) {
         return SerializedBuffer{bufRet, static_cast<uint64_t>(length)};
     }

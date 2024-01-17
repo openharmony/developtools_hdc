@@ -270,6 +270,10 @@ bool NeedDropRootPrivileges()
 // daemon running with default behavior. options also can be given to custom its behavior including b/t/u/l etc.
 int main(int argc, const char *argv[])
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     // check property
     if (argc == 2 && !strcmp(argv[1], "-h")) {
         string usage = DaemonUsage();

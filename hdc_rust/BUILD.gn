@@ -38,7 +38,6 @@ ohos_static_library("serialize_structs") {
     "//third_party/bounds_checking_function:libsec_static",
     "//third_party/lz4:liblz4_static",
   ]
-
   external_deps = [ "init:libbegetutil" ]
 
   if (is_mac) {

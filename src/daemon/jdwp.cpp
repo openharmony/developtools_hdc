@@ -88,7 +88,7 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         --ctxIn->thisClass->refCount;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
 #ifndef HDC_EMULATOR
-	if (ctxIn != nullptr) {
+        if (ctxIn != nullptr) {
             delete ctxIn;
             ctxIn = nullptr;
         }

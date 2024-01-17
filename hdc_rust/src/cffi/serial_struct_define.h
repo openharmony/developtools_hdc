@@ -126,7 +126,7 @@ namespace SerialStruct {
         END_GROUP = 4,
         FIXED32 = 5,
     };
-    enum class Flags { NO = 0, S = 1, F = 2 };
+    enum Flags { NO = 0, S = 1, F = 2 };
     template<uint32_t flags = Flags::NO> struct FlagsType {
     };
 

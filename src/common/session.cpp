@@ -402,6 +402,10 @@ uint32_t HdcSessionBase::GetSessionPseudoUid()
 HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule,
                                        uint32_t sessionId)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     HSession hSession = new(std::nothrow) HdcSession();
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "MallocSession new hSession failed");

@@ -26,8 +26,8 @@ char *StringToHeapPtr(std::string input)
     if (bufRet == nullptr) {
         return bufRet;
     }
-    memset_s(bufRet, buf_size, 0, buf_size);
-    memcpy_s(bufRet, buf_size, input.c_str(), buf_size);
+    (void)memset_s(bufRet, buf_size, 0, buf_size);
+    (void)memcpy_s(bufRet, buf_size, input.c_str(), buf_size);
     return bufRet;
 }
 
@@ -120,7 +120,7 @@ extern "C" SerializedBuffer SerializePayloadHead(RustStruct::PayloadHead &value)
     if (ptr == nullptr) {
         return SerializedBuffer{ptr, len};
     }
-    memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
+    (void)memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
     return SerializedBuffer{ptr, len};
 }
 
@@ -131,7 +131,7 @@ extern "C" SerializedBuffer SerializeUsbHead(RustStruct::USBHead &value)
     if (ptr == nullptr) {
         return SerializedBuffer{ptr, len};
     }
-    memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
+    (void)memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
     return SerializedBuffer{ptr, len};
 }
 
@@ -142,7 +142,7 @@ extern "C" SerializedBuffer SerializeUartHead(RustStruct::UartHead &value)
     if (ptr == nullptr) {
         return SerializedBuffer{ptr, len};
     }
-    memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
+    (void)memcpy_s(ptr, len, reinterpret_cast<char *>(&value), len);
     return SerializedBuffer{ptr, len};
 }
 
@@ -235,19 +235,19 @@ extern "C" uint8_t ParseTransferPayload(RustStruct::TransferPayload &value, Seri
 
 extern "C" uint8_t ParsePayloadHead(RustStruct::PayloadHead &value, SerializedBuffer buf)
 {
-    memcpy_s(&value, buf.size, reinterpret_cast<struct PayloadHead *>(buf.ptr), buf.size);
+    (void)memcpy_s(&value, buf.size, reinterpret_cast<struct PayloadHead *>(buf.ptr), buf.size);
     return 1;
 }
 
 extern "C" uint8_t ParseUsbHead(RustStruct::USBHead &value, SerializedBuffer buf)
 {
-    memcpy_s(&value, buf.size, reinterpret_cast<struct USBHead *>(buf.ptr), buf.size);
+    (void)memcpy_s(&value, buf.size, reinterpret_cast<struct USBHead *>(buf.ptr), buf.size);
     return 1;
 }
 
 extern "C" uint8_t ParseUartHead(RustStruct::UartHead &value, SerializedBuffer buf)
 {
-    memcpy_s(&value, buf.size, reinterpret_cast<struct UartHead *>(buf.ptr), buf.size);
+    (void)memcpy_s(&value, buf.size, reinterpret_cast<struct UartHead *>(buf.ptr), buf.size);
     return 1;
 }
 

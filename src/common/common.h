@@ -32,6 +32,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+#include <malloc.h>
+#endif
 #include <vector>
 
 using std::condition_variable;

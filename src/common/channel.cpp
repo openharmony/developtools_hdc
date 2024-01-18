@@ -362,6 +362,10 @@ uint32_t HdcChannelBase::GetChannelPseudoUid()
 
 uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     auto hChannel = new HdcChannel();
     if (!hChannel) {
         return 0;

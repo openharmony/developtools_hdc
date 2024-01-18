@@ -63,6 +63,10 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
 
 void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
     bool bFinish = false;
@@ -183,6 +187,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 
 int HdcFileDescriptor::LoopReadOnThread()
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     int readMax = Base::GetMaxBufSize() * 1.2;
     auto contextIO = new(std::nothrow) CtxFileIO();
     auto buf = new(std::nothrow) uint8_t[readMax]();
@@ -235,6 +243,10 @@ int HdcFileDescriptor::Write(uint8_t *data, int size)
 // Data's memory must be Malloc, and the callback FREE after this function is completed
 int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     auto contextIO = new(std::nothrow) CtxFileIO();
     if (!contextIO) {
         delete[] data;

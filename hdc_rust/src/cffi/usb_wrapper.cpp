@@ -88,8 +88,8 @@ extern "C" char *GetDevPathEx(const char *path)
     std::string basePath = GetDevPath(std::string(path));
     size_t buf_size = basePath.length() + 1;
     char *bufRet = new char[buf_size];
-    memset_s(bufRet, buf_size, 0, buf_size);
-    memcpy_s(bufRet, buf_size, basePath.c_str(), buf_size);
+    (void)memset_s(bufRet, buf_size, 0, buf_size);
+    (void)memcpy_s(bufRet, buf_size, basePath.c_str(), buf_size);
     return bufRet;
 }
 

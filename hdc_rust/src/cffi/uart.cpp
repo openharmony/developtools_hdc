@@ -93,7 +93,7 @@ bool EnumSerialPort(bool &portChange)
     RegCloseKey(hKey);
 #else
     DIR *dir = opendir("/dev");
-    dirent *p = NULL;
+    dirent *p = nullptr;
     while (dir != nullptr && ((p = readdir(dir)) != nullptr)) {
 #ifdef HOST_LINUX
         if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
@@ -339,13 +339,10 @@ int GetUartBits(int bits) {
     switch (bits) {
         case UART_BIT1:
             return (CS7);
-            break;
         case UART_BIT2:
             return (CS8);
-            break;
         default:
             return (CS8);
-            break;
     }
 }
 

@@ -117,9 +117,12 @@ pub async fn unpack_task_message_lock(
             let mut total_payload = payload.to_vec();
             while remaining > 0 {
                 let head_result = rd.check_protocol_head();
-                rd.process_head();
                 match head_result {
                     Ok((packet_size, _pkg_index)) => {
+                        rd.process_head();
+                        if packet_size == 0 {
+                            continue;
+                        }
                         let mut payload1 = rd.read_frame(packet_size as usize).unwrap();
                         total_payload.append(&mut payload1);
                         remaining -= packet_size as i32;

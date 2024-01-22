@@ -23,6 +23,7 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
     uv_rwlock_init(&mainAsync);
     uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
     uv_rwlock_init(&lockMapChannel);
+    sessionIsDead = false;
 }
 
 HdcChannelBase::~HdcChannelBase()
@@ -449,7 +450,7 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
         auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
-            if (!hChannel->childCleared) {
+            if (!thisClass->sessionIsDead && !hChannel->childCleared) {
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);

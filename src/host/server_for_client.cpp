@@ -854,6 +854,7 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
 {
     HSession hSession = FindAliveSession(sessionId);
     if (!hSession) {
+        sessionIsDead = true;
         return false;
     }
     return Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrlMsg.data(), ctrlMsg.size()) > 0;

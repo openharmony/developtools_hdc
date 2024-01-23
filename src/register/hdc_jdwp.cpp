@@ -230,7 +230,7 @@ void HdcJdwpSimulator::Read()
             Reconnect();
             continue;
         } else if (cnt < minlen) {
-            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg cnt:%{public}d cfd:%{public}d", cnt, cfd_);
+            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg cnt:%{public}zd cfd:%{public}d", cnt, cfd_);
             continue;
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);

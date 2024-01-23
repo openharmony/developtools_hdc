@@ -53,7 +53,7 @@ bool EnumSerialPort(bool &portChange)
     errno_t nRet = 0;
     nRet = memset_s(strDSName, sizeof(TCHAR) * MAX_VALUE_NAME, 0, sizeof(TCHAR) * MAX_VALUE_NAME);
     if (nRet != EOK) {
-        return ERR_GENERIC;
+        return false;
     }
     DWORD nBuffLen = 10;
     if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("HARDWARE\\DEVICEMAP\\SERIALCOMM"), 0,

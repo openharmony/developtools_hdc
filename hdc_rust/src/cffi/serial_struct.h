@@ -31,7 +31,7 @@ namespace BaseStruct {
         string connectKey;
         string buf;
         string version;
-        std::string ToDebugString()
+        std::string ToDebugString() const
         {
             std::ostringstream oss;
             oss << "SessionHandShake [";

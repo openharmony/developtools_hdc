@@ -257,7 +257,7 @@ namespace SerialStruct {
             {
             }
 
-            size_t Read(void *bytes, size_t size)
+            size_t Read(void *bytes, size_t size) override
             {
                 auto sizeToRead = std::min(size, _size_limit);
                 auto readSize = _parent.Read(bytes, sizeToRead);

@@ -265,13 +265,14 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                             uart_handshake(message.clone(), fd, &rd, package_index).await?;
                         continue;
                     }
-
-                    if let Err(e) = task::dispatch_task(message, real_session_id).await {
-                        log::error!("dispatch task failed: {}", e.to_string());
-                        println!("dispatch task fail: {:#?}", e);
-                    } else {
-                        println!("dispatch task ok");
-                    }
+                    ylong_runtime::spawn(async move {
+                        if let Err(e) = task::dispatch_task(message, real_session_id).await {
+                            log::error!("dispatch task failed: {}", e.to_string());
+                            println!("dispatch task fail: {:#?}", e);
+                        } else {
+                            println!("dispatch task ok");
+                        }
+                    });
                 }
                 Err(_e) => {
                     println!("uart recv error");

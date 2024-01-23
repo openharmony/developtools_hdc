@@ -26,7 +26,7 @@ HdcJdwpSimulator::HdcJdwpSimulator(const std::string processName, const std::str
     isDebug_ = isDebug;
     cb_ = cb;
     cfd_ = -1;
-    ctxPoint_ = (HCtxJdwpSimulator)MallocContext();
+    ctxPoint_ = static_cast<HCtxJdwpSimulator>(MallocContext());
     disconnectFlag_ = false;
     startOnce_ = true;
 }
@@ -108,7 +108,7 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
         ret = false;
     } else {
         OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "ConnectJpid send JS msg:%{public}s", info);
-        ret = SendToJpid(thisClass->ctxPoint_->cfd, (uint8_t*)info, ppSize);
+        ret = SendToJpid(thisClass->ctxPoint_->cfd, static_cast<uint8_t*>(info), ppSize);
     }
     delete[] info;
     return ret;

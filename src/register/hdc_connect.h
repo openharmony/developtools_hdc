@@ -37,13 +37,13 @@ public:
     ConnectManagement() = default;
     ~ConnectManagement() {}
     void SetProcessName(const std::string& processName);
-    std::string GetProcessName();
+    std::string GetProcessName() const;
     void SetPkgName(const std::string& pkgName);
-    std::string GetPkgName();
+    std::string GetPkgName() const;
     void SetDebug(bool isDebug);
-    bool GetDebug();
+    bool GetDebug() const;
     void SetCallback(Callback cb);
-    Callback GetCallback();
+    Callback GetCallback() const;
 
 private:
     std::string processName_;

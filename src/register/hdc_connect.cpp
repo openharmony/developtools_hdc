@@ -26,7 +26,7 @@ void ConnectManagement::SetProcessName(const std::string &processName)
     processName_ = processName;
 }
 
-std::string ConnectManagement::GetProcessName()
+std::string ConnectManagement::GetProcessName() const
 {
     return processName_;
 }
@@ -36,7 +36,7 @@ void ConnectManagement::SetPkgName(const std::string &pkgName)
     pkgName_ = pkgName;
 }
 
-std::string ConnectManagement::GetPkgName()
+std::string ConnectManagement::GetPkgName() const
 {
     return pkgName_;
 }
@@ -46,7 +46,7 @@ void ConnectManagement::SetDebug(bool isDebug)
     isDebug_ = isDebug;
 }
 
-bool ConnectManagement::GetDebug()
+bool ConnectManagement::GetDebug() const
 {
     return isDebug_;
 }
@@ -56,7 +56,7 @@ void ConnectManagement::SetCallback(Callback cb)
     cb_ = cb;
 }
 
-Callback ConnectManagement::GetCallback()
+Callback ConnectManagement::GetCallback() const
 {
     return cb_;
 }

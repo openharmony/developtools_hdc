@@ -536,7 +536,7 @@ EVP_PKEY *GenerateNewKey(void)
 
     return nullptr;
 }
-bool GenerateKeyPair(string prikey_filename, string pubkey_filename)
+bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filename)
 {
     bool ret = false;
     FILE *file_prikey = nullptr;
@@ -585,7 +585,7 @@ bool GenerateKeyPair(string prikey_filename, string pubkey_filename)
     return ret;
 }
 
-bool LoadPublicKey(string pubkey_filename, string &pubkey)
+bool LoadPublicKey(const string& pubkey_filename, string &pubkey)
 {
     bool ret = false;
     BIO *bio = nullptr;
@@ -703,7 +703,7 @@ bool GetPublicKeyinfo(string &pubkey_info)
     return true;
 }
 
-RSA *LoadPrivateKey(string prikey_filename)
+RSA *LoadPrivateKey(const string& prikey_filename)
 {
     RSA *rsa = nullptr;
     EVP_PKEY *evp = nullptr;

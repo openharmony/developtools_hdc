@@ -32,6 +32,7 @@ void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
     HSession hSession = (HSession)stream->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
+        WRITE_LOG(LOG_FATAL, "ReadUSB FetchIOBuf error sessionId:%u", hSession->sessionId);
         hSessionBase->FreeSession(hSession->sessionId);
     }
 }

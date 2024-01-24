@@ -39,15 +39,18 @@ AsyncCmd::~AsyncCmd()
 bool AsyncCmd::ReadyForRelease()
 {
     if (childShell != nullptr && !childShell->ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "childShell not ready for release pid:%d", pid);
         return false;
     }
     if (refCount != 0) {
+        WRITE_LOG(LOG_WARN, "refCount:%u not ready for release", refCount);
         return false;
     }
     if (childShell != nullptr) {
         delete childShell;
         childShell = nullptr;
     }
+    WRITE_LOG(LOG_INFO, "ReadyForRelease close fd:%d pid:%d", fd, pid);
     Base::CloseFd(fd);
     return true;
 }
@@ -104,6 +107,7 @@ bool AsyncCmd::GetDevItem(const char *key, string &out)
 #ifdef HARMONY_PROJECT
     auto res = GetParameter(key, nullptr, tmpStringBuf, BUF_SIZE_MEDIUM);
     if (res <= 0) {
+        WRITE_LOG(LOG_WARN, "GetDevItem false key:%s", key);
         return false;
     }
 #else
@@ -111,7 +115,7 @@ bool AsyncCmd::GetDevItem(const char *key, string &out)
     string stringBuf = "param get " + string(key);
     Base::RunPipeComand(stringBuf.c_str(), tmpStringBuf, BUF_SIZE_MEDIUM - 1, true);
     if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
-        // failed
+        WRITE_LOG(LOG_WARN, "GetDevItem false tmpStringBuf:%s", tmpStringBuf);
         ret = false;
         Base::ZeroArray(tmpStringBuf);
     }
@@ -125,9 +129,11 @@ static void SetSelinuxLabel(bool isRoot)
 #if defined(SURPPORT_SELINUX)
     char *con = nullptr;
     if (getcon(&con) != 0) {
+        WRITE_LOG(LOG_WARN, "SetSelinuxLabel isRoot:%d", isRoot);
         return;
     }
     if ((strcmp(con, "u:r:hdcd:s0") != 0) && (strcmp(con, "u:r:updater:s0") != 0)) {
+        WRITE_LOG(LOG_WARN, "SetSelinuxLabel con:%s isRoot:%d", con, isRoot);
         freecon(con);
         return;
     }
@@ -206,6 +212,7 @@ void *AsyncCmd::Popen(void *arg)
         fds[pipeRead], fds[pipeWrite], isRoot);
 
     if ((childPid = fork()) == -1) {
+        WRITE_LOG(LOG_FATAL, "Popen fork failed errno:%d", errno);
         return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (childPid == 0) {
@@ -249,6 +256,7 @@ bool AsyncCmd::ExecuteCommand(const string &command)
     string cmd = command;
     Base::Trim(cmd, "\"");
     if ((fd = ThreadFork(cmd, true, pid)) < 0) {
+        WRITE_LOG(LOG_FATAL, "ExecuteCommand failed cmd:%s fd:%d", cmd.c_str(), fd);
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);
@@ -258,6 +266,7 @@ bool AsyncCmd::ExecuteCommand(const string &command)
         return false;
     }
     if (!childShell->StartWorkOnThread()) {
+        WRITE_LOG(LOG_FATAL, "ExecuteCommand StartWorkOnThread failed");
         return false;
     }
     ++refCount;

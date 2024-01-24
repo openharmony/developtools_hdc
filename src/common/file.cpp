@@ -25,12 +25,12 @@ HdcFile::HdcFile(HTaskInfo hTaskInfo)
 
 HdcFile::~HdcFile()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcFile");
+    WRITE_LOG(LOG_DEBUG, "~HdcFile channelId:%u", taskInfo->channelId);
 };
 
 void HdcFile::StopTask()
 {
-    WRITE_LOG(LOG_DEBUG, "HdcFile StopTask");
+    WRITE_LOG(LOG_DEBUG, "StopTask channelId:%u", taskInfo->channelId);
     singalStop = true;
 };
 
@@ -135,13 +135,12 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         context->dirSize = 0;
         context->localDirName = Base::GetPathWithoutFilename(context->localPath);
 
-        WRITE_LOG(LOG_DEBUG, "context->localDirName = %s", context->localDirName.c_str());
+        WRITE_LOG(LOG_DEBUG, "localDirName = %s", context->localDirName.c_str());
 
         context->localName = context->taskQueue.back();
         context->localPath = context->localDirName + context->localName;
 
-        WRITE_LOG(LOG_DEBUG, "localName = %s context->localPath = %s", context->localName.c_str(),
-                  context->localPath.c_str());
+        WRITE_LOG(LOG_DEBUG, "localPath = %s", context->localPath.c_str());
         context->taskQueue.pop_back();
     }
     return true;
@@ -161,7 +160,7 @@ void HdcFile::CheckMaster(CtxFile *context)
 
 void HdcFile::WhenTransferFinish(CtxFile *context)
 {
-    WRITE_LOG(LOG_DEBUG, "HdcTransferBase WhenTransferFinish");
+    WRITE_LOG(LOG_DEBUG, "WhenTransferFinish fileCnt:%d", context->fileCnt);
     uint8_t flag = 1;
     context->fileCnt++;
     context->dirSize += context->indexIO;
@@ -175,7 +174,6 @@ void HdcFile::TransferSummary(CtxFile *context)
     uint64_t fSize = context->fileCnt > 1 ? context->dirSize : context->indexIO;
     double fRate = static_cast<double>(fSize) / nMSec; // / /1000 * 1000 = 0
     if (context->indexIO >= context->fileSize) {
-        WRITE_LOG(LOG_INFO, "HdcFile::TransferSummary success");
         LogMsg(MSG_OK, "FileTransfer finish, Size:%lld, File count = %d, time:%lldms rate:%.2lfkB/s",
                fSize, context->fileCnt, nMSec, fRate);
     } else {
@@ -295,13 +293,11 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 
 void HdcFile::TransferNext(CtxFile *context)
 {
-    WRITE_LOG(LOG_DEBUG, "HdcFile::TransferNext");
-
     context->localName = context->taskQueue.back();
     context->localPath = context->localDirName + context->localName;
     context->taskQueue.pop_back();
-    WRITE_LOG(LOG_DEBUG, "context->localName = %s context->localPath = %s queuesize:%d",
-              context->localName.c_str(), context->localPath.c_str(), ctxNow.taskQueue.size());
+    WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
+              context->localPath.c_str(), ctxNow.taskQueue.size());
     do {
         ++refCount;
         uv_fs_open(loopTask, &context->fsOpenReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);

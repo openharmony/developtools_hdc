@@ -492,6 +492,7 @@ void HdcDaemon::JdwpNewFileDescriptor(const uint8_t *buf, const int bytesIO)
 void HdcDaemon::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
 {
     if (!freeOrClear) {
+        WRITE_LOG(LOG_WARN, "NotifyInstanceSessionFree freeOrClear false");
         return;  // ignore step 1
     }
     if (clsUSBServ != nullptr) {

@@ -457,7 +457,11 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
     int childRet = 0;
 
     while (index < dataSize) {
-        if ((childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout)) <= 0) {
+        childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout);
+        if (childRet == 0) {
+            continue;
+        }
+        if (childRet < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
 #ifdef _WIN32
@@ -570,7 +574,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         int bulkInSize = hUSB->hostBulkIn.sizeEpBuf;
         while (!hSession->isDead) {
             // if readIO < wMaxPacketSizeSend, libusb report overflow
-            nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ? 
+            nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ?
                             hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
             if (childRet < 0) {

@@ -22,11 +22,6 @@
 #include "usb_types.h"
 #include <arpa/inet.h>
 
-inline int GetMaxBufSize(void)
-{
-    return MAX_SIZE_IOBUF;
-}
-
 std::string GetDevPath(const std::string &path);
 
 std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size);

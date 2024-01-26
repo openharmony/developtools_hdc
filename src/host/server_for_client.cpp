@@ -51,14 +51,16 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     HChannel hChannel = nullptr;
     uint32_t uid = thisClass->MallocChannel(&hChannel);
     if (!hChannel) {
+        WRITE_LOG(LOG_FATAL, "AcceptClient hChannel is nullptr");
         return;
     }
-    if (uv_accept(server, (uv_stream_t *)&hChannel->hWorkTCP) < 0) {
-        WRITE_LOG(LOG_DEBUG, "HdcServerForClient uv_accept error");
+    int rc = uv_accept(server, (uv_stream_t *)&hChannel->hWorkTCP);
+    if (rc < 0) {
+        WRITE_LOG(LOG_FATAL, "AcceptClient uv_accept error rc:%d uid:%u", rc, uid);
         thisClass->FreeChannel(uid);
         return;
     }
-    WRITE_LOG(LOG_DEBUG, "HdcServerForClient acceptClient");
+    WRITE_LOG(LOG_DEBUG, "AcceptClient uid:%u", uid);
     // limit first recv
     int bufMaxSize = 0;
     uv_recv_buffer_size((uv_handle_t *)&hChannel->hWorkTCP, &bufMaxSize);
@@ -746,12 +748,14 @@ bool HdcServerForClient::CheckAutoFillTarget(HChannel hChannel)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     if (!hChannel->connectKey.size()) {
+        WRITE_LOG(LOG_FATAL, "connectKey.size 0 channelId:%u", hChannel->channelId);
         return false;  // Operation of non-bound destination of scanning
     }
     if (hChannel->connectKey == CMDSTR_CONNECT_ANY) {
         HDaemonInfo hdiOld = nullptr;
         ptrServer->AdminDaemonMap(OP_GET_ONLY, "", hdiOld);
         if (!hdiOld) {
+            WRITE_LOG(LOG_WARN, "No any key found channelId:%u", hChannel->channelId);
             return false;
         }
         hChannel->connectKey = hdiOld->connectKey;
@@ -781,6 +785,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
     if (!CheckAutoFillTarget(hChannel)) {
+        WRITE_LOG(LOG_WARN, "No target channelId:%u", hChannel->channelId);
         return 0;
     }
     // channel handshake stBindChannelToSession

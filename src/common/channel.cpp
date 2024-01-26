@@ -380,6 +380,7 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
 #endif
     auto hChannel = new HdcChannel();
     if (!hChannel) {
+        WRITE_LOG(LOG_FATAL, "malloc channel failed");
         return 0;
     }
     hChannel->stdinTty.data = nullptr;

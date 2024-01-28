@@ -464,7 +464,11 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     uv_tcp_open(&hSession->dataPipe[STREAM_MAIN], hSession->dataFd[STREAM_MAIN]);
     hSession->dataPipe[STREAM_MAIN].data = hSession;
     hSession->dataPipe[STREAM_WORK].data = hSession;
+#ifdef HDC_HOST
+    Base::SetTcpOptions(&hSession->dataPipe[STREAM_MAIN], HOST_SOCKETPAIR_SIZE);
+#else
     Base::SetTcpOptions(&hSession->dataPipe[STREAM_MAIN]);
+#endif
     ret = MallocSessionByConnectType(hSession);
     if (ret) {
         delete hSession;

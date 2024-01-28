@@ -60,10 +60,9 @@ constexpr uint16_t MAX_USBFFS_BULK = 62464;
 constexpr uint32_t HDC_VERSION_NUMBER = 0x20000000;  // 2.0.0a=0x20000000
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
-constexpr uint32_t HDC_SOCKETPAIR_SIZE = 1024 * 1024;
-#else
-constexpr uint32_t HDC_SOCKETPAIR_SIZE = MAX_SIZE_IOBUF * 2;
+constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;
 #endif
+constexpr uint32_t HDC_SOCKETPAIR_SIZE = MAX_SIZE_IOBUF * 2;
 // "\f" asicc is 12
 const string HDC_HOST_DAEMON_BUF_SEPARATOR = "\f";
 constexpr int32_t RSA_KEY_BITS = 3072;

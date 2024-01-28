@@ -47,7 +47,11 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
     }
     hSession->dataPipe[STREAM_WORK].data = hSession;
     HdcSessionBase *pSession = (HdcSessionBase *)hSession->classInstance;
+#ifdef HDC_HOST
+    Base::SetTcpOptions(&hSession->dataPipe[STREAM_WORK], HOST_SOCKETPAIR_SIZE);
+#else
     Base::SetTcpOptions(&hSession->dataPipe[STREAM_WORK]);
+#endif
     if (uv_read_start((uv_stream_t *)&hSession->dataPipe[STREAM_WORK], pSession->AllocCallback, ReadUSB)) {
         WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed");
         return false;

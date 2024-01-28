@@ -458,10 +458,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 
     while (index < dataSize) {
         childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout);
-        if (childRet == 0) {
-            continue;
-        }
-        if (childRet < 0) {
+        if (childRet <= 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
 #ifdef _WIN32

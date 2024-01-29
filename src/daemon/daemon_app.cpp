@@ -25,24 +25,28 @@ HdcDaemonApp::HdcDaemonApp(HTaskInfo hTaskInfo)
 
 HdcDaemonApp::~HdcDaemonApp()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcDaemonApp");
+    WRITE_LOG(LOG_INFO, "~HdcDaemonApp channelId:%u", taskInfo->channelId);
 }
 
 bool HdcDaemonApp::ReadyForRelease()
 {
     if (!HdcTaskBase::ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "HdcTaskBase not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     if (!asyncCommand.ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "asyncCommand not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonApp ready for release");
+    WRITE_LOG(LOG_INFO, "ReadyForRelease channelId:%u", taskInfo->channelId);
     return true;
 }
 
 bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
+        WRITE_LOG(LOG_WARN, "HdcTransferBase::CommandDispatch false command:%u channelId:%u",
+            command, taskInfo->channelId);
         return false;
     }
     bool ret = true;

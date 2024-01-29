@@ -31,11 +31,12 @@ HdcDaemonForward::~HdcDaemonForward()
 void HdcDaemonForward::SetupJdwpPointCallBack(uv_idle_t *handle)
 {
     HCtxForward ctxPoint = (HCtxForward)handle->data;
+    uint32_t id = ctxPoint->id;
     HdcDaemonForward *thisClass = reinterpret_cast<HdcDaemonForward *>(ctxPoint->thisClass);
     thisClass->SetupPointContinue(ctxPoint, 1);  // It usually works
     Base::TryCloseHandle((const uv_handle_t *)handle, Base::CloseIdleCallback);
-    WRITE_LOG(LOG_DEBUG, "Setup JdwpPointCallBack finish");
     --thisClass->refCount;
+    WRITE_LOG(LOG_DEBUG, "SetupJdwpPointCallBack finish id:%u", id);
     return;
 }
 
@@ -44,10 +45,11 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
     HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
     HdcJdwp *clsJdwp = (HdcJdwp *)daemon->clsJdwp;
     uint32_t pid = std::stol(ctxPoint->localArgs[1]);
-    if (ctxPoint->checkPoint) {  // checke
+    if (ctxPoint->checkPoint) {
+        uint32_t id = ctxPoint->id;
         bool ret = clsJdwp->CheckPIDExist(pid);
         SetupPointContinue(ctxPoint, (int)ret);
-        WRITE_LOG(LOG_DEBUG, "Jdwp jump checkpoint");
+        WRITE_LOG(LOG_DEBUG, "Jdwp jump checkpoint id:%u", id);
         return true;
     }
     // do slave connect

@@ -1211,7 +1211,6 @@ namespace Base {
     bool TryCreateDirectory(const string &path, string &err)
     {
         uv_fs_t req;
-        WRITE_LOG(LOG_DEBUG, "TryCreateDirectory path = %s", path.c_str());
         int r = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
         mode_t mode = req.statbuf.st_mode;
         uv_fs_req_cleanup(&req);
@@ -1220,7 +1219,10 @@ namespace Base {
             r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
             uv_fs_req_cleanup(&req);
             if (r < 0) {
-                WRITE_LOG(LOG_WARN, "create dir %s failed", path.c_str());
+                constexpr int bufSize = 1024;
+                char buf[bufSize] = { 0 };
+                uv_strerror_r((int)req.result, buf, bufSize);
+                WRITE_LOG(LOG_WARN, "create dir %s failed %s", path.c_str(), buf);
                 err = "Error create directory, path:";
                 err += path.c_str();
                 return false;

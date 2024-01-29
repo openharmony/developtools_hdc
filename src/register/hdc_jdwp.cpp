@@ -63,7 +63,6 @@ HdcJdwpSimulator::~HdcJdwpSimulator()
 
 bool HdcJdwpSimulator::SendToJpid(int fd, const uint8_t *buf, const int bufLen)
 {
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "SendToJpid: %{public}s, %{public}d", buf, bufLen);
     ssize_t rc = write(fd, buf, bufLen);
     if (rc < 0) {
         OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "SendToJpid failed errno:%{public}d", errno);
@@ -107,7 +106,6 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
         OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "ConnectJpid memcpy_s fail :%{public}s.", pp.c_str());
         ret = false;
     } else {
-        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "ConnectJpid send JS msg:%{public}s", info);
         ret = SendToJpid(thisClass->ctxPoint_->cfd, static_cast<uint8_t*>(info), ppSize);
     }
     delete[] info;

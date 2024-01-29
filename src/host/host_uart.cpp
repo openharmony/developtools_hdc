@@ -572,6 +572,10 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
     UpdateUARTDaemonInfo(connectKey, nullptr, STATUS_READY);
 
     HSession hSession = server.MallocSession(true, CONN_SERIAL, this);
+    if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "malloc serial session failed for %s", connectKey.c_str());
+        return false;
+    }
     hSession->connectKey = connectKey;
 #if defined(HOST_LINUX)||defined(HOST_MAC)
     hSession->hUART->devUartHandle = hUART->devUartHandle;
@@ -586,6 +590,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
     uv_timer_t *waitTimeDoCmd = new(std::nothrow) uv_timer_t;
     if (waitTimeDoCmd == nullptr) {
         WRITE_LOG(LOG_FATAL, "ConnectMyNeed new waitTimeDoCmd failed");
+        server.FreeSession(hSession->sessionId);
         return false;
     }
     uv_timer_init(&server.loopMain, waitTimeDoCmd);
@@ -594,6 +599,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
         RET_SUCCESS) {
         WRITE_LOG(LOG_DEBUG, "%s for %s:%s fail.", __FUNCTION__, hSession->connectKey.c_str(),
                   hUART->serialPort.c_str());
+        server.FreeSession(hSession->sessionId);
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "%s %s register a session", __FUNCTION__, hUART->serialPort.c_str());

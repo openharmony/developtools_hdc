@@ -315,11 +315,16 @@ void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
     uint8_t *buf = cfio->bufIO;
     uint8_t *data = buf;
     size_t cnt = cfio->size;
+    constexpr int intrmax = 1000;
+    int intrcnt = 0;
     while (cnt > 0) {
         ssize_t rc = write(fdIO, data, cnt);
         if (rc < 0) {
             if (errno == EINTR || errno == EAGAIN) {
-                WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt or again", fdIO);
+                if (++intrcnt > intrmax) {
+                    WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt errno:%d", fdIO, errno);
+                    intrcnt = 0;
+                }
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "CtxFileIOWrite fdIO:%d rc:%d error:%d", fdIO, rc, errno);

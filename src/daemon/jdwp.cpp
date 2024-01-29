@@ -251,6 +251,7 @@ bool HdcJdwp::JdwpListen()
             return ret;
         }
         if (uv_listen((uv_stream_t *)&listenPipe, DEFAULT_BACKLOG, AcceptClient)) {
+            WRITE_LOG(LOG_FATAL, "uv_listen failed");
             break;
         }
         ++refCount;
@@ -410,6 +411,7 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
         HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
         if (!ctx) {
+            WRITE_LOG(LOG_FATAL, "SendArkNewFD query pid:%u failed", pid);
             break;
         }
         uint32_t size = sizeof(int32_t) + str.size();

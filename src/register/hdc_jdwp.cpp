@@ -77,10 +77,10 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
     uint32_t pidCurr = static_cast<uint32_t>(getpid());
     HdcJdwpSimulator *thisClass = param;
 #ifdef JS_JDWP_CONNECT
-    string processName = thisClass->processName_;
-    string pkgName = thisClass->pkgName_;
+    std::string processName = thisClass->processName_;
+    std::string pkgName = thisClass->pkgName_;
     bool isDebug = thisClass->isDebug_;
-    string pp = pkgName;
+    std::string pp = pkgName;
     if (!processName.empty()) {
         pp += "/" + processName;
     }

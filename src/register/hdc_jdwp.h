@@ -24,7 +24,7 @@ class HdcJdwpSimulator;
 
 class HdcJdwpSimulator {
 public:
-    explicit HdcJdwpSimulator(string processName, string pkgName, bool isDebug, Callback cb);
+    explicit HdcJdwpSimulator(std::string processName, std::string pkgName, bool isDebug, Callback cb);
     ~HdcJdwpSimulator();
     bool Connect();
     void Disconnect();
@@ -46,8 +46,8 @@ private:
     static bool ConnectJpid(HdcJdwpSimulator *param);
     static bool SendToJpid(int fd, const uint8_t *buf, const int bufLen);
     HCtxJdwpSimulator ctxPoint_;
-    string processName_;
-    string pkgName_;
+    std::string processName_;
+    std::string pkgName_;
     bool isDebug_;
     Callback cb_;
     int cfd_;

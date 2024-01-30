@@ -23,7 +23,7 @@ using namespace std;
 bool g_ioCancel = false;
 
 // review why not use QueryDosDevice ?
-bool EnumSerialPort(bool &portChange)
+static bool EnumSerialPort(bool &portChange)
 {
     std::vector<string> newPortInfo;
     std::vector<string> serialPortInfo;
@@ -444,7 +444,7 @@ int SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop) {
 }
 #endif
 
-ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSize) {
+static ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSize) {
     ssize_t totalBytesRead = 0;
     uint8_t uartReadBuffer[MAX_UART_SIZE_IOBUF];
     ssize_t bytesRead = 0;

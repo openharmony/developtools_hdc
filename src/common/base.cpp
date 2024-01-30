@@ -128,7 +128,7 @@ namespace Base {
         string text(str);
         uv_buf_t wbf = uv_buf_init((char *)str, text.size());
         uv_fs_req_cleanup(&req);
-        uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
+        uv_fs_write(nullptr, &req, fd, &wbf, 1, -1, nullptr);
         uv_fs_close(nullptr, &req, fd, nullptr);
 #endif
     }

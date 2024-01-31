@@ -44,7 +44,7 @@ std::string GetDevPath(const std::string &path)
     return res;
 }
 
-static std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size)
+std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size)
 {
     std::vector<uint8_t> vecData;
     USBHead head;

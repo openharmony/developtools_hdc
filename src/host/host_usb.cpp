@@ -396,10 +396,12 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
     for (j = 0; j < descConfig->bNumInterfaces; ++j) {
         const struct libusb_interface *interface = &descConfig->interface[j];
         if (interface->num_altsetting < 1) {
+            WRITE_LOG(LOG_DEBUG, "interface->num_altsetting = 0, j = %d", j);
             continue;
         }
         const struct libusb_interface_descriptor *ifDescriptor = &interface->altsetting[0];
         if (!IsDebuggableDev(ifDescriptor)) {
+            WRITE_LOG(LOG_DEBUG, "IsDebuggableDev fail, j = %d", j);
             continue;
         }
         WRITE_LOG(LOG_DEBUG, "CheckActiveConfig IsDebuggableDev passed and then check endpoint attr");
@@ -408,6 +410,8 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
         for (k = 0; k < ifDescriptor->bNumEndpoints; ++k) {
             const struct libusb_endpoint_descriptor *ep_desc = &ifDescriptor->endpoint[k];
             if ((ep_desc->bmAttributes & 0x03) != LIBUSB_TRANSFER_TYPE_BULK) {
+                WRITE_LOG(LOG_DEBUG, "check ep_desc->bmAttributes fail, all %d k = %d, bmAttributes %d",
+                    ifDescriptor->bNumEndpoints, k, ep_desc->bmAttributes);
                 continue;
             }
             if (ep_desc->bEndpointAddress & LIBUSB_ENDPOINT_IN) {
@@ -420,6 +424,8 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
             }
         }
         if (hUSB->hostBulkIn.endpoint == 0 || hUSB->hostBulkOut.endpoint == 0) {
+            WRITE_LOG(LOG_DEBUG, "hostBulkIn.endpoint %d hUSB->hostBulkOut.endpoint %d",
+                    hUSB->hostBulkIn.endpoint, hUSB->hostBulkOut.endpoint);
             break;
         }
         ret = 0;
@@ -622,6 +628,8 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
         }
         // USB filter rules are set according to specific device pedding device
         ret = libusb_claim_interface(handle, hUSB->interfaceNumber);
+        WRITE_LOG(LOG_DEBUG, "libusb_claim_interface ret %d, interfaceNumber %d",
+            ret, hUSB->interfaceNumber);
         break;
     }
     if (ret) {

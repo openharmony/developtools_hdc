@@ -124,19 +124,23 @@ void CircleBuffer::Timer(void *object)
 
 void CircleBuffer::TimerStart()
 {
+#ifndef HDC_HOST
     if (!run_) {
         run_ = true;
         thread_ = std::thread(Timer, this);
     }
+#endif
 }
 
 void CircleBuffer::TimerStop()
 {
+#ifndef HDC_HOST
     if (run_) {
         run_ = false;
         TimerNotify();
         thread_.join();
     }
+#endif
 }
 
 void CircleBuffer::TimerSleep()

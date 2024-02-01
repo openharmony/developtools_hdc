@@ -35,12 +35,11 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 
 HdcTransferBase::~HdcTransferBase()
 {
+    WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u result:%d ioFinish:%d",
+        taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
     if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
-        WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u result:%d",
-                  taskInfo->channelId, ctxNow.fsOpenReq.result);
         uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
     }
-    WRITE_LOG(LOG_DEBUG, "~HdcTransferBase");
 };
 
 bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
@@ -292,6 +291,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         uv_strerror_r((int)req->result, buf, bufSize);
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           context->localPath.c_str());
+        WRITE_LOG(LOG_FATAL, "open path:%s error:%s", context->localPath.c_str(), buf);
         if (context->isDir) {
             uint8_t payload = 1;
             thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
@@ -305,7 +305,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         // init master
         uv_fs_t fs = {};
         uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
-        WRITE_LOG(LOG_DEBUG, "uv_fs_fstat result: %d", context->fsOpenReq.result);
+        WRITE_LOG(LOG_DEBUG, "uv_fs_fstat result:%d fileSize:%llu",
+            context->fsOpenReq.result, fs.statbuf.st_size);
         TransferConfig &st = context->transferConfig;
         st.fileSize = fs.statbuf.st_size;
         st.optionalName = context->localName;
@@ -319,15 +320,12 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.uId = fs.statbuf.st_uid;
         context->fileMode.gId = fs.statbuf.st_gid;
-        WRITE_LOG(LOG_DEBUG, "permissions: %o uId = %u, gId = %u", context->fileMode.perm,
-                  context->fileMode.uId, context->fileMode.gId);
 
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
         getfilecon(context->localPath.c_str(), &con);
         if (con != nullptr) {
             context->fileMode.context = con;
-            WRITE_LOG(LOG_DEBUG, "getfilecon context = %s", con);
             freecon(con);
         }
 #endif
@@ -337,7 +335,6 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         if (context->fileModeSync) {
             FileMode &mode = context->fileMode;
             uv_fs_t fs = {};
-            WRITE_LOG(LOG_DEBUG, "file mode: %o uId = %u, gId = %u", mode.perm, mode.uId, mode.gId);
             uv_fs_chmod(nullptr, &fs, context->localPath.c_str(), mode.perm, nullptr);
             uv_fs_chown(nullptr, &fs, context->localPath.c_str(), mode.uId, mode.gId, nullptr);
             uv_fs_req_cleanup(&fs);
@@ -441,8 +438,6 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         }
 #endif
         ctxNow.dirMode.push_back(mode);
-        WRITE_LOG(LOG_DEBUG, "dir mode: %o uId = %u, gId = %u, context = %s",
-                  mode.perm, mode.uId, mode.gId, mode.context.c_str());
     }
     while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
         // Skip. File
@@ -531,15 +526,12 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
         } else if (optName.find('\\') != string::npos) {
             optName = optName.substr(optName.find('\\') + 1);
         }
-        WRITE_LOG(LOG_DEBUG, "revise optName = %s", optName.c_str());
     }
     vector<string> dirsOfOptName;
 
     if (optName.find('/') != string::npos) {
-        WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from linux system");
         Base::SplitString(optName, "/", dirsOfOptName);
     } else if (optName.find('\\') != string::npos) {
-        WRITE_LOG(LOG_DEBUG, "dir mode create parent dir from windows system");
         Base::SplitString(optName, "\\", dirsOfOptName);
     } else {
         WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", optName.c_str());
@@ -553,8 +545,6 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     for (auto s : dirsOfOptName) {
         // Add each layer directory to localPath
         localPath = localPath + Base::GetPathSep() + s;
-        WRITE_LOG(LOG_DEBUG, "CheckFilename try create dir = %s short path = %s", localPath.c_str(), s.c_str());
-
         if (!Base::TryCreateDirectory(localPath, errStr)) {
             return false;
         }
@@ -572,9 +562,6 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
                 auto it = ctxNow.dirModeMap.find(shortPath);
                 if (it != ctxNow.dirModeMap.end()) {
                     auto mode = it->second;
-                    WRITE_LOG(LOG_DEBUG, "file = %s permissions: %o uId = %u, gId = %u context = %s",
-                        mode.fullName.c_str(), mode.perm, mode.uId, mode.gId, mode.context.c_str());
-
                     uv_fs_t fs = {};
                     uv_fs_chmod(nullptr, &fs, localPath.c_str(), mode.perm, nullptr);
                     uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.uId, mode.gId, nullptr);
@@ -679,18 +666,21 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             CtxFile *context = &ctxNow;
             int ioRet = SimpleFileIO(context, context->indexIO, nullptr, Base::GetMaxBufSize() * maxTransferBufFactor);
             if (ioRet < 0) {
+                WRITE_LOG(LOG_FATAL, "CommandDispatch SimpleFileIO ioRet:%d", ioRet);
                 ret = false;
                 break;
             }
             context->transferBegin = Base::GetRuntimeMSec();
         } else if (command == commandData) {
             if (static_cast<uint32_t>(payloadSize) > HDC_BUF_MAX_BYTES || payloadSize < 0) {
+                WRITE_LOG(LOG_FATAL, "CommandDispatch payloadSize:%d", payloadSize);
                 ret = false;
                 break;
             }
             // Note, I will trigger FileIO after multiple times.
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
+                WRITE_LOG(LOG_FATAL, "CommandDispatch RecvIOPayload command:%u", command);
                 ret = false;
                 break;
             }

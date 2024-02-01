@@ -100,9 +100,11 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     HdcSessionBase *ptrConnect = (HdcSessionBase *)hSession->classInstance;
     auto ctrl = ptrConnect->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
     if (status < 0) {
+        WRITE_LOG(LOG_FATAL, "Connect status:%d", status);
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {
+        WRITE_LOG(LOG_FATAL, "Connect fdChildWorkTCP:%d", hSession->fdChildWorkTCP);
         goto Finish;
     }
     uv_read_stop((uv_stream_t *)&hSession->hWorkTCP);
@@ -116,7 +118,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
     return;
 Finish:
-    WRITE_LOG(LOG_FATAL, "Connect failed");
+    WRITE_LOG(LOG_FATAL, "Connect failed sessionId:%u", hSession->sessionId);
     ptrConnect->FreeSession(hSession->sessionId);
 }
 
@@ -125,12 +127,14 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
     char ip[BUF_SIZE_TINY] = "";
     uint16_t port = 0;
     if (Base::ConnectKey2IPPort(connectKey.c_str(), ip, &port) < 0) {
+        WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort error connectKey:%s", connectKey.c_str());
         return nullptr;
     }
 
     HdcSessionBase *ptrConnect = (HdcSessionBase *)clsMainBase;
     HSession hSession = ptrConnect->MallocSession(true, CONN_TCP, this);
     if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "hSession nullptr connectKey:%s", connectKey.c_str());
         return nullptr;
     }
     hSession->isCheck = isCheck;

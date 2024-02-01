@@ -95,6 +95,7 @@ bool HdcServer::Initial(const char *listenString)
     clsTCPClt = new HdcHostTCP(true, this);
     clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
     if (clsUSBClt->Initial() != RET_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "clsUSBClt Initial failed");
         return false;
     }
     if (!clsServerForClient || !clsTCPClt || !clsUSBClt) {
@@ -398,6 +399,7 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
     HDaemonInfo hdiOld = nullptr;
     AdminDaemonMap(OP_QUERY, hSession->connectKey, hdiOld);
     if (hdiOld == nullptr) {
+        WRITE_LOG(LOG_FATAL, "NotifyInstanceSessionFree hdiOld nullptr");
         return;
     }
     if (!freeOrClear) {  // step1
@@ -537,6 +539,7 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         return ret;
     }
     if (hChannel->isDead) {
+        WRITE_LOG(LOG_FATAL, "FetchCommand channelId:%u isDead", channelId);
         --hChannel->ref;
         return ret;
     }
@@ -592,10 +595,6 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_APP_FINISH:
             if (hChannel->fromClient) {
                 // server directly passthrough app command to client if remote file mode, else go default
-                if (command != CMD_FILE_DATA) {
-                    WRITE_LOG(LOG_DEBUG, "command passthrough to client command:%u channelId:%u",
-                        command, channelId);
-                }
                 sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
                 break;
             }
@@ -816,10 +815,15 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
 #endif
     } else {
         hSession = MallocSession(true, CONN_USB, clsUSBClt);
+        if (!hSession) {
+            WRITE_LOG(LOG_FATAL, "CreateConnect malloc usb session failed %s", connectKey.c_str());
+            return ERR_BUF_ALLOC;
+        }
         hSession->connectKey = connectKey;
         uv_timer_t *waitTimeDoCmd = new(std::nothrow) uv_timer_t;
         if (waitTimeDoCmd == nullptr) {
             WRITE_LOG(LOG_FATAL, "CreateConnect new waitTimeDoCmd failed");
+            FreeSession(hSession->sessionId);
             return ERR_GENERIC;
         }
         uv_timer_init(&loopMain, waitTimeDoCmd);
@@ -827,6 +831,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         uv_timer_start(waitTimeDoCmd, UsbPreConnect, 10, 100);
     }
     if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "CreateConnect hSession nullptr");
         return ERR_BUF_ALLOC;
     }
     HDaemonInfo hdiQuery = nullptr;

@@ -145,6 +145,7 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     // just get usb SN, close handle immediately
     int childRet = OpenDeviceMyNeed(hUSB);
     if (childRet < 0) {
+        WRITE_LOG(LOG_FATAL, "DetectMyNeed OpenDeviceMyNeed childRet:%d", childRet);
         delete hUSB;
         return false;
     }
@@ -158,11 +159,16 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     UpdateUSBDaemonInfo(hUSB, nullptr, STATUS_READY);
     HdcServer *hdcServer = (HdcServer *)clsMainBase;
     HSession hSession = hdcServer->MallocSession(true, CONN_USB, this);
+    if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "malloc usb session failed sn:%s", sn.c_str());
+        return false;
+    }
     hSession->connectKey = hUSB->serialNumber;
     uv_timer_t *waitTimeDoCmd = new(std::nothrow) uv_timer_t;
     if (waitTimeDoCmd == nullptr) {
         WRITE_LOG(LOG_FATAL, "DetectMyNeed new waitTimeDoCmd failed");
         delete hUSB;
+        hdcServer->FreeSession(hSession->sessionId);
         return false;
     }
     uv_timer_init(&hdcServer->loopMain, waitTimeDoCmd);
@@ -371,6 +377,7 @@ int HdcHostUSB::CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_devic
         ret = libusb_get_active_config_descriptor(device, &descConfig);
         if (ret != 0) {
 #endif
+            WRITE_LOG(LOG_WARN, "get active config descriptor failed ret:%d", ret);
             return -1;
         }
 #ifdef HOST_MAC
@@ -458,10 +465,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 
     while (index < dataSize) {
         childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout);
-        if (childRet == 0) {
-            continue;
-        }
-        if (childRet < 0) {
+        if (childRet <= 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
 #ifdef _WIN32
@@ -575,7 +579,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         while (!hSession->isDead) {
             // if readIO < wMaxPacketSizeSend, libusb report overflow
             nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ?
-                            hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
+                                       hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
             if (childRet < 0) {
                 WRITE_LOG(LOG_FATAL, "Read usb failed, ret:%d", childRet);
@@ -665,8 +669,9 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
         *strchr(tmpStr, '-') = '\0';
         busNum = atoi(tmpStr);
         devNum = atoi(tmpStr + strlen(tmpStr) + 1);
-    } else
+    } else {
         return false;
+    }
     WRITE_LOG(LOG_DEBUG, "busNum:%d devNum:%d", busNum, devNum);
 
     int i = 0;

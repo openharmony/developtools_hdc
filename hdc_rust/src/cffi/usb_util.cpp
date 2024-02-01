@@ -44,7 +44,7 @@ std::string GetDevPath(const std::string &path)
     return res;
 }
 
-std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size)
+static std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size)
 {
     std::vector<uint8_t> vecData;
     USBHead head;
@@ -60,7 +60,7 @@ std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint3
 
 const std::string StringFormat(const char * const formater, va_list &vaArgs)
 {
-    std::vector<char> args(GetMaxBufSize());
+    std::vector<char> args(MAX_SIZE_IOBUF);
     const int retSize = vsnprintf_s(args.data(), MAX_SIZE_IOBUF, MAX_SIZE_IOBUF - 1, formater, vaArgs);
     if (retSize < 0) {
         return std::string("");

@@ -301,8 +301,7 @@ fn check_control(command: HdcCommand) -> bool {
 
 pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     let cmd = task_message.command;
-    let special_cmd =
-        (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
+    let special_cmd = (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
     let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;
 
     if !auth_ok && !special_cmd {
@@ -387,6 +386,10 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         | HdcCommand::JdwpTrack => {
             hdc::debug!("unity command: {:#?}", task_message.command);
             daemon_file_task(task_message, session_id).await
+        }
+        HdcCommand::KernelWakeupSlavetask => {
+            hdc::debug!("task command: {:#?}", task_message.command);
+            Ok(())
         }
         _ => Err(Error::new(
             ErrorKind::Other,

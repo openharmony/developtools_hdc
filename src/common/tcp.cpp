@@ -87,6 +87,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
             break;
         }
         if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd", nread);
             break;
         }
         ret = true;
@@ -111,6 +112,8 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 #else
     int fd = reinterpret_cast<int>(uvfd);
 #endif
+    constexpr int intrmax = 1000;
+    int intrcnt = 0;
     while (cnt > 0) {
         int rc = send(fd, reinterpret_cast<const char*>(data), cnt, 0);
         if (rc < 0) {
@@ -121,7 +124,10 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
             int err = errno;
             if (err == EINTR || err == EAGAIN) {
 #endif
-                WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d send interrupt or again", fd);
+                if (++intrcnt > intrmax) {
+                    WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d send interrupt err:%d", fd, err);
+                    intrcnt = 0;
+                }
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d send rc:%d err:%d", fd, rc, err);

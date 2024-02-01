@@ -251,7 +251,7 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
             Base::PrintMessage("Port range incorrect");
             return false;
         }
-        (void)snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "::ffff:0.0.0.0:%d", port);
+        (void)snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "::ffff:127.0.0.1:%d", port);
         serverListenString = buf;
     } else {
         *p = '\0';

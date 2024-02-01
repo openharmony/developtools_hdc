@@ -370,7 +370,7 @@ bool HdcForwardBase::SetupTCPPoint(HCtxForward ctxPoint)
     uv_tcp_init(loopTask, &ctxPoint->tcp);
     struct sockaddr_in addr;
     if (ctxPoint->masterSlave) {
-        uv_ip4_addr("0.0.0.0", port, &addr);  // loop interface
+        uv_ip4_addr("127.0.0.1", port, &addr);  // loop interface
         uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addr, 0);
         if (uv_listen((uv_stream_t *)&ctxPoint->tcp, 4, ListenCallback)) {
             ctxPoint->lastError = "TCP Port listen failed at " + sNodeCfg;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,18 +18,20 @@
 use hdc::config::{self, *};
 use hdc::serializer::native_struct;
 use hdc::serializer::serialize::Serialization;
-use hdc::utils;
-use hdc::{common::hsession::*, transfer};
-use hdc::utils::hdc_log::*;
+use hdc::transfer;
 
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::sync::RwLock;
 
+use super::sys_para::*;
+use crate::utils::hdc_log::*;
 use std::collections::HashMap;
-use std::io::Write;
-use std::io::{self, Error, ErrorKind};
+use std::fs::File;
+use std::io::{self, prelude::*, Error, ErrorKind, Write};
 use std::path::Path;
+use std::process::Command;
+use std::string::ToString;
 use std::sync::Arc;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -38,6 +40,12 @@ pub enum AuthStatus {
     Pubk((String, String)), // with (plain, pk)
     Ok,
     Fail,
+}
+
+pub enum UserPermit {
+    Refuse = 0,
+    AllowOnce = 1,
+    AllowForever = 2,
 }
 
 type AuthStatusMap_ = Arc<RwLock<HashMap<u32, AuthStatus>>>;
@@ -79,8 +87,27 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
 
-    // auth is not required
-    if recv.version.as_str() < "Ver: 1.3.1" {
+    hdc::info!(
+        "client version({}) for session:{}",
+        recv.version.as_str(),
+        recv.session_id
+    );
+    if recv.version.as_str() < "Ver: 2.0.0" {
+        hdc::info!(
+            "client version({}) is too low, return OK for session:{}",
+            recv.version.as_str(),
+            recv.session_id
+        );
+        return Ok((
+            recv.session_id,
+            make_ok_message(recv.session_id, task_message.channel_id).await,
+        ));
+    }
+    if !is_auth_enable().await {
+        hdc::info!(
+            "auth enable is false, return OK for session:{}",
+            recv.session_id
+        );
         return Ok((
             recv.session_id,
             make_ok_message(recv.session_id, task_message.channel_id).await,
@@ -88,15 +115,16 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
     }
 
     // auth is required
-    let buf = utils::get_current_time().to_string();
+    let buf = generate_token_wait().await;
+
     AuthStatusMap::put(recv.session_id, AuthStatus::Init(buf.clone())).await;
 
     let send = native_struct::SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
-        session_id: 0,
+        session_id: recv.session_id,
         connect_key: "".to_string(),
         buf,
-        auth_type: AuthType::Token as u8,
+        auth_type: AuthType::Publickey as u8,
         version: get_version(),
     };
 
@@ -109,12 +137,28 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
     Ok((recv.session_id, message))
 }
 
+async fn make_sign_message(session_id: u32, token: String, channel_id: u32) -> TaskMessage {
+    let send = native_struct::SessionHandShake {
+        banner: HANDSHAKE_MESSAGE.to_string(),
+        session_id,
+        connect_key: "".to_string(),
+        buf: token,
+        auth_type: AuthType::Signature as u8,
+        version: get_version(),
+    };
+    TaskMessage {
+        channel_id,
+        command: HdcCommand::KernelHandshake,
+        payload: send.serialize(),
+    }
+}
+
 async fn make_ok_message(session_id: u32, channel_id: u32) -> TaskMessage {
     AuthStatusMap::put(session_id, AuthStatus::Ok).await;
 
     let send = native_struct::SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
-        session_id: 0,
+        session_id,
         connect_key: "".to_string(),
         auth_type: AuthType::OK as u8,
         version: get_version(),
@@ -130,26 +174,114 @@ async fn make_ok_message(session_id: u32, channel_id: u32) -> TaskMessage {
     }
 }
 
-pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+pub fn get_host_pubkey_info(buf: &str) -> (String, String) {
+    if let Some((hostname, pubkey)) = buf.split_once(HDC_HOST_DAEMON_BUF_SEPARATOR) {
+        (hostname.to_string(), pubkey.to_string())
+    } else {
+        ("".to_string(), "".to_string())
+    }
+}
+
+pub async fn get_new_session_id(task_message: &TaskMessage) -> io::Result<u32> {
     let mut recv = native_struct::SessionHandShake::default();
-    recv.parse(task_message.payload)?;
+    recv.parse(task_message.payload.clone())?;
+    Ok(recv.session_id)
+}
+
+pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    if let AuthStatus::Ok = AuthStatusMap::get(session_id).await {
+        hdc::info!("session {} already auth ok", session_id);
+        return Ok(());
+    }
 
     let channel_id = task_message.channel_id;
 
+    if !is_auth_enable().await {
+        hdc::info!("auth enable is false, return OK for session:{}", session_id);
+        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
+        return Ok(());
+    }
+
+    let mut recv = native_struct::SessionHandShake::default();
+    recv.parse(task_message.payload)?;
+    hdc::info!("recv handshake: {:#?}", recv);
+
     if recv.auth_type == AuthType::Publickey as u8 {
         let plain = if let AuthStatus::Init(buf) = AuthStatusMap::get(session_id).await {
+            hdc::info!("get plain success for session {}", session_id);
             buf
         } else {
+            hdc::error!("get plain failed for session {}", session_id);
             handshake_fail(session_id, channel_id, "auth failed".to_string()).await;
             return Ok(());
         };
+        let token = plain.clone();
+
+        let (hostname, pubkey) = get_host_pubkey_info(recv.buf.trim());
+        if pubkey.is_empty() {
+            hdc::error!("get public key from host failed");
+            handshake_fail(
+                session_id,
+                channel_id,
+                "no public key, you may need update your hdc client".to_string(),
+            )
+            .await;
+            return Ok(());
+        }
+        if hostname.is_empty() {
+            hdc::error!("get hostname from host failed");
+            handshake_fail(
+                session_id,
+                channel_id,
+                "no hostname, you may need update your hdc client".to_string(),
+            )
+            .await;
+            return Ok(());
+        }
 
         let known_hosts = read_known_hosts_pubkey();
-        let pubkey = recv.buf.trim().to_string();
+        if known_hosts.contains(&pubkey) {
+            hdc::info!("pubkey matches known host({})", hostname);
+            AuthStatusMap::put(session_id, AuthStatus::Pubk((plain, pubkey))).await;
+            transfer::put(
+                session_id,
+                make_sign_message(session_id, token, channel_id).await,
+            )
+            .await;
+            return Ok(());
+        }
+        match require_user_permittion(&hostname).await {
+            UserPermit::AllowForever => {
+                hdc::info!("allow forever");
+                if write_known_hosts_pubkey(&pubkey).is_err() {
+                    handshake_fail(
+                        session_id,
+                        channel_id,
+                        "write public key failed".to_string(),
+                    )
+                    .await;
 
-        if !known_hosts.contains(&pubkey) {
-            hdc::debug!("get new pubkey: {}", &pubkey);
-            if !require_user_permittion(&pubkey) {
+                    hdc::error!("write public key failed");
+                    return Ok(());
+                }
+                AuthStatusMap::put(session_id, AuthStatus::Pubk((plain, pubkey))).await;
+                transfer::put(
+                    session_id,
+                    make_sign_message(session_id, token, channel_id).await,
+                )
+                .await;
+            }
+            UserPermit::AllowOnce => {
+                hdc::info!("allow once");
+                AuthStatusMap::put(session_id, AuthStatus::Pubk((plain, pubkey))).await;
+                transfer::put(
+                    session_id,
+                    make_sign_message(session_id, token, channel_id).await,
+                )
+                .await;
+            }
+            _ => {
+                hdc::info!("user refuse");
                 handshake_fail(
                     session_id,
                     channel_id,
@@ -158,20 +290,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
                 .await;
                 return Ok(());
             }
-            if write_known_hosts_pubkey(&pubkey).is_err() {
-                handshake_fail(
-                    session_id,
-                    channel_id,
-                    "write public key failed".to_string(),
-                )
-                .await;
-                return Ok(());
-            }
-        } else {
-            hdc::info!("pubkey matches known host");
         }
-
-        AuthStatusMap::put(session_id, AuthStatus::Pubk((plain, pubkey))).await;
     } else if recv.auth_type == AuthType::Signature as u8 {
         match validate_signature(recv.buf, session_id).await {
             Ok(()) => {
@@ -185,7 +304,6 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
                     },
                 )
                 .await;
-                AuthStatusMap::put(session_id, AuthStatus::Ok).await;
             }
             Err(e) => {
                 let errlog = e.to_string();
@@ -194,7 +312,13 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
             }
         }
     } else {
-        handshake_fail(session_id, channel_id, "auth failed".to_string()).await;
+        hdc::error!(
+            "invalid auth_type: {} for session {}",
+            recv.auth_type,
+            session_id
+        );
+        // handshake_fail session_id, channel_id auth failed await
+        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
     }
     Ok(())
 }
@@ -264,7 +388,7 @@ fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
     }
 
     let _ = match std::fs::File::options().append(true).open(file_name) {
-        Ok(mut f) => write!(&mut f, "{}", pubkey),
+        Ok(mut f) => writeln!(&mut f, "{}", pubkey),
         Err(e) => {
             hdc::error!("write pubkey err: {e}");
             return Err(e);
@@ -273,9 +397,71 @@ fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
     Ok(())
 }
 
-fn require_user_permittion(_pubkey: &str) -> bool {
-    // TODO: get user permittion from `settings`
-    true
+fn show_permit_dialog() -> bool {
+    let cmd = "/system/bin/hdcd_user_permit";
+    let result = Command::new(config::SHELL_PROG).args(["-c", cmd]).output();
+    match result {
+        Ok(output) => {
+            let msg = [output.stdout, output.stderr].concat();
+            let mut str = String::from_utf8(msg).unwrap();
+            str = str.replace('\n', " ");
+            hdc::error!("show dialog over, {}.", str);
+            true
+        }
+        Err(e) => {
+            hdc::error!("show dialog failed, {}.", e.to_string());
+            false
+        }
+    }
+}
+
+pub async fn is_auth_enable() -> bool {
+    let (_, debug_auth_enable) = get_dev_item("rw.hdc.daemon.debug_auth_enable", "_");
+    hdc::error!("debug_auth_enable is {}.", debug_auth_enable);
+    match debug_auth_enable.trim() {
+        "force" => true,
+        "true" => {
+            let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
+            hdc::error!("const.hdc.secure is {}.", auth_enable);
+            auth_enable.trim().to_lowercase() == "1"
+        }
+        _ => false,
+    }
+}
+
+async fn require_user_permittion(hostname: &str) -> UserPermit {
+    // todo debug
+    let default_permit = "auth_result_none";
+    // clear result first
+    if !set_dev_item("persist.hdc.daemon.auth_result", default_permit) {
+        hdc::error!("debug auth result failed, so refuse this connect.");
+        return UserPermit::Refuse;
+    }
+
+    // then write para for setting
+    if !set_dev_item("persist.hdc.client.hostname", hostname) {
+        hdc::error!("set param({}) failed.", hostname);
+        return UserPermit::Refuse;
+    }
+    if !show_permit_dialog() {
+        hdc::error!("show dialog failed, so refuse this connect.");
+        return UserPermit::Refuse;
+    }
+    let permit_result = match get_dev_item("persist.hdc.daemon.auth_result", "_") {
+        (false, _) => {
+            hdc::error!("get_dev_item auth_result failed");
+            UserPermit::Refuse
+        }
+        (true, auth_result) => {
+            hdc::error!("user permit result is:({})", auth_result);
+            match auth_result.strip_prefix("auth_result:").unwrap().trim() {
+                "1" => UserPermit::AllowOnce,
+                "2" => UserPermit::AllowForever,
+                _ => UserPermit::Refuse,
+            }
+        }
+    };
+    permit_result
 }
 
 async fn handshake_fail(session_id: u32, channel_id: u32, msg: String) {
@@ -296,4 +482,26 @@ async fn handshake_fail(session_id: u32, channel_id: u32, msg: String) {
         },
     )
     .await;
+}
+
+async fn generate_token() -> io::Result<String> {
+    let mut random_file = File::open("/dev/random")?;
+    let mut buffer = [0; HDC_HANDSHAKE_TOKEN_LEN];
+    random_file.read_exact(&mut buffer)?;
+    let random_vec: Vec<_> = buffer.iter().map(|h| format!("{:02X}", h)).collect();
+    let token = random_vec.join("");
+    Ok(token)
+}
+async fn generate_token_wait() -> String {
+    loop {
+        match generate_token().await {
+            Ok(token) => {
+                break token;
+            }
+            Err(e) => {
+                let errlog = e.to_string();
+                hdc::error!("generate token failed: {}", &errlog);
+            }
+        }
+    }
 }

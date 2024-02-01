@@ -16,6 +16,10 @@ persist.hdc.root = root:shell:0660
 persist.hdc.mode = root:shell:0660
 persist.hdc.port = root:shell:0660
 persist.hdc.uv.threads = root:shell:0660
+persist.hdc.daemon.auth_result = system:system:0660
+persist.hdc.client.hostname = system:system:0660
+persist.hdc.daemon.auth_cancel = system:system:0660
+const.hdc.secure = system:system:0660
 
 # hdc control, init, edm and usb_host can write control by selinux
 persist.hdc.control = usb_host:edm:0664

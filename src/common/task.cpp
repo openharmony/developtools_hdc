@@ -56,6 +56,7 @@ bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const i
 {
     StartTraceScope("HdcTaskBase::SendToAnother");
     if (singalStop) {
+        WRITE_LOG(LOG_FATAL, "TaskFinish singalStop channelId:%u command:%u", taskInfo->channelId, command);
         return false;
     }
     if (taskInfo->channelTask) {
@@ -108,16 +109,10 @@ int HdcTaskBase::ThreadCtrlCommunicate(const uint8_t *bufPtr, const int size)
     HdcSessionBase *sessionBase = (HdcSessionBase *)taskInfo->ownerSessionClass;
     HSession hSession = sessionBase->AdminSession(OP_QUERY, taskInfo->sessionId, nullptr);
     if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "ThreadCtrlCommunicate hSession nullptr sessionId:%u", taskInfo->sessionId);
         return -1;
     }
-    int fd;
-    if (uv_thread_self() == hSession->hWorkThread) {
-        fd = hSession->ctrlFd[STREAM_MAIN];
-    } else if (uv_thread_self() == hSession->hWorkChildThread) {
-        fd = hSession->ctrlFd[STREAM_WORK];
-    } else {
-        return ERR_GENERIC;
-    }
+    int fd = hSession->ctrlFd[STREAM_WORK];
     return Base::SendToPollFd(fd, bufPtr, size);
 }
 }

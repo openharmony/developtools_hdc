@@ -80,6 +80,7 @@ HdcSessionBase::~HdcSessionBase()
 bool HdcSessionBase::TryRemoveTask(HTaskInfo hTask)
 {
     if (hTask->taskFree) {
+        WRITE_LOG(LOG_WARN, "TryRemoveTask channelId:%u", hTask->channelId);
         return true;
     }
     bool ret = RemoveInstanceTask(OP_REMOVE, hTask);
@@ -98,6 +99,8 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
 {
     StartTraceScope("HdcSessionBase::BeginRemoveTask");
     if (hTask->taskStop || hTask->taskFree) {
+        WRITE_LOG(LOG_WARN, "BeginRemoveTask channelId:%u taskStop:%d taskFree:%d",
+            hTask->channelId, hTask->taskStop, hTask->taskFree);
         return;
     }
 
@@ -118,6 +121,7 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
         }
         hTask->closeRetryCount++;
         if (!thisClass->TryRemoveTask(hTask)) {
+            WRITE_LOG(LOG_WARN, "TaskDelay TryRemoveTask false channelId:%u", hTask->channelId);
             return;
         }
         WRITE_LOG(LOG_DEBUG, "TaskDelay task remove finish, channelId:%u", hTask->channelId);
@@ -153,8 +157,8 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
                 continue;
             }
             BeginRemoveTask(hTask);
-            WRITE_LOG(LOG_DEBUG, "ClearOwnTasks OP_CLEAR finish, session:%p channelIDInput:%u", hSession,
-                      channelIDInput);
+            WRITE_LOG(LOG_DEBUG, "ClearOwnTasks OP_CLEAR finish, sessionId:%u channelIDInput:%u",
+                hSession->sessionId, channelIDInput);
             iter = hSession->mapTask->erase(iter);
             break;
         }
@@ -402,6 +406,10 @@ uint32_t HdcSessionBase::GetSessionPseudoUid()
 HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule,
                                        uint32_t sessionId)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     HSession hSession = new(std::nothrow) HdcSession();
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "MallocSession new hSession failed");
@@ -460,7 +468,11 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     uv_tcp_open(&hSession->dataPipe[STREAM_MAIN], hSession->dataFd[STREAM_MAIN]);
     hSession->dataPipe[STREAM_MAIN].data = hSession;
     hSession->dataPipe[STREAM_WORK].data = hSession;
+#ifdef HDC_HOST
+    Base::SetTcpOptions(&hSession->dataPipe[STREAM_MAIN], HOST_SOCKETPAIR_SIZE);
+#else
     Base::SetTcpOptions(&hSession->dataPipe[STREAM_MAIN]);
+#endif
     ret = MallocSessionByConnectType(hSession);
     if (ret) {
         delete hSession;
@@ -475,7 +487,7 @@ void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
 {
     WRITE_LOG(LOG_DEBUG, "FreeSessionByConnectType %s", hSession->ToDebugString().c_str());
 
-    if (CONN_USB == hSession->connType) {
+    if (hSession->connType == CONN_USB) {
         // ibusb All context is applied for sub-threaded, so it needs to be destroyed in the subline
         if (!hSession->hUSB) {
             return;
@@ -531,6 +543,8 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     HSession hSession = (HSession)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->uvHandleRef > 0) {
+        WRITE_LOG(LOG_DEBUG, "FreeSessionFinally uvHandleRef:%d sessionId:%u",
+            hSession->uvHandleRef, hSession->sessionId);
         return;
     }
     // Notify Server or Daemon, just UI or display commandline
@@ -553,10 +567,12 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
         if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
+            Base::CloseFd(hSession->ctrlFd[STREAM_MAIN]);
+            Base::CloseFd(hSession->ctrlFd[STREAM_WORK]);
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };
-    if (CONN_TCP == hSession->connType) {
+    if (hSession->connType == CONN_TCP) {
         // Turn off TCP to prevent continuing writing
         Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP, true, closeSessionTCPHandle);
     }
@@ -578,6 +594,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     HSession hSession = (HSession)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->ref > 0) {
+        WRITE_LOG(LOG_WARN, "FreeSessionOpeate ref:%u > 0", uint32_t(hSession->ref));
         return;
     }
     WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate ref:%u", uint32_t(hSession->ref));
@@ -598,6 +615,8 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
             HSession hSession = (HSession)handle->data;
             HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
             if (!hSession->childCleared) {
+                WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate childCleared:%d sessionId:%u",
+                    hSession->childCleared, hSession->sessionId);
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
@@ -621,6 +640,7 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
     WRITE_LOG(LOG_DEBUG, "Begin to free session, sessionid:%u", sessionId);
     do {
         if (!hSession || hSession->isDead) {
+            WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%u", sessionId);
             break;
         }
         hSession->isDead = true;
@@ -719,10 +739,6 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
 
     switch (op) {
         case OP_ADD:
-#ifndef HDC_HOST
-            // uv sub-thread confiured by threadPoolCount, reserve 2 for main & communicate
-            WRITE_LOG(LOG_WARN, "mapTask.size:%d", mapTask.size());
-#endif
             hRet = mapTask[channelId];
             if (hRet != nullptr) {
                 delete hRet;
@@ -757,6 +773,7 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
 {
     StartTraceScope("HdcSessionBase::SendByProtocol");
     if (hSession->isDead) {
+        delete[] bufPtr;
         WRITE_LOG(LOG_WARN, "SendByProtocol session dead error");
         return ERR_SESSION_NOFOUND;
     }
@@ -921,7 +938,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_strerror_r(read, buf, bufSize);
-        WRITE_LOG(LOG_FATAL, "HdcSessionBase read io failed,%s", buf);
+        WRITE_LOG(LOG_FATAL, "FetchIOBuf read io failed,%s", buf);
         return ERR_IO_FAIL;
     }
     hSession->availTailIndex += read;
@@ -934,6 +951,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
             // Not enough a IO
             break;
         } else {                           // <0
+            WRITE_LOG(LOG_FATAL, "FetchIOBuf error childRet:%d sessionId:%u", childRet, hSession->sessionId);
             hSession->availTailIndex = 0;  // Preventing malicious data packages
             indexBuf = ERR_BUF_SIZE;
             break;
@@ -966,6 +984,8 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
     --hSession->ref;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (status < 0) {
+        WRITE_LOG(LOG_WARN, "FinishWriteSessionTCP status:%d sessionId:%u isDead:%d ref:%u",
+            status, hSession->sessionId, hSession->isDead, uint32_t(hSession->ref));
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hSession->isDead && !hSession->ref) {
             WRITE_LOG(LOG_DEBUG, "FinishWriteSessionTCP freesession :%u", hSession->sessionId);
@@ -983,7 +1003,8 @@ bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8
     uint8_t flag = *const_cast<uint8_t *>(baseBuf);
 
     switch (flag) {
-        case SP_JDWP_NEWFD: {
+        case SP_JDWP_NEWFD:
+        case SP_ARK_NEWFD: {
             JdwpNewFileDescriptor(baseBuf, bytesIO);
             break;
         }
@@ -1000,18 +1021,18 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     const int size = Base::GetMaxBufSize();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
-    ssize_t nread = Base::ReadFromFd(hSession->ctrlFd[STREAM_WORK], buf, size);
+    ssize_t nread = Base::ReadFromFd(hSession->ctrlFd[STREAM_MAIN], buf, size);
     while (true) {
         if (nread < 0) {
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
             uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
-            WRITE_LOG(LOG_DEBUG, "SessionCtrl failed,%s", buffer);
+            WRITE_LOG(LOG_DEBUG, "ReadCtrlFromSession failed,%s", buffer);
             uv_poll_stop(poll);
             break;
         }
-        if (nread > 64) {  // 64 : max length
-            WRITE_LOG(LOG_WARN, "HdcSessionBase read overlap data");
+        if (nread == 0) {
+            WRITE_LOG(LOG_FATAL, "ReadCtrlFromSession read data zero byte");
             break;
         }
         // only one command, no need to split command from stream
@@ -1083,6 +1104,7 @@ vector<uint8_t> HdcSessionBase::BuildCtrlString(InnerCtrlCommand command, uint32
     vector<uint8_t> ret;
     while (true) {
         if (dataSize > BUF_SIZE_MICRO) {
+            WRITE_LOG(LOG_WARN, "BuildCtrlString dataSize:%d", dataSize);
             break;
         }
         CtrlStruct ctrl = {};
@@ -1223,7 +1245,7 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
     Base::TimerUvTask(&hSession->childLoop, hSession, clearTaskForSessionFinish, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);
     // clear
-    Base::TryCloseLoop(&hSession->childLoop, "Session childUV");
+    Base::TryCloseChildLoop(&hSession->childLoop, "Session childUV");
 }
 
 void HdcSessionBase::SessionWorkThread(uv_work_t *arg)

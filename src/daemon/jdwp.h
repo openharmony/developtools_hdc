@@ -29,7 +29,9 @@ public:
     bool ReadyForRelease();
     string GetProcessList();
     bool SendJdwpNewFD(uint32_t targetPID, int fd);
+    bool SendArkNewFD(const std::string str, int fd);
     bool CheckPIDExist(uint32_t targetPID);
+    bool SendFdToApp(int sockfd, uint8_t *buf, int size, int fd);
 
 #ifdef FUZZ_TEST
 public:
@@ -37,13 +39,14 @@ public:
 private:
 #endif
 #ifdef JS_JDWP_CONNECT
-    static constexpr uint8_t JS_PKG_MIN_SIZE = 15;  // JsMsgHeader + "pkgName:"uint8_t[7~127]
-    static constexpr uint8_t JS_PKG_MX_SIZE = 135;
+    static constexpr uint8_t JS_PKG_MIN_SIZE = 7;  // JsMsgHeader + "pkgName:"uint8_t[7~128]
+    static constexpr uint8_t JS_PKG_MAX_SIZE = 128;
     struct JsMsgHeader {
         uint32_t msgLen;
         uint32_t pid;
+        uint8_t isDebug; // 1:debugApp 0:releaseApp
     };
-    string GetProcessListExtendPkgName();
+    string GetProcessListExtendPkgName(uint8_t dr);
 #endif // JS_JDWP_CONNECT
     struct _PollFd {
         int fd;
@@ -68,13 +71,14 @@ private:
         HdcJdwp *thisClass;
         bool finish;
 #ifdef JS_JDWP_CONNECT
-        char buf[JS_PKG_MX_SIZE];
+        char buf[JS_PKG_MAX_SIZE + sizeof(JsMsgHeader)];
         string pkgName;
 #else
         char buf[sizeof(uint32_t)];
 #endif  // JS_JDWP_CONNECT
         uint8_t dummy;
         uv_tcp_t jvmTCP;
+        uint8_t isDebug;
     };
     using HCtxJdwp = struct ContextJdwp *;
 
@@ -85,7 +89,7 @@ private:
     static void SendCallbackJdwpNewFD(uv_write_t *req, int status);
     static void *FdEventPollThread(void *args);
     void RemoveFdFromPollList(uint32_t pid);
-    size_t JdwpProcessListMsg(char *buffer, size_t bufferlen);
+    size_t JdwpProcessListMsg(char *buffer, size_t bufferlen, uint8_t dr);
     void *MallocContext();
     void FreeContext(HCtxJdwp ctx);
     void *AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJdwp);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,24 +17,44 @@
 mod auth;
 mod daemon_app;
 mod daemon_unity;
-mod jdwp;
+use crate::jdwp::Jdwp;
+mod mount;
 mod shell;
 mod task;
-mod uds;
+// mod sendmsg;
+mod sys_para;
 
 use std::io::{self, ErrorKind, Write};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use hdc::common::hsession::TaskMessage;
-use hdc::config;
-use hdc::transfer;
-use hdc::utils;
-use hdc::utils::hdc_log::*;
+use crate::utils::hdc_log::*;
 
-use jdwp::Jdwp;
+use hdc::common::jdwp;
+use hdc::config;
+use hdc::config::TaskMessage;
+use hdc::transfer;
+use hdc::transfer::uart::UartReader;
+use hdc::transfer::base::Reader;
+use hdc::transfer::uart_wrapper;
+use hdc::utils;
+
 use log::LevelFilter;
+use std::ffi::CString;
 use ylong_runtime::net::{TcpListener, TcpStream};
+use ylong_runtime::sync::mpsc;
+use std::ffi::c_int;
+
+extern "C" {
+    fn NeedDropRootPrivileges()-> c_int;
+}
+
+fn need_drop_root_privileges() {
+    hdc::info!("need_drop_root_privileges");
+    unsafe {
+        NeedDropRootPrivileges();
+    }
+}
 
 async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
     match res {
@@ -99,46 +119,138 @@ async fn tcp_daemon_start(port: u16) -> io::Result<()> {
 }
 
 async fn uart_daemon_start() -> io::Result<()> {
-    Ok(())
-    // loop {
-    //     let fd = transfer::uart::uart_init()?;
-    //     uart_handle_client(fd).await?;
-    // }
+    loop {
+        let fd = transfer::uart::uart_init()?;
+        let _ret = uart_handle_client(fd).await;
+        transfer::uart::uart_close(fd);
+    }
 }
 
-// async fn uart_handle_client(_fd: i32) -> io::Result<()> {
-//     Ok(())
-// let rd = transfer::uart::UartReader { fd };
-// let wr = transfer::uart::UartWriter { fd };
+async fn uart_handshake(
+    handshake_message: TaskMessage,
+    fd: i32,
+    rd: &UartReader,
+    package_index: u32,
+) -> io::Result<u32> {
+    let (session_id, send_msg) = auth::handshake_init(handshake_message).await?;
+    let channel_id = send_msg.channel_id;
 
-// let recv_msg = transfer::base::unpack_task_message(&rd)?;
-// let (session_id, send_msg) = auth::handshake_init(recv_msg).await?;
-// let channel_id = send_msg.channel_id;
+    let wr = transfer::uart::UartWriter { fd };
+    transfer::start_uart(session_id, wr).await;
+    transfer::start_session(session_id).await;
 
-// transfer::UartMap::start(session_id, wr).await;
-// transfer::put(session_id, send_msg).await;
-// if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
-//     transfer::put(
-//         session_id,
-//         TaskMessage {
-//             channel_id,
-//             command: config::HdcCommand::KernelChannelClose,
-//             payload: vec![0],
-//         },
-//     )
-//     .await;
-// }
+    let head = rd.head.clone().unwrap();
+    uart_wrapper::on_read_head(head).await;
+    transfer::wrap_put(session_id, send_msg, package_index, 0).await;
 
-// loop {
-//     handle_message(transfer::base::unpack_task_message(&rd), session_id).await?;
-// }
-// }
+    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
+        transfer::put(
+            session_id,
+            TaskMessage {
+                channel_id,
+                command: config::HdcCommand::KernelChannelClose,
+                payload: vec![0],
+            },
+        )
+        .await;
+    }
+    Ok(session_id)
+}
+
+async fn uart_handle_client(fd: i32) -> io::Result<()> {
+    let mut rd = transfer::uart::UartReader { fd, head: None };
+    let (packet_size, package_index) = rd.check_protocol_head()?;
+    let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
+    ylong_runtime::spawn(async move {
+        let mut rd = transfer::uart::UartReader { fd, head: None };
+        if let Err(e) =
+            transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
+        {
+            hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
+            println!("handshake error:{:#?}", e);
+        }
+    });
+    let session_id;
+    match rx.recv().await {
+        Ok(handshake_message) => {
+            let _ = rx.recv().await;
+            println!("uart handshake_message:{:#?}", handshake_message);
+            session_id = uart_handshake(handshake_message.clone(), fd, &rd, package_index).await?;
+        }
+        Err(_e) => {
+            println!("uart handshake error");
+            return Err(std::io::Error::new(ErrorKind::Other, "uart recv handshake error"));
+        }
+    }
+
+    uart_wrapper::stop_other_session(session_id).await;
+    let mut real_session_id = session_id;
+    loop {
+        let (packet_size, _package_index) = rd.check_protocol_head()?;
+        let head = rd.head.clone().unwrap();
+        let package_index = head.package_index;
+        let session_id = head.session_id;
+        uart_wrapper::on_read_head(head).await;
+        if real_session_id != session_id {
+            uart_wrapper::stop_other_session(session_id).await;
+        }
+        if packet_size == 0 {
+            continue;
+        }
+
+        let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
+        ylong_runtime::spawn(async move {
+            let mut rd = transfer::uart::UartReader { fd, head: None };
+            if let Err(e) =
+                transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
+            {
+                hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
+                println!("uart read uart taskmessage error:{:#?}", e);
+            }
+        });
+
+        loop {
+                match rx.recv().await {
+                    Ok(message) => {
+                        if message.command == config::HdcCommand::UartFinish {
+                            break;
+                        }
+
+                        if message.command == config::HdcCommand::KernelHandshake {
+                            real_session_id =
+                                uart_handshake(message.clone(), fd, &rd, package_index).await?;
+                            continue;
+                        }
+                        let command = message.command;
+                        ylong_runtime::spawn(async move {
+                            if let Err(e) = task::dispatch_task(message, real_session_id).await {
+                                log::error!("dispatch task failed: {}", e.to_string());
+                                println!("dispatch task({:#?}) fail: {:#?}", command, e);
+                            }
+                        });
+                    }
+                    Err(_e) => {
+                        println!("uart recv error: {:#?}", _e);
+                        return Err(std::io::Error::new(ErrorKind::Other, "RecvError"));
+                    }
+                }
+            }
+        }
+    }
 
 async fn usb_daemon_start() -> io::Result<()> {
     loop {
-        let (config_fd, bulkin_fd, bulkout_fd) = transfer::usb::usb_init()?;
-        let _ = usb_handle_client(config_fd, bulkin_fd, bulkout_fd).await;
-        transfer::usb::usb_close(config_fd, bulkin_fd, bulkout_fd);
+        let ret = transfer::usb::usb_init();
+        match ret {
+            Ok((config_fd, bulkin_fd, bulkout_fd)) => {
+                let _ = usb_handle_client(config_fd, bulkin_fd, bulkout_fd).await;
+                transfer::usb::usb_close(config_fd, bulkin_fd, bulkout_fd);
+            }
+            Err(e) => {
+                hdc::error!("usb inut failure and restart hdcd error is {:#?}", e);
+                std::process::exit(0);
+            }
+        }
     }
 }
 
@@ -147,8 +259,8 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
     let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
 
     let mut rx = transfer::usb_start_recv(bulkin_fd, 0);
-    let recv_msg = match rx.recv().await {
-        Ok(msg) => msg,
+    let (recv_msg, _package_index) = match rx.recv().await {
+        Ok((msg, index)) => (msg, index),
         Err(_) => {
             return Err(utils::error_other("usb recv failed, reopen...".to_string()));
         }
@@ -172,13 +284,40 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
         )
         .await;
     }
-
+    let mut real_session_id = session_id;
     loop {
         match rx.recv().await {
-            Ok(msg) => {
-                if let Err(e) = task::dispatch_task(msg, session_id).await {
-                    hdc::error!("dispatch task failed: {}", e.to_string());
+            Ok((msg, _index)) => {
+                if msg.command == config::HdcCommand::KernelHandshake {
+                    if let Ok(id) = auth::get_new_session_id(&msg).await {
+                        if real_session_id != id {
+                            let (new_session_id, new_send_msg) = auth::handshake_init(msg.clone()).await?;
+                            let channel_id = new_send_msg.channel_id;
+
+                            let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
+                            transfer::UsbMap::start(new_session_id, wr).await;
+                            transfer::put(new_session_id, new_send_msg).await;
+
+                            if auth::AuthStatusMap::get(new_session_id).await == auth::AuthStatus::Ok {
+                                transfer::put(
+                                    new_session_id,
+                                    TaskMessage {
+                                        channel_id,
+                                        command: config::HdcCommand::KernelChannelClose,
+                                        payload: vec![0],
+                                    },
+                                )
+                                .await;
+                            }
+                            real_session_id = new_session_id;
+                        }
+                    }
                 }
+                ylong_runtime::spawn(async move {
+                    if let Err(e) = task::dispatch_task(msg, real_session_id).await {
+                        hdc::error!("dispatch task failed: {}", e.to_string());
+                    }
+                });
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());
@@ -219,18 +358,51 @@ fn get_logger_lv() -> LevelFilter {
     config::LOG_LEVEL_ORDER[lv]
 }
 
+fn get_tcp_port() -> u16 {
+    let shell_command = format!("{} {}", config::SHELL_PARAM_GET, config::ENV_HOST_PORT,);
+    let result = utils::execute_cmd(shell_command);
+    let str_result = String::from_utf8(result);
+    if let Ok(str) = str_result {
+        println!("get_tcp_port from prop,value:{}", str);
+        let mut end = 0;
+        for i in 0..str.len() - 1 {
+            let c = str.as_bytes()[i];
+            if !c.is_ascii_digit() {
+                end = i;
+                break;
+            }
+        }
+        let str2 = str[0..end].to_string();
+        let number = str2.parse::<u16>();
+        if let Ok(num) = number {
+            println!("num:{}", num);
+            return num;
+        } else {
+            println!("num error");
+        }
+    }
+    config::DAEMON_PORT
+}
+
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 2 && args[1] == "-v" {
+        println!("Ver 2.0.0a");
+        return;
+    }
     logger_init(get_logger_lv());
 
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()
         .worker_stack_size(16 * 1024 * 1024)
-        .worker_num(64)
+        .worker_num(256)
         .keep_alive_time(std::time::Duration::from_secs(10))
         .build_global();
 
+    need_drop_root_privileges();
+
     ylong_runtime::block_on(async {
         let tcp_task = ylong_runtime::spawn(async {
-            if let Err(e) = tcp_daemon_start(config::DAEMON_PORT).await {
+            if let Err(e) = tcp_daemon_start(get_tcp_port()).await {
                 println!("[Fail]tcp daemon failed: {}", e);
             }
         });

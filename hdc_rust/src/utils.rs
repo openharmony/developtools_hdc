@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 //! utils
 #![allow(missing_docs)]
 
-use crate::config::SHELL_PROG;
+use crate::config::{SHELL_PARAM_GET, SHELL_PROG};
 
 use std::io::{self, Error, ErrorKind};
 use std::process::Command;
@@ -59,82 +59,162 @@ pub fn execute_cmd(cmd: String) -> Vec<u8> {
     }
 }
 
+pub fn execute_shell_cmd(cmd: String) -> (bool, Vec<u8>) {
+    let result = Command::new(SHELL_PROG).args(["-c", &cmd]).output();
+
+    match result {
+        Ok(output) => (
+            output.stderr.is_empty(),
+            [output.stdout, output.stderr].concat(),
+        ),
+        Err(e) => (false, e.to_string().into_bytes()),
+    }
+}
+
+pub fn get_dev_item(param: &str) -> (bool, String) {
+    let shell_command = format!("{} {}", SHELL_PARAM_GET, param);
+    let (result, message) = execute_shell_cmd(shell_command);
+    print!("parsed cmd: {:#?}", param);
+    if !result {
+        log::error!("parsed cmd: {:#?}, {:#?}", param, message);
+        return (false, "er".to_string());
+    }
+    let msg = String::from_utf8(message);
+    if let Ok(msg) = msg {
+        return (true, msg);
+    }
+    (false, "err".to_string())
+}
+
 pub fn error_other(msg: String) -> Error {
     Error::new(ErrorKind::Other, msg)
 }
 
+pub fn bytes_to_string(message: Vec<u8>) -> String {
+    let msg = String::from_utf8(message);
+    match msg {
+        Ok(str) => str,
+        Err(_e) => "".to_string(),
+    }
+}
+
 pub mod hdc_log {
+    #[cfg(not(feature = "host"))]
     pub use hilog_rust::{hilog, HiLogLabel, LogType};
+    #[cfg(not(feature = "host"))]
     pub use std::ffi::{c_char, CString};
 
+    #[cfg(not(feature = "host"))]
     pub const LOG_LABEL: HiLogLabel = HiLogLabel {
         log_type: LogType::LogCore,
         domain: 0xD002D13,
         tag: "HDC_LOG",
     };
 
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! trace {
         ($($arg:tt)+) => {
-            if(cfg!(feature = "daemon")) {
-                let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-                hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
-            }
+            let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
+            hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::trace!($($arg)+);
         };
     }
 
+    #[cfg(feature = "host")]
+    #[macro_export]
+    macro_rules! trace {
+        ($($arg:tt)+) => {
+            log::trace!($($arg)+);
+        };
+    }
+
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! debug {
         ($($arg:tt)+) => {
-            if(cfg!(feature = "daemon")) {
-                let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-                hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
-            }
+            let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
+            hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::debug!($($arg)+);
         };
     }
 
+    #[cfg(feature = "host")]
+    #[macro_export]
+    macro_rules! debug {
+        ($($arg:tt)+) => {
+            log::debug!($($arg)+);
+        };
+    }
+
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! info {
         ($($arg:tt)+) => {
-            if(cfg!(feature = "daemon")) {
-                let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-                hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
-            }
+            let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
+            hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::info!($($arg)+);
         };
     }
 
+    #[cfg(feature = "host")]
+    #[macro_export]
+    macro_rules! info {
+        ($($arg:tt)+) => {
+            log::info!($($arg)+);
+        };
+    }
+
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! warn {
         ($($arg:tt)+) => {
-            if (cfg!(feature = "daemon")) {
-                let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-                hilog_rust::warn!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
-            }
+            let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
+            hilog_rust::warn!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::warn!($($arg)+);
         };
     }
 
+    #[cfg(feature = "host")]
+    #[macro_export]
+    macro_rules! warn {
+        ($($arg:tt)+) => {
+            log::warn!($($arg)+);
+        };
+    }
+
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! error {
         ($($arg:tt)+) => {
-            if (cfg!(feature = "daemon")) {
-                let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-                hilog_rust::error!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
-            }
+            let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
+            hilog_rust::error!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::error!($($arg)+);
         };
     }
 
+    #[cfg(feature = "host")]
+    #[macro_export]
+    macro_rules! error {
+        ($($arg:tt)+) => {
+            log::error!($($arg)+);
+        };
+    }
+
+    #[cfg(not(feature = "host"))]
     #[macro_export]
     macro_rules! fatal {
         ($($arg:tt)+) => {
-            if(cfg!(feature = "daemon")) {
-                let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-                hilog_rust::fatal!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
-            }
+            let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
+            hilog_rust::fatal!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
+            log::fatal!($($arg)+);
+        };
+    }
+
+    #[cfg(feature = "host")]
+    #[macro_export]
+    macro_rules! fatal {
+        ($($arg:tt)+) => {
             log::fatal!($($arg)+);
         };
     }

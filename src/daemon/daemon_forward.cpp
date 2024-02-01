@@ -31,11 +31,12 @@ HdcDaemonForward::~HdcDaemonForward()
 void HdcDaemonForward::SetupJdwpPointCallBack(uv_idle_t *handle)
 {
     HCtxForward ctxPoint = (HCtxForward)handle->data;
+    uint32_t id = ctxPoint->id;
     HdcDaemonForward *thisClass = reinterpret_cast<HdcDaemonForward *>(ctxPoint->thisClass);
     thisClass->SetupPointContinue(ctxPoint, 1);  // It usually works
     Base::TryCloseHandle((const uv_handle_t *)handle, Base::CloseIdleCallback);
-    WRITE_LOG(LOG_DEBUG, "Setup JdwpPointCallBack finish");
     --thisClass->refCount;
+    WRITE_LOG(LOG_DEBUG, "SetupJdwpPointCallBack finish id:%u", id);
     return;
 }
 
@@ -44,10 +45,11 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
     HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
     HdcJdwp *clsJdwp = (HdcJdwp *)daemon->clsJdwp;
     uint32_t pid = std::stol(ctxPoint->localArgs[1]);
-    if (ctxPoint->checkPoint) {  // checke
+    if (ctxPoint->checkPoint) {
+        uint32_t id = ctxPoint->id;
         bool ret = clsJdwp->CheckPIDExist(pid);
         SetupPointContinue(ctxPoint, (int)ret);
-        WRITE_LOG(LOG_DEBUG, "Jdwp jump checkpoint");
+        WRITE_LOG(LOG_DEBUG, "Jdwp jump checkpoint id:%u", id);
         return true;
     }
     // do slave connect
@@ -79,6 +81,55 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
         return ret;
     }
 
+    ++refCount;
+    Base::IdleUvTask(loopTask, ctxPoint, SetupJdwpPointCallBack);
+    return ret;
+}
+
+bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
+{
+    HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
+    HdcJdwp *clsJdwp = (HdcJdwp *)daemon->clsJdwp;
+    std::string ark = ctxPoint->localArgs[0]; // ark
+    std::string svr = ctxPoint->localArgs[1]; // pid@tid@Debugger
+    std::size_t found = svr.find_first_of("@");
+    if (found == std::string::npos) {
+        SetupPointContinue(ctxPoint, true);
+        WRITE_LOG(LOG_DEBUG, "SetupArkPoint failed id:%s", svr.c_str());
+        ctxPoint->lastError = ark + ":" + svr + " parameter invalid";
+        return false;
+    }
+    std::string pidstr = svr.substr(0, found);
+    uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
+    bool ret = clsJdwp->CheckPIDExist(pid);
+    if (!ret) {
+        SetupPointContinue(ctxPoint, (int)ret);
+        WRITE_LOG(LOG_WARN, "SetupArkPoint failed pid:%u not exist", pid);
+        ctxPoint->lastError = ark + ":" + svr + " pid invalid";
+        return false;
+    }
+    // do slave connect
+    // fd[0] for forward, fd[1] for ark
+    ret = false;
+    Base::CreateSocketPair(fds);
+    std::string str = ark + ":" + svr;
+    uint32_t size = 1 + sizeof(int32_t) + str.size();
+    uint8_t buf[size];
+    buf[0] = SP_ARK_NEWFD;
+    if (memcpy_s(buf + 1, sizeof(int32_t), &fds[1], sizeof(int32_t)) ||
+        memcpy_s(buf + 1 + sizeof(int32_t), str.size(), str.c_str(), str.size())) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
+    // buf: SP_ARK_NEWFD | fd[1] | pid@tid@Debugger
+    if (ThreadCtrlCommunicate(buf, size) > 0) {
+        ret = true;
+    }
+    WRITE_LOG(LOG_DEBUG, "SetupArkPoint Finish,ret:%d fd0:%d fd1:%d", ret, fds[0], fds[1]);
+    if (!ret) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
     ++refCount;
     Base::IdleUvTask(loopTask, ctxPoint, SetupJdwpPointCallBack);
     return ret;

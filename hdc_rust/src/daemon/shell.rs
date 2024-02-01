@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,10 +15,10 @@
 //! shell
 #![allow(missing_docs)]
 
-use hdc::common::hsession::TaskMessage;
+use crate::utils::hdc_log::*;
+use hdc::config::TaskMessage;
 use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
 use hdc::transfer;
-use hdc::utils::hdc_log::*;
 
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, Read as _, Write as _};
@@ -156,7 +156,7 @@ nix::ioctl_write_ptr_bad!(set_controlling_terminal, libc::TIOCSCTTY, libc::c_int
 
 pub struct PtyTask {
     pub handle: ylong_runtime::task::JoinHandle<()>,
-    pub tx: mpsc::BoundedSender<u8>,
+    pub tx: mpsc::BoundedSender<Vec<u8>>,
 }
 
 struct PtyProcess {
@@ -230,14 +230,13 @@ async fn subprocess_task(
     session_id: u32,
     channel_id: u32,
     ret_command: HdcCommand,
-    mut rx: mpsc::BoundedReceiver<u8>,
+    mut rx: mpsc::BoundedReceiver<Vec<u8>>,
 ) {
     let mut pty_process = init_pty_process(cmd, channel_id).unwrap();
-    let mut buf = [0_u8; 4096];
+    let mut buf = [0_u8; 30720];
 
     loop {
-        ylong_runtime::time::sleep(Duration::from_millis(5)).await;
-        let mut tv = nix::sys::time::TimeVal::new(0, 5000);
+        let mut tv = nix::sys::time::TimeVal::new(0, 50000);
         let mut set = nix::sys::select::FdSet::new();
         set.insert(pty_process.pty_fd);
 
@@ -256,11 +255,9 @@ async fn subprocess_task(
             }
         }
 
-        if let Ok(val) = rx.recv_timeout(Duration::from_millis(5)).await {
-            let v = vec![val];
-            let mv = &v[..];
-            pty_process.pty.write_all(mv).unwrap();
-            if mv[..].contains(&0x4_u8) {
+        if let Ok(val) = rx.recv_timeout(Duration::from_millis(50)).await {
+            pty_process.pty.write_all(&val).unwrap();
+            if val[..].contains(&0x4_u8) {
                 // ctrl-D: end pty
                 hdc::info!("ctrl-D: end pty");
                 break;
@@ -295,7 +292,7 @@ impl PtyTask {
         cmd: Option<String>,
         ret_command: HdcCommand,
     ) -> Self {
-        let (tx, rx) = ylong_runtime::sync::mpsc::bounded_channel::<u8>(16);
+        let (tx, rx) = ylong_runtime::sync::mpsc::bounded_channel::<Vec<u8>>(16);
         let handle = ylong_runtime::spawn(subprocess_task(
             cmd,
             session_id,

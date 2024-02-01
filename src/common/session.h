@@ -172,9 +172,9 @@ protected:
         if (ptrTask == nullptr) {
             return true;
         }
-        if (OP_CLEAR == op) {
+        if (op == OP_CLEAR) {
             ptrTask->StopTask();
-        } else if (OP_REMOVE == op) {
+        } else if (op == OP_REMOVE) {
             if (!ptrTask->ReadyForRelease()) {
                 return false;
             }

@@ -31,9 +31,6 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     constexpr int DEF_FILE_PERMISSION = 0750;
-#ifndef HDC_HOST
-    sigset_t g_blockList;
-#endif
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -131,7 +128,7 @@ namespace Base {
         string text(str);
         uv_buf_t wbf = uv_buf_init((char *)str, text.size());
         uv_fs_req_cleanup(&req);
-        uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
+        uv_fs_write(nullptr, &req, fd, &wbf, 1, -1, nullptr);
         uv_fs_close(nullptr, &req, fd, nullptr);
 #endif
     }
@@ -292,7 +289,7 @@ namespace Base {
         return tmpString;
     }
 
-    void SetTcpOptions(uv_tcp_t *tcpHandle)
+    void SetTcpOptions(uv_tcp_t *tcpHandle, int bufMaxSize)
     {
         if (!tcpHandle) {
             return;
@@ -300,7 +297,7 @@ namespace Base {
         uv_tcp_keepalive(tcpHandle, 1, GLOBAL_TIMEOUT);
         // if MAX_SIZE_IOBUF==5k,bufMaxSize at least 40k. It must be set to io 8 times is more appropriate,
         // otherwise asynchronous IO is too fast, a lot of IO is wasted on IOloop, transmission speed will decrease
-        int bufMaxSize = HDC_SOCKETPAIR_SIZE;
+
         uv_recv_buffer_size((uv_handle_t *)tcpHandle, &bufMaxSize);
         uv_send_buffer_size((uv_handle_t *)tcpHandle, &bufMaxSize);
     }
@@ -356,11 +353,11 @@ namespace Base {
         constexpr int maxRetry = 3;
         for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
             if (uv_loop_close(ptrLoop) == UV_EBUSY) {
-                if (closeRetry > 2) {
+                if (closeRetry > 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
                     WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
                 }
 
-                if (ptrLoop->active_handles >= 2) {
+                if (ptrLoop->active_handles >= 2) { // 2:at least 2 handles for read & write.
                     WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
                 }
                 auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
@@ -374,8 +371,60 @@ namespace Base {
                     ret = true;
                     break;
                 }
-                usleep(10000);
+                usleep(10000); // 10000:sleep for 10s
             } else {
+                WRITE_LOG(LOG_DEBUG, "Try close loop success");
+                ret = true;
+                break;
+            }
+        }
+        return ret;
+    }
+
+    // xxx must keep sync with uv_loop_close/uv_walk etc.
+    bool TryCloseChildLoop(uv_loop_t *ptrLoop, const char *callerName)
+    {
+        // UV_RUN_DEFAULT: Runs the event loop until the reference count drops to zero. Always returns zero.
+        // UV_RUN_ONCE:    Poll for new events once. Note that this function blocks if there are no pending events.
+        //                 Returns zero when done (no active handles or requests left), or non-zero if more events are
+        //                 expected meaning you should run the event loop again sometime in the future).
+        // UV_RUN_NOWAIT:  Poll for new events once but don't block if there are no pending events.
+        uint8_t closeRetry = 0;
+        bool ret = false;
+        constexpr int maxRetry = 3;
+        for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
+            if (uv_loop_close(ptrLoop) == UV_EBUSY) {
+                if (closeRetry > 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
+                    WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
+                }
+
+                if (ptrLoop->active_handles >= 2) { // 2:at least 2 handles for read & write.
+                    WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
+                }
+                auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
+                uv_walk(ptrLoop, clearLoopTask, nullptr);
+#ifdef HDC_HOST
+                // If all processing ends, Then return0,this call will block
+                if (!ptrLoop->active_handles) {
+                    ret = true;
+                    break;
+                }
+                if (!uv_run(ptrLoop, UV_RUN_ONCE)) {
+                    ret = true;
+                    break;
+                }
+                usleep(10000); // 10000:sleep for 10s
+#else
+                int r = 0;
+                int count = 0;
+                do {
+                    count++;
+                    r = uv_run(ptrLoop, UV_RUN_ONCE);
+                    uv_sleep(MILL_SECONDS); //10 millseconds
+                } while (r != 0 && count <= COUNT);
+#endif
+            } else {
+                WRITE_LOG(LOG_DEBUG, "Try close loop success");
                 ret = true;
                 break;
             }
@@ -448,10 +497,6 @@ namespace Base {
                 delete reqWrite;
                 break;
             }
-#ifdef HDC_DEBUG
-            WRITE_LOG(LOG_ALL, "SendToStreamEx %p, uv_write %p:%p, size:%lu", handleStream,
-                      reqWrite, reqWrite->data, bfr.len);
-#endif
             // handleSend must be a TCP socket or pipe, which is a server or a connection (listening or
             // connected state). Bound sockets or pipes will be assumed to be servers.
             if (handleSend) {
@@ -857,7 +902,7 @@ namespace Base {
         fl.l_whence = SEEK_SET;
         fl.l_len = 0;
         int retChild = fcntl(fd, F_SETLK, &fl);
-        if (-1 == retChild) {
+        if (retChild == -1) {
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
             uv_fs_close(nullptr, &req, fd, nullptr);
             return 1;
@@ -1166,7 +1211,6 @@ namespace Base {
     bool TryCreateDirectory(const string &path, string &err)
     {
         uv_fs_t req;
-        WRITE_LOG(LOG_DEBUG, "TryCreateDirectory path = %s", path.c_str());
         int r = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
         mode_t mode = req.statbuf.st_mode;
         uv_fs_req_cleanup(&req);
@@ -1175,7 +1219,10 @@ namespace Base {
             r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
             uv_fs_req_cleanup(&req);
             if (r < 0) {
-                WRITE_LOG(LOG_WARN, "create dir %s failed", path.c_str());
+                constexpr int bufSize = 1024;
+                char buf[bufSize] = { 0 };
+                uv_strerror_r((int)req.result, buf, bufSize);
+                WRITE_LOG(LOG_WARN, "create dir %s failed %s", path.c_str(), buf);
                 err = "Error create directory, path:";
                 err += path.c_str();
                 return false;
@@ -1612,9 +1659,6 @@ namespace Base {
     int CloseFd(int &fd)
     {
         int rc = 0;
-#ifndef HDC_HOST
-        WRITE_LOG(LOG_INFO, "CloseFd fd:%d", fd);
-#endif
         if (fd > 0) {
             rc = close(fd);
             if (rc < 0) {
@@ -1624,7 +1668,7 @@ namespace Base {
 #else
                 strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
 #endif
-                WRITE_LOG(LOG_WARN, "close failed errno:%d %s", errno, buffer);
+                WRITE_LOG(LOG_WARN, "close fd: %d failed errno:%d %s", fd, errno, buffer);
             } else {
                 fd = -1;
             }
@@ -1634,21 +1678,17 @@ namespace Base {
 
     void InitProcess(void)
     {
-#ifndef HDC_HOST
+#ifndef _WIN32
         umask(0);
         signal(SIGPIPE, SIG_IGN);
         signal(SIGCHLD, SIG_IGN);
         signal(SIGALRM, SIG_IGN);
-        sigemptyset(&g_blockList);
-        constexpr int crashSignal = 35;
-        sigaddset(&g_blockList, crashSignal);
-        sigprocmask(SIG_BLOCK, &g_blockList, NULL);
 #endif
     }
 
     void DeInitProcess(void)
     {
-#ifndef HDC_HOST
+#ifndef _WIN32
         mode_t writePermission = 022;
         umask(writePermission);
         signal(SIGPIPE, SIG_DFL);

@@ -24,7 +24,7 @@ HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
 
 HdcDaemonUnity::~HdcDaemonUnity()
 {
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonUnity::~HdcDaemonUnity finish");
+    WRITE_LOG(LOG_DEBUG, "~HdcDaemonUnity channelId:%u", taskInfo->channelId);
 }
 
 void HdcDaemonUnity::StopTask()
@@ -37,6 +37,7 @@ void HdcDaemonUnity::StopTask()
 bool HdcDaemonUnity::ReadyForRelease()
 {
     if (!HdcTaskBase::ReadyForRelease() || !asyncCommand.ReadyForRelease()) {
+        WRITE_LOG(LOG_DEBUG, "not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     return true;
@@ -222,9 +223,13 @@ inline bool HdcDaemonUnity::ListJdwpProcess(void *daemonIn)
     return true;
 }
 
-inline bool HdcDaemonUnity::TrackJdwpProcess(void *daemonIn)
+inline bool HdcDaemonUnity::TrackJdwpProcess(void *daemonIn, const string& param)
 {
     HdcDaemon *daemon = static_cast<HdcDaemon *>(daemonIn);
+    taskInfo->debugRelease = 1;
+    if (param == "p") {
+        taskInfo->debugRelease = 0;
+    }
     if (!((static_cast<HdcJdwp *>(daemon->clsJdwp))->CreateJdwpTracker(taskInfo))) {
         string result = MESSAGE_FAIL;
         LogMsg(MSG_OK, result.c_str());
@@ -307,7 +312,7 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
             break;
         }
         case CMD_JDWP_TRACK: {
-            if (!TrackJdwpProcess(daemon)) {
+            if (!TrackJdwpProcess(daemon, strPayload)) {
                 ret = false;
             }
             break;

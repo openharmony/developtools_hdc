@@ -64,6 +64,7 @@ void *HdcJdwp::MallocContext()
     if ((ctx = new ContextJdwp()) == nullptr) {
         return nullptr;
     }
+    ctx->isDebug = 0;
     ctx->thisClass = this;
     ctx->pipe.data = ctx;
     ++refCount;
@@ -83,10 +84,15 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         AdminContext(OP_REMOVE, ctx->pid, nullptr);
     }
     auto funcReqClose = [](uv_idle_t *handle) -> void {
-        HCtxJdwp ctx = (HCtxJdwp)handle->data;
-        --ctx->thisClass->refCount;
+        HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
+        --ctxIn->thisClass->refCount;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
-        delete ctx;
+#ifndef HDC_EMULATOR
+        if (ctxIn != nullptr) {
+            delete ctxIn;
+            ctxIn = nullptr;
+        }
+#endif
     };
     Base::IdleUvTask(loop, ctx, funcReqClose);
 }
@@ -111,7 +117,8 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     } else if (nread == 0) {
         return;
 #ifdef JS_JDWP_CONNECT
-    } else if (nread < JS_PKG_MIN_SIZE || nread > JS_PKG_MX_SIZE) { // valid Js package size
+    } else if (nread < signed(JS_PKG_MIN_SIZE + sizeof(JsMsgHeader)) ||
+               nread > signed(JS_PKG_MAX_SIZE + sizeof(JsMsgHeader))) {
 #else
     } else if (nread < 0 || nread != 4) {  // 4 : 4 bytes
 #endif  // JS_JDWP_CONNECT
@@ -128,11 +135,13 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
             pid = atoi(p);
         } else {  // JS:pid PkgName
 #ifdef JS_JDWP_CONNECT
+            // pid isDebug pkgName/processName
             struct JsMsgHeader *jsMsg = reinterpret_cast<struct JsMsgHeader *>(p);
             if (jsMsg->msgLen == nread) {
                 pid = jsMsg->pid;
                 string pkgName = string((char *)p + sizeof(JsMsgHeader), jsMsg->msgLen - sizeof(JsMsgHeader));
                 ctxJdwp->pkgName = pkgName;
+                ctxJdwp->isDebug = jsMsg->isDebug;
             } else {
                 ret = false;
                 WRITE_LOG(LOG_DEBUG, "HdcJdwp::ReadStream invalid js package size %d:%d.", jsMsg->msgLen, nread);
@@ -142,7 +151,8 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
         if (pid > 0) {
             ctxJdwp->pid = pid;
 #ifdef JS_JDWP_CONNECT
-            WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s", pid, ctxJdwp->pkgName.c_str());
+            WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s isDebug:%d",
+                pid, ctxJdwp->pkgName.c_str(), ctxJdwp->isDebug);
 #else
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d", pid);
 #endif  // JS_JDWP_CONNECT
@@ -169,13 +179,26 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 }
 
 #ifdef JS_JDWP_CONNECT
-string HdcJdwp::GetProcessListExtendPkgName()
+string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
 {
     string ret;
     uv_rwlock_rdlock(&lockMapContext);
     for (auto &&v : mapCtxJdwp) {
         HCtxJdwp hj = v.second;
-        ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+        if (dr == 0) {
+            // allApp
+            ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+        } else if (dr == 1) {
+            // debugApp
+            if (hj->isDebug) {
+                ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+            }
+        } else {
+            // releaseApp
+            if (!hj->isDebug) {
+                ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
+            }
+        }
     }
     uv_rwlock_rdunlock(&lockMapContext);
     return ret;
@@ -228,6 +251,7 @@ bool HdcJdwp::JdwpListen()
             return ret;
         }
         if (uv_listen((uv_stream_t *)&listenPipe, DEFAULT_BACKLOG, AcceptClient)) {
+            WRITE_LOG(LOG_FATAL, "uv_listen failed");
             break;
         }
         ++refCount;
@@ -339,10 +363,7 @@ void HdcJdwp::SendCallbackJdwpNewFD(uv_write_t *req, int status)
     } else {
         WRITE_LOG(LOG_WARN, "SendCallbackJdwpNewFD failed %d", ctx->pid);
     }
-    // close my process's fd
-    Base::TryCloseHandle((const uv_handle_t *)&ctx->jvmTCP);
     delete req;
-    --ctx->thisClass->refCount;
 }
 
 // Each session calls the interface through the main thread message queue, which cannot be called directly across
@@ -378,6 +399,77 @@ bool HdcJdwp::SendJdwpNewFD(uint32_t targetPID, int fd)
     return ret;
 }
 
+bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
+{
+    bool ret = false;
+    while (true) {
+        // str(ark:pid@tid@Debugger)
+        size_t pos = str.find_first_of(':');
+        std::string right = str.substr(pos + 1);
+        pos = right.find_first_of("@");
+        std::string pidstr = right.substr(0, pos);
+        uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
+        HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
+        if (!ctx) {
+            WRITE_LOG(LOG_FATAL, "SendArkNewFD query pid:%u failed", pid);
+            break;
+        }
+        uint32_t size = sizeof(int32_t) + str.size();
+        // fd | str(ark:pid@tid@Debugger)
+        uint8_t buf[size];
+        if (memcpy_s(buf, sizeof(int32_t), &fd, sizeof(int32_t)) != EOK) {
+            WRITE_LOG(LOG_WARN, "From fd Create buf failed, fd:%d", fd);
+            return false;
+        }
+        if (memcpy_s(buf + sizeof(int32_t), str.size(), str.c_str(), str.size()) != EOK) {
+            WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
+            return false;
+        }
+        uv_stream_t *stream = (uv_stream_t *)&ctx->pipe;
+        SendFdToApp(stream->io_watcher.fd, buf, size, fd);
+        ret = true;
+        WRITE_LOG(LOG_DEBUG, "SendArkNewFD successful str:%s fd%d", str.c_str(), fd);
+        Base::CloseFd(fd);
+        break;
+    }
+    return ret;
+}
+
+bool HdcJdwp::SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
+{
+    struct iovec iov;
+    iov.iov_base = buf;
+    iov.iov_len = static_cast<unsigned int>(size);
+    struct msghdr msg;
+    msg.msg_name = nullptr;
+    msg.msg_namelen = 0;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    int len = CMSG_SPACE(static_cast<unsigned int>(sizeof(fd)));
+    char ctlBuf[len];
+    msg.msg_control = ctlBuf;
+    msg.msg_controllen = sizeof(ctlBuf);
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+    if (cmsg == nullptr) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp cmsg is nullptr");
+        return false;
+    }
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+    if (memcpy_s(CMSG_DATA(cmsg), sizeof(fd), &fd, sizeof(fd)) != 0) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp memcpy error:%d", errno);
+        return false;
+    }
+    if (sendmsg(sockfd, &msg, 0) < 0) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp sendmsg errno:%d", errno);
+        return false;
+    }
+    return true;
+}
+
 // cross thread call begin
 bool HdcJdwp::CheckPIDExist(uint32_t targetPID)
 {
@@ -397,13 +489,13 @@ string HdcJdwp::GetProcessList()
 }
 // cross thread call finish
 
-size_t HdcJdwp::JdwpProcessListMsg(char *buffer, size_t bufferlen)
+size_t HdcJdwp::JdwpProcessListMsg(char *buffer, size_t bufferlen, uint8_t dr)
 {
     // Message is length-prefixed with 4 hex digits in ASCII.
     static constexpr size_t headerLen = 5;
     char head[headerLen + 2];
 #ifdef JS_JDWP_CONNECT
-    string result = GetProcessListExtendPkgName();
+    string result = GetProcessListExtendPkgName(dr);
 #else
     string result = GetProcessList();
 #endif // JS_JDWP_CONNECT
@@ -443,7 +535,6 @@ void HdcJdwp::SendProcessList(HTaskInfo t, string data)
 void HdcJdwp::ProcessListUpdated(HTaskInfo task)
 {
     if (jdwpTrackers.size() <= 0) {
-        WRITE_LOG(LOG_DEBUG, "None jdwpTrackers.");
         return;
     }
 #ifdef JS_JDWP_CONNECT
@@ -452,14 +543,13 @@ void HdcJdwp::ProcessListUpdated(HTaskInfo task)
     static constexpr uint32_t jpidTrackListSize = 1024;
 #endif // JS_JDWP_CONNECT
     std::string data;
-    data.resize(jpidTrackListSize);
-    size_t len = JdwpProcessListMsg(&data[0], data.size());
-    if (len <= 0) {
-        return;
-    }
-    data.resize(len);
     if (task != nullptr) {
-        SendProcessList(task, data);
+        data.resize(jpidTrackListSize);
+        size_t len = JdwpProcessListMsg(&data[0], data.size(), task->debugRelease);
+        if (len > 0) {
+            data.resize(len);
+            SendProcessList(task, data);
+        }
         return;
     }
     for (auto iter = jdwpTrackers.begin(); iter != jdwpTrackers.end();) {
@@ -473,7 +563,12 @@ void HdcJdwp::ProcessListUpdated(HTaskInfo task)
                 return;
             }
         } else {
-            SendProcessList(*iter, data);
+            data.resize(jpidTrackListSize);
+            size_t len = JdwpProcessListMsg(&data[0], data.size(), (*iter)->debugRelease);
+            if (len > 0) {
+                data.resize(len);
+                SendProcessList(*iter, data);
+            }
             iter++;
         }
     }

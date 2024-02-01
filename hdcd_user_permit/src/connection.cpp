@@ -1,0 +1,122 @@
+/*
+ * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "common.h"
+#include "connection.h"
+#include "extension_manager_proxy.h"
+#include <semaphore.h>
+
+namespace OHOS {
+namespace HDC {
+namespace AUTH {
+
+using namespace std;
+using namespace AAFwk;
+
+bool HdcdConnection::GetSettingBundleName(string &bundle)
+{
+    FILE *fp;
+    int bytesRead;
+    const int bufSize = 256;
+    char buf[bufSize] = { 0 };
+
+    fp = popen("bm dump -a | grep \"com.*.settings$\"", "r");
+    if (!fp) {
+        AUTH_LOGE("open pipe failed");
+        return false;
+    }
+    bytesRead = fread(buf, sizeof(char), bufSize, fp);
+    
+    string prefix = "com.";
+    string suffix = ".settings";
+    if (bytesRead > 0) {
+        bundle.assign(buf, bytesRead);
+        bundle.erase(0, bundle.find(prefix));
+        bundle.erase(bundle.rfind(suffix) + suffix.length());
+        AUTH_LOGI("get setting bundle name success");
+    } else {
+        AUTH_LOGE("get setting bundle name failed");
+    }
+    pclose(fp);
+
+    return bytesRead > 0;
+}
+
+void HdcdConnection::OnAbilityConnectDone(const AppExecFwk::ElementName &element,
+    const sptr<IRemoteObject> &remoteObject, int32_t resultCode)
+{
+    MessageParcel data;
+    MessageParcel reply;
+    MessageOption option;
+    const int paramNum = 3;
+    string bundleName;
+    string abilityName = "USBDebugDialog";
+    string parameters = "{\"ability.want.params.uiExtensionType\":\"sysDialog/common\",\"sysDialogZOrder\":2}";
+
+    AUTH_LOGE("connect success");
+
+    if (!GetSettingBundleName(bundleName)) {
+        AUTH_LOGE("Connect done get setting bundle error");
+        return;
+    }
+
+    data.WriteInt32(paramNum);
+    data.WriteString16(Str8ToStr16("bundleName"));
+    data.WriteString16(Str8ToStr16(bundleName));
+    data.WriteString16(Str8ToStr16("abilityName"));
+    data.WriteString16(Str8ToStr16(abilityName));
+
+    data.WriteString16(Str8ToStr16("parameters"));
+    data.WriteString16(Str8ToStr16(parameters));
+
+    if (!data.WriteParcelable(&element)) {
+        AUTH_LOGE("Connect done element error");
+        return;
+    }
+    if (!data.WriteRemoteObject(remoteObject)) {
+        AUTH_LOGE("Connect done remote object error");
+        return;
+    }
+    if (!data.WriteInt32(resultCode)) {
+        AUTH_LOGE("Connect done result code error");
+        return;
+    }
+
+    int32_t ret = remoteObject->SendRequest(IAbilityConnection::ON_ABILITY_CONNECT_DONE, data, reply, option);
+    showDialogResult = (ret == 0);
+    sem_post(&sem);
+    AUTH_LOGE("SendRequest(bundle(%s)ability(%s)parameters(%s)) ret(%d)",
+              bundleName.c_str(), abilityName.c_str(), parameters.c_str(), ret);
+}
+
+bool HdcdConnection::GetShowDialogResult(void)
+{
+    AUTH_LOGE("wait for dialog ability");
+    sem_wait(&sem);
+    sem_destroy(&sem);
+    AUTH_LOGE("wait dialog ability over");
+    return showDialogResult;
+}
+
+void HdcdConnection::OnAbilityDisconnectDone(const AppExecFwk::ElementName &element,
+    int32_t resultCode)
+{
+    AUTH_LOGE("disconnect success");
+}
+
+} // namespace AUTH
+} // namespace HDC
+} // namespace OHOS
+

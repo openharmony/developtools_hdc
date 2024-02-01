@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,6 +18,7 @@ pub mod base;
 pub mod buffer;
 pub mod tcp;
 pub mod uart;
+pub mod uart_wrapper;
 pub mod usb;
 pub use buffer::put;
 pub use buffer::send_channel_data;
@@ -28,3 +29,7 @@ pub use buffer::EchoLevel;
 pub use buffer::TcpMap;
 pub use buffer::UartMap;
 pub use buffer::UsbMap;
+pub use uart::uart_close;
+pub use uart_wrapper::start_session;
+pub use uart_wrapper::start_uart;
+pub use uart_wrapper::wrap_put;

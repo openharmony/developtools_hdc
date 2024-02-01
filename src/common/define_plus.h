@@ -159,6 +159,7 @@ enum InnerCtrlCommand {
     SP_ATTACH_CHANNEL,
     SP_DEATCH_CHANNEL,
     SP_JDWP_NEWFD,
+    SP_ARK_NEWFD,
 };
 
 enum HdcCommand {
@@ -282,6 +283,7 @@ struct TaskInformation {
     uint32_t closeRetryCount;
     bool channelTask;
     void *channelClass;
+    uint8_t debugRelease; // 0:allApp 1:debugApp 2:releaseApp
 };
 using HTaskInfo = TaskInformation *;
 
@@ -289,10 +291,10 @@ using HTaskInfo = TaskInformation *;
 
 #ifdef HDC_HOST
 struct HostUSBEndpoint {
-    HostUSBEndpoint()
+    HostUSBEndpoint(uint16_t epBufSize)
     {
         endpoint = 0;
-        sizeEpBuf = 62464;  // MAX_USBFFS_BULK
+        sizeEpBuf = epBufSize;  // MAX_USBFFS_BULK
         transfer = libusb_alloc_transfer(0);
         isShutdown = true;
         isComplete = true;
@@ -331,6 +333,7 @@ struct HdcUSB {
     std::string usbMountPoint;
     HostUSBEndpoint hostBulkIn;
     HostUSBEndpoint hostBulkOut;
+    HdcUSB() : hostBulkIn(63488), hostBulkOut(62464) {} // 62464 MAX_USBFFS_BULK + 1024 = 63488 
 
 #else
     // usb accessory FunctionFS
@@ -533,6 +536,7 @@ struct HdcForwardInformation {
     bool forwardDirection;  // true for forward, false is reverse;
     uint32_t sessionId;
     uint32_t channelId;
+    std::string connectKey;
 };
 using HForwardInfo = struct HdcForwardInformation *;
 }

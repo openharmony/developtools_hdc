@@ -95,6 +95,7 @@ bool HdcServer::Initial(const char *listenString)
     clsTCPClt = new HdcHostTCP(true, this);
     clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
     if (clsUSBClt->Initial() != RET_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "clsUSBClt Initial failed");
         return false;
     }
     if (!clsServerForClient || !clsTCPClt || !clsUSBClt) {
@@ -398,6 +399,7 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
     HDaemonInfo hdiOld = nullptr;
     AdminDaemonMap(OP_QUERY, hSession->connectKey, hdiOld);
     if (hdiOld == nullptr) {
+        WRITE_LOG(LOG_FATAL, "NotifyInstanceSessionFree hdiOld nullptr");
         return;
     }
     if (!freeOrClear) {  // step1
@@ -426,53 +428,39 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
 
 bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
 {
-    bool ret = false;
-    int retChild = 0;
     string bufString;
     switch (handshake.authType) {
-        case AUTH_TOKEN: {
-            void *ptr = nullptr;
-            bool retChildForToken = HdcAuth::KeylistIncrement(hSession->listKey, hSession->authKeyIndex, &ptr);
-            // HdcAuth::FreeKey will be effect at function 'FreeSession'
-            if (!retChildForToken) {
-                // Iteration call certificate authentication
-                handshake.authType = AUTH_PUBLICKEY;
-                ret = HandServerAuth(hSession, handshake);
-                break;
-            }
-            char sign[BUF_SIZE_DEFAULT2] = { 0 };
-            retChildForToken = HdcAuth::AuthSign(ptr, reinterpret_cast<const unsigned char *>(handshake.buf.c_str()),
-                                                 handshake.buf.size(), sign);
-            if (!retChildForToken) {
-                break;
-            }
-            handshake.buf = string(sign, retChildForToken);
-            handshake.authType = AUTH_SIGNATURE;
-            bufString = SerialStruct::SerializeToString(handshake);
-            Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
-                 reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
-            ret = true;
-            break;
-        }
         case AUTH_PUBLICKEY: {
-            char bufPrivateKey[BUF_SIZE_DEFAULT2] = "";
-            retChild = HdcAuth::GetPublicKeyFileBuf(reinterpret_cast<unsigned char *>(bufPrivateKey),
-                                                    sizeof(bufPrivateKey));
-            if (!retChild) {
-                break;
+            WRITE_LOG(LOG_INFO, "recive get publickey cmd");
+            if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
+                WRITE_LOG(LOG_FATAL, "load public key failed");
+                return false;
             }
-            handshake.buf = string(bufPrivateKey, retChild);
             handshake.authType = AUTH_PUBLICKEY;
             bufString = SerialStruct::SerializeToString(handshake);
             Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
                  reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
-            ret = true;
-            break;
+
+            WRITE_LOG(LOG_INFO, "send pubkey over");
+            return true;
+        }
+        case AUTH_SIGNATURE: {
+            WRITE_LOG(LOG_INFO, "recive auth signture cmd");
+            if (!HdcAuth::RsaSignAndBase64(handshake.buf)) {
+                WRITE_LOG(LOG_FATAL, "sign failed");
+                return false;
+            }
+            handshake.authType = AUTH_SIGNATURE;
+            bufString = SerialStruct::SerializeToString(handshake);
+            Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
+                 reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+            WRITE_LOG(LOG_INFO, "response auth signture success");
+            return true;
         }
         default:
-            break;
+            WRITE_LOG(LOG_FATAL, "invalid auth type %d", handshake.authType);
+            return false;
     }
-    return ret;
 }
 
 bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize)
@@ -551,6 +539,7 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         return ret;
     }
     if (hChannel->isDead) {
+        WRITE_LOG(LOG_FATAL, "FetchCommand channelId:%u isDead", channelId);
         --hChannel->ref;
         return ret;
     }
@@ -585,6 +574,7 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             int offset = 2;
             pdiNew->channelId = channelId;
             pdiNew->sessionId = hSession->sessionId;
+            pdiNew->connectKey = hSession->connectKey;
             pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
             pdiNew->taskString = reinterpret_cast<char *>(payload) + offset;
             AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
@@ -605,10 +595,6 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_APP_FINISH:
             if (hChannel->fromClient) {
                 // server directly passthrough app command to client if remote file mode, else go default
-                if (command != CMD_FILE_DATA) {
-                    WRITE_LOG(LOG_DEBUG, "command passthrough to client command:%u channelId:%u",
-                        command, channelId);
-                }
                 sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
                 break;
             }
@@ -630,7 +616,7 @@ void HdcServer::BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, str
 {
     string buf;
     if (fullOrSimble) {
-        buf = Base::StringFormat("'%s'\t%s\n", hfi->taskString.c_str(),
+        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.c_str(),
                                  hfi->forwardDirection ? "[Forward]" : "[Reverse]");
     } else {
         buf = Base::StringFormat("%s\n", hfi->taskString.c_str());
@@ -715,14 +701,8 @@ void HdcServer::UsbPreConnect(uv_timer_t *handle)
     HSession hSession = (HSession)handle->data;
     bool stopLoop = false;
     HdcServer *hdcServer = (HdcServer *)hSession->classInstance;
-    const int usbConnectRetryMax = 5;
     while (true) {
         WRITE_LOG(LOG_DEBUG, "HdcServer::UsbPreConnect");
-        if (++hSession->hUSB->retryCount > usbConnectRetryMax) {  // max 15s
-            hdcServer->FreeSession(hSession->sessionId);
-            stopLoop = true;
-            break;
-        }
         HDaemonInfo pDi = nullptr;
         if (hSession->connectKey == "any") {
             hdcServer->AdminDaemonMap(OP_GET_ANY, hSession->connectKey, pDi);
@@ -835,10 +815,15 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
 #endif
     } else {
         hSession = MallocSession(true, CONN_USB, clsUSBClt);
+        if (!hSession) {
+            WRITE_LOG(LOG_FATAL, "CreateConnect malloc usb session failed %s", connectKey.c_str());
+            return ERR_BUF_ALLOC;
+        }
         hSession->connectKey = connectKey;
         uv_timer_t *waitTimeDoCmd = new(std::nothrow) uv_timer_t;
         if (waitTimeDoCmd == nullptr) {
             WRITE_LOG(LOG_FATAL, "CreateConnect new waitTimeDoCmd failed");
+            FreeSession(hSession->sessionId);
             return ERR_GENERIC;
         }
         uv_timer_init(&loopMain, waitTimeDoCmd);
@@ -846,6 +831,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         uv_timer_start(waitTimeDoCmd, UsbPreConnect, 10, 100);
     }
     if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "CreateConnect hSession nullptr");
         return ERR_BUF_ALLOC;
     }
     HDaemonInfo hdiQuery = nullptr;

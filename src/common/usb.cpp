@@ -32,6 +32,7 @@ void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
     HSession hSession = (HSession)stream->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
+        WRITE_LOG(LOG_FATAL, "ReadUSB FetchIOBuf error sessionId:%u", hSession->sessionId);
         hSessionBase->FreeSession(hSession->sessionId);
     }
 }
@@ -47,7 +48,11 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
     }
     hSession->dataPipe[STREAM_WORK].data = hSession;
     HdcSessionBase *pSession = (HdcSessionBase *)hSession->classInstance;
+#ifdef HDC_HOST
+    Base::SetTcpOptions(&hSession->dataPipe[STREAM_WORK], HOST_SOCKETPAIR_SIZE);
+#else
     Base::SetTcpOptions(&hSession->dataPipe[STREAM_WORK]);
+#endif
     if (uv_read_start((uv_stream_t *)&hSession->dataPipe[STREAM_WORK], pSession->AllocCallback, ReadUSB)) {
         WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed");
         return false;

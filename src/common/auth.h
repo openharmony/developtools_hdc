@@ -24,6 +24,11 @@ const uint8_t RSA_TOKEN_SIZE = 20;  // SHA_DIGEST_LENGTH
 bool KeylistIncrement(list<void *> *listKey, uint8_t &authKeyIndex, void **out);
 void FreeKey(bool publicOrPrivate, list<void *> *listKey);
 
+#ifdef HDC_HOST
+bool RsaSignAndBase64(string &buf);
+bool GetPublicKeyinfo(string &pubkey_info);
+#endif
+
 // host
 bool GenerateKey(const char *file);
 int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig);

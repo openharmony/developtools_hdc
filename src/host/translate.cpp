@@ -238,8 +238,13 @@ namespace TranslateCommand {
         } else {
             const char *p = input + 6;
             // clang-format off
-            if (strncmp(p, "tcp:", 4) && strncmp(p, "localabstract:", 14) && strncmp(p, "localreserved:", 14) &&
-                strncmp(p, "localfilesystem:", 16) && strncmp(p, "dev:", 4) && strncmp(p, "jdwp:", 5)) {
+            if (strncmp(p, "tcp:", 4) && // 4: "tcp:" size
+                strncmp(p, "localabstract:", 14) && // 14: "localabstract:" size
+                strncmp(p, "localreserved:", 14) && // 14: "localreserved:" size
+                strncmp(p, "localfilesystem:", 16) && // 16: "localfilesystem:" size
+                strncmp(p, "dev:", 4) && // 4: "dev:" size
+                strncmp(p, "jdwp:", 5) && // 5: "jdwp:" size
+                strncmp(p, "ark:", 4)) { // 4: "ark:" size
                 stringError = "Incorrect forward command";
                 outCmd->bJumpDo = true;
             }
@@ -352,8 +357,11 @@ namespace TranslateCommand {
             outCmd->cmdFlag = CMD_UNITY_REMOUNT;
         } else if (!strcmp(input.c_str(), CMDSTR_LIST_JDWP.c_str())) {
             outCmd->cmdFlag = CMD_JDWP_LIST;
-        } else if (!strcmp(input.c_str(), CMDSTR_TRACK_JDWP.c_str())) {
+        } else if (!strncmp(input.c_str(), CMDSTR_TRACK_JDWP.c_str(), CMDSTR_TRACK_JDWP.size())) {
             outCmd->cmdFlag = CMD_JDWP_TRACK;
+            if (strstr(input.c_str(), " -p")) {
+                outCmd->parameters = "p";
+            }
         } else if (!strncmp(input.c_str(), CMDSTR_TARGET_REBOOT.c_str(), CMDSTR_TARGET_REBOOT.size())) {
             TargetReboot(input.c_str(), outCmd);
         } else if (!strncmp(input.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size())) {

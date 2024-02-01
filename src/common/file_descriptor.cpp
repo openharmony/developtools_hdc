@@ -41,7 +41,6 @@ HdcFileDescriptor::~HdcFileDescriptor()
     if (ioReadThread.joinable()) {
         ioReadThread.join();
     }
-    WRITE_LOG(LOG_DEBUG, "~HdcFileDescriptor refIO:%d", refIO);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
@@ -53,6 +52,7 @@ bool HdcFileDescriptor::ReadyForRelease()
 void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback)
 {
     workContinue = false;
+    NotifyWrite();
     callbackCloseFd = closeFdCallback;
     if (tryCloseFdIo && refIO > 0) {
         if (callbackCloseFd != nullptr) {
@@ -63,16 +63,20 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
 
 void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     HdcFileDescriptor *thisClass = ctxIO->thisClass;
     uint8_t *buf = ctxIO->bufIO;
     bool bFinish = false;
     bool fetalFinish = false;
     ssize_t nBytes;
 #ifndef HDC_HOST
-    constexpr int epoll_size = 1;
-    int epfd = epoll_create(epoll_size);
+    constexpr int epollSize = 1;
+    int epfd = epoll_create(epollSize);
     struct epoll_event ev;
-    struct epoll_event events[epoll_size];
+    struct epoll_event events[epollSize];
     ev.data.fd = thisClass->fdIO;
     ev.events = EPOLLIN | EPOLLET;
     epoll_ctl(epfd, EPOLL_CTL_ADD, thisClass->fdIO, &ev);
@@ -89,7 +93,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             break;
         }
 #ifndef HDC_HOST
-        int rc = epoll_wait(epfd, events, epoll_size, SECONDS_TIMEOUT * TIME_BASE);
+        int rc = epoll_wait(epfd, events, epollSize, SECONDS_TIMEOUT * TIME_BASE);
 #else
         struct timeval timeout;
         timeout.tv_sec = SECONDS_TIMEOUT;
@@ -114,7 +118,6 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             nBytes = read(fd, buf, bufSize);
         }
         if ((event & EPOLLERR) || (event & EPOLLHUP) || (event & EPOLLRDHUP)) {
-            WRITE_LOG(LOG_WARN, "FileIOOnThread fd:%d event:%u", fd, event);
             bFinish = true;
             fetalFinish = true;
             if ((nBytes > 0) && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
@@ -163,6 +166,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 #endif
     }
 #ifndef HDC_HOST
+    if (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1) {
+        WRITE_LOG(LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epfd:%d errno:%d",
+            thisClass->fdIO, epfd, errno);
+    }
     close(epfd);
 #endif
     if (buf != nullptr) {
@@ -180,6 +187,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 
 int HdcFileDescriptor::LoopReadOnThread()
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     int readMax = Base::GetMaxBufSize() * 1.2;
     auto contextIO = new(std::nothrow) CtxFileIO();
     auto buf = new(std::nothrow) uint8_t[readMax]();
@@ -232,6 +243,10 @@ int HdcFileDescriptor::Write(uint8_t *data, int size)
 // Data's memory must be Malloc, and the callback FREE after this function is completed
 int HdcFileDescriptor::WriteWithMem(uint8_t *data, int size)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     auto contextIO = new(std::nothrow) CtxFileIO();
     if (!contextIO) {
         delete[] data;
@@ -300,11 +315,16 @@ void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
     uint8_t *buf = cfio->bufIO;
     uint8_t *data = buf;
     size_t cnt = cfio->size;
+    constexpr int intrmax = 1000;
+    int intrcnt = 0;
     while (cnt > 0) {
         ssize_t rc = write(fdIO, data, cnt);
-        if (rc < 0 ) {
+        if (rc < 0) {
             if (errno == EINTR || errno == EAGAIN) {
-                WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt or again", fdIO);
+                if (++intrcnt > intrmax) {
+                    WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt errno:%d", fdIO, errno);
+                    intrcnt = 0;
+                }
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "CtxFileIOWrite fdIO:%d rc:%d error:%d", fdIO, rc, errno);

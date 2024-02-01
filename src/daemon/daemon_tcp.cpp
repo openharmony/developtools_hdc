@@ -48,7 +48,7 @@ void HdcDaemonTCP::Stop()
 {
     Base::TryCloseHandle((const uv_handle_t *)&servUDP);
     Base::TryCloseHandle((const uv_handle_t *)&servTCP);
-    WRITE_LOG(LOG_DEBUG, "~HdcDaemonTCP");
+    WRITE_LOG(LOG_DEBUG, "Stop tcpListenPort:%u", tcpListenPort);
 }
 
 void HdcDaemonTCP::TransmitConfig(const sockaddr *addrSrc, uv_udp_t *handle)
@@ -77,14 +77,17 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
     auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
     HSession hSession = ptrConnect->MallocSession(false, CONN_TCP, thisClass);
     if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "malloc tcp session failed");
         return;
     }
     if (uv_accept(server, (uv_stream_t *)&hSession->hWorkTCP) < 0) {
+        WRITE_LOG(LOG_FATAL, "uv_accept error sessionId:%u", hSession->sessionId);
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {
+        WRITE_LOG(LOG_FATAL, "AcceptClient error fdChildWorkTCP:%d", hSession->fdChildWorkTCP);
         goto Finish;
-    };
+    }
     Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP);
     Base::StartWorkThread(ptrLoop, ptrConnect->SessionWorkThread, Base::FinishWorkThread, hSession);
     // wait for thread up
@@ -137,6 +140,7 @@ int HdcDaemonTCP::SetTCPListen()
         return ERR_API_FAIL;
     }
     tcpListenPort = ntohs(addr.sin_port);
+    SystemDepend::SetDevItem("persist.hdc.port", std::to_string(tcpListenPort).c_str());
     return RET_SUCCESS;
 }
 

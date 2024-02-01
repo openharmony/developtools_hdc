@@ -51,13 +51,16 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     HChannel hChannel = nullptr;
     uint32_t uid = thisClass->MallocChannel(&hChannel);
     if (!hChannel) {
+        WRITE_LOG(LOG_FATAL, "AcceptClient hChannel is nullptr");
         return;
     }
-    if (uv_accept(server, (uv_stream_t *)&hChannel->hWorkTCP) < 0) {
+    int rc = uv_accept(server, (uv_stream_t *)&hChannel->hWorkTCP);
+    if (rc < 0) {
+        WRITE_LOG(LOG_FATAL, "AcceptClient uv_accept error rc:%d uid:%u", rc, uid);
         thisClass->FreeChannel(uid);
         return;
     }
-    WRITE_LOG(LOG_DEBUG, "HdcServerForClient acceptClient");
+    WRITE_LOG(LOG_DEBUG, "AcceptClient uid:%u", uid);
     // limit first recv
     int bufMaxSize = 0;
     uv_recv_buffer_size((uv_handle_t *)&hChannel->hWorkTCP, &bufMaxSize);
@@ -203,15 +206,19 @@ bool HdcServerForClient::SendToDaemon(HChannel hChannel, const uint16_t commandF
     while (true) {
         ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
         if (hdi == nullptr) {
+            WRITE_LOG(LOG_FATAL, "SendToDaemon hdi nullptr");
             break;
         }
         if (hdi->connStatus != STATUS_CONNECTED) {
+            WRITE_LOG(LOG_FATAL, "SendToDaemon not connected");
             break;
         }
         if (!hdi->hSession) {
+            WRITE_LOG(LOG_FATAL, "SendToDaemon hdi->hSession nullptr");
             break;
         }
         if (ptrServer->Send(hdi->hSession->sessionId, hChannel->channelId, commandFlag, bufPtr, bufSize) < 0) {
+            WRITE_LOG(LOG_FATAL, "SendToDaemon Send failed channelId:%u", hChannel->channelId);
             break;
         }
         ret = true;
@@ -349,10 +356,12 @@ bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
     HForwardInfo hfi = nullptr;
     ptrServer->AdminForwardMap(OP_QUERY, forwardKey, hfi);
     if (!hfi) {
+        WRITE_LOG(LOG_FATAL, "CommandRemoveForward hfi nullptr forwardKey:%s", forwardKey.c_str());
         return false;
     }
     HSession hSession = ptrServer->AdminSession(OP_QUERY, hfi->sessionId, nullptr);
     if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "CommandRemoveForward hSession nullptr sessionId:%u", hfi->sessionId);
         ptrServer->AdminForwardMap(OP_REMOVE, forwardKey, hfi);
         return true;
     }
@@ -556,7 +565,7 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         sizeCmdFlag = 10;  // 10: cmdFlag bugreport size
     } else if (formatCommand->cmdFlag == CMD_APP_SIDELOAD) {
         cmdFlag = "sideload ";
-        sizeCmdFlag = 9;
+        sizeCmdFlag = 9; // 9: cmdFlag sideload size
     } else if (formatCommand->cmdFlag == CMD_FLASHD_UPDATE_INIT) {
         cmdFlag = "update ";
         sizeCmdFlag = 7; // 7: cmdFlag update size
@@ -583,7 +592,6 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
             reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag,
             sizeSend - sizeCmdFlag);
     } else {  // Send to Daemon-side to do
-        WRITE_LOG(LOG_INFO, "TaskCommand recv cmd send to daemon cmd = %u", formatCommand->cmdFlag);
         SendToDaemon(hChannel, formatCommand->cmdFlag,
             reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag,
             sizeSend - sizeCmdFlag);
@@ -704,11 +712,12 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
 int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
     if (FindAliveSessionFromDaemonMap(hChannel) == nullptr) {
+        WRITE_LOG(LOG_FATAL, "Find no alive session channelId:%u", hChannel->channelId);
         return ERR_SESSION_NOFOUND;
     }
     bool isClosing = uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP);
     if (!isClosing && (hChannel->fdChildWorkTCP = Base::DuplicateUvSocket(&hChannel->hWorkTCP)) < 0) {
-        WRITE_LOG(LOG_FATAL, "Duplicate socket failed, cid:%d", hChannel->channelId);
+        WRITE_LOG(LOG_FATAL, "Duplicate socket failed channelId:%u", hChannel->channelId);
         return ERR_SOCKET_DUPLICATE;
     }
     uv_close_cb funcWorkTcpClose = [](uv_handle_t *handle) -> void {
@@ -726,6 +735,7 @@ int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr,
         auto thisClass = (HdcServerForClient *)hChannel->clsChannel;
         HSession hSession = nullptr;
         if ((hSession = thisClass->FindAliveSessionFromDaemonMap(hChannel)) == nullptr) {
+            WRITE_LOG(LOG_FATAL, "hSession nullptr channelId:%u", hChannel->channelId);
             return;
         }
         auto ctrl = HdcSessionBase::BuildCtrlString(SP_ATTACH_CHANNEL, hChannel->channelId, nullptr, 0);
@@ -738,12 +748,14 @@ bool HdcServerForClient::CheckAutoFillTarget(HChannel hChannel)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     if (!hChannel->connectKey.size()) {
+        WRITE_LOG(LOG_FATAL, "connectKey.size 0 channelId:%u", hChannel->channelId);
         return false;  // Operation of non-bound destination of scanning
     }
     if (hChannel->connectKey == CMDSTR_CONNECT_ANY) {
         HDaemonInfo hdiOld = nullptr;
         ptrServer->AdminDaemonMap(OP_GET_ONLY, "", hdiOld);
         if (!hdiOld) {
+            WRITE_LOG(LOG_WARN, "No any key found channelId:%u", hChannel->channelId);
             return false;
         }
         hChannel->connectKey = hdiOld->connectKey;
@@ -773,12 +785,13 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
     if (!CheckAutoFillTarget(hChannel)) {
+        WRITE_LOG(LOG_WARN, "No target channelId:%u", hChannel->channelId);
         return 0;
     }
     // channel handshake stBindChannelToSession
     if (BindChannelToSession(hChannel, nullptr, 0)) {
         hChannel->availTailIndex = 0;
-        WRITE_LOG(LOG_FATAL, "BindChannelToSession failed");
+        WRITE_LOG(LOG_FATAL, "BindChannelToSession failed channelId:%u", hChannel->channelId);
         return ERR_GENERIC;
     }
     return 0;
@@ -823,6 +836,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         }
         WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr);
         if (formatCommand.bJumpDo) {
+            WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             ret = -10;
             return ret;
         }
@@ -844,6 +858,7 @@ HSession HdcServerForClient::FindAliveSession(uint32_t sessionId)
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HSession hSession = ptrServer->AdminSession(OP_QUERY, sessionId, nullptr);
     if (!hSession || hSession->isDead) {
+        WRITE_LOG(LOG_FATAL, "FindAliveSession hSession nullptr or isDead sessionId:%u", sessionId);
         return nullptr;
     } else {
         return hSession;
@@ -854,6 +869,8 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
 {
     HSession hSession = FindAliveSession(sessionId);
     if (!hSession) {
+        sessionIsDead = true;
+        WRITE_LOG(LOG_FATAL, "ChannelSendSessionCtrlMsg hSession nullptr sessionId:%u", sessionId);
         return false;
     }
     return Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrlMsg.data(), ctrlMsg.size()) > 0;

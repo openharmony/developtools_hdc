@@ -57,8 +57,8 @@ namespace SerialStruct {
         static auto type()
         {
             return Message(Field<fieldOne, &Hdc::HdcTransferBase::FileMode::perm>("perm"),
-                           Field<fieldTwo, &Hdc::HdcTransferBase::FileMode::u_id>("u_id"),
-                           Field<fieldThree, &Hdc::HdcTransferBase::FileMode::g_id>("g_id"),
+                           Field<fieldTwo, &Hdc::HdcTransferBase::FileMode::uId>("uId"),
+                           Field<fieldThree, &Hdc::HdcTransferBase::FileMode::gId>("gId"),
                            Field<fieldFour, &Hdc::HdcTransferBase::FileMode::context>("context"),
                            Field<fieldFive, &Hdc::HdcTransferBase::FileMode::fullName>("fullName"));
         }

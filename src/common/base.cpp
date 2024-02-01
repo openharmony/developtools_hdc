@@ -1683,6 +1683,8 @@ namespace Base {
         signal(SIGPIPE, SIG_IGN);
         signal(SIGCHLD, SIG_IGN);
         signal(SIGALRM, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
 #endif
     }
 
@@ -1694,6 +1696,8 @@ namespace Base {
         signal(SIGPIPE, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGALRM, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
 #endif
     }
 

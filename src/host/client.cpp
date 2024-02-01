@@ -383,7 +383,7 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
 
 void HdcClient::CommandWorker(uv_timer_t *handle)
 {
-    const uint16_t maxWaitRetry = 500;
+    const uint16_t maxWaitRetry = 1200; // client socket try 12s
     HdcClient *thisClass = (HdcClient *)handle->data;
     if (++thisClass->debugRetryCount > maxWaitRetry) {
         uv_timer_stop(handle);

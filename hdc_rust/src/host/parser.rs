@@ -19,6 +19,7 @@ use hdc::config::{self, HdcCommand};
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::str::FromStr;
+use hdc::utils;
 
 #[derive(Default, Debug, Clone)]
 pub struct Parsed {
@@ -89,7 +90,7 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
                 break;
             }
         }
-        if cmd_opt != None {
+        if cmd_opt.is_some() {
             break;
         }
     }
@@ -105,14 +106,14 @@ pub fn parse_command(args: std::env::Args) -> io::Result<ParsedCommand> {
     let parsed = split_opt_and_cmd(input);
     match extract_global_params(parsed.options) {
         Ok(parsed_cmd) => {
-            return Ok(ParsedCommand {
+            Ok(ParsedCommand {
                 command: parsed.command,
                 parameters: parsed.parameters,
                 ..parsed_cmd
             })
         }
-        Err(e) => return Err(e),
-    };
+        Err(e) => Err(e),
+    }
 }
 
 #[derive(Default, Debug, PartialEq)]
@@ -180,7 +181,7 @@ pub fn extract_global_params(opts: Vec<String>) -> io::Result<ParsedCommand> {
                 Err(e) => {
                     return Err(utils::error_other(format!(
                         "{}\n\n{}",
-                        e.to_string(),
+                        e,
                         translate::usage()
                     )));
                 }
@@ -201,7 +202,7 @@ fn check_port(port_str: String) -> io::Result<u16> {
 }
 
 fn parse_server_listen_string(arg: String) -> io::Result<String> {
-    let segments: Vec<&str> = arg.split(":").collect();
+    let segments: Vec<&str> = arg.split(':').collect();
     let port_str = segments.last().unwrap().to_string();
     let port_len = port_str.len();
     let port = check_port(port_str)?;
@@ -217,17 +218,14 @@ fn parse_server_listen_string(arg: String) -> io::Result<String> {
     }
 
     let ip_str = &arg[..arg.len() - port_len - 1];
-    match std::net::IpAddr::from_str(&ip_str) {
+    match std::net::IpAddr::from_str(ip_str) {
         Ok(ip_addr) => {
-            if ip_addr.is_ipv4() {
-                // return Ok(config::IPV4_MAPPING_PREFIX.to_string() + &arg);
-                return Ok(arg);
-            } else if ip_addr.is_ipv6() {
-                return Ok(arg);
+            if ip_addr.is_ipv4() || ip_addr.is_ipv6() {
+                Ok(arg)
             } else {
-                return Err(Error::new(ErrorKind::Other, "-s content ip incorrect"));
+                Err(Error::new(ErrorKind::Other, "-s content ip incorrect"))
             }
         }
-        _ => return Err(Error::new(ErrorKind::Other, "-s content ip incorrect")),
+        _ => Err(Error::new(ErrorKind::Other, "-s content ip incorrect")),
     }
 }

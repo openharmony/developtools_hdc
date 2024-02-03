@@ -19,6 +19,7 @@ use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
+use hdc::utils::hdc_log::*;
 
 use std::env;
 use std::io::{self, Error, ErrorKind, Write};
@@ -64,7 +65,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
     };
 
     if parsed_cmd.launch_server && server::check_allow_fork().await {
-        let _ = server::server_fork(parsed_cmd.server_addr.clone()).await;
+        server::server_fork(parsed_cmd.server_addr.clone()).await;
     }
 
     // TODO: other cmd before initial client
@@ -81,7 +82,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
 impl Client {
     pub async fn new(parsed_cmd: ParsedCommand) -> io::Result<Self> {
         let command = parsed_cmd.command.unwrap();
-        let connect_key = auto_connect_key(parsed_cmd.connect_key, command.clone());
+        let connect_key = auto_connect_key(parsed_cmd.connect_key, command);
 
         let stream = match TcpStream::connect(parsed_cmd.server_addr).await {
             Ok(stream) => stream,
@@ -104,26 +105,21 @@ impl Client {
         let entire_cmd = self.params.join(" ");
         hdc::debug!("execute command params: {}", &entire_cmd);
 
-        return match self.command {
+        match self.command {
             HdcCommand::KernelTargetList
             | HdcCommand::KernelTargetConnect
-            | HdcCommand::UnityHilog => self.general_task().await,
-
+            | HdcCommand::UnityHilog =>  self.general_task().await,
             HdcCommand::FileInit | HdcCommand::FileCheck => self.file_send_task().await,
-
             HdcCommand::AppInit | HdcCommand::AppUninstall => self.app_install_task().await,
             HdcCommand::UnityRunmode => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_task().await,
-
             HdcCommand::UnityExecute => self.shell_task().await,
-
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
-
             _ => Err(Error::new(
                 ErrorKind::Other,
                 format!("unknown command: {}", self.command as u32),
             )),
-        };
+        }
     }
 
     pub async fn handshake(&mut self) -> io::Result<()> {
@@ -172,7 +168,7 @@ impl Client {
         #[cfg(not(target_os = "windows"))]
         let termios = setup_raw_terminal().unwrap();
         #[cfg(not(target_os = "windows"))]
-        let termios_clone = termios.clone();
+        let termios_clone = termios;
 
         let _handle = ylong_runtime::spawn(async move {
             loop {
@@ -196,15 +192,11 @@ impl Client {
         let mut stdin = ylong_runtime::io::stdin();
 
         #[cfg(not(target_os = "windows"))]
-        loop {
-            match stdin.read(&mut buf).await {
-                Ok(bytes) => {
-                    self.send(&buf[..bytes]).await;
-                    if buf[..bytes].contains(&0x4_u8) {
-                        break;
-                    }
-                }
-                Err(_) => break,
+        while let Ok(bytes) = stdin.read(&mut buf).await
+        {
+            self.send(&buf[..bytes]).await;
+            if buf[..bytes].contains(&0x4_u8) {
+                break;
             }
         }
 
@@ -331,7 +323,7 @@ fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
         | HdcCommand::ForwardList
         | HdcCommand::ForwardRemove => "".to_string(),
         _ => {
-            if key.len() == 0 {
+            if key.is_empty() {
                 "any".to_string()
             } else {
                 key
@@ -355,7 +347,7 @@ fn setup_raw_terminal() -> io::Result<libc::termios> {
 
         if libc::tcgetattr(fd, ptr.as_mut_ptr()) == 0 {
             let termios = ptr.assume_init();
-            let mut termios_copy = termios.clone();
+            let mut termios_copy = termios;
             let c_oflag = termios.c_oflag;
             libc::cfmakeraw(&mut termios_copy);
             termios_copy.c_oflag = c_oflag;
@@ -380,9 +372,9 @@ fn recover_terminal(termios: libc::termios) -> io::Result<()> {
             tty.as_raw_fd()
         };
         if libc::tcsetattr(fd, libc::TCSADRAIN, &termios) == 0 {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(io::Error::last_os_error());
+            Err(io::Error::last_os_error())
         }
     }
 }

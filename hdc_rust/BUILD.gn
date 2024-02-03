@@ -129,7 +129,10 @@ ohos_rust_executable("hdc_rust") {
     deps += [ ":hdc_win_dep" ]
   }
 
-  external_deps = [ "ylong_runtime:ylong_runtime" ]
+  external_deps = [
+    "hilog:hilog_rust",
+    "ylong_runtime:ylong_runtime",
+  ]
 
   subsystem_name = "developtools"
   part_name = "hdc"

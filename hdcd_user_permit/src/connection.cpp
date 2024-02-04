@@ -39,9 +39,9 @@ bool HdcdConnection::GetSettingBundleName(string &bundle)
     }
     bytesRead = fread(buf, sizeof(char), bufSize, fp);
     
-    string prefix = "com.";
-    string suffix = ".settings";
     if (bytesRead > 0) {
+        string prefix = "com.";
+        string suffix = ".settings";
         bundle.assign(buf, bytesRead);
         bundle.erase(0, bundle.find(prefix));
         bundle.erase(bundle.rfind(suffix) + suffix.length());

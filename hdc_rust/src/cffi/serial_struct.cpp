@@ -19,7 +19,7 @@
 
 namespace Hdc {
 
-char *StringToHeapPtr(std::string input)
+char *StringToHeapPtr(const std::string &input)
 {
     size_t buf_size = input.length() + 1;
     char *bufRet = (char *)malloc(buf_size);

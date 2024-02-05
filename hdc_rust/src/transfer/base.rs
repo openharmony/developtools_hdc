@@ -36,7 +36,7 @@ impl CheckCompressVersion {
         static mut CAN_COMPRESS: Option<BOOL_> = Option::None;
         unsafe {
             CAN_COMPRESS
-                .get_or_insert_with(|| Arc::new(Mutex::new(true)))
+                .get_or_insert_with(|| Arc::new(Mutex::new(false)))
                 .clone()
         }
     }

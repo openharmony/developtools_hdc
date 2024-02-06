@@ -43,8 +43,8 @@ bool FindMountDeviceByPath(const char *toQuery, char *dev)
         int freq;
         int passnno;
         // clang-format off
-        res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, strlen(dev),
-                       dir, sizeof(dir), &freq, &passnno);
+        res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
+                       dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
         // clang-format on
         dev[BUF_SIZE_SMALL - 1] = '\0';
         dir[BUF_SIZE_SMALL - 1] = '\0';

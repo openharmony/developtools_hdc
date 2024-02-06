@@ -129,8 +129,9 @@ pub fn check_local_path(
     }
 
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        transfer.local_path.push_str(op.as_str());
+        transfer.local_path = Base::combine(transfer.local_path.clone(), op);
     }
+
     if transfer.local_path.ends_with(Base::get_path_sep()) {
         create_dir_all(transfer.local_path.clone()).is_ok()
     } else {

@@ -24,13 +24,4 @@
 
 std::string GetDevPath(const std::string &path);
 
-std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size);
-
-const std::string StringFormat(const char * const formater, va_list &vaArgs);
-
-const std::string StringFormat(const char * const formater, ...);
-
-bool RunPipeComand(const char *cmdString, char *outBuf, uint16_t sizeOutBuf, bool ignoreTailLf);
-
-bool SetDevItem(const char *key, const char *value);
 #endif

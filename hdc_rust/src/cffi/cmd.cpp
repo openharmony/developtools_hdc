@@ -25,7 +25,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "system_depend.h"
+#include "sys_para.h"
 
 namespace Hdc {
 using namespace std;

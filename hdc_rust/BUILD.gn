@@ -15,7 +15,6 @@ import("//build/ohos.gni")
 
 ohos_static_library("serialize_structs") {
   sources = [
-    "src/cffi/base.cpp",
     "src/cffi/cmd.cpp",
     "src/cffi/getparameter.cpp",
     "src/cffi/log.cpp",
@@ -25,7 +24,6 @@ ohos_static_library("serialize_structs") {
     "src/cffi/sendmsg.cpp",
     "src/cffi/serial_struct.cpp",
     "src/cffi/sys_para.cpp",
-    "src/cffi/system_depend.cpp",
     "src/cffi/transfer.cpp",
     "src/cffi/uart.cpp",
     "src/cffi/uart_wrapper.cpp",

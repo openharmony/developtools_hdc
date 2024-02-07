@@ -44,6 +44,7 @@ use std::ffi::CString;
 use ylong_runtime::net::{TcpListener, TcpStream};
 use ylong_runtime::sync::mpsc;
 use std::ffi::c_int;
+use crate::sys_para::{*};
 
 extern "C" {
     fn NeedDropRootPrivileges()-> c_int;
@@ -359,28 +360,30 @@ fn get_logger_lv() -> LevelFilter {
 }
 
 fn get_tcp_port() -> u16 {
-    let shell_command = format!("{} {}", config::SHELL_PARAM_GET, config::ENV_HOST_PORT,);
-    let result = utils::execute_cmd(shell_command);
-    let str_result = String::from_utf8(result);
-    if let Ok(str) = str_result {
-        println!("get_tcp_port from prop,value:{}", str);
-        let mut end = 0;
-        for i in 0..str.len() - 1 {
-            let c = str.as_bytes()[i];
-            if !c.is_ascii_digit() {
-                end = i;
-                break;
-            }
-        }
-        let str2 = str[0..end].to_string();
-        let number = str2.parse::<u16>();
-        if let Ok(num) = number {
-            println!("num:{}", num);
-            return num;
-        } else {
-            println!("num error");
+    let (ret, host_port) = get_dev_item(config::ENV_HOST_PORT, "_");
+    if !ret || host_port == "_" {
+        hdc::info!("get host port failed, will use default port {}.", config::DAEMON_PORT);
+        return config::DAEMON_PORT;
+    }
+
+    let str = host_port.trim();
+    hdc::info!("get_tcp_port from prop, value:{}", str);
+    let mut end = 0;
+    for i in 0..str.len() - 1 {
+        let c = str.as_bytes()[i];
+        if !c.is_ascii_digit() {
+            end = i;
+            break;
         }
     }
+    let str2 = str[0..end].to_string();
+    let number = str2.parse::<u16>();
+    if let Ok(num) = number {
+        hdc::info!("get host port:{} success", num);
+        return num;
+    } 
+
+    hdc::info!("convert host port failed, will use default port {}.", config::DAEMON_PORT);
     config::DAEMON_PORT
 }
 

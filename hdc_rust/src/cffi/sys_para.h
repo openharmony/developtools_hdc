@@ -12,26 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef HDC_SYSTEM_DEPEND_H
-#define HDC_SYSTEM_DEPEND_H
-#include "base.h"
+#ifndef HDC_SYS_PARA_H
+#define HDC_SYS_PARA_H
 #include <string>
 
 namespace Hdc {
 using namespace std;
-#ifdef HDC_SUPPORT_FLASHD
-// deprecated, remove later
-inline bool GetDevItem(const char *key, string value)
-{
-    return false;
-};
-inline bool SetDevItem(const char *key, const char *value)
-{
-    return false;
-};
-#else
+
 bool GetDevItem(const char *key, string &out, const char *preDefine = nullptr);
 bool SetDevItem(const char *key, const char *value);
-#endif
+
 }  // namespace Hdc
 #endif  // HDC_BASE_H

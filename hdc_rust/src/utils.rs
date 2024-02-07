@@ -15,7 +15,7 @@
 //! utils
 #![allow(missing_docs)]
 
-use crate::config::{SHELL_PARAM_GET, SHELL_PROG};
+use crate::config::{SHELL_PROG};
 
 use std::io::{self, Error, ErrorKind};
 use std::process::Command;
@@ -57,33 +57,6 @@ pub fn execute_cmd(cmd: String) -> Vec<u8> {
         Ok(output) => [output.stdout, output.stderr].concat(),
         Err(e) => e.to_string().into_bytes(),
     }
-}
-
-pub fn execute_shell_cmd(cmd: String) -> (bool, Vec<u8>) {
-    let result = Command::new(SHELL_PROG).args(["-c", &cmd]).output();
-
-    match result {
-        Ok(output) => (
-            output.stderr.is_empty(),
-            [output.stdout, output.stderr].concat(),
-        ),
-        Err(e) => (false, e.to_string().into_bytes()),
-    }
-}
-
-pub fn get_dev_item(param: &str) -> (bool, String) {
-    let shell_command = format!("{} {}", SHELL_PARAM_GET, param);
-    let (result, message) = execute_shell_cmd(shell_command);
-    print!("parsed cmd: {:#?}", param);
-    if !result {
-        log::error!("parsed cmd: {:#?}, {:#?}", param, message);
-        return (false, "er".to_string());
-    }
-    let msg = String::from_utf8(message);
-    if let Ok(msg) = msg {
-        return (true, msg);
-    }
-    (false, "err".to_string())
 }
 
 pub fn error_other(msg: String) -> Error {

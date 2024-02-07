@@ -404,7 +404,7 @@ fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
 
 fn show_permit_dialog() -> bool {
     let cmd = "/system/bin/hdcd_user_permit";
-    let result = Command::new(config::SHELL_PROG).args(["-c", cmd]).output();
+    let result = Command::new(cmd).output();
     match result {
         Ok(output) => {
             let msg = [output.stdout, output.stderr].concat();

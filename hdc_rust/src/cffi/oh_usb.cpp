@@ -15,6 +15,7 @@
 #include "oh_usb.h"
 #include "usb_ffs.h"
 #include "usb_util.h"
+#include "sys_para.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -69,7 +70,7 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
             // active usbrc，Send USB initialization signal
             printf("ConnectEPPoint ctrl init finish, set usb-ffs ready\n");
             fcntl(controlEp, F_SETFD, FD_CLOEXEC);
-            SetDevItem("sys.usb.ffs.ready", "1");
+            Hdc::SetDevItem("sys.usb.ffs.ready", "1");
             return ERR_SUCCESS;
         }
     }

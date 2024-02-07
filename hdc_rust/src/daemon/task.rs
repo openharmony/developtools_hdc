@@ -55,14 +55,33 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
             PtyMap::put(task_message.channel_id, pty_task).await;
         }
         HdcCommand::UnityExecute => {
-            let cmd = String::from_utf8(task_message.payload).unwrap();
-            let pty_task = PtyTask::new(
-                session_id,
-                task_message.channel_id,
-                Some(cmd),
-                HdcCommand::KernelEchoRaw,
-            );
-            PtyMap::put(task_message.channel_id, pty_task).await;
+            let cmd = String::from_utf8(task_message.payload);
+            match cmd {
+                Ok(cmd) => {
+                    hdc::debug!("Execute cmd:{}", cmd);
+                    let pty_task = PtyTask::new(
+                        session_id,
+                        task_message.channel_id,
+                        Some(cmd),
+                        HdcCommand::KernelEchoRaw,
+                    );
+                    PtyMap::put(task_message.channel_id, pty_task).await;
+                }
+                Err(_) => {
+                    hdc::common::hdctransfer::echo_client(
+                        session_id,
+                        task_message.channel_id,
+                        "only support utf-8 chars".as_bytes().to_vec(),
+                    )
+                    .await;
+                    let message = TaskMessage {
+                        channel_id: task_message.channel_id,
+                        command: HdcCommand::KernelChannelClose,
+                        payload: [1].to_vec(),
+                    };
+                    let _ = daemon_channel_close(message, session_id).await;
+                }
+            }
         }
         _ => {
             hdc::debug!("get shell data payload: {:#?}", task_message.payload);

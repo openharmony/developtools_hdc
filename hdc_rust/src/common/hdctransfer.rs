@@ -35,17 +35,17 @@ use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;
 
 extern "C" {
-    fn LZ4_compress_transfer(
+    fn LZ4CompressTransfer(
         data: *const libc::c_char,
-        data_compress: *mut libc::c_char,
+        dataCompress: *mut libc::c_char,
         data_size: i32,
-        compress_capacity: i32,
+        compressCapacity: i32,
     ) -> i32;
-    fn LZ4_decompress_transfer(
+    fn LZ4DeompressTransfer(
         data: *const libc::c_char,
-        data_decompress: *mut libc::c_char,
+        dataDecompress: *mut libc::c_char,
         data_size: i32,
-        decompress_capacity: i32,
+        decompressCapacity: i32,
     ) -> i32;
 }
 
@@ -129,8 +129,9 @@ pub fn check_local_path(
     }
 
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        transfer.local_path.push_str(op.as_str());
+        transfer.local_path = Base::combine(transfer.local_path.clone(), op);
     }
+
     if transfer.local_path.ends_with(Base::get_path_sep()) {
         create_dir_all(transfer.local_path.clone()).is_ok()
     } else {
@@ -186,7 +187,7 @@ fn spawn_handler(
                 let compress_size: i32;
                 header.compress_type = CompressType::Lz4 as u8;
                 unsafe {
-                    compress_size = LZ4_compress_transfer(
+                    compress_size = LZ4CompressTransfer(
                         buf.as_ptr() as *const libc::c_char,
                         data_buf.as_ptr() as *mut libc::c_char,
                         capacity,
@@ -294,7 +295,7 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     if let CompressType::Lz4 = compress_type {
         let buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
         let decompress_size = unsafe {
-            LZ4_decompress_transfer(
+            LZ4DeompressTransfer(
                 _data[FILE_PACKAGE_HEAD..].as_ptr() as *const libc::c_char,
                 buf.as_ptr() as *mut libc::c_char,
                 header.compress_size as i32,

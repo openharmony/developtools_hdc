@@ -32,6 +32,7 @@ public:
     HdcdConnection()
     {
         sem_init(&sem, 0, 0);
+        showDialogResult = false;
     }
     virtual ~HdcdConnection() = default;
 

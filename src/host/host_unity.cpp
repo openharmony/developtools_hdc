@@ -23,15 +23,17 @@ HdcHostUnity::HdcHostUnity(HTaskInfo hTaskInfo)
 
 HdcHostUnity::~HdcHostUnity()
 {
-    WRITE_LOG(LOG_DEBUG, "HdcHostUnity::~HdcHostUnity finish");
+    WRITE_LOG(LOG_DEBUG, "~HdcHostUnity channelId:%u", taskInfo->channelId);
 }
 
 bool HdcHostUnity::ReadyForRelease()
 {
     if (!HdcTaskBase::ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     if (opContext.enableLog && !opContext.hasFilelogClosed) {
+        WRITE_LOG(LOG_WARN, "enableLog true hasFilelogClosed false channelId:%u", taskInfo->channelId);
         return false;
     }
     return true;
@@ -41,6 +43,7 @@ void HdcHostUnity::StopTask()
 {
     // Do not detect RunningProtect, force to close
     if (opContext.hasFilelogClosed) {
+        WRITE_LOG(LOG_WARN, "StopTask hasFilelogClosed true channelId:%u", taskInfo->channelId);
         return;
     }
     if (opContext.enableLog) {
@@ -67,6 +70,7 @@ bool HdcHostUnity::InitLocalLog(const char *path)
     // block open
     if (uv_fs_open(nullptr, &reqFs, path, UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR, nullptr)
         < 0) {
+        WRITE_LOG(LOG_FATAL, "InitLocalLog uv_fs_open failed taskInfo->channelId:%u", taskInfo->channelId);
         return false;
     }
     uv_fs_req_cleanup(&reqFs);

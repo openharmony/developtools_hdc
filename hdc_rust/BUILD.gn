@@ -15,13 +15,17 @@ import("//build/ohos.gni")
 
 ohos_static_library("serialize_structs") {
   sources = [
+    "src/cffi/base.cpp",
+    "src/cffi/cmd.cpp",
     "src/cffi/getparameter.cpp",
+    "src/cffi/log.cpp",
     "src/cffi/mount.cpp",
     "src/cffi/mount_wrapper.cpp",
     "src/cffi/oh_usb.cpp",
     "src/cffi/sendmsg.cpp",
     "src/cffi/serial_struct.cpp",
     "src/cffi/sys_para.cpp",
+    "src/cffi/system_depend.cpp",
     "src/cffi/transfer.cpp",
     "src/cffi/uart.cpp",
     "src/cffi/uart_wrapper.cpp",
@@ -39,10 +43,21 @@ ohos_static_library("serialize_structs") {
     "//third_party/lz4:liblz4_static",
   ]
 
-  external_deps = [ "init:libbegetutil" ]
+  external_deps = [
+    "hilog:libhilog",
+    "init:libbegetutil",
+  ]
+
+  defines = [ "HDC_HILOG" ]
 
   if (is_mac) {
     defines = [ "HOST_MAC" ]
+  }
+
+  if (build_selinux) {
+    deps += [ "//third_party/selinux:libselinux" ]
+    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    defines += [ "SURPPORT_SELINUX" ]
   }
 
   subsystem_name = "developtools"

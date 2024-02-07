@@ -186,7 +186,7 @@ struct UsbOsDescExtProp {
 } __attribute__((packed));
 
 using UsbOsDescGuid = UsbOsDescExtProp<PROPERTY_NAME_LENGTH, PROPERTY_DATA_LENGTH>;
-UsbOsDescGuid osDescGuid = {
+UsbOsDescGuid g_osDescGuid = {
     .propertyName = "DeviceInterfaceGUID",
     .property = "{f21cc96b-063d-52e1-e3fd-f39cc7a34c40}",
 };
@@ -196,7 +196,7 @@ struct UsbExtPropValues {
 } __attribute__((packed));
 
 UsbExtPropValues g_osPropValues = {
-    .guid = osDescGuid,
+    .guid = g_osDescGuid,
 };
 
 struct usb_ext_compat_desc g_wosDesc = {
@@ -224,7 +224,7 @@ struct usb_os_desc_header g_osPropHead = {
     .wCount = SHORT_LE(1),
 };
 
-struct usb_functionfs_desc_v2 {
+struct UsbFunctionfsDescV2 {
     struct usb_functionfs_descs_head_v2 head;
     __le32 config1Count;
     __le32 config2Count;

@@ -43,68 +43,17 @@ use log::LevelFilter;
 use std::ffi::CString;
 use ylong_runtime::net::{TcpListener, TcpStream};
 use ylong_runtime::sync::mpsc;
+use std::ffi::c_int;
 
-fn drop_root_privileges() -> bool {
-    let user_name = "shell";
-    let user_str = CString::new(user_name).unwrap();
-    let group_names = vec!["shell", "log", "readproc"];
-    let mut gids: Vec<libc::gid_t> = Vec::with_capacity(group_names.capacity());
-    let user: *mut libc::passwd = unsafe { libc::getpwnam(user_str.as_ptr()) };
-    if user.is_null() {
-        hdc::error!("getpwuid {} fail", user_name);
-        return false;
-    }
-
-    for group_name in &group_names {
-        let g = <&str>::clone(group_name);
-        let group: *mut libc::group = unsafe { libc::getgrnam(g.as_ptr()) };
-        if group.is_null() {
-            hdc::error!("calloc fail");
-        } else {
-            gids.push(unsafe { (*group).gr_gid });
-        }
-    }
-
-    let mut ret = unsafe { libc::setuid((*user).pw_uid) };
-    if ret != 0 {
-        hdc::error!("setuid fail, {}", user_name);
-        return false;
-    }
-
-    ret = unsafe { libc::setgid((*user).pw_gid) };
-    if ret != 0 {
-        hdc::error!("setgid fail, {}", user_name);
-        return false;
-    }
-
-    ret = unsafe { libc::setgroups(group_names.capacity(), gids.as_ptr()) };
-    if ret != 0 {
-        hdc::error!("setgroups fail, {}", user_name);
-        return false;
-    }
-
-    // selinux todo if (setcon)
-    true
+extern "C" {
+    fn NeedDropRootPrivileges()-> c_int;
 }
 
-fn need_drop_root_privileges() -> bool {
-    let (_, debug_mode) = utils::get_dev_item(config::ENV_DEBUGGABLE);
-    let (_, root_mode) = utils::get_dev_item(config::ENV_ROOT_RUN_MODE);
-
-    if debug_mode.starts_with('1') {
-        if root_mode.starts_with('1') {
-            let rc = unsafe { libc::setuid(0) };
-
-            hdc::debug!("Root run rc: {:#?}", rc);
-        } else if root_mode.starts_with('0') && unsafe { libc::getuid() == 0 } {
-            {
-                return drop_root_privileges();
-            }
-        }
-    } else {
-        return drop_root_privileges();
+fn need_drop_root_privileges() {
+    hdc::info!("need_drop_root_privileges");
+    unsafe {
+        NeedDropRootPrivileges();
     }
-    true
 }
 
 async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
@@ -172,7 +121,6 @@ async fn tcp_daemon_start(port: u16) -> io::Result<()> {
 async fn uart_daemon_start() -> io::Result<()> {
     loop {
         let fd = transfer::uart::uart_init()?;
-        println!("uart loop...");
         let _ret = uart_handle_client(fd).await;
         transfer::uart::uart_close(fd);
     }
@@ -219,13 +167,21 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
             transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
         {
             hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
+            println!("handshake error:{:#?}", e);
         }
     });
-
-    let handshake_message = rx.recv().await.unwrap();
-    let _ = rx.recv().await;
-
-    let session_id = uart_handshake(handshake_message.clone(), fd, &rd, package_index).await?;
+    let session_id;
+    match rx.recv().await {
+        Ok(handshake_message) => {
+            let _ = rx.recv().await;
+            println!("uart handshake_message:{:#?}", handshake_message);
+            session_id = uart_handshake(handshake_message.clone(), fd, &rd, package_index).await?;
+        }
+        Err(_e) => {
+            println!("uart handshake error");
+            return Err(std::io::Error::new(ErrorKind::Other, "uart recv handshake error"));
+        }
+    }
 
     uart_wrapper::stop_other_session(session_id).await;
     let mut real_session_id = session_id;
@@ -249,38 +205,38 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                 transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
             {
                 hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
+                println!("uart read uart taskmessage error:{:#?}", e);
             }
         });
 
         loop {
-            match rx.recv().await {
-                Ok(message) => {
-                    if message.command == config::HdcCommand::UartFinish {
-                        println!("uart finish break");
-                        break;
-                    }
+                match rx.recv().await {
+                    Ok(message) => {
+                        if message.command == config::HdcCommand::UartFinish {
+                            break;
+                        }
 
-                    if message.command == config::HdcCommand::KernelHandshake {
-                        real_session_id =
-                            uart_handshake(message.clone(), fd, &rd, package_index).await?;
-                        continue;
+                        if message.command == config::HdcCommand::KernelHandshake {
+                            real_session_id =
+                                uart_handshake(message.clone(), fd, &rd, package_index).await?;
+                            continue;
+                        }
+                        let command = message.command;
+                        ylong_runtime::spawn(async move {
+                            if let Err(e) = task::dispatch_task(message, real_session_id).await {
+                                log::error!("dispatch task failed: {}", e.to_string());
+                                println!("dispatch task({:#?}) fail: {:#?}", command, e);
+                            }
+                        });
                     }
-
-                    if let Err(e) = task::dispatch_task(message, real_session_id).await {
-                        log::error!("dispatch task failed: {}", e.to_string());
-                        println!("dispatch task fail: {:#?}", e);
-                    } else {
-                        println!("dispatch task ok");
+                    Err(_e) => {
+                        println!("uart recv error: {:#?}", _e);
+                        return Err(std::io::Error::new(ErrorKind::Other, "RecvError"));
                     }
-                }
-                Err(_e) => {
-                    println!("uart recv error");
                 }
             }
         }
-        println!("uart next command.");
     }
-}
 
 async fn usb_daemon_start() -> io::Result<()> {
     loop {
@@ -442,8 +398,9 @@ fn main() {
         .keep_alive_time(std::time::Duration::from_secs(10))
         .build_global();
 
+    need_drop_root_privileges();
+
     ylong_runtime::block_on(async {
-        need_drop_root_privileges();
         let tcp_task = ylong_runtime::spawn(async {
             if let Err(e) = tcp_daemon_start(get_tcp_port()).await {
                 println!("[Fail]tcp daemon failed: {}", e);

@@ -20,17 +20,15 @@ use hdc::config::TaskMessage;
 use hdc::config::{self, HdcCommand};
 use hdc::utils::execute_shell_cmd;
 use libc::sync;
-use std::process::Command;
 
-fn hdc_exit() {
-    std::process::exit(0);
+extern "C" {
+    fn Restart();
 }
 
-#[allow(unused)]
-fn hdc_fork() {
-    let current_exe = std::env::current_exe().unwrap().display().to_string();
-    let result = Command::new(current_exe).spawn();
-    hdc_exit();
+async fn hdc_restart() {
+    unsafe {
+        Restart();
+    }
 }
 
 async fn echo_client(session_id: u32, channel_id: u32, message: &str) {
@@ -94,7 +92,7 @@ async fn set_root_run_enable(session_id: u32, channel_id: u32, force: bool) {
     let (result, message) = execute_shell_cmd(shell_command);
     echo_root_run_mode_result(session_id, channel_id, result, message).await;
     if result {
-        hdc_exit();
+        hdc_restart().await;
     }
 }
 
@@ -102,7 +100,6 @@ async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
     let shell_command = format!("{} {}", config::SHELL_PARAM_GET, config::ENV_DEBUGGABLE,);
     let (result, message) = execute_shell_cmd(shell_command);
     if !result || message[0] != b'1' {
-        hdc_exit();
         return;
     }
 
@@ -167,7 +164,7 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
             let (result, message) = execute_shell_cmd(shell_command);
             echo_device_mode_result(session_id, channel_id, result, message).await;
             if result {
-                hdc_exit();
+                hdc_restart().await
             }
         }
         str if str.starts_with(config::PREFIX_PORT) => {
@@ -195,7 +192,7 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
             let (result, message) = execute_shell_cmd(set_port_command);
             echo_device_mode_result(session_id, channel_id, result, message).await;
             if result {
-                hdc_exit();
+                hdc_restart().await
             }
         }
         _ => {

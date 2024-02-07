@@ -197,7 +197,7 @@ protected:
     bool uartOpened;
 
     static constexpr size_t MAX_READ_BUFFER = MAX_UART_SIZE_IOBUF * 10;
-    static constexpr int ReadGiveUpTimeOutTimeMs = 500; // 500ms
+    static constexpr int READ_GIVE_UP_TIME_OUT_TIME_MS = 500; // 500ms
     virtual int UartToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize);
     int GetUartSpeed(int speed);
     int GetUartBits(int bits);
@@ -234,7 +234,7 @@ protected:
     virtual void SendPkgInUARTOutMap();
     virtual void ClearUARTOutMap(uint32_t sessionId);
     virtual void EnsureAllPkgsSent();
-    static constexpr int WaitResponseTimeOutMs = 1000; // 1000ms
+    static constexpr int WAIT_RESPONSE_TIME_OUT_MS = 1000; // 1000ms
     static constexpr int OneMoreMs = 1;
 
     class TransferStateMachine {
@@ -252,7 +252,7 @@ protected:
             timeout = true;
             // wait_for will timeout in 999ms in linux platform, so we add one more
             timeoutPoint = std::chrono::steady_clock::now() +
-                           std::chrono::milliseconds(WaitResponseTimeOutMs + OneMoreMs);
+                           std::chrono::milliseconds(WAIT_RESPONSE_TIME_OUT_MS + OneMoreMs);
             cv.notify_one();
         }
 
@@ -340,7 +340,7 @@ private:
         void WaitFree()
         {
             std::unique_lock<std::mutex> lock(mutex);
-            cv.wait_for(lock, std::chrono::milliseconds(WaitResponseTimeOutMs),
+            cv.wait_for(lock, std::chrono::milliseconds(WAIT_RESPONSE_TIME_OUT_MS),
                         [=] { return hasWaitPkg.size() == 0; });
         }
 

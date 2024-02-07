@@ -15,12 +15,19 @@
 
 #include "circle_buffer.h"
 #include "base.h"
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+#include <malloc.h>
+#endif
 
 namespace Hdc {
 CircleBuffer::CircleBuffer()
 {
     run_ = false;
     TimerStart();
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
 }
 
 CircleBuffer::~CircleBuffer()
@@ -104,6 +111,10 @@ void CircleBuffer::FreeMemory()
 
 void CircleBuffer::Timer(void *object)
 {
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
     CircleBuffer *cirbuf = reinterpret_cast<CircleBuffer *>(object);
     while (cirbuf->run_) {
         cirbuf->FreeMemory();
@@ -113,19 +124,23 @@ void CircleBuffer::Timer(void *object)
 
 void CircleBuffer::TimerStart()
 {
+#ifndef HDC_HOST
     if (!run_) {
         run_ = true;
         thread_ = std::thread(Timer, this);
     }
+#endif
 }
 
 void CircleBuffer::TimerStop()
 {
+#ifndef HDC_HOST
     if (run_) {
         run_ = false;
         TimerNotify();
         thread_.join();
     }
+#endif
 }
 
 void CircleBuffer::TimerSleep()

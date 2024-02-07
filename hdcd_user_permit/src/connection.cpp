@@ -31,8 +31,6 @@ bool HdcdConnection::GetSettingBundleName(string &bundle)
     int bytesRead;
     const int bufSize = 256;
     char buf[bufSize] = { 0 };
-    string prefix = "com.";
-    string suffix = ".settings";
 
     fp = popen("bm dump -a | grep \"com.*.settings$\"", "r");
     if (!fp) {
@@ -40,7 +38,10 @@ bool HdcdConnection::GetSettingBundleName(string &bundle)
         return false;
     }
     bytesRead = fread(buf, sizeof(char), bufSize, fp);
+    
     if (bytesRead > 0) {
+        string prefix = "com.";
+        string suffix = ".settings";
         bundle.assign(buf, bytesRead);
         bundle.erase(0, bundle.find(prefix));
         bundle.erase(bundle.rfind(suffix) + suffix.length());

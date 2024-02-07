@@ -42,22 +42,26 @@ HdcShell::HdcShell(HTaskInfo hTaskInfo)
 
 HdcShell::~HdcShell()
 {
-    WRITE_LOG(LOG_DEBUG, "HdcShell deinit");
+    WRITE_LOG(LOG_DEBUG, "~HdcShell channelId:%u", taskInfo->channelId);
 };
 
 bool HdcShell::ReadyForRelease()
 {
     if (!HdcTaskBase::ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     if (!childReady) {
+        WRITE_LOG(LOG_WARN, "childReady false channelId:%u", taskInfo->channelId);
         return true;
     }
     if (!childShell->ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "childShell not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     delete childShell;
     childShell = nullptr;
+    WRITE_LOG(LOG_DEBUG, "ReadyForRelease close fdPTY:%d", fdPTY);
     Base::CloseFd(fdPTY);
     return true;
 }
@@ -65,7 +69,7 @@ bool HdcShell::ReadyForRelease()
 void HdcShell::StopTask()
 {
     singalStop = true;
-    WRITE_LOG(LOG_DEBUG, "HdcShell::StopTask");
+    WRITE_LOG(LOG_DEBUG, "StopTask pidShell:%d childReady:%d", pidShell, childReady);
     if (!childReady) {
         return;
     }
@@ -284,7 +288,6 @@ bool HdcShell::ChildReadCallback(const void *context, uint8_t *buf, const int si
 
 int HdcShell::StartShell()
 {
-    WRITE_LOG(LOG_DEBUG, "StartShell...");
     int ret = 0;
     HdcShell::mutexPty.lock();
     do {
@@ -299,12 +302,14 @@ int HdcShell::StartShell()
             break;
         }
         if (!childShell->StartWorkOnThread()) {
+            WRITE_LOG(LOG_FATAL, "StartShell childShell->StartWorkOnThread false");
             ret = ERR_API_FAIL;
             break;
         }
         childReady = true;
         ++refCount;
     } while (false);
+    WRITE_LOG(LOG_DEBUG, "StartShell pid:%d channelId:%u ret:%d", pidShell, taskInfo->channelId, ret);
     if (ret != RET_SUCCESS) {
         if (pidShell > 0) {
             kill(pidShell, SIGKILL);

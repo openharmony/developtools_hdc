@@ -387,6 +387,10 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
             hdc::debug!("unity command: {:#?}", task_message.command);
             daemon_file_task(task_message, session_id).await
         }
+        HdcCommand::KernelWakeupSlavetask => {
+            hdc::debug!("task command: {:#?}", task_message.command);
+            Ok(())
+        }
         _ => Err(Error::new(
             ErrorKind::Other,
             format!("unknown command: {}", task_message.command as u32),

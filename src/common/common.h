@@ -16,24 +16,26 @@
 #define HDC_COMMON_H
 
 #include <algorithm>
+#include <assert.h>
 #include <atomic>
+#include <cinttypes>
+#include <cstdarg>
+#include <ctime>
 #include <condition_variable>
+#include <fcntl.h>
 #include <functional>
 #include <list>
 #include <map>
 #include <mutex>
 #include <queue>
 #include <string>
-#include <vector>
-
-#include <assert.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+#include <malloc.h>
+#endif
+#include <vector>
 
 using std::condition_variable;
 using std::list;

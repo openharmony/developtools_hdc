@@ -15,14 +15,23 @@
 
 #![allow(missing_docs)]
 
-use std::ffi::{CString};
-use hdc::config::{*};
+use hdc::config::*;
+use std::ffi::CString;
 
 extern "C" {
     fn SetParameterEx(key: *const libc::c_char, val: *const libc::c_char) -> libc::c_int;
-    fn GetParameterEx(key: *const libc::c_char, def: *const libc::c_char, val: *mut libc::c_char, len: libc::c_uint) -> libc::c_int;
+    fn GetParameterEx(
+        key: *const libc::c_char,
+        def: *const libc::c_char,
+        val: *mut libc::c_char,
+        len: libc::c_uint,
+    ) -> libc::c_int;
     #[allow(dead_code)]
-    fn WaitParameterEx(key: *const libc::c_char, val: *const libc::c_char, timeout: libc::c_int) -> libc::c_int;
+    fn WaitParameterEx(
+        key: *const libc::c_char,
+        val: *const libc::c_char,
+        timeout: libc::c_int,
+    ) -> libc::c_int;
 }
 
 pub fn set_dev_item(key: &str, val: &str) -> bool {
@@ -42,7 +51,12 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
     let mut out: [u8; HDC_PARAMETER_VALUE_MAX_LEN] = [0; HDC_PARAMETER_VALUE_MAX_LEN];
 
     unsafe {
-        let bytes = GetParameterEx(ckey.as_ptr(), cdef.as_ptr(), out.as_mut_ptr() as *mut u8, 512);
+        let bytes = GetParameterEx(
+            ckey.as_ptr(),
+            cdef.as_ptr(),
+            out.as_mut_ptr() as *mut u8,
+            512,
+        );
         let output = String::from_utf8(out.to_vec()).unwrap().trim().to_string();
         let (val, _) = output.split_at(bytes as usize);
         println!("get param:{} bytes:{} val:{}", key, bytes, val);
@@ -55,7 +69,5 @@ pub fn wait_dev_item(key: &str, val: &str, timeout: i32) -> bool {
     let ckey = CString::new(key).unwrap();
     let cval = CString::new(val).unwrap();
 
-    unsafe {
-        WaitParameterEx(ckey.as_ptr(), cval.as_ptr(), timeout) == 0
-    }
+    unsafe { WaitParameterEx(ckey.as_ptr(), cval.as_ptr(), timeout) == 0 }
 }

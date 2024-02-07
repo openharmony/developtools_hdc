@@ -12,18 +12,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "securec.h"
 #include "sendmsg.h"
-
 #include <sys/socket.h>
-#include <string.h>
+#include <cstring>
 #include <alloca.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdio.h>
+#include <cerrno>
+#include <cstdio>
 
 namespace Hdc {
 
-extern "C" int SendMsg_(int socket_fd, int fd, char* data, int size) {
+extern "C" int SendMsg(int socket_fd, int fd, char* data, int size)
+{
+    constexpr int memcpyError = -2;
+    constexpr int cmsgNullptrError = -5;
     struct iovec iov;
     iov.iov_base = data;
     iov.iov_len = size;
@@ -41,15 +44,15 @@ extern "C" int SendMsg_(int socket_fd, int fd, char* data, int size) {
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
     if (cmsg == nullptr) {
         printf("SendFdToApp cmsg is nullptr\n");
-        return -5;
+        return cmsgNullptrError;
     }
     cmsg->cmsg_level = SOL_SOCKET;
     cmsg->cmsg_type = SCM_RIGHTS;
     cmsg->cmsg_len = CMSG_LEN(sizeof(int));
     int result = -1;
-    if (memcpy(CMSG_DATA(cmsg), &fd, sizeof(int)) == nullptr) {
-        printf("SendFdToApp memcpy error:%d\n", errno);
-        return -2;
+    if (memcpy_s(CMSG_DATA(cmsg), sizeof(int), &fd, sizeof(int)) != EOK) {
+        printf("SendFdToApp memcpy_s error:%d\n", errno);
+        return memcpyError;
     }
     if ((result = sendmsg(socket_fd, &msg, 0)) < 0) {
         printf("SendFdToApp sendmsg errno:%d, result:%d\n", errno, result);

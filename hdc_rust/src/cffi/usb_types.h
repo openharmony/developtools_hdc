@@ -21,7 +21,7 @@ struct USBHead {
     uint8_t flag[2];
     uint8_t option;
     uint32_t sessionId;
-    uint32_t dataSize;
+    uint32_t data_size;
 };
 
 struct HdcUSB {

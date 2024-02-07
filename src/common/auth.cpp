@@ -295,7 +295,7 @@ int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig)
     if (!RSA_sign(NID_sha256, token, tokenSize, (unsigned char *)sig, &len, (RSA *)rsa)) {
         return 0;
     }
-    return (int)len;
+    return static_cast<int>(len);
 }
 
 int GetPublicKeyFileBuf(unsigned char *data, size_t len)
@@ -536,7 +536,7 @@ EVP_PKEY *GenerateNewKey(void)
 
     return nullptr;
 }
-bool GenerateKeyPair(string prikey_filename, string pubkey_filename)
+bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filename)
 {
     bool ret = false;
     FILE *file_prikey = nullptr;
@@ -585,7 +585,7 @@ bool GenerateKeyPair(string prikey_filename, string pubkey_filename)
     return ret;
 }
 
-bool LoadPublicKey(string pubkey_filename, string &pubkey)
+bool LoadPublicKey(const string& pubkey_filename, string &pubkey)
 {
     bool ret = false;
     BIO *bio = nullptr;
@@ -703,7 +703,7 @@ bool GetPublicKeyinfo(string &pubkey_info)
     return true;
 }
 
-RSA *LoadPrivateKey(string prikey_filename)
+RSA *LoadPrivateKey(const string& prikey_filename)
 {
     RSA *rsa = nullptr;
     EVP_PKEY *evp = nullptr;
@@ -740,7 +740,8 @@ bool RsaSignAndBase64(string &buf)
 {
     RSA *rsa = nullptr;
     string prikey_filename;
-    int sign_ori_size, sign_out_size;
+    int sign_ori_size;
+    int sign_out_size;
     unsigned char sign_ori[BUF_SIZE_DEFAULT2] = { 0 };
     unsigned char *sign_out = nullptr;
     int in_size = buf.size();

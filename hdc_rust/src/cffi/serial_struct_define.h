@@ -126,8 +126,8 @@ namespace SerialStruct {
         END_GROUP = 4,
         FIXED32 = 5,
     };
-    enum flags { no = 0, s = 1, f = 2 };
-    template<uint32_t flags = flags::no> struct FlagsType {
+    enum Flags { NO = 0, S = 1, F = 2 };
+    template<uint32_t flags = Flags::NO> struct FlagsType {
     };
 
     template<class T> struct Descriptor {
@@ -142,18 +142,18 @@ namespace SerialStruct {
         return SerialDetail::MessageImpl<Fields...>(std::forward<Fields>(fields)...);
     }
 
-    template<uint32_t Tag, auto MemPtr, uint32_t Flags = flags::no> constexpr auto Field(const std::string &fieldName)
+    template<uint32_t Tag, auto MemPtr, uint32_t Flags = Flags::NO> constexpr auto Field(const std::string &fieldName)
     {
         return SerialDetail::FieldImpl<Tag, decltype(MemPtr), MemPtr, Flags> { fieldName };
     }
 
-    template<uint32_t Tag, size_t Index, auto MemPtr, uint32_t Flags = flags::no>
+    template<uint32_t Tag, size_t Index, auto MemPtr, uint32_t Flags = Flags::NO>
     constexpr auto OneofField(const std::string &fieldName)
     {
         return SerialDetail::OneofFieldImpl<Tag, Index, decltype(MemPtr), MemPtr, Flags> { fieldName };
     }
 
-    template<uint32_t Tag, auto MemPtr, uint32_t KeyFlags = flags::no, uint32_t ValueFlags = flags::no>
+    template<uint32_t Tag, auto MemPtr, uint32_t KeyFlags = Flags::NO, uint32_t ValueFlags = Flags::NO>
     constexpr auto MapField(const std::string &fieldName)
     {
         return SerialDetail::MapFieldImpl<Tag, decltype(MemPtr), MemPtr, KeyFlags, ValueFlags> { fieldName };
@@ -171,7 +171,7 @@ namespace SerialStruct {
         virtual void Write(const void *bytes, size_t size) = 0;
     };
 
-    struct reader {
+    struct Reader {
         virtual size_t Read(void *bytes, size_t size) = 0;
     };
 
@@ -251,13 +251,13 @@ namespace SerialStruct {
             size_t byte_size = 0;
         };
 
-        struct LimitedReader : public reader {
-            LimitedReader(reader &parent, size_t sizeLimit)
+        struct LimitedReader : public Reader {
+            LimitedReader(Reader &parent, size_t sizeLimit)
                 : _parent(parent), _size_limit(sizeLimit)
             {
             }
 
-            size_t Read(void *bytes, size_t size)
+            size_t Read(void *bytes, size_t size) override
             {
                 auto sizeToRead = std::min(size, _size_limit);
                 auto readSize = _parent.Read(bytes, sizeToRead);
@@ -271,11 +271,11 @@ namespace SerialStruct {
             }
 
         private:
-            reader &_parent;
+            Reader &_parent;
             size_t _size_limit;
         };
 
-        static bool ReadByte(uint8_t &value, reader &in)
+        static bool ReadByte(uint8_t &value, Reader &in)
         {
             return in.Read(&value, 1) == 1;
         }
@@ -317,7 +317,7 @@ namespace SerialStruct {
         }
 #endif
 
-        static bool ReadVarint(uint32_t &value, reader &in)
+        static bool ReadVarint(uint32_t &value, Reader &in)
         {
             value = 0;
             for (size_t c = 0; c < 5; ++c) {
@@ -334,7 +334,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadVarint(uint64_t &value, reader &in)
+        static bool ReadVarint(uint64_t &value, Reader &in)
         {
             value = 0;
             for (size_t c = 0; c < 10; ++c) {
@@ -351,7 +351,7 @@ namespace SerialStruct {
         }
 
 #if defined(HOST_MAC)
-        static bool ReadVarint(unsigned long &value, reader &in)
+        static bool ReadVarint(unsigned long &value, Reader &in)
         {
             uint64_t intermediateValue;
             if (ReadVarint(intermediateValue, in)) {
@@ -425,7 +425,7 @@ namespace SerialStruct {
             WriteVarint(MakeTagWireType(tag, wireType), out);
         }
 
-        static bool ReadFixed(uint32_t &value, reader &in)
+        static bool ReadFixed(uint32_t &value, Reader &in)
         {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
             return in.Read(&value, sizeof(value)) == sizeof(value);
@@ -434,7 +434,7 @@ namespace SerialStruct {
 #endif
         }
 
-        static bool ReadFixed(uint64_t &value, reader &in)
+        static bool ReadFixed(uint64_t &value, Reader &in)
         {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
             return in.Read(&value, sizeof(value)) == sizeof(value);
@@ -443,7 +443,7 @@ namespace SerialStruct {
 #endif
         }
 
-        static bool ReadFixed(double &value, reader &in)
+        static bool ReadFixed(double &value, Reader &in)
         {
             uint64_t intermediateValue;
             if (ReadFixed(intermediateValue, in)) {
@@ -453,7 +453,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadFixed(float &value, reader &in)
+        static bool ReadFixed(float &value, Reader &in)
         {
             uint32_t intermediateValue;
             if (ReadFixed(intermediateValue, in)) {
@@ -463,7 +463,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadVarint(int32_t &value, reader &in)
+        static bool ReadVarint(int32_t &value, Reader &in)
         {
             uint32_t intermediateValue;
             if (ReadVarint(intermediateValue, in)) {
@@ -473,7 +473,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadVarint(int64_t &value, reader &in)
+        static bool ReadVarint(int64_t &value, Reader &in)
         {
             uint64_t intermediateValue;
             if (ReadVarint(intermediateValue, in)) {
@@ -483,7 +483,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadSignedVarint(int32_t &value, reader &in)
+        static bool ReadSignedVarint(int32_t &value, Reader &in)
         {
             uint32_t intermediateValue;
             if (ReadVarint(intermediateValue, in)) {
@@ -493,7 +493,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadSignedVarint(int64_t &value, reader &in)
+        static bool ReadSignedVarint(int64_t &value, Reader &in)
         {
             uint64_t intermediateValue;
             if (ReadVarint(intermediateValue, in)) {
@@ -503,7 +503,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadSignedFixed(int32_t &value, reader &in)
+        static bool ReadSignedFixed(int32_t &value, Reader &in)
         {
             uint32_t intermediateValue;
             if (ReadFixed(intermediateValue, in)) {
@@ -513,7 +513,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ReadSignedFixed(int64_t &value, reader &in)
+        static bool ReadSignedFixed(int64_t &value, Reader &in)
         {
             uint64_t intermediateValue;
             if (ReadFixed(intermediateValue, in)) {
@@ -602,7 +602,7 @@ namespace SerialStruct {
         }
 
         template<uint32_t KeyFlags, uint32_t ValueFlags, class Key, class Value>
-        bool ReadMapKeyValue(std::pair<Key, Value> &value, reader &in)
+        bool ReadMapKeyValue(std::pair<Key, Value> &value, Reader &in)
         {
             static const auto pairAsMessage = Message(Field<1, &std::pair<Key, Value>::first, KeyFlags>("key"),
                 Field<2, &std::pair<Key, Value>::second, ValueFlags>("value"));
@@ -610,7 +610,7 @@ namespace SerialStruct {
         }
 
         template<uint32_t KeyFlags, uint32_t ValueFlags, class T>
-        bool ReadMap(WireType wireType, T &value, reader &in)
+        bool ReadMap(WireType wireType, T &value, Reader &in)
         {
             if (wireType != WireType::LENGTH_DELIMETED) {
                 return false;
@@ -631,10 +631,10 @@ namespace SerialStruct {
         }
 
         template<uint32_t Flags, class ValueType, class OutputIt>
-        bool ReadRepeated(WireType wireType, OutputIt output_it, reader &in)
+        bool ReadRepeated(WireType wireType, OutputIt output_it, Reader &in)
         {
             if constexpr (SerialDetail::HAS_PARSE_PACKED_V<Serializer<ValueType>, ValueType, FlagsType<Flags>,
-                reader>) {
+                Reader>) {
                 if (wireType != WireType::LENGTH_DELIMETED) {
                     return false;
                 }
@@ -667,7 +667,7 @@ namespace SerialStruct {
 
         template<class T, uint32_t Tag, size_t Index, class MemPtrT, MemPtrT MemPtr, uint32_t Flags>
         void ReadField(T &value, uint32_t tag, WireType wireType,
-            const SerialDetail::OneofFieldImpl<Tag, Index, MemPtrT, MemPtr, Flags> &, reader &in)
+            const SerialDetail::OneofFieldImpl<Tag, Index, MemPtrT, MemPtr, Flags> &, Reader &in)
         {
             if (Tag != tag) {
                 return;
@@ -679,7 +679,7 @@ namespace SerialStruct {
 
         template<class T, uint32_t Tag, class MemPtrT, MemPtrT MemPtr, uint32_t KeyFlags, uint32_t ValueFlags>
         void ReadField(T &value, uint32_t tag, WireType wireType,
-            const SerialDetail::MapFieldImpl<Tag, MemPtrT, MemPtr, KeyFlags, ValueFlags> &, reader &in)
+            const SerialDetail::MapFieldImpl<Tag, MemPtrT, MemPtr, KeyFlags, ValueFlags> &, Reader &in)
         {
             if (Tag != tag) {
                 return;
@@ -691,7 +691,7 @@ namespace SerialStruct {
 
         template<class T, uint32_t Tag, class MemPtrT, MemPtrT MemPtr, uint32_t Flags>
         void ReadField(T &value, uint32_t tag, WireType wireType,
-            const SerialDetail::FieldImpl<Tag, MemPtrT, MemPtr, Flags> &, reader &in)
+            const SerialDetail::FieldImpl<Tag, MemPtrT, MemPtr, Flags> &, Reader &in)
         {
             if (Tag != tag) {
                 return;
@@ -700,7 +700,7 @@ namespace SerialStruct {
             Serializer<typename Field::MemberType>::Parse(wireType, Field::get(value), FlagsType<Field::flags>(), in);
         }
 
-        template<class T, class... Field> bool ReadMessage(T &value, const MessageImpl<Field...> &message, reader &in)
+        template<class T, class... Field> bool ReadMessage(T &value, const MessageImpl<Field...> &message, Reader &in)
         {
             uint32_t tagKey;
             while (ReadVarint(tagKey, in)) {
@@ -727,7 +727,7 @@ namespace SerialStruct {
             SerialDetail::WriteMessage(value, MessageType<T>(), out);
         }
 
-        static bool Parse(WireType wireType, T &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wireType, T &value, FlagsType<>, Reader &in)
         {
             if (wireType != WireType::LENGTH_DELIMETED) {
                 return false;
@@ -749,7 +749,7 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void Serialize(uint32_t tag, int32_t value, FlagsType<flags::s>, Writer &out, bool force = false)
+        static void Serialize(uint32_t tag, int32_t value, FlagsType<Flags::S>, Writer &out, bool force = false)
         {
             (void)force;
             SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
@@ -757,7 +757,7 @@ namespace SerialStruct {
         }
 
         static void Serialize(
-            uint32_t tag, int32_t value, FlagsType<flags::s | flags::f>, Writer &out, bool force = false)
+            uint32_t tag, int32_t value, FlagsType<Flags::S | Flags::F>, Writer &out, bool force = false)
         {
             (void)force;
             SerialDetail::WriteTagWriteType(tag, WireType::FIXED32, out);
@@ -769,48 +769,48 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void SerializePacked(int32_t value, FlagsType<flags::s>, Writer &out)
+        static void SerializePacked(int32_t value, FlagsType<Flags::S>, Writer &out)
         {
             SerialDetail::WriteSignedVarint(value, out);
         }
 
-        static void SerializePacked(int32_t value, FlagsType<flags::s | flags::f>, Writer &out)
+        static void SerializePacked(int32_t value, FlagsType<Flags::S | Flags::F>, Writer &out)
         {
             SerialDetail::WriteSignedFixed(value, out);
         }
 
-        static bool Parse(WireType wire_type, int32_t &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, int32_t &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::VARINT)
                 return false;
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool Parse(WireType wire_type, int32_t &value, FlagsType<flags::s>, reader &in)
+        static bool Parse(WireType wire_type, int32_t &value, FlagsType<Flags::S>, Reader &in)
         {
             if (wire_type != WireType::VARINT)
                 return false;
             return SerialDetail::ReadSignedVarint(value, in);
         }
 
-        static bool Parse(WireType wire_type, int32_t &value, FlagsType<flags::s | flags::f>, reader &in)
+        static bool Parse(WireType wire_type, int32_t &value, FlagsType<Flags::S | Flags::F>, Reader &in)
         {
             if (wire_type != WireType::FIXED32)
                 return false;
             return SerialDetail::ReadSignedFixed(value, in);
         }
 
-        static bool ParsePacked(int32_t &value, FlagsType<>, reader &in)
+        static bool ParsePacked(int32_t &value, FlagsType<>, Reader &in)
         {
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool ParsePacked(int32_t &value, FlagsType<flags::s>, reader &in)
+        static bool ParsePacked(int32_t &value, FlagsType<Flags::S>, Reader &in)
         {
             return SerialDetail::ReadSignedVarint(value, in);
         }
 
-        static bool ParsePacked(int32_t &value, FlagsType<flags::s | flags::f>, reader &in)
+        static bool ParsePacked(int32_t &value, FlagsType<Flags::S | Flags::F>, Reader &in)
         {
             return SerialDetail::ReadSignedFixed(value, in);
         }
@@ -824,7 +824,7 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void Serialize(uint32_t tag, uint32_t value, FlagsType<flags::f>, Writer &out, bool force = false)
+        static void Serialize(uint32_t tag, uint32_t value, FlagsType<Flags::F>, Writer &out, bool force = false)
         {
             (void)force;
             SerialDetail::WriteTagWriteType(tag, WireType::FIXED32, out);
@@ -836,31 +836,31 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void SerializePacked(uint32_t value, FlagsType<flags::f>, Writer &out)
+        static void SerializePacked(uint32_t value, FlagsType<Flags::F>, Writer &out)
         {
             SerialDetail::WriteFixed(value, out);
         }
 
-        static bool Parse(WireType wire_type, uint32_t &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, uint32_t &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::VARINT)
                 return false;
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool Parse(WireType wire_type, uint32_t &value, FlagsType<flags::f>, reader &in)
+        static bool Parse(WireType wire_type, uint32_t &value, FlagsType<Flags::F>, Reader &in)
         {
             if (wire_type != WireType::FIXED32)
                 return false;
             return SerialDetail::ReadFixed(value, in);
         }
 
-        static bool ParsePacked(uint32_t &value, FlagsType<>, reader &in)
+        static bool ParsePacked(uint32_t &value, FlagsType<>, Reader &in)
         {
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool ParsePacked(uint32_t &value, FlagsType<flags::f>, reader &in)
+        static bool ParsePacked(uint32_t &value, FlagsType<Flags::F>, Reader &in)
         {
             return SerialDetail::ReadFixed(value, in);
         }
@@ -874,7 +874,7 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void Serialize(uint32_t tag, int64_t value, FlagsType<flags::s>, Writer &out, bool force = false)
+        static void Serialize(uint32_t tag, int64_t value, FlagsType<Flags::S>, Writer &out, bool force = false)
         {
             (void)force;
             SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
@@ -882,7 +882,7 @@ namespace SerialStruct {
         }
 
         static void Serialize(
-            uint32_t tag, int64_t value, FlagsType<flags::s | flags::f>, Writer &out, bool force = false)
+            uint32_t tag, int64_t value, FlagsType<Flags::S | Flags::F>, Writer &out, bool force = false)
         {
             (void)force;
             SerialDetail::WriteTagWriteType(tag, WireType::FIXED64, out);
@@ -894,48 +894,48 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void SerializePacked(int64_t value, FlagsType<flags::s>, Writer &out)
+        static void SerializePacked(int64_t value, FlagsType<Flags::S>, Writer &out)
         {
             SerialDetail::WriteSignedVarint(value, out);
         }
 
-        static void SerializePacked(int64_t value, FlagsType<flags::s | flags::f>, Writer &out)
+        static void SerializePacked(int64_t value, FlagsType<Flags::S | Flags::F>, Writer &out)
         {
             SerialDetail::WriteSignedFixed(value, out);
         }
 
-        static bool Parse(WireType wire_type, int64_t &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, int64_t &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::VARINT)
                 return false;
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool Parse(WireType wire_type, int64_t &value, FlagsType<flags::s>, reader &in)
+        static bool Parse(WireType wire_type, int64_t &value, FlagsType<Flags::S>, Reader &in)
         {
             if (wire_type != WireType::VARINT)
                 return false;
             return SerialDetail::ReadSignedVarint(value, in);
         }
 
-        static bool Parse(WireType wire_type, int64_t &value, FlagsType<flags::s | flags::f>, reader &in)
+        static bool Parse(WireType wire_type, int64_t &value, FlagsType<Flags::S | Flags::F>, Reader &in)
         {
             if (wire_type != WireType::FIXED64)
                 return false;
             return SerialDetail::ReadSignedFixed(value, in);
         }
 
-        static bool ParsePacked(int64_t &value, FlagsType<>, reader &in)
+        static bool ParsePacked(int64_t &value, FlagsType<>, Reader &in)
         {
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool ParsePacked(int64_t &value, FlagsType<flags::s>, reader &in)
+        static bool ParsePacked(int64_t &value, FlagsType<Flags::S>, Reader &in)
         {
             return SerialDetail::ReadSignedVarint(value, in);
         }
 
-        static bool ParsePacked(int64_t &value, FlagsType<flags::s | flags::f>, reader &in)
+        static bool ParsePacked(int64_t &value, FlagsType<Flags::S | Flags::F>, Reader &in)
         {
             return SerialDetail::ReadSignedFixed(value, in);
         }
@@ -949,7 +949,7 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void Serialize(uint32_t tag, uint64_t value, FlagsType<flags::f>, Writer &out, bool force = false)
+        static void Serialize(uint32_t tag, uint64_t value, FlagsType<Flags::F>, Writer &out, bool force = false)
         {
             if (!force && value == UINT64_C(0))
                 return;
@@ -963,31 +963,31 @@ namespace SerialStruct {
             SerialDetail::WriteVarint(value, out);
         }
 
-        static void SerializePacked(uint64_t value, FlagsType<flags::f>, Writer &out)
+        static void SerializePacked(uint64_t value, FlagsType<Flags::F>, Writer &out)
         {
             SerialDetail::WriteFixed(value, out);
         }
 
-        static bool Parse(WireType wire_type, uint64_t &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, uint64_t &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::VARINT)
                 return false;
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool Parse(WireType wire_type, uint64_t &value, FlagsType<flags::f>, reader &in)
+        static bool Parse(WireType wire_type, uint64_t &value, FlagsType<Flags::F>, Reader &in)
         {
             if (wire_type != WireType::FIXED64)
                 return false;
             return SerialDetail::ReadFixed(value, in);
         }
 
-        static bool ParsePacked(uint64_t &value, FlagsType<>, reader &in)
+        static bool ParsePacked(uint64_t &value, FlagsType<>, Reader &in)
         {
             return SerialDetail::ReadVarint(value, in);
         }
 
-        static bool ParsePacked(uint64_t &value, FlagsType<flags::f>, reader &in)
+        static bool ParsePacked(uint64_t &value, FlagsType<Flags::F>, Reader &in)
         {
             return SerialDetail::ReadFixed(value, in);
         }
@@ -1008,7 +1008,7 @@ namespace SerialStruct {
             SerialDetail::WriteFixed(value, out);
         }
 
-        static bool Parse(WireType wire_type, double &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, double &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::FIXED64) {
                 return false;
@@ -1016,7 +1016,7 @@ namespace SerialStruct {
             return SerialDetail::ReadFixed(value, in);
         }
 
-        static bool ParsePacked(double &value, FlagsType<>, reader &in)
+        static bool ParsePacked(double &value, FlagsType<>, Reader &in)
         {
             return SerialDetail::ReadFixed(value, in);
         }
@@ -1037,7 +1037,7 @@ namespace SerialStruct {
             SerialDetail::WriteFixed(value, out);
         }
 
-        static bool Parse(WireType wire_type, float &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, float &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::FIXED32) {
                 return false;
@@ -1045,7 +1045,7 @@ namespace SerialStruct {
             return SerialDetail::ReadFixed(value, in);
         }
 
-        static bool ParsePacked(float &value, FlagsType<>, reader &in)
+        static bool ParsePacked(float &value, FlagsType<>, Reader &in)
         {
             return SerialDetail::ReadFixed(value, in);
         }
@@ -1062,7 +1062,7 @@ namespace SerialStruct {
             Serializer<uint32_t>::SerializePacked(value ? 1 : 0, FlagsType(), out);
         }
 
-        static bool Parse(WireType wire_type, bool &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, bool &value, FlagsType<>, Reader &in)
         {
             uint32_t intermedaite_value;
             if (Serializer<uint32_t>::Parse(wire_type, intermedaite_value, FlagsType<>(), in)) {
@@ -1072,7 +1072,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ParsePacked(bool &value, FlagsType<>, reader &in)
+        static bool ParsePacked(bool &value, FlagsType<>, Reader &in)
         {
             uint32_t intermedaite_value;
             if (Serializer<uint32_t>::ParsePacked(intermedaite_value, FlagsType<>(), in)) {
@@ -1096,7 +1096,7 @@ namespace SerialStruct {
             Serializer<U>::SerializePacked(static_cast<U>(value), FlagsType<>(), out);
         }
 
-        static bool Parse(WireType wire_type, T &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, T &value, FlagsType<>, Reader &in)
         {
             U intermedaite_value;
             if (Serializer<U>::Parse(wire_type, intermedaite_value, FlagsType<>(), in)) {
@@ -1106,7 +1106,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ParsePacked(T &value, FlagsType<>, reader &in)
+        static bool ParsePacked(T &value, FlagsType<>, Reader &in)
         {
             U intermedaite_value;
             if (Serializer<U>::ParsePacked(intermedaite_value, FlagsType<>(), in)) {
@@ -1126,7 +1126,7 @@ namespace SerialStruct {
             out.Write(value.data(), value.size());
         }
 
-        static bool Parse(WireType wire_type, std::string &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, std::string &value, FlagsType<>, Reader &in)
         {
             if (wire_type != WireType::LENGTH_DELIMETED) {
                 return false;
@@ -1150,7 +1150,7 @@ namespace SerialStruct {
         }
 
         template<uint32_t Flags>
-        static bool Parse(WireType wire_type, std::vector<T> &value, FlagsType<Flags>, reader &in)
+        static bool Parse(WireType wire_type, std::vector<T> &value, FlagsType<Flags>, Reader &in)
         {
             return SerialDetail::ReadRepeated<Flags, T>(wire_type, std::back_inserter(value), in);
         }
@@ -1167,7 +1167,7 @@ namespace SerialStruct {
         }
 
         template<uint32_t Flags>
-        static bool Parse(WireType wire_type, std::optional<T> &value, FlagsType<Flags>, reader &in)
+        static bool Parse(WireType wire_type, std::optional<T> &value, FlagsType<Flags>, Reader &in)
         {
             return Serializer<T>::Parse(wire_type, value.emplace(), FlagsType<Flags>(), in);
         }
@@ -1185,7 +1185,7 @@ namespace SerialStruct {
         }
 
         template<size_t Index, uint32_t Flags>
-        static bool ParseOneof(WireType wire_type, std::variant<T...> &value, FlagsType<Flags>, reader &in)
+        static bool ParseOneof(WireType wire_type, std::variant<T...> &value, FlagsType<Flags>, Reader &in)
         {
             return Serializer<std::variant_alternative_t<Index, std::variant<T...>>>::Parse(
                 wire_type, value.template emplace<Index>(), FlagsType<Flags>(), in);
@@ -1202,7 +1202,7 @@ namespace SerialStruct {
 
         template<uint32_t KeyFlags, uint32_t ValueFlags>
         static bool ParseMap(
-            WireType wire_type, std::map<Key, Value> &value, FlagsType<KeyFlags>, FlagsType<ValueFlags>, reader &in)
+            WireType wire_type, std::map<Key, Value> &value, FlagsType<KeyFlags>, FlagsType<ValueFlags>, Reader &in)
         {
             return SerialDetail::ReadMap<KeyFlags, ValueFlags>(wire_type, value, in);
         }
@@ -1223,7 +1223,7 @@ namespace SerialStruct {
         std::string &_out;
     };
 
-    struct StringReader : public reader {
+    struct StringReader : public Reader {
         StringReader(const std::string &in)
             : _in(in), _pos(0)
         {
@@ -1255,7 +1255,7 @@ namespace SerialStruct {
             Serializer<uint32_t>::SerializePacked(value, FlagsType(), out);
         }
 
-        static bool Parse(WireType wire_type, uint8_t &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, uint8_t &value, FlagsType<>, Reader &in)
         {
             uint32_t intermedaite_value;
             if (Serializer<uint32_t>::Parse(wire_type, intermedaite_value, FlagsType<>(), in)) {
@@ -1265,7 +1265,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ParsePacked(uint8_t &value, FlagsType<>, reader &in)
+        static bool ParsePacked(uint8_t &value, FlagsType<>, Reader &in)
         {
             uint32_t intermedaite_value;
             if (Serializer<uint32_t>::ParsePacked(intermedaite_value, FlagsType<>(), in)) {
@@ -1286,7 +1286,7 @@ namespace SerialStruct {
             Serializer<uint32_t>::SerializePacked(value, FlagsType(), out);
         }
 
-        static bool Parse(WireType wire_type, uint16_t &value, FlagsType<>, reader &in)
+        static bool Parse(WireType wire_type, uint16_t &value, FlagsType<>, Reader &in)
         {
             uint32_t intermedaite_value;
             if (Serializer<uint32_t>::Parse(wire_type, intermedaite_value, FlagsType<>(), in)) {
@@ -1296,7 +1296,7 @@ namespace SerialStruct {
             return false;
         }
 
-        static bool ParsePacked(uint16_t &value, FlagsType<>, reader &in)
+        static bool ParsePacked(uint16_t &value, FlagsType<>, Reader &in)
         {
             uint32_t intermedaite_value;
             if (Serializer<uint32_t>::ParsePacked(intermedaite_value, FlagsType<>(), in)) {

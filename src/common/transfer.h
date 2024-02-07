@@ -38,8 +38,8 @@ public:
     };
     struct FileMode {
         uint64_t perm;
-        uint64_t u_id;
-        uint64_t g_id;
+        uint64_t uId;
+        uint64_t gId;
         string context;
         string fullName;
     };

@@ -390,7 +390,7 @@ pub async fn command_dispatch(
                 hdctransfer::echo_client(
                     session_id,
                     channel_id,
-                    "Transfer failed: create dir fail".as_bytes().to_vec(),
+                    "Transfer failed: create file or directory error.".as_bytes().to_vec(),
                 )
                 .await;
                 task_finish(session_id, channel_id).await;

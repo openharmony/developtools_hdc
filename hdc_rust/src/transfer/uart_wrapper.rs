@@ -173,7 +173,6 @@ impl QueueManager {
         }
     }
 
-
     async fn get_package(session_id: u32, index: usize) -> Option<OutputData> {
         let instance = Self::get_instance();
         let mtx = instance.lock().await;
@@ -298,7 +297,6 @@ impl QueueManager {
             let mut status = first_pkg.status;
             let mut retry_count = first_pkg.retry_count;
 
-            // println!("data1:{:#?}", first_pkg);
             if status == OutputDataStatus::WaitSend {
                 // 发送数据
                 let data = first_pkg.data.clone();
@@ -315,7 +313,6 @@ impl QueueManager {
                 // 更新数据
                 QueueManager::update_package(session_id, 0, first_pkg.clone()).await;
                 // 等待response
-                // println!("wait response:{}.", first_pkg);
                 WaiterManager::wait_response(session_id).await;
 
                 if Self::check_stop(session_id).await {
@@ -327,15 +324,12 @@ impl QueueManager {
                 let first_pkg = Self::get_package(session_id, 0).await;
 
                 let mut first_pkg = first_pkg.unwrap();
-                // println!("wait response continue {}...", first_pkg);
                 // 得到新状态
                 status = first_pkg.status;
 
                 if status == OutputDataStatus::ResponseOk {
-                    // println!("response OKOKOK CONTINUE.");
                     // 删除当前data
                     QueueManager::remove_package(session_id, 0).await;
-                    // println!("response OKOKOK CONTINUE 222.");
                     continue;
                 }
                 retry_count = first_pkg.retry_count;
@@ -361,24 +355,17 @@ impl QueueManager {
 
                     match status {
                         OutputDataStatus::ResponseOk => {
-                            // println!("response OKOKOK CONTINUE.");
-                            // 删除当前data
                             QueueManager::remove_package(session_id, 0).await;
-                            // println!("response OKOKOK CONTINUE 222.");
                             break;
                         }
-
                         OutputDataStatus::WaitResponse => {
-                            // 继续重试
                             let first_pkg = Self::get_package(session_id, 0).await;
                             let first_pkg = first_pkg.unwrap();
                             status = first_pkg.status;
                             retry_count = first_pkg.retry_count;
                             continue;
                         }
-
                         OutputDataStatus::WaitSend => {
-                            // 状态无效，删除当前data
                             QueueManager::remove_package(session_id, 0).await;
                             break;
                         }

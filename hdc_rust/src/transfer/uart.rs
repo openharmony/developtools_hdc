@@ -110,7 +110,6 @@ impl base::Reader for UartReader {
     }
 
     fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
-        // println!("check_protocol_head....");
         let buf = self.read_frame(serializer::UART_HEAD_SIZE)?;
         if buf[..config::PACKET_FLAG.len()] != config::PACKET_FLAG[..] {
             return Err(Error::new(

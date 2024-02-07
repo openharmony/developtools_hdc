@@ -1,6 +1,5 @@
-
 /*
- * Copyright (C) 2023 Huawei Device Co., Ltd.
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,14 +12,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef HDC_SYSTEM_DEPEND_H
+#define HDC_SYSTEM_DEPEND_H
+#include "base.h"
+#include <string>
 
-#ifndef HDC_GET_PARAMETER_H
-#define HDC_GET_PARAMETER_H
-
-#include "parameter.h"
-
-const int BUF_SIZE_MEDIUM = 512;
-
-int GetParam(const char* key, char* out);
-
+namespace Hdc {
+using namespace std;
+#ifdef HDC_SUPPORT_FLASHD
+// deprecated, remove later
+inline bool GetDevItem(const char *key, string value)
+{
+    return false;
+};
+inline bool SetDevItem(const char *key, const char *value)
+{
+    return false;
+};
+#else
+bool GetDevItem(const char *key, string &out, const char *preDefine = nullptr);
+bool SetDevItem(const char *key, const char *value);
 #endif
+}  // namespace Hdc
+#endif  // HDC_BASE_H

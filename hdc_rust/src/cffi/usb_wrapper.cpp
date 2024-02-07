@@ -22,66 +22,75 @@ namespace Hdc {
 
 constexpr uint16_t MAX_SIZE_IOBUF = 0xf000;
 
-extern "C" int32_t ConfigEpPointEx(const char* path) {
+extern "C" int32_t ConfigEpPointEx(const char* path)
+{
     int ep;
     if (ConfigEpPoint(ep, std::string(path)) != 0) {
         printf("open ep failed");
         return -1;
     }
-    return (int32_t)ep;
+    return static_cast<int32_t>(ep);
 }
 
-extern "C" int32_t OpenEpPointEx(const char* path) {
+extern "C" int32_t OpenEpPointEx(const char* path)
+{
     int fd = -1;
     if (OpenEpPoint(fd, std::string(path)) != 0) {
         printf("open ep failed");
         return -1;
     }
-    return (int32_t)fd;
+    return static_cast<int32_t>(fd);
 }
 
-extern "C" int32_t CloseUsbFdEx(int32_t fd) {
-    return (int32_t)CloseUsbFd(fd);
+extern "C" int32_t CloseUsbFdEx(int32_t fd)
+{
+    return static_cast<int32_t>(CloseUsbFd(fd));
 }
 
-extern "C" void CloseEndPointEx(int32_t bulkInFd, int32_t bulkOutFd, int32_t ctrlEp, uint8_t closeCtrlEp) {
+extern "C" void CloseEndPointEx(int32_t bulkInFd, int32_t bulkOutFd, int32_t ctrlEp,
+                                uint8_t closeCtrlEp)
+{
     CloseEndpoint(bulkInFd, bulkOutFd, ctrlEp, closeCtrlEp);
 }
 
-extern "C" int32_t WriteUsbDevEx(int32_t bulkOut, SerializedBuffer buf) {
-    return (int32_t)WriteData(bulkOut, reinterpret_cast<uint8_t *>(buf.ptr), (size_t)buf.size);
+extern "C" int32_t WriteUsbDevEx(int32_t bulkOut, SerializedBuffer buf)
+{
+    return static_cast<int32_t>(WriteData(bulkOut, reinterpret_cast<uint8_t *>(buf.ptr),
+                                          static_cast<size_t>(buf.size)));
 }
 
-uint8_t *buf_ret = nullptr;
+uint8_t *g_bufRet = nullptr;
 
 struct PersistBuffer {
     char *ptr;
     uint64_t size;
 };
 
-extern "C" PersistBuffer ReadUsbDevEx(int32_t bulkIn) {
-    if (buf_ret == nullptr) {
-        printf("remalloc buf_ret\n");
-        buf_ret = (uint8_t *)malloc(MAX_SIZE_IOBUF);
+extern "C" PersistBuffer ReadUsbDevEx(int32_t bulkIn)
+{
+    if (g_bufRet == nullptr) {
+        printf("remalloc g_bufRet\n");
+        g_bufRet = new uint8_t[MAX_SIZE_IOBUF];
     }
 
     while (true) {
-        int length = ReadData(bulkIn, buf_ret, MAX_SIZE_IOBUF);
+        int length = ReadData(bulkIn, g_bufRet, MAX_SIZE_IOBUF);
         if (length > 0) {
-            return PersistBuffer{reinterpret_cast<char *>(buf_ret), (uint64_t)length};
+            return PersistBuffer{reinterpret_cast<char *>(g_bufRet), static_cast<uint64_t>(length)};
         } else if (length < 0) {
-            return PersistBuffer{reinterpret_cast<char *>(buf_ret), (uint64_t)0};
+            return PersistBuffer{reinterpret_cast<char *>(g_bufRet), static_cast<uint64_t>(0)};
         }
     }
 }
 
-extern "C" char *GetDevPathEx(const char *path) {
+extern "C" char *GetDevPathEx(const char *path)
+{
     std::string basePath = GetDevPath(std::string(path));
     size_t buf_size = basePath.length() + 1;
-    char *buf_ret = (char *)malloc(buf_size);
-    memset_s(buf_ret, buf_size, 0, buf_size);
-    memcpy_s(buf_ret, buf_size, basePath.c_str(), buf_size);
-    return buf_ret;
+    char *bufRet = new char[buf_size];
+    (void)memset_s(bufRet, buf_size, 0, buf_size);
+    (void)memcpy_s(bufRet, buf_size, basePath.c_str(), buf_size);
+    return bufRet;
 }
 
 }

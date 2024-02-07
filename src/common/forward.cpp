@@ -25,12 +25,13 @@ HdcForwardBase::HdcForwardBase(HTaskInfo hTaskInfo)
 
 HdcForwardBase::~HdcForwardBase()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcForwardBase");
+    WRITE_LOG(LOG_DEBUG, "~HdcForwardBase channelId:%u", taskInfo->channelId);
 };
 
 bool HdcForwardBase::ReadyForRelease()
 {
     if (!HdcTaskBase::ReadyForRelease()) {
+        WRITE_LOG(LOG_WARN, "not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     return true;
@@ -60,6 +61,8 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
     bool ret = false;
     while (true) {
         if (uv_accept(server, client)) {
+            WRITE_LOG(LOG_FATAL, "uv_accept id:%u type:%d remoteParamenters:%s",
+                ctxListen->id, ctxListen->type, ctxListen->remoteParamenters.c_str());
             break;
         }
         ctxClient->type = ctxListen->type;
@@ -70,10 +73,10 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
                        ctxClient->remoteParamenters.c_str()) < 0) {
             break;
         }
-        // clang-format on
-        // pre 8bytes preserve for param bits
+        WRITE_LOG(LOG_DEBUG, "OnAccept id:%u type:%d remoteParamenters:%s",
+            ctxClient->id, ctxClient->type, ctxClient->remoteParamenters.c_str());
         SendToTask(ctxClient->id, CMD_FORWARD_ACTIVE_SLAVE, reinterpret_cast<uint8_t *>(buf),
-                   strlen(buf + forwardParameterBufSize) + 9);
+                   strlen(buf + forwardParameterBufSize) + 9); // 9: pre 8bytes preserve for param bits
         ret = true;
         break;
     }
@@ -89,6 +92,8 @@ void HdcForwardBase::ListenCallback(uv_stream_t *server, const int status)
     uv_stream_t *client = nullptr;
 
     if (status == -1 || !ctxListen->ready) {
+        WRITE_LOG(LOG_FATAL, "ListenCallback status:%d id:%u ready:%d",
+            status, ctxListen->id, ctxListen->ready);
         thisClass->FreeContext(ctxListen, 0, false);
         thisClass->TaskFinish();
         return;
@@ -131,6 +136,7 @@ void HdcForwardBase::FreeContextCallBack(HCtxForward ctx)
         HCtxForward ctx = (HCtxForward)data;
         AdminContext(OP_REMOVE, ctx->id, nullptr);
         if (ctx != nullptr) {
+            WRITE_LOG(LOG_DEBUG, "Finally to delete id:%u", ctx->id);
             delete ctx;
             ctx = nullptr;
         }
@@ -170,7 +176,7 @@ void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNot
     HCtxForward ctx = nullptr;
     if (!ctxIn) {
         if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
-            WRITE_LOG(LOG_DEBUG, "Query id failed");
+            WRITE_LOG(LOG_DEBUG, "Query id:%u failed", id);
             return;
         }
     } else {
@@ -213,6 +219,7 @@ bool HdcForwardBase::SendToTask(const uint32_t cid, const uint16_t command, uint
     bool ret = false;
     // usually MAX_SIZE_IOBUF*2 from HdcFileDescriptor maxIO
     if (bufSize > Base::GetMaxBufSize() * 2) {
+        WRITE_LOG(LOG_FATAL, "SendToTask bufSize:%d", bufSize);
         return false;
     }
     auto newBuf = new uint8_t[bufSize + 4];
@@ -248,11 +255,13 @@ void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv
 {
     HCtxForward ctx = (HCtxForward)stream->data;
     if (nread < 0) {
+        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:%zd id:%u", nread, ctx->id);
         ctx->thisClass->FreeContext(ctx, 0, true);
         delete[] buf->base;
         return;
     }
     if (nread == 0) {
+        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:0 id:%u", ctx->id);
         delete[] buf->base;
         return;
     }
@@ -316,6 +325,7 @@ bool HdcForwardBase::SetupPointContinue(HCtxForward ctx, int status)
     }
     // send to active
     if (!SendToTask(ctx->id, CMD_FORWARD_ACTIVE_MASTER, nullptr, 0)) {
+        WRITE_LOG(LOG_FATAL, "SetupPointContinue SendToTask failed id:%u", ctx->id);
         FreeContext(ctx, 0, true);
         return false;
     }
@@ -394,7 +404,7 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
     };
     auto funcFinish = [&](const void *a, const bool b, const string c) -> bool {
         HCtxForward ctx = (HCtxForward)a;
-        WRITE_LOG(LOG_DEBUG, "Error ReadForwardBuf dev,ret:%d reason:%s", b, c.c_str());
+        WRITE_LOG(LOG_DEBUG, "funcFinish id:%u ret:%d reason:%s", ctx->id, b, c.c_str());
         FreeContext(ctx, 0, true);
         return false;
     };
@@ -651,7 +661,7 @@ bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
             uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
             break;
         case FORWARD_ARK:
-            WRITE_LOG(LOG_DEBUG, "DoForwardBegin ark socketpair cid:%u fds[0]:%d", ctx->id, fds[0]);
+            WRITE_LOG(LOG_DEBUG, "DoForwardBegin ark socketpair id:%u fds[0]:%d", ctx->id, fds[0]);
             uv_tcp_init(loopTask, &ctx->tcp);
             uv_tcp_open(&ctx->tcp, fds[0]);
             uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
@@ -718,6 +728,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
 {
     int nRet = 0;
     if (size > static_cast<int>(HDC_BUF_MAX_BYTES - 1)) {
+        WRITE_LOG(LOG_WARN, "SendForwardBuf size:%d > HDC_BUF_MAX_BYTES", size);
         return -1;
     }
     if (size <= 0) {
@@ -779,7 +790,7 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
     FilterCommand(payload, &id, &pContent);
     sizeContent = payloadSize - DWORD_SERIALIZE_SIZE;
     if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
-        WRITE_LOG(LOG_WARN, "Query id failed");
+        WRITE_LOG(LOG_WARN, "Query id:%u failed", id);
         return true;
     }
     switch (command) {
@@ -821,6 +832,9 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
 
 bool HdcForwardBase::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
+    if (command != CMD_FORWARD_DATA) {
+        WRITE_LOG(LOG_DEBUG, "CommandDispatch command:%d payloadSize:%d", command, payloadSize);
+    }
     bool ret = true;
     string sError;
     // prepare

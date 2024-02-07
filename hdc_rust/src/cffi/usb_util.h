@@ -22,14 +22,9 @@
 #include "usb_types.h"
 #include <arpa/inet.h>
 
-inline int GetMaxBufSize()
-{
-    return MAX_SIZE_IOBUF;
-}
-
 std::string GetDevPath(const std::string &path);
 
-std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize);
+std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size);
 
 const std::string StringFormat(const char * const formater, va_list &vaArgs);
 

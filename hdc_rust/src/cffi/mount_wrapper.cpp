@@ -15,7 +15,8 @@
 #include "mount.h"
 
 namespace Hdc {
-extern "C" bool RemountDeviceEx() {
-    return (bool)RemountDevice();
+extern "C" bool RemountDeviceEx()
+{
+    return static_cast<bool>(RemountDevice());
 }
 }

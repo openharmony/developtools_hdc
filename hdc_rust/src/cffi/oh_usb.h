@@ -21,7 +21,7 @@
 #include "usb_types.h"
 #include "usb_ffs.h"
 
-void FillUsbV2Head(struct Hdc::usb_functionfs_desc_v2 &descUsbFfs);
+void FillUsbV2Head(struct Hdc::UsbFunctionfsDescV2 &descUsbFfs);
 
 int ConfigEpPoint(int& controlEp, const std::string& path);
 

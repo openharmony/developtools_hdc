@@ -84,10 +84,15 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         AdminContext(OP_REMOVE, ctx->pid, nullptr);
     }
     auto funcReqClose = [](uv_idle_t *handle) -> void {
-        HCtxJdwp ctx = (HCtxJdwp)handle->data;
-        --ctx->thisClass->refCount;
+        HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
+        --ctxIn->thisClass->refCount;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
-        delete ctx;
+#ifndef HDC_EMULATOR
+        if (ctxIn != nullptr) {
+            delete ctxIn;
+            ctxIn = nullptr;
+        }
+#endif
     };
     Base::IdleUvTask(loop, ctx, funcReqClose);
 }
@@ -112,8 +117,8 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     } else if (nread == 0) {
         return;
 #ifdef JS_JDWP_CONNECT
-    } else if (nread < JS_PKG_MIN_SIZE + sizeof(JsMsgHeader) ||
-               nread > JS_PKG_MAX_SIZE + sizeof(JsMsgHeader)) {
+    } else if (nread < signed(JS_PKG_MIN_SIZE + sizeof(JsMsgHeader)) ||
+               nread > signed(JS_PKG_MAX_SIZE + sizeof(JsMsgHeader))) {
 #else
     } else if (nread < 0 || nread != 4) {  // 4 : 4 bytes
 #endif  // JS_JDWP_CONNECT
@@ -246,6 +251,7 @@ bool HdcJdwp::JdwpListen()
             return ret;
         }
         if (uv_listen((uv_stream_t *)&listenPipe, DEFAULT_BACKLOG, AcceptClient)) {
+            WRITE_LOG(LOG_FATAL, "uv_listen failed");
             break;
         }
         ++refCount;
@@ -405,6 +411,7 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
         HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
         if (!ctx) {
+            WRITE_LOG(LOG_FATAL, "SendArkNewFD query pid:%u failed", pid);
             break;
         }
         uint32_t size = sizeof(int32_t) + str.size();

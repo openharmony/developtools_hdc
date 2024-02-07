@@ -24,7 +24,7 @@ HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
 
 HdcDaemonUnity::~HdcDaemonUnity()
 {
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonUnity::~HdcDaemonUnity finish");
+    WRITE_LOG(LOG_DEBUG, "~HdcDaemonUnity channelId:%u", taskInfo->channelId);
 }
 
 void HdcDaemonUnity::StopTask()
@@ -37,6 +37,7 @@ void HdcDaemonUnity::StopTask()
 bool HdcDaemonUnity::ReadyForRelease()
 {
     if (!HdcTaskBase::ReadyForRelease() || !asyncCommand.ReadyForRelease()) {
+        WRITE_LOG(LOG_DEBUG, "not ready for release channelId:%u", taskInfo->channelId);
         return false;
     }
     return true;

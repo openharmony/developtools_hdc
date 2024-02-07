@@ -291,10 +291,10 @@ using HTaskInfo = TaskInformation *;
 
 #ifdef HDC_HOST
 struct HostUSBEndpoint {
-    HostUSBEndpoint()
+    HostUSBEndpoint(uint16_t epBufSize)
     {
         endpoint = 0;
-        sizeEpBuf = 62464;  // MAX_USBFFS_BULK
+        sizeEpBuf = epBufSize;  // MAX_USBFFS_BULK
         transfer = libusb_alloc_transfer(0);
         isShutdown = true;
         isComplete = true;
@@ -333,6 +333,7 @@ struct HdcUSB {
     std::string usbMountPoint;
     HostUSBEndpoint hostBulkIn;
     HostUSBEndpoint hostBulkOut;
+    HdcUSB() : hostBulkIn(63488), hostBulkOut(62464) {} // 62464 MAX_USBFFS_BULK + 1024 = 63488 
 
 #else
     // usb accessory FunctionFS
@@ -535,6 +536,7 @@ struct HdcForwardInformation {
     bool forwardDirection;  // true for forward, false is reverse;
     uint32_t sessionId;
     uint32_t channelId;
+    std::string connectKey;
 };
 using HForwardInfo = struct HdcForwardInformation *;
 }

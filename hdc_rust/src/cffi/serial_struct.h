@@ -20,9 +20,8 @@
 #include <string>
 #include <sstream>
 
-using std::string;
-
 namespace Hdc {
+using std::string;
 namespace BaseStruct {
     struct SessionHandShake {
         string banner; // must first index
@@ -32,7 +31,7 @@ namespace BaseStruct {
         string connectKey;
         string buf;
         string version;
-        std::string ToDebugString()
+        std::string ToDebugString() const
         {
             std::ostringstream oss;
             oss << "SessionHandShake [";
@@ -141,21 +140,21 @@ namespace RustStruct {
         uint8_t reserve[2];  // encrypt'flag or others options
         uint8_t protocolVer;
         uint16_t headSize;
-        uint32_t dataSize;
+        uint32_t data_size;
     } __attribute__((packed));
 
     struct USBHead {
         uint8_t flag[2];
         uint8_t option;
         uint32_t sessionId;
-        uint32_t dataSize;
+        uint32_t data_size;
     } __attribute__((packed));
 
     struct UartHead {
         uint8_t flag[2];
         uint16_t option;
         uint32_t sessionId;
-        uint32_t dataSize;
+        uint32_t data_size;
         uint32_t package_index;
         uint32_t data_checksum;
         uint32_t head_checksum;

@@ -26,34 +26,36 @@ HdcJdwpSimulator::HdcJdwpSimulator(const std::string processName, const std::str
     isDebug_ = isDebug;
     cb_ = cb;
     cfd_ = -1;
-    ctxPoint_ = (HCtxJdwpSimulator)MallocContext();
+    ctxPoint_ = static_cast<HCtxJdwpSimulator>(MallocContext());
     disconnectFlag_ = false;
+    startOnce_ = true;
 }
 
 void HdcJdwpSimulator::Disconnect()
 {
+    disconnectFlag_ = true;
     if (ctxPoint_ != nullptr && ctxPoint_->cfd > -1) {
-        disconnectFlag_ = true;
         shutdown(ctxPoint_->cfd, SHUT_RDWR);
         close(ctxPoint_->cfd);
         ctxPoint_->cfd = -1;
-        unsigned int threadDelay = 500000;
-        usleep(threadDelay);
-        if (readThread_.joinable()) {
-            readThread_.join();
-        }
+    }
+    if (readThread_.joinable()) {
+        readThread_.join();
     }
 }
 
 HdcJdwpSimulator::~HdcJdwpSimulator()
 {
+    disconnectFlag_ = true;
+    if (ctxPoint_ != nullptr && ctxPoint_->cfd > -1) {
+        shutdown(ctxPoint_->cfd, SHUT_RDWR);
+        close(ctxPoint_->cfd);
+        ctxPoint_->cfd = -1;
+    }
+    if (readThread_.joinable()) {
+        readThread_.join();
+    }
     if (ctxPoint_ != nullptr) {
-        if (ctxPoint_->cfd > -1) {
-            disconnectFlag_ = true;
-            shutdown(ctxPoint_->cfd, SHUT_RDWR);
-            close(ctxPoint_->cfd);
-            ctxPoint_->cfd = -1;
-        }
         delete ctxPoint_;
         ctxPoint_ = nullptr;
     }
@@ -61,10 +63,9 @@ HdcJdwpSimulator::~HdcJdwpSimulator()
 
 bool HdcJdwpSimulator::SendToJpid(int fd, const uint8_t *buf, const int bufLen)
 {
-    HILOG_INFO(LOG_CORE, "SendToJpid: %{public}s, %{public}d", buf, bufLen);
     ssize_t rc = write(fd, buf, bufLen);
     if (rc < 0) {
-        HILOG_FATAL(LOG_CORE, "SendToJpid failed errno:%{public}d", errno);
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "SendToJpid failed errno:%{public}d", errno);
         return false;
     }
     return true;
@@ -75,17 +76,17 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
     uint32_t pidCurr = static_cast<uint32_t>(getpid());
     HdcJdwpSimulator *thisClass = param;
 #ifdef JS_JDWP_CONNECT
-    string processName = thisClass->processName_;
-    string pkgName = thisClass->pkgName_;
+    std::string processName = thisClass->processName_;
+    std::string pkgName = thisClass->pkgName_;
     bool isDebug = thisClass->isDebug_;
-    string pp = pkgName;
+    std::string pp = pkgName;
     if (!processName.empty()) {
         pp += "/" + processName;
     }
     uint32_t ppSize = pp.size() + sizeof(JsMsgHeader);
     uint8_t* info = new (std::nothrow) uint8_t[ppSize]();
     if (info == nullptr) {
-        HILOG_FATAL(LOG_CORE, "ConnectJpid new info fail.");
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "ConnectJpid new info fail.");
         return false;
     }
     if (memset_s(info, ppSize, 0, ppSize) != EOK) {
@@ -97,16 +98,15 @@ bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
     jsMsg->msgLen = ppSize;
     jsMsg->pid = pidCurr;
     jsMsg->isDebug = isDebug;
-    HILOG_INFO(LOG_CORE,
+    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL,
         "ConnectJpid send pid:%{public}d, pp:%{public}s, isDebug:%{public}d, msglen:%{public}d",
         jsMsg->pid, pp.c_str(), isDebug, jsMsg->msgLen);
     bool ret = true;
     if (memcpy_s(info + sizeof(JsMsgHeader), pp.size(), &pp[0], pp.size()) != EOK) {
-        HILOG_FATAL(LOG_CORE, "ConnectJpid memcpy_s fail :%{public}s.", pp.c_str());
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "ConnectJpid memcpy_s fail :%{public}s.", pp.c_str());
         ret = false;
     } else {
-        HILOG_INFO(LOG_CORE, "ConnectJpid send JS msg:%{public}s", info);
-        ret = SendToJpid(thisClass->ctxPoint_->cfd, (uint8_t*)info, ppSize);
+        ret = SendToJpid(thisClass->ctxPoint_->cfd, static_cast<uint8_t*>(info), ppSize);
     }
     delete[] info;
     return ret;
@@ -129,12 +129,12 @@ bool HdcJdwpSimulator::Connect()
 {
     const char jdwp[] = { '\0', 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
     if (ctxPoint_ == nullptr) {
-        HILOG_FATAL(LOG_CORE, "MallocContext failed");
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "MallocContext failed");
         return false;
     }
     struct sockaddr_un caddr;
     if (memset_s(&caddr, sizeof(caddr), 0, sizeof(caddr)) != EOK) {
-        HILOG_FATAL(LOG_CORE, "memset_s failed");
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "memset_s failed");
         return false;
     }
     caddr.sun_family = AF_UNIX;
@@ -143,7 +143,7 @@ bool HdcJdwpSimulator::Connect()
     }
     cfd_ = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (cfd_ < 0) {
-        HILOG_FATAL(LOG_CORE, "socket failed errno:%{public}d", errno);
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "socket failed errno:%{public}d", errno);
         return false;
     }
     ctxPoint_->cfd = cfd_;
@@ -155,12 +155,16 @@ bool HdcJdwpSimulator::Connect()
     size_t caddrLen = sizeof(caddr.sun_family) + sizeof(jdwp) - 1;
     int rc = connect(cfd_, reinterpret_cast<struct sockaddr *>(&caddr), caddrLen);
     if (rc != 0) {
-        HILOG_INFO(LOG_CORE, "connect failed errno:%{public}d", errno);
+        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "connect failed errno:%{public}d", errno);
         close(cfd_);
+        cfd_ = -1;
         return false;
     }
     if (ConnectJpid(this)) {
-        ReadStart();
+        if (startOnce_) {
+            startOnce_ = false;
+            ReadStart();
+        }
     }
     return true;
 }
@@ -181,8 +185,9 @@ void HdcJdwpSimulator::Read()
     constexpr size_t size = 256;
     constexpr long sec = 5;
     uint8_t buf[size] = { 0 };
-    while(!disconnectFlag_) {
+    while (!disconnectFlag_ && cfd_ > -1) {
         ssize_t cnt = 0;
+        ssize_t minlen = sizeof(int32_t);
         fd_set rset;
         struct timeval timeout;
         timeout.tv_sec = sec;
@@ -194,7 +199,7 @@ void HdcJdwpSimulator::Read()
             if (errno == EINTR) {
                 continue;
             }
-            HILOG_FATAL(LOG_CORE, "Read select fd:%{public}d error:%{public}d", cfd_, errno);
+            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read select fd:%{public}d error:%{public}d", cfd_, errno);
             break;
         } else if (rc == 0) {
             continue;
@@ -213,31 +218,56 @@ void HdcJdwpSimulator::Read()
         msg.msg_controllen = sizeof(ctlBuf);
         msg.msg_control = ctlBuf;
         cnt = recvmsg(cfd_, &msg, 0);
-        if (cnt <= 0) {
+        if (cnt < 0) {
+            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read recvmsg cfd:%{public}d errno:%{public}d", cfd_, errno);
             break;
-        } else if (0 < cnt && cnt < 5) {
+        } else if (cnt == 0) {
+            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg socket peer closed cfd:%{public}d", cfd_);
+            close(cfd_);
+            cfd_ = -1;
+            Reconnect();
+            continue;
+        } else if (cnt < minlen) {
+            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg cnt:%{public}zd cfd:%{public}d", cnt, cfd_);
             continue;
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);
         std::string str(reinterpret_cast<char *>(buf + sizeof(int32_t)), cnt - sizeof(int32_t));
-        HILOG_INFO(LOG_CORE, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
+        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
         struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
         if (cmsg == nullptr) {
-            HILOG_FATAL(LOG_CORE, "Read cmsg is nullptr");
+            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read cmsg is nullptr");
             continue;
         }
         if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS ||
             cmsg->cmsg_len != CMSG_LEN(sizeof(int))) {
-            HILOG_INFO(LOG_CORE, "Read level:%{public}d type:%{public}d len:%{public}d",
+            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read level:%{public}d type:%{public}d len:%{public}d",
                 cmsg->cmsg_level, cmsg->cmsg_type, cmsg->cmsg_len);
             continue;
         }
         int newfd = *(reinterpret_cast<int *>(CMSG_DATA(cmsg)));
-        HILOG_INFO(LOG_CORE, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
+        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Read fd:%{public}d newfd:%{public}d str:%{public}s",
             fd, newfd, str.c_str());
         if (cb_) {
             cb_(newfd, str);
         }
+    }
+}
+
+void HdcJdwpSimulator::Reconnect()
+{
+    constexpr int timeout = 3;
+    int retry = 5;
+    // wait for hdcd restart
+    sleep(timeout);
+    while (!disconnectFlag_ && retry > 0) {
+        bool c = Connect();
+        if (c) {
+            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Reconnect success cfd:%{public}d", cfd_);
+            break;
+        }
+        OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Reconnect cfd:%{public}d retry:%{public}d", cfd_, retry--);
+        sleep(timeout);
     }
 }
 } // namespace Hdc

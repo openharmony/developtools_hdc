@@ -24,7 +24,7 @@ std::map<std::string, std::string> g_lists;
 bool g_show = true;
 
 namespace Hdc {
-bool terminalStateChange = false;
+bool g_terminalStateChange = false;
 HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
@@ -39,7 +39,7 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
 HdcClient::~HdcClient()
 {
 #ifndef _WIN32
-    if (terminalStateChange) {
+    if (g_terminalStateChange) {
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalState);
     }
 #endif
@@ -76,6 +76,7 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
     const int signNum = 9;
     uint32_t pid = GetLastPID();
     if (!pid) {
+        WRITE_LOG(LOG_FATAL, "StartKillServer pid is 0");
         return false;
     }
     if (startOrKill) {
@@ -85,7 +86,8 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
                 return true;
             }
             if (pid) {
-                uv_kill(pid, signNum);
+                int rc = uv_kill(pid, signNum);
+                WRITE_LOG(LOG_DEBUG, "uv_kill rc:%d", rc);
             }
         }
         HdcServer::PullupServer(channelHostPort.c_str());
@@ -349,6 +351,7 @@ int HdcClient::Initial(const string &connectKeyIn)
 int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
 {
     if (uv_is_closing((const uv_handle_t *)&channel->hWorkTCP)) {
+        WRITE_LOG(LOG_FATAL, "ConnectServerForClient uv_is_closing");
         return ERR_SOCKET_FAIL;
     }
     WRITE_LOG(LOG_DEBUG, "Try to connect %s:%d", ip, port);
@@ -380,7 +383,7 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
 
 void HdcClient::CommandWorker(uv_timer_t *handle)
 {
-    const uint16_t maxWaitRetry = 500;
+    const uint16_t maxWaitRetry = 1200; // client socket try 12s
     HdcClient *thisClass = (HdcClient *)handle->data;
     if (++thisClass->debugRetryCount > maxWaitRetry) {
         uv_timer_stop(handle);
@@ -414,7 +417,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         tio.c_cc[VTIME] = 0;
         tio.c_cc[VMIN] = 1;
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &tio);
-        terminalStateChange = true;
+        g_terminalStateChange = true;
 #endif
         break;
     }
@@ -440,6 +443,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     HdcClient *thisClass = (HdcClient *)hChannel->clsChannel;
     char *cmd = hChannel->bufStd;
     if (nread <= 0) {
+        WRITE_LOG(LOG_FATAL, "ReadStd error nread:%zd", nread);
         return;  // error
     }
     thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(cmd), strlen(cmd));
@@ -504,7 +508,7 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
     delete connection;
     HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
     if (status < 0 || uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
-        WRITE_LOG(LOG_FATAL, "connect failed");
+        WRITE_LOG(LOG_FATAL, "connect failed status:%d", status);
         thisClass->FreeChannel(hChannel->channelId);
         return;
     }

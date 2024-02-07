@@ -12,9 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cstdarg>
+#include "securec.h"
 #include "usb_util.h"
-
-#include <stdarg.h>
 
 std::string GetDevPath(const std::string &path)
 {
@@ -44,7 +44,7 @@ std::string GetDevPath(const std::string &path)
     return res;
 }
 
-std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize)
+std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t data_size)
 {
     std::vector<uint8_t> vecData;
     USBHead head;
@@ -53,15 +53,15 @@ std::vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint3
         head.flag[i] = USB_PACKET_FLAG.data()[i];
     }
     head.option = option;
-    head.dataSize = htonl(dataSize);
+    head.data_size = htonl(data_size);
     vecData.insert(vecData.end(), (uint8_t *)&head, (uint8_t *)&head + sizeof(USBHead));
     return vecData;
 }
 
 const std::string StringFormat(const char * const formater, va_list &vaArgs)
 {
-    std::vector<char> args(GetMaxBufSize());
-    const int retSize = vsnprintf(args.data(), GetMaxBufSize(), formater, vaArgs);
+    std::vector<char> args(MAX_SIZE_IOBUF);
+    const int retSize = vsnprintf_s(args.data(), MAX_SIZE_IOBUF, MAX_SIZE_IOBUF - 1, formater, vaArgs);
     if (retSize < 0) {
         return std::string("");
     } else {

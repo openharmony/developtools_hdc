@@ -59,6 +59,9 @@ constexpr uint16_t MAX_USBFFS_BULK = 62464;
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
 constexpr uint32_t HDC_VERSION_NUMBER = 0x20000000;  // 2.0.0a=0x20000000
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
+#ifdef HDC_HOST
+constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;
+#endif
 constexpr uint32_t HDC_SOCKETPAIR_SIZE = MAX_SIZE_IOBUF * 2;
 // "\f" asicc is 12
 const string HDC_HOST_DAEMON_BUF_SEPARATOR = "\f";
@@ -110,8 +113,8 @@ const string SPLIT = "\\";
 const string CMDSTR_TMODE_UART = "uart";
 const string UART_HDC_NODE = "/dev/ttyS4";
 const string CONSOLE_ACTIVE_NODE = "/sys/class/tty/console/active";
-constexpr int uartIOWaitTime100 = 100;
-constexpr int uartIOWaitTime = 1000;
+constexpr int UART_IO_WAIT_TIME_100 = 100;
+constexpr int UART_IO_WAIT_TIME = 1000;
 constexpr uint16_t MAX_UART_SIZE_IOBUF = 4096; // MAX_SIZE_IOBUF;
 #endif
 const string CMDSTR_TMODE_TCP = "tcp";

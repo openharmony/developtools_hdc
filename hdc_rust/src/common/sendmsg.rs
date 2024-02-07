@@ -17,9 +17,9 @@
 use std::ffi::c_int;
 
 extern "C" {
-    fn SendMsg_(socket_fd: c_int, fd: c_int, data: *mut libc::c_char, size: c_int) -> c_int;
+    fn SendMsg(socket_fd: c_int, fd: c_int, data: *mut libc::c_char, size: c_int) -> c_int;
 }
 
 pub fn send_msg(socket_fd: i32, fd: i32, data: &[u8]) -> i32 {
-    unsafe { SendMsg_(socket_fd, fd, data.as_ptr() as *mut u8, data.len() as i32) }
+    unsafe { SendMsg(socket_fd, fd, data.as_ptr() as *mut u8, data.len() as i32) }
 }

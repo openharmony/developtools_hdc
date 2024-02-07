@@ -128,7 +128,7 @@ namespace Base {
         string text(str);
         uv_buf_t wbf = uv_buf_init((char *)str, text.size());
         uv_fs_req_cleanup(&req);
-        uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
+        uv_fs_write(nullptr, &req, fd, &wbf, 1, -1, nullptr);
         uv_fs_close(nullptr, &req, fd, nullptr);
 #endif
     }
@@ -289,7 +289,7 @@ namespace Base {
         return tmpString;
     }
 
-    void SetTcpOptions(uv_tcp_t *tcpHandle)
+    void SetTcpOptions(uv_tcp_t *tcpHandle, int bufMaxSize)
     {
         if (!tcpHandle) {
             return;
@@ -297,7 +297,7 @@ namespace Base {
         uv_tcp_keepalive(tcpHandle, 1, GLOBAL_TIMEOUT);
         // if MAX_SIZE_IOBUF==5k,bufMaxSize at least 40k. It must be set to io 8 times is more appropriate,
         // otherwise asynchronous IO is too fast, a lot of IO is wasted on IOloop, transmission speed will decrease
-        int bufMaxSize = HDC_SOCKETPAIR_SIZE;
+
         uv_recv_buffer_size((uv_handle_t *)tcpHandle, &bufMaxSize);
         uv_send_buffer_size((uv_handle_t *)tcpHandle, &bufMaxSize);
     }
@@ -902,7 +902,7 @@ namespace Base {
         fl.l_whence = SEEK_SET;
         fl.l_len = 0;
         int retChild = fcntl(fd, F_SETLK, &fl);
-        if (-1 == retChild) {
+        if (retChild == -1) {
             WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
             uv_fs_close(nullptr, &req, fd, nullptr);
             return 1;
@@ -1211,7 +1211,6 @@ namespace Base {
     bool TryCreateDirectory(const string &path, string &err)
     {
         uv_fs_t req;
-        WRITE_LOG(LOG_DEBUG, "TryCreateDirectory path = %s", path.c_str());
         int r = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
         mode_t mode = req.statbuf.st_mode;
         uv_fs_req_cleanup(&req);
@@ -1220,7 +1219,10 @@ namespace Base {
             r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
             uv_fs_req_cleanup(&req);
             if (r < 0) {
-                WRITE_LOG(LOG_WARN, "create dir %s failed", path.c_str());
+                constexpr int bufSize = 1024;
+                char buf[bufSize] = { 0 };
+                uv_strerror_r((int)req.result, buf, bufSize);
+                WRITE_LOG(LOG_WARN, "create dir %s failed %s", path.c_str(), buf);
                 err = "Error create directory, path:";
                 err += path.c_str();
                 return false;
@@ -1681,6 +1683,8 @@ namespace Base {
         signal(SIGPIPE, SIG_IGN);
         signal(SIGCHLD, SIG_IGN);
         signal(SIGALRM, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
 #endif
     }
 
@@ -1692,6 +1696,8 @@ namespace Base {
         signal(SIGPIPE, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGALRM, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
 #endif
     }
 

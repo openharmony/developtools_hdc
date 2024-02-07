@@ -136,7 +136,8 @@ int HdcUARTBase::GetUartBits(int bits)
 int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
     WRITE_LOG(LOG_DEBUG, "mac SetSerial rate = %d", nSpeed);
-    struct termios options, oldttys1;
+    struct termios options;
+    struct termios oldttys1;
     if (tcgetattr(fd, &oldttys1) != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
@@ -173,7 +174,8 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
 #else
 int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 {
-    struct termios newttys1, oldttys1;
+    struct termios newttys1;
+    struct termios oldttys1;
     if (tcgetattr(fd, &oldttys1) != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
@@ -242,7 +244,7 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
         if (!bReadStatus) {
             if (GetLastError() == ERROR_IO_PENDING) {
                 bytesRead = 0;
-                DWORD dwMilliseconds = ReadGiveUpTimeOutTimeMs;
+                DWORD dwMilliseconds = READ_GIVE_UP_TIME_OUT_TIME_MS;
                 if (expectedSize == 0) {
                     dwMilliseconds = INFINITE;
                 }
@@ -285,7 +287,7 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
         tv.tv_sec = 0;
 
         if (expectedSize == 0) {
-            tv.tv_usec = WaitResponseTimeOutMs * msTous;
+            tv.tv_usec = WAIT_RESPONSE_TIME_OUT_MS * msTous;
             tv.tv_sec = tv.tv_usec / sTous;
             tv.tv_usec = tv.tv_usec % sTous;
             WRITE_LOG(LOG_DEBUG, "time  =  %d %d", tv.tv_sec, tv.tv_sec);
@@ -300,7 +302,7 @@ ssize_t HdcUARTBase::ReadUartDev(std::vector<uint8_t> &readBuf, size_t expectedS
 #endif
         } else {
             // when we have expect size , we need timeout for link data drop issue
-            tv.tv_usec = ReadGiveUpTimeOutTimeMs * msTous;
+            tv.tv_usec = READ_GIVE_UP_TIME_OUT_TIME_MS * msTous;
             tv.tv_sec = tv.tv_usec / sTous;
             tv.tv_usec = tv.tv_usec % sTous;
             ret = select(uart.devUartHandle + 1, &readFds, nullptr, nullptr, &tv);
@@ -758,7 +760,7 @@ void HdcUARTBase::SendPkgInUARTOutMap()
             auto elapsedTime = duration_cast<milliseconds>(steady_clock::now() - it->sendTimePoint);
             WRITE_LOG(LOG_DEBUG, "UartPackageManager: pkg:%s is wait ACK. elapsedTime %lld",
                       it->ToDebugString().c_str(), (long long)elapsedTime.count());
-            if (elapsedTime.count() >= WaitResponseTimeOutMs) {
+            if (elapsedTime.count() >= WAIT_RESPONSE_TIME_OUT_MS) {
                 // check the response timeout
                 if (it->retryChance > 0) {
                     // if it send timeout, resend it again.

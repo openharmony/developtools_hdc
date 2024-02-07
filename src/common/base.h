@@ -24,7 +24,7 @@ namespace Base {
     void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...);
     void PrintMessage(const char *fmt, ...);
     // tcpHandle can't be const as it's passed into uv_tcp_keepalive
-    void SetTcpOptions(uv_tcp_t *tcpHandle);
+    void SetTcpOptions(uv_tcp_t *tcpHandle, int bufMaxSize = HDC_SOCKETPAIR_SIZE);
     // Realloc need to update origBuf&origSize which can't be const
     void ReallocBuf(uint8_t **origBuf, int *nOrigSize, size_t sizeWanted);
     // handle&sendHandle must keep sync with uv_write

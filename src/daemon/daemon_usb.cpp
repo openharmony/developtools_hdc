@@ -126,7 +126,7 @@ int HdcDaemonUSB::Initial()
 }
 
 // make gnuc++ happy. Clang support direct assignment value to structure, buf g++ weakness
-void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
+void HdcDaemonUSB::FillUsbV2Head(UsbFunctionfsDescV2 &descUsbFfs)
 {
     descUsbFfs.head.magic = LONG_LE(FUNCTIONFS_DESCRIPTORS_MAGIC_V2);
     descUsbFfs.head.length = LONG_LE(sizeof(descUsbFfs));
@@ -149,7 +149,7 @@ void HdcDaemonUSB::FillUsbV2Head(usb_functionfs_desc_v2 &descUsbFfs)
 int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
 {
     int ret = ERR_GENERIC;
-    struct usb_functionfs_desc_v2 descUsbFfs = {};
+    struct UsbFunctionfsDescV2 descUsbFfs = {};
     FillUsbV2Head(descUsbFfs);
     while (true) {
         if (controlEp <= 0) {
@@ -220,6 +220,7 @@ void HdcDaemonUSB::ResetOldSession(uint32_t sessionId)
     }
     HSession hSession = daemon->AdminSession(OP_QUERY, sessionId, nullptr);
     if (hSession == nullptr) {
+        WRITE_LOG(LOG_FATAL, "ResetOldSession hSession nullptr sessionId:%u", sessionId);
         return;
     }
     // The Host side is restarted, but the USB cable is still connected
@@ -239,6 +240,7 @@ int HdcDaemonUSB::AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *session
         USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
         uint32_t inSessionId = ntohl(usbPayloadHeader->sessionId);
         if ((usbPayloadHeader->option & USB_OPTION_RESET)) {
+            WRITE_LOG(LOG_FATAL, "USB_OPTION_RESET sessionId:%u", inSessionId);
             ResetOldSession(inSessionId);
             ret = ERR_IO_SOFT_RESET;
             break;
@@ -359,6 +361,7 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
     StartTraceScope("HdcDaemonUSB::PrepareNewSession");
     HSession hChildSession = daemon->MallocSession(false, CONN_USB, this, sessionId);
     if (!hChildSession) {
+        WRITE_LOG(LOG_FATAL, "malloc session failed sessionId:%u", sessionId);
         return nullptr;
     }
     currentSessionId = sessionId;
@@ -593,7 +596,7 @@ int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
     iov = uv_buf_init(reinterpret_cast<char *>(ctxRecv.buf), ctxRecv.bufSize);
     ret = uv_fs_read(&daemon->loopMain, req, hUSB->bulkOut, &iov, 1, -1, OnUSBRead);
     if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "uv_fs_read < 0");
+        WRITE_LOG(LOG_FATAL, "uv_fs_read ret:%d < 0", ret);
         return ERR_API_FAIL;
     }
     ctxRecv.atPollQueue = true;
@@ -631,6 +634,7 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     }
     // until all bulkport reset
     if (thisClass->ConnectEPPoint(hUSB) != RET_SUCCESS) {
+        WRITE_LOG(LOG_DEBUG, "WatchEPTimer ConnectEPPoint failed");
         return;
     }
     // connect OK

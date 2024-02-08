@@ -142,6 +142,13 @@ async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
 }
 
 async fn remount_device(session_id: u32, channel_id: u32) {
+    unsafe {
+        if libc::getuid() !=0 {
+            echo_client(session_id, channel_id, "Operate need running as root").await;
+            task_finish(session_id, channel_id).await;
+            return;
+        }
+    }
     let ret = mount::remount_device();
     if ret {
         echo_client(session_id, channel_id, "Remount successful.").await;

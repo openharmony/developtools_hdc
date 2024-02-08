@@ -145,6 +145,7 @@ async fn remount_device(session_id: u32, channel_id: u32) {
     unsafe {
         if libc::getuid() !=0 {
             echo_client(session_id, channel_id, "Operate need running as root").await;
+            task_finish(session_id, channel_id).await;
             return;
         }
     }

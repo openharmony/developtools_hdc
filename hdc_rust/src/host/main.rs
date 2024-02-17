@@ -12,6 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ //! host server & client
+
 mod auth;
 mod client;
 mod host_app;
@@ -25,6 +27,7 @@ mod unittest;
 use std::io::ErrorKind;
 
 use hdc::config;
+use hdc::utils::hdc_log::*;
 
 #[macro_use]
 extern crate lazy_static;
@@ -49,7 +52,7 @@ fn main() {
     let parsed_cmd = match parser::parse_command(std::env::args()) {
         Ok(parsed_cmd) => parsed_cmd,
         Err(e) => {
-            println!("{}", e.to_string());
+            println!("{}", e);
             return;
         }
     };
@@ -81,8 +84,8 @@ fn main() {
 
             if let Err(e) = client::run_client_mode(parsed_cmd).await {
                 match e.kind() {
-                    ErrorKind::Other => println!("[Fail]{}", e.to_string()),
-                    _ => hdc::trace!("client exit with err: {e:?}"),
+                    ErrorKind::Other => println!("[Fail]{}", e),
+                    _ => {hdc::trace!("client exit with err: {e:?}");},
                 }
             }
         })

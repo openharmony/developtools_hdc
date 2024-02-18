@@ -84,10 +84,8 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
             }
         }
         _ => {
-            //hdc::debug!("get shell data payload: {:#?}", task_message.payload);
             let channel_id = task_message.channel_id;
             if let Some(pty_task) = PtyMap::get(channel_id).await {
-                //hdc::debug!("get shell data pty");
                 let _ = &pty_task.tx.send(task_message.payload.clone()).await;
                 if task_message.payload[..].contains(&0x4_u8) {
                     PtyMap::del(channel_id).await;
@@ -372,7 +370,6 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
             daemon_bug_report_task(task_message, session_id).await
         }
         HdcCommand::ShellInit | HdcCommand::ShellData | HdcCommand::UnityExecute => {
-            //hdc::debug!("Shell: {:#?}", task_message.command);
             daemon_shell_task(task_message, session_id).await
         }
         HdcCommand::KernelChannelClose => {
@@ -394,7 +391,6 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         | HdcCommand::ForwardActiveMaster
         | HdcCommand::ForwardData
         | HdcCommand::ForwardFreeContext => {
-            hdc::debug!("FileCheck:{}", task_message.command as u32);
             daemon_file_task(task_message, session_id).await
         }
         HdcCommand::UnityRunmode

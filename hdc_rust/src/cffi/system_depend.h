@@ -21,7 +21,7 @@ namespace Hdc {
 using namespace std;
 #ifdef HDC_SUPPORT_FLASHD
 // deprecated, remove later
-inline bool GetDevItem(const char *key, string value)
+inline bool GetDevItem(const char *key, const string &value)
 {
     return false;
 };

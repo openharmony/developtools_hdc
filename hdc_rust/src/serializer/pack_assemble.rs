@@ -77,12 +77,14 @@ pub fn concat_pack(task_message: TaskMessage) -> Vec<u8> {
         reserve: [0, 0],
     };
 
+    /*
     crate::trace!(
         "concat pack, datasize: {}, slicelen: {}, headsize: {}",
         task_message.payload.len(),
         task_message.payload.as_slice().len(),
         protect_buf.len()
     );
+    */
 
     let head_buf = payload_head.serialize();
     [

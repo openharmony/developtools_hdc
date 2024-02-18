@@ -68,18 +68,20 @@ async fn echo_root_run_mode_result(
     message: &str,
 ) {
     if result {
-        echo_client(session_id, channel_id, "Set root run mode successful.").await;
+        let msg = format!("Set {} run mode successful.", message);
+        echo_client(session_id, channel_id, msg.as_str()).await;
     } else {
-        let msg = format!("Set root run mode failed: {}", message);
+        let msg = format!("Set {} run mode failed.", message);
         echo_client(session_id, channel_id, msg.as_str()).await;
     }
     task_finish(session_id, channel_id).await;
 }
 
-async fn set_root_run_enable(session_id: u32, channel_id: u32, force: bool) {
-    let arg = if force { "0" } else { "1" };
-    let result = set_dev_item(config::ENV_ROOT_RUN_MODE, arg);
-    echo_root_run_mode_result(session_id, channel_id, result, arg).await;
+async fn set_root_run_enable(session_id: u32, channel_id: u32, root: bool) {
+    let root_flag = if root { "0" } else { "1" };
+    let mode_msg = if root { "sh" } else { "root" };
+    let result = set_dev_item(config::ENV_ROOT_RUN_MODE, root_flag);
+    echo_root_run_mode_result(session_id, channel_id, result, mode_msg).await;
     if result {
         hdc_restart().await;
     }

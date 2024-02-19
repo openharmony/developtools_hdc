@@ -44,6 +44,37 @@ namespace Base {
         g_logLevel = logLevel;
     }
 
+    uint8_t GetLogLevelByEnv()
+    {
+        char *env = getenv(ENV_SERVER_LOG.c_str());
+        if (!env) {
+            return GetLogLevel();
+        }
+        size_t len = strlen(env);
+
+        size_t maxLen = 1;
+        if (len > maxLen) {
+            WRITE_LOG(LOG_WARN, "OHOS_HDC_LOG_LEVEL %s is not in (0, 6] range", env);
+            return GetLogLevel();
+        }
+
+        for (size_t i = 0; i < len; i++) {
+            if (isdigit(env[i]) == 0) {
+                WRITE_LOG(LOG_WARN, "OHOS_HDC_LOG_LEVEL %s is not digit", env);
+                return GetLogLevel();
+            }
+        }
+
+        uint8_t logLevel = static_cast<uint8_t>(atoi(env));
+        if (logLevel < 0 || logLevel > LOG_LAST) {
+            WRITE_LOG(LOG_WARN, "OHOS_HDC_LOG_LEVEL %d is not in (0, 6] range", logLevel);
+        } else {
+            return logLevel;
+        }
+
+        return GetLogLevel();
+    }
+
 // Commenting the code will optimize and tune all log codes, and the compilation volume will be greatly reduced
 #define ENABLE_DEBUGLOG
 #ifdef ENABLE_DEBUGLOG

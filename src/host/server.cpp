@@ -138,7 +138,7 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
     WRITE_LOG(LOG_DEBUG, "server shortpath:[%s] runPath:[%s]", shortPath, runPath.c_str());
     // here we give a dummy option first, because getopt will assume the first option is command. it
     // begin from 2nd args.
-    if (sprintf_s(buf, sizeof(buf), "dummy -l %d -s %s -m", Base::GetLogLevel(), listenString) < 0) {
+    if (sprintf_s(buf, sizeof(buf), "dummy -l %d -s %s -m", Base::GetLogLevelByEnv(), listenString) < 0) {
         return retVal;
     }
     WRITE_LOG(LOG_DEBUG, "Run server in debug-forground, cmd:%s, args:%s", runPath.c_str(), buf);

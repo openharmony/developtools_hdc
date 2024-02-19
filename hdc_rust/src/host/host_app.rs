@@ -31,11 +31,14 @@ pub struct HostAppTask {
 }
 
 impl HostAppTask {
+    ///  complie failed ,associated function `new` is never used
+    /*
     pub fn new(_session_id: u32, _channel_id: u32) -> Self {
         Self {
             transfer: HdcTransferBase::new(_session_id, _channel_id),
         }
     }
+    */    
 
     pub fn get_sub_app_files_resurively(_path: &String) -> Vec<String> {
         let mut result = Vec::new();
@@ -67,11 +70,11 @@ impl HostAppTask {
                     self.transfer.transfer_config.client_cwd = argv[i + 1].clone();
                     i += 1;
                 }
-            } else if argv[i].starts_with("-") {
+            } else if argv[i].starts_with('-') {
                 if !options.is_empty() {
                     options.push(' ');
                 }
-                options.push_str(&mut argv[i].clone());
+                options.push_str(&argv[i].clone());
             } else {
                 let mut path = argv[i].clone() as String;
                 path = Base::extract_relative_path(
@@ -105,7 +108,7 @@ impl HostAppTask {
         self.transfer.local_path = self.transfer.task_queue.pop().unwrap();
         let local_path = self.transfer.local_path.clone();
         let mut file_manager = FileManager::new(local_path.clone());
-        let open_result = file_manager.open();
+        let (open_result,error_msg) = file_manager.open();
         if open_result {
             let config = &mut self.transfer.transfer_config;
             config.file_size = file_manager.file_size();
@@ -118,6 +121,7 @@ impl HostAppTask {
             if config.hold_timestamp {}
             config.path = self.transfer.remote_path.clone();
         } else {
+            println!("other command {:#?}", error_msg);
             self.task_finish();
         }
     }
@@ -134,16 +138,16 @@ impl HostAppTask {
         ylong_runtime::block_on(send_msg_task);
     }
 
-    fn do_app_finish(&mut self, _payload: &Vec<u8>) -> bool {
+    fn do_app_finish(&mut self, _payload: &[u8]) -> bool {
         let mode = config::AppModeType::try_from(_payload[0]);
         if let Ok(mode_type) = mode {
             let str = String::from_utf8(_payload[2..].to_vec()).unwrap();
-            return self.check_install_continue(mode_type, str.clone());
+            return self.check_install_continue(mode_type, str);
         }
         false
     }
 
-    fn do_app_uninstall(&mut self, _payload: &Vec<u8>) {
+    fn do_app_uninstall(&mut self, _payload: &[u8]) {
         let app_uninstall_message = TaskMessage {
             channel_id: self.transfer.channel_id,
             command: HdcCommand::AppUninstall,
@@ -163,16 +167,18 @@ impl HostAppTask {
         }
         let message = format!(
             "{}, path:{}, queuesize:{}, msg:{}",
-            _mode_desc.clone(),
+            _mode_desc,
             self.transfer.local_path.clone(),
             self.transfer.task_queue.len(),
-            str.clone()
+            str
         );
         self.echo_client(message);
         if self.transfer.task_queue.is_empty() {
             self.echo_client(String::from("AppMod finish"));
             self.task_finish();
-            hdctransfer::close_channel(self.channel_id());
+            ylong_runtime::block_on(async {
+                hdctransfer::close_channel(self.channel_id()).await;
+            });
             return false;
         }
         self.install_single();
@@ -208,13 +214,15 @@ impl TaskBase for HostAppTask {
                 }
             }
             HdcCommand::AppBegin => {
-                hdctransfer::transfer_begin(&self.transfer, HdcCommand::AppData);
+                ylong_runtime::block_on(async {
+                    hdctransfer::transfer_begin(&self.transfer, HdcCommand::AppData).await;
+                });              
             }
             HdcCommand::AppUninstall => {
-                self.do_app_uninstall(&_payload.to_vec());
+                self.do_app_uninstall(_payload);
             }
             HdcCommand::AppFinish => {
-                self.do_app_finish(&_payload.to_vec());
+                self.do_app_finish(_payload);
             }
             _ => {
                 println!("other command");
@@ -234,6 +242,8 @@ impl TaskBase for HostAppTask {
     }
 
     fn task_finish(&self) {
-        hdctransfer::transfer_task_finish(self.transfer.channel_id, self.transfer.session_id);
+        ylong_runtime::block_on(async {
+            hdctransfer::transfer_task_finish(self.transfer.channel_id, self.transfer.session_id).await;
+        });
     }
 }

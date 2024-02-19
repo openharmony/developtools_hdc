@@ -23,6 +23,7 @@ use hdc::utils;
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
+use hdc::utils::hdc_log::*;
 
 use std::io::{self, Error, ErrorKind};
 
@@ -43,7 +44,7 @@ pub async fn run_server_mode(addr_str: String) -> io::Result<()> {
 pub async fn get_process_pids() -> Vec<u32> {
     let mut pids: Vec<u32> = Vec::new();
     if cfg!(target_os = "windows") {
-        let output = utils::execute_cmd(format!("tasklist | findstr hdc"));
+        let output = utils::execute_cmd("tasklist | findstr hdc".to_owned());
         let output_str = String::from_utf8_lossy(&output);
         let mut get_pid = false;
         for token in output_str.split_whitespace() {
@@ -56,7 +57,7 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output = utils::execute_cmd(format!("ps -ef | grep hdc | awk '{{print $2}}'"));
+        let output = utils::execute_cmd("ps -ef | grep hdc | awk '{{print $2}}'".to_owned());
         let output_str = String::from_utf8_lossy(&output);
         for pid in output_str.split_whitespace() {
             pids.push(u32::from_str(pid).unwrap());
@@ -70,7 +71,7 @@ pub async fn check_allow_fork() -> bool {
     let pids = get_process_pids().await;
     for pid in pids {
         if pid != process::id() {
-            false;
+            return false;
         }
     }
     true
@@ -146,7 +147,7 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
         let mut parsed = parser::split_opt_and_cmd(
             String::from_utf8(recv)
                 .unwrap()
-                .split(" ")
+                .split(' ')
                 .map(|s| s.trim_end_matches('\0').to_string())
                 .collect::<Vec<_>>(),
         );
@@ -206,7 +207,7 @@ async fn handshake_with_client(
 fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
     let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]).unwrap();
     if msg != config::HANDSHAKE_MESSAGE {
-        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
+        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"))
     }
     let key_buf = &recv[config::BANNER_SIZE..];
     let pos = match key_buf.iter().position(|c| *c == 0) {
@@ -214,8 +215,8 @@ fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
         None => key_buf.len(),
     };
     if let Ok(connect_key) = String::from_utf8(key_buf[..pos].to_vec()) {
-        return Ok(connect_key);
+        Ok(connect_key)
     } else {
-        return Err(Error::new(ErrorKind::Other, "unpack connect key failed"));
+        Err(Error::new(ErrorKind::Other, "unpack connect key failed"))
     }
 }

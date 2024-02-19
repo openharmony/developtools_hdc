@@ -14,9 +14,9 @@
  */
 use crate::auth;
 use crate::config::*;
-use crate::host_app::HostAppTask;
-
-use hdc::common::hdcfile::HdcFile;
+/// ActionType 未定义，临时屏蔽
+/// use crate::host_app::HostAppTask;
+/// use hdc::common::hdcfile::HdcFile;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
@@ -28,6 +28,7 @@ use std::sync::Arc;
 use ylong_runtime::net::SplitReadHalf;
 use ylong_runtime::net::TcpStream;
 use ylong_runtime::sync::{Mutex, RwLock};
+use hdc::utils::hdc_log::*;
 
 #[derive(Debug, Clone)]
 pub struct TaskInfo {
@@ -103,7 +104,7 @@ async fn channel_hilog_task(task_info: TaskInfo) -> io::Result<()> {
         TaskMessage {
             channel_id: task_info.channel_id,
             command: HdcCommand::UnityHilog,
-            payload: payload,
+            payload,
         },
     )
     .await;
@@ -126,8 +127,10 @@ async fn channel_bug_report_task(task_info: TaskInfo) -> io::Result<()> {
 }
 
 async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
+    /* ActionType 未定义，临时屏蔽
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+
     let opt = admin_session(ActionType::Query(session_id)).await;
     if opt.is_none() {
         admin_session(ActionType::Add(HdcSession::new(
@@ -178,7 +181,8 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
         .join(" ")
         .into_bytes();
     let _ = task_.command_dispatch(task_info.command, &cmd[..], cmd.len() as u16);
-
+    */
+    println!("task_info is {:#?}", task_info);
     Ok(())
 }
 
@@ -277,7 +281,7 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
             )
             .await;
             transfer::TcpMap::end(task_info.channel_id).await;
-            return ret;
+            ret
         }
         Ok(stream) => {
             let session_id = utils::get_pseudo_random_u32();
@@ -318,12 +322,12 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
             };
 
             ylong_runtime::spawn(tcp_handle_deamon(rd, session_id, connect_key));
-            return transfer::send_channel_msg(
+            transfer::send_channel_msg(
                 task_info.channel_id,
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
             )
-            .await;
+            .await
         }
     }
 }
@@ -336,7 +340,7 @@ async fn channel_list_targets_task(task_info: TaskInfo) -> io::Result<()> {
     } else {
         target_list.join("\n")
     };
-    let _ = transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+    transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
     transfer::TcpMap::end(task_info.channel_id).await;
     Ok(())
 }
@@ -391,8 +395,10 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io
 }
 
 async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    /* ActionType 未定义，临时屏蔽
     let channel_id = task_message.channel_id;
     let command = task_message.command;
+
     let opt = admin_session(ActionType::Query(session_id)).await;
     if opt.is_none() {
         admin_session(ActionType::Add(HdcSession::new(
@@ -428,7 +434,8 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
     let task_ = &mut task.lock().await;
     let cmd = task_message.payload;
     let _ = task_.command_dispatch(command, &cmd[..], cmd.len() as u16);
-
+    */
+    println!("session_file_task input {:#?} {:#?}", task_message, session_id);
     Ok(())
 }
 
@@ -500,10 +507,7 @@ impl ConnectMap {
         } else {
             &connect_key
         };
-        match map.get(key) {
-            Some(daemon_info) => Some(daemon_info.clone()),
-            None => None,
-        }
+        map.get(key).cloned()
     }
 
     async fn get_list(is_full: bool) -> Vec<String> {
@@ -559,7 +563,7 @@ async fn get_valid_session_id(connect_key: String, channel_id: u32) -> io::Resul
             )
             .await?;
             transfer::TcpMap::end(channel_id).await;
-            return Err(Error::new(ErrorKind::Other, "session not found"));
+            Err(Error::new(ErrorKind::Other, "session not found"))
         }
     }
 }

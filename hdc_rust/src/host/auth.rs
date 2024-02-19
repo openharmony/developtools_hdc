@@ -19,7 +19,8 @@ use crate::config::*;
 
 use hdc::config;
 use hdc::config::TaskMessage;
-use hdc::serializer::serialize::{Serialization, SessionHandShake};
+use hdc::serializer::serialize::Serialization;
+use hdc::serializer::native_struct::SessionHandShake;
 use hdc::transfer;
 
 use std::io::{self, Error, ErrorKind};
@@ -28,6 +29,8 @@ use std::path::Path;
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::net::SplitReadHalf;
+use hilog_rust::hilog;
+use hdc::utils::hdc_log::*;
 
 pub async fn handshake_with_daemon(
     connect_key: String,
@@ -108,11 +111,12 @@ pub fn create_prikey() -> io::Result<Rsa<openssl::pkey::Private>> {
     let file = path.join(config::RSA_PRIKEY_NAME);
 
     let _ = std::fs::create_dir_all(&path);
-    if let Err(_) = std::fs::write(file, pem) {
+
+    if std::fs::write(file, pem).is_err() {
         hdc::error!("write private key failed");
-        return Err(Error::new(ErrorKind::Other, "write private key failed"));
+        Err(Error::new(ErrorKind::Other, "write private key failed"))
     } else {
-        return Ok(prikey);
+        Ok(prikey)
     }
 }
 
@@ -174,13 +178,15 @@ fn get_home_dir() -> String {
 }
 
 fn get_hostname() -> io::Result<String> {
-    use sed::process::Command;
 
+    use std::process::Command;
+    
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd").args(["/c", "hostname"]).output();
+        Command::new("cmd").args(["/c", "hostname"]).output()
     } else {
-        Command::new("cmd").args(["-c", "hostname"]).output();
+        Command::new("cmd").args(["-c", "hostname"]).output()
     };
+   
     if let Ok(result) = output {
         Ok(String::from_utf8(result.stdout).unwrap())
     } else {

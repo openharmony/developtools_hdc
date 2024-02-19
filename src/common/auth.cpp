@@ -257,6 +257,9 @@ int GetUserKeyPath(string &path)
         return false;
     string dir = string(buf) + Base::GetPathSep() + string(harmoneyPath) + Base::GetPathSep();
     path = Base::CanonicalizeSpecPath(dir);
+    if (path.empty()) {
+        path = dir;
+    }
     if (stat(path.c_str(), &status)) {
         uv_fs_t req;
         uv_fs_mkdir(nullptr, &req, path.c_str(), 0750, nullptr);  // 0750:permission

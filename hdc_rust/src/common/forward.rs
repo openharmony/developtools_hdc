@@ -23,12 +23,13 @@ use ylong_runtime::sync::{Mutex, RwLock};
 
 use crate::common::base::Base;
 use crate::common::hdctransfer::transfer_task_finish;
-use crate::common::hdctransfer::HdcTransferBase;
+use crate::common::hdctransfer::{self, HdcTransferBase};
 use crate::common::jdwp::Jdwp;
 use crate::common::uds::{UdsAddr, UdsClient, UdsServer};
 use crate::config;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
+use crate::config::MessageLevel;
 use crate::transfer;
 use crate::utils::hdc_log::*;
 use std::io::Read;
@@ -272,7 +273,7 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
     }
     let task = &mut task.unwrap().clone();
     if !_payload.is_empty() {
-        echo_client(session_id, channel_id, "Forwardport result: Ok").await;
+        echo_client(session_id, channel_id, "Forwardport result: Ok", MessageLevel::Ok).await;
         let map_info = String::from(if task.transfer.server_or_daemon {
             "1|"
         } else {
@@ -296,7 +297,7 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         transfer::put(session_id, file_check_message).await;
         log::error!("Forwardport result: Ok");
     } else {
-        echo_client(session_id, channel_id, "Forwardport result: Failed").await;
+        echo_client(session_id, channel_id, "Forwardport result: Failed", MessageLevel::Fail).await;
         free_context(session_id, channel_id, 0, false).await;
         return false;
     }
@@ -536,13 +537,13 @@ async fn server_socket_bind_listen(
     if let Ok(addr_obj) = &addr {
         let ret = UdsServer::wrap_bind(fd, addr_obj);
         if ret.is_err() {
-            echo_client(session_id, channel_id, "Unix pipe bind failed").await;
+            echo_client(session_id, channel_id, "Unix pipe bind failed", MessageLevel::Fail).await;
             crate::error!("bind fail");
             return false;
         }
         let ret = UdsServer::wrap_listen(fd);
         if ret < 0 {
-            echo_client(session_id, channel_id, "Unix pipe listen failed").await;
+            echo_client(session_id, channel_id, "Unix pipe listen failed", MessageLevel::Fail).await;
             crate::error!("listen fail");
             return false;
         }
@@ -700,6 +701,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             session_id,
             channel_id,
             format!("fport fail:pid not found:{}", pid).as_str(),
+            MessageLevel::Fail,
         )
         .await;
         task_finish(session_id, channel_id).await;
@@ -720,13 +722,8 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     true
 }
 
-async fn echo_client(session_id: u32, channel_id: u32, message: &str) {
-    let echo_message = TaskMessage {
-        channel_id,
-        command: HdcCommand::KernelEchoRaw,
-        payload: message.as_bytes().to_vec(),
-    };
-    transfer::put(session_id, echo_message).await;
+async fn echo_client(session_id: u32, channel_id: u32, message: &str, level: MessageLevel) {
+    hdctransfer::echo_client(session_id, channel_id, message.as_bytes().to_vec(), level).await;
 }
 
 async fn task_finish(session_id: u32, channel_id: u32) {
@@ -744,7 +741,7 @@ pub async fn daemon_connect_pipe(session_id: u32, channel_id: u32, fd: i32, path
     if let Ok(addr_obj) = &addr {
         let ret: Result<(), Error> = UdsClient::wrap_connect(fd, addr_obj);
         if ret.is_err() {
-            echo_client(session_id, channel_id, "localabstract connect fail").await;
+            echo_client(session_id, channel_id, "localabstract connect fail", MessageLevel::Fail).await;
             free_context(session_id, channel_id, 0, true).await;
             return;
         }
@@ -1087,9 +1084,9 @@ pub async fn forward_command_dispatch(
 
 pub async fn print_error_info(session_id: u32, channel_id: u32, error: &mut String) {
     if error.is_empty() {
-        echo_client(session_id, channel_id, "forward arguments parse is fail").await;
+        echo_client(session_id, channel_id, "forward arguments parse is fail", MessageLevel::Fail).await;
     } else {
-        echo_client(session_id, channel_id, error.as_str()).await;
+        echo_client(session_id, channel_id, error.as_str(), MessageLevel::Fail).await;
     }
 }
 

@@ -18,7 +18,6 @@
 
 namespace Hdc {
 using namespace std;
-
 bool GetDevItem(const char *key, string &out, const char *preDefine = nullptr);
 bool SetDevItem(const char *key, const char *value);
 

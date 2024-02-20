@@ -189,7 +189,6 @@ impl PtyProcess {
                     command: ret_command,
                     payload: buf[..bytes].to_vec(),
                 };
-                hdc::trace!("read {bytes} bytes from pty");
                 Ok(message)
             }
             Err(e) => {

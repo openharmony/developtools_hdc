@@ -35,7 +35,7 @@ enum LogLevel {
     LOG_LAST = LOG_VERBOSE,  // tail, not use
 };
 
-inline string GetFileNameAny(string &path)
+inline string GetFileNameAny(const string &path)
 {
     string tmpString = path;
     size_t tmpNum = tmpString.rfind('/');

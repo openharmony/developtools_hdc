@@ -38,7 +38,7 @@ bool HdcdConnection::GetSettingBundleName(string &bundle)
         return false;
     }
     bytesRead = fread(buf, sizeof(char), bufSize, fp);
-    
+
     if (bytesRead > 0) {
         string prefix = "com.";
         string suffix = ".settings";

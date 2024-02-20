@@ -301,8 +301,6 @@ pub const ENV_HOST_PORT: &str = "persist.hdc.port";
 pub const MODE_USB: &str = "usb";
 pub const MODE_TCP: &str = "tcp";
 pub const PREFIX_PORT: &str = "port ";
-pub const SHELL_PARAM_SET: &str = "param set";
-pub const SHELL_PARAM_GET: &str = "param get";
 pub const ENV_ROOT_RUN_MODE: &str = "persist.hdc.root";
 pub const ENV_STARTUP: &str = "ohos.startup.powerctrl";
 pub const ENV_DEBUGGABLE: &str = "const.debuggable";
@@ -311,7 +309,7 @@ pub const ENV_FILE_CONTROL: &str = "persist.hdc.control.file";
 pub const ENV_FPORT_CONTROL: &str = "persist.hdc.control.fport";
 
 pub const RSA_BIT_NUM: usize = 3072;
-pub const RSA_PUBKEY_PATH: &str = "/data/misc/hdc";
+pub const RSA_PUBKEY_PATH: &str = "/data/service/el0/hdc";
 pub const RSA_PUBKEY_NAME: &str = "hdc_keys";
 pub const RSA_PRIKEY_PATH: &str = ".harmony";
 pub const RSA_PRIKEY_NAME: &str = "hdckey";

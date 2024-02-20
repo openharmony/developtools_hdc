@@ -14,6 +14,7 @@
  */
 
 #include "parameter.h"
+#include <string>
 
 extern "C" int SetParameterEx(const char *key, const char *val)
 {
@@ -29,3 +30,24 @@ extern "C" int WaitParameterEx(const char *key, const char *val, int timeout)
 {
     return WaitParameter(key, val, timeout);
 }
+
+namespace Hdc {
+bool SetDevItem(const char *key, const char *value)
+{
+    return SetParameterEx(key, value) == 0;
+}
+
+bool GetDevItem(const char *key, std::string &out, const char *preDefine)
+{
+    bool ret = true;
+    constexpr uint16_t param_len = 512;
+    char tmpStringBuf[param_len] = "";
+
+    auto res = GetParameter(key, preDefine, tmpStringBuf, param_len);
+    if (res <= 0) {
+        return false;
+    }
+    out = tmpStringBuf;
+    return ret;
+}
+}  // namespace Hdc

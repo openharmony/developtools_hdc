@@ -25,7 +25,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "system_depend.h"
+#include "sys_para.h"
 
 namespace Hdc {
 using namespace std;
@@ -118,8 +118,10 @@ extern "C"  bool NeedDropRootPrivileges()
     string debugMode;
     GetDevItem("const.debuggable", debugMode);
     GetDevItem("persist.hdc.root", rootMode);
-    if (debugMode == "1 ") {
-        if (rootMode == "1 ") {
+    WRITE_LOG(LOG_WARN, "debuggable:[%s]", debugMode.c_str());
+    WRITE_LOG(LOG_WARN, "param root:[%s]", rootMode.c_str());
+    if (debugMode == "1") {
+        if (rootMode == "1") {
             int rc = setuid(0);
             if (rc != 0) {
                 char buffer[BUF_SIZE_DEFAULT] = { 0 };
@@ -129,7 +131,7 @@ extern "C"  bool NeedDropRootPrivileges()
                 _exit(0);
             }
             WRITE_LOG(LOG_INFO, "Root run rc:%d", rc);
-        } else if (rootMode == "0 ") {
+        } else if (rootMode == "0") {
             if (getuid() == 0) {
                 return DropRootPrivileges();
             }

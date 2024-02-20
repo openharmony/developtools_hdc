@@ -33,15 +33,5 @@ inline int GetMaxBufSize()
     return MAX_SIZE_IOBUF;
 }
 
-template<class T> int ZeroStruct(T &structBuf)
-{
-    return memset_s(&structBuf, sizeof(T), 0, sizeof(T));
-}
-
-const std::string StringFormat(const char * const formater, va_list &vaArgs);
-
-const std::string StringFormat(const char * const formater, ...);
-
-bool RunPipeComand(const char *cmdString, char *outBuf, uint16_t sizeOutBuf, bool ignoreTailLf);
 }
 #endif

@@ -18,8 +18,9 @@ use crate::transfer;
 use hdc::common::hdctransfer;
 use hdc::config::TaskMessage;
 use hdc::config::{self, HdcCommand};
-use hdc::utils::execute_shell_cmd;
 use libc::sync;
+use crate::sys_para::{*};
+use crate::utils::hdc_log::*;
 
 extern "C" {
     fn Restart();
@@ -40,24 +41,21 @@ async fn echo_client(session_id: u32, channel_id: u32, message: &str) {
     transfer::put(session_id, echo_message).await;
 }
 
-async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool, message: Vec<u8>) {
+async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
         echo_client(session_id, channel_id, "Set device run mode successful.").await;
     } else {
-        let msg = format!(
-            "Set device run mode failed: {}",
-            String::from_utf8(message).unwrap()
-        );
+        let msg = format!("Set device run mode failed: {}", message);
         echo_client(session_id, channel_id, msg.as_str()).await;
     }
     task_finish(session_id, channel_id).await;
 }
 
-async fn echo_reboot_result(session_id: u32, channel_id: u32, result: bool, message: Vec<u8>) {
+async fn echo_reboot_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
         echo_client(session_id, channel_id, "Reboot successful.").await;
     } else {
-        let msg = format!("Reboot failed: {}", String::from_utf8(message).unwrap());
+        let msg = format!("Reboot failed: {}", message);
         echo_client(session_id, channel_id, msg.as_str()).await;
     }
     task_finish(session_id, channel_id).await;
@@ -67,39 +65,32 @@ async fn echo_root_run_mode_result(
     session_id: u32,
     channel_id: u32,
     result: bool,
-    message: Vec<u8>,
+    message: &str,
 ) {
     if result {
-        echo_client(session_id, channel_id, "Set root run mode successful.").await;
+        let msg = format!("Set {} run mode successful.", message);
+        echo_client(session_id, channel_id, msg.as_str()).await;
     } else {
-        let msg = format!(
-            "Set root run mode failed: {}",
-            String::from_utf8(message).unwrap()
-        );
+        let msg = format!("Set {} run mode failed.", message);
         echo_client(session_id, channel_id, msg.as_str()).await;
     }
     task_finish(session_id, channel_id).await;
 }
 
-async fn set_root_run_enable(session_id: u32, channel_id: u32, force: bool) {
-    let arg = if force { "0" } else { "1" };
-    let shell_command = format!(
-        "{} {} {}",
-        config::SHELL_PARAM_SET,
-        config::ENV_ROOT_RUN_MODE,
-        arg
-    );
-    let (result, message) = execute_shell_cmd(shell_command);
-    echo_root_run_mode_result(session_id, channel_id, result, message).await;
+async fn set_root_run_enable(session_id: u32, channel_id: u32, root: bool) {
+    let root_flag = if root { "0" } else { "1" };
+    let mode_msg = if root { "sh" } else { "root" };
+    let result = set_dev_item(config::ENV_ROOT_RUN_MODE, root_flag);
+    echo_root_run_mode_result(session_id, channel_id, result, mode_msg).await;
     if result {
         hdc_restart().await;
     }
 }
 
 async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
-    let shell_command = format!("{} {}", config::SHELL_PARAM_GET, config::ENV_DEBUGGABLE,);
-    let (result, message) = execute_shell_cmd(shell_command);
-    if !result || message[0] != b'1' {
+    let (ret, debug_able) = get_dev_item(config::ENV_DEBUGGABLE, "_");
+    if !ret || debug_able.trim() != "1" {
+        hdc::info!("get debugable failed");
         return;
     }
 
@@ -112,7 +103,7 @@ async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
             session_id,
             channel_id,
             false,
-            String::from("Unknown command").as_bytes().to_vec(),
+            "Unknown command",
         )
         .await;
     }
@@ -130,15 +121,9 @@ async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
         cmd.push(',');
         cmd.push_str(param.as_str());
     }
-
-    let shell_command = format!(
-        "{} {} {}",
-        config::SHELL_PARAM_SET,
-        config::ENV_STARTUP,
-        cmd
-    );
-    let (result, message) = execute_shell_cmd(shell_command);
-    echo_reboot_result(session_id, channel_id, result, message).await;
+    let cmd = cmd.trim();
+    let result = set_dev_item(config::ENV_STARTUP, cmd);
+    echo_reboot_result(session_id, channel_id, result, cmd).await;
 }
 
 async fn remount_device(session_id: u32, channel_id: u32) {
@@ -162,42 +147,24 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
     let param = String::from_utf8(_payload.to_vec()).unwrap();
     match param.as_str() {
         config::MODE_USB => {
-            let shell_command = format!(
-                "{} {} {}",
-                config::SHELL_PARAM_SET,
-                config::ENV_HDC_MODE,
-                config::MODE_USB
-            );
-            let (result, message) = execute_shell_cmd(shell_command);
-            echo_device_mode_result(session_id, channel_id, result, message).await;
+            let result = set_dev_item(config::ENV_HDC_MODE, config::MODE_USB);
+            echo_device_mode_result(session_id, channel_id, result, config::MODE_USB).await;
             if result {
                 hdc_restart().await
             }
         }
         str if str.starts_with(config::PREFIX_PORT) => {
-            let shell_command = format!(
-                "{} {} {}",
-                config::SHELL_PARAM_SET,
-                config::ENV_HDC_MODE,
-                config::MODE_TCP
-            );
-            let (ret, msg) = execute_shell_cmd(shell_command);
-            if !ret {
-                echo_device_mode_result(session_id, channel_id, ret, msg).await;
+            let result = set_dev_item(config::ENV_HDC_MODE, config::MODE_TCP);
+            if !result {
+                echo_device_mode_result(session_id, channel_id, result, config::MODE_TCP).await;
                 return;
             }
 
             let port = &str[config::PREFIX_PORT.len()..];
             let port =
                 port.trim_end_matches(|c: char| c.is_ascii_control() || c.is_ascii_whitespace());
-            let set_port_command = format!(
-                "{} {} {}",
-                config::SHELL_PARAM_SET,
-                config::ENV_HOST_PORT,
-                port
-            );
-            let (result, message) = execute_shell_cmd(set_port_command);
-            echo_device_mode_result(session_id, channel_id, result, message).await;
+            let result = set_dev_item(config::ENV_HOST_PORT, port);
+            echo_device_mode_result(session_id, channel_id, result, config::ENV_HOST_PORT).await;
             if result {
                 hdc_restart().await
             }
@@ -207,7 +174,7 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
                 session_id,
                 channel_id,
                 false,
-                String::from("Unknown command").as_bytes().to_vec(),
+                "Unknown command",
             )
             .await;
         }

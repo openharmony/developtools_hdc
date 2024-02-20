@@ -28,6 +28,7 @@ use crate::common::hdctransfer::*;
 use crate::config::CompressType;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
+use crate::config::MessageLevel;
 use crate::config::MAX_SIZE_IOBUF;
 use crate::serializer::serialize::Serialization;
 
@@ -112,13 +113,13 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
         file_task.transfer.transfer_config.path = file_task.transfer.remote_path.clone();
         return true;
     } else {
-        hdctransfer::echo_client(session_id, channel_id, err_msg.as_bytes().to_vec()).await;
+        hdctransfer::echo_client(session_id, channel_id, err_msg.as_bytes().to_vec(), MessageLevel::Fail).await;
     }
     false
 }
 
 async fn echo_finish(session_id: u32, channel_id: u32, msg: String) {
-    hdctransfer::echo_client(session_id, channel_id, msg.as_bytes().to_vec()).await;
+    hdctransfer::echo_client(session_id, channel_id, msg.as_bytes().to_vec(), MessageLevel::Ok).await;
     task_finish(session_id, channel_id).await;
 }
 
@@ -321,6 +322,7 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         task.transfer.session_id,
         task.transfer.channel_id,
         message.as_bytes().to_vec(),
+        MessageLevel::Ok,
     )
     .await;
 
@@ -391,6 +393,7 @@ pub async fn command_dispatch(
                     session_id,
                     channel_id,
                     "Transfer failed: create file or directory error.".as_bytes().to_vec(),
+                    MessageLevel::Fail,
                 )
                 .await;
                 task_finish(session_id, channel_id).await;

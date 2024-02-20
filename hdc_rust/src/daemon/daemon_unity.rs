@@ -14,10 +14,8 @@
  */
 use super::mount;
 use crate::jdwp::Jdwp;
-use crate::transfer;
 use hdc::common::hdctransfer;
-use hdc::config::TaskMessage;
-use hdc::config::{self, HdcCommand};
+use hdc::config::{self, HdcCommand, MessageLevel};
 use libc::sync;
 use crate::sys_para::{*};
 use crate::utils::hdc_log::*;
@@ -32,31 +30,26 @@ async fn hdc_restart() {
     }
 }
 
-async fn echo_client(session_id: u32, channel_id: u32, message: &str) {
-    let echo_message = TaskMessage {
-        channel_id,
-        command: HdcCommand::KernelEchoRaw,
-        payload: message.as_bytes().to_vec(),
-    };
-    transfer::put(session_id, echo_message).await;
+async fn echo_client(session_id: u32, channel_id: u32, message: &str, level: MessageLevel) {
+    hdctransfer::echo_client(session_id, channel_id, message.as_bytes().to_vec(), level).await;
 }
 
 async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
-        echo_client(session_id, channel_id, "Set device run mode successful.").await;
+        echo_client(session_id, channel_id, "Set device run mode successful.", MessageLevel::Ok).await;
     } else {
         let msg = format!("Set device run mode failed: {}", message);
-        echo_client(session_id, channel_id, msg.as_str()).await;
+        echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Fail).await;
     }
     task_finish(session_id, channel_id).await;
 }
 
 async fn echo_reboot_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
-        echo_client(session_id, channel_id, "Reboot successful.").await;
+        echo_client(session_id, channel_id, "Reboot successful.", MessageLevel::Ok).await;
     } else {
         let msg = format!("Reboot failed: {}", message);
-        echo_client(session_id, channel_id, msg.as_str()).await;
+        echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Fail).await;
     }
     task_finish(session_id, channel_id).await;
 }
@@ -69,10 +62,10 @@ async fn echo_root_run_mode_result(
 ) {
     if result {
         let msg = format!("Set {} run mode successful.", message);
-        echo_client(session_id, channel_id, msg.as_str()).await;
+        echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Ok).await;
     } else {
         let msg = format!("Set {} run mode failed.", message);
-        echo_client(session_id, channel_id, msg.as_str()).await;
+        echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Fail).await;
     }
     task_finish(session_id, channel_id).await;
 }
@@ -129,16 +122,16 @@ async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
 async fn remount_device(session_id: u32, channel_id: u32) {
     unsafe {
         if libc::getuid() !=0 {
-            echo_client(session_id, channel_id, "Operate need running as root").await;
+            echo_client(session_id, channel_id, "Operate need running as root", MessageLevel::Fail).await;
             task_finish(session_id, channel_id).await;
             return;
         }
     }
     let ret = mount::remount_device();
     if ret {
-        echo_client(session_id, channel_id, "Remount successful.").await;
+        echo_client(session_id, channel_id, "Mount finish", MessageLevel::Ok).await;
     } else {
-        echo_client(session_id, channel_id, "Remount failed.").await;
+        echo_client(session_id, channel_id, "Mount failed", MessageLevel::Fail).await;
     }
     task_finish(session_id, channel_id).await;
 }
@@ -186,9 +179,9 @@ async fn do_jdwp_list(session_id: u32, channel_id: u32) {
     let jdwp = Jdwp::get_instance().clone();
     let process_list = jdwp.get_process_list().await;
     if process_list.is_empty() {
-        echo_client(session_id, channel_id, "[Empty]").await;
+        echo_client(session_id, channel_id, "[Empty]", MessageLevel::Ok).await;
     } else {
-        echo_client(session_id, channel_id, process_list.as_str()).await;
+        echo_client(session_id, channel_id, process_list.as_str(), MessageLevel::Ok).await;
     }
     task_finish(session_id, channel_id).await;
 }

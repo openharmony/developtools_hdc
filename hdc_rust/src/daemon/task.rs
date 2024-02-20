@@ -72,6 +72,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
                         session_id,
                         task_message.channel_id,
                         "only support utf-8 chars".as_bytes().to_vec(),
+                        MessageLevel::Fail,
                     )
                     .await;
                     let message = TaskMessage {
@@ -346,6 +347,7 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
                 task_message.command as u32
             )
             .into_bytes(),
+            MessageLevel::Fail,
         )
         .await;
         hdc::common::hdctransfer::transfer_task_finish(task_message.channel_id, session_id).await;

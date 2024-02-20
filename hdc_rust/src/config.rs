@@ -258,6 +258,13 @@ impl TryFrom<u8> for AppModeType {
     }
 }
 
+#[repr(u8)]
+pub enum MessageLevel {
+    Fail,
+    Info,
+    Ok,
+}
+
 pub const PACKET_FLAG: &[u8] = "HW".as_bytes();
 pub const VER_PROTOCOL: u16 = 1;
 pub const ENABLE_IO_CHECK: bool = false;

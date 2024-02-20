@@ -383,11 +383,14 @@ pub async fn close_channel(channel_id: u32) {
     transfer::TcpMap::end(channel_id).await;
 }
 
-pub async fn echo_client(session_id: u32, channel_id: u32, payload: Vec<u8>) {
+pub async fn echo_client(session_id: u32, channel_id: u32, payload: Vec<u8>, level: MessageLevel) {
+    let mut data = Vec::<u8>::new();
+    data.push(level as u8);
+    data.append(&mut payload.clone());
     let echo_message = TaskMessage {
         channel_id,
-        command: HdcCommand::KernelEchoRaw,
-        payload,
+        command: HdcCommand::KernelEcho,
+        payload: data,
     };
     transfer::put(session_id, echo_message).await;
 }

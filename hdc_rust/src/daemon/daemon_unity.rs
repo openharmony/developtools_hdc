@@ -83,7 +83,15 @@ async fn set_root_run_enable(session_id: u32, channel_id: u32, root: bool) {
 async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
     let (ret, debug_able) = get_dev_item(config::ENV_DEBUGGABLE, "_");
     if !ret || debug_able.trim() != "1" {
-        hdc::info!("get debugable failed");
+        hdc::info!("get debuggable failed");
+        echo_client(
+            session_id,
+            channel_id,
+            "Cannot set root run mode in undebuggable version.",
+            MessageLevel::Fail
+        )
+        .await;
+        task_finish(session_id, channel_id).await;
         return;
     }
 

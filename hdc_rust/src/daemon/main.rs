@@ -368,8 +368,8 @@ fn get_tcp_port() -> u16 {
 
     let str = host_port.trim();
     hdc::info!("get_tcp_port from prop, value:{}", str);
-    let mut end = 0;
-    for i in 0..str.len() - 1 {
+    let mut end = str.len();
+    for i in 0..str.len() {
         let c = str.as_bytes()[i];
         if !c.is_ascii_digit() {
             end = i;

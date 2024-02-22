@@ -107,6 +107,10 @@ ohos_rust_executable("hdcd") {
     "hilog:hilog_rust",
     "ylong_runtime:ylong_runtime",
   ]
+  output = "system/hdcd"
+  install_enable = true
+  module_install_dir = "bin"
+  install_images = [ "system" ]
   features = [ "daemon" ]
   subsystem_name = "developtools"
   part_name = "hdc"

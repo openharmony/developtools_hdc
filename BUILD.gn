@@ -378,6 +378,7 @@ ohos_shared_library("hdc_register") {
 
   configs = [ ":hdc_register_config" ]
 
+  innerapi_tags = [ "platformsdk" ]
   subsystem_name = "developtools"
   part_name = "hdc"
 }

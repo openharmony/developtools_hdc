@@ -121,6 +121,10 @@ protected:
     const string CMD_OPTION_CLIENTCWD = "-cwd";
     CircleBuffer cirbuf;
 
+    bool openSuccess;
+    std::condition_variable cv;
+    std::mutex cvMutex;
+
 private:
     // dynamic IO context
     struct CtxFileIO {

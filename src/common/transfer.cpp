@@ -280,6 +280,12 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 {
     CtxFile *context = (CtxFile *)req->data;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+    {
+        std::unique_lock<std::mutex> lck(thisClass->cvMutex);
+        thisClass->openSuccess = true;
+        thisClass->cv.notify_one();
+    }
+
     StartTraceScope("HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
     WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",

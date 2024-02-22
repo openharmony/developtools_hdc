@@ -16,7 +16,9 @@
 #include "log.h"
 #include "base.h"
 #include "usb_util.h"
+#if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
+#endif
 #include "parameter.h"
 #include <string>
 #include <cstdio>

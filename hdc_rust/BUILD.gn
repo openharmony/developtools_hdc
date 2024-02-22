@@ -91,7 +91,7 @@ ohos_rust_shared_library("lib") {
   part_name = "hdc"
 }
 
-ohos_rust_executable("hdcd_rust") {
+ohos_rust_executable("hdcd") {
   sources = [ "src/daemon/main.rs" ]
   deps = [
     ":lib",

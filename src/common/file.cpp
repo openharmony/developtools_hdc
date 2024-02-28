@@ -14,8 +14,6 @@
  */
 #include "file.h"
 #include "serial_struct.h"
-#include <chrono>
-#include <thread>
 
 namespace Hdc {
 HdcFile::HdcFile(HTaskInfo hTaskInfo)
@@ -290,16 +288,6 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
     }
     ctxNow.transferBegin = Base::GetRuntimeMSec();
-    std::thread([this]() {
-        std::unique_lock<std::mutex> lck(cvMutex);
-        openSuccess = false;
-        if (!cv.wait_for(lck, std::chrono::seconds(1), [&]() { return openSuccess; })) {
-            WRITE_LOG(LOG_WARN, "open file result:%d.", openSuccess);
-            LogMsg(MSG_FAIL, "file:%s open failed.", ctxNow.localPath.c_str());
-            TaskFinish();
-        }
-    }).detach();
-    
     return ret;
 }
 

@@ -318,7 +318,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
             session_id
         );
         // handshake_fail session_id, channel_id auth failed await
-        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
+        // transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
     }
     Ok(())
 }
@@ -352,6 +352,28 @@ async fn validate_signature(signature: String, session_id: u32) -> io::Result<()
         Ok(())
     } else {
         Err(Error::new(ErrorKind::Other, "signature not match"))
+    }
+}
+
+pub fn clear_auth_pub_key_file() {
+    let (_, auth_cancel) = get_dev_item("persist.hdc.daemon.auth_cancel", "_");
+    if auth_cancel.trim().to_lowercase() != "true" {
+        hdc::info!("auth_cancel is {}, no need clear pubkey file", auth_cancel);
+        return;
+    }
+
+    if !set_dev_item("persist.hdc.daemon.auth_cancel", "false") {
+        hdc::error!("clear param auth_cancel failed.");
+    }
+
+    let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
+    match std::fs::remove_file(&file_name) {
+        Ok(_) => {
+            hdc::info!("remove pubkey file {:#?} success", file_name);
+        },
+        Err(err) => {
+            hdc::error!("remove pubkey file {:#?} failed: {}", file_name, err);
+        },
     }
 }
 

@@ -450,7 +450,7 @@ namespace Base {
                 int count = 0;
                 do {
                     count++;
-                    r = uv_run(ptrLoop, UV_RUN_ONCE);
+                    r = uv_run(ptrLoop, UV_RUN_NOWAIT);
                     uv_sleep(MILL_SECONDS); //10 millseconds
                 } while (r != 0 && count <= COUNT);
 #endif

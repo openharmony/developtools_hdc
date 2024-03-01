@@ -355,6 +355,28 @@ async fn validate_signature(signature: String, session_id: u32) -> io::Result<()
     }
 }
 
+pub fn clear_auth_pub_key_file() {
+    let (_, auth_cancel) = get_dev_item("persist.hdc.daemon.auth_cancel", "_");
+    if auth_cancel.trim().to_lowercase() != "true" {
+        hdc::info!("auth_cancel is {}, no need clear pubkey file", auth_cancel);
+        return;
+    }
+
+    if !set_dev_item("persist.hdc.daemon.auth_cancel", "false") {
+        hdc::error!("clear param auth_cancel failed.");
+    }
+
+    let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
+    match std::fs::remove_file(&file_name) {
+        Ok(_) => {
+            hdc::info!("remove pubkey file {:#?} success", file_name);
+        },
+        Err(err) => {
+            hdc::error!("remove pubkey file {:#?} failed: {}", file_name, err);
+        },
+    }
+}
+
 fn read_known_hosts_pubkey() -> Vec<String> {
     let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
     if let Ok(keys) = std::fs::read_to_string(&file_name) {

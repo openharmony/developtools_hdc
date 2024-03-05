@@ -33,9 +33,9 @@ ohos_static_library("serialize_structs") {
   output_extension = "so"
 
   external_deps = [
+    "bounds_checking_function:libsec_static",
     "hilog:libhilog",
     "init:libbegetutil",
-    "bounds_checking_function:libsec_static",
     "lz4:liblz4_static",
   ]
 

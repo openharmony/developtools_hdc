@@ -115,7 +115,11 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
     constexpr int intrmax = 1000;
     int intrcnt = 0;
     while (cnt > 0) {
+#ifdef HDC_EMULATOR
+        int rc = write(fd, reinterpret_cast<const char*>(data), cnt);
+#else
         int rc = send(fd, reinterpret_cast<const char*>(data), cnt, 0);
+#endif
         if (rc < 0) {
 #ifdef _WIN32
             int err = WSAGetLastError();

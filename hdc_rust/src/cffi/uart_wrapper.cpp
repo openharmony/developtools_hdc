@@ -18,7 +18,7 @@
 #include <string>
 
 namespace Hdc {
-
+#ifndef HOST_MINGW
 extern "C" int32_t GetUartSpeedExt(int32_t speed)
 {
     return static_cast<int32_t>(GetUartSpeed(static_cast<int>(speed)));
@@ -49,7 +49,7 @@ extern "C" SerializedBuffer ReadUartDevExt(int32_t fd, uint32_t expectedSize)
         length = ReadUartDev(static_cast<int>(fd), readBuf, static_cast<size_t>(expectedSize));
     }
 
-    char *bufRet = new char;
+    char *bufRet = new char[length];
     (void)memset_s(bufRet, length, 0, length);
     if (memcpy_s(bufRet, length, readBuf.data(), length) != EOK) {
         return SerializedBuffer{bufRet, static_cast<uint64_t>(length)};
@@ -68,4 +68,19 @@ extern "C" uint8_t CloseSerialPortExt(int32_t fd)
     return static_cast<uint8_t>(CloseSerialPort(fd));
 }
 
+#else
+
+extern "C" SerializedBuffer ReadUartDevExt(int32_t fd, uint32_t expectedSize)
+{
+    char *bufRet = new char;
+    ssize_t length = 0;
+    return SerializedBuffer{bufRet, static_cast<uint64_t>(length)};
+}
+
+extern "C" int32_t WriteUartDevExt(int32_t fd, SerializedBuffer buf)
+{
+    return 0;
+}
+
+#endif
 }

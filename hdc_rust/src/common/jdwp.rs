@@ -159,47 +159,44 @@ impl Jdwp {
         trackers: Trackers,
     ) {
         println!("handle_client start...");
-        loop {
-            let mut buffer: [u8; 1024] = [0; 1024];
-            let size = UdsServer::wrap_recv(fd, &mut buffer);
-            let u32_size = std::mem::size_of::<u32>();
-            if size == u32_size.try_into().unwrap() {
-                let _pid = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
-            } else if size > u32_size.try_into().unwrap() {
-                let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
-                let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
-                println!("pid:{}", pid);
-                let debug_or_release =
-                    u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
-                println!("debug:{}", debug_or_release);
-                let pkg_name =
-                    String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
-                println!("pkg name:{}", pkg_name);
+        let mut buffer: [u8; 1024] = [0; 1024];
+        let size = UdsServer::wrap_recv(fd, &mut buffer);
+        let u32_size = std::mem::size_of::<u32>();
+        if size == u32_size.try_into().unwrap() {
+            let _pid = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
+        } else if size > u32_size.try_into().unwrap() {
+            let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
+            let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
+            println!("pid:{}", pid);
+            let debug_or_release =
+                u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
+            println!("debug:{}", debug_or_release);
+            let pkg_name =
+                String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
+            println!("pkg name:{}", pkg_name);
 
-                let node_map = node_map.clone();
-                let mut map = node_map.lock().await;
-                let node = PollNode::new(fd, pid, pkg_name.clone(), debug_or_release);
-                let mut key_ = -1;
-                for (key, value) in map.iter() {
-                    if value.pkg_name == pkg_name {
-                        key_ = *key;
-                        UdsServer::wrap_close(value.fd);
-                        break;
-                    }
+            let node_map = node_map.clone();
+            let mut map = node_map.lock().await;
+            let node = PollNode::new(fd, pid, pkg_name.clone(), debug_or_release);
+            let mut key_ = -1;
+            for (key, value) in map.iter() {
+                if value.pkg_name == pkg_name {
+                    key_ = *key;
+                    UdsServer::wrap_close(value.fd);
+                    break;
                 }
-                map.remove(&key_);
-                map.insert(fd, node);
-                drop(map);
-
-                let trackers = trackers.clone();
-                let node_map = node_map.clone();
-                Self::send_process_list(trackers, node_map).await;
-
-                waiter.wake_one();
-            } else if size <= 0 {
-                println!("size <= 0");
-                break;
             }
+            map.remove(&key_);
+            map.insert(fd, node);
+            drop(map);
+
+            let trackers = trackers.clone();
+            let node_map = node_map.clone();
+            Self::send_process_list(trackers, node_map).await;
+
+            waiter.wake_one();
+        } else if size <= 0 {
+            println!("size <= 0");
         }
     }
 

@@ -16,11 +16,14 @@
 
 pub mod base;
 pub mod filemanager;
+#[cfg(faeture = "daemon")]
 pub mod forward;
 pub mod hdcfile;
 pub mod hdctransfer;
+#[cfg(faeture = "daemon")]
 pub mod jdwp;
 pub mod sendmsg;
 pub mod taskbase;
+#[cfg(faeture = "daemon")]
 pub mod uds;
 pub mod unittest;

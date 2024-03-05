@@ -219,14 +219,16 @@ pub enum EchoLevel {
     INFO,
     FAIL,
     RAW,
+    OK, // this echo maybe OK with carriage return and newline
 }
 
 pub async fn send_channel_msg(channel_id: u32, level: EchoLevel, msg: String) -> io::Result<()> {
     let data = match level {
-        EchoLevel::INFO => format!("[Info]{msg}"),
-        EchoLevel::FAIL => format!("[Fail]{msg}"),
-        EchoLevel::RAW => msg.to_string(),
-    } + "\r\n";
+        EchoLevel::INFO => format!("[Info]{msg}") + "\r\n",
+        EchoLevel::FAIL => format!("[Fail]{msg}") + "\r\n",
+        EchoLevel::RAW => msg.to_string() + "\r\n",
+        EchoLevel::OK => msg.to_string(),
+    };
     TcpMap::send_channel_message(channel_id, data.as_bytes().to_vec()).await
 }
 

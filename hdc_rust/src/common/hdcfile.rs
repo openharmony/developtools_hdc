@@ -219,7 +219,7 @@ async fn set_master_parameters(
         if !task.transfer.task_queue.is_empty() {
             task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
             task.transfer.local_name =
-                task.transfer.local_path[task.transfer.base_local_path.len()..].to_string();
+                task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
         } else {
             return false;
         }
@@ -281,6 +281,15 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     true
 }
 
+pub async fn wake_up_slaver(session_id: u32, channel_id: u32) {
+    let wake_up_message = TaskMessage {
+        channel_id,
+        command: HdcCommand::KernelWakeupSlavetask,
+        payload: Vec::<u8>::new(),
+    };
+    transfer::put(session_id, wake_up_message).await;
+}
+
 async fn put_file_begin(session_id: u32, channel_id: u32) {
     let file_begin_message = TaskMessage {
         channel_id,
@@ -295,7 +304,7 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
     let mut task = task.lock().await;
     task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
     task.transfer.local_name =
-        task.transfer.local_path[task.transfer.base_local_path.len()..].to_string();
+        task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
     drop(task);
     check_local_path(session_id, channel_id).await
 }
@@ -314,19 +323,33 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         utils::get_current_time() - task.file_begin_time
     };
     let rate = size as f64 / time as f64;
+    #[allow(unused_variables)]
     let message = format!(
         "FileTransfer finish, Size:{}, File count = {}, time:{}ms rate:{:.2}kB/s",
         size, task.file_cnt, time, rate
     );
-    hdctransfer::echo_client(
-        task.transfer.session_id,
-        task.transfer.channel_id,
-        message.as_bytes().to_vec(),
-        MessageLevel::Ok,
-    )
-    .await;
-
-    hdctransfer::close_channel(channel_id).await;
+    #[cfg(feature = "host")]
+    {
+        let _ = transfer::send_channel_msg(
+            task.transfer.channel_id,
+            transfer::EchoLevel::OK,
+            message
+        )
+        .await;
+        hdctransfer::close_channel(channel_id).await;
+        return
+    }
+    #[allow(unreachable_code)]
+    {
+        hdctransfer::echo_client(
+            task.transfer.session_id,
+            task.transfer.channel_id,
+            message.as_bytes().to_vec(),
+            MessageLevel::Ok,
+        )
+        .await;
+        hdctransfer::close_channel(channel_id).await;
+    }
 }
 
 async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
@@ -378,6 +401,7 @@ pub async fn command_dispatch(
             let s = String::from_utf8(_payload.to_vec());
             match s {
                 Ok(str) => {
+                    wake_up_slaver(session_id, channel_id).await;
                     begin_transfer(session_id, channel_id, &str).await;
                 }
                 Err(e) => {

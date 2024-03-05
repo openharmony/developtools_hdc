@@ -14,6 +14,7 @@
  */
 //! daemon
 
+extern crate panic_handler;
 mod auth;
 mod daemon_app;
 mod daemon_unity;
@@ -38,6 +39,7 @@ use hdc::transfer::uart::UartReader;
 use hdc::transfer::base::Reader;
 use hdc::transfer::uart_wrapper;
 use hdc::utils;
+use crate::shell::PtyMap;
 
 use log::LevelFilter;
 use std::ffi::CString;
@@ -45,6 +47,7 @@ use ylong_runtime::net::{TcpListener, TcpStream};
 use ylong_runtime::sync::mpsc;
 use std::ffi::c_int;
 use crate::sys_para::{*};
+use crate::auth::clear_auth_pub_key_file;
 
 extern "C" {
     fn NeedDropRootPrivileges()-> c_int;
@@ -65,8 +68,10 @@ async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Re
             }
         }
         Err(e) => {
+            hdc::debug!("clear pty map: {}", session_id);
             if e.kind() == ErrorKind::Other {
                 hdc::warn!("unpack task failed: {}", e.to_string());
+                PtyMap::clear(session_id).await;
                 return Err(e);
             }
         }
@@ -322,6 +327,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());
+                PtyMap::clear(real_session_id).await;
                 break;
             }
         }
@@ -389,8 +395,9 @@ fn get_tcp_port() -> u16 {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    panic_handler::init();
     if args.len() == 2 && args[1] == "-v" {
-        println!("Ver 2.0.0a");
+        println!("{}", config::get_version());
         return;
     }
     logger_init(get_logger_lv());
@@ -402,6 +409,7 @@ fn main() {
         .build_global();
 
     need_drop_root_privileges();
+    clear_auth_pub_key_file();
 
     ylong_runtime::block_on(async {
         let tcp_task = ylong_runtime::spawn(async {

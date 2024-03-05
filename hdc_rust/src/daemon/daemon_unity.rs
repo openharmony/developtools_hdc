@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 use super::mount;
+use super::shell::PtyMap;
 use crate::jdwp::Jdwp;
 use hdc::common::hdctransfer;
 use hdc::config::{self, HdcCommand, MessageLevel};
@@ -25,6 +26,7 @@ extern "C" {
 }
 
 async fn hdc_restart() {
+    hdc::info!("Mode changed, hdc daemon restart!");
     unsafe {
         Restart();
     }
@@ -75,8 +77,16 @@ async fn set_root_run_enable(session_id: u32, channel_id: u32, root: bool) {
     let mode_msg = if root { "sh" } else { "root" };
     let result = set_dev_item(config::ENV_ROOT_RUN_MODE, root_flag);
     echo_root_run_mode_result(session_id, channel_id, result, mode_msg).await;
+    hdc::info!(
+        "set_root_run_enable: session_id: {}, channel_id: {}, root: {}, result: {}",
+        session_id,
+        channel_id,
+        root,
+        result
+    );
     if result {
-        hdc_restart().await;
+        PtyMap::clear(session_id).await;
+        std::process::exit(0);
     }
 }
 
@@ -151,6 +161,7 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
             let result = set_dev_item(config::ENV_HDC_MODE, config::MODE_USB);
             echo_device_mode_result(session_id, channel_id, result, config::MODE_USB).await;
             if result {
+                PtyMap::clear(session_id).await;
                 hdc_restart().await
             }
         }
@@ -167,6 +178,7 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
             let result = set_dev_item(config::ENV_HOST_PORT, port);
             echo_device_mode_result(session_id, channel_id, result, config::ENV_HOST_PORT).await;
             if result {
+                PtyMap::clear(session_id).await;
                 hdc_restart().await
             }
         }

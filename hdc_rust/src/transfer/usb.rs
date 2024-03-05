@@ -27,6 +27,7 @@ use crate::utils;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 
+#[cfg(not(target_os = "windows"))]
 use std::ffi::{CStr, CString};
 use std::io::{self, Error, ErrorKind};
 
@@ -51,7 +52,9 @@ extern "C" {
     fn OpenEpPointEx(path: *const libc::c_char) -> i32;
     fn CloseUsbFdEx(fd: i32) -> i32;
     fn CloseEndPointEx(bulkIn: i32, bulkOut: i32, ctrlEp: i32, closeCtrlEp: u8);
+    #[cfg(not(target_os = "windows"))]
     fn WriteUsbDevEx(bulkOut: i32, buf: SerializedBuffer) -> i32;
+    #[cfg(not(target_os = "windows"))]
     fn ReadUsbDevEx(bulkIn: i32) -> PersistBuffer;
     fn GetDevPathEx(path: *const libc::c_char) -> *const libc::c_char;
 
@@ -59,6 +62,7 @@ extern "C" {
     fn ParseUsbHead(value: *mut UsbHeadPack, buf: SerializedBuffer) -> libc::c_uchar;
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn usb_init() -> io::Result<(i32, i32, i32)> {
     crate::info!("opening usb fd...");
     let path = CString::new(config::USB_FFS_BASE).unwrap();
@@ -98,6 +102,7 @@ pub fn usb_init() -> io::Result<(i32, i32, i32)> {
     Ok((config_fd, bulkin_fd, bulkout_fd))
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn usb_close(config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) {
     crate::info!("closing usb fd...");
     unsafe {
@@ -115,6 +120,8 @@ pub struct UsbWriter {
 }
 
 impl base::Reader for UsbReader {
+    // 屏蔽window编译报错
+    #[cfg(not(target_os = "windows"))]
     fn read_frame(&self, _expected_size: usize) -> io::Result<Vec<u8>> {
         let buf = unsafe { ReadUsbDevEx(self.fd) };
         if buf.size == 0 {
@@ -124,6 +131,13 @@ impl base::Reader for UsbReader {
 
         Ok(buf_to_vec(buf))
     }
+
+    // 屏蔽window编译报错
+    #[cfg(target_os = "windows")]
+    fn read_frame(&self, _expected_size: usize) -> io::Result<Vec<u8>> {
+        return Err(utils::error_other("usb read error".to_string()));
+    }
+
 
     fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
         let buf = self.read_frame(serializer::USB_HEAD_SIZE)?;
@@ -144,6 +158,8 @@ impl base::Reader for UsbReader {
 }
 
 impl base::Writer for UsbWriter {
+    // 屏蔽window编译报错
+    #[cfg(not(target_os = "windows"))]
     fn write_all(&self, data: Vec<u8>) -> io::Result<()> {
         let buf = SerializedBuffer {
             ptr: data.as_ptr() as *const libc::c_char,
@@ -154,6 +170,12 @@ impl base::Writer for UsbWriter {
         } else {
             Ok(())
         }
+    }
+
+    // 屏蔽window编译报错
+    #[cfg(target_os = "windows")]
+    fn write_all(&self, _data: Vec<u8>) -> io::Result<()> {
+        Ok(())
     }
 }
 

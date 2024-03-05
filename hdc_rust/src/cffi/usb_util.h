@@ -20,7 +20,9 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include "usb_types.h"
+#ifndef HOST_MINGW
 #include <arpa/inet.h>
+#endif
 
 std::string GetDevPath(const std::string &path);
 

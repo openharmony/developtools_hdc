@@ -32,18 +32,11 @@ ohos_static_library("serialize_structs") {
   ]
   output_extension = "so"
 
-  include_dirs = [
-    "//third_party/bounds_checking_function/include",
-    "//third_party/lz4/lib",
-  ]
-  deps = [
-    "//third_party/bounds_checking_function:libsec_static",
-    "//third_party/lz4:liblz4_static",
-  ]
-
   external_deps = [
     "hilog:libhilog",
     "init:libbegetutil",
+    "bounds_checking_function:libsec_static",
+    "lz4:liblz4_static",
   ]
 
   defines = [ "HDC_HILOG" ]
@@ -53,8 +46,7 @@ ohos_static_library("serialize_structs") {
   }
 
   if (build_selinux) {
-    deps += [ "//third_party/selinux:libselinux" ]
-    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    external_deps += [ "selinux:libselinux" ]
     defines += [ "SURPPORT_SELINUX" ]
   }
 

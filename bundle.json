@@ -27,7 +27,10 @@
         "ability_base",
         "ability_runtime",
         "window_manager",
-        "ylong_runtime"
+        "ylong_runtime",
+        "bounds_checking_function",
+        "lz4",
+        "selinux"
       ],
       "third_party": [
         "libuv",

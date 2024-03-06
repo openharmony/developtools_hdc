@@ -12,6 +12,7 @@
 # limitations under the License.
 
 sys.usb.ffs.ready = root:shell:0660
+sys.usb.ffs.ready.hdc = root:shell:0660
 persist.hdc.root = root:shell:0660
 persist.hdc.mode = root:shell:0660
 persist.hdc.port = root:shell:0660

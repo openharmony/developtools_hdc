@@ -28,6 +28,9 @@ static bool g_enableUsb = false;
 static bool g_enableUart = false;
 #endif
 static bool g_enableTcp = false;
+#ifdef HDC_EMULATOR
+static bool g_enableBridge = false;
+#endif
 static bool g_backgroundRun = false;
 namespace Hdc {
 bool RestartDaemon(bool forkchild)
@@ -51,6 +54,11 @@ bool ForkChildCheck(int argc, const char *argv[])
     if (workMode == CMDSTR_TMODE_TCP) {
         WRITE_LOG(LOG_DEBUG, "Property enable TCP");
         g_enableTcp = true;
+#ifdef HDC_EMULATOR
+    } else if (workMode == CMDSTR_TMODE_BRIDGE) {
+        WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
+        g_enableBridge = true;
+#endif
     } else if (workMode == CMDSTR_TMODE_USB) {
         WRITE_LOG(LOG_DEBUG, "Property enable USB");
         g_enableUsb = true;
@@ -291,6 +299,19 @@ int main(int argc, const char *argv[])
         GetDaemonCommandlineOptions(argc, argv);
     }
     if (!g_enableTcp && !g_enableUsb) {
+#ifdef HDC_EMULATOR
+#ifdef HDC_SUPPORT_UART
+        if (!g_enableBridge && !g_enableUart) {
+            Base::PrintMessage("TCP, USB, Bridge and Uart are disable, cannot run continue\n");
+            return -1;
+        }
+#else
+        if (!g_enableBridge) {
+            Base::PrintMessage("Both TCP, Bridge and USB are disable, cannot run continue\n");
+            return -1;
+        }
+#endif
+#else
 #ifdef HDC_SUPPORT_UART
         if (!g_enableUart) {
             Base::PrintMessage("TCP, USB and Uart are disable, cannot run continue\n");
@@ -299,6 +320,7 @@ int main(int argc, const char *argv[])
 #else
         Base::PrintMessage("Both TCP and USB are disable, cannot run continue\n");
         return -1;
+#endif
 #endif
     }
     if (g_backgroundRun) {
@@ -316,10 +338,18 @@ int main(int argc, const char *argv[])
     WRITE_LOG(LOG_DEBUG, "HdcDaemon main run");
     HdcDaemon daemon(false, CheckUvThreadConfig());
 
+#ifdef HDC_EMULATOR
+#ifdef HDC_SUPPORT_UART
+    daemon.InitMod(g_enableTcp, g_enableUsb, g_enableBridge, g_enableUart);
+#else
+    daemon.InitMod(g_enableTcp, g_enableUsb, g_enableBridge);
+#endif
+#else
 #ifdef HDC_SUPPORT_UART
     daemon.InitMod(g_enableTcp, g_enableUsb, g_enableUart);
 #else
     daemon.InitMod(g_enableTcp, g_enableUsb);
+#endif
 #endif
     daemon.WorkerPendding();
     bool wantRestart = daemon.WantRestart();

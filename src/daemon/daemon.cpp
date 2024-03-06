@@ -30,6 +30,9 @@ HdcDaemon::HdcDaemon(bool serverOrDaemonIn)
 {
     clsTCPServ = nullptr;
     clsUSBServ = nullptr;
+#ifdef HDC_EMULATOR
+    clsBridgeServ = nullptr;
+#endif
 #ifdef HDC_SUPPORT_UART
     clsUARTServ = nullptr;
 #endif
@@ -54,6 +57,11 @@ void HdcDaemon::ClearInstanceResource()
         delete (HdcDaemonUSB *)clsUSBServ;
         clsUSBServ = nullptr;
     }
+#ifdef HDC_EMULATOR
+    if (clsBridgeServ) {
+        delete (HdcDaemonBridge *)clsBridgeServ;
+    }
+#endif
 #ifdef HDC_SUPPORT_UART
     if (clsUARTServ) {
         delete (HdcDaemonUART *)clsUARTServ;
@@ -78,6 +86,12 @@ void HdcDaemon::TryStopInstance()
         WRITE_LOG(LOG_DEBUG, "Stop USB");
         ((HdcDaemonUSB *)clsUSBServ)->Stop();
     }
+#ifdef HDC_EMULATOR
+    if (clsBridgeServ) {
+        WRITE_LOG(LOG_DEBUG, "Stop Bridge");
+        ((HdcDaemonBridge *)clsBridgeServ)->Stop();
+    }
+#endif
 #ifdef HDC_SUPPORT_UART
     if (clsUARTServ) {
         WRITE_LOG(LOG_DEBUG, "Stop UART");
@@ -141,6 +155,27 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
     SystemDepend::GetDevItem("ro.hdc.secure", secure);
     enableSecure = (Base::Trim(secure) == "1");
 }
+
+#ifdef HDC_EMULATOR
+#ifdef HDC_SUPPORT_UART
+void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB, bool bEnableBridge, [[maybe_unused]] bool bEnableUART)
+{
+    InitMod(bEnableTCP, bEnableUSB, bEnableUART);
+#else
+void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB, bool bEnableBridge)
+{
+    InitMod(bEnableTCP, bEnableUSB);
+#endif
+    if (bEnableBridge) {
+        clsBridgeServ = new(std::nothrow) HdcDaemonBridge(false, this);
+        if (clsBridgeServ == nullptr) {
+            WRITE_LOG(LOG_FATAL, "InitMod new clsBridgeServ failed");
+            return;
+        }
+        ((HdcDaemonBridge *)clsBridgeServ)->Initial();
+    }
+}
+#endif
 
 // clang-format off
 bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId,
@@ -295,7 +330,7 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
         WRITE_LOG(LOG_FATAL, "DaemonSessionHandshake failed! version not match [%s] vs [%s]",
             handshake.version.c_str(), version.c_str());
 #ifdef HDC_CHECK_CHECK
-	hSession->availTailIndex = 0;
+        hSession->availTailIndex = 0;
         handshake.banner = HANDSHAKE_FAILED;
         string failedString = SerialStruct::SerializeToString(handshake);
         Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE, (uint8_t *)failedString.c_str(),

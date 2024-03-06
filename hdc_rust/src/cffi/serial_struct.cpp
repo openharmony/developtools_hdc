@@ -241,13 +241,13 @@ extern "C" uint8_t ParsePayloadHead(RustStruct::PayloadHead &value, SerializedBu
 
 extern "C" uint8_t ParseUsbHead(RustStruct::USBHead &value, SerializedBuffer buf)
 {
-    (void)memcpy_s(&value, buf.size, reinterpret_cast<struct USBHead *>(buf.ptr), buf.size);
+    (void)memcpy_s(&value, sizeof(RustStruct::USBHead), reinterpret_cast<struct USBHead *>(buf.ptr), buf.size);
     return 1;
 }
 
 extern "C" uint8_t ParseUartHead(RustStruct::UartHead &value, SerializedBuffer buf)
 {
-    (void)memcpy_s(&value, buf.size, reinterpret_cast<struct UartHead *>(buf.ptr), buf.size);
+    (void)memcpy_s(&value, sizeof(RustStruct::UartHead), reinterpret_cast<struct UartHead *>(buf.ptr), buf.size);
     return 1;
 }
 

@@ -71,6 +71,7 @@ template("hdcd_source_set") {
     sources = [
       "src/daemon/daemon.cpp",
       "src/daemon/daemon_app.cpp",
+      "src/daemon/daemon_bridge.cpp",
       "src/daemon/daemon_forward.cpp",
       "src/daemon/daemon_tcp.cpp",
       "src/daemon/daemon_unity.cpp",
@@ -378,6 +379,7 @@ ohos_shared_library("hdc_register") {
 
   configs = [ ":hdc_register_config" ]
 
+  innerapi_tags = [ "platformsdk" ]
   subsystem_name = "developtools"
   part_name = "hdc"
 }

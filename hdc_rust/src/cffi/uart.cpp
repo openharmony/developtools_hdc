@@ -300,12 +300,12 @@ ssize_t WinWriteUartDev(HANDLE handle, uint8_t *data, const size_t length, OVERL
             if (GetLastError() == ERROR_IO_PENDING) {
                 if (!GetOverlappedResult(handle, &ovWrite, &bytesWrite, TRUE)) {
                     printf("%s error wait io:%lu. bytesWrite %lu", __FUNCTION__,
-                        GetLastError(), bytesWrite);
+                           GetLastError(), bytesWrite);
                     return -1;
                 }
             } else {
                 printf("%s err:%lu. bytesWrite %lu", __FUNCTION__, GetLastError(),
-                    bytesWrite);
+                       bytesWrite);
                 return -1;
             }
         }

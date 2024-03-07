@@ -119,6 +119,9 @@ constexpr int UART_IO_WAIT_TIME = 1000;
 constexpr uint16_t MAX_UART_SIZE_IOBUF = 4096; // MAX_SIZE_IOBUF;
 #endif
 const string CMDSTR_TMODE_TCP = "tcp";
+#ifdef HDC_EMULATOR
+const string CMDSTR_TMODE_BRIDGE = "bridge";
+#endif
 const string CMDSTR_FILE_SEND = "file send";
 const string CMDSTR_FILE_RECV = "file recv";
 const string CMDSTR_REMOTE_PARAMETER = "remote";

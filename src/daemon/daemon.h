@@ -26,8 +26,14 @@ public:
 #endif
     virtual ~HdcDaemon();
 #ifdef HDC_SUPPORT_UART
+#ifdef HDC_EMULATOR
+    void InitMod(bool bEnableTCP, bool bEnableUSB, bool bEnableBridge, bool bEnableUART);
+#endif
     void InitMod(bool bEnableTCP, bool bEnableUSB, bool bEnableUART);
 #else
+#ifdef HDC_EMULATOR
+    void InitMod(bool bEnableTCP, bool bEnableUSB, bool bEnableBridge);
+#endif
     void InitMod(bool bEnableTCP, bool bEnableUSB);
 #endif
     bool FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
@@ -36,6 +42,9 @@ public:
                        const int size) override;
     void *clsTCPServ;
     void *clsUSBServ;
+#ifdef HDC_EMULATOR
+    void *clsBridgeServ;
+#endif
 #ifdef HDC_SUPPORT_UART
     void *clsUARTServ;
 #endif

@@ -92,7 +92,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         recv.version.as_str(),
         recv.session_id
     );
-    if recv.version.as_str() < "Ver: 2.0.0" {
+    if recv.version.as_str() < "Ver: 2.0.0b" {
         hdc::info!(
             "client version({}) is too low, return OK for session:{}",
             recv.version.as_str(),

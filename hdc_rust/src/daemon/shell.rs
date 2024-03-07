@@ -94,7 +94,7 @@ async fn subprocess_task(
                             command: ret_command,
                             payload: buf[..bytes].to_vec(),
                         };
-                        hdc::trace!("read {bytes} bytes from pty, buf is {:?}", buf);
+                        // hdc::trace!("read {bytes} bytes from pty, buf is {:?}", buf);
                         transfer::put(session_id, message).await;
                     }
                     Err(e) => {
@@ -106,7 +106,8 @@ async fn subprocess_task(
 
             recv_res = rx.recv() => {
                 match recv_res {
-                    Ok(val) =>  { hdc::trace!("recv {:?}:{:?}", channel_id, val);
+                    Ok(val) =>  {
+                        // hdc::trace!("recv {:?}:{:?}", channel_id, val);
                         pty_process.pty.write_all(&val).await.unwrap();
                         if val[..].contains(&0x4_u8) {
                             // ctrl-D: end pty
@@ -114,7 +115,9 @@ async fn subprocess_task(
                             break;
                         }
                     }
-                    Err(e) => {hdc::debug!("recv_timeout failed: {e:?}");}
+                    Err(e) => {
+                        hdc::debug!("recv_timeout failed: {e:?}");
+                    }
                 }
             },
 

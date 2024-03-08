@@ -86,6 +86,7 @@ async fn subprocess_task(
 
     loop {
         ylong_runtime::select!{
+            biased;
             read_res = pty_process.pty.read(&mut buf) => {
                 match read_res {
                     Ok(bytes) => {
@@ -124,7 +125,7 @@ async fn subprocess_task(
             waitchild_res = pty_process.child.wait() => {
                 match waitchild_res {
                     Ok(_) => {
-                        hdc::debug!("interactive shell finish a process");
+                        // hdc::debug!("interactive shell finish a process");
                         // break;
                     }
                     Err(e) => {

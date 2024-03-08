@@ -16,10 +16,12 @@
 #include "usb_ffs.h"
 #include "usb_util.h"
 #include "sys_para.h"
+#include "log.h"
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
+#include <cerrno>
 
 static constexpr int CONFIG_COUNT2 = 2;
 static constexpr int CONFIG_COUNT3 = 3;
@@ -67,7 +69,7 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
                 printf("%s: write USB_FFS_VALUE failed: errno=%d\n", path.c_str(), errno);
                 break;
             }
-            // active usbrc，Send USB initialization signal
+            // active usbrc, Send USB initialization signal
             printf("ConnectEPPoint ctrl init finish, set usb-ffs ready\n");
             fcntl(controlEp, F_SETFD, FD_CLOEXEC);
             Hdc::SetDevItem("sys.usb.ffs.ready", "1");
@@ -123,10 +125,44 @@ void CloseEndpoint(int &bulkInFd, int &bulkOutFd, int &controlEp, bool closeCtrl
 
 int WriteData(int bulkIn, const uint8_t *data, const int length)
 {
-    return write(bulkIn, const_cast<uint8_t *>(data), length);
+    int ret;
+    int retry_times = 10;
+
+    // WRITE_LOG(Hdc::LOG_WARN, "write fd(%d) len(%d) start\n", bulkIn, length);
+    while (retry_times > 0) {
+        ret = write(bulkIn, const_cast<uint8_t *>(data), length);
+        if (ret >= 0)
+            break;
+
+        // WRITE_LOG(Hdc::LOG_WARN, "write fd(%d) len(%d) failed(%d) errno(%d) errinfo(%s)\n", bulkIn, length, ret, errno, strerror(errno));
+        if (errno != EINTR)
+            break;
+
+        usleep(10000);
+        retry_times--;
+    }
+    // WRITE_LOG(Hdc::LOG_WARN, "write fd(%d) len(%d) end(%d)\n", bulkIn, length, ret);
+    return ret;
 }
 
 int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)
 {
-    return read(bulkOut, buf, readMaxSize);
+    int ret;
+    int retry_times = 10;
+
+    // WRITE_LOG(Hdc::LOG_WARN, "read fd(%d) len(%d) start\n", bulkOut, readMaxSize);
+    while (retry_times > 0) {
+        ret = read(bulkOut, buf, readMaxSize);
+        if (ret >= 0)
+            break;
+
+        // WRITE_LOG(Hdc::LOG_WARN, "read fd(%d) len(%d) failed(%d) errno(%d) errinfo(%s)\n", bulkOut, readMaxSize, ret, errno, strerror(errno));
+        if (errno != EINTR)
+            break;
+
+        usleep(10000);
+        retry_times--;
+    }
+    // WRITE_LOG(Hdc::LOG_WARN, "read fd(%d) len(%d) end(%d)\n", bulkIn, readMaxSize, ret);
+    return ret;
 }

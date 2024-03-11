@@ -65,9 +65,12 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
             let mut proc = PtyCommand::new(SHELL_PROG);
             let command = proc.args(params);
             hdc::warn!("init pty cid {} cmd ({:?}) args ({:?})", channel_id, command.get_program(), command.get_args());
-            command.spawn(&pts).expect("command failed to start")
+            let sc = command.spawn(&pts);
+            hdc::warn!("cmd spawn ({:?})", sc);
+            sc.expect("command start fail")
         }
     };
+    hdc::warn!("cmd pid ({:?})", child.id());
     Ok(PtyProcess::new(pty, child))
 }
 

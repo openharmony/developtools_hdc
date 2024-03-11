@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex};
 use ylong_runtime::sync::mpsc;
 use ylong_runtime::process::pty_process::{Pty, PtyCommand};
 use ylong_runtime::io::AsyncReadExt;
-use ylong_runtime::io::AsyncWriteExt;
+// use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::process::Child as ylongChild;
 
 pub struct PtyTask {
@@ -49,7 +49,7 @@ impl PtyProcess {
     }
 }
 
-fn init_pty_process(cmd: Option<String>) -> io::Result<PtyProcess> {
+fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProcess> {
     let pty = Pty::new().unwrap();
     let pts = pty.pts().unwrap();
     pty.resize(24, 80, 0, 0).expect("resize set fail");
@@ -57,14 +57,15 @@ fn init_pty_process(cmd: Option<String>) -> io::Result<PtyProcess> {
     let child = match cmd {
         None => {
             let mut command = PtyCommand::new(SHELL_PROG);
-            command.spawn(&pts).unwrap()
+            command.spawn(&pts).expect("command failed to start")
         }
         Some(cmd) => {
             let trimed = cmd.trim_matches('"');
             let params = ["-c", trimed].to_vec();
             let mut proc = PtyCommand::new(SHELL_PROG);
             let command = proc.args(params);
-            command.spawn(&pts).unwrap()
+            hdc::warn!("init pty cid {} cmd ({:?}) args ({:?})", channel_id, command.get_program(), command.get_args());
+            command.spawn(&pts).expect("command failed to start")
         }
     };
     Ok(PtyProcess::new(pty, child))
@@ -75,66 +76,62 @@ async fn subprocess_task(
     session_id: u32,
     channel_id: u32,
     ret_command: HdcCommand,
-    mut rx: mpsc::BoundedReceiver<Vec<u8>>,
+    mut _rx: mpsc::BoundedReceiver<Vec<u8>>,
 ) {
-    let mut pty_process = init_pty_process(cmd).unwrap();
+    let mut pty_process = init_pty_process(cmd, channel_id).unwrap();
     let mut buf = [0_u8; 30720];
 
     loop {
-        ylong_runtime::select!{
-            biased;
-            waitchild_res = pty_process.child.wait() => {
-                hdc::warn!("wait pty pid cid {} id {:?}", channel_id, pty_process.child.id());
-                match waitchild_res {
-                    Ok(_) => {
-                        hdc::warn!("interactive shell finish a process");
-                        break;
-                    }
-                    Err(e) => {
-                        hdc::error!("interactive shell wait failed: {e:?}");
-                        break;
-                    }
-                }
-            },
-
-            read_res = pty_process.pty.read(&mut buf) => {
-                hdc::warn!("pty read cid {}", channel_id);
-                match read_res {
-                    Ok(bytes) => {
-                        let message = TaskMessage {
-                            channel_id,
-                            command: ret_command,
-                            payload: buf[..bytes].to_vec(),
-                        };
-                        // hdc::trace!("read {bytes} bytes from pty, buf is {:?}", buf);
-                        transfer::put(session_id, message).await;
-                    }
-                    Err(e) => {
-                        hdc::warn!("pty read failed: {e:?}");
-                        // break;
-                    }
-                }
-            },
-
-            recv_res = rx.recv() => {
-                hdc::warn!("rx recv cid {}", channel_id);
-                match recv_res {
-                    Ok(val) =>  {
-                        // hdc::trace!("recv {:?}:{:?}", channel_id, val);
-                        pty_process.pty.write_all(&val).await.unwrap();
-                        if val[..].contains(&0x4_u8) {
-                            // ctrl-D: end pty
-                            hdc::info!("ctrl-D: end pty");
-                            break;
-                        }
-                    }
-                    Err(e) => {
-                        hdc::warn!("recv_timeout failed: {e:?}");
-                    }
-                }
+        let read_res = pty_process.pty.read(&mut buf).await;
+        hdc::warn!("pty read cid {}", channel_id);
+        match read_res {
+            Ok(bytes) => {
+                let message = TaskMessage {
+                    channel_id,
+                    command: ret_command,
+                    payload: buf[..bytes].to_vec(),
+                };
+                // hdc::trace!("read {bytes} bytes from pty, buf is {:?}", buf);
+                transfer::put(session_id, message).await;
+            }
+            Err(e) => {
+                hdc::warn!("pty read failed: {e:?}");
+                break;
             }
         }
     }
+
+    let waitchild_res = pty_process.child.wait().await;
+    hdc::warn!("wait pty pid cid {} id {:?}", channel_id, pty_process.child.id());
+    match waitchild_res {
+        Ok(_) => {
+            hdc::warn!("interactive shell finish a process");
+        }
+        Err(e) => {
+            hdc::error!("interactive shell wait failed: {e:?}");
+        }
+    };
+
+    loop {
+        let read_res = pty_process.pty.read(&mut buf).await;
+        hdc::warn!("pty read cid {}", channel_id);
+        match read_res {
+            Ok(bytes) => {
+                let message = TaskMessage {
+                    channel_id,
+                    command: ret_command,
+                    payload: buf[..bytes].to_vec(),
+                };
+                // hdc::trace!("read {bytes} bytes from pty, buf is {:?}", buf);
+                transfer::put(session_id, message).await;
+            }
+            Err(e) => {
+                hdc::warn!("pty read failed: {e:?}");
+                break;
+            }
+        }
+    }
+
     let message = TaskMessage {
         channel_id,
         command: HdcCommand::KernelChannelClose,

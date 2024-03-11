@@ -83,6 +83,20 @@ async fn subprocess_task(
     loop {
         ylong_runtime::select!{
             biased;
+            waitchild_res = pty_process.child.wait() => {
+                hdc::warn!("wait pty pid cid {} id {:?}", channel_id, pty_process.child.id());
+                match waitchild_res {
+                    Ok(_) => {
+                        hdc::warn!("interactive shell finish a process");
+                        break;
+                    }
+                    Err(e) => {
+                        hdc::error!("interactive shell wait failed: {e:?}");
+                        break;
+                    }
+                }
+            },
+
             read_res = pty_process.pty.read(&mut buf) => {
                 hdc::warn!("pty read cid {}", channel_id);
                 match read_res {
@@ -97,7 +111,7 @@ async fn subprocess_task(
                     }
                     Err(e) => {
                         hdc::warn!("pty read failed: {e:?}");
-                        break;
+                        // break;
                     }
                 }
             },
@@ -116,20 +130,6 @@ async fn subprocess_task(
                     }
                     Err(e) => {
                         hdc::warn!("recv_timeout failed: {e:?}");
-                    }
-                }
-            },
-
-            waitchild_res = pty_process.child.wait() => {
-                hdc::warn!("wait pty pid cid {} id {:?}", channel_id, pty_process.child.id());
-                match waitchild_res {
-                    Ok(_) => {
-                        hdc::warn!("interactive shell finish a process");
-                        break;
-                    }
-                    Err(e) => {
-                        hdc::error!("interactive shell wait failed: {e:?}");
-                        break;
                     }
                 }
             }

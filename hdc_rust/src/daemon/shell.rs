@@ -30,10 +30,6 @@ use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::process::Child as ylongChild;
 
-nix::ioctl_write_ptr_bad!(set_term_size, libc::TIOCSWINSZ, nix::pty::Winsize);
-
-nix::ioctl_write_ptr_bad!(set_controlling_terminal, libc::TIOCSCTTY, libc::c_int);
-
 pub struct PtyTask {
     pub handle: ylong_runtime::task::JoinHandle<()>,
     pub tx: mpsc::BoundedSender<Vec<u8>>,
@@ -88,6 +84,7 @@ async fn subprocess_task(
         ylong_runtime::select!{
             biased;
             read_res = pty_process.pty.read(&mut buf) => {
+                hdc::warn!("pty read cid {}", channel_id);
                 match read_res {
                     Ok(bytes) => {
                         let message = TaskMessage {
@@ -106,6 +103,7 @@ async fn subprocess_task(
             },
 
             recv_res = rx.recv() => {
+                hdc::warn!("rx recv cid {}", channel_id);
                 match recv_res {
                     Ok(val) =>  {
                         // hdc::trace!("recv {:?}:{:?}", channel_id, val);
@@ -117,16 +115,17 @@ async fn subprocess_task(
                         }
                     }
                     Err(e) => {
-                        hdc::debug!("recv_timeout failed: {e:?}");
+                        hdc::warn!("recv_timeout failed: {e:?}");
                     }
                 }
             },
 
             waitchild_res = pty_process.child.wait() => {
+                hdc::warn!("wait pty pid cid {} id {:?}", channel_id, pty_process.child.id());
                 match waitchild_res {
                     Ok(_) => {
-                        // hdc::debug!("interactive shell finish a process");
-                        // break;
+                        hdc::warn!("interactive shell finish a process");
+                        break;
                     }
                     Err(e) => {
                         hdc::error!("interactive shell wait failed: {e:?}");

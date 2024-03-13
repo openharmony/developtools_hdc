@@ -105,7 +105,7 @@ async fn subprocess_task(
     }
 
     let waitchild_res = pty_process.child.wait().await;
-    hdc::warn!("wait pty pid cid {} id {:?}", channel_id, pty_process.child.id());
+    hdc::warn!("wait pty pid cid {} id {:?}", channel_id, waitchild_res);
     match waitchild_res {
         Ok(_) => {
             hdc::warn!("interactive shell finish a process");

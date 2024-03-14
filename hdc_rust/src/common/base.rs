@@ -122,67 +122,34 @@ impl Base {
         _path.to_owned()
     }
 
-    fn convert(list1: Vec<&str>) -> String {
-        let split = Base::get_path_sep();
-        let mut result = split.to_string();
-        let mut i = 0;
-        for item in &list1 {
-            result.push_str(item);
-            i += 1;
-            if i < list1.len() {
-                result.push(split);
+    pub fn combine(src1: String, src2: String) -> String {
+        let path_sep = Base::get_path_sep();
+        let mut list1: Vec<&str> = src1.split(path_sep).collect();
+        let mut list2: Vec<&str> = src2.split(path_sep).collect();
+        // Remove empty strings from the beginning and end of the list
+        list1.dedup_by(|a, b| a.is_empty() && b.is_empty());
+        list2.dedup_by(|a, b| a.is_empty() && b.is_empty());
+        // If list1 is empty, return list2 directly
+        if list1.is_empty() {
+            return list2.join(path_sep.to_string().as_str());
+        }
+        // Try to match from the end of list2 to list1
+        let mut i = list2.len();
+        while i > 0 {
+            i -= 1;
+            if list1.ends_with(&list2[0..i+1]) {
+                // Remove the matched part
+                list2.drain(0..i+1);
+                break;
             }
         }
-        result
-    }
-
-    pub fn combine(src1: String, src2: String) -> String {
-        let split = Base::get_path_sep();
-        let split_str = split.to_string();
-        let mut list1: Vec<_> = src1.split(&split_str).collect();
-        while list1[0].is_empty() {
-            list1.remove(0);
-        }
-
-        while list1[list1.len() - 1].is_empty() {
-            list1.remove(list1.len() - 1);
-        }
-
-        let mut list2: Vec<_> = src2.split(&split_str).collect();
-
-        while list2[0].is_empty() {
+        // If list2 starts with a path separator and list1 is not empty, remove the separator.
+        if !list2.is_empty() && list2[0].starts_with(path_sep) && !list1.is_empty() {
             list2.remove(0);
         }
-
-        while list2[list2.len() - 1].is_empty() {
-            list2.remove(list2.len() - 1);
-        }
-
-        let mut i = list2.len() - 1;
-        loop {
-            if i == 0 {
-                if list1.last().unwrap() == &list2[0] {
-                    list2.remove(0);
-                }
-                list1.append(&mut list2);
-                return Self::convert(list1);
-            }
-            if list1.ends_with(&list2[0..i]) {
-                for _j in 0..i {
-                    list2.remove(0);
-                }
-                list1.append(&mut list2);
-                return Self::convert(list1);
-            } else {
-                if i == 0 {
-                    break;
-                }
-                i -= 1;
-            }
-        }
-        if !list2.is_empty() {
-            list1.append(&mut list2);
-        }
-        Self::convert(list1)
+        let mut combined = list1;
+        combined.extend(list2);
+        let result = combined.join(path_sep.to_string().as_str());
+        result
     }
 }

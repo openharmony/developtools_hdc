@@ -129,7 +129,10 @@ pub fn check_local_path(
     }
 
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        transfer.local_path = Base::combine(transfer.local_path.clone(), op);
+        let local_dir = transfer.local_path.clone().replace(
+            '/', Base::get_path_sep().to_string().as_str()
+        );
+        transfer.local_path = Base::combine(local_dir, op);
     }
 
     if transfer.local_path.ends_with(Base::get_path_sep()) {

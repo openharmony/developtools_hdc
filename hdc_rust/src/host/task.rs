@@ -19,16 +19,17 @@ use crate::config::*;
 /// use hdc::common::hdcfile::HdcFile;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
+use hdc::transfer::host_usb;
 use hdc::utils;
 
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 
+use hdc::utils::hdc_log::*;
 use ylong_runtime::net::SplitReadHalf;
 use ylong_runtime::net::TcpStream;
 use ylong_runtime::sync::{Mutex, RwLock};
-use hdc::utils::hdc_log::*;
 
 #[derive(Debug, Clone)]
 pub struct TaskInfo {
@@ -259,19 +260,43 @@ async fn channel_shell_task(task_info: TaskInfo) -> io::Result<()> {
     Ok(())
 }
 
-async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
-    if task_info.params.len() < 2 || task_info.params[1].len() <= 1 {}
-    let connect_key = task_info.params[1].trim_end_matches('\0').to_string();
-    if ConnectMap::get(connect_key.clone()).await.is_some() {
-        let ret = transfer::send_channel_msg(
-            task_info.channel_id,
-            transfer::EchoLevel::INFO,
-            "Target is connected, repeat operation".to_string(),
-        )
-        .await;
-        transfer::TcpMap::end(task_info.channel_id).await;
-        return ret;
-    }
+pub async fn start_usb_device_loop(ptr: u64, connect_key: String) {
+    let session_id = utils::get_pseudo_random_u32();
+    let channel_id = utils::get_pseudo_random_u32();
+    let rd = host_usb::HostUsbReader {
+        connect_key: connect_key.clone(),
+        ptr,
+    };
+    let wr = host_usb::HostUsbWriter {
+        connect_key: connect_key.clone(),
+        ptr,
+    };
+    transfer::HostUsbMap::start(session_id, wr).await;
+    match auth::usb_handshake_with_daemon(ptr, connect_key.clone(), session_id, channel_id).await {
+        Ok((dev_name, version)) => {
+            host_usb::on_device_connected(ptr, connect_key.clone(), true);
+            ConnectMap::put(
+                connect_key.clone(),
+                DaemonInfo {
+                    session_id,
+                    conn_type: config::ConnectType::HostUsb(connect_key.clone()),
+                    conn_status: ConnectStatus::Connected,
+                    dev_name,
+                    version,
+                },
+            )
+            .await;
+        }
+        Err(e) => {
+            let _ =
+                transfer::send_channel_msg(channel_id, transfer::EchoLevel::FAIL, e.to_string())
+                    .await;
+        }
+    };
+    ylong_runtime::spawn(usb_handle_deamon(ptr, session_id, connect_key));
+}
+
+async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> io::Result<()> {
     match TcpStream::connect(connect_key.clone()).await {
         Err(_) => {
             let ret = transfer::send_channel_msg(
@@ -332,6 +357,22 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
     }
 }
 
+async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
+    if task_info.params.len() < 2 || task_info.params[1].len() <= 1 {}
+    let connect_key = task_info.params[1].trim_end_matches('\0').to_string();
+    if ConnectMap::get(connect_key.clone()).await.is_some() {
+        let ret = transfer::send_channel_msg(
+            task_info.channel_id,
+            transfer::EchoLevel::INFO,
+            "Target is connected, repeat operation".to_string(),
+        )
+        .await;
+        transfer::TcpMap::end(task_info.channel_id).await;
+        return ret;
+    }
+    start_tcp_daemon_session(connect_key, &task_info).await
+}
+
 async fn channel_list_targets_task(task_info: TaskInfo) -> io::Result<()> {
     let is_full = task_info.params.contains(&"-v".to_string());
     let target_list = ConnectMap::get_list(is_full).await;
@@ -369,6 +410,31 @@ async fn tcp_handle_deamon(
             }
         };
     }
+}
+
+pub async fn usb_handle_deamon(ptr: u64, session_id: u32, connect_key: String) -> io::Result<()> {
+    let mut rx = transfer::host_usb_start_recv(ptr, connect_key.clone(), session_id);
+    loop {
+        match rx.recv().await {
+            Ok((task_message, _index)) => {
+                hdc::debug!(
+                    "in usb_handle_deamon, recv cmd: {:#?}, payload len: {}",
+                    task_message.command,
+                    task_message.payload.len(),
+                );
+                if let Err(e) = session_task_dispatch(task_message, session_id).await {
+                    hdc::error!("dispatch task failed: {}", e.to_string());
+                }
+            }
+            Err(e) => {
+                hdc::warn!("unpack task failed: {}", e.to_string());
+                ConnectMap::remove(connect_key.clone()).await;
+                host_usb::on_device_connected(ptr, connect_key.clone(), false);
+                return Err(Error::new(ErrorKind::Other, "recv error"));
+            }
+        };
+    }
+    Ok(())
 }
 
 async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
@@ -435,7 +501,10 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
     let cmd = task_message.payload;
     let _ = task_.command_dispatch(command, &cmd[..], cmd.len() as u16);
     */
-    println!("session_file_task input {:#?} {:#?}", task_message, session_id);
+    println!(
+        "session_file_task input {:#?} {:#?}",
+        task_message, session_id
+    );
     Ok(())
 }
 
@@ -523,6 +592,7 @@ impl ConnectMap {
                     ConnectType::Usb(_) => "USB",
                     ConnectType::Uart => "UART",
                     ConnectType::Bt => "BT",
+                    ConnectType::HostUsb(_) => "HostUSB",
                 });
                 output.push(match guard.conn_status {
                     ConnectStatus::Connected => "Connected",

@@ -127,6 +127,8 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
 {
     int ret;
     int retry_times = 10;
+    // 10ms
+    int retry_interval = 10000;
 
     while (retry_times > 0) {
         ret = write(bulkIn, const_cast<uint8_t *>(data), length);
@@ -136,7 +138,7 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
         if (errno != EINTR)
             break;
 
-        usleep(10000);
+        usleep(retry_interval);
         retry_times--;
     }
 
@@ -147,6 +149,8 @@ int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)
 {
     int ret;
     int retry_times = 10;
+    // 10ms
+    int retry_interval = 10000;
 
     while (retry_times > 0) {
         ret = read(bulkOut, buf, readMaxSize);
@@ -156,7 +160,7 @@ int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)
         if (errno != EINTR)
             break;
 
-        usleep(10000);
+        usleep(retry_interval);
         retry_times--;
     }
 

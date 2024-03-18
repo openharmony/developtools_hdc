@@ -278,6 +278,7 @@ pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
 pub const MAX_SIZE_IOBUF: usize = 61440;
 
 pub const SHELL_PROG: &str = "sh";
+pub const NOHUG_PROG: &str = "nohup";
 pub const SHELL_TEMP: &str = "/data/local/tmp/hdc-pty";
 
 pub const LOG_FILE_NAME: &str = "hdc_rust.log"; // TODO: change to hdc.log

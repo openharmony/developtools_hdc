@@ -54,7 +54,7 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
         let bytes = GetParameterEx(
             ckey.as_ptr(),
             cdef.as_ptr(),
-            out.as_mut_ptr() as *mut u8,
+            out.as_mut_ptr() as *mut libc::c_char,
             512,
         );
         let output = String::from_utf8(out.to_vec()).unwrap().trim().to_string();

@@ -72,7 +72,9 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
             // active usbrc, Send USB initialization signal
             printf("ConnectEPPoint ctrl init finish, set usb-ffs ready\n");
             fcntl(controlEp, F_SETFD, FD_CLOEXEC);
+            Hdc::SetDevItem("sys.usb.ffs.ready.hdc", "0");
             Hdc::SetDevItem("sys.usb.ffs.ready", "1");
+            Hdc::SetDevItem("sys.usb.ffs.ready.hdc", "1");
             return ERR_SUCCESS;
         }
     }

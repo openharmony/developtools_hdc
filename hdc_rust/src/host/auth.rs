@@ -19,80 +19,18 @@ use crate::config::*;
 
 use hdc::config;
 use hdc::config::TaskMessage;
-use hdc::serializer::native_struct::SessionHandShake;
 use hdc::serializer::serialize::Serialization;
+use hdc::serializer::native_struct::SessionHandShake;
 use hdc::transfer;
-use hdc::utils;
 
 use std::io::{self, Error, ErrorKind};
 use std::path::Path;
 
-use hdc::utils::hdc_log::*;
-use hilog_rust::hilog;
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::net::SplitReadHalf;
-
-pub async fn usb_handshake_with_daemon(
-    ptr: u64,
-    connect_key: String,
-    session_id: u32,
-    channel_id: u32,
-) -> io::Result<(String, String)> {
-    let rsa = load_or_create_prikey()?;
-
-    let mut handshake = SessionHandShake {
-        banner: HANDSHAKE_MESSAGE.to_string(),
-        session_id,
-        connect_key: connect_key.clone(),
-        version: config::get_version(),
-        ..Default::default()
-    };
-
-    send_handshake_to_daemon(&handshake, channel_id).await;
-    loop {
-        let mut rx = transfer::host_usb_start_recv_once(ptr, connect_key.clone(), session_id);
-        let (msg, _package_index) = match rx.recv().await {
-            Ok((msg, index)) => (msg, index),
-            Err(_) => {
-                println!("usb handshake recv fail");
-                return Err(utils::error_other("usb recv failed, reopen...".to_string()));
-            }
-        };
-        if msg.command == config::HdcCommand::KernelHandshake {
-            let mut recv = SessionHandShake::default();
-            recv.parse(msg.payload)?;
-
-            hdc::info!("recv handshake: {:#?}", recv);
-            if recv.banner != config::HANDSHAKE_MESSAGE {
-                return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
-            }
-
-            if recv.auth_type == config::AuthType::OK as u8 {
-                return Ok((recv.buf, recv.version));
-            } else if recv.auth_type == config::AuthType::Publickey as u8 {
-                // send public key
-                handshake.auth_type = config::AuthType::Publickey as u8;
-                handshake.buf = get_hostname()?;
-                handshake.buf.push(char::from_u32(12).unwrap());
-                let pubkey_pem = get_pubkey_pem(&rsa)?;
-                handshake.buf.push_str(pubkey_pem.as_str());
-                send_handshake_to_daemon(&handshake, channel_id).await;
-
-                // send signature
-                handshake.auth_type = config::AuthType::Signature as u8;
-                handshake.buf = get_signature_b64(&rsa, recv.buf)?;
-                send_handshake_to_daemon(&handshake, channel_id).await;
-            } else if recv.auth_type == config::AuthType::Fail as u8 {
-                return Err(Error::new(ErrorKind::Other, recv.buf.as_str()));
-            } else {
-                return Err(Error::new(ErrorKind::Other, "unknown auth type"));
-            }
-        } else {
-            return Err(Error::new(ErrorKind::Other, "unknown command flag"));
-        }
-    }
-}
+use hilog_rust::hilog;
+use hdc::utils::hdc_log::*;
 
 pub async fn handshake_with_daemon(
     connect_key: String,
@@ -240,14 +178,15 @@ fn get_home_dir() -> String {
 }
 
 fn get_hostname() -> io::Result<String> {
-    use std::process::Command;
 
+    use std::process::Command;
+    
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd").args(["/c", "hostname"]).output()
     } else {
         Command::new("cmd").args(["-c", "hostname"]).output()
     };
-
+   
     if let Ok(result) = output {
         Ok(String::from_utf8(result.stdout).unwrap())
     } else {

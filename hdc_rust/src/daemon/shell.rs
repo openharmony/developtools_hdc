@@ -317,6 +317,9 @@ async fn subprocess_task(
             }
         }
     }
+
+    let _ = pty_process.child.lock().await.wait();
+
     let message = TaskMessage {
         channel_id,
         command: HdcCommand::KernelChannelClose,

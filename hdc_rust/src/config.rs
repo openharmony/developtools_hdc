@@ -131,6 +131,7 @@ pub enum HdcCommand {
     AppSideload,
     FileMode,
     DirMode,
+    FileRecvInit,
     // App commands
     AppInit = 3500,
     AppCheck,

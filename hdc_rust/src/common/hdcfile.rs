@@ -314,19 +314,33 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         utils::get_current_time() - task.file_begin_time
     };
     let rate = size as f64 / time as f64;
+    #[allow(unused_variables)]
     let message = format!(
         "FileTransfer finish, Size:{}, File count = {}, time:{}ms rate:{:.2}kB/s",
         size, task.file_cnt, time, rate
     );
-    hdctransfer::echo_client(
-        task.transfer.session_id,
-        task.transfer.channel_id,
-        message.as_bytes().to_vec(),
-        MessageLevel::Ok,
-    )
-    .await;
-
-    hdctransfer::close_channel(channel_id).await;
+    #[cfg(feature = "host")]
+    {
+        let _ = transfer::send_channel_msg(
+            task.transfer.channel_id,
+            transfer::EchoLevel::OK,
+            message
+        )
+        .await;
+        hdctransfer::close_channel(channel_id).await;
+        return
+    }
+    #[allow(unreachable_code)]
+    {
+        hdctransfer::echo_client(
+            task.transfer.session_id,
+            task.transfer.channel_id,
+            message.as_bytes().to_vec(),
+            MessageLevel::Ok,
+        )
+        .await;
+        hdctransfer::close_channel(channel_id).await;
+    }
 }
 
 async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {

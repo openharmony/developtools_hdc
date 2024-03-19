@@ -109,7 +109,9 @@ impl Client {
             HdcCommand::KernelTargetList
             | HdcCommand::KernelTargetConnect
             | HdcCommand::UnityHilog =>  self.general_task().await,
-            HdcCommand::FileInit | HdcCommand::FileCheck => self.file_send_task().await,
+            HdcCommand::FileInit
+            | HdcCommand::FileCheck
+            | HdcCommand::FileRecvInit => self.file_send_task().await,
             HdcCommand::AppInit | HdcCommand::AppUninstall => self.app_install_task().await,
             HdcCommand::UnityRunmode => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_task().await,
@@ -243,7 +245,8 @@ impl Client {
 
     async fn file_send_task(&mut self) -> io::Result<()> {
         let mut params = self.params.clone();
-        if self.command == HdcCommand::FileInit {
+        if self.command == HdcCommand::FileInit ||
+           self.command == HdcCommand::FileRecvInit {
             let command_field_count = 2;
             let current_dir = env::current_dir().unwrap();
             let mut s = current_dir.display().to_string();

@@ -16,16 +16,20 @@
 
 pub mod base;
 pub mod buffer;
+pub mod host_usb;
 pub mod tcp;
 pub mod uart;
 pub mod uart_wrapper;
 pub mod usb;
+pub use buffer::host_usb_start_recv;
+pub use buffer::host_usb_start_recv_once;
 pub use buffer::put;
 pub use buffer::send_channel_data;
 pub use buffer::send_channel_msg;
 pub use buffer::usb_start_recv;
 pub use buffer::ChannelMap;
 pub use buffer::EchoLevel;
+pub use buffer::HostUsbMap;
 pub use buffer::TcpMap;
 pub use buffer::UartMap;
 pub use buffer::UsbMap;

@@ -17,6 +17,7 @@ use crate::config::*;
 /// ActionType 未定义，临时屏蔽
 /// use crate::host_app::HostAppTask;
 /// use hdc::common::hdcfile::HdcFile;
+use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::transfer::host_usb;
@@ -78,6 +79,9 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
         | HdcCommand::AppUninstall => {
             channel_file_task(task_info).await?;
         }
+        HdcCommand::FileRecvInit => {
+            send_to_daemon(task_info, HdcCommand::FileInit).await?;
+        }
         HdcCommand::UnityHilog => {
             channel_hilog_task(task_info).await?;
         }
@@ -128,62 +132,81 @@ async fn channel_bug_report_task(task_info: TaskInfo) -> io::Result<()> {
 }
 
 async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
-    /* ActionType 未定义，临时屏蔽
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+    let payload = task_info.params.join(" ").into_bytes();
+    match task_info.command {
+        // HdcCommand::AppInit | HdcCommand::AppUninstall => {
+        //     if !HostAppTask::exsit(session_id, task_info.channel_id).await {
+        //         let task = HostAppTask::new(session_id, task_info.channel_id);
+        //         HostAppTask::put(session_id, task_info.channel_id, task).await;
+        //     }
+        //     host_app::command_dispatch(
+        //         session_id,
+        //         task_info.channel_id,
+        //         task_info.command,
+        //         &payload,
+        //         payload.len() as u16,
+        //     )
+        //     .await;
+        //     return Ok(());
+        // }
+        
+        // HdcCommand::AppBegin | HdcCommand::AppData | HdcCommand::AppFinish => {
+        //     host_app::command_dispatch(
+        //         session_id,
+        //         task_info.channel_id,
+        //         task_info.command,
+        //         &payload,
+        //         payload.len() as u16)
+        //         .await;
+        //     return Ok(());            
+        // }
 
-    let opt = admin_session(ActionType::Query(session_id)).await;
-    if opt.is_none() {
-        admin_session(ActionType::Add(HdcSession::new(
-            session_id,
-            String::from(""),
-            NodeType::Daemon,
-            ConnectType::Tcp,
-        )))
-        .await;
-    }
-    let opt = admin_session(ActionType::Query(session_id)).await;
-
-    let arc = opt.unwrap();
-    let mut session = arc.lock().await;
-    if let std::collections::hash_map::Entry::Vacant(e) =
-        session.map_tasks.entry(task_info.channel_id)
-    {
-        match task_info.command {
-            HdcCommand::AppInit | HdcCommand::AppUninstall => {
-                let mut task = HostAppTask::new(session_id, task_info.channel_id);
-                task.transfer.server_or_daemon = true;
-                e.insert(Arc::new(Mutex::new(task)));
-            }
-            HdcCommand::FileInit => {
+        HdcCommand::FileCheck | HdcCommand::FileInit => {
+            if !FileTaskMap::exsit(session_id, task_info.channel_id).await {
                 let mut task = HdcFile::new(session_id, task_info.channel_id);
                 task.transfer.server_or_daemon = true;
-                e.insert(Arc::new(Mutex::new(task)));
+                FileTaskMap::put(session_id, task_info.channel_id, task).await;
             }
-            _ => {
-                println!("other tasks");
-            }
+            hdcfile::command_dispatch(
+                session_id,
+                task_info.channel_id,
+                task_info.command,
+                &payload,
+                payload.len() as u16)
+                .await;
+            return Ok(());
+        }
+        HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish => {
+            hdcfile::command_dispatch(
+                session_id,
+                task_info.channel_id,
+                task_info.command,
+                &payload,
+                payload.len() as u16)
+                .await;
+                return Ok(());
+        }
+        _ => {
+            println!("other tasks, payload is {:#?}", payload);
         }
     }
-    let task = session.map_tasks.get(&task_info.channel_id).unwrap();
-    let task_ = &mut task.lock().await;
-    let cmd_idx = match task_info.command {
-        HdcCommand::AppInit
-        | HdcCommand::AppBegin
-        | HdcCommand::AppData
-        | HdcCommand::AppFinish
-        | HdcCommand::AppUninstall => 1,
-        _ => 2,
-    };
-    let cmd = task_info.params[cmd_idx..]
-        .iter()
-        .map(|s| s.trim_end_matches('\0'))
-        .collect::<Vec<_>>()
-        .join(" ")
-        .into_bytes();
-    let _ = task_.command_dispatch(task_info.command, &cmd[..], cmd.len() as u16);
-    */
-    println!("task_info is {:#?}", task_info);
+    Ok(())
+}
+
+async fn send_to_daemon(task_info: TaskInfo, _cmd: HdcCommand) -> io::Result<()> {
+    let session_id =
+        get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+    transfer::put(
+        session_id,
+        TaskMessage {
+            channel_id: task_info.channel_id,
+            command: _cmd,
+            payload: task_info.params[2..].join(" ").into_bytes(),
+        },
+    )
+    .await;
     Ok(())
 }
 
@@ -326,7 +349,7 @@ async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> 
                         connect_key.clone(),
                         DaemonInfo {
                             session_id,
-                            conn_type: config::ConnectType::Tcp,
+                            conn_type: ConnectType::Tcp,
                             conn_status: ConnectStatus::Connected,
                             dev_name,
                             version,
@@ -394,11 +417,11 @@ async fn tcp_handle_deamon(
     loop {
         match transfer::tcp::unpack_task_message(&mut rd).await {
             Ok(task_message) => {
-                hdc::info!(
-                    "in tcp_handle_deamon, recv cmd: {:#?}, payload len: {}",
-                    task_message.command,
-                    task_message.payload.len(),
-                );
+                // hdc::info!(
+                //     "in tcp_handle_deamon, recv cmd: {:#?}, payload len: {}",
+                //     task_message.command,
+                //     task_message.payload.len(),
+                // );
                 if let Err(e) = session_task_dispatch(task_message, session_id).await {
                     hdc::error!("dispatch task failed: {}", e.to_string());
                 }
@@ -439,7 +462,7 @@ pub async fn usb_handle_deamon(ptr: u64, session_id: u32, connect_key: String) -
 
 async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
-        HdcCommand::KernelEchoRaw | HdcCommand::UnityBugreportData => {
+        HdcCommand::KernelEchoRaw | HdcCommand::UnityBugreportData | HdcCommand::KernelEcho => {
             transfer::send_channel_data(task_message.channel_id, task_message.payload).await;
         }
         HdcCommand::KernelChannelClose => {
@@ -461,6 +484,65 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io
 }
 
 async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    match task_message.command {
+        // HdcCommand::AppCheck | HdcCommand::AppUninstall => {
+        //     if !AppTaskMap::exsit(session_id, task_message.channel_id).await {
+        //         let task = DaemonAppTask::new(session_id, task_message.channel_id);
+        //         AppTaskMap::put(session_id, task_message.channel_id, task).await;
+        //     }
+        //     daemon_app::command_dispatch(
+        //         session_id,
+        //         task_message.channel_id,
+        //         task_message.command,
+        //         &task_message.payload,
+        //         task_message.payload.len() as u16,
+        //     )
+        //     .await;
+        //     return Ok(());
+        // }
+        // HdcCommand::AppBegin | HdcCommand::AppData => {
+        //     daemon_app::command_dispatch(
+        //         session_id,
+        //         task_message.channel_id,
+        //         task_message.command,
+        //         &task_message.payload,
+        //         task_message.payload.len() as u16,
+        //     )
+        //     .await;
+        //     return Ok(());
+        // }
+        HdcCommand::FileCheck | HdcCommand::FileInit => {
+            if !FileTaskMap::exsit(session_id, task_message.channel_id).await {
+                let mut task = HdcFile::new(session_id, task_message.channel_id);
+                task.transfer.server_or_daemon = true;
+                FileTaskMap::put(session_id, task_message.channel_id, task).await;
+            }
+
+            hdcfile::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish => {
+            hdcfile::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
+        _ => {
+            println!("other tasks");
+        }
+    }
     /* ActionType 未定义，临时屏蔽
     let channel_id = task_message.channel_id;
     let command = task_message.command;
@@ -501,10 +583,6 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
     let cmd = task_message.payload;
     let _ = task_.command_dispatch(command, &cmd[..], cmd.len() as u16);
     */
-    println!(
-        "session_file_task input {:#?} {:#?}",
-        task_message, session_id
-    );
     Ok(())
 }
 
@@ -536,7 +614,7 @@ enum ConnectStatus {
 #[derive(Default)]
 struct DaemonInfo {
     pub session_id: u32,
-    pub conn_type: config::ConnectType,
+    pub conn_type: ConnectType,
     pub conn_status: ConnectStatus,
     pub dev_name: String,
     pub version: String,

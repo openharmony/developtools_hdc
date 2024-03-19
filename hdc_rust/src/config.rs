@@ -49,6 +49,7 @@ pub enum ConnectType {
     Tcp,
     Uart,
     Bt,
+    HostUsb(String),
 }
 
 pub enum ErrCode {
@@ -131,6 +132,7 @@ pub enum HdcCommand {
     AppSideload,
     FileMode,
     DirMode,
+    FileRecvInit,
     // App commands
     AppInit = 3500,
     AppCheck,

@@ -52,7 +52,7 @@ lazy_static! {
         map.insert("bugreport", HdcCommand::UnityBugreportInit);
         map.insert("hilog", HdcCommand::UnityHilog);
         map.insert("file send", HdcCommand::FileInit);
-        map.insert("file recv", HdcCommand::FileInit);
+        map.insert("file recv", HdcCommand::FileRecvInit);
         map.insert("fport", HdcCommand::ForwardInit);
         map.insert("rport", HdcCommand::ForwardInit);
         map.insert("fport ls", HdcCommand::ForwardList);

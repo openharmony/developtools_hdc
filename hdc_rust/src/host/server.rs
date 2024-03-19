@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use crate::auth;
 use crate::parser;
 use crate::task;
 
@@ -19,17 +20,54 @@ use hdc::config;
 use hdc::config::HdcCommand;
 use hdc::config::TaskMessage;
 use hdc::transfer;
+use hdc::transfer::host_usb;
+use hdc::transfer::host_usb::HostUsbReader;
+use hdc::transfer::host_usb::HostUsbWriter;
 use hdc::utils;
+use hdc::utils::hdc_log::*;
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
-use hdc::utils::hdc_log::*;
 
 use std::io::{self, Error, ErrorKind};
 
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
 
 pub async fn run_server_mode(addr_str: String) -> io::Result<()> {
+    start_usb_server().await;
+    start_client_listen(addr_str).await
+}
+
+async fn start_usb_server() {
+    let ptr = host_usb::init_host_usb() as u64;
+    ylong_runtime::spawn(async move {
+        loop {
+            let buf = host_usb::get_ready_usb_devices(ptr);
+            let device_list = String::from_utf8(host_usb::buf_to_vec(buf));
+            match device_list {
+                Ok(str) => {
+                    if str.is_empty() {
+                        std::thread::sleep(Duration::from_secs(1));
+                        continue;
+                    }
+                    for sn in str.split(" ") {
+                        if sn.is_empty() {
+                            continue;
+                        }
+                        task::start_usb_device_loop(ptr, sn.to_string()).await;
+                    }
+                    std::thread::sleep(Duration::from_secs(1));
+                }
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+        host_usb::stop(ptr);
+    });
+}
+
+async fn start_client_listen(addr_str: String) -> io::Result<()> {
     let saddr = addr_str;
     let listener = TcpListener::bind(saddr.clone()).await?;
     hdc::info!("server binds on {saddr}");
@@ -57,7 +95,8 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output = utils::execute_cmd("ps -ef | grep hdc | awk '{{print $2}}'".to_owned());
+        let output =
+            utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned());
         let output_str = String::from_utf8_lossy(&output);
         for pid in output_str.split_whitespace() {
             pids.push(u32::from_str(pid).unwrap());
@@ -71,6 +110,7 @@ pub async fn check_allow_fork() -> bool {
     let pids = get_process_pids().await;
     for pid in pids {
         if pid != process::id() {
+            println!("check_allow_fork return false");
             return false;
         }
     }
@@ -92,7 +132,7 @@ pub async fn server_fork(addr_str: String) {
 pub async fn server_kill() {
     // TODO: check mac & win
     let pids = get_process_pids().await;
-
+    hdc::info!("pid is {:?}", pids);
     for pid in pids {
         if pid != process::id() {
             if cfg!(target_os = "windows") {
@@ -207,7 +247,7 @@ async fn handshake_with_client(
 fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
     let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]).unwrap();
     if msg != config::HANDSHAKE_MESSAGE {
-        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"))
+        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
     let key_buf = &recv[config::BANNER_SIZE..];
     let pos = match key_buf.iter().position(|c| *c == 0) {

@@ -49,7 +49,6 @@ pub enum ConnectType {
     Tcp,
     Uart,
     Bt,
-    HostUsb(String),
 }
 
 pub enum ErrCode {

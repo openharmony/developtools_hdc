@@ -292,7 +292,6 @@ CtxFileIO *HdcFileDescriptor::PopWrite()
 
 void HdcFileDescriptor::NotifyWrite()
 {
-    std::unique_lock<std::mutex> lock(writeMutex);
     writeCond.notify_one();
 }
 

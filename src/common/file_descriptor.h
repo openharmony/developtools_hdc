@@ -51,7 +51,7 @@ private:
     CallBackWhenRead callbackRead;
     uv_loop_t *loop;
     void *callerContext;
-    bool workContinue;
+    std::atomic<bool> workContinue;
     int fdIO;
     int refIO;
     std::thread ioReadThread;

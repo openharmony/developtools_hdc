@@ -20,6 +20,7 @@ use crate::config::*;
 use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
+use hdc::host_transfer::host_usb;
 use hdc::utils;
 
 use std::collections::HashMap;
@@ -295,6 +296,46 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
         transfer::TcpMap::end(task_info.channel_id).await;
         return ret;
     }
+    start_tcp_daemon_session(connect_key, &task_info).await
+}
+
+pub async fn start_usb_device_loop(ptr: u64, connect_key: String) {
+    let session_id = utils::get_pseudo_random_u32();
+    let channel_id = utils::get_pseudo_random_u32();
+    let rd = host_usb::HostUsbReader {
+        connect_key: connect_key.clone(),
+        ptr,
+    };
+    let wr = host_usb::HostUsbWriter {
+        connect_key: connect_key.clone(),
+        ptr,
+    };
+    host_usb::HostUsbMap::start(session_id, wr).await;
+    match auth::usb_handshake_with_daemon(ptr, connect_key.clone(), session_id, channel_id).await {
+        Ok((dev_name, version)) => {
+            host_usb::on_device_connected(ptr, connect_key.clone(), true);
+            ConnectMap::put(
+                connect_key.clone(),
+                DaemonInfo {
+                    session_id,
+                    conn_type: config::ConnectType::HostUsb(connect_key.clone()),
+                    conn_status: ConnectStatus::Connected,
+                    dev_name,
+                    version,
+                },
+            )
+            .await;
+        }
+        Err(e) => {
+            let _ =
+                transfer::send_channel_msg(channel_id, transfer::EchoLevel::FAIL, e.to_string())
+                    .await;
+        }
+    };
+    ylong_runtime::spawn(usb_handle_deamon(ptr, session_id, connect_key));
+}
+
+async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> io::Result<()> {
     match TcpStream::connect(connect_key.clone()).await {
         Err(_) => {
             let ret = transfer::send_channel_msg(

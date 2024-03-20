@@ -167,7 +167,6 @@ pub fn unpack_task_message(
 ) -> io::Result<()> {
     let (pack_size, package_index) = rd.check_protocol_head()?;
     if pack_size == 0 {
-        println!("dummy package.");
         return Ok(());
     }
 

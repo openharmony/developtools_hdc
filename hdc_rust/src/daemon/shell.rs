@@ -228,7 +228,7 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
             command.spawn()?
         }
         Some(mut cmd) => {
-            hdc::error!("input cmd [{}]", cmd);
+            hdc::debug!("input cmd [{}]", cmd);
             cmd = cmd.trim().to_string();
             cmd = match cmd.strip_prefix('"') {
                 Some(cmd_res) => cmd_res.to_string(),
@@ -246,14 +246,14 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
                 let mut proc = Command::new(NOHUG_PROG);
                 let params = ["sh", "-c", cmd.as_str()].to_vec();
                 let command = proc.args(params);
-                hdc::error!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
+                hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
                 command.set_pts_without_stdout(&pts)?;
                 command.spawn()?
             } else {
                 let params = ["-c", cmd.as_str()].to_vec();
                 let mut proc = Command::new(SHELL_PROG);
                 let command = proc.args(params);
-                hdc::error!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
+                hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
                 command.set_pts(&pts)?;
                 command.spawn()?
             }

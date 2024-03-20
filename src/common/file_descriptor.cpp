@@ -106,8 +106,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "FileIOOnThread select or epoll_wait fdIO:%d error:%d",
                 thisClass->fdIO, errno);
+            bFinish = true;
             break;
         } else if (rc == 0) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread select rc = 0, timeout.");
             continue;
         }
 #ifndef HDC_HOST
@@ -290,7 +292,6 @@ CtxFileIO *HdcFileDescriptor::PopWrite()
 
 void HdcFileDescriptor::NotifyWrite()
 {
-    std::unique_lock<std::mutex> lock(writeMutex);
     writeCond.notify_one();
 }
 

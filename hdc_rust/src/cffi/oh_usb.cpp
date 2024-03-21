@@ -128,25 +128,27 @@ void CloseEndpoint(int &bulkInFd, int &bulkOutFd, int &controlEp, bool closeCtrl
 int WriteData(int bulkIn, const uint8_t *data, const int length)
 {
     int ret;
+    int offset = 0;
     int retryTimes = 10;
     // 10ms
     int retryInterval = 10000;
 
     while (retryTimes > 0) {
-        ret = write(bulkIn, const_cast<uint8_t *>(data), length);
-        if (ret >= 0) {
-            break;
+        ret = write(bulkIn, const_cast<uint8_t *>(data) + offset, length - offset);
+        if ((ret < 0) && (errno != EINTR)) {
+            return ret;
+        } else if ((ret < 0) && (errno == EINTR)) {
+            usleep(retryInterval);
+            retryTimes--;
+            continue;
         }
-
-        if (errno != EINTR) {
-            break;
+        offset += ret;
+        if (offset >= length) {
+            return offset;
         }
-
-        usleep(retryInterval);
-        retryTimes--;
     }
 
-    return ret;
+    return -1;
 }
 
 int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)

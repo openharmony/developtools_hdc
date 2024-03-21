@@ -16,10 +16,12 @@
 #include "usb_ffs.h"
 #include "usb_util.h"
 #include "sys_para.h"
+#include "log.h"
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
+#include <cerrno>
 
 static constexpr int CONFIG_COUNT2 = 2;
 static constexpr int CONFIG_COUNT3 = 3;
@@ -67,10 +69,12 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
                 printf("%s: write USB_FFS_VALUE failed: errno=%d\n", path.c_str(), errno);
                 break;
             }
-            // active usbrc，Send USB initialization signal
+            // active usbrc, Send USB initialization signal
             printf("ConnectEPPoint ctrl init finish, set usb-ffs ready\n");
             fcntl(controlEp, F_SETFD, FD_CLOEXEC);
+            Hdc::SetDevItem("sys.usb.ffs.ready.hdc", "0");
             Hdc::SetDevItem("sys.usb.ffs.ready", "1");
+            Hdc::SetDevItem("sys.usb.ffs.ready.hdc", "1");
             return ERR_SUCCESS;
         }
     }
@@ -123,10 +127,50 @@ void CloseEndpoint(int &bulkInFd, int &bulkOutFd, int &controlEp, bool closeCtrl
 
 int WriteData(int bulkIn, const uint8_t *data, const int length)
 {
-    return write(bulkIn, const_cast<uint8_t *>(data), length);
+    int ret;
+    int offset = 0;
+    int retryTimes = 10;
+    // 10ms
+    int retryInterval = 10000;
+
+    while (retryTimes > 0) {
+        ret = write(bulkIn, const_cast<uint8_t *>(data) + offset, length - offset);
+        if ((ret < 0) && (errno != EINTR)) {
+            return ret;
+        } else if ((ret < 0) && (errno == EINTR)) {
+            usleep(retryInterval);
+            retryTimes--;
+            continue;
+        }
+        offset += ret;
+        if (offset >= length) {
+            return offset;
+        }
+    }
+
+    return -1;
 }
 
 int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)
 {
-    return read(bulkOut, buf, readMaxSize);
+    int ret;
+    int retryTimes = 10;
+    // 10ms
+    int retryInterval = 10000;
+
+    while (retryTimes > 0) {
+        ret = read(bulkOut, buf, readMaxSize);
+        if (ret >= 0) {
+            break;
+        }
+
+        if (errno != EINTR) {
+            break;
+        }
+
+        usleep(retryInterval);
+        retryTimes--;
+    }
+
+    return ret;
 }

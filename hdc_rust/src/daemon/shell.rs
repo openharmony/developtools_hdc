@@ -17,7 +17,7 @@
 
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
+use hdc::config::{HdcCommand, SHELL_PROG, NOHUG_PROG, SHELL_TEMP};
 use hdc::transfer;
 
 use std::collections::HashMap;
@@ -25,6 +25,7 @@ use std::io::{self, Error, ErrorKind, Read as _, Write as _};
 use std::os::fd::{AsFd, AsRawFd};
 use std::os::unix::process::CommandExt;
 use std::process::Child;
+use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -52,6 +53,15 @@ impl Command {
         self.inner.stdin(pipes.stdin);
         self.inner.stdout(pipes.stdout);
         self.inner.stderr(pipes.stderr);
+
+        unsafe { self.inner.pre_exec(pts.session_leader()) };
+        Ok(())
+    }
+    pub fn set_pts_without_stdout(&mut self, pts: &Pts) -> io::Result<()> {
+        let pipes = pts.setup_pipes()?;
+        self.inner.stdin(pipes.stdin);
+        self.inner.stdout(Stdio::null());
+        self.inner.stderr(Stdio::null());
 
         unsafe { self.inner.pre_exec(pts.session_leader()) };
         Ok(())
@@ -201,6 +211,9 @@ impl PtyProcess {
     }
 }
 
+// hdc shell "/system/bin/uitest start-daemon /data/app/el2/100/base/com.ohos.devicetest/cache/shmf &"
+// hdc shell "nohup test.sh &"
+// async cmd will ignor stdout and stderr
 fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProcess> {
     let pty = Pty::new()?;
     let pts = pty.get_pts()?;
@@ -214,13 +227,36 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
             command.set_pts(&pts)?;
             command.spawn()?
         }
-        Some(cmd) => {
-            let trimed = cmd.trim_matches('"');
-            let params = ["-c", trimed].to_vec();
-            let mut proc = Command::new(SHELL_PROG);
-            let command = proc.args(params);
-            command.set_pts(&pts)?;
-            command.spawn()?
+        Some(mut cmd) => {
+            hdc::debug!("input cmd [{}]", cmd);
+            cmd = cmd.trim().to_string();
+            cmd = match cmd.strip_prefix('"') {
+                Some(cmd_res) => cmd_res.to_string(),
+                None => cmd,
+            };
+            cmd = match cmd.strip_suffix('"') {
+                Some(cmd_res) => cmd_res.to_string(),
+                None => cmd,
+            };
+            if cmd.ends_with('&') {
+                cmd = match cmd.strip_prefix("nohup") {
+                    Some(cmd_res) => cmd_res.trim().to_string(),
+                    None => cmd,
+                };
+                let mut proc = Command::new(NOHUG_PROG);
+                let params = ["sh", "-c", cmd.as_str()].to_vec();
+                let command = proc.args(params);
+                hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
+                command.set_pts_without_stdout(&pts)?;
+                command.spawn()?
+            } else {
+                let params = ["-c", cmd.as_str()].to_vec();
+                let mut proc = Command::new(SHELL_PROG);
+                let command = proc.args(params);
+                hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
+                command.set_pts(&pts)?;
+                command.spawn()?
+            }
         }
     };
     Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), channel_id))
@@ -281,6 +317,9 @@ async fn subprocess_task(
             }
         }
     }
+
+    let _ = pty_process.child.lock().await.wait();
+
     let message = TaskMessage {
         channel_id,
         command: HdcCommand::KernelChannelClose,

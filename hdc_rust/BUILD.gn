@@ -32,18 +32,11 @@ ohos_static_library("serialize_structs") {
   ]
   output_extension = "so"
 
-  include_dirs = [
-    "//third_party/bounds_checking_function/include",
-    "//third_party/lz4/lib",
-  ]
-  deps = [
-    "//third_party/bounds_checking_function:libsec_static",
-    "//third_party/lz4:liblz4_static",
-  ]
-
   external_deps = [
+    "bounds_checking_function:libsec_static",
     "hilog:libhilog",
     "init:libbegetutil",
+    "lz4:liblz4_static",
   ]
 
   defines = [ "HDC_HILOG" ]
@@ -53,8 +46,7 @@ ohos_static_library("serialize_structs") {
   }
 
   if (build_selinux) {
-    deps += [ "//third_party/selinux:libselinux" ]
-    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    external_deps += [ "selinux:libselinux" ]
     defines += [ "SURPPORT_SELINUX" ]
   }
 
@@ -91,7 +83,7 @@ ohos_rust_shared_library("lib") {
   part_name = "hdc"
 }
 
-ohos_rust_executable("hdcd_rust") {
+ohos_rust_executable("hdcd") {
   sources = [ "src/daemon/main.rs" ]
   deps = [
     ":lib",
@@ -107,6 +99,10 @@ ohos_rust_executable("hdcd_rust") {
     "hilog:hilog_rust",
     "ylong_runtime:ylong_runtime",
   ]
+  output_name = "hdcd"
+  install_enable = true
+  module_install_dir = "bin"
+  install_images = [ "system" ]
   features = [ "daemon" ]
   subsystem_name = "developtools"
   part_name = "hdc"

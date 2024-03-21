@@ -16,7 +16,9 @@
 #include "log.h"
 #include "base.h"
 #include "usb_util.h"
+#if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
+#endif
 #include "parameter.h"
 #include <string>
 #include <cstdio>
@@ -50,7 +52,7 @@ void SetSelinuxLabel()
     GetDevItem("const.debuggable", debugMode);
     GetDevItem("persist.hdc.root", rootMode);
     GetDevItem("updater.flashd.configfs", flashdMode);
-    if ((debugMode == "1 " && rootMode == "1 ") || (debugMode == "1 " && flashdMode == "1 ")) {
+    if ((debugMode == "1" && rootMode == "1") || (debugMode == "1" && flashdMode == "1")) {
         setcon("u:r:su:s0");
     } else {
         setcon("u:r:sh:s0");

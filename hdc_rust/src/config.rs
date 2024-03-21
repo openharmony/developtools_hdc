@@ -279,6 +279,7 @@ pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
 pub const MAX_SIZE_IOBUF: usize = 61440;
 
 pub const SHELL_PROG: &str = "sh";
+pub const NOHUG_PROG: &str = "nohup";
 pub const SHELL_TEMP: &str = "/data/local/tmp/hdc-pty";
 
 pub const LOG_FILE_NAME: &str = "hdc_rust.log"; // TODO: change to hdc.log
@@ -339,8 +340,13 @@ pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
     LevelFilter::Trace,
 ];
 
-const HDC_VERSION_NUMBER: u32 = 0x10400000;
-
+// |----------------------------------------------------------------|
+// | 31-28 | 27-24 | 23-20 | 19-16 | 15-12 | 11-08 |     07-00      |
+// |----------------------------------------------------------------|
+// | major |reserve| minor |reserve|version|  fix  |   reserve      |
+// |----------------------------------------------------------------|
+// 0x30000000 is 3.0.0a
+const HDC_VERSION_NUMBER: u32 = 0x30000000;
 pub fn get_version() -> String {
     let major = (HDC_VERSION_NUMBER >> 28) & 0xff;
     let minor = (HDC_VERSION_NUMBER >> 20) & 0xff;

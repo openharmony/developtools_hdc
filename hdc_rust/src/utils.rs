@@ -51,7 +51,14 @@ pub fn execute_cmd(cmd: String) -> Vec<u8> {
     } else {
         "-c"
     };
-    let result = Command::new(SHELL_PROG).args([arg_sign, &cmd]).output();
+
+    let programe = if cfg!(target_os = "windows") {
+        "cmd"
+    } else {
+        SHELL_PROG
+    }; 
+
+    let result = Command::new(programe).args([arg_sign, &cmd]).output();
 
     match result {
         Ok(output) => [output.stdout, output.stderr].concat(),

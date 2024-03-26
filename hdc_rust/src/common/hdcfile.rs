@@ -281,6 +281,15 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     true
 }
 
+pub async fn wake_up_slaver(session_id: u32, channel_id: u32) {
+    let wake_up_message = TaskMessage {
+        channel_id,
+        command: HdcCommand::KernelWakeupSlavetask,
+        payload: Vec::<u8>::new(),
+    };
+    transfer::put(session_id, wake_up_message).await;
+}
+
 async fn put_file_begin(session_id: u32, channel_id: u32) {
     let file_begin_message = TaskMessage {
         channel_id,
@@ -392,6 +401,7 @@ pub async fn command_dispatch(
             let s = String::from_utf8(_payload.to_vec());
             match s {
                 Ok(str) => {
+                    wake_up_slaver(session_id, channel_id).await;
                     begin_transfer(session_id, channel_id, &str).await;
                 }
                 Err(e) => {

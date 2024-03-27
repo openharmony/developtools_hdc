@@ -21,6 +21,7 @@
       "components": [
         "init",
         "c_utils",
+        "faultloggerd",
         "hitrace",
         "hilog",
         "ipc",

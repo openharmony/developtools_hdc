@@ -99,6 +99,11 @@ ohos_rust_executable("hdcd") {
     "hilog:hilog_rust",
     "ylong_runtime:ylong_runtime",
   ]
+
+  if (!defined(ohos_lite)) {
+    external_deps += [ "faultloggerd:panic_handler" ]
+  }
+
   output_name = "hdcd"
   install_enable = true
   module_install_dir = "bin"

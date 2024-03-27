@@ -73,7 +73,7 @@ bool HdcJdwpSimulator::SendToJpid(int fd, const uint8_t *buf, const int bufLen)
 
 bool HdcJdwpSimulator::ConnectJpid(HdcJdwpSimulator *param)
 {
-    uint32_t pidCurr = static_cast<uint32_t>(getpid());
+    uint32_t pidCurr = static_cast<uint32_t>(getprocpid());
     HdcJdwpSimulator *thisClass = param;
 #ifdef JS_JDWP_CONNECT
     std::string processName = thisClass->processName_;

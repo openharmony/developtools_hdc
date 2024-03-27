@@ -64,10 +64,10 @@ def write_hdc_file():
 def read_struct():
     if input_dir == "":
         return
-    with open("{}{}".format(input_dir , cfg_file_name), mode='r', encoding='utf-8') as fd_path:
+    with open("{}{}".format(input_dir, cfg_file_name), mode='r', encoding='utf-8') as fd_path:
         for line in fd_path.readlines():
             file_name = line.strip()
-            with open("{}{}".format(input_dir , file_name), mode='r', encoding='utf-8') as fd_file:
+            with open("{}{}".format(input_dir, file_name), mode='r', encoding='utf-8') as fd_file:
                 is_find = False
                 is_end = False
                 begin_count = 0

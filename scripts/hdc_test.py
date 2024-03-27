@@ -389,8 +389,8 @@ class TestCommands:
             recv_file_one = TEST_FILES[item]['recv_file_one']
             recv_file_two = TEST_FILES[item]['recv_file_two']
 
-            run_command_stdout("{}{}{}{}".format("file send ", os.path.abspath(PATH['file_empty']['local']), ' '
-                              , PATH['file_empty']['remote']), NORMAL_HEAD, False, False)
+            run_command_stdout("{}{}{}{}".format("file send ", os.path.abspath(PATH['file_empty']['local']), ' ',
+                               PATH['file_empty']['remote']), NORMAL_HEAD, False, False)
             run_command_stdout("{}{}{}{}".format("file send ", os.path.abspath(send_file), ' ', recv_file),
                                NORMAL_HEAD, False)
             for i in range(10):

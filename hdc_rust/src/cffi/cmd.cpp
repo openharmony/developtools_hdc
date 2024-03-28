@@ -108,6 +108,7 @@ bool DropRootPrivileges()
 #if defined(SURPPORT_SELINUX)
     if (setcon("u:r:hdcd:s0") != 0) {
         WRITE_LOG(LOG_WARN, "setcon fail, errno %s", strerror(errno));
+        _exit(0);
     }
 #endif
     SetSelinuxLabel();

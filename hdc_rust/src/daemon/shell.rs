@@ -171,16 +171,18 @@ struct PtyProcess {
     pub child: Arc<Mutex<Child>>,
     pub pty_fd: i32,
     channel_id: u32,
+    nohup_flag: bool,
 }
 
 impl PtyProcess {
-    fn new(pty: Pty, child: Arc<Mutex<Child>>, channel_id: u32) -> Self {
+    fn new(pty: Pty, child: Arc<Mutex<Child>>, channel_id: u32, nohup_flag: bool) -> Self {
         let pty_fd = pty.as_fd().as_raw_fd();
         Self {
             pty,
             child,
             pty_fd,
             channel_id,
+            nohup_flag,
         }
     }
 
@@ -220,6 +222,7 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
 
     // Command::new(sh) for interactive
     // Command::new(cmd[0]).args(cmd[1..]) for normal
+    let mut nohup_flag = false;
     let child = match cmd {
         None => {
             let mut command = Command::new(SHELL_PROG);
@@ -237,7 +240,7 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
                 Some(cmd_res) => cmd_res.to_string(),
                 None => cmd,
             };
-            let nohup_flag = cmd.ends_with('&');
+            nohup_flag = cmd.ends_with('&');
             let params = ["-c", cmd.as_str()].to_vec();
             let mut proc = Command::new(SHELL_PROG);
             let command = proc.args(params);
@@ -246,7 +249,7 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
             command.spawn()?
         }
     };
-    Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), channel_id))
+    Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), channel_id, nohup_flag))
 }
 
 async fn subprocess_task(
@@ -305,7 +308,24 @@ async fn subprocess_task(
         }
     }
 
-    let _ = pty_process.child.lock().await.wait();
+    if !pty_process.nohup_flag {
+        let mut child_lock = pty_process.child.lock().await;
+        let kill_resut = child_lock.kill();
+        hdc::debug!("subprocess_task kill child, result:{:#?}", kill_resut);
+        match child_lock.wait() {
+            Ok(exit_status) => {
+                hdc::debug!("subprocess_task waiting child exit success, status:{:?}.", exit_status);
+            }
+            Err(e) => {
+                hdc::debug!("subprocess_task waiting child exit fail, error:{:?}.", e);
+            }
+        }
+    } else {
+        let mut child_lock = pty_process.child.lock().await;
+        hdc::debug!("subprocess_task nohup_flag:{} wait before", pty_process.nohup_flag);
+        let ret  = child_lock.wait();
+        hdc::debug!("subprocess_task nohup_flag:{} wait after: {:#?}", pty_process.nohup_flag, ret);
+    }
 
     let message = TaskMessage {
         channel_id,

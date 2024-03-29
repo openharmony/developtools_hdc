@@ -42,7 +42,7 @@ def write_output_file():
     if output_dir == "":
         return
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
     with open("{}{}".format(output_dir, output_file_name), 'w') as fd_struct:
         for i in struct_vals:
             fd_struct.write(i)

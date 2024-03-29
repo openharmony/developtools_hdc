@@ -17,7 +17,7 @@
 
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, NOHUG_PROG, SHELL_TEMP};
+use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
 use hdc::transfer;
 
 use std::collections::HashMap;
@@ -25,7 +25,6 @@ use std::io::{self, Error, ErrorKind, Read as _, Write as _};
 use std::os::fd::{AsFd, AsRawFd};
 use std::os::unix::process::CommandExt;
 use std::process::Child;
-use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -48,22 +47,15 @@ impl Command {
         self
     }
 
-    pub fn set_pts(&mut self, pts: &Pts) -> io::Result<()> {
-        let pipes = pts.setup_pipes()?;
-        self.inner.stdin(pipes.stdin);
-        self.inner.stdout(pipes.stdout);
-        self.inner.stderr(pipes.stderr);
+    pub fn set_pts(&mut self, pts: &Pts, nohup: bool) -> io::Result<()> {
+        if !nohup {
+            let pipes = pts.setup_pipes()?;
+            self.inner.stdin(pipes.stdin);
+            self.inner.stdout(pipes.stdout);
+            self.inner.stderr(pipes.stderr);
+        }
 
-        unsafe { self.inner.pre_exec(pts.session_leader()) };
-        Ok(())
-    }
-    pub fn set_pts_without_stdout(&mut self, pts: &Pts) -> io::Result<()> {
-        let pipes = pts.setup_pipes()?;
-        self.inner.stdin(pipes.stdin);
-        self.inner.stdout(Stdio::null());
-        self.inner.stderr(Stdio::null());
-
-        unsafe { self.inner.pre_exec(pts.session_leader()) };
+        unsafe { self.inner.pre_exec(pts.session_leader(nohup)) };
         Ok(())
     }
 
@@ -151,10 +143,13 @@ impl Pts {
         })
     }
 
-    pub fn session_leader(&self) -> impl FnMut() -> io::Result<()> {
+    pub fn session_leader(&self, nohup: bool) -> impl FnMut() -> io::Result<()> {
         let fd = self.inner.as_raw_fd();
         move || {
             nix::unistd::setsid()?;
+            if nohup {
+                unsafe { libc::signal(libc::SIGHUP, libc::SIG_IGN) };
+            }
             unsafe { set_controlling_terminal(fd, std::ptr::null()) }?;
             Ok(())
         }
@@ -213,7 +208,11 @@ impl PtyProcess {
 
 // hdc shell "/system/bin/uitest start-daemon /data/app/el2/100/base/com.ohos.devicetest/cache/shmf &"
 // hdc shell "nohup test.sh &"
-// async cmd will ignor stdout and stderr
+// async cmd will ignor stdout and stderr, if you want the output, cmd format is:
+// hdc shell "cmd_xxx >/data/local/tmp/log 2>&1 &"
+// example:
+// hdc shell "nohup /data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
+// hdc shell "/data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProcess> {
     let pty = Pty::new()?;
     let pts = pty.get_pts()?;
@@ -224,7 +223,7 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
     let child = match cmd {
         None => {
             let mut command = Command::new(SHELL_PROG);
-            command.set_pts(&pts)?;
+            command.set_pts(&pts, false)?;
             command.spawn()?
         }
         Some(mut cmd) => {
@@ -238,25 +237,13 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
                 Some(cmd_res) => cmd_res.to_string(),
                 None => cmd,
             };
-            if cmd.ends_with('&') {
-                cmd = match cmd.strip_prefix("nohup") {
-                    Some(cmd_res) => cmd_res.trim().to_string(),
-                    None => cmd,
-                };
-                let mut proc = Command::new(NOHUG_PROG);
-                let params = ["sh", "-c", cmd.as_str()].to_vec();
-                let command = proc.args(params);
-                hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
-                command.set_pts_without_stdout(&pts)?;
-                command.spawn()?
-            } else {
-                let params = ["-c", cmd.as_str()].to_vec();
-                let mut proc = Command::new(SHELL_PROG);
-                let command = proc.args(params);
-                hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
-                command.set_pts(&pts)?;
-                command.spawn()?
-            }
+            let nohup_flag = cmd.ends_with('&');
+            let params = ["-c", cmd.as_str()].to_vec();
+            let mut proc = Command::new(SHELL_PROG);
+            let command = proc.args(params);
+            hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
+            command.set_pts(&pts, nohup_flag)?;
+            command.spawn()?
         }
     };
     Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), channel_id))
@@ -305,8 +292,8 @@ async fn subprocess_task(
         {
             let mut child_lock = pty_process.child.lock().await;
             match child_lock.try_wait() {
-                Ok(Some(_)) => {
-                    hdc::debug!("interactive shell finish a process");
+                Ok(Some(status)) => {
+                    hdc::debug!("interactive shell finish a process {status}");
                     // break;
                 }
                 Ok(None) => {}

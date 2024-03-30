@@ -30,17 +30,14 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     fdIO = fdToRead;
     refIO = 0;
     callerContext = callerContextIn;
-    ioWriteThread = std::thread(IOWriteThread, this);
+    std::thread(IOWriteThread, this).detach();
 }
 
 HdcFileDescriptor::~HdcFileDescriptor()
 {
     workContinue = false;
     NotifyWrite();
-    ioWriteThread.join();
-    if (ioReadThread.joinable()) {
-        ioReadThread.join();
-    }
+    uv_sleep(HUNDRED_MILL_SECONDS);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
@@ -210,7 +207,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax);
+    std::thread(FileIOOnThread, contextIO, readMax).detach();;
     return 0;
 }
 
@@ -298,7 +295,8 @@ void HdcFileDescriptor::NotifyWrite()
 void HdcFileDescriptor::WaitWrite()
 {
     std::unique_lock<std::mutex> lock(writeMutex);
-    writeCond.wait(lock, [&]() { return !writeQueue.empty() || !workContinue; });
+    writeCond.wait(lock, std::chrono::milliseconds(MILL_SECONDS), [&]() { return !writeQueue.empty()
+                                                                                 || !workContinue;});
 }
 
 void HdcFileDescriptor::HandleWrite()

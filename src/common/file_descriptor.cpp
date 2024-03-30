@@ -207,7 +207,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    std::thread(FileIOOnThread, contextIO, readMax).detach();;
+    std::thread(FileIOOnThread, contextIO, readMax).detach();
     return 0;
 }
 
@@ -295,8 +295,8 @@ void HdcFileDescriptor::NotifyWrite()
 void HdcFileDescriptor::WaitWrite()
 {
     std::unique_lock<std::mutex> lock(writeMutex);
-    writeCond.wait(lock, std::chrono::milliseconds(WAIT_MILL_SECONDS), [&]() { return !writeQueue.empty()
-                                                                                 || !workContinue;});
+    writeCond.wait(lock, std::chrono::milliseconds(WAIT_MILL_SECONDS), [&]() {
+        return !writeQueue.empty() || !workContinue;});
 }
 
 void HdcFileDescriptor::HandleWrite()

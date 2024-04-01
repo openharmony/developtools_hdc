@@ -167,6 +167,70 @@ template("hdcd_source_set") {
   }
 }
 
+if (product_name != "ohos-sdk") {
+  ohos_static_library("serialize_structs") {
+    sources = [
+      "hdc_rust/src/cffi/cmd.cpp",
+      "hdc_rust/src/cffi/getparameter.cpp",
+      "hdc_rust/src/cffi/log.cpp",
+      "hdc_rust/src/cffi/mount.cpp",
+      "hdc_rust/src/cffi/mount_wrapper.cpp",
+      "hdc_rust/src/cffi/oh_usb.cpp",
+      "hdc_rust/src/cffi/sendmsg.cpp",
+      "hdc_rust/src/cffi/serial_struct.cpp",
+      "hdc_rust/src/cffi/sys_para.cpp",
+      "hdc_rust/src/cffi/transfer.cpp",
+      "hdc_rust/src/cffi/uart.cpp",
+      "hdc_rust/src/cffi/uart_wrapper.cpp",
+      "hdc_rust/src/cffi/usb_util.cpp",
+      "hdc_rust/src/cffi/usb_wrapper.cpp",
+    ]
+    output_extension = "so"
+
+    external_deps = [
+      "bounds_checking_function:libsec_static",
+      "hilog:libhilog",
+      "init:libbegetutil",
+      "lz4:liblz4_static",
+    ]
+
+    defines = [ "HDC_HILOG" ]
+
+    if (is_mac) {
+      defines = [ "HOST_MAC" ]
+    }
+
+    if (build_selinux) {
+      external_deps += [ "selinux:libselinux" ]
+      defines += [ "SURPPORT_SELINUX" ]
+    }
+
+    subsystem_name = "developtools"
+    part_name = "hdc"
+  }
+
+  ohos_rust_shared_library("lib") {
+    crate_name = "hdc"
+    crate_type = "dylib"
+    crate_root = "hdc_rust/src/lib.rs"
+    sources = [ "hdc_rust/src/lib.rs" ]
+
+    deps = [
+      ":serialize_structs",
+      "//third_party/rust/crates/humantime:lib",
+      "//third_party/rust/crates/libc:lib",
+      "//third_party/rust/crates/log:lib",
+      "//third_party/rust/crates/rust-openssl/openssl:lib",
+    ]
+    external_deps = [
+      "hilog:hilog_rust",
+      "ylong_runtime:ylong_runtime",
+    ]
+    subsystem_name = "developtools"
+    part_name = "hdc"
+  }
+}
+
 template("build_hdc") {
   forward_variables_from(invoker, "*")
   image_name = target_name
@@ -179,12 +243,52 @@ template("build_hdc") {
     part_name = "hdc"
   }
 
-  ohos_executable("hdcd_${image_name}_exe") {
-    deps = [ ":hdcd_${image_name}_source" ]
-    output_name = "hdcd_${image_name}"
-    install_enable = false
-    subsystem_name = "developtools"
-    part_name = "hdc"
+  if (image_name == "system") {
+    if (is_emulator) {
+      ohos_executable("hdcd_${image_name}_exe") {
+        deps = [ ":hdcd_${image_name}_source" ]
+        output_name = "hdcd_${image_name}"
+        install_enable = false
+        subsystem_name = "developtools"
+        part_name = "hdc"
+      }
+    } else {
+      ohos_rust_executable("hdcd_${image_name}_exe") {
+        sources = [ "hdc_rust/src/daemon/main.rs" ]
+        deps = [
+          ":lib",
+          ":serialize_structs",
+          "//third_party/rust/crates/env_logger:lib",
+          "//third_party/rust/crates/humantime:lib",
+          "//third_party/rust/crates/libc:lib",
+          "//third_party/rust/crates/log:lib",
+          "//third_party/rust/crates/nix:lib",
+          "//third_party/rust/crates/rust-openssl/openssl:lib",
+        ]
+        external_deps = [ "hilog:hilog_rust" ]
+
+        if (product_name != "ohos_sdk") {
+          external_deps += [ "ylong_runtime:ylong_runtime" ]
+        }
+        if (!defined(ohos_lite)) {
+          external_deps += [ "faultloggerd:panic_handler" ]
+        }
+
+        output_name = "hdcd_${image_name}"
+        install_enable = false
+        features = [ "daemon" ]
+        subsystem_name = "developtools"
+        part_name = "hdc"
+      }
+    }
+  } else {
+    ohos_executable("hdcd_${image_name}_exe") {
+      deps = [ ":hdcd_${image_name}_source" ]
+      output_name = "hdcd_${image_name}"
+      install_enable = false
+      subsystem_name = "developtools"
+      part_name = "hdc"
+    }
   }
 
   ohos_prebuilt_executable("hdcd_${image_name}") {

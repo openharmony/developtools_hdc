@@ -887,6 +887,7 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
     ClearOwnTasks(hSession, channelId);
     uint8_t count = 0;
     Send(hSession->sessionId, hChannel->channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u", hChannel->channelId);
     if (uv_is_closing((const uv_handle_t *)&hChannel->hChildWorkTCP)) {
         Base::DoNextLoop(&hSession->childLoop, hChannel, [](const uint8_t flag, string &msg, const void *data) {
             HChannel hChannel = (HChannel)data;
@@ -894,7 +895,10 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
             WRITE_LOG(LOG_DEBUG, "Childchannel free direct, cid:%u", hChannel->channelId);
         });
     } else {
-        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
+        if (hChannel->hChildWorkTCP.loop == NULL) {
+            WRITE_LOG(LOG_DEBUG, "Childchannel loop is null, cid:%u", hChannel->channelId);
+        }
+        uv_close((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             hChannel->childCleared = true;
             WRITE_LOG(LOG_DEBUG, "Childchannel free callback, cid:%u", hChannel->channelId);

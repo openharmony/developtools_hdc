@@ -25,35 +25,6 @@ namespace AUTH {
 using namespace std;
 using namespace AAFwk;
 
-bool HdcdConnection::GetSettingBundleName(string &bundle)
-{
-    FILE *fp;
-    int bytesRead;
-    const int bufSize = 256;
-    char buf[bufSize] = { 0 };
-
-    fp = popen("bm dump -a | grep \"com.*.settings$\"", "r");
-    if (!fp) {
-        AUTH_LOGE("open pipe failed");
-        return false;
-    }
-    bytesRead = fread(buf, sizeof(char), bufSize, fp);
-
-    if (bytesRead > 0) {
-        string prefix = "com.";
-        string suffix = ".settings";
-        bundle.assign(buf, bytesRead);
-        bundle.erase(0, bundle.find(prefix));
-        bundle.erase(bundle.rfind(suffix) + suffix.length());
-        AUTH_LOGI("get setting bundle name success");
-    } else {
-        AUTH_LOGE("get setting bundle name failed");
-    }
-    pclose(fp);
-
-    return bytesRead > 0;
-}
-
 void HdcdConnection::OnAbilityConnectDone(const AppExecFwk::ElementName &element,
     const sptr<IRemoteObject> &remoteObject, int32_t resultCode)
 {
@@ -61,16 +32,11 @@ void HdcdConnection::OnAbilityConnectDone(const AppExecFwk::ElementName &element
     MessageParcel reply;
     MessageOption option;
     const int paramNum = 3;
-    string bundleName;
+    string bundleName = "com.ohos.settings";
     string abilityName = "USBDebugDialog";
     string parameters = "{\"ability.want.params.uiExtensionType\":\"sysDialog/common\",\"sysDialogZOrder\":2}";
 
     AUTH_LOGE("connect success");
-
-    if (!GetSettingBundleName(bundleName)) {
-        AUTH_LOGE("Connect done get setting bundle error");
-        return;
-    }
 
     data.WriteInt32(paramNum);
     data.WriteString16(Str8ToStr16("bundleName"));

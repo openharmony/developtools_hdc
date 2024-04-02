@@ -15,6 +15,7 @@
 //! auth
 #![allow(missing_docs)]
 
+use hdc::common::hdctransfer::echo_client;
 use hdc::config::{self, *};
 use hdc::serializer::native_struct;
 use hdc::serializer::serialize::Serialization;
@@ -92,17 +93,6 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         recv.version.as_str(),
         recv.session_id
     );
-    if recv.version.as_str() < "Ver: 3.0.0b" {
-        hdc::info!(
-            "client version({}) is too low, return OK for session:{}",
-            recv.version.as_str(),
-            recv.session_id
-        );
-        return Ok((
-            recv.session_id,
-            make_ok_message(recv.session_id, task_message.channel_id).await,
-        ));
-    }
     if !is_auth_enable().await {
         hdc::info!(
             "auth enable is false, return OK for session:{}",
@@ -112,6 +102,27 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
             recv.session_id,
             make_ok_message(recv.session_id, task_message.channel_id).await,
         ));
+    }
+    if recv.version.as_str() < "Ver: 3.0.0a" {
+        hdc::info!(
+            "client version({}) is too low, return OK for session:{}",
+            recv.version.as_str(),
+            recv.session_id
+        );
+        echo_client(recv.session_id, task_message.channel_id,
+            "The client version is too low, please upgrade to the latest version.".into(),
+            MessageLevel::Fail).await;
+
+        transfer::put(
+            recv.session_id,
+            TaskMessage {
+                channel_id: task_message.channel_id,
+                command: HdcCommand::KernelChannelClose,
+                payload: vec![0],
+            },
+        ).await;
+
+        return Err(Error::new(ErrorKind::Other, "client version is too low, auth fail"));
     }
 
     // auth is required

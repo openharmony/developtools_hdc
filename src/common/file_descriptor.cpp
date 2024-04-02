@@ -37,7 +37,6 @@ HdcFileDescriptor::~HdcFileDescriptor()
 {
     workContinue = false;
     NotifyWrite();
-    uv_sleep(HUNDRED_MILL_SECONDS);
 }
 
 bool HdcFileDescriptor::ReadyForRelease()

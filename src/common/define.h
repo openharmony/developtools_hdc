@@ -38,6 +38,7 @@ constexpr uint8_t MILL_SECONDS = 10;
 constexpr uint8_t WAIT_MILL_SECONDS = 60;
 constexpr uint8_t HUNDRED_MILL_SECONDS = 100;
 constexpr uint8_t DWORD_SERIALIZE_SIZE = 4;
+constexpr uint8_t OFFSET = 2;
 constexpr uint8_t CMD_ARG1_COUNT = 2;
 constexpr uint8_t COUNT = 10;
 constexpr uint8_t STREAM_MAIN = 0;  // work at main thread

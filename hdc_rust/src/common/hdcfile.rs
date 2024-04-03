@@ -219,7 +219,7 @@ async fn set_master_parameters(
         if !task.transfer.task_queue.is_empty() {
             task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
             task.transfer.local_name =
-                task.transfer.local_path[task.transfer.base_local_path.len()..].to_string();
+                task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
         } else {
             return false;
         }
@@ -304,7 +304,7 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
     let mut task = task.lock().await;
     task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
     task.transfer.local_name =
-        task.transfer.local_path[task.transfer.base_local_path.len()..].to_string();
+        task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
     drop(task);
     check_local_path(session_id, channel_id).await
 }

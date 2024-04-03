@@ -32,37 +32,7 @@
 namespace Hdc {
 using namespace std;
 
-void SetSelinuxLabel()
-{
-#if defined(SURPPORT_SELINUX)
-    char *con = nullptr;
-    if (getcon(&con) != 0) {
-        return;
-    }
-    if ((strcmp(con, "u:r:hdcd:s0") != 0) && (strcmp(con, "u:r:updater:s0") != 0)) {
-        freecon(con);
-        return;
-    }
-#ifdef HDC_BUILD_VARIANT_USER
-    setcon("u:r:sh:s0");
-#else
-    string debugMode = "";
-    string rootMode = "";
-    string flashdMode = "";
-    GetDevItem("const.debuggable", debugMode);
-    GetDevItem("persist.hdc.root", rootMode);
-    GetDevItem("updater.flashd.configfs", flashdMode);
-    if ((debugMode == "1" && rootMode == "1") || (debugMode == "1" && flashdMode == "1")) {
-        setcon("u:r:su:s0");
-    } else {
-        setcon("u:r:sh:s0");
-    }
-#endif
-    freecon(con);
-#endif
-}
-
-bool DropRootPrivileges()
+static bool DropRootPrivileges()
 {
     int ret;
     const char *userName = "shell";
@@ -108,9 +78,9 @@ bool DropRootPrivileges()
 #if defined(SURPPORT_SELINUX)
     if (setcon("u:r:hdcd:s0") != 0) {
         WRITE_LOG(LOG_WARN, "setcon fail, errno %s", strerror(errno));
+        return false;
     }
 #endif
-    SetSelinuxLabel();
     return true;
 }
 
@@ -122,29 +92,16 @@ extern "C"  bool NeedDropRootPrivileges()
     GetDevItem("persist.hdc.root", rootMode);
     WRITE_LOG(LOG_WARN, "debuggable:[%s]", debugMode.c_str());
     WRITE_LOG(LOG_WARN, "param root:[%s]", rootMode.c_str());
-    if (debugMode == "1") {
-        if (rootMode == "1") {
-            int rc = setuid(0);
-            if (rc != 0) {
-                char buffer[BUF_SIZE_DEFAULT] = { 0 };
-                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
-                WRITE_LOG(LOG_INFO, "setuid(0) fail %s", buffer);
-                SetSelinuxLabel();
-                _exit(0);
-            }
-            WRITE_LOG(LOG_INFO, "Root run rc:%d", rc);
-        } else if (rootMode == "0") {
-            if (getuid() == 0) {
-                return DropRootPrivileges();
-            }
-        }
-        // default keep root
-    } else {
+    if (debugMode != "1") {
         return DropRootPrivileges();
     }
+    if (rootMode == "0") {
+        return DropRootPrivileges();
+    }
+
+    WRITE_LOG(LOG_WARN, "will keep current privilege", rootMode.c_str());
     return true;
 }
-
 extern "C" void Restart()
 {
     execl("/system/bin/hdcd", "hdcd", nullptr, nullptr);

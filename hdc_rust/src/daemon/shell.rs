@@ -99,6 +99,15 @@ impl Pty {
             .into();
         Ok(Pts { inner: fd })
     }
+
+    pub fn terminal(&self) {
+        unsafe {
+            let tpgid = libc::tcgetpgrp(self.inner.as_raw_fd());
+            if tpgid > 1 {
+                libc::kill(tpgid, libc::SIGINT);
+            }
+        }
+    }
 }
 
 impl std::os::fd::AsFd for Pty {
@@ -259,7 +268,13 @@ async fn subprocess_task(
     ret_command: HdcCommand,
     mut rx: mpsc::BoundedReceiver<Vec<u8>>,
 ) {
-    let mut pty_process = init_pty_process(cmd, channel_id).unwrap();
+    let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
+        Err(e) => {
+            panic!("execute cmd [{cmd:?}] fail: {e:?}");
+        },
+        Ok(pty) => pty
+    };
+
     PtyChildProcessMap::put(channel_id, pty_process.child.clone()).await;
     let mut buf = [0_u8; 30720];
 
@@ -284,12 +299,21 @@ async fn subprocess_task(
         }
 
         if let Ok(val) = rx.recv_timeout(Duration::from_millis(50)).await {
-            pty_process.pty.write_all(&val).unwrap();
             if val[..].contains(&0x4_u8) {
                 // ctrl-D: end pty
                 hdc::info!("ctrl-D: end pty");
+                // first write enter key, then send ctrl-d signal
+                pty_process.pty.write_all(&[0xA_u8]).unwrap();
+                pty_process.pty.write_all(&[0x4_u8]).unwrap();
+                // todo: if command is send (means enter key is send), will hungup
                 break;
+            } else if val[..].contains(&0x3_u8) {
+                // ctrl-C: end process
+                hdc::info!("ctrl-C: end process");
+                pty_process.pty.terminal();
+                continue;
             }
+            pty_process.pty.write_all(&val).unwrap();
         }
 
         {

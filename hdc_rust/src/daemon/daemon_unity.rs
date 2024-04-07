@@ -86,7 +86,7 @@ async fn set_root_run_enable(session_id: u32, channel_id: u32, root: bool) {
     );
     if result {
         PtyMap::clear(session_id).await;
-        hdc_restart().await;
+        std::process::exit(0);
     }
 }
 

@@ -533,7 +533,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             break;
         }
         default: {
-            EchoClient(hChannel, MSG_FAIL, "ExecuteCommand need connect-key?");
+            EchoClient(hChannel, MSG_FAIL, "ExecuteCommand need connect-key? please confirm a device by help info");
             break;
         }
     }

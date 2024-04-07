@@ -109,14 +109,13 @@ ohos_rust_executable("hdcd") {
 ohos_static_library("cffi_host") {
   sources = [
     "src/cffi/serial_struct.cpp",
+    "src/cffi/transfer.cpp",
     "src/cffi/uart.cpp",
     "src/cffi/uart_wrapper.cpp",
     "src/cffi/usb_util.cpp",
-    "src/cffi/transfer.cpp",
   ]
-  
-  if(!is_mingw)
-  {
+
+  if (!is_mingw) {
     sources += [
       "src/cffi/oh_usb.cpp",
       "src/cffi/sendmsg.cpp",
@@ -133,11 +132,9 @@ ohos_static_library("cffi_host") {
     "//third_party/lz4:liblz4_static",
   ]
 
-  if (product_name == "ohos-sdk") {
-    defines = [ "HDC_HOST" ]
-    if (is_mingw) {
-      defines += [ "HOST_MINGW" ] 
-    }
+  defines = [ "HDC_HOST" ]
+  if (is_mingw) {
+    defines += [ "HOST_MINGW" ]
   }
 
   if (is_mac) {
@@ -171,9 +168,7 @@ ohos_rust_static_library("lib_host") {
     "//third_party/rust/crates/log:lib",
     "//third_party/rust/crates/rust-openssl/openssl:lib",
   ]
-  external_deps = [
-    "ylong_runtime:ylong_runtime",
-  ]
+  external_deps = [ "ylong_runtime:ylong_runtime_static" ]
 
   features = [ "host" ]
 
@@ -184,8 +179,8 @@ ohos_rust_static_library("lib_host") {
 ohos_rust_executable("hdc_rust") {
   sources = [ "src/host/main.rs" ]
   deps = [
-    ":lib_host",
     ":cffi_host",
+    ":lib_host",
     "//third_party/rust/crates/humantime:lib",
     "//third_party/rust/crates/lazy-static.rs:lib",
     "//third_party/rust/crates/libc:lib",
@@ -197,12 +192,10 @@ ohos_rust_executable("hdc_rust") {
     deps += [ ":hdc_win_dep" ]
   }
 
-  # config to link libstd.a
+  # config to link libc++.a
   rust_static_link = true
 
-  external_deps = [
-    "ylong_runtime:ylong_runtime",
-  ]
+  external_deps = [ "ylong_runtime:ylong_runtime_static" ]
 
   subsystem_name = "developtools"
   part_name = "hdc"

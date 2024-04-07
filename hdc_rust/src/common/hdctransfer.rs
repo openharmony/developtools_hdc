@@ -24,7 +24,8 @@ use crate::serializer::native_struct::TransferConfig;
 use crate::serializer::native_struct::TransferPayload;
 use crate::serializer::serialize::Serialization;
 use crate::transfer;
-
+#[cfg(not(feature = "host"))]
+use crate::utils::hdc_log::*;
 use std::fs::metadata;
 use std::fs::OpenOptions;
 use std::fs::{self, create_dir_all, File};

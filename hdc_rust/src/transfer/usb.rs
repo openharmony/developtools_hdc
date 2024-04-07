@@ -135,7 +135,7 @@ impl base::Reader for UsbReader {
     // 屏蔽window编译报错
     #[cfg(target_os = "windows")]
     fn read_frame(&self, _expected_size: usize) -> io::Result<Vec<u8>> {
-        return Err(utils::error_other("usb read error".to_string()));
+        Err(utils::error_other("usb read error".to_string()))
     }
 
 

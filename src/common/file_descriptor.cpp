@@ -30,17 +30,13 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     fdIO = fdToRead;
     refIO = 0;
     callerContext = callerContextIn;
-    ioWriteThread = std::thread(IOWriteThread, this);
+    std::thread(IOWriteThread, this).detach();
 }
 
 HdcFileDescriptor::~HdcFileDescriptor()
 {
     workContinue = false;
     NotifyWrite();
-    ioWriteThread.join();
-    if (ioReadThread.joinable()) {
-        ioReadThread.join();
-    }
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
@@ -106,8 +102,10 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "FileIOOnThread select or epoll_wait fdIO:%d error:%d",
                 thisClass->fdIO, errno);
+            bFinish = true;
             break;
         } else if (rc == 0) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread select rc = 0, timeout.");
             continue;
         }
 #ifndef HDC_HOST
@@ -208,7 +206,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    ioReadThread = std::thread(FileIOOnThread, contextIO, readMax);
+    std::thread(FileIOOnThread, contextIO, readMax).detach();
     return 0;
 }
 
@@ -290,14 +288,15 @@ CtxFileIO *HdcFileDescriptor::PopWrite()
 
 void HdcFileDescriptor::NotifyWrite()
 {
-    std::unique_lock<std::mutex> lock(writeMutex);
     writeCond.notify_one();
 }
 
 void HdcFileDescriptor::WaitWrite()
 {
     std::unique_lock<std::mutex> lock(writeMutex);
-    writeCond.wait(lock, [&]() { return !writeQueue.empty() || !workContinue; });
+    writeCond.wait_for(lock, std::chrono::seconds(WAIT_SECONDS), [&]() {
+        return !writeQueue.empty() || !workContinue;
+    });
 }
 
 void HdcFileDescriptor::HandleWrite()

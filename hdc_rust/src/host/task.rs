@@ -282,7 +282,8 @@ async fn channel_shell_task(task_info: TaskInfo) -> io::Result<()> {
 }
 
 async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
-    if task_info.params.len() < 2 || task_info.params[1].len() <= 1 {}
+    // to be confirm
+    // if task_info.params.len() < 2 || task_info.params[1].len() <= 1 {}
     let connect_key = task_info.params[1].trim_end_matches('\0').to_string();
     if ConnectMap::get(connect_key.clone()).await.is_some() {
         let ret = transfer::send_channel_msg(

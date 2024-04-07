@@ -42,7 +42,7 @@ def write_output_file():
     if output_dir == "":
         return
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
     with open("{}{}".format(output_dir, output_file_name), 'w') as fd_struct:
         for i in struct_vals:
             fd_struct.write(i)
@@ -64,10 +64,10 @@ def write_hdc_file():
 def read_struct():
     if input_dir == "":
         return
-    with open("{}{}".format(input_dir , cfg_file_name), mode='r', encoding='utf-8') as fd_path:
+    with open("{}{}".format(input_dir, cfg_file_name), mode='r', encoding='utf-8') as fd_path:
         for line in fd_path.readlines():
             file_name = line.strip()
-            with open("{}{}".format(input_dir , file_name), mode='r', encoding='utf-8') as fd_file:
+            with open("{}{}".format(input_dir, file_name), mode='r', encoding='utf-8') as fd_file:
                 is_find = False
                 is_end = False
                 begin_count = 0

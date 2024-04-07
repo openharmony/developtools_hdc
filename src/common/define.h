@@ -35,7 +35,9 @@ const string ENV_SERVER_LOG = "OHOS_HDC_LOG_LEVEL";
 // ################################ macro define ###################################
 constexpr uint8_t MINOR_TIMEOUT = 5;
 constexpr uint8_t MILL_SECONDS = 10;
+constexpr uint8_t WAIT_SECONDS = 30;
 constexpr uint8_t DWORD_SERIALIZE_SIZE = 4;
+constexpr uint8_t OFFSET = 2;
 constexpr uint8_t CMD_ARG1_COUNT = 2;
 constexpr uint8_t COUNT = 10;
 constexpr uint8_t STREAM_MAIN = 0;  // work at main thread
@@ -58,7 +60,13 @@ constexpr uint16_t DEVICE_CHECK_INTERVAL = 3000;  // ms
 constexpr uint16_t MAX_SIZE_IOBUF = 61440;
 constexpr uint16_t MAX_USBFFS_BULK = 62464;
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
-constexpr uint32_t HDC_VERSION_NUMBER = 0x20000000;  // 2.0.0a=0x20000000
+// |----------------------------------------------------------------|
+// | 31-28 | 27-24 | 23-20 | 19-16 | 15-12 | 11-08 |     07-00      |
+// |----------------------------------------------------------------|
+// | major |reserve| minor |reserve|version|  fix  |   reserve      |
+// |----------------------------------------------------------------|
+// 0x30000000 is 3.0.0a
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30000000;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;
@@ -119,6 +127,9 @@ constexpr int UART_IO_WAIT_TIME = 1000;
 constexpr uint16_t MAX_UART_SIZE_IOBUF = 4096; // MAX_SIZE_IOBUF;
 #endif
 const string CMDSTR_TMODE_TCP = "tcp";
+#ifdef HDC_EMULATOR
+const string CMDSTR_TMODE_BRIDGE = "bridge";
+#endif
 const string CMDSTR_FILE_SEND = "file send";
 const string CMDSTR_FILE_RECV = "file recv";
 const string CMDSTR_REMOTE_PARAMETER = "remote";

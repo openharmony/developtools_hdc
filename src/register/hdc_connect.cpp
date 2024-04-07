@@ -89,6 +89,10 @@ void* HdcConnectRun(void* pkgContent)
     if (signal(SIGINT, Stop) == SIG_ERR) {
         OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "jdwp_process signal fail.");
     }
+    int ret = pthread_setname_np(pthread_self(), "OS_hdcRegitser");
+    if (ret != 0) {
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "set Thread name failed.");
+    }
     std::string processName = static_cast<ConnectManagement*>(pkgContent)->GetProcessName();
     std::string pkgName = static_cast<ConnectManagement*>(pkgContent)->GetPkgName();
     bool isDebug = static_cast<ConnectManagement*>(pkgContent)->GetDebug();

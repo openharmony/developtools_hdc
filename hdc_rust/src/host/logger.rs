@@ -83,7 +83,7 @@ impl log::Log for SimpleHostLogger {
             let file = record.file().unwrap();
             // cargo编译下的文件目录可能存在\\的目录，需要通过编译宏隔离
             #[cfg(target_os = "windows")]
-            let file = file.replace("\\", "/");
+            let file = file.replace('\\', "/");
             let content = format!(
                 "{} {} {} {}:{} - {}",
                 &ts[..10],

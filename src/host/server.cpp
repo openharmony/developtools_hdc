@@ -575,8 +575,8 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             pdiNew->sessionId = hSession->sessionId;
             pdiNew->connectKey = hSession->connectKey;
             pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
-            pdiNew->taskString = reinterpret_cast<char *>(payload);
-            AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew) + OFFSET;
+            pdiNew->taskString = reinterpret_cast<char *>(payload) + OFFSET;
+            AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
             Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
             break;
         }

@@ -17,7 +17,7 @@
 
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
+use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP, MessageLevel};
 use hdc::transfer;
 
 use std::collections::HashMap;
@@ -270,7 +270,22 @@ async fn subprocess_task(
 ) {
     let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
         Err(e) => {
-            panic!("execute cmd [{cmd:?}] fail: {e:?}");
+            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
+            hdc::common::hdctransfer::echo_client(
+                session_id,
+                channel_id,
+                "execute cmd fail".as_bytes().to_vec(),
+                MessageLevel::Fail
+            )
+            .await;            
+            let task_message = TaskMessage {
+                channel_id,
+                command: HdcCommand::KernelChannelClose,
+                payload: [1].to_vec(),
+            };
+            transfer::put(session_id, task_message).await;
+            hdc::error!("{}", msg);
+            panic!("{}", msg);
         },
         Ok(pty) => pty
     };

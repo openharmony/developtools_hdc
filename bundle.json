@@ -36,6 +36,9 @@
       "third_party": [
         "libuv",
         "openssl",
+        "bounds_checking_function",
+        "lz4",
+        "selinux",
         "libusb"
       ]
     },

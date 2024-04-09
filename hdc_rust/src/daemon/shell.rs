@@ -241,14 +241,16 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
             cmd = cmd.trim().to_string();
-            cmd = match cmd.strip_prefix('"') {
-                Some(cmd_res) => cmd_res.to_string(),
-                None => cmd,
-            };
-            cmd = match cmd.strip_suffix('"') {
-                Some(cmd_res) => cmd_res.to_string(),
-                None => cmd,
-            };
+            if cmd.starts_with('"') {
+                cmd = match cmd.strip_prefix('"') {
+                    Some(cmd_res) => cmd_res.to_string(),
+                    None => cmd,
+                };
+                cmd = match cmd.strip_suffix('"') {
+                    Some(cmd_res) => cmd_res.to_string(),
+                    None => cmd,
+                };
+            }
             nohup_flag = cmd.ends_with('&');
             let params = ["-c", cmd.as_str()].to_vec();
             let mut proc = Command::new(SHELL_PROG);

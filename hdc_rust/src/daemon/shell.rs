@@ -241,7 +241,7 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
             cmd = cmd.trim().to_string();
-            if cmd.starts_with('"') {
+            if cmd.starts_with('"') && cmd.ends_with('"') {
                 cmd = match cmd.strip_prefix('"') {
                     Some(cmd_res) => cmd_res.to_string(),
                     None => cmd,

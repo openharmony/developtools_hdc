@@ -34,6 +34,7 @@ use crate::transfer;
 use crate::utils::hdc_log::*;
 use std::io::Read;
 use std::sync::Arc;
+use std::time::Duration;
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
@@ -676,6 +677,10 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
                 crate::error!("disconnect, error:{:#?}", size);
                 free_context(session_id, channel_id, 0, true).await;
                 break;
+            }
+            if size == 0 {
+                ylong_runtime::time::sleep(Duration::from_millis(200)).await;
+                continue;
             }
             send_to_task(
                 session_id,

@@ -19,6 +19,8 @@ use super::base::{self, Writer};
 use super::uart::UartWriter;
 use super::usb::{self, UsbReader, UsbWriter};
 use super::{tcp, uart_wrapper};
+#[cfg(feature = "emulator")]
+use crate::daemon_lib::bridge::BridgeMap;
 
 use crate::config::TaskMessage;
 use crate::config::{self, ConnectType};
@@ -36,7 +38,7 @@ use ylong_runtime::sync::{mpsc, Mutex, RwLock};
 
 type ConnectTypeMap_ = Arc<RwLock<HashMap<u32, ConnectType>>>;
 
-struct ConnectTypeMap {}
+pub struct ConnectTypeMap {}
 impl ConnectTypeMap {
     fn get_instance() -> ConnectTypeMap_ {
         static mut CONNECT_TYPE_MAP: Option<ConnectTypeMap_> = None;
@@ -47,13 +49,13 @@ impl ConnectTypeMap {
         }
     }
 
-    async fn put(session_id: u32, conn_type: ConnectType) {
+    pub async fn put(session_id: u32, conn_type: ConnectType) {
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
         map.insert(session_id, conn_type);
     }
 
-    async fn get(session_id: u32) -> ConnectType {
+    pub async fn get(session_id: u32) -> ConnectType {
         let arc_map = Self::get_instance();
         let map = arc_map.read().await;
         map.get(&session_id).unwrap().clone()
@@ -208,6 +210,10 @@ pub async fn put(session_id: u32, data: TaskMessage) {
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
         ConnectType::Bt => {}
+        ConnectType::Bridge => {
+            #[cfg(feature = "emulator")]
+            BridgeMap::put(session_id, data).await;
+        }
     }
 }
 

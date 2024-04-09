@@ -182,6 +182,7 @@ pub fn get_host_pubkey_info(buf: &str) -> (String, String) {
     }
 }
 
+#[allow(unused)]
 pub async fn get_new_session_id(task_message: &TaskMessage) -> io::Result<u32> {
     let mut recv = native_struct::SessionHandShake::default();
     recv.parse(task_message.payload.clone())?;

@@ -170,6 +170,7 @@ template("hdcd_source_set") {
 if (product_name != "ohos-sdk") {
   ohos_static_library("serialize_structs") {
     sources = [
+      "hdc_rust/src/cffi/bridge.cpp",
       "hdc_rust/src/cffi/cmd.cpp",
       "hdc_rust/src/cffi/getparameter.cpp",
       "hdc_rust/src/cffi/log.cpp",
@@ -222,6 +223,9 @@ if (product_name != "ohos-sdk") {
       "//third_party/rust/crates/log:lib",
       "//third_party/rust/crates/rust-openssl/openssl:lib",
     ]
+    if (is_emulator && product_name != "ohos-sdk") {
+      features = [ "emulator" ]
+    }
     external_deps = [
       "hilog:hilog_rust",
       "ylong_runtime:ylong_runtime",
@@ -277,6 +281,9 @@ template("build_hdc") {
         output_name = "hdcd_${image_name}"
         install_enable = false
         features = [ "daemon" ]
+        if (is_emulator) {
+          features += [ "emulator" ]
+        }
         subsystem_name = "developtools"
         part_name = "hdc"
       }

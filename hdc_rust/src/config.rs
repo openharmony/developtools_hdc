@@ -49,6 +49,7 @@ pub enum ConnectType {
     Tcp,
     Uart,
     Bt,
+    Bridge,
 }
 
 pub enum ErrCode {

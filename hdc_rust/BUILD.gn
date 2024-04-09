@@ -15,6 +15,7 @@ import("//build/ohos.gni")
 
 ohos_static_library("serialize_structs") {
   sources = [
+    "src/cffi/bridge.cpp",
     "src/cffi/cmd.cpp",
     "src/cffi/getparameter.cpp",
     "src/cffi/log.cpp",
@@ -68,6 +69,10 @@ ohos_rust_shared_library("lib") {
   crate_root = "src/lib.rs"
   sources = [ "src/lib.rs" ]
 
+  if (is_emulator && product_name != "ohos-sdk") {
+    features = [ "emulator" ]
+  }
+
   deps = [
     ":serialize_structs",
     "//third_party/rust/crates/humantime:lib",
@@ -109,6 +114,9 @@ ohos_rust_executable("hdcd") {
   module_install_dir = "bin"
   install_images = [ "system" ]
   features = [ "daemon" ]
+  if (is_emulator) {
+    features += [ "emulator" ]
+  }
   subsystem_name = "developtools"
   part_name = "hdc"
 }

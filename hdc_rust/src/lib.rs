@@ -21,3 +21,5 @@ pub mod config;
 pub mod serializer;
 pub mod transfer;
 pub mod utils;
+#[cfg(feature = "emulator")]
+pub mod daemon_lib;

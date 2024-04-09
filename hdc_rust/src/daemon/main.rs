@@ -35,24 +35,34 @@ use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;
 use hdc::transfer;
+#[cfg(not(feature = "emulator"))]
 use hdc::transfer::uart::UartReader;
+#[cfg(not(feature = "emulator"))]
 use hdc::transfer::base::Reader;
+#[cfg(not(feature = "emulator"))]
 use hdc::transfer::uart_wrapper;
 use hdc::utils;
 use crate::shell::PtyMap;
+#[cfg(feature = "emulator")]
+use hdc::daemon_lib::bridge;
 
 use log::LevelFilter;
 use std::ffi::CString;
+#[cfg(not(feature = "emulator"))]
 use ylong_runtime::net::{TcpListener, TcpStream};
+#[cfg(not(feature = "emulator"))]
 use ylong_runtime::sync::mpsc;
+#[cfg(not(feature = "emulator"))]
 use std::ffi::c_int;
 use crate::sys_para::{*};
 use crate::auth::clear_auth_pub_key_file;
 
 extern "C" {
+    #[cfg(not(feature = "emulator"))]
     fn NeedDropRootPrivileges()-> c_int;
 }
 
+#[cfg(not(feature = "emulator"))]
 fn need_drop_root_privileges() {
     hdc::info!("need_drop_root_privileges");
     unsafe {
@@ -83,6 +93,76 @@ async fn jdwp_daemon_start(lock_value: Arc<Jdwp>) {
     lock_value.init().await;
 }
 
+#[cfg(feature = "emulator")]
+async fn bridge_daemon_start() -> io::Result<()> {
+    hdc::info!("bridge_daemon_start start...");
+    let ptr = bridge::init_bridge() as u64;
+    hdc::info!("bridge_daemon_start ptr:{}", ptr);
+    let pipe_read_fd = bridge::start_listen(ptr);
+    hdc::info!("bridge_daemon_start pipe_read_fd:{}", pipe_read_fd);
+    if pipe_read_fd < 0 {
+        hdc::error!("daemon bridge listen fail.");
+        return Err(std::io::Error::new(ErrorKind::Other, "daemon bridge listen fail."));
+    }
+    loop {
+        hdc::info!("bridge_daemon_start loop...");
+        let client_fd_for_hdc_server = bridge::accept_server_socket_fd(ptr, pipe_read_fd);
+        if client_fd_for_hdc_server < 0 {
+            hdc::error!("bridge_daemon_start accept client fd for hdc server fail...");
+            break;
+        }
+        let client_fd = bridge::init_client_fd(ptr, client_fd_for_hdc_server);
+        if client_fd < 0 {
+            hdc::error!("bridge_daemon_start init client fd fail...");
+            break;
+        }
+        ylong_runtime::spawn(bridge_handle_client(ptr, client_fd, client_fd_for_hdc_server));
+    }
+    bridge::stop(ptr);
+    Ok(())
+}
+
+#[cfg(feature = "emulator")]
+async fn bridge_handle_client(ptr: u64, fd: i32, client_fd: i32) -> io::Result<()> {
+    hdc::info!("bridge_handle_client start...");
+    let rd = bridge::BridgeReader {ptr, fd};
+    let wr = bridge::BridgeWriter {ptr, fd};
+    let recv_msg = bridge::unpack_task_message(&rd).await?;
+    let (session_id, send_msg) = auth::handshake_init(recv_msg).await?;
+    let channel_id = send_msg.channel_id;
+    bridge::BridgeMap::start(session_id, wr).await;
+    transfer::put(session_id, send_msg).await;
+
+    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
+        transfer::put(
+            session_id,
+            TaskMessage {
+                channel_id,
+                command: config::HdcCommand::KernelChannelClose,
+                payload: vec![0],
+            },
+        )
+        .await;
+    }
+
+    loop {
+        let ret = handle_message(
+            transfer::tcp::unpack_task_message(&rd).await,
+            session_id,
+        )
+        .await;
+        if ret.is_err() {
+            unsafe {
+                libc::close(fd);
+                libc::close(client_fd);
+            }
+            break;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "emulator"))]
 async fn tcp_handle_client(stream: TcpStream) -> io::Result<()> {
     let (mut rd, wr) = stream.into_split();
     let recv_msg = transfer::tcp::unpack_task_message(&mut rd).await?;
@@ -113,6 +193,7 @@ async fn tcp_handle_client(stream: TcpStream) -> io::Result<()> {
     }
 }
 
+#[cfg(not(feature = "emulator"))]
 async fn tcp_daemon_start(port: u16) -> io::Result<()> {
     let saddr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(saddr.clone()).await?;
@@ -124,6 +205,7 @@ async fn tcp_daemon_start(port: u16) -> io::Result<()> {
     }
 }
 
+#[cfg(not(feature = "emulator"))]
 async fn uart_daemon_start() -> io::Result<()> {
     loop {
         let fd = transfer::uart::uart_init()?;
@@ -132,6 +214,7 @@ async fn uart_daemon_start() -> io::Result<()> {
     }
 }
 
+#[cfg(not(feature = "emulator"))]
 async fn uart_handshake(
     handshake_message: TaskMessage,
     fd: i32,
@@ -163,6 +246,7 @@ async fn uart_handshake(
     Ok(session_id)
 }
 
+#[cfg(not(feature = "emulator"))]
 async fn uart_handle_client(fd: i32) -> io::Result<()> {
     let mut rd = transfer::uart::UartReader { fd, head: None };
     let (packet_size, package_index) = rd.check_protocol_head()?;
@@ -242,8 +326,9 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                 }
             }
         }
-    }
+}
 
+#[cfg(not(feature = "emulator"))]
 async fn usb_daemon_start() -> io::Result<()> {
     loop {
         let ret = transfer::usb::usb_init();
@@ -260,6 +345,7 @@ async fn usb_daemon_start() -> io::Result<()> {
     }
 }
 
+#[cfg(not(feature = "emulator"))]
 async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> io::Result<()> {
     let _rd = transfer::usb::UsbReader { fd: bulkin_fd };
     let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
@@ -365,6 +451,7 @@ fn get_logger_lv() -> LevelFilter {
     config::LOG_LEVEL_ORDER[lv]
 }
 
+#[cfg(not(feature = "emulator"))]
 fn get_tcp_port() -> u16 {
     let (ret, host_port) = get_dev_item(config::ENV_HOST_PORT, "_");
     if !ret || host_port == "_" {
@@ -408,32 +495,49 @@ fn main() {
         .keep_alive_time(std::time::Duration::from_secs(10))
         .build_global();
 
+    #[cfg(not(feature = "emulator"))]
     need_drop_root_privileges();
     clear_auth_pub_key_file();
 
     ylong_runtime::block_on(async {
+        #[cfg(not(feature = "emulator"))]
         let tcp_task = ylong_runtime::spawn(async {
             if let Err(e) = tcp_daemon_start(get_tcp_port()).await {
                 println!("[Fail]tcp daemon failed: {}", e);
             }
         });
+        #[cfg(not(feature = "emulator"))]
         let usb_task = ylong_runtime::spawn(async {
             if let Err(e) = usb_daemon_start().await {
                 println!("[Fail]usb daemon failed: {}", e);
             }
         });
+        #[cfg(not(feature = "emulator"))]
         let uart_task = ylong_runtime::spawn(async {
             if let Err(e) = uart_daemon_start().await {
                 println!("[Fail]uart daemon failed: {}", e);
+            }
+        });
+        #[cfg(feature = "emulator")]
+        hdc::info!("daemon main emulator, start bridge daemon.");
+        #[cfg(feature = "emulator")]
+        let bridge_task = ylong_runtime::spawn(async {
+            if let Err(e) = bridge_daemon_start().await {
+                println!("[Fail]bridge daemon failed: {}", e);
             }
         });
         let lock_value = Jdwp::get_instance();
         let jdwp_server_task = ylong_runtime::spawn(async {
             jdwp_daemon_start(lock_value).await;
         });
+        #[cfg(not(feature = "emulator"))]
         let _ = tcp_task.await;
+        #[cfg(not(feature = "emulator"))]
         let _ = usb_task.await;
+        #[cfg(not(feature = "emulator"))]
         let _ = uart_task.await;
+        #[cfg(feature = "emulator")]
+        let _ = bridge_task.await;
         let _ = jdwp_server_task.await;
     });
 }

@@ -116,6 +116,7 @@ template("hdcd_source_set") {
 
     deps = [
       "//third_party/libuv:uv",
+      "//third_party/lz4:liblz4_static",
       "//third_party/openssl:libcrypto_shared",
     ]
 
@@ -133,7 +134,6 @@ template("hdcd_source_set") {
       "c_utils:utilsbase",
       "hilog:libhilog",
       "init:libbegetutil",
-      "lz4:liblz4_static",
     ]
 
     include_dirs = [
@@ -144,7 +144,7 @@ template("hdcd_source_set") {
     ]
 
     if (build_selinux) {
-      external_deps += [ "selinux:libselinux" ]
+      deps += [ "//third_party/selinux:libselinux" ]
       include_dirs += [ "//third_party/selinux/libselinux/include" ]
       defines += [ "SURPPORT_SELINUX" ]
       if (image_name == "updater") {
@@ -353,14 +353,11 @@ ohos_executable("hdc") {
   }
 
   deps = [
+    "//third_party/bounds_checking_function:libsec_static",
     "//third_party/libusb:libusb",
     "//third_party/libuv:uv_static",
+    "//third_party/lz4:liblz4_static",
     "//third_party/openssl:libcrypto_static",
-  ]
-
-  external_deps = [
-    "bounds_checking_function:libsec_static",
-    "lz4:liblz4_static",
   ]
 
   deps += [ ":hdc_hash_gen" ]
@@ -373,7 +370,7 @@ ohos_executable("hdc") {
   ]
 
   if (!(is_mingw || is_mac) && build_selinux) {
-    external_deps += [ "selinux:libselinux" ]
+    deps += [ "//third_party/selinux:libselinux" ]
     include_dirs += [ "//third_party/selinux/libselinux/include" ]
     defines += [ "SURPPORT_SELINUX" ]
   }

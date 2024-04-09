@@ -62,13 +62,10 @@ hdc_host_sources = [
 ]
 
 common_deps = [
+  "//third_party/bounds_checking_function:libsec_static",
   "//third_party/libuv:uv",
+  "//third_party/lz4:liblz4_static",
   "//third_party/openssl:libcrypto_static",
-]
-
-external_deps = [
-  "bounds_checking_function:libsec_static",
-  "lz4:liblz4_static",
 ]
 
 config("hdc_ut_code_flag") {
@@ -204,7 +201,7 @@ ohos_source_set("hdc_daemon_platform") {
     "//third_party/openssl:libcrypto_static",
   ]
 
-  external_deps += [ "init:libbegetutil" ]
+  external_deps = [ "init:libbegetutil" ]
 
   include_dirs = [
     "${hdc_path}/daemon",
@@ -389,7 +386,7 @@ ohos_unittest("hdc_register_unittest") {
     "//third_party/googletest:gmock_main",
     "//third_party/libuv:uv",
   ]
-  external_deps += [
+  external_deps = [
     "c_utils:utils",
     "hilog:libhilog",
   ]

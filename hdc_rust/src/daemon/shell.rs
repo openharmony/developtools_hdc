@@ -17,157 +17,19 @@
 
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP, MessageLevel};
+use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
 use hdc::transfer;
-
 use std::collections::HashMap;
-use std::io::{self, Error, ErrorKind, Read as _, Write as _};
-use std::os::fd::{AsFd, AsRawFd};
-use std::os::unix::process::CommandExt;
-use std::process::Child;
+use std::io::{self};
 use std::sync::Arc;
-use std::time::Duration;
-
 use ylong_runtime::sync::mpsc;
 use ylong_runtime::sync::Mutex;
-
-struct Command {
-    inner: std::process::Command,
-}
-
-impl Command {
-    pub fn new(prog: &str) -> Self {
-        Self {
-            inner: std::process::Command::new(prog),
-        }
-    }
-
-    pub fn args(&mut self, args: Vec<&str>) -> &mut Self {
-        self.inner.args(args);
-        self
-    }
-
-    pub fn set_pts(&mut self, pts: &Pts, nohup: bool) -> io::Result<()> {
-        if !nohup {
-            let pipes = pts.setup_pipes()?;
-            self.inner.stdin(pipes.stdin);
-            self.inner.stdout(pipes.stdout);
-            self.inner.stderr(pipes.stderr);
-        }
-
-        unsafe { self.inner.pre_exec(pts.session_leader(nohup)) };
-        Ok(())
-    }
-
-    pub fn spawn(&mut self) -> io::Result<std::process::Child> {
-        self.inner.spawn()
-    }
-}
-
-struct Pty {
-    inner: nix::pty::PtyMaster,
-}
-
-impl Pty {
-    pub fn new() -> io::Result<Self> {
-        if let Ok(pty_master) = nix::pty::posix_openpt(
-            nix::fcntl::OFlag::O_RDWR | nix::fcntl::OFlag::O_NOCTTY | nix::fcntl::OFlag::O_CLOEXEC,
-        ) {
-            if nix::pty::grantpt(&pty_master).is_ok() && nix::pty::unlockpt(&pty_master).is_ok() {
-                return Ok(Self { inner: pty_master });
-            }
-        }
-        Err(Error::new(ErrorKind::Other, "pty init failed"))
-    }
-
-    pub fn resize(&self, ws_row: u16, ws_col: u16) {
-        let size = nix::pty::Winsize {
-            ws_row,
-            ws_col,
-            ws_xpixel: 0,
-            ws_ypixel: 0,
-        };
-        let fd = self.inner.as_raw_fd();
-        let _ = unsafe { set_term_size(fd, std::ptr::NonNull::from(&size).as_ptr()) }.map(|_| ());
-    }
-
-    pub fn get_pts(&self) -> io::Result<Pts> {
-        let fd = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(nix::pty::ptsname_r(&self.inner)?)?
-            .into();
-        Ok(Pts { inner: fd })
-    }
-
-    pub fn terminal(&self) {
-        unsafe {
-            let tpgid = libc::tcgetpgrp(self.inner.as_raw_fd());
-            if tpgid > 1 {
-                libc::kill(tpgid, libc::SIGINT);
-            }
-        }
-    }
-}
-
-impl std::os::fd::AsFd for Pty {
-    fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
-        let raw_fd = self.inner.as_raw_fd();
-        unsafe { std::os::fd::BorrowedFd::borrow_raw(raw_fd) }
-    }
-}
-
-impl io::Read for Pty {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.read(buf)
-    }
-}
-
-impl io::Write for Pty {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.inner.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
-}
-
-struct Pts {
-    inner: std::os::fd::OwnedFd,
-}
-
-struct Pipes {
-    stdin: std::process::Stdio,
-    stdout: std::process::Stdio,
-    stderr: std::process::Stdio,
-}
-
-impl Pts {
-    pub fn setup_pipes(&self) -> io::Result<Pipes> {
-        Ok(Pipes {
-            stdin: self.inner.try_clone()?.into(),
-            stdout: self.inner.try_clone()?.into(),
-            stderr: self.inner.try_clone()?.into(),
-        })
-    }
-
-    pub fn session_leader(&self, nohup: bool) -> impl FnMut() -> io::Result<()> {
-        let fd = self.inner.as_raw_fd();
-        move || {
-            nix::unistd::setsid()?;
-            if nohup {
-                unsafe { libc::signal(libc::SIGHUP, libc::SIG_IGN) };
-            }
-            unsafe { set_controlling_terminal(fd, std::ptr::null()) }?;
-            Ok(())
-        }
-    }
-}
-
-nix::ioctl_write_ptr_bad!(set_term_size, libc::TIOCSWINSZ, nix::pty::Winsize);
-
-nix::ioctl_write_ptr_bad!(set_controlling_terminal, libc::TIOCSCTTY, libc::c_int);
+use ylong_runtime::process::pty_process::{Pty,PtyCommand};
+use ylong_runtime::io::AsyncReadExt;
+use ylong_runtime::io::AsyncWriteExt;
+use ylong_runtime::process::Child as ylongChild;
+use std::process::Stdio;
+use std::os::fd::AsRawFd;
 
 pub struct PtyTask {
     pub handle: ylong_runtime::task::JoinHandle<()>,
@@ -177,42 +39,14 @@ pub struct PtyTask {
 
 struct PtyProcess {
     pub pty: Pty,
-    pub child: Arc<Mutex<Child>>,
-    pub pty_fd: i32,
-    channel_id: u32,
-    nohup_flag: bool,
+    pub child: Arc<Mutex<ylongChild>>,
 }
 
 impl PtyProcess {
-    fn new(pty: Pty, child: Arc<Mutex<Child>>, channel_id: u32, nohup_flag: bool) -> Self {
-        let pty_fd = pty.as_fd().as_raw_fd();
+    fn new(pty: Pty, child: Arc<Mutex<ylongChild>>, _nohup_flag: bool) -> Self {
         Self {
             pty,
             child,
-            pty_fd,
-            channel_id,
-            nohup_flag,
-        }
-    }
-
-    async fn pty_echo(
-        &mut self,
-        buf: &mut [u8],
-        ret_command: HdcCommand,
-    ) -> io::Result<TaskMessage> {
-        match self.pty.read(buf) {
-            Ok(bytes) => {
-                let message = TaskMessage {
-                    channel_id: self.channel_id,
-                    command: ret_command,
-                    payload: buf[..bytes].to_vec(),
-                };
-                Ok(message)
-            }
-            Err(e) => {
-                hdc::warn!("pty read failed: {e:?}");
-                Err(e)
-            }
         }
     }
 }
@@ -224,19 +58,18 @@ impl PtyProcess {
 // example:
 // hdc shell "nohup /data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 // hdc shell "/data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
-fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProcess> {
-    let pty = Pty::new()?;
-    let pts = pty.get_pts()?;
-    pty.resize(24, 80);
+fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProcess> {
+    let pty = Pty::new().unwrap();
+    let pts = pty.pts().unwrap();
+    pty.resize(24, 80, 0, 0).unwrap();
 
     // Command::new(sh) for interactive
     // Command::new(cmd[0]).args(cmd[1..]) for normal
     let mut nohup_flag = false;
     let child = match cmd {
         None => {
-            let mut command = Command::new(SHELL_PROG);
-            command.set_pts(&pts, false)?;
-            command.spawn()?
+            let mut command = PtyCommand::new(SHELL_PROG);
+            command.spawn(&pts).unwrap()
         }
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
@@ -251,16 +84,23 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
                     None => cmd,
                 };
             }
+
             nohup_flag = cmd.ends_with('&');
             let params = ["-c", cmd.as_str()].to_vec();
-            let mut proc = Command::new(SHELL_PROG);
+            let mut proc = PtyCommand::new(SHELL_PROG);
             let command = proc.args(params);
-            hdc::debug!("command[{:?}] args[{:?}]", command.inner.get_program(), command.inner.get_args());
-            command.set_pts(&pts, nohup_flag)?;
-            command.spawn()?
+            if nohup_flag {
+                command.stdin(Stdio::null())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn(&pts).unwrap()
+            } else {
+                command.spawn(&pts).unwrap()
+            }
+
         }
     };
-    Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), channel_id, nohup_flag))
+    Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), nohup_flag))
 }
 
 async fn subprocess_task(
@@ -270,102 +110,68 @@ async fn subprocess_task(
     ret_command: HdcCommand,
     mut rx: mpsc::BoundedReceiver<Vec<u8>>,
 ) {
-    let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
-        Err(e) => {
-            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
-            hdc::common::hdctransfer::echo_client(
-                session_id,
-                channel_id,
-                "execute cmd fail".as_bytes().to_vec(),
-                MessageLevel::Fail
-            )
-            .await;            
-            let task_message = TaskMessage {
-                channel_id,
-                command: HdcCommand::KernelChannelClose,
-                payload: [1].to_vec(),
-            };
-            transfer::put(session_id, task_message).await;
-            hdc::error!("{}", msg);
-            panic!("{}", msg);
-        },
-        Ok(pty) => pty
-    };
-
-    PtyChildProcessMap::put(channel_id, pty_process.child.clone()).await;
+    let mut pty_process = init_pty_process(cmd, channel_id).unwrap();
     let mut buf = [0_u8; 30720];
 
     loop {
-        let mut tv = nix::sys::time::TimeVal::new(0, 50000);
-        let mut set = nix::sys::select::FdSet::new();
-        set.insert(pty_process.pty_fd);
+        let mut child_lock = pty_process.child.lock().await;
+        ylong_runtime::select!{
+            read_res = pty_process.pty.read(&mut buf) => {
+                match read_res {
+                    Ok(bytes) => {
+                        let message = TaskMessage {
+                            channel_id,
+                            command: ret_command,
+                            payload: buf[..bytes].to_vec(),
+                        };
+                        transfer::put(session_id, message).await;
+                    }
+                    Err(e) => {
+                        hdc::warn!("pty read failde: {e:?}");
+                        break;
+                    }
+                }
+            },
 
-        match nix::sys::select::select(None, Some(&mut set), None, None, Some(&mut tv)) {
-            Ok(_) => {
-                if set.contains(pty_process.pty_fd) {
-                    match pty_process.pty_echo(&mut buf, ret_command).await {
-                        Err(_) => break,
-                        Ok(message) => transfer::put(session_id, message).await,
+            recv_res = rx.recv() => {
+                match recv_res {
+                    Ok(val) => {
+                        pty_process.pty.write_all(&val).await.unwrap();
+                        if val[..].contains(&0x4_u8) {
+                            // ctrl-D: end pty
+                            hdc::info!("ctrl-D: end pty");
+                            break;
+                        } else if val[..].contains(&0x3_u8) {
+                            // ctrl-C: end process
+                            hdc::info!("ctrl-C: end process");
+                            unsafe {
+                                let tpgid = libc::tcgetpgrp(pty_process.pty.as_raw_fd());
+                                if tpgid > 1 {
+                                    libc::kill(tpgid,libc::SIGINT);
+                                }
+                            }
+                            continue;
+                        }
+                    }
+                    Err(e) => {
+                        hdc::debug!("rece failed: {e:?}");
+                    }
+                }
+            },
+
+            waitchild_res = child_lock.wait() => {
+                match waitchild_res {
+                    Ok(_) => {
+                        hdc::debug!("interactive shell finish a process");
+                        break;
+                    }
+                    Err(e) => {
+                        hdc::error!("interactive shell wait failed {e:?}");
+                        break;
                     }
                 }
             }
-            Err(e) => {
-                hdc::error!("select failed: {e:?}");
-                break;
-            }
         }
-
-        if let Ok(val) = rx.recv_timeout(Duration::from_millis(50)).await {
-            if val[..].contains(&0x4_u8) {
-                // ctrl-D: end pty
-                hdc::info!("ctrl-D: end pty");
-                // first write enter key, then send ctrl-d signal
-                pty_process.pty.write_all(&[0xA_u8]).unwrap();
-                pty_process.pty.write_all(&[0x4_u8]).unwrap();
-                // todo: if command is send (means enter key is send), will hungup
-                break;
-            } else if val[..].contains(&0x3_u8) {
-                // ctrl-C: end process
-                hdc::info!("ctrl-C: end process");
-                pty_process.pty.terminal();
-                continue;
-            }
-            pty_process.pty.write_all(&val).unwrap();
-        }
-
-        {
-            let mut child_lock = pty_process.child.lock().await;
-            match child_lock.try_wait() {
-                Ok(Some(status)) => {
-                    hdc::debug!("interactive shell finish a process {status}");
-                    // break;
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    hdc::error!("interactive shell wait failed: {e:?}");
-                    break;
-                }
-            }
-        }
-    }
-
-    if !pty_process.nohup_flag {
-        let mut child_lock = pty_process.child.lock().await;
-        let kill_resut = child_lock.kill();
-        hdc::debug!("subprocess_task kill child, result:{:#?}", kill_resut);
-        match child_lock.wait() {
-            Ok(exit_status) => {
-                hdc::debug!("subprocess_task waiting child exit success, status:{:?}.", exit_status);
-            }
-            Err(e) => {
-                hdc::debug!("subprocess_task waiting child exit fail, error:{:?}.", e);
-            }
-        }
-    } else {
-        let mut child_lock = pty_process.child.lock().await;
-        hdc::debug!("subprocess_task nohup_flag:{} wait before", pty_process.nohup_flag);
-        let ret  = child_lock.wait();
-        hdc::debug!("subprocess_task nohup_flag:{} wait after: {:#?}", pty_process.nohup_flag, ret);
     }
 
     let message = TaskMessage {
@@ -396,7 +202,7 @@ impl PtyTask {
     }
 }
 
-type Child_ = Arc<Mutex<Child>>;
+type Child_ = Arc<Mutex<ylongChild>>;
 type PtyChildProcessMap_ = Arc<Mutex<HashMap<u32, Child_>>>;
 pub struct PtyChildProcessMap {}
 impl PtyChildProcessMap {
@@ -418,6 +224,7 @@ impl PtyChildProcessMap {
         None
     }
 
+    #[allow(unused)]
     pub async fn put(channel_id: u32, pty_child: Child_) {
         let pty_child_map = Self::get_instance();
         let mut map = pty_child_map.lock().await;
@@ -481,9 +288,8 @@ impl PtyMap {
                     channel_list.push(channel_id);
                     if let Some(pty_child) = PtyChildProcessMap::get(channel_id).await {
                         let mut child = pty_child.lock().await;
-                        let kill_resut = child.kill();
-                        hdc::debug!("kill child, result:{:#?}", kill_resut);
-                        match child.wait() {
+                        child.kill().await.unwrap();
+                        match child.wait().await {
                             Ok(exit_status) => {
                                 hdc::debug!("waiting child exit success, status:{:?}.", exit_status);
                             }

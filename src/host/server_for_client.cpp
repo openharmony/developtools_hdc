@@ -352,6 +352,13 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
 
 bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
 {
+    bool ret = RemoveFportkey("0|" + forwardKey);
+    ret |= RemoveFportkey("1|" + forwardKey);
+    return ret;
+}
+
+bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
+{
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HForwardInfo hfi = nullptr;
     ptrServer->AdminForwardMap(OP_QUERY, forwardKey, hfi);

@@ -575,7 +575,7 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             pdiNew->sessionId = hSession->sessionId;
             pdiNew->connectKey = hSession->connectKey;
             pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
-            pdiNew->taskString = reinterpret_cast<char *>(payload) + OFFSET;
+            pdiNew->taskString = reinterpret_cast<char *>(payload);
             AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
             Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
             break;
@@ -615,7 +615,7 @@ void HdcServer::BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, str
 {
     string buf;
     if (fullOrSimble) {
-        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.c_str(),
+        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.substr(OFFSET).c_str(),
                                  hfi->forwardDirection ? "[Forward]" : "[Reverse]");
     } else {
         buf = Base::StringFormat("%s\n", hfi->taskString.c_str());

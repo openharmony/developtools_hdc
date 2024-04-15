@@ -104,7 +104,7 @@ def test_shell_ls():
 
 def test_file_smap():
     pid = hdc_get_key("shell pidof hdcd")
-    check_hdc_cmd(f"file recv /proc/{pid}/smaps resource/smaps")
+    check_hdc_cmd(f"file recv proc/{pid}/smaps resource/smaps")
 
 
 def test_shell_mkdir():

@@ -25,22 +25,23 @@
 # pyinstaller dev_hdc_test.spec
 # 执行 dev_hdc_test.exe
 
+import csv
 import hashlib
-import logging
 import json
+import logging
 import os
+import random
 import re
+import stat
 import shutil
 import subprocess
 import sys
+import threading
 import time
-import csv
+from multiprocessing import Process
+
 import pytest
 import pkg_resources
-import random
-import threading
-
-from multiprocessing import Process
 
 
 class GP(object):
@@ -87,8 +88,8 @@ class GP(object):
     @classmethod
     def start_host(cls):
         cmd = f"{cls.hdc_exe} start"
-        os.system(cmd)
-        return True
+        res = subprocess.call(cmd.split())
+        return res
 
     @classmethod
     def list_targets(cls):
@@ -229,7 +230,7 @@ class GP(object):
     
     @classmethod
     def get_version(cls):
-        version = f"v1.0.0a"
+        version = f"v1.0.1a"
         return version
 
 
@@ -245,7 +246,7 @@ def pytest_run(args):
             print("Please unzip package.zip to resource directory, please rerun after operation.")
             input("[ENTER]")
             return
-        
+    start_time = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
     if args.count is not None:
         for i in range(args.count):
             print(f"------------The {i}/{args.count} Test-------------")
@@ -253,13 +254,20 @@ def pytest_run(args):
             pytest_args = [
                 '--verbose', args.verbose,
                 '--report=report.html',
-                '--title=test_report'f"{GP.get_version()}",
+                '--title=HDC Test Report 'f"{GP.get_version()}",
                 '--tester=tester001',
                 '--template=1',
                 '--desc='f"{args.verbose}:{args.desc}"
             ]
             pytest.main(pytest_args)
-    print(f"Test over, the version is {GP.get_version()}")
+    end_time = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+    report_time = time.strftime('%Y-%m-%d_%H_%M_%S',time.localtime(time.time()))
+    report_dir = os.path.join(os.getcwd(), "reports")
+    report_file = os.path.join(report_dir, f"{report_time}report.html")
+    print(f"Test over, the script version is {GP.get_version()},"
+        f" start at {start_time}, end at {end_time} \n"
+        f"=======>{report_file} is saved. \n"
+    )
     input("=======>press [Enter] key to Show logs.")
 
 
@@ -587,7 +595,6 @@ def check_process_mixed(process_num, timeout, local, remote):
             cmd_recv = f"file recv {get_remote_path(f'it_{size}_mix_{i}')} {get_local_path(f'recv_{size}_mix_{i}')}"
             list_send.append(Process(target=check_hdc_cmd, args=(cmd_send, )))
             list_recv.append(Process(target=check_hdc_cmd, args=(cmd_recv, )))
-
             logging.info(f"RESULT:{cmd_send}")  # 打印命令的输出  
     for send in list_send:
         wait_time = random.uniform(0, 1)
@@ -608,9 +615,11 @@ def check_process_mixed(process_num, timeout, local, remote):
 
 def execute_lines_in_file(file_path):
     if not os.path.exists(file_path):
-        with open(file_path, os.O_WRONLY | os.O_CREAT, 0o755) as file:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        modes = stat.S_IWUSR | stat.S_IRUSR
+        with os.fdopen(os.open(file_path, flags, modes), 'w') as file:
             file.write("1,hdc shell ls")
-    with open(file_path, 'r') as file:  
+    with open(file_path, 'r') as file:
         lines = file.readlines()  
         for line in lines:
             test_time = line.split(',')[0]
@@ -650,7 +659,7 @@ def make_multiprocess_file(local, remote, mode, num, task_type):
     while(len(p_list)):
         for p in p_list:
             if p.poll() is not None:
-                stdout, stderr = p.communicate(timeout=512)
+                stdout, stderr = p.communicate(timeout=512) # timeout wait 512s
                 if stderr:
                     logging.error(f"{stderr.decode()}")
                 if stdout:
@@ -672,7 +681,7 @@ def make_multiprocess_file(local, remote, mode, num, task_type):
                 else:
                     res *= 0
     if task_type == "dir":
-        for i in range(num):
+        for _ in range(num):
             if mode == "send":
                 end_of_file_name = os.path.basename(local)
                 if _check_dir(local, f"{remote}/{end_of_file_name}"):
@@ -686,7 +695,7 @@ def make_multiprocess_file(local, remote, mode, num, task_type):
                     res *= 1
                 else:
                     res *= 0
-    return res
+    return res == 1
 
 
 def hdc_get_key(cmd):
@@ -713,3 +722,23 @@ def start_subprocess_cmd(cmd, num, assert_out):
                     return False
                 p_list.remove(p)
     return True
+
+
+def check_hdc_version(cmd, version):
+
+    def _convert_version_to_hex(_version):
+        parts = _version.split("Ver: ")[1].split('.')
+        hex_version = ''.join(parts)
+        return int(hex_version, 16)
+    
+    expected_version = _convert_version_to_hex(version)
+    cmd = f"{GP.hdc_head} -v"
+    print(f"\nexecuting command: {cmd}")
+    if version is not None: # check output valid
+        output = subprocess.check_output(cmd.split()).decode().replace("\r", "").replace("\n", "")
+        real_version = _convert_version_to_hex(output)
+        print(f"--> output: {output}")
+        print(f"--> your local [{version}] is"
+            f" {'' if expected_version <= real_version else 'too old to'} fit the version [{output}]"
+        )
+        return expected_version <= real_version

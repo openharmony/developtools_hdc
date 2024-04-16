@@ -167,6 +167,9 @@ impl UdsServer {
         let pollfds: &mut [libc::pollfd; MAX_CLIENT_FD_COUNT] =
             &mut [init_value; MAX_CLIENT_FD_COUNT];
         for (index, node) in fds.iter_mut().enumerate() {
+            if !(0..MAX_CLIENT_FD_COUNT).contains(&index) {
+                continue;
+            }
             pollfds[index].fd = node.fd;
             pollfds[index].events = node.events;
             pollfds[index].revents = node.revents;
@@ -177,6 +180,9 @@ impl UdsServer {
                 ret
             } else {
                 for i in 0..size as usize {
+                    if i >= fds.len() {
+                        break;
+                    }
                     fds[i].revents = pollfds[i].revents;
                     fds[i].events = pollfds[i].events;
                 }

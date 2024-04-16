@@ -25,7 +25,7 @@ import os
 import pytest
 
 from dev_hdc_test import GP
-from dev_hdc_test import check_library_installation
+from dev_hdc_test import check_library_installation, check_hdc_version
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 
@@ -94,9 +94,9 @@ def test_target_cmd():
 
 def test_version_cmd():
     version = "Ver: 2.0.0a"
-    assert check_hdc_cmd("-v", version)
-    assert check_hdc_cmd("version", version)
-    assert check_hdc_cmd("checkserver", version)
+    assert check_hdc_version("-v", version)
+    assert check_hdc_version("version", version)
+    assert check_hdc_version("checkserver", version)
 
 
 def test_fport_cmd():

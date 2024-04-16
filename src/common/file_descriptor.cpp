@@ -37,6 +37,9 @@ HdcFileDescriptor::~HdcFileDescriptor()
 {
     workContinue = false;
     NotifyWrite();
+#ifdef HDC_EMULATOR
+    uv_sleep(MILL_SECONDS);
+#endif
 }
 
 bool HdcFileDescriptor::ReadyForRelease()

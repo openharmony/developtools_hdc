@@ -182,6 +182,7 @@ fn spawn_handler(
     let thread_path_ref = Arc::new(Mutex::new(local_path));
     let pos = (index * FILE_PACKAGE_PAYLOAD_SIZE) as u64;
     let compress_type = transfer_config.compress_type;
+    let file_size = transfer_config.file_size as usize;
     ylong_runtime::spawn(async move {
         let path = thread_path_ref.lock().await;
         let mut file = File::open(&*path).unwrap();
@@ -189,7 +190,15 @@ fn spawn_handler(
         let mut total = Vec::from([0; FILE_PACKAGE_HEAD]);
         let mut buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
         let mut data_buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
-        let read_len = file.read(&mut buf[..]).unwrap();
+        let mut read_len = 0usize;
+        let mut package_read_len = file_size - pos as usize;
+        if package_read_len > FILE_PACKAGE_PAYLOAD_SIZE {
+            package_read_len = FILE_PACKAGE_PAYLOAD_SIZE;
+        }
+        while read_len < package_read_len {
+            let single_len = file.read(&mut buf[read_len..]).unwrap();
+            read_len += single_len;
+        }
         let transfer_compress_type = match CompressType::try_from(compress_type) {
             Ok(compress_type) => compress_type,
             Err(_) => CompressType::None,

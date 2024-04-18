@@ -114,7 +114,7 @@ impl Client {
             | HdcCommand::FileRecvInit => self.file_send_task().await,
             HdcCommand::AppInit | HdcCommand::AppUninstall => self.app_install_task().await,
             HdcCommand::UnityRunmode => self.unity_task().await,
-            HdcCommand::UnityRootrun => self.unity_task().await,
+            HdcCommand::UnityRootrun => self.unity_root_run_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
             _ => Err(Error::new(
@@ -155,6 +155,14 @@ impl Client {
     }
 
     async fn unity_task(&mut self) -> io::Result<()> {
+        self.send(self.params.join(" ").as_bytes()).await;
+        self.loop_recv().await
+    }
+
+    async fn unity_root_run_task(&mut self) -> io::Result<()> {
+        if self.params.len() >= 2 && self.params[1].starts_with("-r") {
+            self.params[1] = "r".to_string();
+        }
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv().await
     }

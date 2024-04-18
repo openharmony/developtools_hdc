@@ -367,13 +367,22 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     let path = tbase.local_path.clone();
     let write_buf = buffer.clone();
     ylong_runtime::spawn(async move {
-        let mut file = OpenOptions::new()
+        let open_result = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(path)
-            .unwrap();
-        let _ = file.seek(std::io::SeekFrom::Start(file_index));
-        file.write_all(write_buf.as_slice()).unwrap();
+            .open(path.clone());
+        match open_result {
+            Ok(mut file) => {
+                let _ = file.seek(std::io::SeekFrom::Start(file_index));
+                let write_result = file.write_all(write_buf.as_slice());
+                if write_result.is_err() {
+                    crate::warn!("write_all error:{:#?}", write_result);
+                }
+            }
+            Err(e) => {
+                crate::warn!("open path:{}, error:{:#?}", path, e);
+            }
+        }
     });
 
     tbase.index += buffer.len() as u64;

@@ -117,6 +117,7 @@ impl Client {
             HdcCommand::UnityRootrun => self.unity_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
+            HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
             _ => Err(Error::new(
                 ErrorKind::Other,
                 format!("unknown command: {}", self.command as u32),
@@ -155,6 +156,11 @@ impl Client {
     }
 
     async fn unity_task(&mut self) -> io::Result<()> {
+        self.send(self.params.join(" ").as_bytes()).await;
+        self.loop_recv().await
+    }
+
+    async fn jdwp_task(&mut self) -> io::Result<()> {
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv().await
     }

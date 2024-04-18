@@ -23,6 +23,8 @@
 #include <cstring>
 #include <cerrno>
 
+using namespace Hdc;
+
 static constexpr int CONFIG_COUNT2 = 2;
 static constexpr int CONFIG_COUNT3 = 3;
 static constexpr int CONFIG_COUNT5 = 5;
@@ -56,21 +58,21 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
             // After the control port sends the instruction, the device is initialized by the device to the HOST host,
             // which can be found for USB devices. Do not send initialization to the EP0 control port, the USB
             // device will not be initialized by Host
-            printf("Begin send to control(EP0) for usb descriptor init\n");
+            WRITE_LOG(LOG_INFO, "Begin send to control(EP0) for usb descriptor init\n");
             if ((controlEp = open(path.c_str(), O_RDWR)) < 0) {
-                printf("%s: cannot open control endpoint: errno=%d\n", path.c_str(), errno);
+                WRITE_LOG(LOG_WARN, "%s: cannot open control endpoint: errno=%d\n", path.c_str(), errno);
                 break;
             }
             if (write(controlEp, &descUsbFfs, sizeof(descUsbFfs)) < 0) {
-                printf("%s: write ffs configs failed: errno=%d\n", path.c_str(), errno);
+                WRITE_LOG(LOG_WARN, "%s: write ffs configs failed: errno=%d\n", path.c_str(), errno);
                 break;
             }
             if (write(controlEp, &Hdc::USB_FFS_VALUE, sizeof(Hdc::USB_FFS_VALUE)) < 0) {
-                printf("%s: write USB_FFS_VALUE failed: errno=%d\n", path.c_str(), errno);
+                WRITE_LOG(LOG_WARN, "%s: write USB_FFS_VALUE failed: errno=%d\n", path.c_str(), errno);
                 break;
             }
             // active usbrc, Send USB initialization signal
-            printf("ConnectEPPoint ctrl init finish, set usb-ffs ready\n");
+            WRITE_LOG(LOG_INFO, "ConnectEPPoint ctrl init finish, set usb-ffs ready\n");
             fcntl(controlEp, F_SETFD, FD_CLOEXEC);
             Hdc::SetDevItem("sys.usb.ffs.ready.hdc", "0");
             Hdc::SetDevItem("sys.usb.ffs.ready", "1");
@@ -84,7 +86,7 @@ int ConfigEpPoint(int& controlEp, const std::string& path)
 int OpenEpPoint(int &fd, const std::string path)
 {
     if ((fd = open(path.c_str(), O_RDWR)) < 0) {
-        printf("%s: cannot open ep: errno=%d\n", path.c_str(), errno);
+        WRITE_LOG(LOG_WARN, "%s: cannot open ep: errno=%d\n", path.c_str(), errno);
         return ERR_GENERIC;
     }
     fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -95,18 +97,18 @@ int CloseUsbFd(int &fd)
 {
         int rc = 0;
 #ifndef HDC_HOST
-        printf("CloseFd fd:%d\n", fd);
+        WRITE_LOG(LOG_INFO, "CloseFd fd:%d\n", fd);
 #endif
         if (fd > 0) {
             rc = close(fd);
             if (rc < 0) {
-                char buffer[BUF_SIZE_DEFAULT] = { 0 };
+                char buffer[Hdc::BUF_SIZE_DEFAULT] = { 0 };
 #ifdef _WIN32
-                strerror_s(buffer, BUF_SIZE_DEFAULT, errno);
+                strerror_s(buffer, Hdc::BUF_SIZE_DEFAULT, errno);
 #else
-                strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+                strerror_r(errno, buffer, Hdc::BUF_SIZE_DEFAULT);
 #endif
-                printf("close failed errno:%d %s\n", errno, buffer);
+                WRITE_LOG(LOG_WARN, "close failed errno:%d %s\n", errno, buffer);
             } else {
                 fd = -1;
             }
@@ -122,7 +124,7 @@ void CloseEndpoint(int &bulkInFd, int &bulkOutFd, int &controlEp, bool closeCtrl
         CloseUsbFd(controlEp);
         controlEp = 0;
     }
-    printf("close endpoint ok\n");
+    WRITE_LOG(LOG_INFO, "close endpoint ok\n");
 }
 
 int WriteData(int bulkIn, const uint8_t *data, const int length)

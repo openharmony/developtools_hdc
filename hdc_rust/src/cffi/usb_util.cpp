@@ -15,12 +15,14 @@
 #include <cstdarg>
 #include "securec.h"
 #include "usb_util.h"
+#include "log.h"
 
+using namespace Hdc;
 std::string GetDevPath(const std::string &path)
 {
     DIR *dir = ::opendir(path.c_str());
     if (dir == nullptr) {
-        printf("%s: cannot open devpath: errno: %d\n", path.c_str(), errno);
+        WRITE_LOG(LOG_WARN, "%s: cannot open devpath: errno: %d\n", path.c_str(), errno);
         return "";
     }
 

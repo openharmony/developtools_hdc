@@ -350,6 +350,7 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
             )
+            transfer::TcpMap::end(task_info.channel_id).await;
             .await
         }
     }

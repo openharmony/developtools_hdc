@@ -189,6 +189,7 @@ namespace Base {
     #define TAG_HOSTNAME "hostname"
     #define TAG_PUBKEY "pubkey"
     #define TAG_EMGMSG "emgmsg"
+    #define TAG_TOKEN "token"
     void TrimSubString(string &str, string substr);
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);

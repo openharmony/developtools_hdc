@@ -503,7 +503,6 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     HDaemonInfo hdiNew = &diNew;
     // update
     hdiNew->connStatus = STATUS_CONNECTED;
-    WRITE_LOG(LOG_INFO, "111 hdiNew->devName = %s", hdiNew->devName.c_str());
     WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
     std::map<string, string> buftlvmap;
     if (Base::TlvToStringMap(handshake.buf, buftlvmap)) {
@@ -514,7 +513,6 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
             hdiNew->emgmsg = buftlvmap[TAG_EMGMSG];
         }
     }
-    WRITE_LOG(LOG_INFO, "222 hdiNew->devName = %s", hdiNew->devName.c_str());
     WRITE_LOG(LOG_INFO, "handshake.version = %s", handshake.version.c_str());
     hdiNew->version = handshake.version;
     AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);

@@ -44,8 +44,8 @@
     },
     "build": {
       "sub_component": [
+        "//developtools/hdc:hdcd_system",
         "//developtools/hdc/hdcd_user_permit:hdcd_user_permit",
-        "//developtools/hdc/hdc_rust:hdcd",
         "//developtools/hdc:hdc_register",
         "//developtools/hdc:hdcd_updater"
       ],

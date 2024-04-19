@@ -16,8 +16,6 @@
 #define HDC_RUST_CMD
 
 namespace Hdc {
-bool DropRootPrivileges();
-void SetSelinuxLabel();
 }
 
 #endif

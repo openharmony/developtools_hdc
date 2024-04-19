@@ -17,7 +17,7 @@
 
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
+use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP, MessageLevel};
 use hdc::transfer;
 
 use std::collections::HashMap;
@@ -98,6 +98,15 @@ impl Pty {
             .open(nix::pty::ptsname_r(&self.inner)?)?
             .into();
         Ok(Pts { inner: fd })
+    }
+
+    pub fn terminal(&self) {
+        unsafe {
+            let tpgid = libc::tcgetpgrp(self.inner.as_raw_fd());
+            if tpgid > 1 {
+                libc::kill(tpgid, libc::SIGINT);
+            }
+        }
     }
 }
 
@@ -232,14 +241,16 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
             cmd = cmd.trim().to_string();
-            cmd = match cmd.strip_prefix('"') {
-                Some(cmd_res) => cmd_res.to_string(),
-                None => cmd,
-            };
-            cmd = match cmd.strip_suffix('"') {
-                Some(cmd_res) => cmd_res.to_string(),
-                None => cmd,
-            };
+            if cmd.starts_with('"') && cmd.ends_with('"') {
+                cmd = match cmd.strip_prefix('"') {
+                    Some(cmd_res) => cmd_res.to_string(),
+                    None => cmd,
+                };
+                cmd = match cmd.strip_suffix('"') {
+                    Some(cmd_res) => cmd_res.to_string(),
+                    None => cmd,
+                };
+            }
             nohup_flag = cmd.ends_with('&');
             let params = ["-c", cmd.as_str()].to_vec();
             let mut proc = Command::new(SHELL_PROG);
@@ -259,7 +270,28 @@ async fn subprocess_task(
     ret_command: HdcCommand,
     mut rx: mpsc::BoundedReceiver<Vec<u8>>,
 ) {
-    let mut pty_process = init_pty_process(cmd, channel_id).unwrap();
+    let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
+        Err(e) => {
+            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
+            hdc::common::hdctransfer::echo_client(
+                session_id,
+                channel_id,
+                "execute cmd fail".as_bytes().to_vec(),
+                MessageLevel::Fail
+            )
+            .await;            
+            let task_message = TaskMessage {
+                channel_id,
+                command: HdcCommand::KernelChannelClose,
+                payload: [1].to_vec(),
+            };
+            transfer::put(session_id, task_message).await;
+            hdc::error!("{}", msg);
+            panic!("{}", msg);
+        },
+        Ok(pty) => pty
+    };
+
     PtyChildProcessMap::put(channel_id, pty_process.child.clone()).await;
     let mut buf = [0_u8; 30720];
 
@@ -284,12 +316,21 @@ async fn subprocess_task(
         }
 
         if let Ok(val) = rx.recv_timeout(Duration::from_millis(50)).await {
-            pty_process.pty.write_all(&val).unwrap();
             if val[..].contains(&0x4_u8) {
                 // ctrl-D: end pty
                 hdc::info!("ctrl-D: end pty");
+                // first write enter key, then send ctrl-d signal
+                pty_process.pty.write_all(&[0xA_u8]).unwrap();
+                pty_process.pty.write_all(&[0x4_u8]).unwrap();
+                // todo: if command is send (means enter key is send), will hungup
                 break;
+            } else if val[..].contains(&0x3_u8) {
+                // ctrl-C: end process
+                hdc::info!("ctrl-C: end process");
+                pty_process.pty.terminal();
+                continue;
             }
+            pty_process.pty.write_all(&val).unwrap();
         }
 
         {

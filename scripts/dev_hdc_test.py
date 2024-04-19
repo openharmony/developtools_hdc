@@ -25,14 +25,21 @@
 # pyinstaller dev_hdc_test.spec
 # 执行 dev_hdc_test.exe
 
+import csv
 import hashlib
 import json
+import logging
 import os
+import random
+import re
+import stat
 import shutil
 import subprocess
 import sys
+import threading
 import time
-import csv
+from multiprocessing import Process
+
 import pytest
 import pkg_resources
 
@@ -57,16 +64,32 @@ class GP(object):
 
     @classmethod
     def init(cls):
-        cls.list_targets()
+        logging.basicConfig(level=logging.INFO,
+                            format='%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s',
+                            datefmt='%d %b %Y %H:%M:%S',
+            )
+        logging.basicConfig(level=logging.WARNING,
+                            format='%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s %(message)s',
+                            datefmt='%d %b %Y %H:%M:%S',
+                            ) 
+
         if os.path.exists(".hdctester.conf"):
             cls.load()
-            return
+            cls.start_host()
+            cls.list_targets()
         else:
             cls.set_options()
             cls.print_options()
+            cls.start_host()
             cls.dump()
         return
 
+
+    @classmethod
+    def start_host(cls):
+        cmd = f"{cls.hdc_exe} start"
+        res = subprocess.call(cmd.split())
+        return res
 
     @classmethod
     def list_targets(cls):
@@ -82,6 +105,8 @@ class GP(object):
 
     @classmethod
     def get_device(cls):
+        cls.start_host()
+        cls.list_targets()
         if len(cls.targets) > 1:
             print("Multiple device detected, please select one:")
             for i, t in enumerate(cls.targets):
@@ -203,6 +228,48 @@ class GP(object):
         print("this fuction will coming soon.")
         return False
     
+    @classmethod
+    def get_version(cls):
+        version = f"v1.0.1a"
+        return version
+
+
+def pytest_run(args):
+    file_list = []
+    file_list.append("entry-default-signed-debug.hap")
+    file_list.append("libA_v10001.hsp")
+    file_list.append("libB_v10001.hsp")
+    for file in file_list:
+        if not os.path.exists(os.path.join(GP.local_path, file)):
+            print(f"No {file} File!")
+            print("请将package.zip中的安装包文件解压到当前脚本resource目录中,操作完成该步骤后重新执行脚本。")
+            print("Please unzip package.zip to resource directory, please rerun after operation.")
+            input("[ENTER]")
+            return
+    start_time = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+    if args.count is not None:
+        for i in range(args.count):
+            print(f"------------The {i}/{args.count} Test-------------")
+            timestamp = time.time()
+            pytest_args = [
+                '--verbose', args.verbose,
+                '--report=report.html',
+                '--title=HDC Test Report 'f"{GP.get_version()}",
+                '--tester=tester001',
+                '--template=1',
+                '--desc='f"{args.verbose}:{args.desc}"
+            ]
+            pytest.main(pytest_args)
+    end_time = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+    report_time = time.strftime('%Y-%m-%d_%H_%M_%S',time.localtime(time.time()))
+    report_dir = os.path.join(os.getcwd(), "reports")
+    report_file = os.path.join(report_dir, f"{report_time}report.html")
+    print(f"Test over, the script version is {GP.get_version()},"
+        f" start at {start_time}, end at {end_time} \n"
+        f"=======>{report_file} is saved. \n"
+    )
+    input("=======>press [Enter] key to Show logs.")
+
 
 def rmdir(path):
     try:
@@ -239,6 +306,7 @@ def check_shell(cmd, pattern=None, fetch=False):
     if pattern: # check output valid
         output = subprocess.check_output(cmd.split()).decode()
         res = pattern in output
+        print(f"--> output: {output}")
         print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")
         return res
     elif fetch:
@@ -248,6 +316,43 @@ def check_shell(cmd, pattern=None, fetch=False):
     else: # check cmd run successfully
         return subprocess.check_call(cmd.split()) == 0
 
+
+def _check_dir(local, remote):
+    def _get_md5sum(remote):
+        cmd = f"{GP.hdc_head} shell md5sum {remote}/*"
+        result = subprocess.check_output(cmd.split()).decode()
+        return result
+    
+    def _calculate_md5(file_path):
+        md5 = hashlib.md5()
+        try:
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    md5.update(chunk)
+            return md5.hexdigest()
+        except PermissionError:
+            return "PermissionError"
+        except FileNotFoundError:
+            return "FileNotFoundError"
+    print("remote" + remote)
+    output = _get_md5sum(remote)
+    print(output)
+    for line in output.splitlines():
+        if len(line) < 32: # length of MD5
+            continue
+        expected_md5, file_name = line.split()[:2]
+        file_name = file_name.replace(f"{remote}/", "")
+        file_path = os.path.join(os.getcwd(), local, file_name)  # 构建完整的文件路径
+        print(file_path)
+        actual_md5 = _calculate_md5(file_path)
+        logging.info(f"Expected: {expected_md5}")
+        logging.info(f"Actual: {actual_md5}")
+        logging.info(f"MD5 matched {file_name}")
+        if actual_md5 != expected_md5:
+            logging.info(f"[Fail]MD5 mismatch for {file_name}")
+            return False
+    return True
+        
 
 def _check_file(local, remote):
     cmd = f"shell md5sum {remote}"
@@ -316,6 +421,21 @@ def check_hdc_cmd(cmd, pattern=None, **args):
         return check_shell(cmd, pattern, **args)
 
 
+def check_soft_local(local_source, local_soft, remote):
+    cmd = f"file send {local_soft} {remote}"
+    if not check_shell(cmd, "FileTransfer finish"):
+        return False
+    return _check_file(local_source, remote)
+
+
+def check_soft_remote(remote_source, remote_soft, local_recv):
+    check_hdc_cmd(f"shell ln -s {remote_source} {remote_soft}")
+    cmd = f"file recv {remote_soft} {local_recv}"
+    if not check_shell(cmd, "FileTransfer finish"):
+        return False
+    return _check_file(local_recv, get_remote_path(remote_source))
+
+
 def switch_usb():
     res = check_hdc_cmd("tmode usb")
     time.sleep(3)
@@ -379,8 +499,28 @@ def prepare_source():
     print("generating small file ...")
     gen_file(os.path.join(GP.local_path, "small"), 102400)
 
+    print("generating medium file ...")
+    gen_file(os.path.join(GP.local_path, "medium"), 200 * 1024 ** 2)
+
     print("generating large file ...")
     gen_file(os.path.join(GP.local_path, "large"), 2 * 1024 ** 3)
+
+    print("generating soft link ...")
+    os.symlink("small", os.path.join(GP.local_path, "soft_small"))
+
+    print("generating package dir ...")
+    os.mkdir(os.path.join(GP.local_path, "package"))
+    for i in range(1, 6):
+        gen_file(os.path.join(GP.local_path, "package", f"fake.hap.{i}"), 20 * 1024 ** 2)
+
+    print("generating deep dir ...")
+    deepth = 4
+    deep_path = os.path.join(GP.local_path, "deep_dir")
+    os.mkdir(deep_path)
+    for deep in range(deepth):
+        deep_path = os.path.join(deep_path, f"deep_dir{deep}")
+        os.mkdir(deep_path)
+    gen_file(os.path.join(deep_path, "deep"), 102400)
 
     print("generating dir with small file ...")
     dir_path = os.path.join(GP.local_path, "normal_dir")
@@ -392,16 +532,6 @@ def prepare_source():
     dir_path = os.path.join(GP.local_path, "empty_dir")
     rmdir(dir_path)
     os.mkdir(dir_path)
-    
-    if os.path.exists("entry-default-signed-debug.hap"):
-        print("copy the hap file to resource dir...")
-        shutil.copy("entry-default-signed-debug.hap", GP.local_path)
-    else:
-        print("No hap File!")
-    if os.path.exists("panalyticshsp-default-signed.hsp"):
-        shutil.copy("panalyticshsp-default-signed.hsp", GP.local_path)
-    else:
-        print("No hsp File!")
 
 
 def setup_tester():
@@ -442,3 +572,173 @@ def check_library_installation(library_name):
         print(f"try to use command below:")
         print(f"pip install {library_name}")
         return 1
+
+
+def check_subprocess_cmd(cmd, process_num, timeout):
+
+    for i in range(process_num):
+        p = subprocess.Popen(cmd.split())
+    try:
+        p.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        p.kill()
+
+
+def check_process_mixed(process_num, timeout, local, remote):
+    multi_num = process_num
+    list_send = []
+    list_recv = []
+    sizes = {"small", "medium", "empty"}
+    for i in range(multi_num):
+        for size in sizes:
+            cmd_send = f"file send {get_local_path(f'{size}')} {get_remote_path(f'it_{size}_mix_{i}')}"
+            cmd_recv = f"file recv {get_remote_path(f'it_{size}_mix_{i}')} {get_local_path(f'recv_{size}_mix_{i}')}"
+            list_send.append(Process(target=check_hdc_cmd, args=(cmd_send, )))
+            list_recv.append(Process(target=check_hdc_cmd, args=(cmd_recv, )))
+            logging.info(f"RESULT:{cmd_send}")  # 打印命令的输出  
+    for send in list_send:
+        wait_time = random.uniform(0, 1)
+        send.start()
+        time.sleep(wait_time)
+    for send in list_send:
+        send.join()
+
+    for recv in list_recv:
+        wait_time = random.uniform(0, 1)
+        recv.start()
+        time.sleep(wait_time)
+    for recv in list_recv:
+        recv.join()
+        wait_time = random.uniform(0, 1)
+        time.sleep(wait_time)
+
+
+def execute_lines_in_file(file_path):
+    if not os.path.exists(file_path):
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        modes = stat.S_IWUSR | stat.S_IRUSR
+        with os.fdopen(os.open(file_path, flags, modes), 'w') as file:
+            file.write("1,hdc shell ls")
+    with open(file_path, 'r') as file:
+        lines = file.readlines()  
+        for line in lines:
+            test_time = line.split(',')[0]
+            test_cmd = line.split(',')[1]
+            pattern = r"^hdc"
+            match = re.search(pattern, test_cmd)
+            if match:
+                result = test_cmd.replace(match.group(0), "").lstrip()
+                test_cmd = f"{GP.hdc_head} {result}"
+            
+            for i in range(int(test_time)):
+                logging.info(f"THE {i+1}/{test_time} TEST,COMMAND IS:{test_cmd}")
+                output = subprocess.check_output(test_cmd.split()).decode()
+                logging.info(f"RESULT:{output}")  # 打印命令的输出 
+
+
+def make_multiprocess_file(local, remote, mode, num, task_type):
+    if num < 1:
+        return False
+    if task_type == "file":
+        if mode == "send" :
+            file_list = [f"{GP.hdc_head} file send {local} {remote}_{i}" for i in range(num)]
+        elif mode == "recv":
+            file_list = [f"{GP.hdc_head} file recv {remote}_{i} {local}_{i}" for i in range(num)]
+        else:
+            return False
+    if task_type == "dir":
+        if mode == "send" :
+            file_list = [f"{GP.hdc_head} file send {local} {remote}" for _ in range(num)]
+        elif mode == "recv":
+            file_list = [f"{GP.hdc_head} file recv {remote} {local}" for _ in range(num)]
+        else:
+            return False        
+    print(file_list[0])
+    p_list = [subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE) for cmd in file_list]
+    logging.info(f"{mode} target {num} start")
+    while(len(p_list)):
+        for p in p_list:
+            if p.poll() is not None:
+                stdout, stderr = p.communicate(timeout=512) # timeout wait 512s
+                if stderr:
+                    logging.error(f"{stderr.decode()}")
+                if stdout:
+                    logging.info(f"{stdout.decode()}")
+                if stdout.decode().find("FileTransfer finish") == -1:
+                    return False
+                p_list.remove(p)
+    res = 1
+    if task_type == "file":
+        for i in range(num):
+            if mode == "send":
+                if _check_file(local, f"{remote}_{i}"):
+                    res *= 1
+                else:
+                    res *= 0
+            elif mode == "recv":
+                if _check_file(f"{local}_{i}", f"{remote}_{i}"):
+                    res *= 1
+                else:
+                    res *= 0
+    if task_type == "dir":
+        for _ in range(num):
+            if mode == "send":
+                end_of_file_name = os.path.basename(local)
+                if _check_dir(local, f"{remote}/{end_of_file_name}"):
+                    res *= 1
+                else:
+                    res *= 0
+            elif mode == "recv":
+                end_of_file_name = os.path.basename(remote)
+                local = os.path.join(local, end_of_file_name)
+                if _check_dir(f"{local}", f"{remote}"):
+                    res *= 1
+                else:
+                    res *= 0
+    return res == 1
+
+
+def hdc_get_key(cmd):
+    test_cmd = f"{GP.hdc_head} {cmd}"
+    result = subprocess.check_output(test_cmd.split()).decode()
+    return result
+
+
+def start_subprocess_cmd(cmd, num, assert_out):
+    if num < 1:
+        return False
+    cmd_list = [f"{GP.hdc_head} {cmd}" for _ in range(num)]
+    p_list = [subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE) for cmd in cmd_list]
+    logging.info(f"{cmd} target {num} start")
+    while(len(p_list)):
+        for p in p_list:
+            if p.poll() is not None:
+                stdout, stderr = p.communicate(timeout=512)
+                if stderr:
+                    logging.error(f"{stderr.decode()}")
+                if stdout:
+                    logging.info(f"{stdout.decode()}")
+                if assert_out is not None and stdout.decode().find(assert_out) == -1:
+                    return False
+                p_list.remove(p)
+    return True
+
+
+def check_hdc_version(cmd, version):
+
+    def _convert_version_to_hex(_version):
+        parts = _version.split("Ver: ")[1].split('.')
+        hex_version = ''.join(parts)
+        return int(hex_version, 16)
+    
+    expected_version = _convert_version_to_hex(version)
+    cmd = f"{GP.hdc_head} -v"
+    print(f"\nexecuting command: {cmd}")
+    if version is not None: # check output valid
+        output = subprocess.check_output(cmd.split()).decode().replace("\r", "").replace("\n", "")
+        real_version = _convert_version_to_hex(output)
+        print(f"--> output: {output}")
+        print(f"--> your local [{version}] is"
+            f" {'' if expected_version <= real_version else 'too old to'} fit the version [{output}]"
+        )
+        return expected_version <= real_version

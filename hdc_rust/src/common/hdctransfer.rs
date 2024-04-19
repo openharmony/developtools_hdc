@@ -25,6 +25,7 @@ use crate::serializer::native_struct::TransferConfig;
 use crate::serializer::native_struct::TransferPayload;
 use crate::serializer::serialize::Serialization;
 use crate::transfer;
+use crate::utils::hdc_log::*;
 use std::fs::metadata;
 use std::fs::OpenOptions;
 use std::fs::{self, create_dir_all, File};
@@ -49,6 +50,7 @@ extern "C" {
     ) -> i32;
 }
 
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct HdcTransferBase {
     pub need_close_notify: bool,
@@ -72,6 +74,7 @@ pub struct HdcTransferBase {
     pub is_file_mode_sync: bool,
     pub file_begin_time: u64,
     pub dir_begin_time: u64,
+    pub is_local_dir_exsit: Option<bool>,
 
     pub transfer_config: TransferConfig,
 }
@@ -100,6 +103,7 @@ impl HdcTransferBase {
             is_file_mode_sync: false,
             file_begin_time: 0,
             dir_begin_time: 0,
+            is_local_dir_exsit: None,
             transfer_config: TransferConfig::default(),
         }
     }
@@ -110,14 +114,20 @@ pub fn check_local_path(
     _optional_name: &str,
     _error: &mut str,
 ) -> bool {
+    crate::debug!("check_local_path, local_path:{}, optional_name:{}", _local_path, _optional_name);
     let file = metadata(_local_path);
     if let Ok(f) = file {
+        if transfer.is_local_dir_exsit.is_none() {
+            transfer.is_local_dir_exsit = Some(true);
+        }
         transfer.is_dir = f.is_dir();
         if f.is_dir() && !transfer.local_path.ends_with(Base::get_path_sep()) {
             transfer
                 .local_path
                 .push_str(Base::get_path_sep().to_string().as_str());
         }
+    } else if transfer.is_local_dir_exsit.is_none() {
+        transfer.is_local_dir_exsit = Some(false);
     }
     let mut op = _optional_name.replace('\\', Base::get_path_sep().to_string().as_str());
     op = op.replace('/', Base::get_path_sep().to_string().as_str());
@@ -132,9 +142,18 @@ pub fn check_local_path(
         let local_dir = transfer.local_path.clone().replace(
             '/', Base::get_path_sep().to_string().as_str()
         );
+
+        if let Some(false) = transfer.is_local_dir_exsit {
+            if op.contains(Base::get_path_sep()) {
+                let first_sep_index = op.find(Base::get_path_sep()).unwrap();
+                op = op.as_str()[first_sep_index..].to_string();
+                crate::debug!("check_local_path, combine 2 local_dir:{}, op:{}", local_dir, op);
+            }
+        }
+
         transfer.local_path = Base::combine(local_dir, op);
     }
-
+    crate::debug!("check_local_path, final transfer.local_path:{}", transfer.local_path);
     if transfer.local_path.ends_with(Base::get_path_sep()) {
         create_dir_all(transfer.local_path.clone()).is_ok()
     } else {
@@ -163,6 +182,7 @@ fn spawn_handler(
     let thread_path_ref = Arc::new(Mutex::new(local_path));
     let pos = (index * FILE_PACKAGE_PAYLOAD_SIZE) as u64;
     let compress_type = transfer_config.compress_type;
+    let file_size = transfer_config.file_size as usize;
     ylong_runtime::spawn(async move {
         let path = thread_path_ref.lock().await;
         let mut file = File::open(&*path).unwrap();
@@ -170,7 +190,15 @@ fn spawn_handler(
         let mut total = Vec::from([0; FILE_PACKAGE_HEAD]);
         let mut buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
         let mut data_buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
-        let read_len = file.read(&mut buf[..]).unwrap();
+        let mut read_len = 0usize;
+        let mut package_read_len = file_size - pos as usize;
+        if package_read_len > FILE_PACKAGE_PAYLOAD_SIZE {
+            package_read_len = FILE_PACKAGE_PAYLOAD_SIZE;
+        }
+        while read_len < package_read_len {
+            let single_len = file.read(&mut buf[read_len..]).unwrap();
+            read_len += single_len;
+        }
         let transfer_compress_type = match CompressType::try_from(compress_type) {
             Ok(compress_type) => compress_type,
             Err(_) => CompressType::None,
@@ -223,6 +251,32 @@ fn spawn_handler(
         };
         (read_len != FILE_PACKAGE_PAYLOAD_SIZE, _data_message)
     })
+}
+
+fn is_file_access(path: String) -> bool {
+    let file = metadata(path.clone());
+    match file {
+        Ok(f) => {
+            if !f.is_symlink() {
+                crate::debug!("file is not a link, path:{}", path);
+                return true;
+            }
+        }
+        Err(_e) => {
+            return false;
+        }
+    }
+    let ret = std::fs::read_link(path);
+    match ret {
+        Ok(p) => {
+            crate::debug!("link to file:{}", p.display().to_string());
+            p.exists()
+        }
+        Err(e) => {
+            crate::debug!("read_link fail:{:#?}", e);
+            false
+        }
+    }
 }
 
 pub async fn read_and_send_data(
@@ -313,13 +367,22 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     let path = tbase.local_path.clone();
     let write_buf = buffer.clone();
     ylong_runtime::spawn(async move {
-        let mut file = OpenOptions::new()
+        let open_result = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(path)
-            .unwrap();
-        let _ = file.seek(std::io::SeekFrom::Start(file_index));
-        file.write_all(write_buf.as_slice()).unwrap();
+            .open(path.clone());
+        match open_result {
+            Ok(mut file) => {
+                let _ = file.seek(std::io::SeekFrom::Start(file_index));
+                let write_result = file.write_all(write_buf.as_slice());
+                if write_result.is_err() {
+                    crate::warn!("write_all error:{:#?}", write_result);
+                }
+            }
+            Err(e) => {
+                crate::warn!("open path:{}, error:{:#?}", path, e);
+            }
+        }
     });
 
     tbase.index += buffer.len() as u64;
@@ -332,6 +395,10 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
 pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {
     let mut result = Vec::new();
     let dir_path = PathBuf::from(_path);
+    if !is_file_access(_path.clone()) {
+        crate::debug!("file is invalid link, path:{}", _path);
+        return result;
+    }
     for entry in fs::read_dir(dir_path).unwrap() {
         let path = entry.unwrap().path();
         if path.is_file() {

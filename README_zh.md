@@ -95,7 +95,7 @@ linux版本建议ubuntu 18.04以上 64位，其他相近版本也可；libc++.so
 
 ### 命令帮助<a name="section129654513265"></a>
 
-hdc当前常用命令如下，未尽命令使用hdc -h或者hdc --help查看：
+hdc当前常用命令如下，使用hdc -h或者hdc --help查看使用方法：
 
 **表 1**  hdc常用命令列表
 
@@ -107,7 +107,7 @@ hdc当前常用命令如下，未尽命令使用hdc -h或者hdc --help查看：
 </thead>
 <tbody><tr id="row139291857142520"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p1042344310428"><a name="p1042344310428"></a><a name="p1042344310428"></a>-t <em id="i198036018011"><a name="i198036018011"></a><a name="i198036018011"></a>key</em></p>
 </td>
-<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p19423174317428"><a name="p19423174317428"></a><a name="p19423174317428"></a>用于<span>指定连接该指定设备识Key</span></p>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p19423174317428"><a name="p19423174317428"></a><a name="p19423174317428"></a>用于<span>指定目标设备id，设备id可用'hdc list targets'查询</span></p>
 <p id="p2014511479313"><a name="p2014511479313"></a><a name="p2014511479313"></a>举例：hdc -t  *****(设备id)  shell</p>
 </td>
 </tr>

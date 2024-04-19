@@ -37,7 +37,9 @@ HdcFileDescriptor::~HdcFileDescriptor()
 {
     workContinue = false;
     NotifyWrite();
-    uv_sleep(HUNDRED_MILL_SECONDS);
+#ifdef HDC_EMULATOR
+    uv_sleep(MILL_SECONDS);
+#endif
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
@@ -295,7 +297,7 @@ void HdcFileDescriptor::NotifyWrite()
 void HdcFileDescriptor::WaitWrite()
 {
     std::unique_lock<std::mutex> lock(writeMutex);
-    writeCond.wait_for(lock, std::chrono::milliseconds(WAIT_MILL_SECONDS), [&]() {
+    writeCond.wait_for(lock, std::chrono::seconds(WAIT_SECONDS), [&]() {
         return !writeQueue.empty() || !workContinue;
     });
 }

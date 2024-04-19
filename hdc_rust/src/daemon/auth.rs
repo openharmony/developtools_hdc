@@ -15,7 +15,6 @@
 //! auth
 #![allow(missing_docs)]
 
-use hdc::common::hdctransfer::echo_client;
 use hdc::config::{self, *};
 use hdc::serializer::native_struct;
 use hdc::serializer::serialize::Serialization;
@@ -93,24 +92,26 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         recv.version.as_str(),
         recv.session_id
     );
-    // if !is_auth_enable().await {
-    //     hdc::info!(
-    //         "auth enable is false, return OK for session:{}",
-    //         recv.session_id
-    //     );
-    //     return Ok((
-    //         recv.session_id,
-    //         make_ok_message(recv.session_id, task_message.channel_id).await,
-    //     ));
-    // }
-    if recv.version.as_str() < "Ver: 3.0.0a" {
+    if recv.version.as_str() < "Ver: 3.0.0b" {
         hdc::info!(
-            "client version({}) is too low, return Fail for session:{}",
+            "client version({}) is too low, return OK for session:{}",
             recv.version.as_str(),
             recv.session_id
         );
-        echo_fail_message(recv.session_id, task_message.channel_id).await;
-        return Err(Error::new(ErrorKind::Other, "client version is too low, auth fail"));
+        return Ok((
+            recv.session_id,
+            make_ok_message(recv.session_id, task_message.channel_id).await,
+        ));
+    }
+    if !is_auth_enable() {
+        hdc::info!(
+            "auth enable is false, return OK for session:{}",
+            recv.session_id
+        );
+        return Ok((
+            recv.session_id,
+            make_ok_message(recv.session_id, task_message.channel_id).await,
+        ));
     }
 
     // auth is required
@@ -171,37 +172,6 @@ async fn make_ok_message(session_id: u32, channel_id: u32) -> TaskMessage {
         command: HdcCommand::KernelHandshake,
         payload: send.serialize(),
     }
-}
-
-async fn echo_fail_message(session_id: u32, channel_id: u32) {
-    AuthStatusMap::put(session_id, AuthStatus::Fail).await;
-    let send = native_struct::SessionHandShake {
-        banner: HANDSHAKE_MESSAGE.to_string(),
-        session_id,
-        connect_key: "".to_string(),
-        auth_type: AuthType::OK as u8,
-        version: get_version(),
-        buf: String::from("auth failed"),
-    };
-    transfer::put(
-        session_id,
-        TaskMessage {
-            channel_id,
-            command: HdcCommand::KernelHandshake,
-            payload: send.serialize(),
-        },
-    ).await;
-    echo_client(session_id, channel_id,
-        "The client version is too low, please upgrade to the latest version.".into(),
-        MessageLevel::Fail).await;
-    transfer::put(
-        session_id,
-        TaskMessage {
-            channel_id,
-            command: HdcCommand::KernelChannelClose,
-            payload: vec![0],
-        },
-    ).await;
 }
 
 pub fn get_host_pubkey_info(buf: &str) -> (String, String) {

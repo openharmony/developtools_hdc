@@ -257,8 +257,12 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
                 sStatus = "UNKNOW";
                 break;
         }
+        string devname = hdi->devName;
+        if (devname.empty()) {
+            devname = "unknown...";
+        }
         out = Base::StringFormat("%s\t\t%s\t%s\t%s\n", hdi->connectKey.c_str(), sConn.c_str(), sStatus.c_str(),
-                                 hdi->devName.c_str());
+                                 devname.c_str());
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
             out = Base::StringFormat("%s\n", hdi->connectKey.c_str());
@@ -499,11 +503,18 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     HDaemonInfo hdiNew = &diNew;
     // update
     hdiNew->connStatus = STATUS_CONNECTED;
-    if (handshake.buf.size() > sizeof(hdiNew->devName) || !handshake.buf.size()) {
-        hdiNew->devName = "unknown...";
-    } else {
-        hdiNew->devName = handshake.buf;
+    WRITE_LOG(LOG_INFO, "111 hdiNew->devName = %s", hdiNew->devName.c_str());
+    WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
+    std::map<string, string> buftlvmap;
+    if (Base::TlvToStringMap(handshake.buf, buftlvmap)) {
+        if (buftlvmap.find(TAG_DEVNAME) != buftlvmap.end()) {
+            hdiNew->devName = buftlvmap[TAG_DEVNAME];
+        }
+        if (buftlvmap.find(TAG_EMGMSG) != buftlvmap.end()) {
+            hdiNew->emgmsg = buftlvmap[TAG_EMGMSG];
+        }
     }
+    WRITE_LOG(LOG_INFO, "222 hdiNew->devName = %s", hdiNew->devName.c_str());
     WRITE_LOG(LOG_INFO, "handshake.version = %s", handshake.version.c_str());
     hdiNew->version = handshake.version;
     AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);

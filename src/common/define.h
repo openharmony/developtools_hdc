@@ -65,8 +65,8 @@ constexpr uint16_t MAX_USBFFS_BULK = 62464;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000000 is 3.0.0a
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30000000;
+// 0x30000100 is 3.0.0b
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30000100;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;

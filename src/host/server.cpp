@@ -503,17 +503,25 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     HDaemonInfo hdiNew = &diNew;
     // update
     hdiNew->connStatus = STATUS_CONNECTED;
+    WRITE_LOG(LOG_INFO, "handshake info is : %s", handshake.ToDebugString().c_str());
     WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
-    std::map<string, string> buftlvmap;
-    if (Base::TlvToStringMap(handshake.buf, buftlvmap)) {
-        if (buftlvmap.find(TAG_DEVNAME) != buftlvmap.end()) {
-            hdiNew->devName = buftlvmap[TAG_DEVNAME];
+    if (handshake.version < "Ver: 3.0.0b") {
+        if (!handshake.buf.empty()) {
+            hdiNew->devName = handshake.buf;
         }
-        if (buftlvmap.find(TAG_EMGMSG) != buftlvmap.end()) {
-            hdiNew->emgmsg = buftlvmap[TAG_EMGMSG];
+    } else {
+        std::map<string, string> tlvmap;
+        if (Base::TlvToStringMap(handshake.buf, tlvmap)) {
+            if (tlvmap.find(TAG_DEVNAME) != tlvmap.end()) {
+                hdiNew->devName = tlvmap[TAG_DEVNAME];
+            }
+            if (tlvmap.find(TAG_EMGMSG) != tlvmap.end()) {
+                hdiNew->emgmsg = tlvmap[TAG_EMGMSG];
+            }
+        } else {
+            WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");
         }
     }
-    WRITE_LOG(LOG_INFO, "handshake.version = %s", handshake.version.c_str());
     hdiNew->version = handshake.version;
     AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
     hSession->handshakeOK = true;

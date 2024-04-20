@@ -467,7 +467,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
     }
 }
 
-void HdcServer::UpdateHdiInfo(const Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey)
+void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey)
 {
     HDaemonInfo hdiOld = nullptr;
     AdminDaemonMap(OP_QUERY, connectKey, hdiOld);

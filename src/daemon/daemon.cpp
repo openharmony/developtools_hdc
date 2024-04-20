@@ -471,8 +471,8 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
     const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
     const unsigned char *tokenp = reinterpret_cast<const unsigned char *>(encryptToken.c_str());
     unsigned char tokenDecode[1024] = { 0 };
-    BIO *bio = NULL;
-    RSA *rsa = NULL;
+    BIO *bio = nullptr;
+    RSA *rsa = nullptr;
     bool verifyret = false;
 
     do {
@@ -483,7 +483,7 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
         }
 
         bio = BIO_new(BIO_s_mem());
-        if (bio == NULL) {
+        if (bio == nullptr) {
             WRITE_LOG(LOG_FATAL, "bio failed for session %u", hSession->sessionId);
             break;
         }
@@ -492,8 +492,8 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
             WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, hSession->sessionId);
             break;
         }
-        rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
-        if (rsa == NULL) {
+        rsa = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+        if (rsa == nullptr) {
             WRITE_LOG(LOG_FATAL, "rsa failed for session %u", hSession->sessionId);
             break;
         }
@@ -568,6 +568,31 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
     }
 }
 
+void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake &handshake)
+{
+    // daemon handshake 1st packet
+    uint32_t unOld = hSession->sessionId;
+    hSession->sessionId = handshake.sessionId;
+    hSession->connectKey = handshake.connectKey;
+    hSession->handshakeOK = false;
+    AdminSession(OP_UPDATE, unOld, hSession);
+#ifdef HDC_SUPPORT_UART
+    if (hSession->connType == CONN_SERIAL and clsUARTServ!= nullptr) {
+        WRITE_LOG(LOG_DEBUG, " HdcDaemon::DaemonSessionHandshake %s",
+                    handshake.ToDebugString().c_str());
+        if (clsUARTServ != nullptr) {
+            (static_cast<HdcDaemonUART *>(clsUARTServ))->OnNewHandshakeOK(hSession->sessionId);
+        }
+    } else
+#endif // HDC_SUPPORT_UART
+    if (clsUSBServ != nullptr) {
+        (reinterpret_cast<HdcDaemonUSB *>(clsUSBServ))->OnNewHandshakeOK(hSession->sessionId);
+    }
+
+    handshake.sessionId = 0;
+    handshake.connectKey = "";
+}
+
 bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize)
 {
     StartTraceScope("HdcDaemon::DaemonSessionHandshake");
@@ -586,27 +611,7 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
         return false;
     }
     if (handshake.authType == AUTH_NONE) {
-        // daemon handshake 1st packet
-        uint32_t unOld = hSession->sessionId;
-        hSession->sessionId = handshake.sessionId;
-        hSession->connectKey = handshake.connectKey;
-        hSession->handshakeOK = false;
-        AdminSession(OP_UPDATE, unOld, hSession);
-#ifdef HDC_SUPPORT_UART
-        if (hSession->connType == CONN_SERIAL and clsUARTServ!= nullptr) {
-            WRITE_LOG(LOG_DEBUG, " HdcDaemon::DaemonSessionHandshake %s",
-                      handshake.ToDebugString().c_str());
-            if (clsUARTServ != nullptr) {
-                (static_cast<HdcDaemonUART *>(clsUARTServ))->OnNewHandshakeOK(hSession->sessionId);
-            }
-        } else
-#endif // HDC_SUPPORT_UART
-        if (clsUSBServ != nullptr) {
-            (reinterpret_cast<HdcDaemonUSB *>(clsUSBServ))->OnNewHandshakeOK(hSession->sessionId);
-        }
-
-        handshake.sessionId = 0;
-        handshake.connectKey = "";
+        DaemonSessionHandshakeInit(hSession, handshake);
     }
     if (!HandDaemonAuth(hSession, channelId, handshake)) {
         WRITE_LOG(LOG_FATAL, "auth failed");

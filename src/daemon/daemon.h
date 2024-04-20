@@ -74,6 +74,7 @@ private:
     bool AlreadyInKnownHosts(const string& key);
     void UpdateKnownHosts(const string& key);
     void ClearInstanceResource() override;
+    void DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake &handshake);
     bool DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);
     void TryStopInstance();
     UserPermit PostUIConfirm(string hostname);

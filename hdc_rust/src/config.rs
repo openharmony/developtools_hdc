@@ -344,7 +344,7 @@ pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000100 is 3.0.0a
+// 0x30000000 is 3.0.0a
 const HDC_VERSION_NUMBER: u32 = 0x30000000;
 pub fn get_version() -> String {
     let major = (HDC_VERSION_NUMBER >> 28) & 0xff;

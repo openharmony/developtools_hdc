@@ -17,6 +17,17 @@
 #include "daemon_common.h"
 
 namespace Hdc {
+enum UserPermit {
+    REFUSE = 0,
+    ALLOWONCE = 1,
+    ALLOWFORVER = 2,
+};
+struct HdcDaemonAuthInfo {
+    HdcSessionBase::AuthType authtype;
+    string token;
+    string pubkey;
+    string authmsg;
+};
 class HdcDaemon : public HdcSessionBase {
 public:
 #ifdef USE_CONFIG_UV_THREADS
@@ -40,6 +51,7 @@ public:
                       const int payloadSize) override;
     bool ServerCommand(const uint32_t sessionId, const uint32_t channelId, const uint16_t command, uint8_t *bufPtr,
                        const int size) override;
+    void ClearKnownHosts();
     void *clsTCPServ;
     void *clsUSBServ;
 #ifdef HDC_EMULATOR
@@ -58,9 +70,17 @@ private:
     static bool CheckControl(const uint16_t command);
     static bool IsExpectedParam(const std::string& param, const std::string& expect);
     bool HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
+    bool GetHostPubkeyInfo(const string& buf, string& hostname, string& pubkey);
+    bool AlreadyInKnownHosts(const string& key);
+    void UpdateKnownHosts(const string& key);
     void ClearInstanceResource() override;
     bool DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);
     void TryStopInstance();
+    UserPermit PostUIConfirm(string hostname);
+    bool ShowPermitDialog();
+    bool HandDaemonAuthInit(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
+    bool HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
+    bool HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
 // deprecated, remove later
 #ifdef HDC_SUPPORT_FLASHD
 // null
@@ -68,6 +88,23 @@ private:
     void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear) override;
 #endif
 
+    void SendAuthSignMsg(SessionHandShake &handshake,
+            uint32_t channelId, uint32_t sessionid, string pubkey, string token);
+    void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
+    void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);
+    void EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
+    bool AuthVerify(HSession hSession, string encryptToken);
+    void InitSessionAuthInfo(uint32_t sessionid, string token);
+    void UpdateSessionAuthOk(uint32_t sessionid);
+    void UpdateSessionAuthmsg(uint32_t sessionid, string authmsg);
+    void UpdateSessionAuthPubkey(uint32_t sessionid, string pubkey);
+    void DeleteSessionAuthStatus(uint32_t sessionid);
+    AuthType GetSessionAuthStatus(uint32_t sessionid);
+    string GetSessionAuthmsg(uint32_t sessionid);
+    string GetSessionAuthToken(uint32_t sessionid);
+    string GetSessionAuthPubkey(uint32_t sessionid);
+    std::map<uint32_t, HdcDaemonAuthInfo> mapAuthStatus;
+    std::mutex mapAuthStatusMutex;
     bool enableSecure;
 };
 }  // namespace Hdc

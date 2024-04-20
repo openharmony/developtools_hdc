@@ -1765,6 +1765,7 @@ namespace Base {
         return TEMP_FAILURE_RETRY(write(fd, buf, count));
 #endif
     }
+
     void TrimSubString(string &str, string substr)
     {
         std::string::size_type pos = 0;

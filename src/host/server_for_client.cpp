@@ -819,7 +819,13 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
-
+    HDaemonInfo hdi = nullptr;
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
+    if (hdi && !hdi->emgmsg.empty()) {
+        EchoClient(hChannel, MSG_FAIL, hdi->emgmsg.c_str());
+        return ERR_GENERIC;
+    }
     uint16_t command = *reinterpret_cast<uint16_t *>(bufPtr);
     if (command != 0 && (hChannel->remote > RemoteType::REMOTE_NONE)) {
         // server directly passthrough file command to daemon

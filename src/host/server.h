@@ -57,6 +57,7 @@ private:
     void BuildForwardVisableLine(HDaemonInfo hdi, char *out, int sizeOutBuf);
     bool HandServerAuth(HSession hSession, SessionHandShake &handshake);
     string GetDaemonMapList(uint8_t opType);
+    void UpdateHdiInfo(const Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey);
     bool ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize);
     void GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut);
     void TryStopInstance();

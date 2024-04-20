@@ -31,7 +31,7 @@ public:
         string connectKey;
         string buf;
         string version;
-        std::string ToDebugString()
+        const std::string ToDebugString()
         {
             std::ostringstream oss;
             oss << "SessionHandShake [";

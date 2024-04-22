@@ -19,7 +19,7 @@ namespace Hdc {
 namespace TranslateCommand {
     string Usage()
     {
-        string ret;
+        string ret = "";
         ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
               "---------------------------------global commands:----------------------------------\n"
               " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"

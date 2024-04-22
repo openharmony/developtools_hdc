@@ -193,7 +193,7 @@ void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload
 
 // HdcServerForClient passthrough file command to client
 void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint16_t commandFlag,
-                                      uint8_t *payload, const int payloadSize)
+                                             uint8_t *payload, const int payloadSize)
 {
     SendChannelWithCmd(hChannel, commandFlag, payload, payloadSize);
 }

@@ -27,7 +27,6 @@ mod unittest;
 use std::io::ErrorKind;
 
 use hdc::config;
-use hdc::utils::hdc_log::*;
 
 #[macro_use]
 extern crate lazy_static;

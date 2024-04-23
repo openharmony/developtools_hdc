@@ -16,7 +16,6 @@
 #![allow(missing_docs)]
 
 use std::collections::VecDeque;
-
 use crate::common::base::Base;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
@@ -25,6 +24,7 @@ use crate::serializer::native_struct::TransferConfig;
 use crate::serializer::native_struct::TransferPayload;
 use crate::serializer::serialize::Serialization;
 use crate::transfer;
+#[cfg(not(feature = "host"))]
 use crate::utils::hdc_log::*;
 use std::fs::metadata;
 use std::fs::OpenOptions;

@@ -17,6 +17,7 @@
 
 #include <string>
 #include <securec.h>
+#include <cstdint>
 
 namespace Hdc {
 struct SerializedBuffer {

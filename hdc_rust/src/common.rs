@@ -16,11 +16,14 @@
 
 pub mod base;
 pub mod filemanager;
+#[cfg(not(feature = "host"))]
 pub mod forward;
 pub mod hdcfile;
 pub mod hdctransfer;
+#[cfg(not(feature = "host"))]
 pub mod jdwp;
 pub mod sendmsg;
 pub mod taskbase;
+#[cfg(not(feature = "host"))]
 pub mod uds;
 pub mod unittest;

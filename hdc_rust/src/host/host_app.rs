@@ -118,7 +118,8 @@ impl HostAppTask {
                 let str = local_path.as_str();
                 config.optional_name.push_str(&str[index..]);
             }
-            if config.hold_timestamp {}
+            // to be confirm
+            // if config.hold_timestamp {}
             config.path = self.transfer.remote_path.clone();
         } else {
             println!("other command {:#?}", error_msg);

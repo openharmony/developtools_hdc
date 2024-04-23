@@ -182,6 +182,7 @@ fn spawn_handler(
     let thread_path_ref = Arc::new(Mutex::new(local_path));
     let pos = (index * FILE_PACKAGE_PAYLOAD_SIZE) as u64;
     let compress_type = transfer_config.compress_type;
+    let file_size = transfer_config.file_size as usize;
     ylong_runtime::spawn(async move {
         let path = thread_path_ref.lock().await;
         let mut file = File::open(&*path).unwrap();
@@ -189,7 +190,15 @@ fn spawn_handler(
         let mut total = Vec::from([0; FILE_PACKAGE_HEAD]);
         let mut buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
         let mut data_buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
-        let read_len = file.read(&mut buf[..]).unwrap();
+        let mut read_len = 0usize;
+        let mut package_read_len = file_size - pos as usize;
+        if package_read_len > FILE_PACKAGE_PAYLOAD_SIZE {
+            package_read_len = FILE_PACKAGE_PAYLOAD_SIZE;
+        }
+        while read_len < package_read_len {
+            let single_len = file.read(&mut buf[read_len..]).unwrap();
+            read_len += single_len;
+        }
         let transfer_compress_type = match CompressType::try_from(compress_type) {
             Ok(compress_type) => compress_type,
             Err(_) => CompressType::None,
@@ -358,13 +367,22 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     let path = tbase.local_path.clone();
     let write_buf = buffer.clone();
     ylong_runtime::spawn(async move {
-        let mut file = OpenOptions::new()
+        let open_result = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(path)
-            .unwrap();
-        let _ = file.seek(std::io::SeekFrom::Start(file_index));
-        file.write_all(write_buf.as_slice()).unwrap();
+            .open(path.clone());
+        match open_result {
+            Ok(mut file) => {
+                let _ = file.seek(std::io::SeekFrom::Start(file_index));
+                let write_result = file.write_all(write_buf.as_slice());
+                if write_result.is_err() {
+                    crate::warn!("write_all error:{:#?}", write_result);
+                }
+            }
+            Err(e) => {
+                crate::warn!("open path:{}, error:{:#?}", path, e);
+            }
+        }
     });
 
     tbase.index += buffer.len() as u64;

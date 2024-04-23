@@ -45,6 +45,7 @@ private:
     bool CheckAutoFillTarget(HChannel hChannel);
     bool CommandRemoveSession(HChannel hChannel, const char *connectKey);
     bool CommandRemoveForward(const string &forwardKey);
+    bool RemoveFportkey(const string &forwardKey);
     bool DoCommandLocal(HChannel hChannel, void *formatCommandInput);
     bool DoCommandRemote(HChannel hChannel, void *formatCommandInput);
     void GetTargetList(HChannel hChannel, void *formatCommandInput);

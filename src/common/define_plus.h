@@ -528,6 +528,7 @@ struct HdcDaemonInformation {
     std::string devName;
     HSession hSession;
     std::string version;
+    std::string emgmsg;
 };
 using HDaemonInfo = struct HdcDaemonInformation *;
 

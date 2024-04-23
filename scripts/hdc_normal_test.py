@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # 运行环境: python 3.10+, pytest, pytest-repeat, pytest-testreport
-# 准备文件1：entry-default-signed-debug.hap
-# 准备文件2：panalyticshsp-default-signed.hsp
+# 准备文件：package.zip
 # pip install pytest pytest-testreport pytest-repeat
 # python hdc_normal_test.py
 
@@ -26,9 +25,9 @@ import os
 import pytest
 
 from dev_hdc_test import GP
-from dev_hdc_test import check_library_installation
+from dev_hdc_test import check_library_installation, check_hdc_version
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
-from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source
+from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 
 
 def test_list_targets():
@@ -45,6 +44,12 @@ def test_empty_file():
 def test_small_file():
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_medium_file():
+    assert check_hdc_cmd(f"file send {get_local_path('medium')} {get_remote_path('it_medium')}")
+    assert check_hdc_cmd(f"file recv {get_remote_path('it_medium')} {get_local_path('medium_recv')}")
 
 
 @pytest.mark.repeat(1)
@@ -77,17 +82,21 @@ def test_server_kill():
 
 
 def test_target_cmd():
+    assert check_hdc_targets()    
+    time.sleep(3)
     check_hdc_cmd("target boot")
-    time.sleep(40) # reboot needs at least 40 seconds
+    time.sleep(60) # reboot needs at least 60 seconds
     assert (check_hdc_cmd("target mount", "Mount finish") or
-            check_hdc_cmd("target mount", "[Fail]Operate need running as root"))
+            check_hdc_cmd("target mount", "[Fail]Operate need running as root") or
+            check_hdc_cmd("target mount", "Remount successful.")
+            )
 
 
 def test_version_cmd():
     version = "Ver: 2.0.0a"
-    assert check_hdc_cmd("-v", version)
-    assert check_hdc_cmd("version", version)
-    assert check_hdc_cmd("checkserver", version)
+    assert check_hdc_version("-v", version)
+    assert check_hdc_version("version", version)
+    assert check_hdc_version("checkserver", version)
 
 
 def test_fport_cmd():
@@ -132,6 +141,7 @@ def run_main():
         exit(1)
 
     GP.init()
+
     if not os.path.exists(GP.local_path):
         prepare_source()
 
@@ -139,26 +149,13 @@ def run_main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--count', type=int, default=1,
                         help='test times')
-    parser.add_argument('--verbose', '-v', default='hdc_normal_test.py',
+    parser.add_argument('--verbose', '-v', default=__file__,
                         help='filename')
     parser.add_argument('--desc', '-d', default='Test for function.',
-                        help='Add description on report')    
+                        help='Add description on report')
     args = parser.parse_args()
     
-    for i in range(args.count):
-        print(f"------------The {i}/{args.count} Test-------------")
-        timestamp = time.time()
-        pytest_args = [
-            '--verbose', args.verbose,
-            '--report=report.html',
-            '--title=test_report',
-            '--tester=tester001',
-            '--template=1',
-            '--desc='f"{args.verbose}:{args.desc}"
-        ]
-        pytest.main(pytest_args)
-
-    input("test over, press Enter key to continue")
+    pytest_run(args)
 
 
 if __name__ == "__main__":

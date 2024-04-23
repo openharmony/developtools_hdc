@@ -476,8 +476,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
 
     if (r) {
         vector<string> dirsOflocalPath;
-        char sep = Base::GetPathSep();
-        string split(&sep, 0, 1);
+        string split(1, Base::GetPathSep());
         Base::SplitString(localPath, split, dirsOflocalPath);
 
         WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu", localPath.c_str(), dirsOflocalPath.size());

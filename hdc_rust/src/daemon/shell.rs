@@ -17,7 +17,7 @@
 
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP};
+use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP, MessageLevel};
 use hdc::transfer;
 
 use std::collections::HashMap;
@@ -241,14 +241,16 @@ fn init_pty_process(cmd: Option<String>, channel_id: u32) -> io::Result<PtyProce
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
             cmd = cmd.trim().to_string();
-            cmd = match cmd.strip_prefix('"') {
-                Some(cmd_res) => cmd_res.to_string(),
-                None => cmd,
-            };
-            cmd = match cmd.strip_suffix('"') {
-                Some(cmd_res) => cmd_res.to_string(),
-                None => cmd,
-            };
+            if cmd.starts_with('"') && cmd.ends_with('"') {
+                cmd = match cmd.strip_prefix('"') {
+                    Some(cmd_res) => cmd_res.to_string(),
+                    None => cmd,
+                };
+                cmd = match cmd.strip_suffix('"') {
+                    Some(cmd_res) => cmd_res.to_string(),
+                    None => cmd,
+                };
+            }
             nohup_flag = cmd.ends_with('&');
             let params = ["-c", cmd.as_str()].to_vec();
             let mut proc = Command::new(SHELL_PROG);
@@ -270,7 +272,22 @@ async fn subprocess_task(
 ) {
     let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
         Err(e) => {
-            panic!("execute cmd [{cmd:?}] fail: {e:?}");
+            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
+            hdc::common::hdctransfer::echo_client(
+                session_id,
+                channel_id,
+                "execute cmd fail".as_bytes().to_vec(),
+                MessageLevel::Fail
+            )
+            .await;            
+            let task_message = TaskMessage {
+                channel_id,
+                command: HdcCommand::KernelChannelClose,
+                payload: [1].to_vec(),
+            };
+            transfer::put(session_id, task_message).await;
+            hdc::error!("{}", msg);
+            panic!("{}", msg);
         },
         Ok(pty) => pty
     };

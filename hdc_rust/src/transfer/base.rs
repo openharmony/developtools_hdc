@@ -93,7 +93,8 @@ pub async fn unpack_task_message_lock(
                 return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
             }
 
-            let (protect, payload) = body.split_at(expected_head_size);
+            let (protect, payload_raw) = body.split_at(expected_head_size);
+            let (payload, _) = payload_raw.split_at(expected_data_size);
 
             let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
             let channel_id = payload_protect.channel_id;
@@ -191,7 +192,8 @@ pub fn unpack_task_message(
             return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
         }
 
-        let (protect, payload) = body.split_at(expected_head_size);
+        let (protect, payload_raw) = body.split_at(expected_head_size);
+        let (payload, _) = payload_raw.split_at(expected_data_size);
 
         let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
         let channel_id = payload_protect.channel_id;

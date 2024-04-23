@@ -128,7 +128,7 @@ int BackgroundRun()
 
 string DaemonUsage()
 {
-    string ret;
+    string ret = "";
     ret = "\n                         Harmony device connector daemon(HDCD) Usage: hdcd [options]...\n\n"
           "\n"
           "general options:\n"

@@ -32,7 +32,7 @@ class HdcServer;
 
 class HdcHostUART : public HdcUARTBase {
 public:
-    explicit HdcHostUART(HdcServer &, ExternInterface & = HdcUARTBase::defaultInterface);
+    explicit HdcHostUART(HdcServer&, ExternInterface& = HdcUARTBase::defaultInterface);
     ~HdcHostUART();
     int Initial();
     virtual void Stop();

@@ -598,7 +598,7 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
-    if (r == 0 && req.statbuf.st_mode & S_IFDIR) {  // is dir
+    if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
         localPath = Base::StringFormat("%s%c%s", localPath.c_str(), Base::GetPathSep(), optName);
     }
     return false;

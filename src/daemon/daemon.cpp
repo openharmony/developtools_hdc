@@ -294,14 +294,14 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname)
         return REFUSE;
     }
 
-    string auth_result;
-    if (!SystemDepend::GetDevItem("persist.hdc.daemon.auth_result", auth_result)) {
-        WRITE_LOG(LOG_FATAL, "user refuse [%s] this developer [%s]", auth_result.c_str(), hostname.c_str());
+    string authResult;
+    if (!SystemDepend::GetDevItem("persist.hdc.daemon.auth_result", authResult)) {
+        WRITE_LOG(LOG_FATAL, "user refuse [%s] this developer [%s]", authResult.c_str(), hostname.c_str());
         return REFUSE;
     }
-    WRITE_LOG(LOG_FATAL, "user permit_result [%s] for this developer [%s]", auth_result.c_str(), hostname.c_str());
+    WRITE_LOG(LOG_FATAL, "user permit_result [%s] for this developer [%s]", authResult.c_str(), hostname.c_str());
     string prifix = "auth_result:";
-    string result = auth_result.substr(prifix.length());
+    string result = authResult.substr(prifix.length());
     if (result == "1") {
         return ALLOWONCE;
     }
@@ -518,7 +518,7 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
     return true;
 }
 
-bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channelid, SessionHandShake &handshake)
+bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     // When Host is first connected to the device, the signature authentication is inevitable, and the
     // certificate verification must be triggered.
@@ -530,12 +530,12 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     if (!AuthVerify(hSession, handshake.buf)) {
         WRITE_LOG(LOG_FATAL, "auth failed for %u", hSession->sessionId);
         // Next auth
-        EchoHandshakeMsg(handshake, channelid, hSession->sessionId, "Auth failed, cannt login the device.");
+        EchoHandshakeMsg(handshake, channelId, hSession->sessionId, "Auth failed, cannt login the device.");
         return false;
     }
 
     UpdateSessionAuthOk(hSession->sessionId);
-    SendAuthOkMsg(handshake, channelid, hSession->sessionId, "");
+    SendAuthOkMsg(handshake, channelId, hSession->sessionId, "");
     return true;
 }
 

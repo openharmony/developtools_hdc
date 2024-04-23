@@ -213,7 +213,7 @@ void *HdcShell::ShellFork(void *arg)
     const char *arg1 = params.arg1Param;
     int ptmParam = params.ptmParam;
     char *devParam = params.devParam;
-    pid_t pid;
+    pid_t pid = 0;
     pid = fork();
     if (pid < 0) {
         constexpr int bufSize = 1024;

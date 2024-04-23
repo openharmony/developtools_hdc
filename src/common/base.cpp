@@ -1386,6 +1386,9 @@ namespace Base {
     const string StringFormat(const char * const formater, va_list &vaArgs)
     {
         std::vector<char> args(GetMaxBufSize());
+        if (args.size() <= 0) {
+            return std::string("");
+        }
         const int retSize = vsnprintf_s(args.data(), GetMaxBufSize(), args.size() - 1, formater, vaArgs);
         if (retSize < 0) {
             return std::string("");
@@ -1595,7 +1598,7 @@ namespace Base {
             WRITE_LOG(LOG_FATAL, "get path failed: %s", buf);
             return res;
         }
-        if (strlen(path) >= PATH_MAX - 1) {
+        if (strlen(path) < 1 || strlen(path) >= PATH_MAX - 1) {
             WRITE_LOG(LOG_FATAL, "get path failed: buffer space max");
             return res;
         }

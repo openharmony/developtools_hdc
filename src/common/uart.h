@@ -159,7 +159,7 @@ class HdcSessionBase;
 class HdcUARTBase {
 public:
     static ExternInterface defaultInterface;
-    HdcUARTBase(HdcSessionBase &, ExternInterface & = defaultInterface);
+    HdcUARTBase(HdcSessionBase&, ExternInterface& = defaultInterface);
     virtual ~HdcUARTBase();
     bool ReadyForWorkThread(HSession hSession);
     int SendUARTData(HSession hSession, uint8_t *data, const size_t length);

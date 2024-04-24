@@ -411,7 +411,8 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
         FreeContext(ctx, 0, true);
         return false;
     };
-    ctxPoint->fdClass = new(std::nothrow) HdcFileDescriptor(loopTask, ctxPoint->fd, ctxPoint, funcRead, funcFinish);
+    ctxPoint->fdClass = new(std::nothrow) HdcFileDescriptor(loopTask, ctxPoint->fd, ctxPoint, funcRead,
+                                                            funcFinish, true);
     if (ctxPoint->fdClass == nullptr) {
         WRITE_LOG(LOG_FATAL, "SetupDevicePoint new ctxPoint->fdClass failed");
         return false;

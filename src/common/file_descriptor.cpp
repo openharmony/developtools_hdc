@@ -21,7 +21,8 @@ namespace Hdc {
 static const int SECONDS_TIMEOUT = 5;
 
 HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *callerContextIn,
-                                     CallBackWhenRead callbackReadIn, CmdResultCallback callbackFinishIn)
+                                     CallBackWhenRead callbackReadIn, CmdResultCallback callbackFinishIn,
+                                     bool interactiveShell)
 {
     loop = loopIn;
     workContinue = true;
@@ -29,17 +30,20 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     callbackRead = callbackReadIn;
     fdIO = fdToRead;
     refIO = 0;
+    isInteractive = interactiveShell;
     callerContext = callerContextIn;
-    std::thread(IOWriteThread, this).detach();
+    if (isInteractive) {
+        std::thread(IOWriteThread, this).detach();
+    }
 }
 
 HdcFileDescriptor::~HdcFileDescriptor()
 {
     workContinue = false;
-    NotifyWrite();
-#ifdef HDC_EMULATOR
-    uv_sleep(MILL_SECONDS);
-#endif
+    if (isInteractive) {
+        NotifyWrite();
+        uv_sleep(MILL_SECONDS);
+    }
 }
 
 bool HdcFileDescriptor::ReadyForRelease()

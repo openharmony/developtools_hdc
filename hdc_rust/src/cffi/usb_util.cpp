@@ -17,10 +17,10 @@
 #include "usb_util.h"
 #include "log.h"
 
-using namespace Hdc;
 #ifdef HOST_MINGW
 #include <windows.h>
 #endif
+using namespace Hdc;
 constexpr auto USB_FFS_BASE = "/dev/usb-ffs/";
 
 std::string GetDevPath(const std::string &path)

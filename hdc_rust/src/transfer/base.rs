@@ -15,6 +15,8 @@
 //! base
 #![allow(missing_docs)]
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::mpsc::BoundedSender;
 
 use crate::config::TaskMessage;

@@ -28,6 +28,8 @@ use std::path::Path;
 
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::SplitReadHalf;
 
 pub async fn handshake_with_daemon(

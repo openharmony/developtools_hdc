@@ -23,6 +23,8 @@ use libc::{POLLERR, POLLHUP, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
 use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::waiter::Waiter;
 use ylong_runtime::sync::Mutex;
 

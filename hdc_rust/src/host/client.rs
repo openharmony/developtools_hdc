@@ -25,6 +25,8 @@ use std::io::{self, Error, ErrorKind, Write};
 #[cfg(not(target_os = "windows"))]
 use std::os::fd::AsRawFd;
 
+#[cfg(featrue = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 #[cfg(not(target_os = "windows"))]
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;

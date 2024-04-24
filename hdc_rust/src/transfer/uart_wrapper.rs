@@ -24,6 +24,8 @@ use crate::serializer::{self, UART_HEAD_SIZE};
 use crate::utils::hdc_log::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::waiter::Waiter;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;

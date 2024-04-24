@@ -32,6 +32,9 @@ use crate::utils::hdc_log::*;
 use std::ffi::CString;
 use std::io::{self, Error, ErrorKind};
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
+
 #[allow(unused)]
 extern "C" {
     fn access(_name: *const libc::c_char, _type: i32) -> i32;

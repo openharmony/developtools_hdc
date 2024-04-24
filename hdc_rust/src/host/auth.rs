@@ -29,8 +29,6 @@ use std::path::Path;
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::net::SplitReadHalf;
-use hilog_rust::hilog;
-use hdc::utils::hdc_log::*;
 
 pub async fn handshake_with_daemon(
     connect_key: String,

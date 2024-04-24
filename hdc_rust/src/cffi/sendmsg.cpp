@@ -24,7 +24,7 @@
 
 namespace Hdc {
 
-extern "C" int SendMsg(int socket_fd, int fd, char* data, int size)
+extern "C" int SendMsg(int socketFd, int fd, char* data, int size)
 {
     constexpr int memcpyError = -2;
     constexpr int cmsgNullptrError = -5;
@@ -55,7 +55,7 @@ extern "C" int SendMsg(int socket_fd, int fd, char* data, int size)
         WRITE_LOG(LOG_WARN, "SendFdToApp memcpy_s error:%d\n", errno);
         return memcpyError;
     }
-    if ((result = sendmsg(socket_fd, &msg, 0)) < 0) {
+    if ((result = sendmsg(socketFd, &msg, 0)) < 0) {
         WRITE_LOG(LOG_WARN, "SendFdToApp sendmsg errno:%d, result:%d\n", errno, result);
         return result;
     }

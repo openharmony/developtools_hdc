@@ -1218,7 +1218,7 @@ namespace SerialStruct {
 
         size_t Read(void *bytes, size_t size) override
         {
-            size_t readSize = std::min(size, _in.size() - _pos);
+            size_t readSize = std::min(size, _in.size() - _pos > 0 ? _in.size() - _pos : 0);
             if (memcpy_s(bytes, size, _in.data() + _pos, readSize) != EOK) {
                 return readSize;
             }

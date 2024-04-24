@@ -17,7 +17,11 @@
 #include "usb_util.h"
 #include "log.h"
 
-using namespace Hdc;
+#ifdef HOST_MINGW
+#include <windows.h>
+#endif
+constexpr auto USB_FFS_BASE = "/dev/usb-ffs/";
+
 std::string GetDevPath(const std::string &path)
 {
     DIR *dir = ::opendir(path.c_str());
@@ -26,7 +30,7 @@ std::string GetDevPath(const std::string &path)
         return "";
     }
 
-    std::string res = Hdc::USB_FFS_BASE;
+    std::string res = USB_FFS_BASE;
     std::string node;
     int count = 0;
     struct dirent *entry = nullptr;

@@ -436,7 +436,7 @@ void LoadDaemonKey(list<void *> *listPublicKey)
 #ifdef HDC_PCDEBUG
     char keyPaths[][BUF_SIZE_SMALL] = { "/root/.harmony/hdckey.pub" };
 #else
-    char keyPaths[][BUF_SIZE_SMALL] = { "/hdc_keys", "/data/misc/hdc/hdc_keys" };
+    char keyPaths[][BUF_SIZE_SMALL] = { "/data/service/el0/hdc/hdc_keys" };
 #endif
     int num = sizeof(keyPaths) / sizeof(keyPaths[0]);
     struct stat buf;

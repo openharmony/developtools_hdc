@@ -15,13 +15,13 @@
 #ifndef USB_TYPES_H
 #define USB_TYPES_H
 
-#include "usb_ffs.h"
+#include <cstdint>
 
 struct USBHead {
     uint8_t flag[2];
     uint8_t option;
     uint32_t sessionId;
-    uint32_t data_size;
+    uint32_t dataSize;
 };
 
 struct HdcUSB {

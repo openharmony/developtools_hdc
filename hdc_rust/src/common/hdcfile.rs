@@ -114,7 +114,8 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
         {
             file_task.transfer.transfer_config.compress_type = CompressType::Lz4 as u8;
         }
-        if file_task.transfer.transfer_config.hold_timestamp {}
+        // to be confirm
+        // if file_task.transfer.transfer_config.hold_timestamp {}
         file_task.transfer.transfer_config.path = file_task.transfer.remote_path.clone();
         return true;
     } else {

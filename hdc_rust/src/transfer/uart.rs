@@ -28,6 +28,7 @@ use crate::utils;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 
+#[cfg(not(target_os = "windows"))]
 use std::ffi::CString;
 use std::io::{self, Error, ErrorKind};
 
@@ -36,7 +37,9 @@ extern "C" {
     fn access(_name: *const libc::c_char, _type: i32) -> i32;
     fn free(ptr: *const libc::c_void);
 
+    #[cfg(not(target_os = "windows"))]
     fn GetUartSpeedExt(speed: i32) -> i32;
+    #[cfg(not(target_os = "windows"))]
     fn GetUartBitsExt(bits: i32) -> i32;
     fn OpenSerialPortExt(port: *const libc::c_char) -> i32;
     fn SetSerialExt(fd: i32, speed: i32, bits: i32, event: u8, stop: i32) -> i32;
@@ -45,6 +48,7 @@ extern "C" {
     fn CloseSerialPortExt(fd: i32) -> u8;
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn uart_init() -> io::Result<i32> {
     let name = CString::new(config::UART_NODE).unwrap();
     let fd = unsafe {
@@ -71,10 +75,13 @@ pub fn uart_init() -> io::Result<i32> {
     Ok(fd)
 }
 
-pub fn uart_close(fd: i32) {
+pub fn uart_close(_fd: i32) {
+    #[cfg(not(target_os = "windows"))]
     unsafe {
-        CloseSerialPortExt(fd);
+        CloseSerialPortExt(_fd);
     }
+    #[cfg(target_os = "windows")]
+    return {};
 }
 
 pub struct UartReader {

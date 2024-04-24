@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "ext_client.h"
 #include <iostream>
 #include "server.h"
 #include "server_for_client.h"
@@ -22,9 +23,6 @@
 using namespace HdcTest;
 #endif
 
-#include "server.h"
-#include "server_for_client.h"
-#include "ext_client.h"
 using namespace Hdc;
 
 namespace {

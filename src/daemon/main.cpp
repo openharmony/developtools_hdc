@@ -55,7 +55,7 @@ bool ForkChildCheck(int argc, const char *argv[])
         WRITE_LOG(LOG_DEBUG, "Property enable TCP");
         g_enableTcp = true;
 #ifdef HDC_EMULATOR
-    } else if (workMode == CMDSTR_TMODE_BRIDGE) {
+    } else if (workMode == CMDSTR_TMODE_BRIDGE || workMode.empty()) {
         WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
         g_enableBridge = true;
 #endif

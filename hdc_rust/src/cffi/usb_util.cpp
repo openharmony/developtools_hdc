@@ -17,6 +17,7 @@
 #include "usb_util.h"
 #include "log.h"
 
+using namespace Hdc;
 #ifdef HOST_MINGW
 #include <windows.h>
 #endif

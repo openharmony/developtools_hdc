@@ -156,16 +156,17 @@ async fn make_sign_message(session_id: u32, token: String, channel_id: u32) -> T
 async fn make_ok_message(session_id: u32, channel_id: u32) -> TaskMessage {
     AuthStatusMap::put(session_id, AuthStatus::Ok).await;
 
+    let devname = String::from("devname         9               localhost");
+    let authret = String::from("daemonauthstatus7               SUCCESS");
+    let succmsg = format!("{}{}", devname, authret);
+
     let send = native_struct::SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
         session_id,
         connect_key: "".to_string(),
         auth_type: AuthType::OK as u8,
         version: get_version(),
-        buf: match nix::unistd::gethostname() {
-            Ok(hostname) => hostname.into_string().unwrap(),
-            Err(_) => String::from("unknown"),
-        },
+        buf: succmsg,
     };
     TaskMessage {
         channel_id,

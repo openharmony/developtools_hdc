@@ -240,10 +240,11 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
                                  devname.c_str());
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
-            out = Base::StringFormat("%s\n", hdi->connectKey.c_str());
+            out = Base::StringFormat("%s", hdi->connectKey.c_str());
             if (hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
                 out.append("        unauthorized");
             }
+            out.append("\n");
         }
     }
 }
@@ -467,12 +468,15 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
         if (Base::TlvToStringMap(handshake.buf, tlvmap)) {
             if (tlvmap.find(TAG_DEVNAME) != tlvmap.end()) {
                 hdiNew->devName = tlvmap[TAG_DEVNAME];
+                WRITE_LOG(LOG_INFO, "devname = %s", hdiNew->devName.c_str());
             }
             if (tlvmap.find(TAG_EMGMSG) != tlvmap.end()) {
                 hdiNew->emgmsg = tlvmap[TAG_EMGMSG];
+                WRITE_LOG(LOG_INFO, "emgmsg = %s", hdiNew->emgmsg.c_str());
             }
             if (tlvmap.find(TAG_DAEOMN_AUTHSTATUS) != tlvmap.end()) {
                 hdiNew->daemonAuthStatus = tlvmap[TAG_DAEOMN_AUTHSTATUS];
+                WRITE_LOG(LOG_INFO, "daemonauthstatus = %s", hdiNew->daemonAuthStatus.c_str());
             }
         } else {
             WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");

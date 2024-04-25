@@ -70,6 +70,11 @@ void HostUsb::Stop()
     timer->Stop();
     libusb_exit((libusb_context *)ctxUSB);
     running = false;
+
+    if (g_bufRet != nullptr) {
+        delete[] g_bufRet;
+        g_bufRet = nullptr;
+    }
 }
 
 // Main thread USB operates in this thread

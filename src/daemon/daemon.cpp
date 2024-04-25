@@ -537,7 +537,7 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     }
 
     UpdateSessionAuthOk(hSession->sessionId);
-    SendAuthOkMsg(handshake, channelId, hSession->sessionId, "");
+    SendAuthOkMsg(handshake, channelId, hSession->sessionId);
     return true;
 }
 
@@ -554,12 +554,12 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
     if (!enableSecure) {
         WRITE_LOG(LOG_INFO, "not enable secure, allow access for %u", hSession->sessionId);
         UpdateSessionAuthOk(hSession->sessionId);
-        SendAuthOkMsg(handshake, channelId, hSession->sessionId, "");
+        SendAuthOkMsg(handshake, channelId, hSession->sessionId);
         return true;
     } else if (HandDaemonAuthBypass()) {
         WRITE_LOG(LOG_INFO, "auth bypass, allow access for %u", hSession->sessionId);
         UpdateSessionAuthOk(hSession->sessionId);
-        SendAuthOkMsg(handshake, channelId, hSession->sessionId, "");
+        SendAuthOkMsg(handshake, channelId, hSession->sessionId);
         return true;
     } else if (handshake.version < "Ver: 3.0.0b") {
         WRITE_LOG(LOG_INFO, "session %u client version %s is too low %u authType %d",
@@ -931,7 +931,8 @@ string HdcDaemon::GetSessionAuthmsg(uint32_t sessionid)
 
     return info.authmsg;
 }
-void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg)
+void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
+                              uint32_t sessionid, string msg, string daemonAuthResult)
 {
     char hostname[BUF_SIZE_MEDIUM] = { 0 };
     if (gethostname(hostname, BUF_SIZE_MEDIUM) != 0) {
@@ -946,7 +947,7 @@ void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid, u
         string emgmsg;
         Base::TlvAppend(emgmsg, TAG_EMGMSG, msg);
         Base::TlvAppend(emgmsg, TAG_DEVNAME, hostname);
-        Base::TlvAppend(emgmsg, TAG_DAEOMN_AUTHSTATUS, DAEOMN_AUTH_SUCCESS);
+        Base::TlvAppend(emgmsg, TAG_DAEOMN_AUTHSTATUS, daemonAuthResult);
         handshake.buf = emgmsg;
     }
 
@@ -969,7 +970,7 @@ void HdcDaemon::SendAuthSignMsg(SessionHandShake &handshake,
 }
 void HdcDaemon::EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg)
 {
-    SendAuthOkMsg(handshake, channelid, sessionid, msg);
+    SendAuthOkMsg(handshake, channelid, sessionid, msg, DAEOMN_UNAUTHORIZED);
     LogMsg(sessionid, channelid, MSG_FAIL, msg.c_str());
     UpdateSessionAuthmsg(sessionid, msg);
 }

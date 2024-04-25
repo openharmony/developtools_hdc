@@ -183,6 +183,7 @@ namespace Base {
     int WriteToFd(int fd, const void *buf, size_t count);
 
     #define DAEOMN_AUTH_SUCCESS "SUCCESS"
+    #define DAEOMN_UNAUTHORIZED "DAEMON_UNAUTH"
 
     #define TLV_TAG_LEN 16
     #define TLV_VAL_LEN 16

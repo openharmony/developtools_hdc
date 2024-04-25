@@ -91,7 +91,7 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output = utils::execute_cmd("ps -ef | grep hdc | awk '{{print $2}}'".to_owned());
+        let output = utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned());
         let output_str = String::from_utf8_lossy(&output);
         for pid in output_str.split_whitespace() {
             pids.push(u32::from_str(pid).unwrap());

@@ -14,6 +14,7 @@
  */
 //! daemon
 
+extern crate panic_handler;
 mod auth;
 mod daemon_app;
 mod daemon_unity;
@@ -46,6 +47,7 @@ use ylong_runtime::net::{TcpListener, TcpStream};
 use ylong_runtime::sync::mpsc;
 use std::ffi::c_int;
 use crate::sys_para::{*};
+use crate::auth::clear_auth_pub_key_file;
 
 extern "C" {
     fn NeedDropRootPrivileges()-> c_int;
@@ -393,8 +395,9 @@ fn get_tcp_port() -> u16 {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    panic_handler::init();
     if args.len() == 2 && args[1] == "-v" {
-        println!("Ver 2.0.0a");
+        println!("{}", config::get_version());
         return;
     }
     logger_init(get_logger_lv());
@@ -406,6 +409,7 @@ fn main() {
         .build_global();
 
     need_drop_root_privileges();
+    clear_auth_pub_key_file();
 
     ylong_runtime::block_on(async {
         let tcp_task = ylong_runtime::spawn(async {

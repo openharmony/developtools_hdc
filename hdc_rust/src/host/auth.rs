@@ -30,8 +30,6 @@ use std::path::Path;
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 use ylong_runtime::net::SplitReadHalf;
-use hilog_rust::hilog;
-use hdc::utils::hdc_log::*;
 
 pub async fn usb_handshake_with_daemon(
     ptr: u64,

@@ -40,10 +40,10 @@ bool SetDevItem(const char *key, const char *value)
 bool GetDevItem(const char *key, std::string &out, const char *preDefine)
 {
     bool ret = true;
-    constexpr uint16_t param_len = 512;
-    char tmpStringBuf[param_len] = "";
+    constexpr uint16_t paramLen = 512;
+    char tmpStringBuf[paramLen] = "";
 
-    auto res = GetParameter(key, preDefine, tmpStringBuf, param_len);
+    auto res = GetParameter(key, preDefine, tmpStringBuf, paramLen);
     if (res <= 0) {
         return false;
     }

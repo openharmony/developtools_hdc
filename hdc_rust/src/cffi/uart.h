@@ -37,7 +37,6 @@
 #include "windows.h"
 #include <setupapi.h>
 #include <winnt.h>
-#include <termios.h>
 #else
 #include <fcntl.h> // open close
 #include <pthread.h>

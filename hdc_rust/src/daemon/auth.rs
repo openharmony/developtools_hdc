@@ -92,7 +92,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         recv.version.as_str(),
         recv.session_id
     );
-    if recv.version.as_str() < "Ver: 2.0.0" {
+    if recv.version.as_str() < "Ver: 3.0.0b" {
         hdc::info!(
             "client version({}) is too low, return OK for session:{}",
             recv.version.as_str(),
@@ -103,7 +103,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
             make_ok_message(recv.session_id, task_message.channel_id).await,
         ));
     }
-    if !is_auth_enable().await {
+    if !is_auth_enable() {
         hdc::info!(
             "auth enable is false, return OK for session:{}",
             recv.session_id
@@ -196,7 +196,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
 
     let channel_id = task_message.channel_id;
 
-    if !is_auth_enable().await {
+    if !is_auth_enable() {
         hdc::info!("auth enable is false, return OK for session:{}", session_id);
         transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
         return Ok(());
@@ -318,7 +318,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
             session_id
         );
         // handshake_fail session_id, channel_id auth failed await
-        transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
+        // transfer::put(session_id, make_ok_message(session_id, channel_id).await).await;
     }
     Ok(())
 }
@@ -352,6 +352,32 @@ async fn validate_signature(signature: String, session_id: u32) -> io::Result<()
         Ok(())
     } else {
         Err(Error::new(ErrorKind::Other, "signature not match"))
+    }
+}
+
+pub fn clear_auth_pub_key_file() {
+    if !is_auth_enable() {
+        return;
+    }
+
+    let (_, auth_cancel) = get_dev_item("persist.hdc.daemon.auth_cancel", "_");
+    if auth_cancel.trim().to_lowercase() != "true" {
+        hdc::info!("auth_cancel is {}, no need clear pubkey file", auth_cancel);
+        return;
+    }
+
+    if !set_dev_item("persist.hdc.daemon.auth_cancel", "false") {
+        hdc::error!("clear param auth_cancel failed.");
+    }
+
+    let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
+    match std::fs::remove_file(&file_name) {
+        Ok(_) => {
+            hdc::info!("remove pubkey file {:#?} success", file_name);
+        },
+        Err(err) => {
+            hdc::error!("remove pubkey file {:#?} failed: {}", file_name, err);
+        },
     }
 }
 
@@ -420,7 +446,7 @@ fn show_permit_dialog() -> bool {
     }
 }
 
-pub async fn is_auth_enable() -> bool {
+pub fn is_auth_enable() -> bool {
     let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
     hdc::error!("const.hdc.secure is {}.", auth_enable);
     auth_enable.trim().to_lowercase() == "1"

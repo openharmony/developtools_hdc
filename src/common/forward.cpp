@@ -245,7 +245,7 @@ void HdcForwardBase::AllocForwardBuf(uv_handle_t *handle, size_t sizeSuggested, 
     }
     buf->base = (char *)new char[size];
     if (buf->base) {
-        buf->len = size - 1;
+        buf->len = size > 0 ? size - 1 : 0;
     } else {
         WRITE_LOG(LOG_WARN, "AllocForwardBuf == null");
     }
@@ -288,6 +288,9 @@ bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
 {
     string str = nodeInfo;
     size_t strLen = str.size();
+    if (strLen < 1) {
+        return false;
+    }
     size_t pos = str.find(':');
     if (pos != string::npos) {
         if (pos == 0 || pos == strLen - 1) {
@@ -408,7 +411,8 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
         FreeContext(ctx, 0, true);
         return false;
     };
-    ctxPoint->fdClass = new(std::nothrow) HdcFileDescriptor(loopTask, ctxPoint->fd, ctxPoint, funcRead, funcFinish);
+    ctxPoint->fdClass = new(std::nothrow) HdcFileDescriptor(loopTask, ctxPoint->fd, ctxPoint, funcRead,
+                                                            funcFinish, true);
     if (ctxPoint->fdClass == nullptr) {
         WRITE_LOG(LOG_FATAL, "SetupDevicePoint new ctxPoint->fdClass failed");
         return false;

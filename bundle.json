@@ -21,8 +21,17 @@
       "components": [
         "init",
         "c_utils",
+        "faultloggerd",
         "hitrace",
-        "hilog"
+        "hilog",
+        "ipc",
+        "ability_base",
+        "ability_runtime",
+        "window_manager",
+        "ylong_runtime",
+        "bounds_checking_function",
+        "lz4",
+        "selinux"
       ],
       "third_party": [
         "libuv",
@@ -35,8 +44,9 @@
     },
     "build": {
       "sub_component": [
-        "//developtools/hdc:hdc_register",
         "//developtools/hdc:hdcd_system",
+        "//developtools/hdc/hdcd_user_permit:hdcd_user_permit",
+        "//developtools/hdc:hdc_register",
         "//developtools/hdc:hdcd_updater"
       ],
       "test": [ "//developtools/hdc/test:hdc_fuzztest" ]

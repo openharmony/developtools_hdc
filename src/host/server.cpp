@@ -257,8 +257,12 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
                 sStatus = "UNKNOW";
                 break;
         }
+        string devname = hdi->devName;
+        if (devname.empty()) {
+            devname = "unknown...";
+        }
         out = Base::StringFormat("%s\t\t%s\t%s\t%s\n", hdi->connectKey.c_str(), sConn.c_str(), sStatus.c_str(),
-                                 hdi->devName.c_str());
+                                 devname.c_str());
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
             out = Base::StringFormat("%s\n", hdi->connectKey.c_str());
@@ -463,6 +467,40 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
     }
 }
 
+void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey)
+{
+    HDaemonInfo hdiOld = nullptr;
+    AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
+    if (!hdiOld) {
+        return;
+    }
+    HdcDaemonInformation diNew = *hdiOld;
+    HDaemonInfo hdiNew = &diNew;
+    // update
+    hdiNew->connStatus = STATUS_CONNECTED;
+    WRITE_LOG(LOG_INFO, "handshake info is : %s", handshake.ToDebugString().c_str());
+    WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
+    if (handshake.version < "Ver: 3.0.0b") {
+        if (!handshake.buf.empty()) {
+            hdiNew->devName = handshake.buf;
+        }
+    } else {
+        std::map<string, string> tlvmap;
+        if (Base::TlvToStringMap(handshake.buf, tlvmap)) {
+            if (tlvmap.find(TAG_DEVNAME) != tlvmap.end()) {
+                hdiNew->devName = tlvmap[TAG_DEVNAME];
+            }
+            if (tlvmap.find(TAG_EMGMSG) != tlvmap.end()) {
+                hdiNew->emgmsg = tlvmap[TAG_EMGMSG];
+            }
+        } else {
+            WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");
+        }
+    }
+    hdiNew->version = handshake.version;
+    AdminDaemonMap(OP_UPDATE, connectKey, hdiNew);
+}
+
 bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize)
 {
     // session handshake step3
@@ -490,23 +528,7 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
         return true;
     }
     // handshake auth OK
-    HDaemonInfo hdiOld = nullptr;
-    AdminDaemonMap(OP_QUERY, hSession->connectKey, hdiOld);
-    if (!hdiOld) {
-        return false;
-    }
-    HdcDaemonInformation diNew = *hdiOld;
-    HDaemonInfo hdiNew = &diNew;
-    // update
-    hdiNew->connStatus = STATUS_CONNECTED;
-    if (handshake.buf.size() > sizeof(hdiNew->devName) || !handshake.buf.size()) {
-        hdiNew->devName = "unknown...";
-    } else {
-        hdiNew->devName = handshake.buf;
-    }
-    WRITE_LOG(LOG_INFO, "handshake.version = %s", handshake.version.c_str());
-    hdiNew->version = handshake.version;
-    AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
+    UpdateHdiInfo(handshake, hSession->connectKey);
     hSession->handshakeOK = true;
     return true;
 }
@@ -571,12 +593,11 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             // add to local
             HdcForwardInformation di;
             HForwardInfo pdiNew = &di;
-            int offset = 2;
             pdiNew->channelId = channelId;
             pdiNew->sessionId = hSession->sessionId;
             pdiNew->connectKey = hSession->connectKey;
             pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
-            pdiNew->taskString = reinterpret_cast<char *>(payload) + offset;
+            pdiNew->taskString = reinterpret_cast<char *>(payload);
             AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
             Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
             break;
@@ -616,7 +637,7 @@ void HdcServer::BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, str
 {
     string buf;
     if (fullOrSimble) {
-        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.c_str(),
+        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.substr(OFFSET).c_str(),
                                  hfi->forwardDirection ? "[Forward]" : "[Reverse]");
     } else {
         buf = Base::StringFormat("%s\n", hfi->taskString.c_str());
@@ -887,6 +908,7 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
     ClearOwnTasks(hSession, channelId);
     uint8_t count = 0;
     Send(hSession->sessionId, hChannel->channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u", hChannel->channelId);
     if (uv_is_closing((const uv_handle_t *)&hChannel->hChildWorkTCP)) {
         Base::DoNextLoop(&hSession->childLoop, hChannel, [](const uint8_t flag, string &msg, const void *data) {
             HChannel hChannel = (HChannel)data;
@@ -894,7 +916,10 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
             WRITE_LOG(LOG_DEBUG, "Childchannel free direct, cid:%u", hChannel->channelId);
         });
     } else {
-        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
+        if (hChannel->hChildWorkTCP.loop == NULL) {
+            WRITE_LOG(LOG_DEBUG, "Childchannel loop is null, cid:%u", hChannel->channelId);
+        }
+        uv_close((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             hChannel->childCleared = true;
             WRITE_LOG(LOG_DEBUG, "Childchannel free callback, cid:%u", hChannel->channelId);

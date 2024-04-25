@@ -19,7 +19,6 @@ use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
-use hdc::utils::hdc_log::*;
 
 use std::env;
 use std::io::{self, Error, ErrorKind, Write};

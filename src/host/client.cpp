@@ -561,8 +561,8 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
 #ifdef HDC_CHANNEL_KEEP_ALIVE
     // Evaluation method, non long-term support
     Send(hChannel->channelId,
-                reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
-                CMDSTR_INNER_ENABLE_KEEPALIVE.size());
+         reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
+         CMDSTR_INNER_ENABLE_KEEPALIVE.size());
 #endif
     return RET_SUCCESS;
 }

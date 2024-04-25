@@ -22,7 +22,7 @@ class HdcDaemon;
 
 class HdcDaemonUART : public HdcUARTBase {
 public:
-    explicit HdcDaemonUART(HdcDaemon &, ExternInterface & = HdcUARTBase::defaultInterface);
+    explicit HdcDaemonUART(HdcDaemon&, ExternInterface& = HdcUARTBase::defaultInterface);
     int Initial(const std::string &devPathIn = UART_HDC_NODE);
     ~HdcDaemonUART();
 

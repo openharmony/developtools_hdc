@@ -213,7 +213,7 @@ void *HdcShell::ShellFork(void *arg)
     const char *arg1 = params.arg1Param;
     int ptmParam = params.ptmParam;
     char *devParam = params.devParam;
-    pid_t pid;
+    pid_t pid = 0;
     pid = fork();
     if (pid < 0) {
         constexpr int bufSize = 1024;
@@ -295,7 +295,8 @@ int HdcShell::StartShell()
             ret = ERR_PROCESS_SUB_FAIL;
             break;
         }
-        childShell = new(std::nothrow) HdcFileDescriptor(loopTask, fdPTY, this, ChildReadCallback, FinishShellProc);
+        childShell = new(std::nothrow) HdcFileDescriptor(loopTask, fdPTY, this, ChildReadCallback,
+                                                         FinishShellProc, true);
         if (childShell == nullptr) {
             WRITE_LOG(LOG_FATAL, "StartShell new childShell failed");
             ret = ERR_GENERIC;

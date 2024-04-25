@@ -769,7 +769,7 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
     return hRet;
 }
 
-int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo )
+int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo)
 {
     StartTraceScope("HdcSessionBase::SendByProtocol");
     if (hSession->isDead) {

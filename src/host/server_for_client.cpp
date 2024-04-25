@@ -193,7 +193,7 @@ void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload
 
 // HdcServerForClient passthrough file command to client
 void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint16_t commandFlag,
-                                      uint8_t *payload, const int payloadSize)
+                                             uint8_t *payload, const int payloadSize)
 {
     SendChannelWithCmd(hChannel, commandFlag, payload, payloadSize);
 }
@@ -351,6 +351,13 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
 }
 
 bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
+{
+    bool ret = RemoveFportkey("0|" + forwardKey);
+    ret |= RemoveFportkey("1|" + forwardKey);
+    return ret;
+}
+
+bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HForwardInfo hfi = nullptr;
@@ -533,7 +540,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             break;
         }
         default: {
-            EchoClient(hChannel, MSG_FAIL, "ExecuteCommand need connect-key?");
+            EchoClient(hChannel, MSG_FAIL, "ExecuteCommand need connect-key? please confirm a device by help info");
             break;
         }
     }
@@ -812,7 +819,13 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
-
+    HDaemonInfo hdi = nullptr;
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
+    if (hdi && !hdi->emgmsg.empty()) {
+        EchoClient(hChannel, MSG_FAIL, hdi->emgmsg.c_str());
+        return ERR_GENERIC;
+    }
     uint16_t command = *reinterpret_cast<uint16_t *>(bufPtr);
     if (command != 0 && (hChannel->remote > RemoteType::REMOTE_NONE)) {
         // server directly passthrough file command to daemon

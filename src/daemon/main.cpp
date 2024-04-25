@@ -55,7 +55,7 @@ bool ForkChildCheck(int argc, const char *argv[])
         WRITE_LOG(LOG_DEBUG, "Property enable TCP");
         g_enableTcp = true;
 #ifdef HDC_EMULATOR
-    } else if (workMode == CMDSTR_TMODE_BRIDGE) {
+    } else if (workMode == CMDSTR_TMODE_BRIDGE || workMode.empty()) {
         WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
         g_enableBridge = true;
 #endif
@@ -128,7 +128,7 @@ int BackgroundRun()
 
 string DaemonUsage()
 {
-    string ret;
+    string ret = "";
     ret = "\n                         Harmony device connector daemon(HDCD) Usage: hdcd [options]...\n\n"
           "\n"
           "general options:\n"
@@ -351,6 +351,7 @@ int main(int argc, const char *argv[])
     daemon.InitMod(g_enableTcp, g_enableUsb);
 #endif
 #endif
+    daemon.ClearKnownHosts();
     daemon.WorkerPendding();
     bool wantRestart = daemon.WantRestart();
     WRITE_LOG(LOG_DEBUG, "Daemon finish wantRestart %d", wantRestart);

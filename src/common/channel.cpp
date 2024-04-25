@@ -419,7 +419,11 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
     if (!hChannel->serverOrClient) {
         uv_stop(thisClass->loopMain);
     }
-    Base::TryCloseHandle((const uv_handle_t *)&hChannel->hChildWorkTCP);
+    uv_close((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
+        HChannel hChannel = (HChannel)handle->data;
+        hChannel->childCleared = true;
+        WRITE_LOG(LOG_DEBUG, "FreeChannelFinally hChannel free callback, cid:%u", hChannel->channelId);
+    });
     delete hChannel;
     Base::TryCloseHandle((const uv_handle_t *)handle, Base::CloseIdleCallback);
 }

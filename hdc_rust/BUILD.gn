@@ -155,7 +155,7 @@ ohos_static_library("hdc_win_dep") {
   part_name = "hdc"
 }
 
-ohos_rust_static_library("lib_host") {
+ohos_rust_static_library("hdc_library_host") {
   crate_name = "hdc"
   crate_type = "rlib"
   crate_root = "src/lib.rs"
@@ -180,7 +180,7 @@ ohos_rust_executable("hdc_rust") {
   sources = [ "src/host/main.rs" ]
   deps = [
     ":cffi_host",
-    ":lib_host",
+    ":hdc_library_host",
     "//third_party/rust/crates/humantime:lib",
     "//third_party/rust/crates/lazy-static.rs:lib",
     "//third_party/rust/crates/libc:lib",
@@ -197,6 +197,7 @@ ohos_rust_executable("hdc_rust") {
 
   external_deps = [ "ylong_runtime:ylong_runtime_static" ]
 
+  features = [ "host" ]
   subsystem_name = "developtools"
   part_name = "hdc"
 }

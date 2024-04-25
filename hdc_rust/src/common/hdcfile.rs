@@ -21,6 +21,8 @@ use std::fs::metadata;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 
 use crate::common::filemanager::FileManager;
@@ -36,6 +38,7 @@ use super::base::Base;
 use super::hdctransfer;
 use crate::serializer::native_struct::TransferConfig;
 use crate::utils;
+#[cfg(not(feature = "host"))]
 use crate::utils::hdc_log::*;
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct HdcFile {
@@ -114,8 +117,6 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
         {
             file_task.transfer.transfer_config.compress_type = CompressType::Lz4 as u8;
         }
-        // to be confirm
-        // if file_task.transfer.transfer_config.hold_timestamp {}
         file_task.transfer.transfer_config.path = file_task.transfer.remote_path.clone();
         return true;
     } else {

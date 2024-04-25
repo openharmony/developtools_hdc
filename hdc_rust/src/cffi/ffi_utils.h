@@ -15,9 +15,9 @@
 #ifndef HDC_FFI_UTILS_H
 #define HDC_FFI_UTILS_H
 
-#include <string>
-#include <securec.h>
 #include <cstdint>
+#include <securec.h>
+#include <string>
 
 namespace Hdc {
 struct SerializedBuffer {

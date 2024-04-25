@@ -25,6 +25,8 @@ use hdc::transfer;
 use hdc::transfer::EchoLevel;
 use hdc::utils;
 use std::path::PathBuf;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 
 pub struct HostAppTask {
     pub transfer: HdcTransferBase,
@@ -118,8 +120,6 @@ impl HostAppTask {
                 let str = local_path.as_str();
                 config.optional_name.push_str(&str[index..]);
             }
-            // to be confirm
-            // if config.hold_timestamp {}
             config.path = self.transfer.remote_path.clone();
         } else {
             println!("other command {:#?}", error_msg);

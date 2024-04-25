@@ -32,6 +32,8 @@ use std::fs::{self, create_dir_all, File};
 use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;
 

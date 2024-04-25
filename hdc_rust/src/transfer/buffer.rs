@@ -30,6 +30,8 @@ use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf};
 use ylong_runtime::sync::{mpsc, Mutex, RwLock};

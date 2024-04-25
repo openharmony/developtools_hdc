@@ -26,6 +26,8 @@ use std::time::Duration;
 
 use std::io::{self, Error, ErrorKind};
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
 
 pub async fn run_server_mode(addr_str: String) -> io::Result<()> {

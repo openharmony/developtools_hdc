@@ -106,7 +106,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         return false;
     }
     context->remotePath = argv[argc - 1];
-    context->localPath = argv[argc - 2];
+    context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
     if (taskInfo->serverOrDaemon) {
         // master and server
         if ((srcArgvIndex + 1) == argc) {

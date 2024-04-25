@@ -91,8 +91,8 @@ enum UartSetSerialNStop {
     UART_STOP2 = 2
 };
 #endif
-enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE };
-const string conStatusDetail[] = { "UNKNOW", "Ready", "Connected", "Offline" };
+enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
+const string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
 
 enum OperateID {
     OP_ADD,

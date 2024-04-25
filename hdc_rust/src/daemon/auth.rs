@@ -449,7 +449,16 @@ fn show_permit_dialog() -> bool {
 pub fn is_auth_enable() -> bool {
     let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
     hdc::error!("const.hdc.secure is {}.", auth_enable);
-    auth_enable.trim().to_lowercase() == "1"
+    if auth_enable.trim().to_lowercase() != "1" {
+        return false;
+    }
+
+    // if persist.hdc.auth_bypass is set "1", will not auth,
+    // otherwhise must be auth
+    // the auto upgrade test will set persist.hdc.auth_bypass 1
+    let (_, auth_bypass) = get_dev_item("persist.hdc.auth_bypass", "_");
+    hdc::error!("persist.hdc.auth_bypass is {}.", auth_bypass);
+    auth_bypass.trim().to_lowercase() != "1"
 }
 
 async fn require_user_permittion(hostname: &str) -> UserPermit {

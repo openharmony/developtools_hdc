@@ -159,7 +159,9 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
     // enable security
     string secure;
     SystemDepend::GetDevItem("const.hdc.secure", secure);
-    enableSecure = (Base::Trim(secure) == "1");
+    string authbypass;
+    SystemDepend::GetDevItem("persist.hdc.auth_bypass", authbypass);
+    enableSecure = ((Base::Trim(secure) == "1") && (Base::Trim(authbypass) != "1"));
 }
 
 #ifdef HDC_EMULATOR
@@ -327,7 +329,7 @@ void HdcDaemon::ClearKnownHosts()
 {
     char const *keyfile = "/data/service/el0/hdc/hdc_keys";
 
-    if (!enableSecure) {
+    if (!enableSecure || HandDaemonAuthBypass()) {
         WRITE_LOG(LOG_INFO, "not enable secure, noneed clear keyfile");
         return;
     }
@@ -430,10 +432,10 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
             break;
         }
 
-        string confirmmsg = "device unauthorized.\n"\
+        string confirmmsg = "[E000002]:The device unauthorized.\n"\
                              "This server's public key is not set.\n"\
                              "Please check for a confirmation dialog on your device.\n"\
-                             "Otherwise try 'hdc kill' if that semms wrong.";
+                             "Otherwise try 'hdc kill' if that seems wrong.";
         std::thread notifymsg(&HdcDaemon::EchoHandshakeMsg, this,
                     std::ref(handshake), channelId, hSession->sessionId, confirmmsg);
         notifymsg.detach();
@@ -455,7 +457,7 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
     if (ret) {
         SendAuthSignMsg(handshake, channelId, hSession->sessionId, pubkey, hSession->tokenRSA);
     } else {
-        string notifymsg = "device unauthorized.\n"\
+        string notifymsg = "[E000003]:The device unauthorized.\n"\
                             "The user denied the access for the device.\n"\
                              "Please execute 'hdc kill' and redo your command, "\
                              "then check for a confirmation dialog on your device.";
@@ -530,7 +532,7 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     if (!AuthVerify(hSession, handshake.buf)) {
         WRITE_LOG(LOG_FATAL, "auth failed for %u", hSession->sessionId);
         // Next auth
-        EchoHandshakeMsg(handshake, channelId, hSession->sessionId, "Auth failed, cannt login the device.");
+        EchoHandshakeMsg(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
         return false;
     }
 
@@ -539,10 +541,23 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     return true;
 }
 
+bool HdcDaemon::HandDaemonAuthBypass(void)
+{
+    // persist.hdc.auth_bypass 1 is bypass orelse(0 or not set) not bypass
+    string authbypass;
+    SystemDepend::GetDevItem("persist.hdc.auth_bypass", authbypass);
+    return Base::Trim(authbypass) == "1";
+}
+
 bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     if (!enableSecure) {
         WRITE_LOG(LOG_INFO, "not enable secure, allow access for %u", hSession->sessionId);
+        UpdateSessionAuthOk(hSession->sessionId);
+        SendAuthOkMsg(handshake, channelId, hSession->sessionId, "");
+        return true;
+    } else if (HandDaemonAuthBypass()) {
+        WRITE_LOG(LOG_INFO, "auth bypass, allow access for %u", hSession->sessionId);
         UpdateSessionAuthOk(hSession->sessionId);
         SendAuthOkMsg(handshake, channelId, hSession->sessionId, "");
         return true;
@@ -931,6 +946,7 @@ void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid, u
         string emgmsg;
         Base::TlvAppend(emgmsg, TAG_EMGMSG, msg);
         Base::TlvAppend(emgmsg, TAG_DEVNAME, hostname);
+        Base::TlvAppend(emgmsg, TAG_DAEOMN_AUTHSTATUS, DAEOMN_AUTH_SUCCESS);
         handshake.buf = emgmsg;
     }
 
@@ -959,7 +975,7 @@ void HdcDaemon::EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid
 }
 void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid)
 {
-    string msg = "The sdk hdc.exe version is too low, please upgrade to the latest version.";
+    string msg = "[E000001]:The sdk hdc.exe version is too low, please upgrade to the latest version.";
     EchoHandshakeMsg(handshake, channelid, sessionid, msg);
 }
 }  // namespace Hdc

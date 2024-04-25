@@ -33,3 +33,6 @@ persist.hdc.control_system = system:system:0664
 # hdcd can be replaced when it is without uart
 # you should setenforce 0 and mount to write /system
 persist.hdc.replace = root:root:0770
+
+#for atcmd HDCAUTHPASS
+persist.hdc.auth_bypass = root:shell:0666

@@ -222,41 +222,16 @@ void HdcServer::ClearMapDaemonInfo()
 void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string &out)
 {
     if (fullDisplay) {
-        string sConn;
-        string sStatus;
-        switch (hdi->connType) {
-            case CONN_TCP:
-                sConn = "TCP";
-                break;
-            case CONN_USB:
-                sConn = "USB";
-                break;
-#ifdef HDC_SUPPORT_UART
-            case CONN_SERIAL:
-                sConn = "UART";
-                break;
-#endif
-            case CONN_BT:
-                sConn = "BT";
-                break;
-            default:
-                sConn = "UNKNOW";
-                break;
+        string sConn = conTypeDetail[CONN_UNKNOWN];
+        if (hdi->connType < CONN_UNKNOWN) {
+            sConn = conTypeDetail[hdi->connType];
         }
-        switch (hdi->connStatus) {
-            case STATUS_READY:
-                sStatus = "Ready";
-                break;
-            case STATUS_CONNECTED:
-                sStatus = "Connected";
-                break;
-            case STATUS_OFFLINE:
-                sStatus = "Offline";
-                break;
-            default:
-                sStatus = "UNKNOW";
-                break;
+
+        string sStatus = conStatusDetail[STATUS_UNKNOW];
+        if (hdi->connStatus <= STATUS_OFFLINE) {
+            sStatus = conStatusDetail[hdi->connStatus];
         }
+
         string devname = hdi->devName;
         if (devname.empty()) {
             devname = "unknown...";
@@ -266,6 +241,9 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
             out = Base::StringFormat("%s\n", hdi->connectKey.c_str());
+            if (hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
+                out.append("        unauthorized");
+            }
         }
     }
 }
@@ -492,6 +470,9 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
             }
             if (tlvmap.find(TAG_EMGMSG) != tlvmap.end()) {
                 hdiNew->emgmsg = tlvmap[TAG_EMGMSG];
+            }
+            if (tlvmap.find(TAG_DAEOMN_AUTHSTATUS) != tlvmap.end()) {
+                hdiNew->daemonAuthStatus = tlvmap[TAG_DAEOMN_AUTHSTATUS];
             }
         } else {
             WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");

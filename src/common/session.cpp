@@ -1144,7 +1144,8 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
                     uv_stop(&hSession->childLoop);
                 };
             };
-            hSession->uvChildRef += 2;
+            constexpr int uvChildRefOffset = 2;
+            hSession->uvChildRef += uvChildRefOffset;
             if (hSession->connType == CONN_TCP && hSession->hChildWorkTCP.loop) {  // maybe not use it
                 ++hSession->uvChildRef;
                 Base::TryCloseHandle((uv_handle_t *)&hSession->hChildWorkTCP, true, closeSessionChildThreadTCPHandle);
@@ -1242,7 +1243,8 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
         uv_close((uv_handle_t *)handle, Base::CloseTimerCallback);
         uv_stop(&hSession->childLoop);  // stop ReChildLoopForSessionClear pendding
     };
-    Base::TimerUvTask(&hSession->childLoop, hSession, clearTaskForSessionFinish, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
+    Base::TimerUvTask(
+        &hSession->childLoop, hSession, clearTaskForSessionFinish, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);
     // clear
     Base::TryCloseChildLoop(&hSession->childLoop, "Session childUV");
@@ -1357,7 +1359,8 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
 
             if (addTaskRetry == 0) {
 #ifndef HDC_HOST
-                LogMsg(hTaskInfo->sessionId, hTaskInfo->channelId, MSG_FAIL, "hdc thread pool busy, may cause reset later");
+                LogMsg(hTaskInfo->sessionId, hTaskInfo->channelId,
+                       MSG_FAIL, "hdc thread pool busy, may cause reset later");
 #endif
                 delete hTaskInfo;
                 hTaskInfo = nullptr;

@@ -283,7 +283,7 @@ int main(int argc, const char *argv[])
     mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
 #endif
     // check property
-    if (argc == 2 && !strcmp(argv[1], "-h")) {
+    if (argc == CMD_ARG1_COUNT && !strcmp(argv[1], "-h")) {
         string usage = DaemonUsage();
         fprintf(stderr, "%s", usage.c_str());
         return 0;

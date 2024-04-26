@@ -779,7 +779,7 @@ namespace Base {
         size_t nFileSize = req.statbuf.st_size;
         size_t readMax = 0;
         uint8_t dynamicBuf = 0;
-        ret = -3;
+        ret = -3;  // -3:error for ReadBinFile
         if (bufLen == 0) {
             dynamicBuf = 1;
             pDst = new uint8_t[nFileSize + 1]();  // tail \0
@@ -789,7 +789,7 @@ namespace Base {
             readMax = nFileSize;
         } else {
             if (nFileSize > bufLen) {
-                return -2;
+                return -2;  // -2:error for bufLen
             }
             readMax = nFileSize;
             pDst = reinterpret_cast<uint8_t *>(buf);  // The first address of the static array is the array address
@@ -1075,7 +1075,7 @@ namespace Base {
 #ifdef HOST_MAC
         int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
         if (ret == 0) {
-            for (auto i = 0; i < 2; ++i) {
+            for (auto i = 0; i < STREAM_SIZE; ++i) {
                 if (fcntl(fds[i], F_SETFD, FD_CLOEXEC) == -1) {
                     CloseFd(fds[0]);
                     CloseFd(fds[1]);
@@ -1317,14 +1317,14 @@ namespace Base {
             return 0;
         }
         int padding = 0;
-        if (b64input[len - 1] == '=' && b64input[len - 2] == '=') {
+        if (b64input[len - 1] == '=' && b64input[len - LAST_EQUAL_NUM] == '=') {
             // last two chars are =
             padding = 2;  // 2 : last two chars
         } else if (b64input[len - 1] == '=') {
             // last char is =
             padding = 1;
         }
-        return static_cast<int>(len * 0.75 - padding);
+        return static_cast<int>(len * DECODE_SCALE - padding);
     }
 
     // return -1 error; >0 decode size
@@ -1784,13 +1784,13 @@ namespace Base {
         if (tag.empty()) {
             return false;
         }
-        int tlen = tag.length();
+        unsigned int tlen = tag.length();
         if (tlen < TLV_TAG_LEN) {
             tag.append(TLV_TAG_LEN - tlen, ' ');
         }
         tlv.append(tag);
         string vallen = std::to_string(val.length());
-        int vlen = vallen.length();
+        unsigned int vlen = vallen.length();
         if (vlen < TLV_VAL_LEN) {
             vallen.append(TLV_VAL_LEN - vlen, ' ');
         }
@@ -1810,7 +1810,7 @@ namespace Base {
 
             string vallen = tlv.substr(0, TLV_VAL_LEN);
             TrimSubString(vallen, " ");
-            int len = atoi(vallen.c_str());
+            unsigned int len = atoi(vallen.c_str());
             tlv.erase(0, TLV_VAL_LEN);
 
             if (tlv.length() < len) {

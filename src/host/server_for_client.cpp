@@ -152,12 +152,12 @@ int HdcServerForClient::Initial()
     }
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
-        return -2;
+        return -2;  // -2:err for Listen initial failed
     }
     bool b = SetTCPListen();
     if (!b) {
         WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
-        int listenError = -3;
+        int listenError = -3;  // -3:error for SetTCPListen failed
         return listenError;
     }
     return 0;
@@ -313,6 +313,8 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
     int connectError = -2;
+    constexpr uint8_t BUF_OFFSET_TWO = 2;
+    constexpr uint8_t BUF_OFFSET_THERR = 3;
     if (childRet == -1) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
     } else if (childRet == connectError) {
@@ -326,11 +328,12 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
                 hChannel->connectLocalDevice = true;
             }
         }
-        Base::ZeroBuf(hChannel->bufStd, 2);
-        childRet = snprintf_s(hChannel->bufStd + 2, sizeof(hChannel->bufStd) - 2, sizeof(hChannel->bufStd) - 3, "%s",
+        Base::ZeroBuf(hChannel->bufStd, BUF_OFFSET_TWO);
+        childRet = snprintf_s(hChannel->bufStd + BUF_OFFSET_TWO, sizeof(hChannel->bufStd) - BUF_OFFSET_TWO,
+                              sizeof(hChannel->bufStd) - BUF_OFFSET_THERR, "%s",
                               const_cast<char *>(connectKey.c_str()));
         if (childRet > 0) {
-            Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, 10);
+            Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, UV_START_REPEAT);
             ret = true;
         }
     }
@@ -850,8 +853,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr);
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
-            ret = -10;
-            return ret;
+            return -10;  //  -10 error formatCommand
         }
     } else {
         formatCommand.parameters = string(reinterpret_cast<char *>(bufPtr), bytesIO);

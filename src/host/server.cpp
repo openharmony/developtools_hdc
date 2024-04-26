@@ -838,7 +838,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         }
         uv_timer_init(&loopMain, waitTimeDoCmd);
         waitTimeDoCmd->data = hSession;
-        uv_timer_start(waitTimeDoCmd, UsbPreConnect, 10, 100);
+        uv_timer_start(waitTimeDoCmd, UsbPreConnect, UV_TIMEOUT, UV_REPEAT);
     }
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "CreateConnect hSession nullptr");

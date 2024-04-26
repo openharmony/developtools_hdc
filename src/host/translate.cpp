@@ -190,7 +190,7 @@ namespace TranslateCommand {
     {
         string stringError;
         if (Base::StringEndsWith(outCmd->parameters, " -remove")) {
-            outCmd->parameters = outCmd->parameters.substr(0, outCmd->parameters.size() - 8);
+            outCmd->parameters = outCmd->parameters.substr(0, outCmd->parameters.size() - CMD_REMOTE_SIZE);
             outCmd->cmdFlag = CMD_KERNEL_TARGET_DISCONNECT;
         } else {
             outCmd->cmdFlag = CMD_KERNEL_TARGET_CONNECT;
@@ -233,10 +233,10 @@ namespace TranslateCommand {
         } else if (!strncmp(pExtra, "rm", 2)) { // 2: "rm" size
             outCmd->cmdFlag = CMD_FORWARD_REMOVE;
             if (strcmp(pExtra, "rm")) {
-                outCmd->parameters = input + 9;
+                outCmd->parameters = input + FORWORD_PORT_RM_BUF_SIZE;
             }
         } else {
-            const char *p = input + 6;
+            const char *p = input + FORWORD_PORT_OTHER_BUF_SIZE;
             // clang-format off
             if (strncmp(p, "tcp:", 4) && // 4: "tcp:" size
                 strncmp(p, "localabstract:", 14) && // 14: "localabstract:" size
@@ -280,7 +280,7 @@ namespace TranslateCommand {
     {
         outCmd->cmdFlag = CMD_UNITY_REBOOT;
         if (strcmp(input, CMDSTR_TARGET_REBOOT.c_str())) {
-            outCmd->parameters = input + 12;
+            outCmd->parameters = input + CMDSTR_TARGET_REBOOT.size() + 1;  // with  ' '
             if (outCmd->parameters == "-bootloader" || outCmd->parameters == "-recovery" ||
                 outCmd->parameters == "-flashd") {
                 outCmd->parameters.erase(outCmd->parameters.begin());
@@ -349,7 +349,7 @@ namespace TranslateCommand {
         } else if (!strncmp(input.c_str(), CMDSTR_APP_UNINSTALL.c_str(), CMDSTR_APP_UNINSTALL.size())) {
             outCmd->cmdFlag = CMD_APP_UNINSTALL;
             outCmd->parameters = input;
-            if (outCmd->parameters.size() > 512 || outCmd->parameters.size() < 4) {
+            if (outCmd->parameters.size() > MAX_APP_PARAM_SIZE || outCmd->parameters.size() < MIN_APP_PARAM_SIZE) {
                 stringError = "Package's path incorrect";
                 outCmd->bJumpDo = true;
             }

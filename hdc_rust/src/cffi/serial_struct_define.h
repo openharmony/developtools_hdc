@@ -62,8 +62,8 @@ namespace SerialStruct {
         template<uint32_t Tag, class MemPtrT, MemPtrT MemPtr, uint32_t Flags> struct FieldImpl {
             using type = typename SerialDetail::MemPtr<MemPtrT>::type;
             using MemberType = typename SerialDetail::MemPtr<MemPtrT>::MemberType;
-            constexpr static const uint32_t tag = Tag;
-            constexpr static const uint32_t flags = Flags;
+            constexpr static const uint32_t TAG = Tag;
+            constexpr static const uint32_t FLAGS = Flags;
             const std::string field_name;
 
             static decltype(auto) get(const type &value)
@@ -80,9 +80,9 @@ namespace SerialStruct {
         template<uint32_t Tag, size_t Index, class MemPtrT, MemPtrT MemPtr, uint32_t Flags> struct OneofFieldImpl {
             using type = typename SerialDetail::MemPtr<MemPtrT>::type;
             using MemberType = typename SerialDetail::MemPtr<MemPtrT>::MemberType;
-            constexpr static const uint32_t tag = Tag;
-            constexpr static const size_t index = Index;
-            constexpr static const uint32_t flags = Flags;
+            constexpr static const uint32_t TAG = Tag;
+            constexpr static const size_t INDEX = Index;
+            constexpr static const uint32_t FLAGS = Flags;
             const std::string field_name;
 
             static decltype(auto) get(const type &value)
@@ -100,7 +100,7 @@ namespace SerialStruct {
         struct MapFieldImpl {
             using type = typename SerialDetail::MemPtr<MemPtrT>::type;
             using MemberType = typename SerialDetail::MemPtr<MemPtrT>::MemberType;
-            constexpr static const uint32_t tag = Tag;
+            constexpr static const uint32_t TAG = Tag;
             constexpr static const uint32_t KEY_FLAGS = KeyFlags;
             constexpr static const uint32_t VALUE_FLAGS = ValueFlags;
 
@@ -204,23 +204,23 @@ namespace SerialStruct {
 
         static uint32_t MakeTagWireType(uint32_t tag, WireType wireType)
         {
-            return (tag << 3) | static_cast<uint32_t>(wireType);
+            return (tag << 3) | static_cast<uint32_t>(wireType);  // 3:tag type offset
         }
 
         static inline void ReadTagWireType(uint32_t tagKey, uint32_t &tag, WireType &wireType)
         {
             wireType = static_cast<WireType>(tagKey & 0b0111);
-            tag = tagKey >> 3;
+            tag = tagKey >> 3;  // 3:tag type offset
         }
 
         static uint32_t MakeZigzagValue(int32_t value)
         {
-            return (static_cast<uint32_t>(value) << 1) ^ static_cast<uint32_t>(value >> 31);
+            return (static_cast<uint32_t>(value) << 1) ^ static_cast<uint32_t>(value >> 31);   //31:uint32_t val offset
         }
 
         static uint64_t MakeZigzagValue(int64_t value)
         {
-            return (static_cast<uint64_t>(value) << 1) ^ static_cast<uint64_t>(value >> 63);
+            return (static_cast<uint64_t>(value) << 1) ^ static_cast<uint64_t>(value >> 63);  // 63:uint32_t val offset
         }
 
         static int32_t ReadZigzagValue(uint32_t value)
@@ -282,10 +282,12 @@ namespace SerialStruct {
 
         static void WriteVarint(uint32_t value, Writer &out)
         {
-            uint8_t b[5] {};
-            for (size_t i = 0; i < 5; ++i) {
+            constexpr uint8_t BYTES_SIZE = 5;
+            constexpr uint8_t BYTES_OFFSET = 7;
+            uint8_t b[BYTES_SIZE] {};
+            for (size_t i = 0; i < BYTES_SIZE; ++i) {
                 b[i] = value & 0b0111'1111;
-                value >>= 7;
+                value >>= BYTES_OFFSET;
                 if (value) {
                     b[i] |= 0b1000'0000;
                 } else {
@@ -297,10 +299,12 @@ namespace SerialStruct {
 
         static void WriteVarint(uint64_t value, Writer &out)
         {
-            uint8_t b[10] {};
-            for (size_t i = 0; i < 10; ++i) {
+            constexpr uint8_t BYTES_SIZE = 10;
+            constexpr uint8_t BYTES_OFFSET = 7;
+            uint8_t b[BYTES_SIZE] {};
+            for (size_t i = 0; i < BYTES_SIZE; ++i) {
                 b[i] = value & 0b0111'1111;
-                value >>= 7;
+                value >>= BYTES_OFFSET;
                 if (value) {
                     b[i] |= 0b1000'0000;
                 } else {
@@ -320,12 +324,14 @@ namespace SerialStruct {
         static bool ReadVarint(uint32_t &value, Reader &in)
         {
             value = 0;
-            for (size_t c = 0; c < 5; ++c) {
+            constexpr uint8_t BYTES_SIZE = 5;
+            constexpr uint8_t BYTES_OFFSET = 7;
+            for (size_t c = 0; c < BYTES_SIZE; ++c) {
                 uint8_t x;
                 if (!ReadByte(x, in)) {
                     return false;
                 }
-                value |= static_cast<uint32_t>(x & 0b0111'1111) << 7 * c;
+                value |= static_cast<uint32_t>(x & 0b0111'1111) << BYTES_OFFSET * c;
                 if (!(x & 0b1000'0000)) {
                     return true;
                 }
@@ -337,12 +343,14 @@ namespace SerialStruct {
         static bool ReadVarint(uint64_t &value, Reader &in)
         {
             value = 0;
-            for (size_t c = 0; c < 10; ++c) {
+            constexpr uint8_t BYTES_SIZE = 10;
+            constexpr uint8_t BYTES_OFFSET = 7;
+            for (size_t c = 0; c < BYTES_SIZE; ++c) {
                 uint8_t x;
                 if (!ReadByte(x, in)) {
                     return false;
                 }
-                value |= static_cast<uint64_t>(x & 0b0111'1111) << 7 * c;
+                value |= static_cast<uint64_t>(x & 0b0111'1111) << BYTES_OFFSET * c;
                 if (!(x & 0b1000'0000)) {
                     return true;
                 }
@@ -528,8 +536,8 @@ namespace SerialStruct {
             const SerialDetail::OneofFieldImpl<Tag, Index, MemPtrT, MemPtr, Flags> &, Writer &out)
         {
             using OneOf = SerialDetail::OneofFieldImpl<Tag, Index, MemPtrT, MemPtr, Flags>;
-            Serializer<typename OneOf::MemberType>::template SerializeOneof<OneOf::index>(
-                OneOf::tag, OneOf::get(value), FlagsType<OneOf::flags>(), out);
+            Serializer<typename OneOf::MemberType>::template SerializeOneof<OneOf::INDEX>(
+                OneOf::TAG, OneOf::get(value), FlagsType<OneOf::FLAGS>(), out);
         }
 
         template<class T, uint32_t Tag, class MemPtrT, MemPtrT MemPtr, uint32_t KeyFlags, uint32_t ValueFlags>
@@ -538,7 +546,7 @@ namespace SerialStruct {
         {
             using Map = SerialDetail::MapFieldImpl<Tag, MemPtrT, MemPtr, KeyFlags, ValueFlags>;
             Serializer<typename Map::MemberType>::SerializeMap(
-                Map::tag, Map::get(value), FlagsType<Map::KEY_FLAGS>(), FlagsType<Map::VALUE_FLAGS>(), out);
+                Map::TAG, Map::get(value), FlagsType<Map::KEY_FLAGS>(), FlagsType<Map::VALUE_FLAGS>(), out);
         }
 
         template<class T, uint32_t Tag, class MemPtrT, MemPtrT MemPtr, uint32_t Flags>
@@ -546,7 +554,7 @@ namespace SerialStruct {
         {
             using Field = SerialDetail::FieldImpl<Tag, MemPtrT, MemPtr, Flags>;
             Serializer<typename Field::MemberType>::Serialize(
-                Field::tag, Field::get(value), FlagsType<Field::flags>(), out);
+                Field::TAG, Field::get(value), FlagsType<Field::FLAGS>(), out);
         }
 
         template<class T, class... Field>
@@ -673,8 +681,8 @@ namespace SerialStruct {
                 return;
             }
             using OneOf = SerialDetail::OneofFieldImpl<Tag, Index, MemPtrT, MemPtr, Flags>;
-            Serializer<typename OneOf::MemberType>::template ParseOneof<OneOf::index>(
-                wireType, OneOf::get(value), FlagsType<OneOf::flags>(), in);
+            Serializer<typename OneOf::MemberType>::template ParseOneof<OneOf::INDEX>(
+                wireType, OneOf::get(value), FlagsType<OneOf::FLAGS>(), in);
         }
 
         template<class T, uint32_t Tag, class MemPtrT, MemPtrT MemPtr, uint32_t KeyFlags, uint32_t ValueFlags>
@@ -697,7 +705,7 @@ namespace SerialStruct {
                 return;
             }
             using Field = SerialDetail::FieldImpl<Tag, MemPtrT, MemPtr, Flags>;
-            Serializer<typename Field::MemberType>::Parse(wireType, Field::get(value), FlagsType<Field::flags>(), in);
+            Serializer<typename Field::MemberType>::Parse(wireType, Field::get(value), FlagsType<Field::FLAGS>(), in);
         }
 
         template<class T, class... Field> bool ReadMessage(T &value, const MessageImpl<Field...> &message, Reader &in)

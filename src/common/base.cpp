@@ -342,8 +342,10 @@ namespace Base {
             return;
         }
         *origBuf = new uint8_t[sizeWanted];
-        if (!*origBuf)
+        if (!*origBuf) {
+            WRITE_LOG(LOG_WARN, "ReallocBuf failed, origBuf is null. sizeWanted:%d", sizeWanted);
             return;
+        }
         *nOrigSize = sizeWanted;
     }
 

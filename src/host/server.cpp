@@ -861,6 +861,7 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY_REF, channelId, nullptr);
     if (!hChannel) {
+        WRITE_LOG(LOG_DEBUG, "AttachChannel hChannel null channelId:%u", channelId);
         return;
     }
     uv_tcp_init(&hSession->childLoop, &hChannel->hChildWorkTCP);
@@ -887,6 +888,10 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
     // childCleared has not set, no need OP_QUERY_REF
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY, channelId, nullptr);
     if (!hChannel) {
+        ClearOwnTasks(hSession, channelId);
+        uint8_t count = 0;
+        Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+        WRITE_LOG(LOG_WARN, "DeatchChannel hChannel null channelId:%u", channelId);
         return;
     }
     if (hChannel->childCleared) {

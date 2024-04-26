@@ -89,9 +89,11 @@ private:
     void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear) override;
 #endif
 
+    bool HandDaemonAuthBypass(void);
     void SendAuthSignMsg(SessionHandShake &handshake,
             uint32_t channelId, uint32_t sessionid, string pubkey, string token);
-    void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
+    void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
+                       uint32_t sessionid, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
     void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);
     void EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
     bool AuthVerify(HSession hSession, string encryptToken);

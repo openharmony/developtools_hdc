@@ -108,6 +108,9 @@ ohos_rust_executable("hdcd") {
 # hdc_rust compile begin
 ohos_static_library("cffi_host") {
   sources = [
+    "src/cffi/host/ctimer.cpp",
+    "src/cffi/host/host_usb.cpp",
+    "src/cffi/host/host_usb_wrapper.cpp",
     "src/cffi/serial_struct.cpp",
     "src/cffi/transfer.cpp",
     "src/cffi/uart.cpp",
@@ -126,10 +129,13 @@ ohos_static_library("cffi_host") {
   include_dirs = [
     "//third_party/bounds_checking_function/include",
     "//third_party/lz4/lib",
+    "src/cffi",
   ]
-  deps = [
-    "//third_party/bounds_checking_function:libsec_static",
-    "//third_party/lz4:liblz4_static",
+
+  external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libusb:libusb",
+    "lz4:liblz4_static",
   ]
 
   defines = [ "HDC_HOST" ]

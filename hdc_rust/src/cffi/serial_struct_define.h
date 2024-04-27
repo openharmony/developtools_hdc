@@ -282,12 +282,12 @@ namespace SerialStruct {
 
         static void WriteVarint(uint32_t value, Writer &out)
         {
-            constexpr uint8_t BYTES_SIZE = 5;
-            constexpr uint8_t BYTES_OFFSET = 7;
-            uint8_t b[BYTES_SIZE] {};
-            for (size_t i = 0; i < BYTES_SIZE; ++i) {
+            constexpr uint8_t bytesSize = 5;
+            constexpr uint8_t bytesOffset = 7;
+            uint8_t b[bytesSize] {};
+            for (size_t i = 0; i < bytesSize; ++i) {
                 b[i] = value & 0b0111'1111;
-                value >>= BYTES_OFFSET;
+                value >>= bytesOffset;
                 if (value) {
                     b[i] |= 0b1000'0000;
                 } else {
@@ -299,12 +299,12 @@ namespace SerialStruct {
 
         static void WriteVarint(uint64_t value, Writer &out)
         {
-            constexpr uint8_t BYTES_SIZE = 10;
-            constexpr uint8_t BYTES_OFFSET = 7;
-            uint8_t b[BYTES_SIZE] {};
-            for (size_t i = 0; i < BYTES_SIZE; ++i) {
+            constexpr uint8_t bytesSize = 10;
+            constexpr uint8_t bytesOffset = 7;
+            uint8_t b[bytesSize] {};
+            for (size_t i = 0; i < bytesSize; ++i) {
                 b[i] = value & 0b0111'1111;
-                value >>= BYTES_OFFSET;
+                value >>= bytesOffset;
                 if (value) {
                     b[i] |= 0b1000'0000;
                 } else {
@@ -324,14 +324,14 @@ namespace SerialStruct {
         static bool ReadVarint(uint32_t &value, Reader &in)
         {
             value = 0;
-            constexpr uint8_t BYTES_SIZE = 5;
-            constexpr uint8_t BYTES_OFFSET = 7;
-            for (size_t c = 0; c < BYTES_SIZE; ++c) {
+            constexpr uint8_t bytesSize = 5;
+            constexpr uint8_t bytesOffset = 7;
+            for (size_t c = 0; c < bytesSize; ++c) {
                 uint8_t x;
                 if (!ReadByte(x, in)) {
                     return false;
                 }
-                value |= static_cast<uint32_t>(x & 0b0111'1111) << BYTES_OFFSET * c;
+                value |= static_cast<uint32_t>(x & 0b0111'1111) << bytesOffset * c;
                 if (!(x & 0b1000'0000)) {
                     return true;
                 }
@@ -343,14 +343,14 @@ namespace SerialStruct {
         static bool ReadVarint(uint64_t &value, Reader &in)
         {
             value = 0;
-            constexpr uint8_t BYTES_SIZE = 10;
-            constexpr uint8_t BYTES_OFFSET = 7;
-            for (size_t c = 0; c < BYTES_SIZE; ++c) {
+            constexpr uint8_t bytesSize = 10;
+            constexpr uint8_t bytesOffset = 7;
+            for (size_t c = 0; c < bytesSize; ++c) {
                 uint8_t x;
                 if (!ReadByte(x, in)) {
                     return false;
                 }
-                value |= static_cast<uint64_t>(x & 0b0111'1111) << BYTES_OFFSET * c;
+                value |= static_cast<uint64_t>(x & 0b0111'1111) << bytesOffset * c;
                 if (!(x & 0b1000'0000)) {
                     return true;
                 }
@@ -591,7 +591,7 @@ namespace SerialStruct {
         void WriteMapKeyValue(const std::pair<const Key, Value> &value, Writer &out)
         {
             Serializer<Key>::Serialize(1, value.first, FlagsType<KeyFlags> {}, out, true);
-            Serializer<Value>::Serialize(2, value.second, FlagsType<ValueFlags> {}, out, true);
+            Serializer<Value>::Serialize(2, value.second, FlagsType<ValueFlags> {}, out, true);  // 2:tag value
         }
 
         template<uint32_t KeyFlags, uint32_t ValueFlags, class T>

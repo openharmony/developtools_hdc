@@ -313,8 +313,8 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
     int connectError = -2;
-    constexpr uint8_t BUF_OFFSET_TWO = 2;
-    constexpr uint8_t BUF_OFFSET_THERR = 3;
+    constexpr uint8_t bufOffsetTwo = 2;
+    constexpr uint8_t bufOffsetThree = 3;
     if (childRet == -1) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
     } else if (childRet == connectError) {
@@ -328,9 +328,9 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
                 hChannel->connectLocalDevice = true;
             }
         }
-        Base::ZeroBuf(hChannel->bufStd, BUF_OFFSET_TWO);
-        childRet = snprintf_s(hChannel->bufStd + BUF_OFFSET_TWO, sizeof(hChannel->bufStd) - BUF_OFFSET_TWO,
-                              sizeof(hChannel->bufStd) - BUF_OFFSET_THERR, "%s",
+        Base::ZeroBuf(hChannel->bufStd, bufOffsetTwo);
+        childRet = snprintf_s(hChannel->bufStd + bufOffsetTwo, sizeof(hChannel->bufStd) - bufOffsetTwo,
+                              sizeof(hChannel->bufStd) - bufOffsetThree, "%s",
                               const_cast<char *>(connectKey.c_str()));
         if (childRet > 0) {
             Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, UV_START_REPEAT);

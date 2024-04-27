@@ -1102,7 +1102,7 @@ namespace Base {
         }
         int listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (listener == -1) {
-            return -2;
+            return -2;  // -2:sockets error
         }
         Base::ZeroStruct(addr);
         addr.sin_family = AF_INET;
@@ -1388,10 +1388,8 @@ namespace Base {
     const string StringFormat(const char * const formater, va_list &vaArgs)
     {
         std::vector<char> args(GetMaxBufSize());
-        if (args.size() <= 0) {
-            return std::string("");
-        }
-        const int retSize = vsnprintf_s(args.data(), GetMaxBufSize(), args.size() - 1, formater, vaArgs);
+        const int retSize = vsnprintf_s(
+            args.data(), GetMaxBufSize(), (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
         if (retSize < 0) {
             return std::string("");
         } else {
@@ -1600,12 +1598,14 @@ namespace Base {
             WRITE_LOG(LOG_FATAL, "get path failed: %s", buf);
             return res;
         }
-        if (strlen(path) < 1 || strlen(path) >= PATH_MAX - 1) {
+        size_t len = 0;
+        len = strlen(path);
+        if (len < 1 || len >= PATH_MAX - 1) {
             WRITE_LOG(LOG_FATAL, "get path failed: buffer space max");
             return res;
         }
-        if (path[strlen(path) - 1] != Base::GetPathSep()) {
-            path[strlen(path)] = Base::GetPathSep();
+        if (path[len - 1] != Base::GetPathSep()) {
+            path[len] = Base::GetPathSep();
         }
         res = path;
         return res;

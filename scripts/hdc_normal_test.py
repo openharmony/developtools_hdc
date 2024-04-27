@@ -119,6 +119,15 @@ def test_fport_cmd():
         assert check_hdc_cmd(f"fport rm {fport}", "success")
         assert not check_hdc_cmd("fport ls", fport)
 
+def test_shell_cmd_timecost():
+    current_milli_time_begin = int(round(time.time()) * 1000)
+    for i in range(10):
+        assert check_hdc_cmd("shell \"ps -ef | grep hdcd\"", "hdcd")
+    current_milli_time_end = int(round(time.time()) * 1000)
+    timecost = int(current_milli_time_end - current_milli_time_begin)
+    print(timecost)
+    # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
+    assert timecost < 150 * 1.2 
 
 def setup_class():
     print("setting up env ...")

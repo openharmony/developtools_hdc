@@ -102,9 +102,6 @@ config("hdc_common_config") {
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/host",
     "${hdc_path}/test/unittest/common/include",
-    "//third_party/libuv",  # used in common.h
-    "//third_party/lz4/lib",  # used in transfer.cpp
-    "//base/startup/init/interfaces/innerkits/include",  #daemon_unity.cpp
     "../../../base/startup/init/interfaces/innerkits/include/syspara",  #async_cmd.cpp
   ]
 
@@ -203,12 +200,7 @@ ohos_source_set("hdc_daemon_platform") {
 
   external_deps = [ "init:libbegetutil" ]
 
-  include_dirs = [
-    "${hdc_path}/daemon",
-    "//third_party/bounds_checking_function/include",
-    "//third_party/openssl/include",
-    "//third_party/libuv",
-  ]
+  include_dirs = [ "${hdc_path}/daemon" ]
 }
 
 ohos_unittest("hdc_jdwp_unittest") {

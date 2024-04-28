@@ -25,7 +25,7 @@ import os
 import pytest
 
 from dev_hdc_test import GP
-from dev_hdc_test import check_library_installation, check_hdc_version
+from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 
@@ -120,14 +120,11 @@ def test_fport_cmd():
         assert not check_hdc_cmd("fport ls", fport)
 
 def test_shell_cmd_timecost():
-    current_milli_time_begin = int(round(time.time()) * 1000)
-    for i in range(10):
-        assert check_hdc_cmd("shell \"ps -ef | grep hdcd\"", "hdcd")
-    current_milli_time_end = int(round(time.time()) * 1000)
-    timecost = int(current_milli_time_end - current_milli_time_begin)
-    print(timecost)
-    # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
-    assert timecost < 150 * 1.2 
+    assert check_cmd_time(
+        cmd="shell \"ps -ef | grep hdcd\"",
+        pattern="hdcd",
+        duration=150,
+        times=10)
 
 def setup_class():
     print("setting up env ...")

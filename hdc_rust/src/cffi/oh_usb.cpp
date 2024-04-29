@@ -132,27 +132,18 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
     int retryTimes = 10;
     // 10ms
     int retryInterval = 10000;
-    //这里加个锁
-    std::unique_lock<std::mutex> lock(mutexUsb);
 
     while (retryTimes > 0) {
-        // WRITE_LOG(Hdc::LOG_INFO, "1");
         ret = write(bulkIn, const_cast<uint8_t *>(data) + offset, length - offset);
-        // WRITE_LOG(Hdc::LOG_INFO, "2");
-        // printf("2");
         if ((ret < 0) && (errno != EINTR)) {
             return ret;
         } else if ((ret < 0) && (errno == EINTR)) {
             usleep(retryInterval);
-            // WRITE_LOG(Hdc::LOG_INFO, "3");
             retryTimes--;
             continue;
         }
-        // WRITE_LOG(Hdc::LOG_INFO, "4");
         offset += ret;
-        // WRITE_LOG(Hdc::LOG_INFO, "5");
         if (offset >= length) {
-            // WRITE_LOG(Hdc::LOG_INFO, "6");
             return offset;
         }
     }

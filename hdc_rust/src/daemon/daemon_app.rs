@@ -83,6 +83,33 @@ impl AppTaskMap {
         let task = map.get(&(session_id, channel_id)).unwrap();
         task.clone()
     }
+
+    async fn stop_task(session_id: u32) {
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        for _iter in map.iter() {
+            if _iter.0.0 != session_id {
+                continue;
+            }
+            hdctransfer::transfer_task_finish(_iter.0.1, session_id).await;
+            let mut task = _iter.1.lock().await;
+            task.transfer.stop_run = true;
+        }
+    }
+
+    async fn dump_task() -> String {
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        let mut result = String::new();
+        for _iter in map.iter() {
+            let task = _iter.1.lock().await;
+            let command = task.transfer.command_str.clone();
+            let line = format!("session_id:{},\tchannel_id:{},\tcommand:{}",
+                _iter.0.0, _iter.0.1, command);
+            result.push_str(line.as_str());
+        }
+        result
+    }
 }
 
 async fn do_app_check(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
@@ -96,6 +123,8 @@ async fn do_app_check(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool
     task.transfer.transfer_config.function_name = transconfig.function_name.clone();
     let tmp_dir = String::from(config::INSTALL_TMP_DIR);
     let local_path = tmp_dir.clone() + transconfig.optional_name.as_str();
+    task.transfer.command_str = format!("[{}],\tlocal_path:{}\n",
+        transconfig.function_name, local_path);
     task.transfer.is_master = false;
     task.transfer.local_path = local_path;
     task.transfer.file_size = transconfig.file_size;
@@ -270,6 +299,9 @@ pub async fn command_dispatch(
         HdcCommand::AppData => {
             let arc = AppTaskMap::get(session_id, channel_id).await;
             let mut task = arc.lock().await;
+            if task.transfer.stop_run {
+                return false;
+            }
             if hdctransfer::transfer_data(&mut task.transfer, _payload) {
                 drop(task);
                 on_transfer_finish(session_id, channel_id).await;
@@ -280,4 +312,12 @@ pub async fn command_dispatch(
         }
     }
     true
+}
+
+pub async fn stop_task(session_id: u32) {
+    AppTaskMap::stop_task(session_id).await;
+}
+
+pub async fn dump_task() -> String {
+    AppTaskMap::dump_task().await
 }

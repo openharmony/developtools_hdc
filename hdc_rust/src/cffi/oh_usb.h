@@ -15,11 +15,15 @@
 #ifndef USB_COMMON_H
 #define USB_COMMON_H
 
+#include <mutex>
 #include <vector>
 #include <string>
 
 #include "usb_types.h"
 #include "usb_ffs.h"
+
+
+static std::mutex mutexUsb;
 
 void FillUsbV2Head(struct Hdc::UsbFunctionfsDescV2 &descUsbFfs);
 

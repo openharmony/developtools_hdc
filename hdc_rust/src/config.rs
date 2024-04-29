@@ -42,7 +42,7 @@ impl TryFrom<u8> for CompressType {
 }
 
 #[allow(unused)]
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub enum ConnectType {
     Usb(String),
     #[default]

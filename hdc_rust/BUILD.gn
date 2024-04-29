@@ -29,6 +29,7 @@ ohos_static_library("serialize_structs") {
     "src/cffi/uart_wrapper.cpp",
     "src/cffi/usb_util.cpp",
     "src/cffi/usb_wrapper.cpp",
+    "src/cffi/utils.cpp",
   ]
   output_extension = "so"
 
@@ -113,6 +114,7 @@ ohos_static_library("cffi_host") {
     "src/cffi/uart.cpp",
     "src/cffi/uart_wrapper.cpp",
     "src/cffi/usb_util.cpp",
+    "src/cffi/utils.cpp",
   ]
 
   if (!is_mingw) {

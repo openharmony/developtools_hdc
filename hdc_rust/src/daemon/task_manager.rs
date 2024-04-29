@@ -41,6 +41,10 @@ pub async fn free_session(connect_type: ConnectType, session_id: u32) {
         ConnectType::Usb(_) => {
             UsbMap::end(session_id).await;
         }
+
+        ConnectType::HostUsb(_) => {
+            // add to avoid warning
+        }
     }
     stop_task(session_id).await;
 }

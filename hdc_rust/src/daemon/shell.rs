@@ -24,18 +24,14 @@ use super::task_manager;
 use std::collections::HashMap;
 use std::io::{self};
 use std::sync::Arc;
-// use std::time::Duration;
+
 use ylong_runtime::sync::mpsc;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::process::pty_process::{Pty,PtyCommand};
-#[allow(unused_imports)]
 use ylong_runtime::io::AsyncReadExt;
-#[allow(unused_imports)]
 use ylong_runtime::io::AsyncWriteExt;
-#[allow(unused_imports)]
 use ylong_runtime::process::Child as ylongChild;
 use std::process::Stdio;
-#[allow(unused_imports)]
 use std::os::fd::AsRawFd;
 
 
@@ -72,11 +68,7 @@ impl PtyProcess {
 // hdc shell "/data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProcess> {
     let pty = Pty::new().unwrap();
-    //println!("channel_id: {} line: {}", _channel_id, std::line!());
     let pts = pty.pts().unwrap();
-    //println!("channel_id: {} line: {}", _channel_id, std::line!());
-    // Command::new(sh) for interactive
-    // Command::new(cmd[0]).args(cmd[1..]) for normal
     let mut nohup_flag = false;
     let child = match cmd {
         None => {
@@ -96,7 +88,6 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
                     None => cmd,
                 };
             }
-            //println!("channel_id: {} line: {}", _channel_id, std::line!());
             nohup_flag = cmd.ends_with('&');
             let params = ["-c", cmd.as_str()].to_vec();
             let mut proc = PtyCommand::new(SHELL_PROG);
@@ -137,7 +128,6 @@ async fn subprocess_task(
     let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
         Err(e) => {
             let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             hdc::common::hdctransfer::echo_client(
                 session_id,
                 channel_id,
@@ -145,28 +135,22 @@ async fn subprocess_task(
                 MessageLevel::Fail
             )
             .await;
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             let task_message = TaskMessage {
                 channel_id,
                 command: HdcCommand::KernelChannelClose,
                 payload: [1].to_vec(),
             };
             transfer::put(session_id, task_message).await;
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             hdc::error!("{}", msg);
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             panic!("{}", msg);
         },
         Ok(pty) => pty
     };
-    //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
     PtyChildProcessMap::put(channel_id, pty_process.child.clone()).await;
-    //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
     let mut buf = [0_u8; 30720];
     loop {
         ylong_runtime::select!{
             read_res = pty_process.pty.read(&mut buf) => {
-                // ylong_runtime::time::sleep(Duration::from_millis(1)).await;
                 match read_res {
                     Ok(bytes) => {
                         let message = TaskMessage {
@@ -174,15 +158,10 @@ async fn subprocess_task(
                             command: ret_command,
                             payload: buf[..bytes].to_vec(),
                         };
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
-                        // ylong_runtime::time::sleep(Duration::from_millis(10)).await;
                         transfer::put(session_id, message).await;
                     }
                     Err(e) => {
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                         hdc::warn!("pty read failed: {e:?}");
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                         break;
                     }
                 }
@@ -190,26 +169,18 @@ async fn subprocess_task(
             recv_res = rx.recv() => {
                 match recv_res {
                     Ok(val) => {
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                         pty_process.pty.write_all(&val).await.unwrap();
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                         if val[..].contains(&0x4_u8) {
                             // ctrl-D: end pty
-                            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                             hdc::info!("ctrl-D: end pty");
                             break;
                         } else if val[..].contains(&0x3_u8) {
                             // ctrl-C: end process
-                            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                             hdc::info!("ctrl-C: end process");
                             unsafe {
-                                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                                 let tpgid = libc::tcgetpgrp(pty_process.pty.as_raw_fd());
-                                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                                 if tpgid > 1 {
-                                    //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                                     libc::kill(tpgid,libc::SIGINT);
-                                    //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                                 }
                             }
                             continue;
@@ -229,9 +200,7 @@ async fn subprocess_task(
                         }
                     }
                     Err(e) => {
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                         hdc::debug!("rx recv failed: {e:?}");
-                        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                     }
                 }
             }
@@ -246,13 +215,10 @@ async fn subprocess_task(
             match status {
                 Ok(Some(exit_status)) => {
                     hdc::debug!("interactive shell finish a process {:?}", exit_status);
-                    break;
                 }
                 Ok(None) => {}
                 Err(e) => {
-                    //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                     hdc::error!("interactive shell wait failed: {e:?}");
-                    //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                     break;
                 }
             }
@@ -260,33 +226,24 @@ async fn subprocess_task(
     }
 
     if !pty_process.nohup_flag {
-        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
         let mut child_lock = pty_process.child.lock().await;
-        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
 
         let kill_result = child_lock.kill().await;
         hdc::debug!("subprocess_task kill child, result:{:#?}", kill_result);
         match child_lock.wait().await {
             Ok(exit_status) => {
-                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                 PtyMap::del(channel_id).await;
-                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                 hdc::debug!("subprocess_task waiting child exit success, status:{:?}.", exit_status);
             }
             Err(e) => {
-                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                 let kill_result = child_lock.kill().await;
-                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                 hdc::debug!("subprocess_task child exit status {:?}, kill child, result:{:#?}", e, kill_result);
             }
         }
 
-        // child_lock.start_kill().expect("failed to start_kill");
         match child_lock.wait().await {
             Ok(exit_status) => {
-                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                 PtyMap::del(channel_id).await;
-                //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
                 hdc::debug!("subprocess_task waiting child exit success, status:{:?}.", exit_status);
             }
             Err(e) => {
@@ -297,9 +254,7 @@ async fn subprocess_task(
         let mut child_lock = pty_process.child.lock().await;
         hdc::debug!("subprocess_task nohup_flag:{} wait before", pty_process.nohup_flag);
         let ret  = child_lock.wait().await;
-        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
         PtyMap::del(channel_id).await;
-        //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
         hdc::debug!("subprocess_task nohup_flag:{} wait after: {:#?}", pty_process.nohup_flag, ret);
     }
 
@@ -409,7 +364,6 @@ impl PtyMap {
     pub async fn clear(session_id: u32) {
         hdc::info!("hdc shell stop_task, session_id:{}", session_id);
         let pty_map = Self::get_instance();
-        //println!("channel_id: {} line: {}", session_id, std::line!());
         let mut channel_list = Vec::new();
         {
             let map = pty_map.lock().await;
@@ -417,28 +371,21 @@ impl PtyMap {
                 let pty_task = _iter.1;
                 if pty_task.session_id == session_id {
                     let channel_id = *_iter.0;
-                    //println!("channel_id: {} line: {}", session_id, std::line!());
                     channel_list.push(channel_id);
                     if let Some(pty_child) = PtyChildProcessMap::get(channel_id).await {
                         let mut child = pty_child.lock().await;
-                        //println!("channel_id: {} line: {}", session_id, std::line!());
                         let kill_result = child.kill().await;
-                        //println!("channel_id: {} line: {}", session_id, std::line!());
                         hdc::debug!("do map clear kill child, result:{:#?}", kill_result);
-                        // child.start_kill().expect("failed to start_kill");
                         match child.wait().await {
-                            Ok(exit_status) => {
-                                //println!("channel_id: {} line: {}", session_id, std::line!());
+                            Ok(exit_status) => {               
                                 hdc::debug!("waiting child exit success, status:{:?}.", exit_status);
                             }
                             Err(e) => {
-                                //println!("channel_id: {} line: {}", session_id, std::line!());
                                 hdc::debug!("waiting child exit fail, error:{:?}.", e);
                             }
                         }
                         PtyChildProcessMap::del(channel_id).await;
-                    }
-                    //println!("channel_id: {} line: {}", session_id, std::line!());
+                    } 
                     hdc::debug!(
                         "Clear tty task, channel_id:{}, session_id: {}.",
                         channel_id,
@@ -447,16 +394,11 @@ impl PtyMap {
                 }
             }
         }
-        //println!("channel_id: {} line: {}", session_id, std::line!());
         let mut map = pty_map.lock().await;
-        //println!("channel_id: {} line: {}", session_id, std::line!());
         for channel_id in channel_list {
             map.remove(&channel_id);
-            //println!("channel_id: {} line: {}", session_id, std::line!());
             let file_name = format!("{SHELL_TEMP}-{channel_id}");
-            //println!("channel_id: {} line: {}", session_id, std::line!());
             let _ = std::fs::remove_file(file_name);
-            //println!("channel_id: {} line: {}", session_id, std::line!());
         }
     }
 
@@ -483,25 +425,4 @@ pub async fn stop_task(session_id: u32) {
 
 pub async fn dump_task() -> String {
     PtyMap::dump_task().await
-
-
-    // let mut result = String::new();
-    // let pty_map = PtyMap::get_instance();
-    // let pty_map_lock = pty_map.lock().await;
-    // for (_channel_id, pty_task) in pty_map_lock.iter() {
-    //     // if let Some(pty_child) = PtyChildProcessMap::get(*channel_id).await {
-    //     //     let mut child = pty_child.lock().await;
-    //     //     result.push_str(&format!("session_id:{}, channel_id:{}, cmd:{:#?}, child:{}",
-    //     //     pty_task.session_id, pty_task.channel_id, pty_task.cmd, child));
-    //     // } else {
-    //     let cmd = 
-    //         match &pty_task.cmd {
-    //             Some(b) => b,
-    //             _ => "",
-    //         };
-    //         result.push_str(&format!("session_id:{},\tchannel_id:{},\tcommand:{:#?}\n",
-    //         pty_task.session_id, pty_task.channel_id, cmd));
-    //     // }
-    // }
-    // format!("{:#}", result)
 }

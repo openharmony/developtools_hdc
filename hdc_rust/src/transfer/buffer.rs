@@ -163,15 +163,12 @@ impl UsbMap {
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
         let tail = usb::build_header(session_id, 0, 0);
-
         let instance = Self::get_instance();
         let mut map_lock = instance.lock().await;
         let map = map_lock.read().await;
-        
         match map.get(&session_id) {
             Some(_wr) => {
                 {
-
                     let arc_wr = map.get(&session_id).unwrap();
                     let mut wr = arc_wr.lock().await;
                     wr.write_all(head)?;

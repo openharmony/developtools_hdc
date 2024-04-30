@@ -363,16 +363,9 @@ ohos_executable("hdc") {
 
   deps += [ ":hdc_hash_gen" ]
 
-  include_dirs = [
-    "//third_party/bounds_checking_function/include",
-    "//third_party/lz4/lib",
-    "//third_party/openssl/include",
-    "//third_party/libuv",
-  ]
-
   if (!(is_mingw || is_mac) && build_selinux) {
     external_deps += [ "selinux:libselinux" ]
-    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    include_dirs = [ "//third_party/selinux/libselinux/include" ]
     defines += [ "SURPPORT_SELINUX" ]
   }
 

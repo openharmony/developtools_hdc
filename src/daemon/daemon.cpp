@@ -16,7 +16,7 @@
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
 #endif
-#include "../common/serial_struct.h"
+#include "serial_struct.h"
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>

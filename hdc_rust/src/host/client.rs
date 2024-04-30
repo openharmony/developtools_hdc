@@ -15,6 +15,7 @@
 use super::parser::ParsedCommand;
 use super::server;
 
+use hdc::common::base;
 use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
@@ -65,7 +66,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
         _ => {}
     };
 
-    if parsed_cmd.launch_server && server::check_allow_fork().await {
+    if parsed_cmd.launch_server && Base::program_mutex(base::GLOBAL_SERVER_NAME, true) {
         server::server_fork(parsed_cmd.server_addr.clone()).await;
     }
 

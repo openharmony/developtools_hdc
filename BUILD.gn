@@ -183,6 +183,7 @@ if (product_name != "ohos-sdk") {
       "hdc_rust/src/cffi/uart_wrapper.cpp",
       "hdc_rust/src/cffi/usb_util.cpp",
       "hdc_rust/src/cffi/usb_wrapper.cpp",
+      "hdc_rust/src/cffi/utils.cpp",
     ]
     output_extension = "so"
 

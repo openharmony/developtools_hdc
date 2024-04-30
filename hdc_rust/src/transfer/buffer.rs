@@ -171,9 +171,27 @@ impl UsbMap {
                 {
                     let arc_wr = map.get(&session_id).unwrap();
                     let mut wr = arc_wr.lock().await;
-                    wr.write_all(head)?;
-                    wr.write_all(body)?;
-                    wr.write_all(tail)?;
+                    match wr.write_all(head) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            return Err(Error::new(ErrorKind::Other, "Error writing head"));
+                        },
+                    }
+                    
+                    match wr.write_all(body) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            return Err(Error::new(ErrorKind::Other, "Error writing body"));
+                        },
+                    }
+
+                    match wr.write_all(tail) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            return Err(Error::new(ErrorKind::Other, "Error writing tail"));
+                        },
+                    }
+                    
                 }
             }
             None => {

@@ -188,7 +188,7 @@ async fn subprocess_task(
                             // ctrl-Q: dump process
                             hdc::info!("ctrl-Q: dump process");
                             let dump_message = task_manager::dump_running_task_info().await;
-                            hdc::debug!("dump_message: {:?}", dump_message);
+                            hdc::debug!("dump_message: {}", dump_message);
                             #[cfg(feature = "hdc_debug")]
                             let message = TaskMessage {
                                 channel_id,
@@ -207,11 +207,8 @@ async fn subprocess_task(
         }
 
         {
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             let mut child_lock = pty_process.child.lock().await;
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             let status = child_lock.try_wait();
-            //println!("channel_id: {} ,session_id: {}, line: {}", channel_id, session_id, std::line!());
             match status {
                 Ok(Some(exit_status)) => {
                     hdc::debug!("interactive shell finish a process {:?}", exit_status);

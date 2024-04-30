@@ -14,25 +14,34 @@
  */
 //! forward
 #![allow(missing_docs)]
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
+
+#[cfg(feature = "daemon")]
 use libc::SOCK_STREAM;
+#[cfg(not(target_os = "windows"))]
 use libc::{AF_LOCAL, AF_UNIX, FD_CLOEXEC, F_SETFD};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Error, ErrorKind};
+#[cfg(not(target_os = "windows"))]
+use std::io::Read;
 use ylong_runtime::sync::{Mutex, RwLock};
 
 use crate::common::base::Base;
 use crate::common::hdctransfer::transfer_task_finish;
 use crate::common::hdctransfer::{self, HdcTransferBase};
+#[cfg(feature = "daemon")]
 use crate::common::jdwp::Jdwp;
+#[cfg(not(target_os = "windows"))]
 use crate::common::uds::{UdsAddr, UdsClient, UdsServer};
 use crate::config;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::config::MessageLevel;
 use crate::transfer;
+#[allow(unused)]
 use crate::utils::hdc_log::*;
-use std::io::Read;
 use std::sync::Arc;
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
@@ -43,6 +52,94 @@ pub const BUF_SIZE_SMALL: usize = 256;
 pub const SOCKET_BUFFER_SIZE: usize = 65535;
 pub const HARMONY_RESERVED_SOCKET_PREFIX: &str = "/dev/seocket";
 pub const FILE_SYSTEM_SOCKET_PREFIX: &str = "/tmp/";
+
+#[cfg(feature = "host")]
+#[derive(Clone, Debug)]
+pub struct HdcForwardInfo {
+    pub session_id: u32,
+    pub channel_id: u32,
+    pub forward_direction: bool,
+    pub task_string: String,
+    pub connect_key: String,
+}
+
+#[cfg(feature = "host")]
+impl HdcForwardInfo {
+    fn new(session_id: u32, channel_id: u32, forward_direction: bool,
+        task_string: String, connect_key: String) -> Self {
+        Self {
+            session_id,
+            channel_id,
+            forward_direction,
+            task_string,
+            connect_key,
+        }
+    }
+}
+
+#[cfg(feature = "host")]
+type HdcForwardInfo_ = Arc<Mutex<HdcForwardInfo>>;
+#[cfg(feature = "host")]
+type HdcForwardInfoMap_ = Arc<Mutex<HashMap<String, HdcForwardInfo_>>>;
+#[cfg(feature = "host")]
+pub struct HdcForwardInfoMap {}
+#[cfg(feature = "host")]
+impl HdcForwardInfoMap {
+    fn get_instance() -> HdcForwardInfoMap_ {
+        static mut MAP: Option<HdcForwardInfoMap_> = None;
+        unsafe {
+            MAP.get_or_insert_with(|| Arc::new(Mutex::new(HashMap::new())))
+                .clone()
+        }
+    }
+
+    async fn put(forward_info: HdcForwardInfo) {
+        let instance = Self::get_instance();
+        let mut map = instance.lock().await;
+        map.insert(forward_info.task_string.clone(), Arc::new(Mutex::new(forward_info)));
+    }
+
+    pub async fn get_all_forward_infos() -> Vec<HdcForwardInfo> {
+        let instance = Self::get_instance();
+        let map = instance.lock().await;
+        let mut result = Vec::new();
+        for (_key, value) in map.iter() {
+            let info = value.lock().await;
+            result.push((*info).clone());
+        }
+        result
+    }
+
+    pub async fn remove_forward(task_string: String, forward_direction: bool) -> bool {
+        crate::info!("remove_forward task_string:{}, direction:{}", task_string, forward_direction);
+        let instance = Self::get_instance();
+        let map = instance.lock().await;
+        let mut remove_key = String::new();
+        let prefix = if forward_direction {
+            "1|".to_string()
+        } else {
+            "0|".to_string()
+        };
+        let mut task_string1 = prefix;
+        task_string1.push_str(task_string.as_str());
+        for (key, value) in map.iter() {
+            let info = value.lock().await;
+            if info.task_string.contains(&task_string1)
+                && info.forward_direction == forward_direction {
+                    remove_key = (*key.clone()).to_string();
+                    break;
+                }
+        }
+        drop(map);
+        if remove_key.is_empty() {
+            return false;
+        }
+
+        let mut map = instance.lock().await;
+        let result = map.remove(&remove_key);
+        result.is_some()
+    }
+}
 
 type TcpRead = Arc<Mutex<SplitReadHalf>>;
 type TcpReadMap_ = Arc<RwLock<HashMap<u32, TcpRead>>>;
@@ -196,6 +293,17 @@ impl ForwardTaskMap {
 
         Some(task.unwrap().clone())
     }
+
+    pub async fn get_channel_id(session_id: u32, task_string: String) -> Option<u32> {
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        for ((_session_id, _channel_id), value) in map.iter() {
+            if *_session_id == session_id && task_string.contains(&value.task_command) {
+                return Some(*_channel_id);
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -266,6 +374,22 @@ pub async fn check_node_info(value: &String, arg: &mut Vec<String>) -> bool {
     true
 }
 
+#[cfg(feature = "host")]
+pub async fn on_forward_success(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    crate::info!("on_forward_success");
+    let channel_id = task_message.channel_id;
+    let payload = task_message.payload;
+    let forward_direction = payload[0] == b'1';
+    let task_string = String::from_utf8(payload);
+    let connect_key = "unknow key".to_string();
+    if task_string.is_ok() {
+        let info = HdcForwardInfo::new(session_id, channel_id,
+            forward_direction, task_string.unwrap(), connect_key);
+        HdcForwardInfoMap::put(info).await;
+    }
+    Ok(())
+}
+
 pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
@@ -289,12 +413,15 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
             .for_each(|(i, e)| {
                 command_string[i] = *e;
             });
-        let file_check_message = TaskMessage {
-            channel_id,
-            command: HdcCommand::ForwardSuccess,
-            payload: command_string,
-        };
-        transfer::put(session_id, file_check_message).await;
+        #[cfg(feature = "host")]
+        {
+            let forward_success_message = TaskMessage {
+                channel_id,
+                command: HdcCommand::ForwardSuccess,
+                payload: command_string,
+            };
+            let _ = on_forward_success(forward_success_message, session_id).await;
+        }
         log::error!("Forwardport result: Ok");
     } else {
         echo_client(session_id, channel_id, "Forwardport result: Failed", MessageLevel::Fail).await;
@@ -431,6 +558,7 @@ pub async fn daemon_connect_tcp(session_id: u32, channel_id: u32, port: u32, cid
     recv_tcp_msg(session_id, channel_id, rd, cid).await;
 }
 
+#[cfg(not(target_os = "windows"))]
 pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
@@ -460,7 +588,7 @@ pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
     }
 }
 
-async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: bool) {
+pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: bool) {
     crate::info!("free context id = {id}");
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
@@ -484,6 +612,7 @@ async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: 
             TcpWriteStreamMap::end(task.context_forward.id).await;
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
+            #[cfg(not(target_os = "windows"))]
             UdsServer::wrap_close(task.context_forward.fd);
         }
         ForwardType::Device => {
@@ -507,6 +636,7 @@ pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
             forward_tcp_accept(session_id, channel_id, port, parameters, cid).await
         });
     } else {
+        crate::info!("setup_tcp_point slaver");
         ylong_runtime::spawn(
             async move { daemon_connect_tcp(session_id, channel_id, port, cid).await },
         );
@@ -514,6 +644,7 @@ pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
     true
 }
 
+#[cfg(not(target_os = "windows"))]
 async fn server_socket_bind_listen(
     session_id: u32,
     channel_id: u32,
@@ -570,6 +701,7 @@ pub async fn canonicalize(path: String) -> Result<String, Error> {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 pub async fn setup_device_point(session_id: u32, channel_id: u32) -> bool {
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
@@ -617,6 +749,7 @@ pub async fn setup_device_point(session_id: u32, channel_id: u32) -> bool {
     true
 }
 
+#[cfg(feature = "daemon")]
 fn get_pid(parameter: &str, forward_type: ForwardType) -> u32 {
     let mut res: u32 = 0;
     if forward_type == ForwardType::Jdwp {
@@ -637,6 +770,7 @@ fn get_pid(parameter: &str, forward_type: ForwardType) -> u32 {
     res
 }
 
+#[cfg(feature = "daemon")]
 pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     let task: Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
@@ -701,7 +835,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             session_id,
             channel_id,
             format!("fport fail:pid not found:{}", pid).as_str(),
-            MessageLevel::Fail,
+            MessageLevel::Fail
         )
         .await;
         task_finish(session_id, channel_id).await;
@@ -722,14 +856,36 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     true
 }
 
-async fn echo_client(session_id: u32, channel_id: u32, message: &str, level: MessageLevel) {
-    hdctransfer::echo_client(session_id, channel_id, message.as_bytes().to_vec(), level).await;
+async fn echo_client(_session_id: u32, channel_id: u32, message: &str, _level: MessageLevel) {
+    #[cfg(feature = "host")]
+    {
+        let _ = transfer::send_channel_msg(
+            channel_id,
+            transfer::EchoLevel::OK,
+            message.to_string()
+        )
+        .await;
+        hdctransfer::close_channel(channel_id).await;
+        return
+    }
+    #[allow(unreachable_code)]
+    {
+        hdctransfer::echo_client(
+            _session_id,
+            channel_id,
+            message.as_bytes().to_vec(),
+            _level,
+        )
+        .await;
+        hdctransfer::close_channel(channel_id).await;
+    }
 }
 
 async fn task_finish(session_id: u32, channel_id: u32) {
     transfer_task_finish(channel_id, session_id).await;
 }
 
+#[cfg(not(target_os = "windows"))]
 pub async fn daemon_connect_pipe(session_id: u32, channel_id: u32, fd: i32, path: String) {
     let name: Vec<u8> = path.as_bytes().to_vec();
     let mut socket_name = vec![0_u8; name.len() + 1];
@@ -750,6 +906,7 @@ pub async fn daemon_connect_pipe(session_id: u32, channel_id: u32, fd: i32, path
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 pub async fn setup_file_point(session_id: u32, channel_id: u32) -> bool {
     let task: Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
@@ -802,14 +959,31 @@ pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
         return false;
     }
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
-    let ret = match task.forward_type {
-        ForwardType::Tcp => setup_tcp_point(session_id, channel_id).await,
-        ForwardType::Device => setup_device_point(session_id, channel_id).await,
-        ForwardType::Jdwp | ForwardType::Ark => setup_jdwp_point(session_id, channel_id).await,
+    let mut ret = false;
+    match task.forward_type {
+        ForwardType::Tcp => {
+            ret = setup_tcp_point(session_id, channel_id).await;
+        }
+        ForwardType::Device => {
+            #[cfg(not(target_os = "windows"))]
+            {
+                ret = setup_device_point(session_id, channel_id).await;
+            }
+        }
+        ForwardType::Jdwp | ForwardType::Ark => {
+            #[cfg(feature = "daemon")]
+            {
+                ret = setup_jdwp_point(session_id, channel_id).await;
+            }
+        }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
-            setup_file_point(session_id, channel_id).await
+            #[cfg(not(target_os = "windows"))]
+            {
+                ret = setup_file_point(session_id, channel_id).await;
+            }
         }
     };
+    crate::info!("setup_point, ret:{ret}");
     ret
 }
 
@@ -972,6 +1146,7 @@ pub async fn slave_connect(
     task.context_forward.check_order = check_order;
     if let Ok((content, id)) = filter_command(_payload).await {
         let content = &content[8..].trim_end_matches('\0').to_string();
+        task.task_command = content.clone();
         if !check_node_info(content, &mut task.local_args).await {
             crate::error!("check local args is false");
             return false;
@@ -1009,12 +1184,14 @@ pub async fn read_data_to_forward(session_id: u32, channel_id: u32) -> bool {
             });
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
-            let fd = task.context_forward.fd;
+            let _fd = task.context_forward.fd;
+            #[cfg(not(target_os = "windows"))]
             ylong_runtime::spawn(async move {
-                deamon_read_socket_msg(session_id, channel_id, fd).await
+                deamon_read_socket_msg(session_id, channel_id, _fd).await
             });
         }
         ForwardType::Device => {
+            #[cfg(not(target_os = "windows"))]
             if !setup_device_point(session_id, channel_id).await {
                 return false;
             }
@@ -1037,8 +1214,11 @@ pub async fn write_forward_bufer(
     if task.forward_type == ForwardType::Tcp {
         TcpWriteStreamMap::write(id, content).await;
     } else {
-        let fd = task.context_forward.fd;
-        UdsClient::wrap_send(fd, &content);
+        #[cfg(not(target_os = "windows"))]
+        {
+            let fd = task.context_forward.fd;
+            UdsClient::wrap_send(fd, &content);
+        }
     }
     true
 }

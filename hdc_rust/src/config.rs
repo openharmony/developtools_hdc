@@ -123,6 +123,9 @@ pub enum HdcCommand {
     ForwardList,
     ForwardRemove,
     ForwardSuccess,
+    ForwardRportInit,
+    ForwardRportList,
+    ForwardRportRemove,
     // File commands
     FileInit = 3000,
     FileCheck,

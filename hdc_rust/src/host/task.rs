@@ -93,11 +93,31 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
         HdcCommand::UnityBugreportInit => {
             channel_bug_report_task(task_info).await?;
         }
+
+        HdcCommand::JdwpList | HdcCommand::JdwpTrack => {
+            channel_jdwp_task(task_info).await?;
+        }
         _ => {
             hdc::info!("get unknown command {:#?}", task_info.command);
             return Err(Error::new(ErrorKind::Other, "command not found"));
         }
     }
+    Ok(())
+}
+
+async fn channel_jdwp_task(task_info: TaskInfo) -> io::Result<()> {
+    let session_id =
+        get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+    let payload = task_info.params.join(" ").into_bytes();
+    transfer::put(
+        session_id,
+        TaskMessage {
+            channel_id: task_info.channel_id,
+            command: task_info.command,
+            payload,
+        },
+    )
+    .await;
     Ok(())
 }
 

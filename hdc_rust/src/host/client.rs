@@ -114,7 +114,8 @@ impl Client {
             HdcCommand::FileInit
             | HdcCommand::FileCheck
             | HdcCommand::FileRecvInit => self.file_send_task().await,
-            HdcCommand::AppInit | HdcCommand::AppUninstall => self.app_install_task().await,
+            HdcCommand::AppInit => self.app_install_task().await,
+            HdcCommand::AppUninstall => self.app_uninstall_task().await,
             HdcCommand::UnityRunmode => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
@@ -299,6 +300,30 @@ impl Client {
                 Ok(recv) => {
                     hdc::debug!(
                         "app_install_task recv: {:#?}",
+                        recv.iter()
+                            .map(|c| format!("{c:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                    println!("{}", String::from_utf8(recv).unwrap());
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    async fn app_uninstall_task(&mut self) -> io::Result<()> {
+        let params = self.params.clone();
+        self.send(params.join(" ").as_bytes()).await;
+
+        loop {
+            let recv = self.recv().await;
+            match recv {
+                Ok(recv) => {
+                    hdc::debug!(
+                        "app_uninstall_task recv: {:#?}",
                         recv.iter()
                             .map(|c| format!("{c:02x}"))
                             .collect::<Vec<_>>()

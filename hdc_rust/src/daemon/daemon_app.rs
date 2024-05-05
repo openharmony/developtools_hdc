@@ -33,14 +33,12 @@ use std::process::Command;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DaemonAppTask {
-    pub result_msg: Vec<u8>,
     pub transfer: HdcTransferBase,
 }
 
 impl DaemonAppTask {
     pub fn new(_session_id: u32, _channel_id: u32) -> Self {
         Self {
-            result_msg: vec![],
             transfer: HdcTransferBase::new(_session_id, _channel_id),
         }
     }
@@ -160,10 +158,7 @@ async fn put_app_finish(
     let mut msg = Vec::<u8>::new();
     msg.push(mode);
     msg.push(exit_status);
-    let arc = AppTaskMap::get(session_id, channel_id).await;
-    let mut task = arc.lock().await;
-    task.result_msg.append(&mut result.to_vec());
-    msg.append(&mut task.result_msg.clone());
+    msg.append(&mut result.to_vec());
 
     let app_finish_message = TaskMessage {
         channel_id,
@@ -176,18 +171,11 @@ async fn put_app_finish(
 async fn app_uninstall(session_id: u32, channel_id: u32, _payload: &[u8]) {
     let mut str = String::from_utf8(_payload.to_vec()).unwrap();
     str = str.trim_end_matches('\0').to_string();
-    let array = str.split(' ').map(|s| s.to_string());
-    let mut opt = String::from("");
-    let mut package = String::from("");
-    for item in array {
-        opt.push(' ');
-        if item.starts_with('-') {
-            opt.push_str(item.as_str());
-        } else {
-            package.push_str(item.as_str());
-        }
-    }
-    do_app_uninstall(session_id, channel_id, opt, package).await;
+
+    let (opt, package) : (Vec<String>, Vec<String>) = str.split(' ')
+        .map(String::from)
+        .partition(|word| word.starts_with('-'));
+    do_app_uninstall(session_id, channel_id, opt.join(" "), package.join(" ")).await;
 }
 
 async fn handle_execute_result(

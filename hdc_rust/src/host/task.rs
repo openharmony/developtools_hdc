@@ -14,6 +14,8 @@
  */
 use crate::auth;
 use crate::config::*;
+use crate::host_app;
+use crate::host_app::HostAppTaskMap;
 /// ActionType 未定义，临时屏蔽
 /// use crate::host_app::HostAppTask;
 /// use hdc::common::hdcfile::HdcFile;
@@ -32,6 +34,8 @@ extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::SplitReadHalf;
 use ylong_runtime::net::TcpStream;
 use ylong_runtime::sync::{Mutex, RwLock};
+
+use crate::host_app::HostAppTask;
 
 #[derive(Debug, Clone)]
 pub struct TaskInfo {
@@ -137,32 +141,27 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
     let payload = task_info.params.join(" ").into_bytes();
     match task_info.command {
-        // HdcCommand::AppInit | HdcCommand::AppUninstall => {
-        //     if !HostAppTask::exsit(session_id, task_info.channel_id).await {
-        //         let task = HostAppTask::new(session_id, task_info.channel_id);
-        //         HostAppTask::put(session_id, task_info.channel_id, task).await;
-        //     }
-        //     host_app::command_dispatch(
-        //         session_id,
-        //         task_info.channel_id,
-        //         task_info.command,
-        //         &payload,
-        //         payload.len() as u16,
-        //     )
-        //     .await;
-        //     return Ok(());
-        // }
-        
-        // HdcCommand::AppBegin | HdcCommand::AppData | HdcCommand::AppFinish => {
-        //     host_app::command_dispatch(
-        //         session_id,
-        //         task_info.channel_id,
-        //         task_info.command,
-        //         &payload,
-        //         payload.len() as u16)
-        //         .await;
-        //     return Ok(());            
-        // }
+        HdcCommand::AppInit | HdcCommand::AppUninstall => {
+            if !HostAppTaskMap::exist(session_id, task_info.channel_id)
+                .await
+                .unwrap()
+            {
+                HostAppTaskMap::put(
+                    session_id,
+                    task_info.channel_id,
+                    HostAppTask::new(session_id, task_info.channel_id),
+                )
+                .await;
+            };
+            let _ = host_app::command_dispatch(
+                session_id,
+                task_info.channel_id,
+                task_info.command,
+                &payload,
+                payload.len() as u16,
+            )
+            .await;
+        }
 
         HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_info.channel_id).await {
@@ -480,32 +479,17 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io
 
 async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
-        // HdcCommand::AppCheck | HdcCommand::AppUninstall => {
-        //     if !AppTaskMap::exsit(session_id, task_message.channel_id).await {
-        //         let task = DaemonAppTask::new(session_id, task_message.channel_id);
-        //         AppTaskMap::put(session_id, task_message.channel_id, task).await;
-        //     }
-        //     daemon_app::command_dispatch(
-        //         session_id,
-        //         task_message.channel_id,
-        //         task_message.command,
-        //         &task_message.payload,
-        //         task_message.payload.len() as u16,
-        //     )
-        //     .await;
-        //     return Ok(());
-        // }
-        // HdcCommand::AppBegin | HdcCommand::AppData => {
-        //     daemon_app::command_dispatch(
-        //         session_id,
-        //         task_message.channel_id,
-        //         task_message.command,
-        //         &task_message.payload,
-        //         task_message.payload.len() as u16,
-        //     )
-        //     .await;
-        //     return Ok(());
-        // }
+        HdcCommand::AppBegin | HdcCommand::AppFinish => {
+            let _ = host_app::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
         HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_message.channel_id).await {
                 let mut task = HdcFile::new(session_id, task_message.channel_id);
@@ -582,6 +566,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
 }
 
 async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    HostAppTaskMap::remove(session_id, task_message.channel_id).await;
     if task_message.payload[0] > 0 {
         let message = TaskMessage {
             channel_id: task_message.channel_id,

@@ -181,4 +181,50 @@ impl Base {
 
         matches!(ret, 0)
     }
+    // first 16 bytes is tag
+    // second 16 bytes is length
+    // flow the value
+    // bool tlv_append(tlv &str, tag &str, val &str)
+    // {
+    //     let tlen = tag.len();
+    //     if tlen <= 0 || tlen > TLV_TAG_LEN {
+    //         return false;
+    //     }
+    //     let vlen = val.len();
+    //     if vlen > TLV_VAL_LEN {
+    //         return false;
+    //     }
+    //     tag.push_str(TLV_SUFFIX_SPACE[TLV_TAG_LEN - tlen]);
+    //     tlv.push_str(tag);
+    //     let svlen = val.len().to_string();
+    //     tlv.push_str((TLV_SUFFIX_SPACE[TLV_VAL_LEN - vlen.len()]);
+    //     tlv.push_str(val);
+    //     return true;
+    // }
+    // bool tlv_to_stringmap(tlv &str, std::map<string, string> &tlvmap)
+    // {
+    //     if (tlv.length() < TLV_MIN_LEN) {
+    //         return false;
+    //     }
+    //     while (tlv.length() >= TLV_MIN_LEN) {
+    //         string tag = tlv.substr(0, TLV_TAG_LEN);
+    //         TrimSubString(tag, " ");
+    //         tlv.erase(0, TLV_TAG_LEN);
+
+    //         string vallen = tlv.substr(0, TLV_VAL_LEN);
+    //         TrimSubString(vallen, " ");
+    //         unsigned int len = atoi(vallen.c_str());
+    //         tlv.erase(0, TLV_VAL_LEN);
+
+    //         if (tlv.length() < len) {
+    //             return false;
+    //         }
+    //         string val = tlv.substr(0, len);
+    //         tlv.erase(0, len);
+
+    //         tlvmap[tag] = val;
+    //     }
+    //     return true;
+    // }
+
 }

@@ -52,21 +52,27 @@ impl ConnectTypeMap {
     }
 
     pub async fn put(session_id: u32, conn_type: ConnectType) {
+        println!("ConnectTypeMap put session {} start", session_id);
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
         map.insert(session_id, conn_type);
+        println!("ConnectTypeMap put session {} over", session_id);
     }
 
     async fn get(session_id: u32) -> ConnectType {
+        println!("ConnectTypeMap get session {} start", session_id);
         let arc_map = Self::get_instance();
         let map = arc_map.read().await;
+        println!("ConnectTypeMap get session {} over", session_id);
         map.get(&session_id).unwrap().clone()
     }
 
     pub async fn del(session_id: u32) {
+        println!("ConnectTypeMap del session {} start", session_id);
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
         let _ = map.remove(&session_id);
+        println!("ConnectTypeMap del session {} over", session_id);
     }
 
     pub async fn dump() -> String {
@@ -158,10 +164,12 @@ impl UsbMap {
         }
     }
 
-    #[allow(unused)]
     async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
+        println!("usb writer -2");
         let body = serializer::concat_pack(data);
+        println!("usb writer -1");
         let head = usb::build_header(session_id, 1, body.len());
+        println!("usb writer 0");
         let tail = usb::build_header(session_id, 0, 0);
         let instance = Self::get_instance();
         let mut map_lock = instance.lock().await;
@@ -202,12 +210,14 @@ impl UsbMap {
     }
 
     pub async fn start(session_id: u32, wr: UsbWriter) {
+        println!("usb start session {}", session_id);
         let buffer_map = Self::get_instance();
         let map_lock = buffer_map.lock().await;
         let mut map = map_lock.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         map.insert(session_id, arc_wr);
         ConnectTypeMap::put(session_id, ConnectType::Usb("some_mount_point".to_string())).await;
+        println!("usb start session {} end", session_id);
     }
 
     pub async fn end(session_id: u32) {
@@ -257,20 +267,25 @@ impl UartMap {
 }
 
 pub async fn put(session_id: u32, data: TaskMessage) {
+    println!("session id {} will send: {:#?}", session_id, data.clone());
     match ConnectTypeMap::get(session_id).await {
         ConnectType::Tcp => {
+            println!("tcp put");
             TcpMap::put(session_id, data).await;
         }
         ConnectType::Usb(_mount_point) => {
+            println!("usb put");
             if let Err(e) = UsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");
             }
         }
         ConnectType::Uart => {
+            println!("uart put");
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
         ConnectType::Bt => {}
         ConnectType::HostUsb(_mount_point) => {
+            println!("host usb put");
             #[cfg(feature = "host")]
             if let Err(e) = HostUsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");

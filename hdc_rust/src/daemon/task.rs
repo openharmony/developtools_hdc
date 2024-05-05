@@ -321,18 +321,17 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
     let cmd = task_message.command;
     let special_cmd = (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
     let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;
+    println!("dispatch_task auth status: {} for session {} cmd {:#?}", auth_ok, session_id, cmd);
 
     if !auth_ok && !special_cmd {
         hdc::error!("auth status is nok, cannt accept cmd: {}", cmd as u32);
-        transfer::put(
+        hdc::common::hdctransfer::echo_client(
             session_id,
-            TaskMessage {
-                channel_id: task_message.channel_id,
-                command: HdcCommand::KernelChannelClose,
-                payload: vec![0],
-            },
-        )
-        .await;
+            task_message.channel_id,
+            auth::get_auth_msg(session_id).await.as_bytes().to_vec(),
+            MessageLevel::Fail,
+        ).await;
+        transfer::put(session_id, auth::make_channel_close_message(task_message.channel_id).await).await;
         return Err(Error::new(
             ErrorKind::Other,
             format!("auth status is nok, cannt accept cmd: {}", cmd as u32),

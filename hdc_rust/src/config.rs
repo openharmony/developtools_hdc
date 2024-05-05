@@ -330,6 +330,56 @@ pub const HDC_HOSTNAME_MAX_LEN: usize = HDC_PARAMETER_VALUE_MAX_LEN;
 pub const HDC_WAIT_PARAMETER_FOREVER: i32 = 0;
 pub const HDC_HANDSHAKE_TOKEN_LEN: usize = 32;
 
+pub const DAEOMN_AUTH_SUCCESS: &str = "SUCCESS";
+pub const DAEOMN_UNAUTHORIZED: &str = "DAEMON_UNAUTH";
+pub const TLV_TAG_LEN: usize = 16;
+pub const TLV_VAL_LEN: usize = 16;
+pub const TLV_MIN_LEN: usize = TLV_TAG_LEN + TLV_VAL_LEN;
+pub const TAG_DEVNAME: &str = "devname";
+pub const TAG_HOSTNAME: &str = "hostname";
+pub const TAG_PUBKEY: &str = "pubkey";
+pub const TAG_EMGMSG: &str = "emgmsg";
+pub const TAG_TOKEN: &str = "token";
+pub const TAG_DAEOMN_AUTHSTATUS: &str = "daemonauthstatus";
+
+// pub const TLV_SUFFIX_SPACE: &str = " ";
+// pub const TLV_SUFFIX_SPACE_0: &str = "";
+// pub const TLV_SUFFIX_SPACE_1: &str = TLV_SUFFIX_SPACE_0 + TLV_SUFFIX_SPACE;
+// pub const TLV_SUFFIX_SPACE_2: &str = TLV_SUFFIX_SPACE_1.to_owned() + " ";
+// pub const TLV_SUFFIX_SPACE_3: &str = TLV_SUFFIX_SPACE_2 + " ";
+// pub const TLV_SUFFIX_SPACE_4: &str = TLV_SUFFIX_SPACE_3 + " ";
+// pub const TLV_SUFFIX_SPACE_5: &str = TLV_SUFFIX_SPACE_4 + " ";
+// pub const TLV_SUFFIX_SPACE_6: &str = TLV_SUFFIX_SPACE_5 + " ";
+// pub const TLV_SUFFIX_SPACE_7: &str = TLV_SUFFIX_SPACE_6 + " ";
+// pub const TLV_SUFFIX_SPACE_8: &str = TLV_SUFFIX_SPACE_7 + " ";
+// pub const TLV_SUFFIX_SPACE_9: &str = TLV_SUFFIX_SPACE_8 + " ";
+// pub const TLV_SUFFIX_SPACE_10: &str = TLV_SUFFIX_SPACE_9 + " ";
+// pub const TLV_SUFFIX_SPACE_11: &str = TLV_SUFFIX_SPACE_10 + " ";
+// pub const TLV_SUFFIX_SPACE_12: &str = TLV_SUFFIX_SPACE_11 + " ";
+// pub const TLV_SUFFIX_SPACE_13: &str = TLV_SUFFIX_SPACE_12 + " ";
+// pub const TLV_SUFFIX_SPACE_14: &str = TLV_SUFFIX_SPACE_13 + " ";
+// pub const TLV_SUFFIX_SPACE_15: &str = TLV_SUFFIX_SPACE_14 + " ";
+// pub const TLV_SUFFIX_SPACE_16: &str = TLV_SUFFIX_SPACE_15 + " ";
+// pub const TLV_SUFFIX_SPACE: [&str; 17] = [
+//     TLV_SUFFIX_SPACE_0, 
+//     TLV_SUFFIX_SPACE_1, 
+//     TLV_SUFFIX_SPACE_2, 
+//     TLV_SUFFIX_SPACE_3, 
+//     TLV_SUFFIX_SPACE_4, 
+//     TLV_SUFFIX_SPACE_5, 
+//     TLV_SUFFIX_SPACE_6, 
+//     TLV_SUFFIX_SPACE_7, 
+//     TLV_SUFFIX_SPACE_8, 
+//     TLV_SUFFIX_SPACE_9, 
+//     TLV_SUFFIX_SPACE_10,
+//     TLV_SUFFIX_SPACE_11,
+//     TLV_SUFFIX_SPACE_12,
+//     TLV_SUFFIX_SPACE_13,
+//     TLV_SUFFIX_SPACE_14,
+//     TLV_SUFFIX_SPACE_15,
+//     TLV_SUFFIX_SPACE_16,
+// ];
+
 pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
     LevelFilter::Off,
     LevelFilter::Error,

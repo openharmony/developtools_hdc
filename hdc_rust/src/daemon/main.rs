@@ -263,74 +263,31 @@ async fn usb_daemon_start() -> io::Result<()> {
 
 async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> io::Result<()> {
     let _rd = transfer::usb::UsbReader { fd: bulkin_fd };
-    let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
-
     let mut rx = transfer::usb_start_recv(bulkin_fd, 0);
-    let (recv_msg, _package_index) = match rx.recv().await {
-        Ok((msg, index)) => (msg, index),
-        Err(_) => {
-            return Err(utils::error_other("usb recv failed, reopen...".to_string()));
-        }
-    };
-
-    // let recv_msg = transfer::base::unpack_task_message(&rd)?;
-    let (session_id, send_msg) = auth::handshake_init(recv_msg).await?;
-    let channel_id = send_msg.channel_id;
-
-    transfer::UsbMap::start(session_id, wr).await;
-    transfer::put(session_id, send_msg).await;
-
-    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
-        transfer::put(
-            session_id,
-            TaskMessage {
-                channel_id,
-                command: config::HdcCommand::KernelChannelClose,
-                payload: vec![0],
-            },
-        )
-        .await;
-    }
-    let mut real_session_id = session_id;
+    let mut cur_session_id = 0;
     loop {
         match rx.recv().await {
             Ok((msg, _index)) => {
                 if msg.command == config::HdcCommand::KernelHandshake {
-                    if let Ok(id) = auth::get_new_session_id(&msg).await {
-                        if real_session_id != id {
-                            task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
-                                real_session_id).await;
-                            let (new_session_id, new_send_msg) = auth::handshake_init(msg.clone()).await?;
-                            let channel_id = new_send_msg.channel_id;
-
-                            let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
-                            transfer::UsbMap::start(new_session_id, wr).await;
-                            transfer::put(new_session_id, new_send_msg).await;
-
-                            if auth::AuthStatusMap::get(new_session_id).await == auth::AuthStatus::Ok {
-                                transfer::put(
-                                    new_session_id,
-                                    TaskMessage {
-                                        channel_id,
-                                        command: config::HdcCommand::KernelChannelClose,
-                                        payload: vec![0],
-                                    },
-                                )
-                                .await;
-                            }
-                            real_session_id = new_session_id;
+                    if let Ok(session_id_in_msg) = auth::get_session_id_from_msg(&msg).await {
+                            if session_id_in_msg != cur_session_id {
+                                hdc::info!("new session id:{}", session_id_in_msg);
+                                let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
+                                transfer::UsbMap::start(session_id_in_msg, wr).await;
+                                PtyMap::clear(cur_session_id).await;
+                                cur_session_id = session_id_in_msg;
                         }
                     }
                 }
                 ylong_runtime::spawn(async move {
-                    if let Err(e) = task::dispatch_task(msg, real_session_id).await {
+                    if let Err(e) = task::dispatch_task(msg, cur_session_id).await {
                         hdc::error!("dispatch task failed: {}", e.to_string());
                     }
                 });
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());
-                PtyMap::clear(real_session_id).await;
+                PtyMap::clear(cur_session_id).await;
                 break;
             }
         }

@@ -430,6 +430,7 @@ async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> 
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
             )
+            transfer::TcpMap::end(task_info.channel_id).await;
             .await
         }
     }

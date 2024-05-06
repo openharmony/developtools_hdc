@@ -46,7 +46,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
 #ifndef HDC_UT
     std::string consoleActive;
     if (OHOS::LoadStringFromFile(CONSOLE_ACTIVE_NODE, consoleActive)) {
-        consoleActive = OHOS::TrimStr(consoleActive,'\n');
+        consoleActive = OHOS::TrimStr(consoleActive, '\n');
         WRITE_LOG(LOG_DEBUG, "consoleActive (%d):%s", consoleActive.length(),
                   consoleActive.c_str());
         if (!consoleActive.empty() and devPathIn.find(consoleActive.c_str()) != std::string::npos) {

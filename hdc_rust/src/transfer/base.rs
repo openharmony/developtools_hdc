@@ -15,6 +15,8 @@
 //! base
 #![allow(missing_docs)]
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::mpsc::BoundedSender;
 
 use crate::config::TaskMessage;
@@ -93,8 +95,11 @@ pub async fn unpack_task_message_lock(
                 return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
             }
 
-            let (protect, payload_raw) = body.split_at(expected_head_size);
-            let (payload, _) = payload_raw.split_at(expected_data_size);
+            let protect = body.split_at(expected_head_size).0;
+            let payload = match expected_head_size + expected_data_size <= body.len() {
+                true => body.split_at(expected_head_size).1,
+                false => body.split_at(expected_head_size).1.split_at(expected_data_size).0,
+            };
 
             let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
             let channel_id = payload_protect.channel_id;
@@ -168,7 +173,6 @@ pub fn unpack_task_message(
 ) -> io::Result<()> {
     let (pack_size, package_index) = rd.check_protocol_head()?;
     if pack_size == 0 {
-        println!("dummy package.");
         return Ok(());
     }
 
@@ -192,8 +196,11 @@ pub fn unpack_task_message(
             return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
         }
 
-        let (protect, payload_raw) = body.split_at(expected_head_size);
-        let (payload, _) = payload_raw.split_at(expected_data_size);
+        let protect = body.split_at(expected_head_size).0;
+        let payload = match expected_head_size + expected_data_size <= body.len() {
+            true => body.split_at(expected_head_size).1,
+            false => body.split_at(expected_head_size).1.split_at(expected_data_size).0,
+        };
 
         let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
         let channel_id = payload_protect.channel_id;

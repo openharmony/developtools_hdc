@@ -27,7 +27,11 @@ mod unittest;
 use std::io::ErrorKind;
 
 use hdc::config;
-use hdc::utils::hdc_log::*;
+use hdc::common::base;
+use hdc::common::base::Base;
+
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 
 #[macro_use]
 extern crate lazy_static;
@@ -66,6 +70,10 @@ fn main() {
     hdc::debug!("parsed cmd: {:#?}", parsed_cmd);
 
     if parsed_cmd.run_in_server {
+        if !Base::program_mutex(base::GLOBAL_SERVER_NAME, false) {
+            hdc::debug!("There is already a running service, please exit directly");
+            return;
+        }
         ylong_runtime::block_on(async {
             let _ = server::run_server_mode(parsed_cmd.server_addr).await;
         });

@@ -23,13 +23,47 @@ use hdc::utils;
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
+#[allow(unused)]
 use hdc::utils::hdc_log::*;
-
+use hdc::host_transfer::host_usb;
 use std::io::{self, Error, ErrorKind};
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
 
 pub async fn run_server_mode(addr_str: String) -> io::Result<()> {
+    ylong_runtime::spawn(start_usb_server());
+    start_client_listen(addr_str).await
+}
+
+async fn start_usb_server() {
+    let ptr = host_usb::init_host_usb() as u64;
+    loop {
+        let device_list = host_usb::get_ready_usb_devices_string(ptr);
+        match device_list {
+            Ok(str) => {
+                if str.is_empty() {
+                    std::thread::sleep(Duration::from_secs(1));
+                    continue;
+                }
+                for sn in str.split(' ') {
+                    if sn.is_empty() {
+                        continue;
+                    }
+                    task::start_usb_device_loop(ptr, sn.to_string()).await;
+                }
+                std::thread::sleep(Duration::from_secs(1));
+            }
+            Err(_) => {
+                break;
+            }
+        }
+    }
+    host_usb::stop(ptr);
+}
+
+async fn start_client_listen(addr_str: String) -> io::Result<()> {
     let saddr = addr_str;
     let listener = TcpListener::bind(saddr.clone()).await?;
     hdc::info!("server binds on {saddr}");
@@ -57,24 +91,13 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output = utils::execute_cmd("ps -ef | grep hdc | awk '{{print $2}}'".to_owned());
+        let output = utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned());
         let output_str = String::from_utf8_lossy(&output);
         for pid in output_str.split_whitespace() {
             pids.push(u32::from_str(pid).unwrap());
         }
     }
     pids
-}
-
-// 跨平台命令
-pub async fn check_allow_fork() -> bool {
-    let pids = get_process_pids().await;
-    for pid in pids {
-        if pid != process::id() {
-            return false;
-        }
-    }
-    true
 }
 
 // 跨平台命令

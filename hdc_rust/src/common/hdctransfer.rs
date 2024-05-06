@@ -25,6 +25,7 @@ use crate::serializer::native_struct::TransferConfig;
 use crate::serializer::native_struct::TransferPayload;
 use crate::serializer::serialize::Serialization;
 use crate::transfer;
+#[cfg(not(feature = "host"))]
 use crate::utils::hdc_log::*;
 use std::fs::metadata;
 use std::fs::OpenOptions;
@@ -32,6 +33,8 @@ use std::fs::{self, create_dir_all, File};
 use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;
 
@@ -75,6 +78,9 @@ pub struct HdcTransferBase {
     pub file_begin_time: u64,
     pub dir_begin_time: u64,
     pub is_local_dir_exsit: Option<bool>,
+    pub empty_dirs: String,
+    pub stop_run: bool,
+    pub command_str: String,
 
     pub transfer_config: TransferConfig,
 }
@@ -104,6 +110,9 @@ impl HdcTransferBase {
             file_begin_time: 0,
             dir_begin_time: 0,
             is_local_dir_exsit: None,
+            empty_dirs: String::new(),
+            stop_run: false,
+            command_str: String::new(),
             transfer_config: TransferConfig::default(),
         }
     }

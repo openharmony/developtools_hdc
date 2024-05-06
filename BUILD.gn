@@ -114,11 +114,7 @@ template("hdcd_source_set") {
     }
     configs = [ ":hdc_config" ]
 
-    deps = [
-      "//third_party/libuv:uv",
-      "//third_party/lz4:liblz4_static",
-      "//third_party/openssl:libcrypto_shared",
-    ]
+    deps = []
 
     deps += [
       ":hdc_hash_gen",
@@ -134,6 +130,9 @@ template("hdcd_source_set") {
       "c_utils:utilsbase",
       "hilog:libhilog",
       "init:libbegetutil",
+      "libuv:uv",
+      "lz4:liblz4_static",
+      "openssl:libcrypto_shared",
     ]
 
     include_dirs = [
@@ -144,7 +143,7 @@ template("hdcd_source_set") {
     ]
 
     if (build_selinux) {
-      deps += [ "//third_party/selinux:libselinux" ]
+      external_deps += [ "selinux:libselinux" ]
       include_dirs += [ "//third_party/selinux/libselinux/include" ]
       defines += [ "SURPPORT_SELINUX" ]
       if (image_name == "updater") {
@@ -184,6 +183,7 @@ if (product_name != "ohos-sdk") {
       "hdc_rust/src/cffi/uart_wrapper.cpp",
       "hdc_rust/src/cffi/usb_util.cpp",
       "hdc_rust/src/cffi/usb_wrapper.cpp",
+      "hdc_rust/src/cffi/utils.cpp",
     ]
     output_extension = "so"
 
@@ -352,26 +352,21 @@ ohos_executable("hdc") {
     sources += [ "src/host/host_uart.cpp" ]
   }
 
-  deps = [
-    "//third_party/bounds_checking_function:libsec_static",
-    "//third_party/libusb:libusb",
-    "//third_party/libuv:uv_static",
-    "//third_party/lz4:liblz4_static",
-    "//third_party/openssl:libcrypto_static",
+  deps = []
+
+  external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libusb:libusb",
+    "libuv:uv_static",
+    "lz4:liblz4_static",
+    "openssl:libcrypto_static",
   ]
 
   deps += [ ":hdc_hash_gen" ]
 
-  include_dirs = [
-    "//third_party/bounds_checking_function/include",
-    "//third_party/lz4/lib",
-    "//third_party/openssl/include",
-    "//third_party/libuv",
-  ]
-
   if (!(is_mingw || is_mac) && build_selinux) {
-    deps += [ "//third_party/selinux:libselinux" ]
-    include_dirs += [ "//third_party/selinux/libselinux/include" ]
+    external_deps += [ "selinux:libselinux" ]
+    include_dirs = [ "//third_party/selinux/libselinux/include" ]
     defines += [ "SURPPORT_SELINUX" ]
   }
 
@@ -467,13 +462,10 @@ ohos_shared_library("hdc_register") {
   ]
 
   external_deps = [
+    "bounds_checking_function:libsec_shared",
     "c_utils:utilsbase",
     "hilog:libhilog",
-  ]
-
-  deps += [
-    "//third_party/bounds_checking_function:libsec_shared",
-    "//third_party/libuv:uv",
+    "libuv:uv",
   ]
 
   sources = [

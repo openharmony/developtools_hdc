@@ -32,7 +32,7 @@ public:
     // callerContext, readBuf, readIOByes
     using CallBackWhenRead = std::function<bool(const void *, uint8_t *, const int)>;
     HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *callerContextIn, CallBackWhenRead callbackReadIn,
-                      CmdResultCallback callbackFinishIn);
+                      CmdResultCallback callbackFinishIn, bool interactiveShell);
     virtual ~HdcFileDescriptor();
     int Write(uint8_t *data, int size);
     int WriteWithMem(uint8_t *data, int size);
@@ -54,6 +54,7 @@ private:
     std::atomic<bool> workContinue;
     int fdIO;
     int refIO;
+    bool isInteractive;
     std::thread ioReadThread;
     std::thread ioWriteThread;
 

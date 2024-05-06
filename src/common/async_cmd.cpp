@@ -260,7 +260,7 @@ bool AsyncCmd::ExecuteCommand(const string &command)
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);
-    childShell = new(std::nothrow) HdcFileDescriptor(loop, fd, this, ChildReadCallback, FinishShellProc);
+    childShell = new(std::nothrow) HdcFileDescriptor(loop, fd, this, ChildReadCallback, FinishShellProc, false);
     if (childShell == nullptr) {
         WRITE_LOG(LOG_FATAL, "ExecuteCommand new childShell failed");
         return false;

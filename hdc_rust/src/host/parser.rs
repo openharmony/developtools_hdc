@@ -132,7 +132,7 @@ pub fn extract_global_params(opts: Vec<String>) -> io::Result<ParsedCommand> {
     let mut parsed_command = ParsedCommand {
         launch_server: true,
         log_level: 3,
-        server_addr: format!("0.0.0.0:{}", config::SERVER_DEFAULT_PORT),
+        server_addr: format!("127.0.0.1:{}", config::SERVER_DEFAULT_PORT),
         ..Default::default()
     };
     let len = opts.len();

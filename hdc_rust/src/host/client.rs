@@ -15,17 +15,19 @@
 use super::parser::ParsedCommand;
 use super::server;
 
+use hdc::common::base;
 use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
-use hdc::utils::hdc_log::*;
 
 use std::env;
 use std::io::{self, Error, ErrorKind, Write};
 #[cfg(not(target_os = "windows"))]
 use std::os::fd::AsRawFd;
 
+#[cfg(featrue = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 #[cfg(not(target_os = "windows"))]
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
@@ -64,7 +66,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
         _ => {}
     };
 
-    if parsed_cmd.launch_server && server::check_allow_fork().await {
+    if parsed_cmd.launch_server && Base::program_mutex(base::GLOBAL_SERVER_NAME, true) {
         server::server_fork(parsed_cmd.server_addr.clone()).await;
     }
 
@@ -112,11 +114,13 @@ impl Client {
             HdcCommand::FileInit
             | HdcCommand::FileCheck
             | HdcCommand::FileRecvInit => self.file_send_task().await,
-            HdcCommand::AppInit | HdcCommand::AppUninstall => self.app_install_task().await,
+            HdcCommand::AppInit => self.app_install_task().await,
+            HdcCommand::AppUninstall => self.app_uninstall_task().await,
             HdcCommand::UnityRunmode => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_root_run_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
+            HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
             _ => Err(Error::new(
                 ErrorKind::Other,
                 format!("unknown command: {}", self.command as u32),
@@ -163,6 +167,10 @@ impl Client {
         if self.params.len() >= 2 && self.params[1].starts_with("-r") {
             self.params[1] = "r".to_string();
         }
+        self.send(self.params.join(" ").as_bytes()).await;
+        self.loop_recv().await
+    }
+    async fn jdwp_task(&mut self) -> io::Result<()> {
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv().await
     }
@@ -305,6 +313,30 @@ impl Client {
                 Ok(recv) => {
                     hdc::debug!(
                         "app_install_task recv: {:#?}",
+                        recv.iter()
+                            .map(|c| format!("{c:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                    println!("{}", String::from_utf8(recv).unwrap());
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    async fn app_uninstall_task(&mut self) -> io::Result<()> {
+        let params = self.params.clone();
+        self.send(params.join(" ").as_bytes()).await;
+
+        loop {
+            let recv = self.recv().await;
+            match recv {
+                Ok(recv) => {
+                    hdc::debug!(
+                        "app_uninstall_task recv: {:#?}",
                         recv.iter()
                             .map(|c| format!("{c:02x}"))
                             .collect::<Vec<_>>()

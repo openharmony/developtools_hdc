@@ -61,11 +61,11 @@ hdc_host_sources = [
   "${hdc_path}/src/host/translate.cpp",
 ]
 
-common_deps = [
-  "//third_party/bounds_checking_function:libsec_static",
-  "//third_party/libuv:uv",
-  "//third_party/lz4:liblz4_static",
-  "//third_party/openssl:libcrypto_static",
+common_external_deps = [
+  "bounds_checking_function:libsec_static",
+  "libuv:uv",
+  "lz4:liblz4_static",
+  "openssl:libcrypto_static",
 ]
 
 config("hdc_ut_code_flag") {
@@ -102,9 +102,6 @@ config("hdc_common_config") {
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/host",
     "${hdc_path}/test/unittest/common/include",
-    "//third_party/libuv",  # used in common.h
-    "//third_party/lz4/lib",  # used in transfer.cpp
-    "//base/startup/init/interfaces/innerkits/include",  #daemon_unity.cpp
     "../../../base/startup/init/interfaces/innerkits/include/syspara",  #async_cmd.cpp
   ]
 
@@ -130,7 +127,7 @@ ohos_source_set("hdc_common") {
   if (hdc_support_uart) {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
   }
-  public_deps = common_deps
+  public_external_deps = common_external_deps
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -147,7 +144,7 @@ ohos_source_set("hdc_daemon") {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
     sources += [ "${hdc_path}/src/daemon/daemon_uart.cpp" ]
   }
-  public_deps = common_deps
+  public_external_deps = common_external_deps
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -163,8 +160,8 @@ ohos_source_set("hdc_host") {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
     sources += [ "${hdc_path}/src/host/host_uart.cpp" ]
   }
-  public_deps = common_deps
-  public_deps += [ "//third_party/libusb:libusb" ]
+  public_external_deps = common_external_deps
+  public_external_deps += [ "libusb:libusb" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_host_common_config",
@@ -195,20 +192,15 @@ ohos_source_set("hdc_daemon_platform") {
     "${hdc_path}/src/daemon/jdwp.cpp",
   ]
 
-  public_deps = [
-    "//third_party/bounds_checking_function:libsec_static",
-    "//third_party/libuv:uv",
-    "//third_party/openssl:libcrypto_static",
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
+    "openssl:libcrypto_static",
   ]
 
   external_deps = [ "init:libbegetutil" ]
 
-  include_dirs = [
-    "${hdc_path}/daemon",
-    "//third_party/bounds_checking_function/include",
-    "//third_party/openssl/include",
-    "//third_party/libuv",
-  ]
+  include_dirs = [ "${hdc_path}/daemon" ]
 }
 
 ohos_unittest("hdc_jdwp_unittest") {

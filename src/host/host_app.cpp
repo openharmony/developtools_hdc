@@ -103,7 +103,7 @@ void HdcHostApp::CheckMaster(CtxFile *context)
     uv_fs_req_cleanup(&fs);
 
     context->transferConfig.optionalName
-        = Base::GetRandomString(9);  // Prevent the name of illegal APP leads to pm unable to install
+        = Base::GetRandomString(EXPECTED_LEN);  // Prevent the name of illegal APP leads to pm unable to install
     if (context->localPath.find(".hap") != static_cast<size_t>(-1)) {
         context->transferConfig.optionalName += ".hap";
     } else if (context->localPath.find(".hsp") != static_cast<size_t>(-1)) {

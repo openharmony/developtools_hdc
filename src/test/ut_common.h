@@ -14,9 +14,9 @@
  */
 #ifndef HDC_UT_COMMON_H
 #define HDC_UT_COMMON_H
-#include "../daemon/daemon_common.h"
-#include "../host/host_common.h"
-#include "../host/server.h"
+#include "daemon_common.h"
+#include "host_common.h"
+#include "server.h"
 
 using Hdc::HdcClient;
 using Hdc::HdcServer;

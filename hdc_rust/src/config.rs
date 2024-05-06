@@ -42,13 +42,14 @@ impl TryFrom<u8> for CompressType {
 }
 
 #[allow(unused)]
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub enum ConnectType {
     Usb(String),
     #[default]
     Tcp,
     Uart,
     Bt,
+    HostUsb(String),
 }
 
 pub enum ErrCode {
@@ -344,8 +345,8 @@ pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000000 is 3.0.0a
-const HDC_VERSION_NUMBER: u32 = 0x30000000;
+// 0x30000100 is 3.0.0b
+const HDC_VERSION_NUMBER: u32 = 0x30000100;
 pub fn get_version() -> String {
     let major = (HDC_VERSION_NUMBER >> 28) & 0xff;
     let minor = (HDC_VERSION_NUMBER >> 20) & 0xff;

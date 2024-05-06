@@ -476,8 +476,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
 
     if (r) {
         vector<string> dirsOflocalPath;
-        char sep = Base::GetPathSep();
-        string split(&sep, 0, 1);
+        string split(1, Base::GetPathSep());
         Base::SplitString(localPath, split, dirsOflocalPath);
 
         WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu", localPath.c_str(), dirsOflocalPath.size());
@@ -599,7 +598,7 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
-    if (r == 0 && req.statbuf.st_mode & S_IFDIR) {  // is dir
+    if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
         localPath = Base::StringFormat("%s%c%s", localPath.c_str(), Base::GetPathSep(), optName);
     }
     return false;

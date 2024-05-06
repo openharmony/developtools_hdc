@@ -63,7 +63,8 @@ enum MessageLevel {
     MSG_OK,
 };
 
-enum ConnType { CONN_USB = 0, CONN_TCP, CONN_SERIAL, CONN_BT };
+enum ConnType { CONN_USB = 0, CONN_TCP, CONN_SERIAL, CONN_BT, CONN_UNKNOWN };
+const string conTypeDetail[] = { "USB", "TCP", "UART", "BT", "UNKNOWN" };
 
 #ifdef HDC_SUPPORT_UART
 enum UartTimeConst {
@@ -90,7 +91,8 @@ enum UartSetSerialNStop {
     UART_STOP2 = 2
 };
 #endif
-enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE };
+enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
+const string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
 
 enum OperateID {
     OP_ADD,
@@ -112,6 +114,7 @@ enum RetErrCode {
     RET_SUCCESS = 0,
     ERR_GENERIC = -1,
     ERR_NO_SUPPORT = -2,
+    ERR_LIBUSB_OPEN = -100,
     ERR_BUF_SIZE = -10000,
     ERR_BUF_ALLOC,
     ERR_BUF_OVERFLOW,
@@ -528,6 +531,8 @@ struct HdcDaemonInformation {
     std::string devName;
     HSession hSession;
     std::string version;
+    std::string emgmsg;
+    std::string daemonAuthStatus;
 };
 using HDaemonInfo = struct HdcDaemonInformation *;
 

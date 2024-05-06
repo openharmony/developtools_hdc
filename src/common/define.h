@@ -42,6 +42,7 @@ constexpr uint8_t CMD_ARG1_COUNT = 2;
 constexpr uint8_t COUNT = 10;
 constexpr uint8_t STREAM_MAIN = 0;  // work at main thread
 constexpr uint8_t STREAM_WORK = 1;  // work at work thread
+constexpr uint8_t STREAM_SIZE = 2;
 constexpr uint16_t TIME_BUF_SIZE = 32;
 constexpr uint16_t BUF_SIZE_MICRO = 16;
 constexpr uint16_t BUF_SIZE_TINY = 64;
@@ -59,14 +60,31 @@ constexpr uint16_t MAX_PACKET_SIZE_HISPEED = 512;
 constexpr uint16_t DEVICE_CHECK_INTERVAL = 3000;  // ms
 constexpr uint16_t MAX_SIZE_IOBUF = 61440;
 constexpr uint16_t MAX_USBFFS_BULK = 62464;
+constexpr double DECODE_SCALE = 0.75;
+constexpr uint16_t LAST_EQUAL_NUM = 2;
+constexpr uint16_t UV_START_TIMEOUT = 10;
+constexpr uint16_t UV_START_REPEAT = 10;
+constexpr uint16_t UV_LISTEN_LBACKOG = 4;
+constexpr uint16_t BUF_EXTEND_SIZE = 4;
+constexpr uint16_t BUF_MULTIPLE = 2;
+constexpr uint16_t EXPECTED_LEN = 9;
+constexpr uint16_t MAX_APP_PARAM_SIZE = 512;
+constexpr uint16_t MIN_APP_PARAM_SIZE = 4;
+constexpr uint16_t FORWORD_PORT_RM_BUF_SIZE = 9;
+constexpr uint16_t FORWORD_PORT_OTHER_BUF_SIZE = 6;
+constexpr uint16_t CMD_REMOTE_SIZE = 8;
+constexpr uint16_t PORT_MAX_LEN = 5;
+constexpr uint16_t START_SERVER_FOR_CLIENT_TIME = 300;
+constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
+
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
 // |----------------------------------------------------------------|
 // | 31-28 | 27-24 | 23-20 | 19-16 | 15-12 | 11-08 |     07-00      |
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000000 is 3.0.0a
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30000000;
+// 0x30000100 is 3.0.0b
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30000100;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;

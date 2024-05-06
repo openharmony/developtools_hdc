@@ -31,15 +31,13 @@
         "ylong_runtime",
         "bounds_checking_function",
         "lz4",
-        "selinux"
+        "selinux",
+        "openssl",
+        "libusb",
+        "libuv"
       ],
       "third_party": [
-        "libuv",
-        "openssl",
-        "bounds_checking_function",
-        "lz4",
-        "selinux",
-        "libusb"
+        "lz4"
       ]
     },
     "build": {

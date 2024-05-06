@@ -28,6 +28,7 @@ from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
+from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 
 
 def test_list_targets():
@@ -69,12 +70,48 @@ def test_app_cmd():
     package_hap = "entry-default-signed-debug.hap"
     app_name_default = "com.hmos.diagnosis"
 
+    # default
     assert check_app_install(package_hap, app_name_default)
     assert check_app_uninstall(app_name_default)
 
+    # -r
     assert check_app_install(package_hap, app_name_default, "-r")
     assert check_app_uninstall(app_name_default)
 
+    # -k
+    assert check_app_install(package_hap, app_name_default, "-r")
+    assert check_app_uninstall(app_name_default, "-k")
+
+    # -s
+    package_hap = "analyticshsp-default-signed.hsp"
+    app_name_default = "com.huawei.hms.hsp.analyticshsp"
+
+    assert check_app_install(package_hap, app_name_default, "-s")
+    assert check_app_uninstall(app_name_default, "-s")
+
+    # default multi hap
+    tables = {
+        "entry-default-signed-debug.hap" : "com.hmos.diagnosis",
+        "ActsAudioRecorderJsTest.hap" : "ohos.acts.multimedia.audio.audiorecorder"
+    }
+    assert check_app_install_multi(tables)
+    assert check_app_uninstall_multi(tables)
+
+    # default multi hap -r -k
+    tables = {
+        "entry-default-signed-debug.hap" : "com.hmos.diagnosis",
+        "ActsAudioRecorderJsTest.hap" : "ohos.acts.multimedia.audio.audiorecorder"
+    }
+    assert check_app_install_multi(tables, "-r")
+    assert check_app_uninstall_multi(tables, "-k")
+
+    # default multi hsp -s
+    tables = {
+        "libA_v10001.hsp" : "com.example.liba",
+        "libB_v10001.hsp" : "com.example.libb",
+    }
+    assert check_app_install_multi(tables, "-s")
+    assert check_app_uninstall_multi(tables, "-s")
 
 def test_server_kill():
     assert check_hdc_cmd("kill", "Kill server finish")
@@ -119,6 +156,15 @@ def test_fport_cmd():
         assert check_hdc_cmd(f"fport rm {fport}", "success")
         assert not check_hdc_cmd("fport ls", fport)
 
+def test_shell_cmd_timecost():
+    current_milli_time_begin = int(round(time.time()) * 1000)
+    for i in range(10):
+        assert check_hdc_cmd("shell \"ps -ef | grep hdcd\"", "hdcd")
+    current_milli_time_end = int(round(time.time()) * 1000)
+    timecost = int(current_milli_time_end - current_milli_time_begin)
+    print(timecost)
+    # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
+    assert timecost < 150 * 1.2 
 
 def setup_class():
     print("setting up env ...")

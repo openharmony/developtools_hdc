@@ -19,6 +19,8 @@ use super::base::{self, Writer};
 use super::uart::UartWriter;
 use super::usb::{self, UsbReader, UsbWriter};
 use super::{tcp, uart_wrapper};
+#[cfg(feature = "host")]
+use crate::host_transfer::host_usb::HostUsbMap;
 
 use crate::config::TaskMessage;
 use crate::config::{self, ConnectType};
@@ -30,13 +32,15 @@ use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf};
 use ylong_runtime::sync::{mpsc, Mutex, RwLock};
 
 type ConnectTypeMap_ = Arc<RwLock<HashMap<u32, ConnectType>>>;
 
-struct ConnectTypeMap {}
+pub struct ConnectTypeMap {}
 impl ConnectTypeMap {
     fn get_instance() -> ConnectTypeMap_ {
         static mut CONNECT_TYPE_MAP: Option<ConnectTypeMap_> = None;
@@ -47,7 +51,7 @@ impl ConnectTypeMap {
         }
     }
 
-    async fn put(session_id: u32, conn_type: ConnectType) {
+    pub async fn put(session_id: u32, conn_type: ConnectType) {
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
         map.insert(session_id, conn_type);
@@ -58,6 +62,27 @@ impl ConnectTypeMap {
         let map = arc_map.read().await;
         map.get(&session_id).unwrap().clone()
     }
+
+    pub async fn del(session_id: u32) {
+        let arc_map = Self::get_instance();
+        let mut map = arc_map.write().await;
+        let _ = map.remove(&session_id);
+    }
+
+    pub async fn dump() -> String {
+        let arc_map = Self::get_instance();
+        let map = arc_map.read().await;
+        let mut result = "".to_string();
+        for item in map.iter() {
+            let line = format!("session_id:{},\tconnect_type:{:?}\n", item.0, item.1);
+            result.push_str(line.as_str());
+        }
+        result
+    }
+}
+
+pub async fn dump_session() -> String {
+    ConnectTypeMap::dump().await
 }
 
 type TcpWriter_ = Arc<Mutex<SplitWriteHalf>>;
@@ -115,11 +140,12 @@ impl TcpMap {
             let mut wr = arc_wr.lock().await;
             let _ = wr.shutdown().await;
         }
+        ConnectTypeMap::del(id).await;
     }
 }
 
 type UsbWriter_ = Arc<Mutex<UsbWriter>>;
-type UsbMap_ = Arc<RwLock<HashMap<u32, UsbWriter_>>>;
+type UsbMap_ = Arc<Mutex<RwLock<HashMap<u32, UsbWriter_>>>>;
 
 pub struct UsbMap {}
 impl UsbMap {
@@ -127,7 +153,7 @@ impl UsbMap {
         static mut USB_MAP: Option<UsbMap_> = None;
         unsafe {
             USB_MAP
-                .get_or_insert_with(|| Arc::new(RwLock::new(HashMap::new())))
+                .get_or_insert_with(|| Arc::new(Mutex::new(RwLock::new(HashMap::new()))))
                 .clone()
         }
     }
@@ -137,23 +163,59 @@ impl UsbMap {
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
         let tail = usb::build_header(session_id, 0, 0);
-
         let instance = Self::get_instance();
-        let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
-        let mut wr = arc_wr.lock().await;
-        wr.write_all(head)?;
-        wr.write_all(body)?;
-        wr.write_all(tail)?;
+        let mut map_lock = instance.lock().await;
+        let map = map_lock.read().await;
+        match map.get(&session_id) {
+            Some(_wr) => {
+                {
+                    let arc_wr = map.get(&session_id).unwrap();
+                    let mut wr = arc_wr.lock().await;
+                    match wr.write_all(head) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            return Err(Error::new(ErrorKind::Other, "Error writing head"));
+                        },
+                    }
+                    
+                    match wr.write_all(body) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            return Err(Error::new(ErrorKind::Other, "Error writing body"));
+                        },
+                    }
+
+                    match wr.write_all(tail) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            return Err(Error::new(ErrorKind::Other, "Error writing tail"));
+                        },
+                    }
+                    
+                }
+            }
+            None => {
+                return Err(Error::new(ErrorKind::NotFound, "session not found"))
+            }
+        }
         Ok(())
     }
 
     pub async fn start(session_id: u32, wr: UsbWriter) {
         let buffer_map = Self::get_instance();
-        let mut map = buffer_map.write().await;
+        let map_lock = buffer_map.lock().await;
+        let mut map = map_lock.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         map.insert(session_id, arc_wr);
         ConnectTypeMap::put(session_id, ConnectType::Usb("some_mount_point".to_string())).await;
+    }
+
+    pub async fn end(session_id: u32) {
+        let buffer_map = Self::get_instance();
+        let map_lock = buffer_map.lock().await;
+        let mut map = map_lock.write().await;
+        let _ = map.remove(&session_id);
+        ConnectTypeMap::del(session_id).await;
     }
 }
 
@@ -208,6 +270,12 @@ pub async fn put(session_id: u32, data: TaskMessage) {
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
         ConnectType::Bt => {}
+        ConnectType::HostUsb(_mount_point) => {
+            #[cfg(feature = "host")]
+            if let Err(e) = HostUsbMap::put(session_id, data).await {
+                crate::error!("{e:?}");
+            }
+        }
     }
 }
 

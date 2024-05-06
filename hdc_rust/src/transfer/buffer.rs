@@ -189,6 +189,8 @@ impl UsbMap {
                     }
 
                     if child_ret % config::MAX_PACKET_SIZE_HISPEED == 0 {
+                        // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
+                        // so, we send dummy packet to prevent zero packet generate
                         match wr.write_all(tail) {
                             Ok(_) => {},
                             Err(e) => {

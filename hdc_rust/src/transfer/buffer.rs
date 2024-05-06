@@ -160,12 +160,12 @@ impl UsbMap {
 
     #[allow(unused)]
     async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
-        let body = serializer::concat_pack(data);
-        let head = usb::build_header(session_id, 1, body.len());
-        let tail = usb::build_header(session_id, 0, 0);
         let instance = Self::get_instance();
         let mut map_lock = instance.lock().await;
         let map = map_lock.read().await;
+        let body = serializer::concat_pack(data);
+        let head = usb::build_header(session_id, 1, body.len());
+        let mut child_ret = 0;
         match map.get(&session_id) {
             Some(_wr) => {
                 {
@@ -179,18 +179,26 @@ impl UsbMap {
                     }
                     
                     match wr.write_all(body) {
-                        Ok(_) => {},
+                        Ok(ret) => {
+                            let child_ret = ret;
+                        },
                         Err(e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing body"));
                         },
                     }
 
-                    match wr.write_all(tail) {
-                        Ok(_) => {},
-                        Err(e) => {
-                            return Err(Error::new(ErrorKind::Other, "Error writing tail"));
-                        },
+                    if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0 ) && (child_ret > 0) {
+                        let tail = usb::build_header(session_id, 0, 0);
+                        // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
+                        // so, we send dummy packet to prevent zero packet generate
+                        match wr.write_all(tail) {
+                            Ok(_) => {},
+                            Err(e) => {
+                                return Err(Error::new(ErrorKind::Other, "Error writing tail"));
+                            },
+                        }
                     }
+
                     
                 }
             }

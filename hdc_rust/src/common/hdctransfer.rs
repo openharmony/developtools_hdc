@@ -472,5 +472,4 @@ pub async fn echo_client(session_id: u32, channel_id: u32, payload: Vec<u8>, lev
         payload: data,
     };
     transfer::put(session_id, echo_message).await;
-    println!("echo_client for session {} channel {} over", session_id, channel_id);
 }

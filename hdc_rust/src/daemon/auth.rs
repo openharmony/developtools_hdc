@@ -71,7 +71,7 @@ impl AuthStatusMap {
     }
 
     async fn put(session_id: u32, auth_status: AuthStatus) {
-        println!("update auth status {:#?} for session {}", auth_status, session_id);
+        hdc::info!("update auth status {:#?} for session {}", auth_status, session_id);
         let instance = Self::get_instance();
         let mut map = instance.write().await;
         map.insert(session_id, auth_status);

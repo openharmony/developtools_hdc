@@ -14,22 +14,28 @@
  */
 use crate::auth;
 use crate::config::*;
+use crate::host_app;
+use crate::host_app::HostAppTaskMap;
 /// ActionType 未定义，临时屏蔽
 /// use crate::host_app::HostAppTask;
 /// use hdc::common::hdcfile::HdcFile;
 use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
-use hdc::config::{self, HdcCommand};
+use hdc::config::{HdcCommand, ConnectType};
 use hdc::transfer;
+use hdc::host_transfer::host_usb;
 use hdc::utils;
 
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::SplitReadHalf;
 use ylong_runtime::net::TcpStream;
 use ylong_runtime::sync::{Mutex, RwLock};
-use hdc::utils::hdc_log::*;
+
+use crate::host_app::HostAppTask;
 
 #[derive(Debug, Clone)]
 pub struct TaskInfo {
@@ -87,11 +93,31 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
         HdcCommand::UnityBugreportInit => {
             channel_bug_report_task(task_info).await?;
         }
+
+        HdcCommand::JdwpList | HdcCommand::JdwpTrack => {
+            channel_jdwp_task(task_info).await?;
+        }
         _ => {
             hdc::info!("get unknown command {:#?}", task_info.command);
             return Err(Error::new(ErrorKind::Other, "command not found"));
         }
     }
+    Ok(())
+}
+
+async fn channel_jdwp_task(task_info: TaskInfo) -> io::Result<()> {
+    let session_id =
+        get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+    let payload = task_info.params.join(" ").into_bytes();
+    transfer::put(
+        session_id,
+        TaskMessage {
+            channel_id: task_info.channel_id,
+            command: task_info.command,
+            payload,
+        },
+    )
+    .await;
     Ok(())
 }
 
@@ -135,32 +161,27 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
     let payload = task_info.params.join(" ").into_bytes();
     match task_info.command {
-        // HdcCommand::AppInit | HdcCommand::AppUninstall => {
-        //     if !HostAppTask::exsit(session_id, task_info.channel_id).await {
-        //         let task = HostAppTask::new(session_id, task_info.channel_id);
-        //         HostAppTask::put(session_id, task_info.channel_id, task).await;
-        //     }
-        //     host_app::command_dispatch(
-        //         session_id,
-        //         task_info.channel_id,
-        //         task_info.command,
-        //         &payload,
-        //         payload.len() as u16,
-        //     )
-        //     .await;
-        //     return Ok(());
-        // }
-        
-        // HdcCommand::AppBegin | HdcCommand::AppData | HdcCommand::AppFinish => {
-        //     host_app::command_dispatch(
-        //         session_id,
-        //         task_info.channel_id,
-        //         task_info.command,
-        //         &payload,
-        //         payload.len() as u16)
-        //         .await;
-        //     return Ok(());            
-        // }
+        HdcCommand::AppInit | HdcCommand::AppUninstall => {
+            if !HostAppTaskMap::exist(session_id, task_info.channel_id)
+                .await
+                .unwrap()
+            {
+                HostAppTaskMap::put(
+                    session_id,
+                    task_info.channel_id,
+                    HostAppTask::new(session_id, task_info.channel_id),
+                )
+                .await;
+            };
+            let _ = host_app::command_dispatch(
+                session_id,
+                task_info.channel_id,
+                task_info.command,
+                &payload,
+                payload.len() as u16,
+            )
+            .await;
+        }
 
         HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_info.channel_id).await {
@@ -283,7 +304,6 @@ async fn channel_shell_task(task_info: TaskInfo) -> io::Result<()> {
 }
 
 async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
-    if task_info.params.len() < 2 || task_info.params[1].len() <= 1 {}
     let connect_key = task_info.params[1].trim_end_matches('\0').to_string();
     if ConnectMap::get(connect_key.clone()).await.is_some() {
         let ret = transfer::send_channel_msg(
@@ -295,6 +315,66 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
         transfer::TcpMap::end(task_info.channel_id).await;
         return ret;
     }
+    start_tcp_daemon_session(connect_key, &task_info).await
+}
+
+pub async fn usb_handle_deamon(ptr: u64, session_id: u32, connect_key: String) -> io::Result<()> {
+    let mut rx = host_usb::start_recv(ptr, connect_key.clone(), session_id);
+    loop {
+        match rx.recv().await {
+            Ok((task_message, _index)) => {
+                hdc::debug!(
+                    "in usb_handle_deamon, recv cmd: {:#?}, payload len: {}",
+                    task_message.command,
+                    task_message.payload.len(),
+                );
+                if let Err(e) = session_task_dispatch(task_message, session_id).await {
+                    hdc::error!("dispatch task failed: {}", e.to_string());
+                }
+            }
+            Err(e) => {
+                hdc::warn!("unpack task failed: {}", e.to_string());
+                ConnectMap::remove(connect_key.clone()).await;
+                host_usb::on_device_connected(ptr, connect_key.clone(), false);
+                return Err(Error::new(ErrorKind::Other, "recv error"));
+            }
+        };
+    }
+}
+
+pub async fn start_usb_device_loop(ptr: u64, connect_key: String) {
+    let session_id = utils::get_pseudo_random_u32();
+    let channel_id = utils::get_pseudo_random_u32();
+    let wr = host_usb::HostUsbWriter {
+        connect_key: connect_key.clone(),
+        ptr,
+    };
+    host_usb::HostUsbMap::start(session_id, wr).await;
+    match auth::usb_handshake_with_daemon(ptr, connect_key.clone(), session_id, channel_id).await {
+        Ok((dev_name, version)) => {
+            host_usb::on_device_connected(ptr, connect_key.clone(), true);
+            ConnectMap::put(
+                connect_key.clone(),
+                DaemonInfo {
+                    session_id,
+                    conn_type: ConnectType::HostUsb(connect_key.clone()),
+                    conn_status: ConnectStatus::Connected,
+                    dev_name,
+                    version,
+                },
+            )
+            .await;
+        }
+        Err(e) => {
+            let _ =
+                transfer::send_channel_msg(channel_id, transfer::EchoLevel::FAIL, e.to_string())
+                    .await;
+        }
+    };
+    ylong_runtime::spawn(usb_handle_deamon(ptr, session_id, connect_key));
+}
+
+async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> io::Result<()> {
     match TcpStream::connect(connect_key.clone()).await {
         Err(_) => {
             let ret = transfer::send_channel_msg(
@@ -350,6 +430,7 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
             )
+            transfer::TcpMap::end(task_info.channel_id).await;
             .await
         }
     }
@@ -419,32 +500,17 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io
 
 async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
-        // HdcCommand::AppCheck | HdcCommand::AppUninstall => {
-        //     if !AppTaskMap::exsit(session_id, task_message.channel_id).await {
-        //         let task = DaemonAppTask::new(session_id, task_message.channel_id);
-        //         AppTaskMap::put(session_id, task_message.channel_id, task).await;
-        //     }
-        //     daemon_app::command_dispatch(
-        //         session_id,
-        //         task_message.channel_id,
-        //         task_message.command,
-        //         &task_message.payload,
-        //         task_message.payload.len() as u16,
-        //     )
-        //     .await;
-        //     return Ok(());
-        // }
-        // HdcCommand::AppBegin | HdcCommand::AppData => {
-        //     daemon_app::command_dispatch(
-        //         session_id,
-        //         task_message.channel_id,
-        //         task_message.command,
-        //         &task_message.payload,
-        //         task_message.payload.len() as u16,
-        //     )
-        //     .await;
-        //     return Ok(());
-        // }
+        HdcCommand::AppBegin | HdcCommand::AppFinish => {
+            let _ = host_app::command_dispatch(
+                session_id,
+                task_message.channel_id,
+                task_message.command,
+                &task_message.payload,
+                task_message.payload.len() as u16,
+            )
+            .await;
+            return Ok(());
+        }
         HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_message.channel_id).await {
                 let mut task = HdcFile::new(session_id, task_message.channel_id);
@@ -521,6 +587,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
 }
 
 async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    HostAppTaskMap::remove(session_id, task_message.channel_id).await;
     if task_message.payload[0] > 0 {
         let message = TaskMessage {
             channel_id: task_message.channel_id,
@@ -604,6 +671,7 @@ impl ConnectMap {
                     ConnectType::Usb(_) => "USB",
                     ConnectType::Uart => "UART",
                     ConnectType::Bt => "BT",
+                    ConnectType::HostUsb(_) => "HOSTUSB",
                 });
                 output.push(match guard.conn_status {
                     ConnectStatus::Connected => "Connected",

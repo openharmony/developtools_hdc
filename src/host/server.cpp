@@ -222,46 +222,33 @@ void HdcServer::ClearMapDaemonInfo()
 void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string &out)
 {
     if (fullDisplay) {
-        string sConn;
-        string sStatus;
-        switch (hdi->connType) {
-            case CONN_TCP:
-                sConn = "TCP";
-                break;
-            case CONN_USB:
-                sConn = "USB";
-                break;
-#ifdef HDC_SUPPORT_UART
-            case CONN_SERIAL:
-                sConn = "UART";
-                break;
-#endif
-            case CONN_BT:
-                sConn = "BT";
-                break;
-            default:
-                sConn = "UNKNOW";
-                break;
+        string sConn = conTypeDetail[CONN_UNKNOWN];
+        if (hdi->connType < CONN_UNKNOWN) {
+            sConn = conTypeDetail[hdi->connType];
         }
-        switch (hdi->connStatus) {
-            case STATUS_READY:
-                sStatus = "Ready";
-                break;
-            case STATUS_CONNECTED:
-                sStatus = "Connected";
-                break;
-            case STATUS_OFFLINE:
-                sStatus = "Offline";
-                break;
-            default:
-                sStatus = "UNKNOW";
-                break;
+
+        string sStatus = conStatusDetail[STATUS_UNKNOW];
+        if (hdi->connStatus < STATUS_UNAUTH) {
+            if (hdi->connStatus == STATUS_CONNECTED && hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
+                sStatus = conStatusDetail[STATUS_UNAUTH];
+            } else {
+                sStatus = conStatusDetail[hdi->connStatus];
+            }
+        }
+
+        string devname = hdi->devName;
+        if (devname.empty()) {
+            devname = "unknown...";
         }
         out = Base::StringFormat("%s\t\t%s\t%s\t%s\n", hdi->connectKey.c_str(), sConn.c_str(), sStatus.c_str(),
-                                 hdi->devName.c_str());
+                                 devname.c_str());
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
-            out = Base::StringFormat("%s\n", hdi->connectKey.c_str());
+            out = Base::StringFormat("%s", hdi->connectKey.c_str());
+            if (hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
+                out.append("\tunauthorized");
+            }
+            out.append("\n");
         }
     }
 }
@@ -463,6 +450,46 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
     }
 }
 
+void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey)
+{
+    HDaemonInfo hdiOld = nullptr;
+    AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
+    if (!hdiOld) {
+        return;
+    }
+    HdcDaemonInformation diNew = *hdiOld;
+    HDaemonInfo hdiNew = &diNew;
+    // update
+    hdiNew->connStatus = STATUS_CONNECTED;
+    WRITE_LOG(LOG_INFO, "handshake info is : %s", handshake.ToDebugString().c_str());
+    WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
+    if (handshake.version < "Ver: 3.0.0b") {
+        if (!handshake.buf.empty()) {
+            hdiNew->devName = handshake.buf;
+        }
+    } else {
+        std::map<string, string> tlvmap;
+        if (Base::TlvToStringMap(handshake.buf, tlvmap)) {
+            if (tlvmap.find(TAG_DEVNAME) != tlvmap.end()) {
+                hdiNew->devName = tlvmap[TAG_DEVNAME];
+                WRITE_LOG(LOG_INFO, "devname = %s", hdiNew->devName.c_str());
+            }
+            if (tlvmap.find(TAG_EMGMSG) != tlvmap.end()) {
+                hdiNew->emgmsg = tlvmap[TAG_EMGMSG];
+                WRITE_LOG(LOG_INFO, "emgmsg = %s", hdiNew->emgmsg.c_str());
+            }
+            if (tlvmap.find(TAG_DAEOMN_AUTHSTATUS) != tlvmap.end()) {
+                hdiNew->daemonAuthStatus = tlvmap[TAG_DAEOMN_AUTHSTATUS];
+                WRITE_LOG(LOG_INFO, "daemonauthstatus = %s", hdiNew->daemonAuthStatus.c_str());
+            }
+        } else {
+            WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");
+        }
+    }
+    hdiNew->version = handshake.version;
+    AdminDaemonMap(OP_UPDATE, connectKey, hdiNew);
+}
+
 bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize)
 {
     // session handshake step3
@@ -490,23 +517,7 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
         return true;
     }
     // handshake auth OK
-    HDaemonInfo hdiOld = nullptr;
-    AdminDaemonMap(OP_QUERY, hSession->connectKey, hdiOld);
-    if (!hdiOld) {
-        return false;
-    }
-    HdcDaemonInformation diNew = *hdiOld;
-    HDaemonInfo hdiNew = &diNew;
-    // update
-    hdiNew->connStatus = STATUS_CONNECTED;
-    if (handshake.buf.size() > sizeof(hdiNew->devName) || !handshake.buf.size()) {
-        hdiNew->devName = "unknown...";
-    } else {
-        hdiNew->devName = handshake.buf;
-    }
-    WRITE_LOG(LOG_INFO, "handshake.version = %s", handshake.version.c_str());
-    hdiNew->version = handshake.version;
-    AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
+    UpdateHdiInfo(handshake, hSession->connectKey);
     hSession->handshakeOK = true;
     return true;
 }
@@ -615,8 +626,7 @@ void HdcServer::BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, str
 {
     string buf;
     if (fullOrSimble) {
-        std::string fowardContent = hfi->taskString.substr(OFFSET);
-        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), fowardContent.c_str(),
+        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.substr(OFFSET).c_str(),
                                  hfi->forwardDirection ? "[Forward]" : "[Reverse]");
     } else {
         buf = Base::StringFormat("%s\n", hfi->taskString.c_str());
@@ -828,7 +838,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         }
         uv_timer_init(&loopMain, waitTimeDoCmd);
         waitTimeDoCmd->data = hSession;
-        uv_timer_start(waitTimeDoCmd, UsbPreConnect, 10, 100);
+        uv_timer_start(waitTimeDoCmd, UsbPreConnect, UV_TIMEOUT, UV_REPEAT);
     }
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "CreateConnect hSession nullptr");
@@ -851,6 +861,7 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY_REF, channelId, nullptr);
     if (!hChannel) {
+        WRITE_LOG(LOG_DEBUG, "AttachChannel hChannel null channelId:%u", channelId);
         return;
     }
     uv_tcp_init(&hSession->childLoop, &hChannel->hChildWorkTCP);
@@ -877,6 +888,10 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
     // childCleared has not set, no need OP_QUERY_REF
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY, channelId, nullptr);
     if (!hChannel) {
+        ClearOwnTasks(hSession, channelId);
+        uint8_t count = 0;
+        Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+        WRITE_LOG(LOG_WARN, "DeatchChannel hChannel null channelId:%u", channelId);
         return;
     }
     if (hChannel->childCleared) {

@@ -197,6 +197,67 @@ impl ForwardTaskMap {
 
         Some(task.unwrap().clone())
     }
+
+    pub async fn clear(session_id: u32) {
+        let arc = Self::get_instance();
+        let mut channel_list = Vec::new();
+        {
+            let mut map = arc.lock().await;
+            if map.is_empty() {
+                return
+            }
+            for (&key, _) in map.iter() {
+                if key.0 == session_id {
+                    let id = key;
+                    channel_list.push(id);
+                }
+            }
+
+            for id in channel_list {
+                map.remove(&id);
+            }
+        }
+    }
+
+    
+    pub async fn dump_task() -> String {
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        let mut result = String::new();
+        for (_id, forward_task) in map.iter() {
+            let forward_type = match forward_task.remote_args.len() {
+                0 => "fport".to_string(),
+                2 => "rport".to_string(),
+                _ => "unknown".to_string(),
+            };
+            let first_args = match forward_task.remote_args.len() {
+                0 => "unknown".to_string(),
+                2 => format!("{}:{}", forward_task.local_args[0], forward_task.local_args[1]),
+                _ => "unknown".to_string(),
+            };
+            let second_args = match forward_task.remote_args.len() {
+                0 => format!("{}:{}", forward_task.local_args[0], forward_task.local_args[1]),
+                2 => format!("{}:{}", forward_task.remote_args[0], forward_task.remote_args[1]),
+                _ => "unknown".to_string(),
+            };
+            result.push_str(
+                &format!(
+                    "session_id:{},\tchannel_id:{},\tcommand:{:#} {:#} {:#}\n",
+                    forward_task.session_id, forward_task.channel_id,
+                    forward_type, first_args, second_args
+                )
+            );
+        }
+        result
+    }
+}
+
+pub async fn stop_task(session_id:u32) {
+    ForwardTaskMap::clear(session_id).await;
+}
+
+pub async fn dump_task() -> String {
+    ForwardTaskMap::dump_task().await
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

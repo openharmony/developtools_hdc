@@ -615,7 +615,7 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
     int OpenRet = libusb_open(device, &hUSB->devHandle);
     if (OpenRet != LIBUSB_SUCCESS) {
         WRITE_LOG(LOG_DEBUG, "libusb_open fail xret %d", OpenRet);
-        return -100;
+        return ERR_LIBUSB_OPEN;
     }
     while (modRunning) {
         libusb_device_handle *handle = hUSB->devHandle;

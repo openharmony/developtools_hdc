@@ -152,12 +152,12 @@ int HdcServerForClient::Initial()
     }
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
-        return -2;
+        return -2;  // -2:err for Listen initial failed
     }
     bool b = SetTCPListen();
     if (!b) {
         WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
-        int listenError = -3;
+        int listenError = -3;  // -3:error for SetTCPListen failed
         return listenError;
     }
     return 0;
@@ -193,7 +193,7 @@ void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload
 
 // HdcServerForClient passthrough file command to client
 void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint16_t commandFlag,
-                                      uint8_t *payload, const int payloadSize)
+                                             uint8_t *payload, const int payloadSize)
 {
     SendChannelWithCmd(hChannel, commandFlag, payload, payloadSize);
 }
@@ -313,6 +313,8 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
     int connectError = -2;
+    constexpr uint8_t bufOffsetTwo = 2;
+    constexpr uint8_t bufOffsetThree = 3;
     if (childRet == -1) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
     } else if (childRet == connectError) {
@@ -326,11 +328,12 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
                 hChannel->connectLocalDevice = true;
             }
         }
-        Base::ZeroBuf(hChannel->bufStd, 2);
-        childRet = snprintf_s(hChannel->bufStd + 2, sizeof(hChannel->bufStd) - 2, sizeof(hChannel->bufStd) - 3, "%s",
+        Base::ZeroBuf(hChannel->bufStd, bufOffsetTwo);
+        childRet = snprintf_s(hChannel->bufStd + bufOffsetTwo, sizeof(hChannel->bufStd) - bufOffsetTwo,
+                              sizeof(hChannel->bufStd) - bufOffsetThree, "%s",
                               const_cast<char *>(connectKey.c_str()));
         if (childRet > 0) {
-            Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, 10);
+            Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, UV_START_REPEAT);
             ret = true;
         }
     }
@@ -351,6 +354,13 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
 }
 
 bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
+{
+    bool ret = RemoveFportkey("0|" + forwardKey);
+    ret |= RemoveFportkey("1|" + forwardKey);
+    return ret;
+}
+
+bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HForwardInfo hfi = nullptr;
@@ -812,7 +822,13 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
-
+    HDaemonInfo hdi = nullptr;
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
+    if (hdi && !hdi->emgmsg.empty()) {
+        EchoClient(hChannel, MSG_FAIL, hdi->emgmsg.c_str());
+        return ERR_GENERIC;
+    }
     uint16_t command = *reinterpret_cast<uint16_t *>(bufPtr);
     if (command != 0 && (hChannel->remote > RemoteType::REMOTE_NONE)) {
         // server directly passthrough file command to daemon
@@ -837,8 +853,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr);
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
-            ret = -10;
-            return ret;
+            return -10;  //  -10 error formatCommand
         }
     } else {
         formatCommand.parameters = string(reinterpret_cast<char *>(bufPtr), bytesIO);

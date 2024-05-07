@@ -21,6 +21,8 @@ use std::fs::metadata;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 
 use crate::common::filemanager::FileManager;
@@ -36,6 +38,8 @@ use super::base::Base;
 use super::hdctransfer;
 use crate::serializer::native_struct::TransferConfig;
 use crate::utils;
+#[cfg(not(feature = "host"))]
+use crate::utils::hdc_log::*;
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct HdcFile {
     pub file_cnt: u32,
@@ -85,16 +89,50 @@ impl FileTaskMap {
         map.remove(&(session_id, channel_id))
     }
 
-    pub async fn get(session_id: u32, channel_id: u32) -> HdcFile_ {
+    pub async fn get(session_id: u32, channel_id: u32) -> Option<HdcFile_> {
         let arc = Self::get_instance();
         let map = arc.lock().await;
-        let task = map.get(&(session_id, channel_id)).unwrap();
-        task.clone()
+        let task = map.get(&(session_id, channel_id));
+        task.cloned()
+    }
+
+    async fn stop_task(session_id: u32) {
+        crate::info!("hdcfile stop_task, session_id:{}", session_id);
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        for _iter in map.iter() {
+            if _iter.0.0 != session_id {
+                continue;
+            }
+            hdctransfer::transfer_task_finish(_iter.0.1, session_id).await;
+            let mut task = _iter.1.lock().await;
+            task.transfer.stop_run = true;
+            crate::info!("session_id:{}, channel_id:{}, set stop_run as true.",
+                session_id, _iter.0.1);
+        }
+    }
+
+    async fn dump_task() -> String {
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        let mut result = String::new();
+        for _iter in map.iter() {
+            let task = _iter.1.lock().await;
+            let command = task.transfer.command_str.clone();
+            let line = format!("session_id:{},\tchannel_id:{},\tcommand:{}\n",
+                _iter.0.0, _iter.0.1, command);
+            result.push_str(line.as_str());
+        }
+        result
     }
 }
 
 async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return false;
+    }
+    let task = task.unwrap();
     let mut file_task = task.lock().await;
     let local_path = file_task.transfer.local_path.clone();
     let mut file_manager = FileManager::new(local_path);
@@ -109,8 +147,12 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
         {
             file_task.transfer.transfer_config.compress_type = CompressType::Lz4 as u8;
         }
-        if file_task.transfer.transfer_config.hold_timestamp {}
         file_task.transfer.transfer_config.path = file_task.transfer.remote_path.clone();
+        let command_str = format!("[file send], local_path:{}, optional_name:{}",
+            file_task.transfer.local_path.clone(),
+            file_task.transfer.transfer_config.optional_name
+        );
+        file_task.transfer.command_str.push_str(command_str.as_str());
         return true;
     } else {
         hdctransfer::echo_client(session_id, channel_id, err_msg.as_bytes().to_vec(), MessageLevel::Fail).await;
@@ -136,6 +178,10 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
     }
 
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return false;
+    }
+    let task = task.unwrap();
     let mut task = task.lock().await;
     task.transfer.is_master = true;
     drop(task);
@@ -158,6 +204,10 @@ async fn set_master_parameters(
     argv: Vec<String>,
 ) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return false;
+    }
+    let task = task.unwrap();
     let mut task = task.lock().await;
     let mut i: usize = 0;
     let mut src_argv_index = 0u32;
@@ -241,6 +291,10 @@ fn get_base_path(path: String) -> String {
 
 async fn put_file_check(session_id: u32, channel_id: u32) {
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return;
+    }
+    let task = task.unwrap();
     let task = task.lock().await;
     let file_check_message = TaskMessage {
         channel_id,
@@ -252,7 +306,11 @@ async fn put_file_check(session_id: u32, channel_id: u32) {
 
 pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
-    let task = &mut task.lock().await;
+    if task.is_none() {
+        return false;
+    }
+    let task = task.unwrap();
+    let mut task = task.lock().await;
     let mut transconfig = TransferConfig {
         ..Default::default()
     };
@@ -262,6 +320,9 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     task.transfer.local_path = transconfig.path;
     task.transfer.is_master = false;
     task.transfer.index = 0;
+    let command_str = format!("[file recv],\t local_path:{},\t optional_name:{}\t",
+        task.transfer.local_path.clone(), transconfig.optional_name);
+        task.transfer.command_str.push_str(command_str.as_str());
     let mut error = String::new();
     let local_path = task.transfer.local_path.clone();
     let optional_name = transconfig.optional_name.clone();
@@ -301,6 +362,10 @@ async fn put_file_begin(session_id: u32, channel_id: u32) {
 
 async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return false;
+    }
+    let task = task.unwrap();
     let mut task = task.lock().await;
     task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
     task.transfer.local_name =
@@ -311,6 +376,10 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
 
 async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return;
+    }
+    let task = task.unwrap();
     let task = task.lock().await;
     let size = if task.file_cnt > 1 {
         task.dir_size
@@ -355,6 +424,10 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
 async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
     if _payload[0] == 1 {
         let task = FileTaskMap::get(session_id, channel_id).await;
+        if task.is_none() {
+            return;
+        }
+        let task = task.unwrap();
         let task = task.lock().await;
         let empty = task.transfer.task_queue.is_empty();
         drop(task);
@@ -377,6 +450,10 @@ async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
 
 async fn put_file_finish(session_id: u32, channel_id: u32) {
     let task = FileTaskMap::get(session_id, channel_id).await;
+    if task.is_none() {
+        return;
+    }
+    let task = task.unwrap();
     let mut task = task.lock().await;
     let _payload: [u8; 1] = [1];
     task.file_cnt += 1;
@@ -427,16 +504,25 @@ pub async fn command_dispatch(
         }
         HdcCommand::FileBegin => {
             let task = FileTaskMap::get(session_id, channel_id).await;
+            if task.is_none() {
+                return false;
+            }
+            let task = task.unwrap();
             let task = task.lock().await;
             hdctransfer::transfer_begin(&task.transfer, HdcCommand::FileData).await;
         }
         HdcCommand::FileData => {
             let task = FileTaskMap::get(session_id, channel_id).await;
+            if task.is_none() {
+                return false;
+            }
+            let task = task.unwrap();
             let mut task = task.lock().await;
             if hdctransfer::transfer_data(&mut task.transfer, _payload) {
                 drop(task);
                 put_file_finish(session_id, channel_id).await;
             } else {
+                crate::warn!("transfer_data fail");
             }
         }
         HdcCommand::FileMode => {}
@@ -453,4 +539,12 @@ pub async fn command_dispatch(
 
 async fn task_finish(session_id: u32, channel_id: u32) {
     hdctransfer::transfer_task_finish(channel_id, session_id).await;
+}
+
+pub async fn stop_task(session_id: u32) {
+    FileTaskMap::stop_task(session_id).await;
+}
+
+pub async fn dump_task() -> String {
+    FileTaskMap::dump_task().await
 }

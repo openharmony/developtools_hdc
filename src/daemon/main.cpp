@@ -55,7 +55,7 @@ bool ForkChildCheck(int argc, const char *argv[])
         WRITE_LOG(LOG_DEBUG, "Property enable TCP");
         g_enableTcp = true;
 #ifdef HDC_EMULATOR
-    } else if (workMode == CMDSTR_TMODE_BRIDGE) {
+    } else if (workMode == CMDSTR_TMODE_BRIDGE || workMode.empty()) {
         WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
         g_enableBridge = true;
 #endif
@@ -128,7 +128,7 @@ int BackgroundRun()
 
 string DaemonUsage()
 {
-    string ret;
+    string ret = "";
     ret = "\n                         Harmony device connector daemon(HDCD) Usage: hdcd [options]...\n\n"
           "\n"
           "general options:\n"
@@ -192,7 +192,7 @@ bool DropRootPrivileges()
 {
     int ret;
     const char *userName = "shell";
-    vector<const char *> groupsNames = { "shell", "log", "readproc" };
+    vector<const char *> groupsNames = { "shell", "log", "readproc", "file_manager" };
     struct passwd *user;
     gid_t *gids = nullptr;
 
@@ -283,7 +283,7 @@ int main(int argc, const char *argv[])
     mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
 #endif
     // check property
-    if (argc == 2 && !strcmp(argv[1], "-h")) {
+    if (argc == CMD_ARG1_COUNT && !strcmp(argv[1], "-h")) {
         string usage = DaemonUsage();
         fprintf(stderr, "%s", usage.c_str());
         return 0;
@@ -351,6 +351,7 @@ int main(int argc, const char *argv[])
     daemon.InitMod(g_enableTcp, g_enableUsb);
 #endif
 #endif
+    daemon.ClearKnownHosts();
     daemon.WorkerPendding();
     bool wantRestart = daemon.WantRestart();
     WRITE_LOG(LOG_DEBUG, "Daemon finish wantRestart %d", wantRestart);

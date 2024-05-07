@@ -22,7 +22,7 @@ enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_
 
 class HdcSessionBase {
 public:
-    enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK };
+    enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK, AUTH_FAIL };
     struct SessionHandShake {
         string banner; // must first index
         // auth none
@@ -85,7 +85,8 @@ public:
     static void ReadCtrlFromSession(uv_poll_t *poll, int status, int events);
     static void ReadCtrlFromMain(uv_poll_t *poll, int status, int events);
     HSession QueryUSBDeviceRegister(void *pDev, uint8_t busIDIn, uint8_t devIDIn);
-    virtual HSession MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule, uint32_t sessionId = 0);
+    virtual HSession MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule,
+                                   uint32_t sessionId = 0);
     virtual void FreeSession(const uint32_t sessionId);
     void WorkerPendding();
     int OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen);

@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <lib/lz4.h>
+#include <lz4.h>
 
 namespace Hdc {
 

@@ -16,12 +16,12 @@
 #define HDC_HOST_COMMON_H
 
 // clang-format off
-#include "../common/common.h"
-#include "../common/file.h"
-#include "../common/transfer.h"
-#include "../common/forward.h"
-#include "../common/async_cmd.h"
-#include "../common/serial_struct.h"
+#include "common.h"
+#include "file.h"
+#include "transfer.h"
+#include "forward.h"
+#include "async_cmd.h"
+#include "serial_struct.h"
 
 #include "host_tcp.h"
 #include "host_usb.h"

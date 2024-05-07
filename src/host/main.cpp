@@ -14,17 +14,15 @@
  */
 
 #include <iostream>
+#include "ext_client.h"
 #include "server.h"
 #include "server_for_client.h"
 
 #ifndef HARMONY_PROJECT
-#include "../test/ut_command.h"
+#include "ut_command.h"
 using namespace HdcTest;
 #endif
 
-#include "server.h"
-#include "server_for_client.h"
-#include "ext_client.h"
 using namespace Hdc;
 
 namespace {
@@ -85,7 +83,7 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     for (string v : registerCommand) {
         if (doubleCommand == v) {
             outCommand = doubleCommand;
-            return 2;
+            return CMD_ARG1_COUNT;
         }
         if (cmd == v || !strncmp(cmd, CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
             outCommand = cmd;
@@ -215,7 +213,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
     if (isPullServer && Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
         // default pullup, just default listenstr.If want to customer listen-string, please use 'hdc -m -s lanip:port'
         HdcServer::PullupServer(serverListenString.c_str());
-        uv_sleep(300);  // give time to start serverForClient,at least 200ms
+        uv_sleep(START_SERVER_FOR_CLIENT_TIME);  // give time to start serverForClient,at least 200ms
     }
     client.Initial(connectKey);
     client.ExecuteCommand(commands.c_str());
@@ -235,7 +233,7 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
     }
     char *p = strrchr(buf, ':');
     if (!p) {  // Only port
-        if (strlen(buf) > 5) {
+        if (strlen(buf) > PORT_MAX_LEN) {
             Base::PrintMessage("The port-string's length must < 5");
             return false;
         }

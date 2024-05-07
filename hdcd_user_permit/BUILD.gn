@@ -12,9 +12,10 @@
 # limitations under the License.
 
 import("//build/ohos.gni")
+import("//developtools/hdc/hdc.gni")
 
 ohos_executable("exec_hdcd_user_permit") {
-  if (device_company != "qemu") {
+  if (support_hdcd_user_permit) {
     sources = [
       "src/connection.cpp",
       "src/main.cpp",
@@ -36,7 +37,7 @@ ohos_executable("exec_hdcd_user_permit") {
 }
 
 group("hdcd_user_permit") {
-  if (device_company != "qemu") {
+  if (support_hdcd_user_permit) {
     deps = [ ":exec_hdcd_user_permit" ]
   }
 }

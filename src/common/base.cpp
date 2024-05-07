@@ -342,8 +342,10 @@ namespace Base {
             return;
         }
         *origBuf = new uint8_t[sizeWanted];
-        if (!*origBuf)
+        if (!*origBuf) {
+            WRITE_LOG(LOG_WARN, "ReallocBuf failed, origBuf is null. sizeWanted:%d", sizeWanted);
             return;
+        }
         *nOrigSize = sizeWanted;
     }
 
@@ -779,7 +781,7 @@ namespace Base {
         size_t nFileSize = req.statbuf.st_size;
         size_t readMax = 0;
         uint8_t dynamicBuf = 0;
-        ret = -3;
+        ret = -3;  // -3:error for ReadBinFile
         if (bufLen == 0) {
             dynamicBuf = 1;
             pDst = new uint8_t[nFileSize + 1]();  // tail \0
@@ -789,7 +791,7 @@ namespace Base {
             readMax = nFileSize;
         } else {
             if (nFileSize > bufLen) {
-                return -2;
+                return -2;  // -2:error for bufLen
             }
             readMax = nFileSize;
             pDst = reinterpret_cast<uint8_t *>(buf);  // The first address of the static array is the array address
@@ -1075,7 +1077,7 @@ namespace Base {
 #ifdef HOST_MAC
         int ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
         if (ret == 0) {
-            for (auto i = 0; i < 2; ++i) {
+            for (auto i = 0; i < STREAM_SIZE; ++i) {
                 if (fcntl(fds[i], F_SETFD, FD_CLOEXEC) == -1) {
                     CloseFd(fds[0]);
                     CloseFd(fds[1]);
@@ -1100,7 +1102,7 @@ namespace Base {
         }
         int listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (listener == -1) {
-            return -2;
+            return -2;  // -2:sockets error
         }
         Base::ZeroStruct(addr);
         addr.sin_family = AF_INET;
@@ -1317,14 +1319,14 @@ namespace Base {
             return 0;
         }
         int padding = 0;
-        if (b64input[len - 1] == '=' && b64input[len - 2] == '=') {
+        if (b64input[len - 1] == '=' && b64input[len - LAST_EQUAL_NUM] == '=') {
             // last two chars are =
             padding = 2;  // 2 : last two chars
         } else if (b64input[len - 1] == '=') {
             // last char is =
             padding = 1;
         }
-        return static_cast<int>(len * 0.75 - padding);
+        return static_cast<int>(len * DECODE_SCALE - padding);
     }
 
     // return -1 error; >0 decode size
@@ -1386,7 +1388,8 @@ namespace Base {
     const string StringFormat(const char * const formater, va_list &vaArgs)
     {
         std::vector<char> args(GetMaxBufSize());
-        const int retSize = vsnprintf_s(args.data(), GetMaxBufSize(), args.size() - 1, formater, vaArgs);
+        const int retSize = vsnprintf_s(
+            args.data(), GetMaxBufSize(), (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
         if (retSize < 0) {
             return std::string("");
         } else {
@@ -1595,12 +1598,14 @@ namespace Base {
             WRITE_LOG(LOG_FATAL, "get path failed: %s", buf);
             return res;
         }
-        if (strlen(path) >= PATH_MAX - 1) {
+        size_t len = 0;
+        len = strlen(path);
+        if (len < 1 || len >= PATH_MAX - 1) {
             WRITE_LOG(LOG_FATAL, "get path failed: buffer space max");
             return res;
         }
-        if (path[strlen(path) - 1] != Base::GetPathSep()) {
-            path[strlen(path)] = Base::GetPathSep();
+        if (path[len - 1] != Base::GetPathSep()) {
+            path[len] = Base::GetPathSep();
         }
         res = path;
         return res;
@@ -1765,5 +1770,64 @@ namespace Base {
         return TEMP_FAILURE_RETRY(write(fd, buf, count));
 #endif
     }
+
+    void TrimSubString(string &str, string substr)
+    {
+        std::string::size_type pos = 0;
+        while ((pos = str.find(substr, pos)) != std::string::npos) {
+            str.erase(pos, substr.length());
+        }
+    }
+    // first 16 bytes is tag
+    // second 16 bytes is length
+    // flow the value
+    bool TlvAppend(string &tlv, string tag, string val)
+    {
+        if (tag.empty()) {
+            return false;
+        }
+        unsigned int tlen = tag.length();
+        if (tlen < TLV_TAG_LEN) {
+            tag.append(TLV_TAG_LEN - tlen, ' ');
+        }
+        tlv.append(tag);
+        string vallen = std::to_string(val.length());
+        unsigned int vlen = vallen.length();
+        if (vlen < TLV_VAL_LEN) {
+            vallen.append(TLV_VAL_LEN - vlen, ' ');
+        }
+        tlv.append(vallen);
+        tlv.append(val);
+        return true;
+    }
+    bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap)
+    {
+        if (tlv.length() < TLV_MIN_LEN) {
+            return false;
+        }
+        while (tlv.length() >= TLV_MIN_LEN) {
+            string tag = tlv.substr(0, TLV_TAG_LEN);
+            TrimSubString(tag, " ");
+            tlv.erase(0, TLV_TAG_LEN);
+
+            string vallen = tlv.substr(0, TLV_VAL_LEN);
+            TrimSubString(vallen, " ");
+            int len = atoi(vallen.c_str());
+            if (len < 0 || len > TLV_VAL_LEN) {
+                return false;
+            }
+            tlv.erase(0, TLV_VAL_LEN);
+
+            if (tlv.length() < static_cast<uint32_t>(len)) {
+                return false;
+            }
+            string val = tlv.substr(0, len);
+            tlv.erase(0, len);
+
+            tlvmap[tag] = val;
+        }
+        return true;
+    }
+
 }
 }  // namespace Hdc

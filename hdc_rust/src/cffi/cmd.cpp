@@ -36,7 +36,7 @@ static bool DropRootPrivileges()
 {
     int ret;
     const char *userName = "shell";
-    vector<const char *> groupsNames = { "shell", "log", "readproc" };
+    vector<const char *> groupsNames = { "shell", "log", "readproc", "file_manager" };
     struct passwd *user;
     gid_t *gids = nullptr;
 

@@ -24,6 +24,7 @@ pub use buffer::put;
 pub use buffer::send_channel_data;
 pub use buffer::send_channel_msg;
 pub use buffer::usb_start_recv;
+pub use buffer::dump_session;
 pub use buffer::ChannelMap;
 pub use buffer::EchoLevel;
 pub use buffer::TcpMap;

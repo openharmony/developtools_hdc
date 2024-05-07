@@ -36,9 +36,9 @@ public:
     bool MakeRndData(std::vector<uint8_t> &data, uint32_t sessionId);
     bool MakeDemoData(std::vector<uint8_t> &data, uint32_t sessionId);
 
-    static constexpr uint32_t serverId = 1235;
-    static constexpr uint32_t daemonSessionId = 1236;
-    static constexpr uint32_t packageIndex = 1237;
+    static constexpr uint32_t SERVER_ID = 1235;
+    static constexpr uint32_t DAEMON_SESSION_ID = 1236;
+    static constexpr uint32_t PACKAGE_INDEX = 1237;
     std::unique_ptr<HdcUART> serverHdcUart;
     std::unique_ptr<HdcSession> server;
     std::unique_ptr<HdcUART> daemonHdcUart;
@@ -116,13 +116,13 @@ void HdcUARTBaseTest::SetUp()
     serverHdcUart = std::make_unique<HdcUART>();
     server = std::make_unique<HdcSession>();
     server->serverOrDaemon = true;
-    server->sessionId = serverId;
+    server->sessionId = SERVER_ID;
     server->hUART = serverHdcUart.get();
 
     daemonHdcUart = std::make_unique<HdcUART>();
     daemon = std::make_unique<HdcSession>();
     daemon->serverOrDaemon = false;
-    daemon->sessionId = daemonSessionId;
+    daemon->sessionId = DAEMON_SESSION_ID;
     daemon->hUART = daemonHdcUart.get();
 
     mockInterface.expectUserData.clear();
@@ -135,7 +135,7 @@ bool HdcUARTBaseTest::MakeRndData(std::vector<uint8_t> &data, uint32_t sessionId
     UartHead head;
     head.option = PKG_OPTION_TAIL;
     head.sessionId = sessionId;
-    head.packageIndex = packageIndex;
+    head.packageIndex = PACKAGE_INDEX;
 
     if (data.empty()) {
         const int MaxTestBufSize = MAX_UART_SIZE_IOBUF * 2 + 2;

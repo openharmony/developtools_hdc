@@ -156,16 +156,17 @@ async fn make_sign_message(session_id: u32, token: String, channel_id: u32) -> T
 async fn make_ok_message(session_id: u32, channel_id: u32) -> TaskMessage {
     AuthStatusMap::put(session_id, AuthStatus::Ok).await;
 
+    let devname = String::from("devname         9               localhost");
+    let authret = String::from("daemonauthstatus7               SUCCESS");
+    let succmsg = format!("{}{}", devname, authret);
+
     let send = native_struct::SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
         session_id,
         connect_key: "".to_string(),
         auth_type: AuthType::OK as u8,
         version: get_version(),
-        buf: match nix::unistd::gethostname() {
-            Ok(hostname) => hostname.into_string().unwrap(),
-            Err(_) => String::from("unknown"),
-        },
+        buf: succmsg,
     };
     TaskMessage {
         channel_id,
@@ -450,7 +451,16 @@ fn show_permit_dialog() -> bool {
 pub fn is_auth_enable() -> bool {
     let (_, auth_enable) = get_dev_item("const.hdc.secure", "_");
     hdc::error!("const.hdc.secure is {}.", auth_enable);
-    auth_enable.trim().to_lowercase() == "1"
+    if auth_enable.trim().to_lowercase() != "1" {
+        return false;
+    }
+
+    // if persist.hdc.auth_bypass is set "1", will not auth,
+    // otherwhise must be auth
+    // the auto upgrade test will set persist.hdc.auth_bypass 1
+    let (_, auth_bypass) = get_dev_item("persist.hdc.auth_bypass", "_");
+    hdc::error!("persist.hdc.auth_bypass is {}.", auth_bypass);
+    auth_bypass.trim().to_lowercase() != "1"
 }
 
 async fn require_user_permittion(hostname: &str) -> UserPermit {

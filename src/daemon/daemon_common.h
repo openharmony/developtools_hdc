@@ -16,12 +16,12 @@
 #define HDC_DAEMON_COMMON_H
 
 // clang-format off
-#include "../common/common.h"
-#include "../common/define.h"
-#include "../common/file.h"
-#include "../common/forward.h"
-#include "../common/async_cmd.h"
-#include "../common/serial_struct.h"
+#include "common.h"
+#include "define.h"
+#include "file.h"
+#include "forward.h"
+#include "async_cmd.h"
+#include "serial_struct.h"
 
 #ifndef HDC_HOST // daemon used
 #include "system_depend.h"

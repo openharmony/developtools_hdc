@@ -23,7 +23,7 @@ envirments
 ############
 */
 #include "system_depend.h"
-#include "../common/base.h"
+#include "base.h"
 #if defined(HARMONY_PROJECT)
 extern "C" {
 #include "init_reboot.h"

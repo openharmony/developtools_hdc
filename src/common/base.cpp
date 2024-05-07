@@ -1812,10 +1812,13 @@ namespace Base {
 
             string vallen = tlv.substr(0, TLV_VAL_LEN);
             TrimSubString(vallen, " ");
-            unsigned int len = atoi(vallen.c_str());
+            int len = atoi(vallen.c_str());
+            if (len < 0 || len > TLV_VAL_LEN) {
+                return false;
+            }
             tlv.erase(0, TLV_VAL_LEN);
 
-            if (tlv.length() < len) {
+            if (tlv.length() < static_cast<uint32_t>(len)) {
                 return false;
             }
             string val = tlv.substr(0, len);

@@ -101,17 +101,6 @@ pub async fn get_process_pids() -> Vec<u32> {
 }
 
 // 跨平台命令
-pub async fn check_allow_fork() -> bool {
-    let pids = get_process_pids().await;
-    for pid in pids {
-        if pid != process::id() {
-            return false;
-        }
-    }
-    true
-}
-
-// 跨平台命令
 pub async fn server_fork(addr_str: String) {
     let current_exe = std::env::current_exe().unwrap().display().to_string();
     let result = process::Command::new(&current_exe)

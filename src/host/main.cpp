@@ -19,7 +19,7 @@
 #include "server_for_client.h"
 
 #ifndef HARMONY_PROJECT
-#include "../test/ut_command.h"
+#include "ut_command.h"
 using namespace HdcTest;
 #endif
 

@@ -293,7 +293,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
         }
     }
     task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
-        real_session_id).await;
+        cur_session_id).await;
     Ok(())
 }
 

@@ -165,41 +165,37 @@ impl UsbMap {
     }
 
     async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
-        println!("usb writer -2");
         let body = serializer::concat_pack(data);
-        println!("usb writer -1");
         let head = usb::build_header(session_id, 1, body.len());
-        println!("usb writer 0");
         let tail = usb::build_header(session_id, 0, 0);
         let instance = Self::get_instance();
-        let mut map_lock = instance.lock().await;
+        let map_lock = instance.lock().await;
         let map = map_lock.read().await;
         match map.get(&session_id) {
             Some(_wr) => {
                 {
                     let arc_wr = map.get(&session_id).unwrap();
-                    let mut wr = arc_wr.lock().await;
+                    let wr = arc_wr.lock().await;
                     match wr.write_all(head) {
                         Ok(_) => {},
-                        Err(e) => {
+                        Err(_e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing head"));
                         },
                     }
                     
                     match wr.write_all(body) {
                         Ok(_) => {},
-                        Err(e) => {
+                        Err(_e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing body"));
                         },
                     }
 
                     match wr.write_all(tail) {
                         Ok(_) => {},
-                        Err(e) => {
+                        Err(_e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing tail"));
                         },
                     }
-                    
                 }
             }
             None => {
@@ -267,7 +263,7 @@ impl UartMap {
 }
 
 pub async fn put(session_id: u32, data: TaskMessage) {
-    println!("session id {} will send: {:#?}", session_id, data.clone());
+    // println!("session id {} will send: {:#?}", session_id, data.clone());
     match ConnectTypeMap::get(session_id).await {
         ConnectType::Tcp => {
             println!("tcp put");

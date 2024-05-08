@@ -52,7 +52,7 @@ impl HostLoggerMeta {
         meta.run_in_server = run_in_server;
         meta.log_file = 
             Path::new(&std::env::temp_dir())
-                .join(config::LOG_FILE_NAME.to_string() + &config::LOG_TAIL_NAME.to_string());
+                .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
         if run_in_server {
             Self::dump_log_file(config::LOG_BAK_NAME, meta.level_char);
             std::fs::File::create(&meta.log_file).unwrap();
@@ -80,28 +80,28 @@ impl HostLoggerMeta {
 
         let file_path = 
             Path::new(&std::env::temp_dir())
-                .join(config::LOG_FILE_NAME.to_string() + &config::LOG_TAIL_NAME.to_string());
+                .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
         let ts = 
             humantime::format_rfc3339_millis(SystemTime::now())
                 .to_string()
-                .replace(":", "");
+                .replace(':', "");
         let file_cache_path = 
         if level_char == 'T' {
             Path::new(&std::env::temp_dir())
                 .join(
                     file_type.to_string()
                     + &ts[..19]
-                    + &config::LOG_TAIL_NAME.to_string()
+                    + config::LOG_TAIL_NAME
                 )         
         } else {
             Path::new(&std::env::temp_dir())
                 .join(
                     file_type.to_string()
-                    + &config::LOG_TAIL_NAME.to_string()
+                    + config::LOG_TAIL_NAME
                 )
         };
         if file_path.exists(){
-            std::fs::rename(&file_path, &file_cache_path).unwrap();
+            std::fs::rename(&file_path, file_cache_path).unwrap();
         }
 
     }

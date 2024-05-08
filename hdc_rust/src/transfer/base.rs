@@ -57,7 +57,7 @@ impl CheckCompressVersion {
 }
 
 pub trait Writer {
-    fn write_all(&self, data: Vec<u8>) -> io::Result<()>;
+    fn write_all(&self, data: Vec<u8>) -> io::Result<i32>;
 }
 
 pub trait Reader: Send + Sync + 'static {

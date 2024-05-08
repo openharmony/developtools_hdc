@@ -97,6 +97,9 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
         HdcCommand::JdwpList | HdcCommand::JdwpTrack => {
             channel_jdwp_task(task_info).await?;
         }
+        HdcCommand::KernelCheckServer => {
+            check_server_task(task_info).await?;
+        }
         _ => {
             hdc::info!("get unknown command {:#?}", task_info.command);
             return Err(Error::new(ErrorKind::Other, "command not found"));
@@ -598,6 +601,16 @@ async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io
     }
     hdc::info!("recv channel close");
     transfer::TcpMap::end(task_message.channel_id).await;
+    Ok(())
+}
+
+async fn check_server_task(task_info: TaskInfo) -> io::Result<()> {
+    let payload = [
+        u16::to_le_bytes(HdcCommand::KernelCheckServer as u16).as_slice(),
+        get_version().as_bytes(),
+    ]
+    .concat();
+    transfer::send_channel_data(task_info.channel_id, payload).await;
     Ok(())
 }
 

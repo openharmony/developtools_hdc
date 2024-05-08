@@ -121,6 +121,7 @@ impl Client {
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
             HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
+            HdcCommand::KernelCheckServer => self.check_server_task().await,
             _ => Err(Error::new(
                 ErrorKind::Other,
                 format!("unknown command: {}", self.command as u32),
@@ -347,6 +348,46 @@ impl Client {
                 Err(e) => {
                     return Err(e);
                 }
+            }
+        }
+    }
+
+    async fn check_server_task(&mut self) -> io::Result<()> {
+        let params = self.params.clone();
+        self.send(params.join(" ").as_bytes()).await;
+
+        let recv = self.recv().await;
+        match recv {
+            Ok(recv) => {
+                hdc::debug!(
+                    "check_server_task recv: {:#?}",
+                    recv.iter()
+                        .map(|c| format!("{c:02x}"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+
+                const CMD_U8_LEN: usize = 2;
+                if recv.len() < CMD_U8_LEN {
+                    return Err(Error::new(io::ErrorKind::Other, "recv failed"));
+                }
+
+                let (cmd_slice, version_slice) = recv.split_at(CMD_U8_LEN);
+                let cmd =
+                    HdcCommand::try_from(u16::from_le_bytes(cmd_slice.try_into().unwrap()) as u32)
+                        .unwrap();
+                if HdcCommand::KernelCheckServer != cmd {
+                    return Err(Error::new(io::ErrorKind::Other, "recv cmd error"));
+                }
+                println!(
+                    "Client version:{}, server version:{}",
+                    config::get_version(),
+                    String::from_utf8(version_slice.to_vec()).unwrap()
+                );
+                Ok(())
+            }
+            Err(e) => {
+                Err(e)
             }
         }
     }

@@ -279,6 +279,7 @@ pub const FILE_PACKAGE_HEAD: usize = 64;
 pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
 pub const MAX_SIZE_IOBUF: usize = 61440;
 
+pub const WIN_CMD_PROG: &str = "cmd.exe";
 pub const SHELL_PROG: &str = "sh";
 pub const SHELL_TEMP: &str = "/data/local/tmp/hdc-pty";
 

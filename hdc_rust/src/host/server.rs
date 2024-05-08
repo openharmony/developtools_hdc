@@ -78,8 +78,11 @@ async fn start_client_listen(addr_str: String) -> io::Result<()> {
 pub async fn get_process_pids() -> Vec<u32> {
     let mut pids: Vec<u32> = Vec::new();
     if cfg!(target_os = "windows") {
-        let output = utils::execute_cmd("tasklist | findstr hdc".to_owned());
-        let output_str = String::from_utf8_lossy(&output);
+        let output_vec = match utils::execute_cmd("tasklist | findstr hdc".to_owned()) {
+                Ok(output) => [output.stdout, output.stderr].concat(), 
+                Err(e) => e.to_string().into_bytes(),
+        };
+        let output_str = String::from_utf8_lossy(&output_vec);
         let mut get_pid = false;
         for token in output_str.split_whitespace() {
             if get_pid {
@@ -91,8 +94,11 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output = utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned());
-        let output_str = String::from_utf8_lossy(&output);
+        let output_vec = match utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned()) {
+            Ok(output) => [output.stdout, output.stderr].concat(), 
+            Err(e) => e.to_string().into_bytes(),
+        };
+        let output_str = String::from_utf8_lossy(&output_vec);
         for pid in output_str.split_whitespace() {
             pids.push(u32::from_str(pid).unwrap());
         }
@@ -130,9 +136,15 @@ pub async fn server_kill() {
     for pid in pids {
         if pid != process::id() {
             if cfg!(target_os = "windows") {
-                utils::execute_cmd(format!("taskkill /pid {} /f", pid));
+                match utils::execute_cmd(format!("taskkill /pid {} /f", pid)) {
+                    Ok(_) => print!("Kill server finish"),
+                    Err(e) => hdc::info!("Kill server error {}", e.to_string()),
+                };
             } else {
-                utils::execute_cmd(format!("kill -9 {}", pid));
+                match utils::execute_cmd(format!("kill -9 {}", pid)) {
+                    Ok(_) => print!("Kill server finish"),
+                    Err(e) => hdc::info!("Kill server error {}", e.to_string()),
+                };
             }
         }
     }

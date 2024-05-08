@@ -147,12 +147,12 @@ pub async fn server_kill() {
         if pid != process::id() {
             if cfg!(target_os = "windows") {
                 match utils::execute_cmd(format!("taskkill /pid {} /f", pid)) {
-                    Ok(_) => print!("Kill server finish"),
+                    Ok(_) => println!("Kill server finish"),
                     Err(e) => hdc::info!("Kill server error {}", e.to_string()),
                 };
             } else {
                 match utils::execute_cmd(format!("kill -9 {}", pid)) {
-                    Ok(_) => print!("Kill server finish"),
+                    Ok(_) => println!("Kill server finish"),
                     Err(e) => hdc::info!("Kill server error {}", e.to_string()),
                 };
             }

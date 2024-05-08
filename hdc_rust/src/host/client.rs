@@ -322,7 +322,7 @@ impl Client {
                             self.send(self.params.join(" ").as_bytes()).await;
                             hdc::debug!("WaitFor sleep a second");
                             let wait_interval = 1000;
-                            let _ = ylong_runtime::time::sleep(Duration::from_millis(wait_interval)).await;
+                            ylong_runtime::time::sleep(Duration::from_millis(wait_interval)).await;
                         } else {
                             hdc::debug!("exit client");
                             unsafe {exit(0);}

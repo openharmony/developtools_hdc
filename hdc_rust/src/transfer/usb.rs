@@ -160,22 +160,23 @@ impl base::Reader for UsbReader {
 impl base::Writer for UsbWriter {
     // 屏蔽window编译报错
     #[cfg(not(target_os = "windows"))]
-    fn write_all(&self, data: Vec<u8>) -> io::Result<()> {
+    fn write_all(&self, data: Vec<u8>) -> io::Result<i32> {
         let buf = SerializedBuffer {
             ptr: data.as_ptr() as *const libc::c_char,
             size: data.len() as u64,
         };
-        if unsafe { WriteUsbDevEx(self.fd, buf) < 0 } {
+        let ret = unsafe { WriteUsbDevEx(self.fd, buf) } as i32;
+        if ret < 0 {
             Err(utils::error_other("usb write failed".to_string()))
         } else {
-            Ok(())
+            Ok(ret)
         }
     }
 
     // 屏蔽window编译报错
     #[cfg(target_os = "windows")]
-    fn write_all(&self, _data: Vec<u8>) -> io::Result<()> {
-        Ok(())
+    fn write_all(&self, _data: Vec<u8>) -> io::Result<i32> {
+        Ok(0)
     }
 }
 

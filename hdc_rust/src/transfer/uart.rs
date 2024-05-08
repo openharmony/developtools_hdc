@@ -152,18 +152,18 @@ impl base::Reader for UartReader {
 }
 
 impl base::Writer for UartWriter {
-    fn write_all(&self, data: Vec<u8>) -> io::Result<()> {
+    fn write_all(&self, data: Vec<u8>) -> io::Result<i32> {
         let buf = SerializedBuffer {
             ptr: data.as_ptr() as *const libc::c_char,
             size: data.len() as u64,
         };
         println!("write all start, fd:{}...", self.fd);
-        let write_count = unsafe { WriteUartDevExt(self.fd, buf) };
+        let write_count = unsafe { WriteUartDevExt(self.fd, buf) } as i32;
         println!("write count:{}", write_count);
         if write_count < 0 {
             Err(utils::error_other("uart write failed".to_string()))
         } else {
-            Ok(())
+            Ok(write_count)
         }
     }
 }

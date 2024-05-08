@@ -284,8 +284,11 @@ pub const WIN_CMD_PROG: &str = "cmd.exe";
 pub const SHELL_PROG: &str = "sh";
 pub const SHELL_TEMP: &str = "/data/local/tmp/hdc-pty";
 
-pub const LOG_FILE_NAME: &str = "hdc_rust.log"; // TODO: change to hdc.log
-pub const LOG_FILE_SIZE: usize = 1024;
+pub const LOG_FILE_NAME: &str = "hdc";
+pub const LOG_BAK_NAME: &str = "hdclast";
+pub const LOG_TAIL_NAME: &str = ".log";
+pub const LOG_CACHE_NAME: &str = ".hdc.cache";
+pub const LOG_FILE_SIZE: usize = 1024 * 1024 * 100; // 100MB
 
 pub const DAEMON_PORT: u16 = 60000;
 pub const SERVER_DEFAULT_PORT: u16 = 9710;

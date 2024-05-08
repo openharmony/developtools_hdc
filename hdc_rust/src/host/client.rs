@@ -54,13 +54,13 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
                 server::server_kill().await;
             }
-            server::server_fork(parsed_cmd.server_addr.clone()).await;
+            server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             return Ok(());
         }
         HdcCommand::KernelServerKill => {
             server::server_kill().await;
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
-                server::server_fork(parsed_cmd.server_addr.clone()).await;
+                server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             }
             return Ok(());
         }
@@ -69,7 +69,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
     };
 
     if parsed_cmd.launch_server && Base::program_mutex(base::GLOBAL_SERVER_NAME, true) {
-        server::server_fork(parsed_cmd.server_addr.clone()).await;
+        server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
     }
 
     // TODO: other cmd before initial client

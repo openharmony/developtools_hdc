@@ -26,6 +26,7 @@ pub struct LoggerMeta {
     run_in_server: bool, // scrolling dump only by server
     current_size: usize,
     log_file: std::path::PathBuf,
+    level_char: char,
 }
 
 type LoggerMeta_ = Arc<Mutex<LoggerMeta>>;
@@ -41,15 +42,19 @@ impl HostLoggerMeta {
         }
     }
 
-    fn init(run_in_server: bool, spawned_server: bool) {
+    fn init(run_in_server: bool, spawned_server: bool, log_level: log::LevelFilter) {
         let instance = Self::get_instance();
         let mut meta = instance.lock().unwrap();
+        meta.level_char = log_level.to_string()[..1].chars().next().unwrap();
         if run_in_server && !spawned_server {
             meta.stdout_require = true;
         }
         meta.run_in_server = run_in_server;
-        meta.log_file = Path::new(&std::env::temp_dir()).join(config::LOG_FILE_NAME);
+        meta.log_file = 
+            Path::new(&std::env::temp_dir())
+                .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
         if run_in_server {
+            Self::dump_log_file(config::LOG_BAK_NAME, meta.level_char);
             std::fs::File::create(&meta.log_file).unwrap();
         }
     }
@@ -59,7 +64,8 @@ impl HostLoggerMeta {
         let mut meta = instance.lock().unwrap();
         if meta.run_in_server && meta.current_size > config::LOG_FILE_SIZE {
             meta.current_size = 0;
-            // TODO: mv to new file
+            Self::dump_log_file(config::LOG_CACHE_NAME, meta.level_char);
+            std::fs::File::create(&meta.log_file).unwrap(); 
         }
         meta.current_size += content.len();
         if let Ok(mut f) = std::fs::File::options().append(true).open(&meta.log_file) {
@@ -68,6 +74,36 @@ impl HostLoggerMeta {
         if meta.stdout_require {
             println!("{}", content);
         }
+    }
+
+    fn dump_log_file(file_type: &str, level_char: char) {
+
+        let file_path = 
+            Path::new(&std::env::temp_dir())
+                .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
+        let ts = 
+            humantime::format_rfc3339_millis(SystemTime::now())
+                .to_string()
+                .replace(':', "");
+        let file_cache_path = 
+        if level_char == 'T' {
+            Path::new(&std::env::temp_dir())
+                .join(
+                    file_type.to_string()
+                    + &ts[..19]
+                    + config::LOG_TAIL_NAME
+                )         
+        } else {
+            Path::new(&std::env::temp_dir())
+                .join(
+                    file_type.to_string()
+                    + config::LOG_TAIL_NAME
+                )
+        };
+        if file_path.exists(){
+            std::fs::rename(&file_path, file_cache_path).unwrap();
+        }
+
     }
 }
 
@@ -102,7 +138,7 @@ impl log::Log for SimpleHostLogger {
 static LOGGER: SimpleHostLogger = SimpleHostLogger;
 
 pub fn logger_init(log_level: log::LevelFilter, run_in_server: bool, spawned_server: bool) {
-    HostLoggerMeta::init(run_in_server, spawned_server);
+    HostLoggerMeta::init(run_in_server, spawned_server, log_level);
     log::set_logger(&LOGGER).unwrap();
     log::set_max_level(log_level);
 }

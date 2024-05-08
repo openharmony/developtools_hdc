@@ -169,6 +169,7 @@ impl Client {
     async fn wait_task(&mut self) -> io::Result<()> {
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv_waitfor().await
+    }
 
     async fn unity_root_run_task(&mut self) -> io::Result<()> {
         if self.params.len() >= 2 && self.params[1].starts_with("-r") {
@@ -327,7 +328,6 @@ impl Client {
                             unsafe {exit(0);}
                         }
                     }
-                    
                 }
                 Err(e) => {
                     return Err(e);

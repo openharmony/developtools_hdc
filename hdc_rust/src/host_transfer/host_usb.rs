@@ -171,15 +171,16 @@ impl base::Reader for HostUsbReader {
 }
 
 impl base::Writer for HostUsbWriter {
-    fn write_all(&self, data: Vec<u8>) -> io::Result<()> {
+    fn write_all(&self, data: Vec<u8>) -> io::Result<i32> {
         let buf = SerializedBuffer {
             ptr: data.as_ptr() as *const libc::c_char,
             size: data.len() as u64,
         };
-        if write_usb(self.ptr, self.connect_key.clone(), buf) < 0 {
+        let ret = write_usb(self.ptr, self.connect_key.clone(), buf);
+        if ret < 0 {
             Err(utils::error_other("usb write failed".to_string()))
         } else {
-            Ok(())
+            Ok(ret)
         }
     }
 }

@@ -176,7 +176,7 @@ impl base::Writer for UsbWriter {
     // 屏蔽window编译报错
     #[cfg(target_os = "windows")]
     fn write_all(&self, _data: Vec<u8>) -> io::Result<i32> {
-        Ok(())
+        Ok(0)
     }
 }
 

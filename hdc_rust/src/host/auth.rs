@@ -249,7 +249,7 @@ fn get_hostname() -> io::Result<String> {
     } else {
         Command::new("cmd").args(["-c", "hostname"]).output()
     };
-
+   
     if let Ok(result) = output {
         Ok(String::from_utf8(result.stdout).unwrap())
     } else {

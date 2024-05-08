@@ -277,7 +277,7 @@ pub const BANNER_SIZE: usize = 12;
 pub const KEY_MAX_SIZE: usize = 32;
 pub const FILE_PACKAGE_HEAD: usize = 64;
 pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
-pub const MAX_PACKET_SIZE_HISPEED: u16 = 512;
+pub const MAX_PACKET_SIZE_HISPEED: i32 = 512;
 pub const MAX_SIZE_IOBUF: usize = 61440;
 
 pub const SHELL_PROG: &str = "sh";
@@ -333,6 +333,20 @@ pub const HDC_PARAMETER_VALUE_MAX_LEN: usize = 96;
 pub const HDC_HOSTNAME_MAX_LEN: usize = HDC_PARAMETER_VALUE_MAX_LEN;
 pub const HDC_WAIT_PARAMETER_FOREVER: i32 = 0;
 pub const HDC_HANDSHAKE_TOKEN_LEN: usize = 32;
+
+pub const DAEOMN_AUTH_SUCCESS: &str = "SUCCESS";
+pub const DAEOMN_UNAUTHORIZED: &str = "DAEMON_UNAUTH";
+pub const TLV_TAG_LEN: usize = 16;
+pub const TLV_VAL_LEN: usize = 16;
+pub const TLV_VAL_MAXLEN: usize = 1024;
+pub const TLV_VAL_INVALID_LEN: usize = TLV_VAL_MAXLEN + 1;
+pub const TLV_MIN_LEN: usize = TLV_TAG_LEN + TLV_VAL_LEN;
+pub const TAG_DEVNAME: &str = "devname";
+pub const TAG_HOSTNAME: &str = "hostname";
+pub const TAG_PUBKEY: &str = "pubkey";
+pub const TAG_EMGMSG: &str = "emgmsg";
+pub const TAG_TOKEN: &str = "token";
+pub const TAG_DAEOMN_AUTHSTATUS: &str = "daemonauthstatus";
 
 pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
     LevelFilter::Off,

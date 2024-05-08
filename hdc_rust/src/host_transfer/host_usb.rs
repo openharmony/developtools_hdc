@@ -287,6 +287,7 @@ impl HostUsbMap {
         Err(Error::new(ErrorKind::NotFound, "channel not found"))
     }
 
+    #[allow(unused)]
     pub async fn start(session_id: u32, wr: HostUsbWriter) {
         let buffer_map = Self::get_instance();
         let mut map = buffer_map.write().await;

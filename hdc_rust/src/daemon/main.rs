@@ -260,6 +260,8 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
                                 hdc::info!("new session id:{}", session_id_in_msg);
                                 let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
                                 transfer::UsbMap::start(session_id_in_msg, wr).await;
+                                task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
+                                cur_session_id).await;
                                 PtyMap::clear(cur_session_id).await;
                                 cur_session_id = session_id_in_msg;
                         }

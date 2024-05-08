@@ -115,7 +115,6 @@ pub fn usb_close(config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) {
 pub struct UsbReader {
     pub fd: i32,
 }
-#[derive(Debug)]
 pub struct UsbWriter {
     pub fd: i32,
 }

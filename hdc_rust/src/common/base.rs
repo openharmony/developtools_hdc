@@ -15,7 +15,20 @@
 //! base
 #![allow(missing_docs)]
 
+use std::{env, ffi::CString};
+use libc::{c_char, c_int};
+
+extern "C" {
+    fn ProgramMutex(
+        procname: *const c_char,
+        checkOrNew: bool,
+        tmpDir: *const c_char,
+    ) -> c_int;
+}
+
 pub struct Base {}
+
+pub static GLOBAL_SERVER_NAME: &str = "HDCServer";
 
 impl Base {
     pub fn split_command_to_args(command_line: &String) -> (Vec<String>, u32) {
@@ -151,5 +164,21 @@ impl Base {
         combined.extend(list2);
         let result = combined.join(path_sep.to_string().as_str());
         result
+    }
+
+    pub fn program_mutex(procname: &str, check_or_new: bool) -> bool {
+        let temp_path = env::temp_dir();
+        let temp_dir = temp_path.display().to_string();
+        let ret = unsafe {
+            let procname_cstr = CString::new(procname).unwrap();
+            let temp_dir_cstr = CString::new(temp_dir).unwrap();
+            ProgramMutex(
+                procname_cstr.as_ptr(),
+                check_or_new,
+                temp_dir_cstr.as_ptr(),
+            )
+        };
+
+        matches!(ret, 0)
     }
 }

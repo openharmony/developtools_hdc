@@ -22,6 +22,7 @@ use crate::jdwp::Jdwp;
 mod mount;
 mod shell;
 mod task;
+mod task_manager;
 // mod sendmsg;
 mod sys_para;
 
@@ -297,6 +298,8 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(id) = auth::get_new_session_id(&msg).await {
                         if real_session_id != id {
+                            task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
+                                real_session_id).await;
                             let (new_session_id, new_send_msg) = auth::handshake_init(msg.clone()).await?;
                             let channel_id = new_send_msg.channel_id;
 
@@ -332,6 +335,8 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
             }
         }
     }
+    task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
+        real_session_id).await;
     Ok(())
 }
 

@@ -107,17 +107,27 @@ pub async fn get_process_pids() -> Vec<u32> {
 }
 
 // 跨平台命令
-pub async fn check_allow_fork() -> bool {
-    let pids = get_process_pids().await;
-    for pid in pids {
-        if pid != process::id() {
-            return false;
-        }
+#[cfg(target_os = "windows")]
+pub async fn server_fork(addr_str: String) {
+    let current_exe = std::env::current_exe().unwrap();
+    let result = process::Command::new("cmd.exe")
+        .arg("/C")
+        .arg("start")
+        .arg("")
+        .arg("/B")
+        .arg(current_exe)
+        .arg("-b")
+        .arg("-m")
+        .arg("-s")
+        .arg(addr_str)
+        .spawn();
+    match result {
+        Ok(_) => ylong_runtime::time::sleep(Duration::from_millis(1000)).await,
+        Err(_) => hdc::info!("server fork failed"),
     }
-    true
 }
 
-// 跨平台命令
+#[cfg(not(target_os = "windows"))]
 pub async fn server_fork(addr_str: String) {
     let current_exe = std::env::current_exe().unwrap().display().to_string();
     let result = process::Command::new(&current_exe)

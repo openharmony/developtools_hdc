@@ -42,7 +42,7 @@ impl TryFrom<u8> for CompressType {
 }
 
 #[allow(unused)]
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub enum ConnectType {
     Usb(String),
     #[default]
@@ -277,6 +277,7 @@ pub const BANNER_SIZE: usize = 12;
 pub const KEY_MAX_SIZE: usize = 32;
 pub const FILE_PACKAGE_HEAD: usize = 64;
 pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
+pub const MAX_PACKET_SIZE_HISPEED: u16 = 512;
 pub const MAX_SIZE_IOBUF: usize = 61440;
 
 pub const WIN_CMD_PROG: &str = "cmd.exe";

@@ -57,10 +57,10 @@ impl ConnectTypeMap {
         map.insert(session_id, conn_type);
     }
 
-    async fn get(session_id: u32) -> ConnectType {
+    async fn get(session_id: u32) -> Option<ConnectType> {
         let arc_map = Self::get_instance();
         let map = arc_map.read().await;
-        map.get(&session_id).unwrap().clone()
+        map.get(&session_id).cloned()
     }
 
     pub async fn del(session_id: u32) {
@@ -266,23 +266,26 @@ impl UartMap {
 
 pub async fn put(session_id: u32, data: TaskMessage) {
     match ConnectTypeMap::get(session_id).await {
-        ConnectType::Tcp => {
+        Some(ConnectType::Tcp) => {
             TcpMap::put(session_id, data).await;
         }
-        ConnectType::Usb(_mount_point) => {
+        Some(ConnectType::Usb(_mount_point)) => {
             if let Err(e) = UsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");
             }
         }
-        ConnectType::Uart => {
+        Some(ConnectType::Uart) => {
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
-        ConnectType::Bt => {}
-        ConnectType::HostUsb(_mount_point) => {
+        Some(ConnectType::Bt) => {}
+        Some(ConnectType::HostUsb(_mount_point)) => {
             #[cfg(feature = "host")]
             if let Err(e) = HostUsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");
             }
+        }
+        None => {
+            crate::warn!("fail to get connect type for session:{}", session_id);
         }
     }
 }

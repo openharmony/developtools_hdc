@@ -102,7 +102,7 @@ pub async fn get_process_pids() -> Vec<u32> {
 
 // 跨平台命令
 #[cfg(target_os = "windows")]
-pub async fn server_fork(addr_str: String) {
+pub async fn server_fork(addr_str: String, log_level: usize) {
     let current_exe = std::env::current_exe().unwrap();
     let result = process::Command::new("cmd.exe")
         .arg("/C")
@@ -112,6 +112,8 @@ pub async fn server_fork(addr_str: String) {
         .arg(current_exe)
         .arg("-b")
         .arg("-m")
+        .arg("-l")
+        .arg(log_level.to_string())
         .arg("-s")
         .arg(addr_str)
         .spawn();
@@ -122,10 +124,10 @@ pub async fn server_fork(addr_str: String) {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub async fn server_fork(addr_str: String) {
+pub async fn server_fork(addr_str: String, log_level: usize) {
     let current_exe = std::env::current_exe().unwrap().display().to_string();
     let result = process::Command::new(&current_exe)
-        .args(["-b", "-m", "-s", addr_str.as_str()])
+        .args(["-b", "-m", "-l", log_level.to_string().as_str(), "-s", addr_str.as_str()])
         .spawn();
     match result {
         Ok(_) => ylong_runtime::time::sleep(Duration::from_millis(1000)).await,

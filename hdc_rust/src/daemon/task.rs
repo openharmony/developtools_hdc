@@ -20,6 +20,7 @@ use crate::{auth, daemon_unity};
 use super::shell::{PtyMap, PtyTask};
 
 use super::daemon_app::{self, AppTaskMap, DaemonAppTask};
+use super::sys_para::*;
 use crate::utils::hdc_log::*;
 use hdc::common::forward::{self, ForwardTaskMap, HdcForward};
 use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
@@ -27,21 +28,6 @@ use hdc::config::*;
 use hdc::transfer;
 
 use std::io::{self, Error, ErrorKind};
-
-use std::ffi::c_int;
-
-extern "C" {
-    fn GetParam(key: *const libc::c_char, out: *mut libc::c_char) -> c_int;
-}
-
-pub fn get_parameter(key: String, out: &mut [u8]) -> i32 {
-    unsafe {
-        GetParam(
-            key.as_str().as_ptr() as *const libc::c_char,
-            out.as_ptr() as *mut libc::c_char,
-        )
-    }
-}
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
@@ -265,9 +251,8 @@ async fn daemon_bug_report_task(task_message: TaskMessage, session_id: u32) -> i
 }
 
 fn get_control_permission(param: &str) -> bool {
-    let mut value = [0u8; 512];
-    let _ret = get_parameter(param.to_string(), &mut value);
-    if value[0] == b'0' {
+    let (_, control_value) = get_dev_item(param, "_");
+    if control_value.trim().to_lowercase() == "false" {
         return false;
     }
     true

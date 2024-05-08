@@ -20,6 +20,8 @@ use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
+use std::time::Duration;
+use libc::exit;
 
 use std::env;
 use std::io::{self, Error, ErrorKind, Write};
@@ -119,6 +121,7 @@ impl Client {
             HdcCommand::UnityRunmode => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_root_run_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
+            HdcCommand::KernelWaitFor => self.wait_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
             HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
             HdcCommand::KernelCheckServer => self.check_server_task().await,
@@ -162,6 +165,11 @@ impl Client {
     async fn unity_task(&mut self) -> io::Result<()> {
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv().await
+    }
+
+    async fn wait_task(&mut self) -> io::Result<()> {
+        self.send(self.params.join(" ").as_bytes()).await;
+        self.loop_recv_waitfor().await
     }
 
     async fn unity_root_run_task(&mut self) -> io::Result<()> {
@@ -297,6 +305,38 @@ impl Client {
         }
     }
 
+    async fn loop_recv_waitfor(&mut self) -> io::Result<()> {
+        loop {
+            let recv = self.recv().await;
+            match recv {
+                Ok(recv) => {
+                    hdc::debug!(
+                        "recv: {:#?}",
+                        recv.iter()
+                            .map(|c| format!("{c:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                    if let HdcCommand::KernelWaitFor  = self.command {
+                        let wait_for = "No connected target\r\n".to_string();
+                        if wait_for == String::from_utf8(recv).expect("invalid UTF-8") {
+                            self.send(self.params.join(" ").as_bytes()).await;
+                            hdc::debug!("WaitFor sleep a second");
+                            let wait_interval = 1000;
+                            ylong_runtime::time::sleep(Duration::from_millis(wait_interval)).await;
+                        } else {
+                            hdc::debug!("exit client");
+                            unsafe {exit(0);}
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
     async fn app_install_task(&mut self) -> io::Result<()> {
         let mut params = self.params.clone();
         let command_field_count = 1;
@@ -402,7 +442,6 @@ fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
         | HdcCommand::KernelCheckServer
         | HdcCommand::KernelTargetConnect
         | HdcCommand::KernelCheckDevice
-        | HdcCommand::KernelWaitFor
         | HdcCommand::KernelServerKill
         | HdcCommand::ForwardList
         | HdcCommand::ForwardRemove => "".to_string(),

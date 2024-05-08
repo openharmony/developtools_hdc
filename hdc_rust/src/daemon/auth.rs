@@ -15,6 +15,7 @@
 //! auth
 #![allow(missing_docs)]
 
+use hdc::common::base::Base;
 use hdc::common::hdctransfer::echo_client;
 use hdc::config::{self, *};
 use hdc::serializer::native_struct;
@@ -108,7 +109,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
             host_ver,
             recv.session_id
         );
-        send_reject_message(session_id, channel_id).await;
+        send_reject_message(session_id, channel_id, host_ver).await;
         return Ok((
             recv.session_id,
             make_channel_close_message(channel_id).await,
@@ -166,12 +167,11 @@ async fn make_sign_message(session_id: u32, token: String, channel_id: u32) -> T
 
 async fn make_bypass_message(session_id: u32, channel_id: u32, host_ver: &str) -> TaskMessage {
     let mut handshake_msg = "".to_string();
+    let hostname = get_hostname();
     if host_ver < "Ver: 3.0.0b" {
-        handshake_msg = get_hostname();
+        handshake_msg = hostname;
     } else {
-        // handshake_msg.push_str("emgmsg          9               xxxxxxxxx");
-        handshake_msg.push_str("devname         9               localhost");
-        // handshake_msg.push_str("daemonauthstatus7               SUCCESS");
+        handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
     }
 
     let send = native_struct::SessionHandShake {
@@ -201,10 +201,58 @@ async fn create_basic_channel(session_id: u32, channel_id: u32, host_ver: &str) 
     hdc::info!("create_basic_channel already created for session {}", session_id);
 }
 
-async fn send_reject_message(session_id: u32, channel_id: u32) {
+async fn make_emg_message(session_id: u32, channel_id: u32, emgmsg: &str) -> TaskMessage {
+    let mut handshake_msg = "".to_string();
+    let hostname = get_hostname();
+
+    handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
+    handshake_msg = Base::tlv_append(handshake_msg, config::TAG_EMGMSG, emgmsg);
+
+    let send = native_struct::SessionHandShake {
+        banner: HANDSHAKE_MESSAGE.to_string(),
+        session_id,
+        connect_key: "".to_string(),
+        auth_type: AuthType::OK as u8,
+        version: get_version(),
+        buf: handshake_msg,
+    };
+    TaskMessage {
+        channel_id,
+        command: HdcCommand::KernelHandshake,
+        payload: send.serialize(),
+    }
+}
+
+async fn make_reject_message(session_id: u32, channel_id: u32, host_ver: &str, emgmsg: &str) -> TaskMessage {
+    let mut handshake_msg = "".to_string();
+    let hostname = get_hostname();
+    if host_ver < "Ver: 3.0.0b" {
+        handshake_msg = hostname;
+    } else {
+        handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
+        handshake_msg = Base::tlv_append(handshake_msg, config::TAG_EMGMSG, emgmsg);
+    }
+
+    let send = native_struct::SessionHandShake {
+        banner: HANDSHAKE_MESSAGE.to_string(),
+        session_id,
+        connect_key: "".to_string(),
+        auth_type: AuthType::OK as u8,
+        version: get_version(),
+        buf: handshake_msg,
+    };
+    TaskMessage {
+        channel_id,
+        command: HdcCommand::KernelHandshake,
+        payload: send.serialize(),
+    }
+}
+
+async fn send_reject_message(session_id: u32, channel_id: u32, host_ver: &str) {
     hdc::info!("send_reject_message for session {}", session_id);
     let msg = "[E000001]:The sdk hdc.exe version is too low, please upgrade to the latest version.";
     echo_client(session_id, channel_id, msg.into(), MessageLevel::Fail).await;
+    transfer::put(session_id, make_reject_message(session_id, channel_id, host_ver, msg).await).await;
     AuthStatusMap::put(session_id, AuthStatus::Reject(msg.to_string())).await;
 }
 
@@ -212,9 +260,20 @@ async fn make_ok_message(session_id: u32, channel_id: u32) -> TaskMessage {
     hdc::info!("make_ok_message for session {}", session_id);
     AuthStatusMap::put(session_id, AuthStatus::Ok).await;
 
-    let devname = String::from("devname         9               localhost");
-    let authret = String::from("daemonauthstatus7               SUCCESS");
-    let succmsg = format!("{}{}", devname, authret);
+    let mut succmsg = "".to_string();
+    let hostname = get_hostname();
+    succmsg = Base::tlv_append(succmsg, config::TAG_DEVNAME, hostname.as_str());
+    if succmsg.is_empty() {
+        hdc::error!("append {} failed for session {}", config::TAG_DEVNAME, session_id);
+    }
+    succmsg = Base::tlv_append(succmsg, config::TAG_DAEOMN_AUTHSTATUS, config::DAEOMN_AUTH_SUCCESS);
+    if succmsg.is_empty() {
+        hdc::error!("append {} failed for session {}", config::TAG_DAEOMN_AUTHSTATUS, session_id);
+    }
+    succmsg = Base::tlv_append(succmsg, config::TAG_EMGMSG, "");
+    if succmsg.is_empty() {
+        hdc::error!("append {} failed for session {}", config::TAG_EMGMSG, session_id);
+    }
 
     let send = native_struct::SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
@@ -333,6 +392,7 @@ pub async fn handshake_deal_pubkey(session_id: u32, channel_id: u32, token: Stri
     AuthStatusMap::put(session_id, AuthStatus::Pubk(token.clone(), pubkey.clone(), confirmmsg.to_string())).await;
     ylong_runtime::spawn(async move {
         echo_client(session_id, channel_id, confirmmsg.into(), MessageLevel::Fail).await;
+        transfer::put(session_id, make_emg_message(session_id, channel_id, confirmmsg).await).await;
     });
     match require_user_permittion(&hostname).await {
         UserPermit::AllowForever => {
@@ -370,8 +430,9 @@ pub async fn handshake_deal_pubkey(session_id: u32, channel_id: u32, token: Stri
                                 "The user denied the access for the device.\n",
                                  "Please execute 'hdc kill' and redo your command, ",
                                  "then check for a confirmation dialog on your device.");
-            echo_client(session_id, channel_id, denymsg.into(), MessageLevel::Fail).await;
             AuthStatusMap::put(session_id, AuthStatus::Reject(denymsg.to_string())).await;
+            echo_client(session_id, channel_id, denymsg.into(), MessageLevel::Fail).await;
+            transfer::put(session_id, make_emg_message(session_id, channel_id, denymsg).await).await;
             return Ok(());
         }
     }
@@ -431,7 +492,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
             host_ver,
             recv.session_id
         );
-        send_reject_message(session_id, channel_id).await;
+        send_reject_message(session_id, channel_id, host_ver).await;
         transfer::put(session_id, make_channel_close_message(channel_id).await).await;
         return Err(Error::new(ErrorKind::Other, "client version is too low"));
     }
@@ -682,18 +743,17 @@ async fn generate_token_wait() -> String {
 }
 
 fn get_hostname() -> String {
-    let cmd = "hostname";
-    let result = Command::new(cmd).output();
-    match result {
-        Ok(output) => {
-            let msg = [output.stdout].concat();
-            let str = String::from_utf8(msg).unwrap();
-            hdc::error!("get hostname success: {}", str);
-            str
-        }
-        Err(e) => {
-            hdc::error!("get hostname failed, {}.", e.to_string());
-            "".to_string()
-        }
+    use libc::{c_char, sysconf, _SC_HOST_NAME_MAX};
+    let maxlen = unsafe { sysconf(_SC_HOST_NAME_MAX) };
+    let mut out = vec![0; (maxlen as usize) + 1];
+    let ret = unsafe { libc::gethostname(out.as_mut_ptr() as *mut c_char, out.len()) };
+    if ret != 0 {
+        hdc::error!("get hostname failed, {}.", std::io::Error::last_os_error());
+        return "".to_string();
     }
+    let len = out.iter().position(|&c| c == 0).unwrap_or(out.len());
+    out.resize(len, 0);
+    let output = String::from_utf8(out).unwrap_or("".to_string()).trim().to_string();
+    hdc::info!("get hostname is {}", output);
+    output
 }

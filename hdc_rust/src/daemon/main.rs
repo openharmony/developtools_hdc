@@ -86,24 +86,10 @@ async fn jdwp_daemon_start(lock_value: Arc<Jdwp>) {
 
 async fn tcp_handle_client(stream: TcpStream) -> io::Result<()> {
     let (mut rd, wr) = stream.into_split();
-    let recv_msg = transfer::tcp::unpack_task_message(&mut rd).await?;
-
-    let (session_id, send_msg) = auth::handshake_init(recv_msg).await?;
-    let channel_id = send_msg.channel_id;
-
+    let msg = transfer::tcp::unpack_task_message(&mut rd).await?;
+    let session_id = auth::get_session_id_from_msg(&msg).await?;
     transfer::TcpMap::start(session_id, wr).await;
-    transfer::put(session_id, send_msg).await;
-    if auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok {
-        transfer::put(
-            session_id,
-            TaskMessage {
-                channel_id,
-                command: config::HdcCommand::KernelChannelClose,
-                payload: vec![0],
-            },
-        )
-        .await;
-    }
+    handle_message(Ok(msg), session_id).await?;
 
     loop {
         handle_message(

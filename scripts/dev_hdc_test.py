@@ -774,19 +774,33 @@ def check_cmd_time(cmd, pattern, duration, times):
     if times < 1:
         print("times should be bigger than 0.")
         return False
-
+    if pattern == None:
+        fetchable = True
+    else:
+        fetchable = False
     start_time = time.time() * 1000
     print(f"{cmd} start {start_time}")
+    res = []
     for i in range(times):
-        res = check_hdc_cmd(cmd, pattern)
-        if res == False:
-            return False
+        start_in = time.time() * 1000
+        check_shell(cmd, pattern, fetch = fetchable)
+        start_out = time.time() * 1000
+        res.append(start_out - start_in)
+
+    # 计算最大值、最小值和中位数
+    max_value = max(res)
+    min_value = min(res)
+    median_value = sorted(res)[len(res) // 2]
+
+    print(f"{GP.hdc_head} {cmd}耗时最大值:{max_value}")
+    print(f"{GP.hdc_head} {cmd}耗时最小值:{min_value}")
+    print(f"{GP.hdc_head} {cmd}耗时中位数:{median_value}")
+    
     end_time = time.time() * 1000
-    print(f"{cmd} end {end_time}")
-    timecost = int(end_time - start_time) / 10
-    print(f"{cmd} average timecost: {timecost}")
-    print(timecost)
-    if duration is not None:
+    
+    timecost = int(end_time - start_time) / times
+    print(f"{GP.hdc_head} {cmd}耗时平均值 {timecost}")
+    if duration is None:
         duration = 150 * 1.2
     # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
     return timecost < duration

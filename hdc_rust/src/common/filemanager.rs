@@ -17,6 +17,9 @@
 
 use std::fs::OpenOptions;
 use std::fs::{self, File};
+use crate::config::KERNEL_FILE_NODE_SIZE;
+use std::io::Read;
+use crate::utils::hdc_log::*;
 
 pub struct FileManager {
     path: Option<String>,
@@ -57,8 +60,46 @@ impl FileManager {
 
     pub fn file_size(&self) -> u64 {
         if let Some(f) = &self.file {
-            return f.metadata().unwrap().len();
+            let meta_size: u64 = match f.metadata() {
+                Ok(meta) => meta.len(),
+                Err(e) => {
+                    crate::warn!("failed to get file metadata, error: {:#?}", e);
+                    0
+                }
+            };
+            if meta_size == KERNEL_FILE_NODE_SIZE.into() {
+                let node_size = self.buffer_read() as u64;
+                return node_size;
+            } else {
+                return meta_size;
+            }
+
         }
         0
+    }
+
+    pub fn buffer_read(&self) -> usize {
+        let mut buf = [0u8; KERNEL_FILE_NODE_SIZE as usize];
+        let mut read_len = 0usize;
+        if let Some(path) = &self.path {
+            let mut _file = File::open(path);
+            if let Ok(mut f) = _file  {
+                loop {
+                    let single_len = match f.read(&mut buf[read_len..]) {
+                        Ok(len) => len,
+                        Err(e) => {
+                            crate::warn!("failed to read kernel file node with buffer, error: {:#?}", e);
+                            break;
+                        }
+                    };
+                    read_len += single_len;
+                    if single_len == 0 {
+                        
+                        break;
+                    }
+                }
+            }
+        }
+        read_len
     }
 }

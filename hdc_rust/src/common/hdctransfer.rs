@@ -207,6 +207,9 @@ fn spawn_handler(
         while read_len < package_read_len {
             let single_len = file.read(&mut buf[read_len..]).unwrap();
             read_len += single_len;
+            if single_len == 0 && read_len < package_read_len {
+                break;
+            }
         }
         let transfer_compress_type = match CompressType::try_from(compress_type) {
             Ok(compress_type) => compress_type,
@@ -395,6 +398,12 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     });
 
     tbase.index += buffer.len() as u64;
+    crate::debug!(
+        "transfer file [{}] index {} / {}",
+        tbase.local_path.clone(),
+        tbase.index,
+        tbase.file_size
+    );
     if tbase.index >= tbase.file_size {
         return true;
     }

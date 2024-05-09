@@ -48,6 +48,12 @@ def test_small_file():
 
 
 @pytest.mark.repeat(1)
+def test_node_file():
+    assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")
+    assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/firmware/fdt')} {get_local_path('fdt')}")
+
+
+@pytest.mark.repeat(1)
 def test_medium_file():
     assert check_hdc_cmd(f"file send {get_local_path('medium')} {get_remote_path('it_medium')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_medium')} {get_local_path('medium_recv')}")
@@ -156,12 +162,14 @@ def test_fport_cmd():
         assert check_hdc_cmd(f"fport rm {fport}", "success")
         assert not check_hdc_cmd("fport ls", fport)
 
+
 def test_shell_cmd_timecost():
     assert check_cmd_time(
         cmd="shell \"ps -ef | grep hdcd\"",
         pattern="hdcd",
         duration=150,
         times=10)
+
 
 def setup_class():
     print("setting up env ...")

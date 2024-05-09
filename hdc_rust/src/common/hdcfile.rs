@@ -521,8 +521,6 @@ pub async fn command_dispatch(
             if hdctransfer::transfer_data(&mut task.transfer, _payload) {
                 drop(task);
                 put_file_finish(session_id, channel_id).await;
-            } else {
-                crate::warn!("transfer_data fail");
             }
         }
         HdcCommand::FileMode => {}

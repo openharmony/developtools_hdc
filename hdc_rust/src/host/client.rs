@@ -20,6 +20,8 @@ use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
+#[allow(unused)]
+use hdc::utils::hdc_log::*;
 use std::time::Duration;
 use libc::exit;
 
@@ -123,6 +125,21 @@ impl Client {
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::KernelWaitFor => self.wait_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
+            HdcCommand::ForwardInit
+            | HdcCommand::ForwardRportInit
+            | HdcCommand::ForwardList
+            | HdcCommand::ForwardRportList
+            | HdcCommand::ForwardRemove
+            | HdcCommand::ForwardRportRemove => {
+                if (self.command == HdcCommand::ForwardRemove
+                    || self.command == HdcCommand::ForwardRportRemove)
+                    && self.params.len() < 3 {
+                            return Err(Error::new(
+                                ErrorKind::Other,
+                                format!("arguments are too small for command : {}", self.command as u32)));
+                }
+                self.forward_task().await
+            }
             HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
             HdcCommand::KernelCheckServer => self.check_server_task().await,
             _ => Err(Error::new(
@@ -239,6 +256,11 @@ impl Client {
         #[cfg(not(target_os = "windows"))]
         let _ = recover_terminal(termios);
         Ok(())
+    }
+
+    async fn forward_task(&mut self) -> io::Result<()> {
+        self.send(self.params.join(" ").as_bytes()).await;
+        self.loop_recv().await
     }
 
     async fn general_task(&mut self) -> io::Result<()> {
@@ -442,6 +464,7 @@ fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
         | HdcCommand::KernelCheckServer
         | HdcCommand::KernelTargetConnect
         | HdcCommand::KernelCheckDevice
+        | HdcCommand::KernelWaitFor
         | HdcCommand::KernelServerKill
         | HdcCommand::ForwardList
         | HdcCommand::ForwardRemove => "".to_string(),

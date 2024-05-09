@@ -54,9 +54,11 @@ lazy_static! {
         map.insert("file send", HdcCommand::FileInit);
         map.insert("file recv", HdcCommand::FileRecvInit);
         map.insert("fport", HdcCommand::ForwardInit);
-        map.insert("rport", HdcCommand::ForwardInit);
+        map.insert("rport", HdcCommand::ForwardRportInit);
+        map.insert("rport ls", HdcCommand::ForwardRportList);
         map.insert("fport ls", HdcCommand::ForwardList);
         map.insert("fport rm", HdcCommand::ForwardRemove);
+        map.insert("rport rm", HdcCommand::ForwardRportRemove);
         map.insert("install", HdcCommand::AppInit);
         map.insert("uninstall", HdcCommand::AppUninstall);
         map.insert("sideload", HdcCommand::AppSideload);
@@ -88,10 +90,17 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
             if let Some(command) = CMD_MAP.get(cmd.as_str()) {
                 cmd_index = st;
                 cmd_opt = Some(command.to_owned());
-                break;
+                if *command == HdcCommand::ForwardInit
+                    || *command == HdcCommand::ForwardRportInit {
+                    continue;
+                } else {
+                    break;
+                }
             }
         }
-        if cmd_opt.is_some() {
+        if cmd_opt.is_some()
+            && cmd_opt.unwrap() != HdcCommand::ForwardInit
+            && cmd_opt.unwrap() != HdcCommand::ForwardRportInit {
             break;
         }
     }

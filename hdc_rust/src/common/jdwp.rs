@@ -19,6 +19,7 @@ use crate::config::ErrCode;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::transfer;
+use crate::utils::hdc_log::*;
 use libc::{POLLERR, POLLHUP, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
 use std::collections::HashMap;
@@ -87,7 +88,7 @@ impl Jdwp {
                     let param_bytes = [fd_bytes, param_bytes].concat();
                     let param_bytes = param_bytes.as_slice();
                     let ret = send_msg(node.fd, fd, param_bytes);
-                    println!("send_fd_to_target ret:{}", ret);
+                    crate::info!("send_fd_to_target ret:{}", ret);
                     return ret > 0;
                 }
             }
@@ -160,7 +161,7 @@ impl Jdwp {
         node_map: NodeMap,
         trackers: Trackers,
     ) {
-        println!("handle_client start...");
+        crate::info!("handle_client start...");
         let mut buffer: [u8; 1024] = [0; 1024];
         let size = UdsServer::wrap_recv(fd, &mut buffer);
         let u32_size = std::mem::size_of::<u32>();
@@ -169,13 +170,13 @@ impl Jdwp {
         } else if size > u32_size.try_into().unwrap() {
             let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
             let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
-            println!("pid:{}", pid);
+            crate::info!("pid:{}", pid);
             let debug_or_release =
                 u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
-            println!("debug:{}", debug_or_release);
+            crate::info!("debug:{}", debug_or_release);
             let pkg_name =
                 String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
-            println!("pkg name:{}", pkg_name);
+            crate::info!("pkg name:{}", pkg_name);
 
             let node_map = node_map.clone();
             let mut map = node_map.lock().await;
@@ -198,7 +199,7 @@ impl Jdwp {
 
             waiter.wake_one();
         } else if size <= 0 {
-            println!("size <= 0");
+            crate::info!("size <= 0");
         }
     }
 
@@ -212,12 +213,12 @@ impl Jdwp {
         if let Ok(addr_obj) = &addr {
             let ret = UdsServer::wrap_bind(fd, addr_obj);
             if ret.is_err() {
-                println!("bind fail");
+                crate::info!("bind fail");
                 return false;
             }
             let ret = UdsServer::wrap_listen(fd);
             if ret < 0 {
-                println!("listen fail");
+                crate::info!("listen fail");
                 return false;
             }
             let node_map = self.poll_node_map.clone();
@@ -237,7 +238,7 @@ impl Jdwp {
             });
             true
         } else {
-            println!("parse addr fail  ");
+            crate::info!("parse addr fail  ");
             false
         }
     }
@@ -254,9 +255,9 @@ impl Jdwp {
                 if node_map_value.is_empty() {
                     let w = waiter.clone();
                     drop(node_map_value);
-                    println!("start_data_looper, empty_waiter wait...");
+                    crate::info!("start_data_looper, empty_waiter wait...");
                     w.wait().await;
-                    println!("start_data_looper, empty_waiter wait continue...");
+                    crate::info!("start_data_looper, empty_waiter wait continue...");
                     continue;
                 }
                 let keys = node_map_value.keys();
@@ -270,7 +271,7 @@ impl Jdwp {
                     continue;
                 }
                 for pnode in &poll_nodes {
-                    println!(
+                    crate::info!(
                         "before poll, node:{},{},{},{}",
                         pnode.fd, pnode.events, pnode.revents, pnode.ppid
                     );
@@ -279,7 +280,7 @@ impl Jdwp {
                 UdsServer::wrap_poll(poll_nodes.as_mut_slice(), size.try_into().unwrap(), -1);
                 let mut node_map_value = node_map.lock().await;
                 for pnode in &poll_nodes {
-                    println!(
+                    crate::info!(
                         "after poll, node:{},{},{},{}",
                         pnode.fd, pnode.events, pnode.revents, pnode.ppid
                     );
@@ -313,10 +314,10 @@ impl Jdwp {
     }
 
     pub async fn init(&self) -> ErrCode {
-        println!("jdwp init....");
+        crate::info!("jdwp init....");
 
         if !self.jdwp_listen() {
-            println!("jdwp_listen failed");
+            crate::info!("jdwp_listen failed");
             return ErrCode::ModuleJdwpFailed;
         }
 

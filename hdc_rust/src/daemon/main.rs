@@ -244,18 +244,18 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
             transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
         {
             hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
-            println!("handshake error:{:#?}", e);
+            hdc::info!("handshake error:{:#?}", e);
         }
     });
     let session_id;
     match rx.recv().await {
         Ok(handshake_message) => {
             let _ = rx.recv().await;
-            println!("uart handshake_message:{:#?}", handshake_message);
+            hdc::info!("uart handshake_message:{:#?}", handshake_message);
             session_id = uart_handshake(handshake_message.clone(), fd, &rd, package_index).await?;
         }
         Err(_e) => {
-            println!("uart handshake error");
+            hdc::info!("uart handshake error");
             return Err(std::io::Error::new(ErrorKind::Other, "uart recv handshake error"));
         }
     }
@@ -282,7 +282,7 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                 transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
             {
                 hdc::warn!("unpack task failed: {}, reopen fd...", e.to_string());
-                println!("uart read uart taskmessage error:{:#?}", e);
+                hdc::info!("uart read uart taskmessage error:{:#?}", e);
             }
         });
 
@@ -302,12 +302,12 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
                         ylong_runtime::spawn(async move {
                             if let Err(e) = task::dispatch_task(message, real_session_id).await {
                                 log::error!("dispatch task failed: {}", e.to_string());
-                                println!("dispatch task({:#?}) fail: {:#?}", command, e);
+                                hdc::info!("dispatch task({:#?}) fail: {:#?}", command, e);
                             }
                         });
                     }
                     Err(_e) => {
-                        println!("uart recv error: {:#?}", _e);
+                        hdc::info!("uart recv error: {:#?}", _e);
                         return Err(std::io::Error::new(ErrorKind::Other, "RecvError"));
                     }
                 }
@@ -434,7 +434,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     panic_handler::init();
     if args.len() == 2 && args[1] == "-v" {
-        println!("{}", config::get_version());
+        hdc::info!("{}", config::get_version());
         return;
     }
     logger_init(get_logger_lv());
@@ -453,19 +453,19 @@ fn main() {
         #[cfg(not(feature = "emulator"))]
         let tcp_task = ylong_runtime::spawn(async {
             if let Err(e) = tcp_daemon_start(get_tcp_port()).await {
-                println!("[Fail]tcp daemon failed: {}", e);
+                hdc::info!("[Fail]tcp daemon failed: {}", e);
             }
         });
         #[cfg(not(feature = "emulator"))]
         let usb_task = ylong_runtime::spawn(async {
             if let Err(e) = usb_daemon_start().await {
-                println!("[Fail]usb daemon failed: {}", e);
+                hdc::info!("[Fail]usb daemon failed: {}", e);
             }
         });
         #[cfg(not(feature = "emulator"))]
         let uart_task = ylong_runtime::spawn(async {
             if let Err(e) = uart_daemon_start().await {
-                println!("[Fail]uart daemon failed: {}", e);
+                hdc::info!("[Fail]uart daemon failed: {}", e);
             }
         });
         #[cfg(feature = "emulator")]

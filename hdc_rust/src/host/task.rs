@@ -308,7 +308,7 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
                 return Ok(());
         }
         _ => {
-            println!("other tasks, payload is {:#?}", payload);
+            hdc::info!("other tasks, payload is {:#?}", payload);
         }
     }
     Ok(())
@@ -700,7 +700,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
             return Ok(());
         }
         _ => {
-            println!("other tasks");
+            hdc::info!("other tasks");
         }
     }
     /* ActionType 未定义，临时屏蔽
@@ -734,7 +734,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
                 e.insert(Arc::new(Mutex::new(task)));
             }
             _ => {
-                println!("other tasks");
+                hdc::info!("other tasks");
             }
         }
     }

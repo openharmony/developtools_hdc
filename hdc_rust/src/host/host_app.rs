@@ -33,6 +33,7 @@ extern crate ylong_runtime_static as ylong_runtime;
 
 pub struct HostAppTask {
     pub transfer: HdcTransferBase,
+    pub printed_msg_len: usize,
 }
 
 impl HostAppTask {
@@ -40,6 +41,7 @@ impl HostAppTask {
     pub fn new(_session_id: u32, _channel_id: u32) -> Self {
         Self {
             transfer: HdcTransferBase::new(_session_id, _channel_id),
+            printed_msg_len: 0,
         }
     }
 }
@@ -99,14 +101,16 @@ async fn check_install_continue(session_id: u32, channel_id: u32,  mode_type: co
         config::AppModeType::UnInstall => _mode_desc = String::from("App uninstall"),
     }
     let arc_task = HostAppTaskMap::get(session_id, channel_id).await;
-    let task = arc_task.lock().await;
+    let mut task = arc_task.lock().await;
+    let msg = str[task.printed_msg_len..].to_owned();
     let message = format!(
-        "{}, path:{}, queuesize:{}, msg:{}",
+        "{} path:{}, queuesize:{}, msg:{}",
         _mode_desc,
         task.transfer.local_path.clone(),
         task.transfer.task_queue.len(),
-        str
+        msg
     );
+    task.printed_msg_len = str.len();
     let _ = echo_client(channel_id, message).await;
     if task.transfer.task_queue.is_empty() {
         let _ = echo_client(channel_id, String::from("AppMod finish")).await;
@@ -144,7 +148,7 @@ pub fn get_sub_app_files_resurively(channel_id: u32, dir_path: &PathBuf) -> Resu
         Ok(dir) => dir,
         Err(e) => {
             let message = format!(
-                "App install, path:{}, msg:{}",
+                "App install path:{}, msg:{}",
                 dir_path.display(),
                 e
             );
@@ -159,7 +163,7 @@ pub fn get_sub_app_files_resurively(channel_id: u32, dir_path: &PathBuf) -> Resu
             Ok(entry) => entry.path(),
             Err(e) => {
                 let message = format!(
-                    "App install, path:{}, msg:{}",
+                    "App install path:{}, msg:{}",
                     dir_path.display(),
                     e
                 );

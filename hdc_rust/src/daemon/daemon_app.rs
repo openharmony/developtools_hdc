@@ -33,12 +33,14 @@ use std::process::Command;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DaemonAppTask {
+    pub result_msg: Vec<u8>,
     pub transfer: HdcTransferBase,
 }
 
 impl DaemonAppTask {
     pub fn new(_session_id: u32, _channel_id: u32) -> Self {
         Self {
+            result_msg: vec![],
             transfer: HdcTransferBase::new(_session_id, _channel_id),
         }
     }
@@ -158,7 +160,10 @@ async fn put_app_finish(
     let mut msg = Vec::<u8>::new();
     msg.push(mode);
     msg.push(exit_status);
-    msg.append(&mut result.to_vec());
+    let arc = AppTaskMap::get(session_id, channel_id).await;
+    let mut task = arc.lock().await;
+    task.result_msg.append(&mut result.to_vec());
+    msg.append(&mut task.result_msg.clone());
 
     let app_finish_message = TaskMessage {
         channel_id,

@@ -14,6 +14,7 @@
  */
 #include "securec.h"
 #include "sendmsg.h"
+#include "log.h"
 #include <sys/socket.h>
 #include <cstring>
 #include <alloca.h>
@@ -43,7 +44,7 @@ extern "C" int SendMsg(int socketFd, int fd, char* data, int size)
 
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
     if (cmsg == nullptr) {
-        printf("SendFdToApp cmsg is nullptr\n");
+        WRITE_LOG(LOG_WARN, "SendFdToApp cmsg is nullptr\n");
         return cmsgNullptrError;
     }
     cmsg->cmsg_level = SOL_SOCKET;
@@ -51,14 +52,14 @@ extern "C" int SendMsg(int socketFd, int fd, char* data, int size)
     cmsg->cmsg_len = CMSG_LEN(sizeof(int));
     int result = -1;
     if (memcpy_s(CMSG_DATA(cmsg), sizeof(int), &fd, sizeof(int)) != EOK) {
-        printf("SendFdToApp memcpy_s error:%d\n", errno);
+        WRITE_LOG(LOG_WARN, "SendFdToApp memcpy_s error:%d\n", errno);
         return memcpyError;
     }
     if ((result = sendmsg(socketFd, &msg, 0)) < 0) {
-        printf("SendFdToApp sendmsg errno:%d, result:%d\n", errno, result);
+        WRITE_LOG(LOG_WARN, "SendFdToApp sendmsg errno:%d, result:%d\n", errno, result);
         return result;
     }
-    printf("send msg ok\n");
+    WRITE_LOG(LOG_INFO, "send msg ok\n");
     return result;
 }
 }

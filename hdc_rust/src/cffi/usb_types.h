@@ -39,9 +39,7 @@ struct HdcUSB {
 
 constexpr uint16_t MAX_PACKET_SIZE_HISPEED = 512;
 constexpr uint16_t DEVICE_CHECK_INTERVAL = 3000;  // ms
-constexpr uint16_t MAX_SIZE_IOBUF = 61440;
 constexpr uint16_t MAX_USBFFS_BULK = 62464;
-constexpr uint16_t BUF_SIZE_DEFAULT = 1024;
 const std::string USB_PACKET_FLAG = "UB";  // must 2bytes
 
 constexpr int ERR_GENERIC = -1;

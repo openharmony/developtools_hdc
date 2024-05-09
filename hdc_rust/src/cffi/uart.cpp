@@ -17,8 +17,10 @@
 #include "fcntl.h"
 #include <dirent.h>
 #include <cstring>
+#include "log.h"
 
 using namespace std;
+using namespace Hdc;
 
 bool g_ioCancel = false;
 
@@ -106,7 +108,7 @@ bool EnumSerialPort(bool &portChange)
                 auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
                 if (it == serialPortInfo.end()) {
                     portChange = true;
-                    printf("new port:%s", port.c_str());
+                    WRITE_LOG(LOG_INFO, "new port:%s", port.c_str());
                 }
             }
         }
@@ -349,7 +351,7 @@ int GetUartBits(int bits) {
 int OpenSerialPort(std::string portName) {
     int uartHandle = -1;
     if ((uartHandle = open(portName.c_str(), O_RDWR | O_NOCTTY | O_NDELAY)) < 0) {
-        printf("%s: cannot open uartHandle: errno=%d\n", portName.c_str(), errno);
+        WRITE_LOG(LOG_WARN, "%s: cannot open uartHandle: errno=%d\n", portName.c_str(), errno);
         return -1;
     }
     usleep(UART_IO_WAIT_TIME_100);
@@ -555,11 +557,11 @@ int CloseFd(int &fd) {
     if (fd > 0) {
         rc = close(fd);
         if (rc < 0) {
-            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            char buffer[Hdc::BUF_SIZE_DEFAULT] = { 0 };
 #ifdef _WIN32
-            strerror_s(buffer, BUF_SIZE_DEFAULT, errno);
+            strerror_s(buffer, Hdc::BUF_SIZE_DEFAULT, errno);
 #else
-            strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+            strerror_r(errno, buffer, Hdc::BUF_SIZE_DEFAULT);
 #endif
         } else {
             fd = -1;

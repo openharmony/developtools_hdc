@@ -15,18 +15,16 @@
 #include "ffi_utils.h"
 #include "oh_usb.h"
 #include "usb_util.h"
+#include "log.h"
 
 #include <string>
 
 namespace Hdc {
-
-constexpr uint16_t MAX_SIZE_IOBUF = 0xf000;
-
 extern "C" int32_t ConfigEpPointEx(const char* path)
 {
     int ep;
     if (ConfigEpPoint(ep, std::string(path)) != 0) {
-        printf("open ep failed");
+        WRITE_LOG(LOG_WARN, "open ep failed");
         return -1;
     }
     return static_cast<int32_t>(ep);
@@ -36,7 +34,7 @@ extern "C" int32_t OpenEpPointEx(const char* path)
 {
     int fd = -1;
     if (OpenEpPoint(fd, std::string(path)) != 0) {
-        printf("open ep failed");
+        WRITE_LOG(LOG_WARN, "open ep failed");
         return -1;
     }
     return static_cast<int32_t>(fd);
@@ -69,7 +67,7 @@ struct PersistBuffer {
 extern "C" PersistBuffer ReadUsbDevEx(int32_t bulkIn)
 {
     if (g_bufRet == nullptr) {
-        printf("remalloc g_bufRet\n");
+        WRITE_LOG(LOG_WARN, "remalloc g_bufRet\n");
         g_bufRet = new uint8_t[MAX_SIZE_IOBUF];
     }
 

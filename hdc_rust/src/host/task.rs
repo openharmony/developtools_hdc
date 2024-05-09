@@ -118,6 +118,7 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
         }
         HdcCommand::ForwardRportRemove => {
             channel_forward_remove(task_info, false).await?;
+        }
         HdcCommand::JdwpList | HdcCommand::JdwpTrack => {
             channel_jdwp_task(task_info).await?;
         }
@@ -200,6 +201,9 @@ async fn channel_forward_list(task_info: TaskInfo, forward_or_reverse: bool) -> 
     }
     send_channel_data(task_info.channel_id, result_str.as_bytes().to_vec()).await;
     transfer::TcpMap::end(task_info.channel_id).await;
+    Ok(())
+}
+
 async fn channel_jdwp_task(task_info: TaskInfo) -> io::Result<()> {
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;

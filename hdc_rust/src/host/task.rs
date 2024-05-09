@@ -842,6 +842,7 @@ impl ConnectMap {
                     ConnectType::Uart => "UART",
                     ConnectType::Bt => "BT",
                     ConnectType::HostUsb(_) => "HOSTUSB",
+                    ConnectType::Bridge => "BRIDGE",
                 });
                 output.push(match guard.conn_status {
                     ConnectStatus::Connected => "Connected",

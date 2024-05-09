@@ -19,6 +19,8 @@ use super::base::{self, Writer};
 use super::uart::UartWriter;
 use super::usb::{self, UsbReader, UsbWriter};
 use super::{tcp, uart_wrapper};
+#[cfg(feature = "emulator")]
+use crate::daemon_lib::bridge::BridgeMap;
 #[cfg(feature = "host")]
 use crate::host_transfer::host_usb::HostUsbMap;
 
@@ -278,6 +280,10 @@ pub async fn put(session_id: u32, data: TaskMessage) {
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
         Some(ConnectType::Bt) => {}
+        Some(ConnectType::Bridge) => {
+            #[cfg(feature = "emulator")]
+            BridgeMap::put(session_id, data).await;
+        }
         Some(ConnectType::HostUsb(_mount_point)) => {
             #[cfg(feature = "host")]
             if let Err(e) = HostUsbMap::put(session_id, data).await {

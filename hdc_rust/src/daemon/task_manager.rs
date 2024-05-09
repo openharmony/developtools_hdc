@@ -45,6 +45,10 @@ pub async fn free_session(connect_type: ConnectType, session_id: u32) {
         ConnectType::HostUsb(_) => {
             // add to avoid warning
         }
+
+        ConnectType::Bridge => {
+
+        }
     }
     stop_task(session_id).await;
 }

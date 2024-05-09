@@ -279,12 +279,12 @@ pub async fn put(session_id: u32, data: TaskMessage) {
         Some(ConnectType::Uart) => {
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
-        ConnectType::Bt => {}
-        ConnectType::Bridge => {
+        Some(ConnectType::Bt) => {}
+        Some(ConnectType::Bridge) => {
             #[cfg(feature = "emulator")]
             BridgeMap::put(session_id, data).await;
         }
-        ConnectType::HostUsb(_mount_point) => {
+        Some(ConnectType::HostUsb(_mount_point)) => {
             #[cfg(feature = "host")]
             if let Err(e) = HostUsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");

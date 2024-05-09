@@ -114,8 +114,6 @@ pub struct ChannelHandShakePack {
 }
 
 #[allow(unused)]
-const MAX_CONNECTKEY_SIZE: u16 = 32;
-#[allow(unused)]
 const BUF_SIZE_TINY: u16 = 64;
 
 pub const HEAD_SIZE: usize = mem::size_of::<PayloadHeadPack>();

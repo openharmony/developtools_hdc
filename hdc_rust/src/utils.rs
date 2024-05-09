@@ -15,7 +15,7 @@
 //! utils
 #![allow(missing_docs)]
 
-use crate::config::{SHELL_PROG};
+use crate::config::{SHELL_PROG, WIN_CMD_PROG};
 
 use std::io::{self, Error, ErrorKind};
 use std::process::Command;
@@ -47,18 +47,20 @@ pub async fn print_msg(buf: Vec<u8>) -> io::Result<()> {
     Ok(())
 }
 
-pub fn execute_cmd(cmd: String) -> Vec<u8> {
+pub fn execute_cmd(cmd: String) -> Result<std::process::Output, Error> {
     let arg_sign = if cfg!(target_os = "windows") {
         "/c"
     } else {
         "-c"
     };
-    let result = Command::new(SHELL_PROG).args([arg_sign, &cmd]).output();
 
-    match result {
-        Ok(output) => [output.stdout, output.stderr].concat(),
-        Err(e) => e.to_string().into_bytes(),
-    }
+    let programe = if cfg!(target_os = "windows") {
+        WIN_CMD_PROG
+    } else {
+        SHELL_PROG
+    };
+
+    Command::new(programe).args([arg_sign, &cmd]).output()
 }
 
 pub fn error_other(msg: String) -> Error {

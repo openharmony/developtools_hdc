@@ -17,6 +17,8 @@
 
 use std::{env, ffi::CString};
 use libc::{c_char, c_int};
+use crate::config::{TLV_TAG_LEN, TLV_VAL_LEN, TLV_MIN_LEN, TLV_VAL_MAXLEN, TLV_VAL_INVALID_LEN};
+use std::collections::HashMap;
 
 extern "C" {
     fn ProgramMutex(
@@ -180,5 +182,54 @@ impl Base {
         };
 
         matches!(ret, 0)
+    }
+    // first 16 bytes is tag
+    // second 16 bytes is length
+    // flow the value
+    pub fn tlv_append(mut tlv: String, tag: &str, val: &str) -> String {
+        let tlen = tag.len();
+        if tlen == 0 || tlen > TLV_TAG_LEN {
+            return "".to_string();
+        }
+        let vlen = val.len();
+        if vlen > TLV_VAL_LEN {
+            return "".to_string();
+        }
+
+        // append tag
+        tlv.push_str(tag);
+        tlv.push_str(&" ".repeat(TLV_TAG_LEN - tlen));
+        // append len
+        let svlen = val.len().to_string();
+        tlv.push_str(svlen.as_str());
+        tlv.push_str(&" ".repeat(TLV_VAL_LEN - svlen.len()));
+        // append value
+        tlv.push_str(val);
+        tlv
+    }
+    pub fn tlv_to_stringmap(tlv: &str) -> Option<HashMap<&str, &str>> {
+        let mut cur_index = 0;
+        let mut tlvmap: HashMap<&str, &str> = HashMap::<&str, &str>::new();
+        while tlv.len() >= TLV_MIN_LEN && tlv.len() > cur_index {
+            // get tag
+            let Some(tag) = tlv.get(cur_index..(cur_index + TLV_TAG_LEN)) else { return None; };
+            let tag = tag.trim();
+            cur_index += TLV_TAG_LEN;
+            // get len
+            let Some(svlen) = tlv.get(cur_index..(cur_index + TLV_VAL_LEN)) else { return None; };
+            let svlen = svlen.trim();
+            cur_index += TLV_VAL_LEN;
+            let vlen = svlen.parse::<usize>().unwrap_or(TLV_VAL_INVALID_LEN);
+            if vlen > TLV_VAL_MAXLEN || vlen > tlv.len() {
+                return None;
+            }
+            // get value
+            let Some(val) = tlv.get(cur_index..(cur_index + vlen)) else { return None; };
+            let val = val.trim();
+            cur_index += vlen;
+
+            tlvmap.insert(tag, val);
+        }
+        Some(tlvmap)
     }
 }

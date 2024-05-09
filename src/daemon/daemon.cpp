@@ -161,7 +161,9 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
     SystemDepend::GetDevItem("const.hdc.secure", secure);
     string authbypass;
     SystemDepend::GetDevItem("persist.hdc.auth_bypass", authbypass);
+#ifndef HDC_EMULATOR
     enableSecure = ((Base::Trim(secure) == "1") && (Base::Trim(authbypass) != "1"));
+#endif
 }
 
 #ifdef HDC_EMULATOR

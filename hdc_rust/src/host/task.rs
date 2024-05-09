@@ -71,6 +71,10 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             hdc::trace!("dispatch to list task");
             channel_list_targets_task(task_info).await?;
         }
+        HdcCommand::KernelWaitFor => {
+            hdc::trace!("dispatch to wait");
+            channel_wait_for_any(task_info).await?;
+        }
         HdcCommand::KernelChannelClose => {
             hdc::trace!("dispatch to close task");
             transfer::TcpMap::end(task_info.channel_id).await;
@@ -116,6 +120,9 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             channel_forward_remove(task_info, false).await?;
         HdcCommand::JdwpList | HdcCommand::JdwpTrack => {
             channel_jdwp_task(task_info).await?;
+        }
+        HdcCommand::KernelCheckServer => {
+            check_server_task(task_info).await?;
         }
         _ => {
             hdc::info!("get unknown command {:#?}", task_info.command);
@@ -517,9 +524,9 @@ async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> 
                 task_info.channel_id,
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
-            )
+            ).await?;
             transfer::TcpMap::end(task_info.channel_id).await;
-            .await
+            Ok(())
         }
     }
 }
@@ -534,6 +541,33 @@ async fn channel_list_targets_task(task_info: TaskInfo) -> io::Result<()> {
     };
     transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
     transfer::TcpMap::end(task_info.channel_id).await;
+    Ok(())
+}
+
+// check if any daemon connected and send the message to client for wait
+async fn channel_wait_for_any(task_info: TaskInfo) -> io::Result<()> {
+    let target_list = ConnectMap::get_list(false).await;
+    if target_list.is_empty() {
+        hdc::info!("No any connected target");
+        let msg =  "No connected target".to_string();
+        transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+    } else if task_info.connect_key == "any" {
+            hdc::info!("Wait for connected target any");
+            let msg = "Wait for connected target any get ".to_string() +  target_list[0].as_str();
+            transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+            transfer::TcpMap::end(task_info.channel_id).await;
+    } else { // wait for special connectkey
+            if target_list.iter().any(|connect_key| connect_key == &task_info.connect_key) {
+                hdc::info!("Wait for connected target is {}", task_info.connect_key);
+                let msg = "Wait for connected target is ".to_string() +  task_info.connect_key.as_str();
+                transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+                transfer::TcpMap::end(task_info.channel_id).await; 
+            } else {
+                hdc::info!("No {} connected target ", task_info.connect_key);
+                let msg =  "No connected target".to_string();
+                transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+            }
+    }
     Ok(())
 }
 
@@ -720,6 +754,16 @@ async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io
     }
     hdc::info!("recv channel close");
     transfer::TcpMap::end(task_message.channel_id).await;
+    Ok(())
+}
+
+async fn check_server_task(task_info: TaskInfo) -> io::Result<()> {
+    let payload = [
+        u16::to_le_bytes(HdcCommand::KernelCheckServer as u16).as_slice(),
+        get_version().as_bytes(),
+    ]
+    .concat();
+    transfer::send_channel_data(task_info.channel_id, payload).await;
     Ok(())
 }
 

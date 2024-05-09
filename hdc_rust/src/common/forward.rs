@@ -34,6 +34,7 @@ use crate::transfer;
 use crate::utils::hdc_log::*;
 use std::io::Read;
 use std::sync::Arc;
+#[cfg(feature = "daemon")]
 use std::time::Duration;
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;

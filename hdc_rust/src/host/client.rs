@@ -20,6 +20,8 @@ use hdc::common::base::Base;
 use hdc::config::{self, HdcCommand};
 use hdc::transfer;
 use hdc::utils;
+use std::time::Duration;
+use libc::exit;
 
 use std::env;
 use std::io::{self, Error, ErrorKind, Write};
@@ -52,13 +54,13 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
                 server::server_kill().await;
             }
-            server::server_fork(parsed_cmd.server_addr.clone()).await;
+            server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             return Ok(());
         }
         HdcCommand::KernelServerKill => {
             server::server_kill().await;
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
-                server::server_fork(parsed_cmd.server_addr.clone()).await;
+                server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             }
             return Ok(());
         }
@@ -67,7 +69,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
     };
 
     if parsed_cmd.launch_server && Base::program_mutex(base::GLOBAL_SERVER_NAME, true) {
-        server::server_fork(parsed_cmd.server_addr.clone()).await;
+        server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
     }
 
     // TODO: other cmd before initial client
@@ -119,8 +121,10 @@ impl Client {
             HdcCommand::UnityRunmode => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_root_run_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
+            HdcCommand::KernelWaitFor => self.wait_task().await,
             HdcCommand::UnityBugreportInit => self.bug_report_task().await,
             HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
+            HdcCommand::KernelCheckServer => self.check_server_task().await,
             _ => Err(Error::new(
                 ErrorKind::Other,
                 format!("unknown command: {}", self.command as u32),
@@ -161,6 +165,11 @@ impl Client {
     async fn unity_task(&mut self) -> io::Result<()> {
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv().await
+    }
+
+    async fn wait_task(&mut self) -> io::Result<()> {
+        self.send(self.params.join(" ").as_bytes()).await;
+        self.loop_recv_waitfor().await
     }
 
     async fn unity_root_run_task(&mut self) -> io::Result<()> {
@@ -296,6 +305,38 @@ impl Client {
         }
     }
 
+    async fn loop_recv_waitfor(&mut self) -> io::Result<()> {
+        loop {
+            let recv = self.recv().await;
+            match recv {
+                Ok(recv) => {
+                    hdc::debug!(
+                        "recv: {:#?}",
+                        recv.iter()
+                            .map(|c| format!("{c:02x}"))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                    if let HdcCommand::KernelWaitFor  = self.command {
+                        let wait_for = "No connected target\r\n".to_string();
+                        if wait_for == String::from_utf8(recv).expect("invalid UTF-8") {
+                            self.send(self.params.join(" ").as_bytes()).await;
+                            hdc::debug!("WaitFor sleep a second");
+                            let wait_interval = 1000;
+                            ylong_runtime::time::sleep(Duration::from_millis(wait_interval)).await;
+                        } else {
+                            hdc::debug!("exit client");
+                            unsafe {exit(0);}
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
     async fn app_install_task(&mut self) -> io::Result<()> {
         let mut params = self.params.clone();
         let command_field_count = 1;
@@ -350,6 +391,46 @@ impl Client {
             }
         }
     }
+
+    async fn check_server_task(&mut self) -> io::Result<()> {
+        let params = self.params.clone();
+        self.send(params.join(" ").as_bytes()).await;
+
+        let recv = self.recv().await;
+        match recv {
+            Ok(recv) => {
+                hdc::debug!(
+                    "check_server_task recv: {:#?}",
+                    recv.iter()
+                        .map(|c| format!("{c:02x}"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+
+                const CMD_U8_LEN: usize = 2;
+                if recv.len() < CMD_U8_LEN {
+                    return Err(Error::new(io::ErrorKind::Other, "recv failed"));
+                }
+
+                let (cmd_slice, version_slice) = recv.split_at(CMD_U8_LEN);
+                let cmd =
+                    HdcCommand::try_from(u16::from_le_bytes(cmd_slice.try_into().unwrap()) as u32)
+                        .unwrap();
+                if HdcCommand::KernelCheckServer != cmd {
+                    return Err(Error::new(io::ErrorKind::Other, "recv cmd error"));
+                }
+                println!(
+                    "Client version:{}, server version:{}",
+                    config::get_version(),
+                    String::from_utf8(version_slice.to_vec()).unwrap()
+                );
+                Ok(())
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
+    }
 }
 
 fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
@@ -361,7 +442,6 @@ fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
         | HdcCommand::KernelCheckServer
         | HdcCommand::KernelTargetConnect
         | HdcCommand::KernelCheckDevice
-        | HdcCommand::KernelWaitFor
         | HdcCommand::KernelServerKill
         | HdcCommand::ForwardList
         | HdcCommand::ForwardRemove => "".to_string(),

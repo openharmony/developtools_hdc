@@ -16,10 +16,10 @@ use super::translate;
 
 use hdc::config::{self, HdcCommand};
 
+use hdc::utils;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::str::FromStr;
-use hdc::utils;
 
 #[derive(Default, Debug, Clone)]
 pub struct Parsed {
@@ -73,6 +73,7 @@ lazy_static! {
 }
 
 const MAX_CMD_LEN: usize = 3;
+const MAX_CONNECTKEY_SIZE: u16 = 32;
 
 // TODO: trial tree
 pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
@@ -105,13 +106,11 @@ pub fn parse_command(args: std::env::Args) -> io::Result<ParsedCommand> {
     let input = args.collect::<Vec<_>>()[1..].to_vec();
     let parsed = split_opt_and_cmd(input);
     match extract_global_params(parsed.options) {
-        Ok(parsed_cmd) => {
-            Ok(ParsedCommand {
-                command: parsed.command,
-                parameters: parsed.parameters,
-                ..parsed_cmd
-            })
-        }
+        Ok(parsed_cmd) => Ok(ParsedCommand {
+            command: parsed.command,
+            parameters: parsed.parameters,
+            ..parsed_cmd
+        }),
         Err(e) => Err(e),
     }
 }
@@ -175,6 +174,12 @@ pub fn extract_global_params(opts: Vec<String>) -> io::Result<ParsedCommand> {
             parsed_command.launch_server = false;
         } else if opt.starts_with("-t") {
             parsed_command.connect_key = arg.to_string();
+            if arg.len() > MAX_CONNECTKEY_SIZE.into() {
+                return Err(utils::error_other(format!(
+                    "Sizeo of of parament '-t' {} is too long\n",
+                    arg.len()
+                )));
+            }
         } else if opt.starts_with("-s") {
             match parse_server_listen_string(arg.to_string()) {
                 Ok(server_addr) => parsed_command.server_addr = server_addr,

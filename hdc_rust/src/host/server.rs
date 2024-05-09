@@ -78,8 +78,11 @@ async fn start_client_listen(addr_str: String) -> io::Result<()> {
 pub async fn get_process_pids() -> Vec<u32> {
     let mut pids: Vec<u32> = Vec::new();
     if cfg!(target_os = "windows") {
-        let output = utils::execute_cmd("tasklist | findstr hdc".to_owned());
-        let output_str = String::from_utf8_lossy(&output);
+        let output_vec = match utils::execute_cmd("tasklist | findstr hdc".to_owned()) {
+                Ok(output) => [output.stdout, output.stderr].concat(), 
+                Err(e) => e.to_string().into_bytes(),
+        };
+        let output_str = String::from_utf8_lossy(&output_vec);
         let mut get_pid = false;
         for token in output_str.split_whitespace() {
             if get_pid {
@@ -91,8 +94,11 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output = utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned());
-        let output_str = String::from_utf8_lossy(&output);
+        let output_vec = match utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned()) {
+            Ok(output) => [output.stdout, output.stderr].concat(), 
+            Err(e) => e.to_string().into_bytes(),
+        };
+        let output_str = String::from_utf8_lossy(&output_vec);
         for pid in output_str.split_whitespace() {
             pids.push(u32::from_str(pid).unwrap());
         }
@@ -102,7 +108,7 @@ pub async fn get_process_pids() -> Vec<u32> {
 
 // 跨平台命令
 #[cfg(target_os = "windows")]
-pub async fn server_fork(addr_str: String) {
+pub async fn server_fork(addr_str: String, log_level: usize) {
     let current_exe = std::env::current_exe().unwrap();
     let result = process::Command::new("cmd.exe")
         .arg("/C")
@@ -112,6 +118,8 @@ pub async fn server_fork(addr_str: String) {
         .arg(current_exe)
         .arg("-b")
         .arg("-m")
+        .arg("-l")
+        .arg(log_level.to_string())
         .arg("-s")
         .arg(addr_str)
         .spawn();
@@ -122,10 +130,10 @@ pub async fn server_fork(addr_str: String) {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub async fn server_fork(addr_str: String) {
+pub async fn server_fork(addr_str: String, log_level: usize) {
     let current_exe = std::env::current_exe().unwrap().display().to_string();
     let result = process::Command::new(&current_exe)
-        .args(["-b", "-m", "-s", addr_str.as_str()])
+        .args(["-b", "-m", "-l", log_level.to_string().as_str(), "-s", addr_str.as_str()])
         .spawn();
     match result {
         Ok(_) => ylong_runtime::time::sleep(Duration::from_millis(1000)).await,
@@ -140,9 +148,15 @@ pub async fn server_kill() {
     for pid in pids {
         if pid != process::id() {
             if cfg!(target_os = "windows") {
-                utils::execute_cmd(format!("taskkill /pid {} /f", pid));
+                match utils::execute_cmd(format!("taskkill /pid {} /f", pid)) {
+                    Ok(_) => println!("Kill server finish"),
+                    Err(e) => hdc::info!("Kill server error {}", e.to_string()),
+                };
             } else {
-                utils::execute_cmd(format!("kill -9 {}", pid));
+                match utils::execute_cmd(format!("kill -9 {}", pid)) {
+                    Ok(_) => println!("Kill server finish"),
+                    Err(e) => hdc::info!("Kill server error {}", e.to_string()),
+                };
             }
         }
     }

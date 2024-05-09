@@ -189,9 +189,9 @@ fn spawn_handler(
     transfer_config: &TransferConfig,
 ) -> JoinHandle<(bool, TaskMessage)> {
     let thread_path_ref = Arc::new(Mutex::new(local_path));
-    let pos = (index * FILE_PACKAGE_PAYLOAD_SIZE) as u64;
+    let pos = (index as u64) * (FILE_PACKAGE_PAYLOAD_SIZE as u64);
     let compress_type = transfer_config.compress_type;
-    let file_size = transfer_config.file_size as usize;
+    let file_size = transfer_config.file_size as u64;
     ylong_runtime::spawn(async move {
         let path = thread_path_ref.lock().await;
         let mut file = File::open(&*path).unwrap();
@@ -200,7 +200,7 @@ fn spawn_handler(
         let mut buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
         let mut data_buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
         let mut read_len = 0usize;
-        let mut package_read_len = file_size - pos as usize;
+        let mut package_read_len = (file_size - pos) as usize;
         if package_read_len > FILE_PACKAGE_PAYLOAD_SIZE {
             package_read_len = FILE_PACKAGE_PAYLOAD_SIZE;
         }
@@ -331,7 +331,7 @@ pub async fn read_and_send_data(
             return false;
         }
 
-        if ((index * FILE_PACKAGE_PAYLOAD_SIZE) as u64) < _file_size {
+        if (index as u64) * (FILE_PACKAGE_PAYLOAD_SIZE as u64) < _file_size {
             let worker = spawn_handler(
                 _command_data,
                 index,

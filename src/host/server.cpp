@@ -149,7 +149,7 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
 #endif
-    if (!CreateProcess(runPath.c_str(), buf, nullptr, nullptr, true, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+    if (!CreateProcess(runPath.c_str(), buf, nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
         WRITE_LOG(LOG_WARN, "CreateProcess failed with cmd:%s, args:%s, Error Code %d", runPath.c_str(), buf,
                   GetLastError());
         retVal = false;

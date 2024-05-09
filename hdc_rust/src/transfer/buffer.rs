@@ -283,6 +283,7 @@ pub async fn put(session_id: u32, data: TaskMessage) {
         ConnectType::Bridge => {
             #[cfg(feature = "emulator")]
             BridgeMap::put(session_id, data).await;
+        }
         ConnectType::HostUsb(_mount_point) => {
             #[cfg(feature = "host")]
             if let Err(e) = HostUsbMap::put(session_id, data).await {

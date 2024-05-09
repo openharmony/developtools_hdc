@@ -230,7 +230,7 @@ class GP(object):
     
     @classmethod
     def get_version(cls):
-        version = f"v1.0.1a"
+        version = f"v1.0.2a"
         return version
 
 
@@ -768,3 +768,25 @@ def check_hdc_version(cmd, version):
             f" {'' if expected_version <= real_version else 'too old to'} fit the version [{output}]"
         )
         return expected_version <= real_version
+
+
+def check_cmd_time(cmd, pattern, duration, times):
+    if times < 1:
+        print("times should be bigger than 0.")
+        return False
+
+    start_time = time.time() * 1000
+    print(f"{cmd} start {start_time}")
+    for i in range(times):
+        res = check_hdc_cmd(cmd, pattern)
+        if res == False:
+            return False
+    end_time = time.time() * 1000
+    print(f"{cmd} end {end_time}")
+    timecost = int(end_time - start_time) / 10
+    print(f"{cmd} average timecost: {timecost}")
+    print(timecost)
+    if duration is not None:
+        duration = 150 * 1.2
+    # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
+    return timecost < duration

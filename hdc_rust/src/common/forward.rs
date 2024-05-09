@@ -22,7 +22,9 @@ use libc::SOCK_STREAM;
 #[cfg(not(target_os = "windows"))]
 use libc::{AF_LOCAL, AF_UNIX, FD_CLOEXEC, F_SETFD};
 use std::collections::HashMap;
-use std::fs::{self, File};
+use std::fs;
+#[cfg(not(target_os = "windows"))]
+use std::fs::File;
 use std::io::{self, Error, ErrorKind};
 #[cfg(not(target_os = "windows"))]
 use std::io::Read;

@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "log.h"
 #include "mount.h"
 
 #include <sys/mount.h>
@@ -21,10 +22,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+using namespace Hdc;
+
 bool FindMountDeviceByPath(const char *toQuery, char *dev)
 {
     int fd;
     int res;
+    int ret;
     char *token = nullptr;
     const char delims[] = "\n";
     char buf[BUF_SIZE_DEFAULT2];
@@ -33,26 +37,37 @@ bool FindMountDeviceByPath(const char *toQuery, char *dev)
     if (fd < 0) {
         return false;
     }
-    read(fd, buf, sizeof(buf) - 1);
-    close(fd);
-    buf[sizeof(buf) - 1] = '\0';
-    token = strtok(buf, delims);
 
-    while (token) {
-        char dir[BUF_SIZE_SMALL] = "";
-        int freq;
-        int passnno;
-        // clang-format off
-        res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
-                       dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
-        // clang-format on
-        dev[BUF_SIZE_SMALL - 1] = '\0';
-        dir[BUF_SIZE_SMALL - 1] = '\0';
-        if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
-            return true;
+    ret = read(fd, buf, sizeof(buf) - 1);
+    WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath read %d bytes\n", ret);
+    while (ret > 0) {
+        buf[sizeof(buf) - 1] = '\0';
+        token = strtok(buf, delims);
+
+        while (token) {
+            char dir[BUF_SIZE_SMALL] = "";
+            int freq;
+            int passnno;
+            // clang-format off
+            res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
+                           dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
+            // clang-format on
+            dev[BUF_SIZE_SMALL - 1] = '\0';
+            dir[BUF_SIZE_SMALL - 1] = '\0';
+            if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
+                close(fd);
+                return true;
+            }
+            token = strtok(nullptr, delims);
         }
-        token = strtok(nullptr, delims);
+        ret = read(fd, buf, sizeof(buf) - 1);
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath read again %d bytes", ret);
     }
+    if (ret < 0) {
+        WRITE_LOG(LOG_FATAL, "read failed, return %d", ret);
+    }
+
+    close(fd);
     return false;
 }
 

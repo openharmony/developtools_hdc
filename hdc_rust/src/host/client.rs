@@ -318,7 +318,7 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    println!("{}", String::from_utf8(recv).unwrap());
+                    print!("{}", String::from_utf8(recv).unwrap());
                 }
                 Err(e) => {
                     return Err(e);
@@ -381,7 +381,7 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    println!("{}", String::from_utf8(recv).unwrap());
+                    print!("{}", String::from_utf8(recv).unwrap());
                 }
                 Err(e) => {
                     return Err(e);

@@ -17,6 +17,7 @@
 
 use hdc::config::*;
 use std::ffi::CString;
+use crate::utils::hdc_log::*;
 
 extern "C" {
     fn SetParameterEx(key: *const libc::c_char, val: *const libc::c_char) -> libc::c_int;
@@ -40,7 +41,7 @@ pub fn set_dev_item(key: &str, val: &str) -> bool {
 
     unsafe {
         let ret = SetParameterEx(ckey.as_ptr(), cval.as_ptr());
-        println!("set param:{} val:{} ret:{}", key, val, ret);
+        hdc::debug!("set param:{} val:{} ret:{}", key, val, ret);
         ret == 0
     }
 }
@@ -59,7 +60,7 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
         );
         let output = String::from_utf8(out.to_vec()).unwrap().trim().to_string();
         let (val, _) = output.split_at(bytes as usize);
-        println!("get param:{} bytes:{} val:{}", key, bytes, val);
+        hdc::debug!("get param:{} bytes:{} val:{}", key, bytes, val);
         (bytes >= 0, val.to_string())
     }
 }

@@ -836,8 +836,10 @@ fn get_pid(parameter: &str, forward_type: ForwardType) -> u32 {
 
 #[cfg(feature = "daemon")]
 pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
+    crate::info!("setup_jdwp_point start.");
     let task: Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!("setup_jdwp_point task is none.");
         return false;
     }
     let task = &mut task.unwrap().clone();
@@ -847,11 +849,13 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     let pid = get_pid(parameter, style.clone());
     let cid = task.context_forward.id;
     if pid == 0 {
+        crate::error!("setup_jdwp_point pid:{}.", pid);
         return false;
     }
 
     let result = UdsServer::wrap_socketpair(SOCK_STREAM);
     if result.is_err() {
+        crate::error!("setup_jdwp_point socketpair result:{:#?}.", result);
         return false;
     }
     let mut target_fd = 0;
@@ -867,9 +871,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     ylong_runtime::spawn(async move {
         loop {
             let mut buffer = [0u8; 1024];
-            crate::info!("jdwp pipe read....");
             let size = UdsServer::wrap_read(local_fd, &mut buffer);
-            crate::info!("jdwp pipe read.... size: {:#?}", size);
             if size < 0 {
                 crate::error!("disconnect, error:{:#?}", size);
                 free_context(session_id, channel_id, 0, true).await;
@@ -907,6 +909,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
         )
         .await;
         task_finish(session_id, channel_id).await;
+        crate::error!("setup_jdwp_point fail: not found pid.");
         return false;
     }
 
@@ -920,7 +923,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
         cid,
     )
     .await;
-
+    crate::info!("setup_jdwp_point return ok.");
     true
 }
 
@@ -1014,16 +1017,18 @@ pub async fn setup_file_point(session_id: u32, channel_id: u32) -> bool {
 
 pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
     if !detech_forward_type(session_id, channel_id).await {
-        crate::error!("forward type is not true");
+        crate::error!("setup_point forward type is not true");
         return false;
     }
     let task = ForwardTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!("setup_point task is none");
         return false;
     }
     let task = &mut task.unwrap().clone();
     if cfg!(target_os = "windows") && task.forward_type != ForwardType::Tcp {
         task.context_forward.last_error = String::from("Not support forward-type");
+        crate::error!("setup_point not support forward-type");
         return false;
     }
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
@@ -1039,9 +1044,12 @@ pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
             }
         }
         ForwardType::Jdwp | ForwardType::Ark => {
+            crate::info!("setup_point ark or jdwp case.");
             #[cfg(feature = "daemon")]
             {
+                crate::info!("setup_point setup_jdwp_point start.");
                 ret = setup_jdwp_point(session_id, channel_id).await;
+                crate::info!("setup_point setup_jdwp_point ret:{}.", ret);
             }
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {

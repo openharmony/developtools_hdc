@@ -17,15 +17,15 @@
 #![allow(clippy::missing_safety_doc)]
 use std::io::{self, ErrorKind, Result};
 use std::mem;
-
+use crate::utils::hdc_log::*;
 use libc::bind;
 use libc::c_void;
 use libc::{accept4, close, connect};
 use libc::{c_char, listen, poll, recv, socket, MSG_NOSIGNAL};
 use libc::{c_int, sa_family_t, sockaddr, sockaddr_un, socklen_t, AF_UNIX};
-use libc::{fcntl, pipe, read, send, socketpair, write, MSG_EOR};
+use libc::{fcntl, pipe, read, send, socketpair, write, eventfd, MSG_EOR};
 use libc::{POLLERR, POLLHUP, POLLNVAL, POLLRDHUP};
-use libc::{SOCK_CLOEXEC, SOCK_STREAM};
+use libc::{SOCK_CLOEXEC, SOCK_STREAM, EFD_CLOEXEC, EFD_NONBLOCK};
 
 const LISTEN_BACKLOG: c_int = 10;
 const MAX_CLIENT_FD_COUNT: usize = 256;
@@ -162,6 +162,27 @@ impl UdsServer {
         unsafe { write(socket_fd, ptr, buffer.len()) }
     }
 
+    pub fn wrap_event_fd() -> i32 {
+        unsafe {
+            eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK)
+        }
+    }
+
+    pub fn wrap_write_fd(fd: i32) {
+        unsafe {
+            let buf = [1u64; 1];
+            let ret = write(fd, buf.as_ptr() as *const c_void, mem::size_of_val(&buf));
+            crate::info!("uds wrap_write fd, fd:{}, ret:{}", fd, ret);
+        }
+    }
+
+    pub fn wrap_read_fd(fd: i32) {
+        unsafe {
+            let buf = [1u64; 1];
+            read(fd, buf.as_ptr() as *mut c_void, mem::size_of_val(&buf));
+        }
+    }
+
     pub fn wrap_poll(fds: &mut [PollNode], size: u32, timeout: i32) -> i32 {
         let init_value = unsafe { mem::zeroed() };
         let pollfds: &mut [libc::pollfd; MAX_CLIENT_FD_COUNT] =
@@ -176,6 +197,7 @@ impl UdsServer {
         }
         unsafe {
             let ret = poll(pollfds.as_mut_ptr(), size as libc::nfds_t, timeout);
+            crate::info!("uds wrap_poll, poll ret:{}", ret);
             if ret == -1 {
                 ret
             } else {

@@ -20,7 +20,7 @@ use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::transfer;
 use crate::utils::hdc_log::*;
-use libc::{POLLERR, POLLHUP, POLLNVAL, POLLRDHUP, SOCK_STREAM};
+use libc::{POLLIN, POLLERR, POLLHUP, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -38,9 +38,9 @@ type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
 pub trait JdwpBase: Send + Sync + 'static {}
 pub struct Jdwp {
     poll_node_map: NodeMap,
-    empty_waiter: Arc<Waiter>,
     new_process_waiter: Arc<Waiter>,
     trackers: Trackers,
+    await_fd: i32,
 }
 
 impl JdwpBase for Jdwp {}
@@ -66,9 +66,9 @@ impl Jdwp {
     pub fn new() -> Self {
         Self {
             poll_node_map: Arc::new(Mutex::new(HashMap::default())),
-            empty_waiter: Arc::new(Waiter::new()),
             new_process_waiter: Arc::new(Waiter::new()),
             trackers: Arc::new(Mutex::new(Vec::new())),
+            await_fd: UdsServer::wrap_event_fd(),
         }
     }
 }
@@ -159,7 +159,6 @@ impl Jdwp {
         fd: i32,
         waiter: Arc<Waiter>,
         node_map: NodeMap,
-        trackers: Trackers,
     ) {
         crate::info!("handle_client start...");
         let mut buffer: [u8; 1024] = [0; 1024];
@@ -189,13 +188,11 @@ impl Jdwp {
                     break;
                 }
             }
-            map.remove(&key_);
+            if key_ != -1 {
+                map.remove(&key_);
+            }
             map.insert(fd, node);
             drop(map);
-
-            let trackers = trackers.clone();
-            let node_map = node_map.clone();
-            Self::send_process_list(trackers, node_map).await;
 
             waiter.wake_one();
         } else if size <= 0 {
@@ -222,7 +219,6 @@ impl Jdwp {
                 return false;
             }
             let node_map = self.poll_node_map.clone();
-            let trackers = self.trackers.clone();
             let waiter = self.new_process_waiter.clone();
             ylong_runtime::spawn(async move {
                 loop {
@@ -231,9 +227,8 @@ impl Jdwp {
                         break;
                     }
                     let map = node_map.clone();
-                    let trackers = trackers.clone();
                     let w = waiter.clone();
-                    ylong_runtime::spawn(Self::handle_client(client_fd, w, map, trackers));
+                    ylong_runtime::spawn(Self::handle_client(client_fd, w, map));
                 }
             });
             true
@@ -245,50 +240,35 @@ impl Jdwp {
 
     pub fn start_data_looper(&self) {
         let node_map = self.poll_node_map.clone();
-        let waiter = self.empty_waiter.clone();
         let trackers = self.trackers.clone();
+        let await_fd = self.await_fd;
         ylong_runtime::spawn(async move {
             loop {
                 let mut poll_nodes = Vec::<PollNode>::new();
-                let mut size = poll_nodes.len();
+                let mut fd_node = PollNode::new(await_fd, 0, "".to_string(), false);
+                fd_node.revents = 0;
+                fd_node.events = POLLIN;
+                poll_nodes.push(fd_node);
+
                 let node_map_value = node_map.lock().await;
-                if node_map_value.is_empty() {
-                    let w = waiter.clone();
-                    drop(node_map_value);
-                    crate::info!("start_data_looper, empty_waiter wait...");
-                    w.wait().await;
-                    crate::info!("start_data_looper, empty_waiter wait continue...");
-                    continue;
-                }
                 let keys = node_map_value.keys();
                 for k in keys {
                     if let Some(n) = node_map_value.get(k) {
                         poll_nodes.push(n.clone());
-                        size = poll_nodes.len();
                     }
                 }
-                if poll_nodes.is_empty() {
-                    continue;
-                }
-                for pnode in &poll_nodes {
-                    crate::info!(
-                        "before poll, node:{},{},{},{}",
-                        pnode.fd, pnode.events, pnode.revents, pnode.ppid
-                    );
-                }
+                let size = poll_nodes.len();
+
                 drop(node_map_value);
                 UdsServer::wrap_poll(poll_nodes.as_mut_slice(), size.try_into().unwrap(), -1);
                 let mut node_map_value = node_map.lock().await;
                 for pnode in &poll_nodes {
-                    crate::info!(
-                        "after poll, node:{},{},{},{}",
-                        pnode.fd, pnode.events, pnode.revents, pnode.ppid
-                    );
-
                     if pnode.revents & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR) != 0 {
+                        crate::info!("start_data_looper remove node:{}", pnode.pkg_name);
                         node_map_value.remove(&pnode.fd);
                         UdsServer::wrap_close(pnode.fd);
-                        break;
+                    } else if pnode.fd == await_fd && pnode.revents & POLLIN != 0 {
+                        UdsServer::wrap_read_fd(await_fd);
                     }
                 }
                 drop(node_map_value);
@@ -304,18 +284,11 @@ impl Jdwp {
             let waiter = self.new_process_waiter.clone();
             waiter.wait().await;
 
-            let node_map = self.poll_node_map.clone();
-            let node_map_value = node_map.lock().await;
-            if !node_map_value.is_empty() {
-                let empty_waiter = self.empty_waiter.clone();
-                empty_waiter.wake_one();
-            }
+            UdsServer::wrap_write_fd(self.await_fd);
         }
     }
 
     pub async fn init(&self) -> ErrCode {
-        crate::info!("jdwp init....");
-
         if !self.jdwp_listen() {
             crate::info!("jdwp_listen failed");
             return ErrCode::ModuleJdwpFailed;

@@ -14,7 +14,7 @@
  *
  */
 #include "hdc_jdwp.h"
-
+#include <sys/epoll.h>
 #include <unistd.h>
 
 namespace Hdc {
@@ -184,26 +184,40 @@ void HdcJdwpSimulator::Read()
 {
     constexpr size_t size = 256;
     constexpr long sec = 5;
+    constexpr long ms = 1000;
     uint8_t buf[size] = { 0 };
+    constexpr int maxevents = 1;
+    struct epoll_event ev;
+    struct epoll_event evs[maxevents];
+    int efd = epoll_create(maxevents);
+    if (efd == -1) {
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read epoll_create error:%{public}d", errno);
+        return;
+    }
+    ev.data.fd = cfd_;
+    ev.events = EPOLLIN | EPOLLET;
+    int rc = epoll_ctl(efd, EPOLL_CTL_ADD, cfd_, &ev);
+    if (rc == -1) {
+        OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read epoll_ctl add cfd:%{public}d error:%{public}d",
+            cfd_, errno);
+        close(efd);
+        return;
+    }
     while (!disconnectFlag_ && cfd_ > -1) {
         ssize_t cnt = 0;
         ssize_t minlen = sizeof(int32_t);
-        fd_set rset;
-        struct timeval timeout;
-        timeout.tv_sec = sec;
-        timeout.tv_usec = 0;
-        FD_ZERO(&rset);
-        FD_SET(cfd_, &rset);
-        int rc = select(cfd_ + 1, &rset, nullptr, nullptr, &timeout);
+        rc = epoll_wait(efd, evs, maxevents, sec * ms);
         if (rc < 0) {
             if (errno == EINTR) {
                 continue;
             }
-            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read select fd:%{public}d error:%{public}d", cfd_, errno);
+            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read epoll_wait cfd:%{public}d error:%{public}d",
+                cfd_, errno);
             break;
         } else if (rc == 0) {
             continue;
         }
+        int rfd = evs[0].data.fd;
         if (memset_s(buf, size, 0, size) != EOK) {
             continue;
         }
@@ -217,18 +231,18 @@ void HdcJdwpSimulator::Read()
         char ctlBuf[len];
         msg.msg_controllen = sizeof(ctlBuf);
         msg.msg_control = ctlBuf;
-        cnt = recvmsg(cfd_, &msg, 0);
+        cnt = recvmsg(rfd, &msg, 0);
         if (cnt < 0) {
-            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read recvmsg cfd:%{public}d errno:%{public}d", cfd_, errno);
+            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read recvmsg rfd:%{public}d errno:%{public}d", rfd, errno);
             break;
         } else if (cnt == 0) {
-            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg socket peer closed cfd:%{public}d", cfd_);
-            close(cfd_);
+            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg socket peer closed rfd:%{public}d", rfd);
+            close(rfd);
             cfd_ = -1;
             Reconnect();
             continue;
         } else if (cnt < minlen) {
-            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg cnt:%{public}zd cfd:%{public}d", cnt, cfd_);
+            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read recvmsg cnt:%{public}zd rfd:%{public}d", cnt, rfd);
             continue;
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);
@@ -252,6 +266,11 @@ void HdcJdwpSimulator::Read()
             cb_(newfd, str);
         }
     }
+    rc = epoll_ctl(efd, EPOLL_CTL_DEL, cfd_, nullptr);
+    if (rc == -1) {
+        OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Read epoll_ctl del cfd:%{public}d error:%{public}d", cfd_, errno);
+    }
+    close(efd);
 }
 
 void HdcJdwpSimulator::Reconnect()

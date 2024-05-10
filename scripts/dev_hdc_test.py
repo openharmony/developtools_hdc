@@ -396,6 +396,7 @@ def check_app_uninstall(bundle, args=""):
     uninstall_cmd = f"uninstall {args} {bundle}"
     return check_shell(uninstall_cmd, "successfully") and not _check_app_installed(bundle, "s" in args)
 
+
 def check_app_install_multi(tables, args=""):
     apps = []
     bundles = []
@@ -416,12 +417,14 @@ def check_app_install_multi(tables, args=""):
 
     return True
 
+
 def check_app_uninstall_multi(tables, args=""):
     for app, bundle in tables.items() :
         if not check_app_uninstall(bundle, args):
             return False
 
     return True
+
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):

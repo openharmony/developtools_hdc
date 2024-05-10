@@ -119,6 +119,7 @@ def test_app_cmd():
     assert check_app_install_multi(tables, "-s")
     assert check_app_uninstall_multi(tables, "-s")
 
+
 def test_server_kill():
     assert check_hdc_cmd("kill", "Kill server finish")
     assert check_hdc_cmd("start server", "")

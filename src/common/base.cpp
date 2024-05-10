@@ -13,16 +13,20 @@
  * limitations under the License.
  */
 #include "base.h"
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <dirent.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
 #include <openssl/md5.h>
 #include <random>
 #include <sstream>
+#include <sys/stat.h>
 #include <thread>
+#include <vector>
 #ifdef HDC_HILOG
 #include "hilog/log.h"
 #endif
@@ -164,6 +168,68 @@ namespace Base {
 #endif
     }
 
+    void GetTimeString(string &timeString)
+    {
+        system_clock::time_point timeNow = system_clock::now();
+        system_clock::duration sinceUnix0 = timeNow.time_since_epoch(); // since 1970
+        time_t sinceUnix0Time = duration_cast<seconds>(sinceUnix0).count();
+        std::tm *timeTm = std::localtime(&sinceUnix0Time);
+
+        const auto sinceUnix0Rest = duration_cast<milliseconds>(sinceUnix0).count() % TIME_BASE;
+        string msTimeSurplus = StringFormat("%03llu", sinceUnix0Rest);
+        timeString = msTimeSurplus;
+        if (timeTm != nullptr) {
+            char buffer[TIME_BUF_SIZE] = {0};
+            if (strftime(buffer, TIME_BUF_SIZE, "%Y%m%d-%H%M%S", timeTm) > 0) {
+                timeString = StringFormat("%s%s", buffer, msTimeSurplus.c_str());
+            }
+        }
+    }
+
+    bool CompareLogFileName(const string &a, const string &b)
+    {
+        return strcmp(a.c_str(), b.c_str()) < 0;
+    }
+
+    void RemoveOlderLogFiles()
+    {
+        vector<string> files;
+        DIR* dir = opendir(GetTmpDir().c_str());
+        if (dir == nullptr) {
+            WRITE_LOG(LOG_WARN, "open log dir failed");
+            return;
+        }
+
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            string fileName = entry->d_name;
+            if (strncmp(fileName.c_str(), LOG_FILE_NAME_PREFIX.c_str(), LOG_FILE_NAME_PREFIX.size()) == 0) {
+                files.push_back(fileName);
+            }
+        }
+        closedir(dir);
+
+        if (files.size() <= MAX_LOG_FILE_COUNT) {
+            return;
+        }
+
+        // Sort file names by time, with earlier ones coming first
+        sort(files.begin(), files.end(), CompareLogFileName);
+
+        uint16_t deleteCount = files.size() - MAX_LOG_FILE_COUNT;
+        WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
+        uint16_t count = 0;
+        for (auto name : files) {
+            if (count >= deleteCount) {
+                break;
+            }
+            string deleteFile = GetTmpDir() + name;
+            WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
+            unlink(deleteFile.c_str());
+            count++;
+        }
+    }
+
     void LogToFile(const char *str)
     {
         string path = GetTmpDir() + LOG_FILE_NAME;
@@ -193,21 +259,18 @@ namespace Base {
         if (size < LOG_FILE_MAX_SIZE) {
             return;
         }
-        string last = StringFormat("%s.%d", path, 0);
-        value = uv_fs_unlink(nullptr, &fs, last.c_str(), nullptr);
-        if (value != 0) {
-            constexpr int bufSize = 1024;
-            char buf[bufSize] = { 0 };
-            uv_strerror_r(value, buf, bufSize);
-            PrintMessage("RollLogFile error unlink last:%s %s", last.c_str(), buf);
-        }
+        string timeStr;
+        GetTimeString(timeStr);
+        string last = GetTmpDir() + LOG_FILE_NAME_PREFIX + timeStr + ".log";
         value = uv_fs_rename(nullptr, &fs, path, last.c_str(), nullptr);
         if (value != 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(value, buf, bufSize);
             PrintMessage("RollLogFile error rename %s to %s %s", path, last.c_str(), buf);
+            return;
         }
+        RemoveOlderLogFiles();
     }
 
     void ChmodLogFile()
@@ -1650,12 +1713,14 @@ namespace Base {
     {
         if (g_logCache) {
             string path = GetTmpDir() + LOG_FILE_NAME;
-            string bakPath = GetTmpDir() + LOG_BAK_NAME;
+            string timeStr;
+            GetTimeString(timeStr);
+            string bakPath = GetTmpDir() + LOG_FILE_NAME_PREFIX + timeStr + ".log";
             string cachePath = GetTmpDir() + LOG_CACHE_NAME;
-            unlink(bakPath.c_str());
             rename(path.c_str(), bakPath.c_str());
             rename(cachePath.c_str(), path.c_str());
             g_logCache = false;
+            RemoveOlderLogFiles();
         }
     }
 

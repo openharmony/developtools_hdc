@@ -138,15 +138,16 @@ impl base::Reader for BridgeReader {
 }
 
 impl base::Writer for BridgeWriter {
-    fn write_all(&self, data: Vec<u8>) -> io::Result<()> {
+    fn write_all(&self, data: Vec<u8>) -> io::Result<i32> {
         let buf = SerializedBuffer {
             ptr: data.as_ptr() as *const libc::c_char,
             size: data.len() as u64,
         };
-        if write_client(self.ptr, self.fd, buf) <= 0 {
+        let ret = write_client(self.ptr, self.fd, buf);
+        if ret <= 0 {
             Err(utils::error_other("usb write failed".to_string()))
         } else {
-            Ok(())
+            Ok(ret)
         }
     }
 }

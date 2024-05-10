@@ -1813,7 +1813,7 @@ namespace Base {
             string vallen = tlv.substr(0, TLV_VAL_LEN);
             TrimSubString(vallen, " ");
             int len = atoi(vallen.c_str());
-            if (len < 0 || len > TLV_VAL_LEN) {
+            if (len < 0) {
                 return false;
             }
             tlv.erase(0, TLV_VAL_LEN);

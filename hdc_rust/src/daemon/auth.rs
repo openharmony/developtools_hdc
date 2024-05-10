@@ -638,7 +638,13 @@ fn show_permit_dialog() -> bool {
     match result {
         Ok(output) => {
             let msg = [output.stdout, output.stderr].concat();
-            let mut str = String::from_utf8(msg).unwrap();
+            let mut str = match String::from_utf8(msg) {
+                Ok(s) => s,
+                Err(e) => {
+                    hdc::error!("show dialog over, {}.", e.to_string());
+                    return false;
+                }
+            };
             str = str.replace('\n', " ");
             hdc::error!("show dialog over, {}.", str);
             true
@@ -693,10 +699,16 @@ async fn require_user_permittion(hostname: &str) -> UserPermit {
         }
         (true, auth_result) => {
             hdc::error!("user permit result is:({})", auth_result);
-            match auth_result.strip_prefix("auth_result:").unwrap().trim() {
-                "1" => UserPermit::AllowOnce,
-                "2" => UserPermit::AllowForever,
-                _ => UserPermit::Refuse,
+            match auth_result.strip_prefix("auth_result:") {
+                Some(result) => match result.trim() {
+                    "1" => UserPermit::AllowOnce,
+                    "2" => UserPermit::AllowForever,
+                    _ => UserPermit::Refuse,
+                }
+                None => {
+                    hdc::error!("get_dev_item auth_result failed");
+                    UserPermit::Refuse
+                }
             }
         }
     };

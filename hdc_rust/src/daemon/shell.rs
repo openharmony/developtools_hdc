@@ -67,13 +67,26 @@ impl PtyProcess {
 // hdc shell "nohup /data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 // hdc shell "/data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProcess> {
-    let pty = Pty::new().unwrap();
-    let pts = pty.pts().unwrap();
+    let pty = match Pty::new() {
+        Ok(pty) => pty,
+        Err(e) => {
+            hdc::error!("pty create error: {}", e);
+            return Err(e);
+        }
+    };
+
+    let pts = match pty.pts() {
+        Ok(pts) => pts,
+        Err(e) => {
+            hdc::error!("pty pts error: {}", e);
+            return Err(e);
+        }
+    };
     let mut nohup_flag = false;
     let child = match cmd {
         None => {
             let mut command = PtyCommand::new(SHELL_PROG);
-            command.spawn(&pts).unwrap()
+            command.spawn(&pts)?
         }
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
@@ -107,9 +120,9 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
                 command.stdin(Stdio::null())
                         .stdout(Stdio::null())
                         .stderr(Stdio::null())
-                        .spawn(&pts).unwrap()
+                        .spawn(&pts)?
             } else {
-                command.spawn(&pts).unwrap()
+                command.spawn(&pts)?
                 
             }
 
@@ -169,7 +182,21 @@ async fn subprocess_task(
             recv_res = rx.recv() => {
                 match recv_res {
                     Ok(val) => {
-                        pty_process.pty.write_all(&val).await.unwrap();
+                        if let Err(e) = pty_process.pty.write_all(&val).await {
+                            hdc::warn!(
+                                "session_id: {} channel_id: {}, pty write failed: {e:?}",
+                                session_id, channel_id
+                            );
+                            break;
+                        }
+
+                        match pty_process.pty.write_all(&val).await {
+                            Ok(_) => {},
+                            Err(e) => {
+                                hdc::warn!("pty write failed: {e:?}");
+                                break;
+                            }
+                        };
                         if val[..].contains(&0x4_u8) {
                             // ctrl-D: end pty
                             hdc::info!("ctrl-D: end pty");

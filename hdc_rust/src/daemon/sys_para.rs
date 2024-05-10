@@ -17,7 +17,6 @@
 
 use hdc::config::*;
 use std::ffi::CString;
-use crate::utils::hdc_log::*;
 
 extern "C" {
     fn SetParameterEx(key: *const libc::c_char, val: *const libc::c_char) -> libc::c_int;
@@ -36,19 +35,30 @@ extern "C" {
 }
 
 pub fn set_dev_item(key: &str, val: &str) -> bool {
-    let ckey = CString::new(key).unwrap();
-    let cval = CString::new(val).unwrap();
+    let ckey = match CString::new(key) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let cval = match CString::new(val) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
 
     unsafe {
         let ret = SetParameterEx(ckey.as_ptr(), cval.as_ptr());
-        hdc::debug!("set param:{} val:{} ret:{}", key, val, ret);
         ret == 0
     }
 }
 
 pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
-    let ckey = CString::new(key).unwrap();
-    let cdef = CString::new(def).unwrap();
+    let ckey = match CString::new(key) {
+        Ok(v) => v,
+        Err(_) => return (false, String::new()),
+    };
+    let cdef = match CString::new(def) {
+        Ok(v) => v,
+        Err(_) => return (false, String::new()),
+    };
     let mut out: [u8; HDC_PARAMETER_VALUE_MAX_LEN] = [0; HDC_PARAMETER_VALUE_MAX_LEN];
 
     unsafe {
@@ -58,17 +68,24 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
             out.as_mut_ptr() as *mut libc::c_char,
             512,
         );
-        let output = String::from_utf8(out.to_vec()).unwrap().trim().to_string();
+        let output = match String::from_utf8(out.to_vec()){
+            Ok(v) => v.trim().to_string(),
+            Err(_) => return (false, String::new()),
+        };
         let (val, _) = output.split_at(bytes as usize);
-        hdc::debug!("get param:{} bytes:{} val:{}", key, bytes, val);
         (bytes >= 0, val.to_string())
     }
 }
 
 #[allow(dead_code)]
 pub fn wait_dev_item(key: &str, val: &str, timeout: i32) -> bool {
-    let ckey = CString::new(key).unwrap();
-    let cval = CString::new(val).unwrap();
-
+    let ckey = match CString::new(key) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let cval = match CString::new(val) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
     unsafe { WaitParameterEx(ckey.as_ptr(), cval.as_ptr(), timeout) == 0 }
 }

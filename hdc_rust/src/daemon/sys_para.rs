@@ -68,7 +68,7 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
             out.as_mut_ptr() as *mut libc::c_char,
             512,
         );
-        let output = match String::from_utf8(out.to_vec()){
+        let output = match String::from_utf8(out.to_vec()) {
             Ok(v) => v.trim().to_string(),
             Err(_) => return (false, String::new()),
         };

@@ -57,13 +57,16 @@ impl HostAppTaskMap {
             HOSTAPPTASKMAP
                 .get_or_insert_with(|| Arc::new(Mutex::new(HashMap::new())))
                 .clone()
-         }
+        }
     }
 
     pub async fn put(session_id: u32, channel_id: u32, host_app_task: HostAppTask) {
         let arc_map = Self::get_instance();
         let mut map = arc_map.lock().await;
-        map.insert((session_id, channel_id), Arc::new(Mutex::new(host_app_task)));
+        map.insert(
+            (session_id, channel_id),
+            Arc::new(Mutex::new(host_app_task)),
+        );
     }
 
     pub async fn exist(session_id: u32, channel_id: u32) -> Result<bool, ()> {
@@ -76,17 +79,17 @@ impl HostAppTaskMap {
         let arc_map = Self::get_instance();
         let mut map = arc_map.lock().await;
         map.remove(&(session_id, channel_id))
-     }
+    }
 
     pub async fn get(session_id: u32, channel_id: u32) -> HostAppTask_ {
         let arc_map = Self::get_instance();
         let map = arc_map.lock().await;
         let arc_task = map.get(&(session_id, channel_id)).unwrap();
         arc_task.clone()
-     }
+    }
 }
 
-pub async fn send_to_client(channel_id: u32, level: EchoLevel, message: String)  -> io::Result<()> {
+pub async fn send_to_client(channel_id: u32, level: EchoLevel, message: String) -> io::Result<()> {
     transfer::send_channel_msg(channel_id, level, message).await
 }
 
@@ -94,7 +97,12 @@ pub async fn echo_client(channel_id: u32, message: String) -> io::Result<()> {
     send_to_client(channel_id, EchoLevel::INFO, message).await
 }
 
-async fn check_install_continue(session_id: u32, channel_id: u32,  mode_type: config::AppModeType, str: String) -> bool {
+async fn check_install_continue(
+    session_id: u32,
+    channel_id: u32,
+    mode_type: config::AppModeType,
+    str: String,
+) -> bool {
     let mut _mode_desc = String::from("");
     match mode_type {
         config::AppModeType::Install => _mode_desc = String::from("App install"),
@@ -117,7 +125,7 @@ async fn check_install_continue(session_id: u32, channel_id: u32,  mode_type: co
         task_finish(session_id, channel_id).await;
         hdctransfer::close_channel(channel_id).await;
         return false;
-     }
+    }
     drop(task);
     install_single(session_id, channel_id).await;
     put_app_check(session_id, channel_id).await;
@@ -138,20 +146,19 @@ async fn do_app_finish(session_id: u32, channel_id: u32, _payload: &[u8]) -> boo
     if let Ok(mode_type) = mode {
         let str = String::from_utf8(_payload[2..].to_vec()).unwrap();
         return check_install_continue(session_id, channel_id, mode_type, str).await;
-     }
+    }
     false
 }
 
-pub fn get_sub_app_files_resurively(channel_id: u32, dir_path: &PathBuf) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn get_sub_app_files_resurively(
+    channel_id: u32,
+    dir_path: &PathBuf,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut result = Vec::new();
     let dir = match std::fs::read_dir(dir_path) {
         Ok(dir) => dir,
         Err(e) => {
-            let message = format!(
-                "App install path:{}, msg:{}",
-                dir_path.display(),
-                e
-            );
+            let message = format!("App install path:{}, msg:{}", dir_path.display(), e);
             ylong_runtime::block_on(async {
                 let _ = send_to_client(channel_id, EchoLevel::FAIL, message).await;
             });
@@ -162,24 +169,20 @@ pub fn get_sub_app_files_resurively(channel_id: u32, dir_path: &PathBuf) -> Resu
         let path = match entry {
             Ok(entry) => entry.path(),
             Err(e) => {
-                let message = format!(
-                    "App install path:{}, msg:{}",
-                    dir_path.display(),
-                    e
-                );
+                let message = format!("App install path:{}, msg:{}", dir_path.display(), e);
                 ylong_runtime::block_on(async {
                     let _ = send_to_client(channel_id, EchoLevel::FAIL, message).await;
                 });
                 continue;
             }
-         };
+        };
 
         let metadata = match std::fs::metadata(path.clone()) {
             Ok(metadata) => metadata,
             Err(_) => {
                 continue;
             }
-         };
+        };
 
         if metadata.is_file() {
             let p = path.display().to_string();
@@ -187,13 +190,13 @@ pub fn get_sub_app_files_resurively(channel_id: u32, dir_path: &PathBuf) -> Resu
                 result.push(p.clone());
             }
             continue;
-         }
+        }
 
         if metadata.is_dir() {
             let mut sub_list = get_sub_app_files_resurively(channel_id, &path).unwrap();
             result.append(&mut sub_list);
-         }
-     }
+        }
+    }
     result.sort();
     Ok(result)
 }
@@ -227,7 +230,10 @@ async fn install_single(session_id: u32, channel_id: u32) {
         task.transfer.transfer_config.optional_name = utils::get_pseudo_random_u32().to_string();
         if let Some(index) = local_path.rfind('.') {
             let str = local_path.as_str();
-            task.transfer.transfer_config.optional_name.push_str(&str[index..]);
+            task.transfer
+                .transfer_config
+                .optional_name
+                .push_str(&str[index..]);
         }
         // if config.hold_timestamp {}
         task.transfer.transfer_config.path = task.transfer.remote_path.clone();
@@ -252,11 +258,11 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
             if i + 1 < argc as usize {
                 task.transfer.transfer_config.client_cwd = argv[i + 1].clone();
                 i += 1;
-             }
+            }
         } else if argv[i].starts_with('-') {
             if !options.is_empty() {
                 options.push(' ');
-             }
+            }
             options.push_str(&argv[i].clone());
         } else {
             let mut path = argv[i].clone() as String;
@@ -267,16 +273,17 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
             if path.ends_with(".hap") || path.ends_with(".hsp") {
                 task.transfer.task_queue.push(path.clone());
             } else {
-                let mut queue = get_sub_app_files_resurively(channel_id, &PathBuf::from(path)).unwrap();
+                let mut queue =
+                    get_sub_app_files_resurively(channel_id, &PathBuf::from(path)).unwrap();
                 task.transfer.task_queue.append(&mut queue);
-             }
-         }
+            }
+        }
         i += 1;
-     }
+    }
 
     if task.transfer.task_queue.is_empty() {
         return false;
-     }
+    }
 
     task.transfer.transfer_config.options = options.clone();
     task.transfer.transfer_config.function_name = TRANSFER_FUNC_NAME.to_string();
@@ -285,7 +292,7 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
     install_single(session_id, channel_id).await;
 
     true
- }
+}
 
 pub async fn command_dispatch(
     session_id: u32,
@@ -301,7 +308,8 @@ pub async fn command_dispatch(
                 Ok(str) => {
                     if !init_install(session_id, channel_id, &str).await {
                         let message = "Not any installation package was found";
-                        let _ = send_to_client(channel_id, EchoLevel::FAIL, message.to_owned()).await;
+                        let _ =
+                            send_to_client(channel_id, EchoLevel::FAIL, message.to_owned()).await;
                         transfer::TcpMap::end(channel_id).await;
                         return Ok(false);
                     }
@@ -343,4 +351,3 @@ pub async fn command_dispatch(
     }
     Ok(true)
 }
-

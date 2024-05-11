@@ -15,6 +15,7 @@
 //! app
 #![allow(missing_docs)]
 
+use crate::utils::hdc_log::*;
 use hdc::common::filemanager::FileManager;
 use hdc::common::hdctransfer::{self, HdcTransferBase};
 use hdc::config;
@@ -26,8 +27,6 @@ use hdc::transfer;
 use std::collections::HashMap;
 use std::sync::Arc;
 use ylong_runtime::sync::Mutex;
-use crate::utils::hdc_log::*;
-
 
 use std::fs::{create_dir_all, File, *};
 use std::io::{self, Error, ErrorKind};
@@ -85,8 +84,12 @@ impl AppTaskMap {
         let task = match map.get(&(session_id, channel_id)) {
             Some(task) => task,
             None => {
-                hdc::error!("session_id:{} channel_id:{} not found", session_id, channel_id);
-                return None
+                hdc::error!(
+                    "session_id:{} channel_id:{} not found",
+                    session_id,
+                    channel_id
+                );
+                return None;
             }
         };
         Some(task.clone())
@@ -96,10 +99,10 @@ impl AppTaskMap {
         let arc = Self::get_instance();
         let map = arc.lock().await;
         for _iter in map.iter() {
-            if _iter.0.0 != session_id {
+            if _iter.0 .0 != session_id {
                 continue;
             }
-            hdctransfer::transfer_task_finish(_iter.0.1, session_id).await;
+            hdctransfer::transfer_task_finish(_iter.0 .1, session_id).await;
             let mut task = _iter.1.lock().await;
             task.transfer.stop_run = true;
         }
@@ -112,8 +115,10 @@ impl AppTaskMap {
         for _iter in map.iter() {
             let task = _iter.1.lock().await;
             let command = task.transfer.command_str.clone();
-            let line = format!("session_id:{},\tchannel_id:{},\tcommand:{}",
-                _iter.0.0, _iter.0.1, command);
+            let line = format!(
+                "session_id:{},\tchannel_id:{},\tcommand:{}",
+                _iter.0 .0, _iter.0 .1, command
+            );
             result.push_str(line.as_str());
         }
         result
@@ -124,8 +129,12 @@ async fn do_app_check(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool
     let arc = match AppTaskMap::get(session_id, channel_id).await {
         Some(task) => task,
         None => {
-            hdc::error!("session_id:{} channel_id:{} not found", session_id, channel_id);
-            return false
+            hdc::error!(
+                "session_id:{} channel_id:{} not found",
+                session_id,
+                channel_id
+            );
+            return false;
         }
     };
     let mut task = arc.lock().await;
@@ -137,8 +146,10 @@ async fn do_app_check(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool
     task.transfer.transfer_config.function_name = transconfig.function_name.clone();
     let tmp_dir = String::from(config::INSTALL_TMP_DIR);
     let local_path = tmp_dir.clone() + transconfig.optional_name.as_str();
-    task.transfer.command_str = format!("[{}],\tlocal_path:{}\n",
-        transconfig.function_name, local_path);
+    task.transfer.command_str = format!(
+        "[{}],\tlocal_path:{}\n",
+        transconfig.function_name, local_path
+    );
     task.transfer.is_master = false;
     task.transfer.local_path = local_path;
     task.transfer.file_size = transconfig.file_size;
@@ -177,7 +188,11 @@ async fn put_app_finish(
     let arc = match AppTaskMap::get(session_id, channel_id).await {
         Some(task) => task,
         None => {
-            hdc::error!("session_id:{} channel_id:{} not found", session_id, channel_id);
+            hdc::error!(
+                "session_id:{} channel_id:{} not found",
+                session_id,
+                channel_id
+            );
             return;
         }
     };
@@ -197,14 +212,27 @@ async fn app_uninstall(session_id: u32, channel_id: u32, _payload: &[u8]) {
     let mut str = match String::from_utf8(_payload.to_vec()) {
         Ok(v) => v,
         Err(e) => {
-            hdc::error!("session_id:{} channel_id:{} uninstall error:{}", session_id, channel_id, e);
-            put_app_finish(session_id, channel_id, 0, 0, &mut e.to_string().into_bytes()[..]).await;
+            hdc::error!(
+                "session_id:{} channel_id:{} uninstall error:{}",
+                session_id,
+                channel_id,
+                e
+            );
+            put_app_finish(
+                session_id,
+                channel_id,
+                0,
+                0,
+                &mut e.to_string().into_bytes()[..],
+            )
+            .await;
             return;
         }
     };
     str = str.trim_end_matches('\0').to_string();
 
-    let (opt, package) : (Vec<String>, Vec<String>) = str.split(' ')
+    let (opt, package): (Vec<String>, Vec<String>) = str
+        .split(' ')
         .map(String::from)
         .partition(|word| word.starts_with('-'));
     do_app_uninstall(session_id, channel_id, opt.join(" "), package.join(" ")).await;
@@ -222,7 +250,12 @@ async fn handle_execute_result(
             put_app_finish(session_id, channel_id, mode, 1, &mut m[..]).await;
         }
         Err(err) => {
-            hdc::error!("session_id:{} channel_id:{} error:{}", session_id, channel_id, err);
+            hdc::error!(
+                "session_id:{} channel_id:{} error:{}",
+                session_id,
+                channel_id,
+                err
+            );
             put_app_finish(
                 session_id,
                 channel_id,
@@ -250,7 +283,11 @@ async fn do_app_install(session_id: u32, channel_id: u32) {
     let arc = match AppTaskMap::get(session_id, channel_id).await {
         Some(task) => task,
         None => {
-            hdc::error!("session_id:{} channel_id:{} not found", session_id, channel_id);
+            hdc::error!(
+                "session_id:{} channel_id:{} not found",
+                session_id,
+                channel_id
+            );
             return;
         }
     };
@@ -281,7 +318,7 @@ fn execute_cmd(cmd: &String) -> io::Result<Vec<u8>> {
                     return Err(Error::new(
                         ErrorKind::Other,
                         format!("cmd execute error: {}", e),
-                    ))
+                    ));
                 }
             };
             str = str.replace('\n', " ");
@@ -295,7 +332,11 @@ async fn on_transfer_finish(session_id: u32, channel_id: u32) {
     let arc = match AppTaskMap::get(session_id, channel_id).await {
         Some(task) => task,
         None => {
-            hdc::error!("session_id:{} channel_id:{} not found", session_id, channel_id);
+            hdc::error!(
+                "session_id:{} channel_id:{} not found",
+                session_id,
+                channel_id
+            );
             return;
         }
     };
@@ -341,8 +382,12 @@ pub async fn command_dispatch(
             let arc = match AppTaskMap::get(session_id, channel_id).await {
                 Some(task) => task,
                 None => {
-                    hdc::error!("session_id:{} channel_id:{} not found", session_id, channel_id);
-                    return false
+                    hdc::error!(
+                        "session_id:{} channel_id:{} not found",
+                        session_id,
+                        channel_id
+                    );
+                    return false;
                 }
             };
             let mut task = arc.lock().await;

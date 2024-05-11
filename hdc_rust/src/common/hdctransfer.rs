@@ -275,6 +275,7 @@ fn is_file_access(path: String) -> bool {
             }
         }
         Err(_e) => {
+            crate::debug!("metadata file is error, path:{}", path);
             return false;
         }
     }
@@ -324,6 +325,7 @@ pub async fn read_and_send_data(
     }
     loop {
         if queue.is_empty() {
+            crate::debug!("read_and_send_data queue is empty");
             break;
         }
         let handler = queue.pop_front();
@@ -331,6 +333,7 @@ pub async fn read_and_send_data(
         let (is_finish, task_message) = handler.await.unwrap();
         transfer::put(session_id, task_message).await;
         if is_finish {
+            crate::debug!("read_and_send_data is finish return false");
             return false;
         }
 

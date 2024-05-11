@@ -174,39 +174,35 @@ impl UsbMap {
                     let arc_wr = map.get(&session_id).unwrap();
                     let mut wr = arc_wr.lock().await;
                     match wr.write_all(head) {
-                        Ok(_) => {},
+                        Ok(_) => {}
                         Err(e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing head"));
-                        },
+                        }
                     }
-                    
+
                     match wr.write_all(body) {
                         Ok(ret) => {
                             let child_ret = ret;
-                        },
+                        }
                         Err(e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing body"));
-                        },
+                        }
                     }
 
-                    if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0 ) && (child_ret > 0) {
+                    if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0) && (child_ret > 0) {
                         let tail = usb::build_header(session_id, 0, 0);
                         // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
                         // so, we send dummy packet to prevent zero packet generate
                         match wr.write_all(tail) {
-                            Ok(_) => {},
+                            Ok(_) => {}
                             Err(e) => {
                                 return Err(Error::new(ErrorKind::Other, "Error writing tail"));
-                            },
+                            }
                         }
                     }
-
-                    
                 }
             }
-            None => {
-                return Err(Error::new(ErrorKind::NotFound, "session not found"))
-            }
+            None => return Err(Error::new(ErrorKind::NotFound, "session not found")),
         }
         Ok(())
     }

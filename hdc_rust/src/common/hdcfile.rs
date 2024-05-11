@@ -29,8 +29,8 @@ use crate::common::filemanager::FileManager;
 use crate::common::hdctransfer::*;
 use crate::config::CompressType;
 use crate::config::HdcCommand;
-use crate::config::TaskMessage;
 use crate::config::MessageLevel;
+use crate::config::TaskMessage;
 use crate::config::MAX_SIZE_IOBUF;
 use crate::serializer::serialize::Serialization;
 
@@ -101,14 +101,17 @@ impl FileTaskMap {
         let arc = Self::get_instance();
         let map = arc.lock().await;
         for _iter in map.iter() {
-            if _iter.0.0 != session_id {
+            if _iter.0 .0 != session_id {
                 continue;
             }
-            hdctransfer::transfer_task_finish(_iter.0.1, session_id).await;
+            hdctransfer::transfer_task_finish(_iter.0 .1, session_id).await;
             let mut task = _iter.1.lock().await;
             task.transfer.stop_run = true;
-            crate::info!("session_id:{}, channel_id:{}, set stop_run as true.",
-                session_id, _iter.0.1);
+            crate::info!(
+                "session_id:{}, channel_id:{}, set stop_run as true.",
+                session_id,
+                _iter.0 .1
+            );
         }
     }
 
@@ -119,8 +122,10 @@ impl FileTaskMap {
         for _iter in map.iter() {
             let task = _iter.1.lock().await;
             let command = task.transfer.command_str.clone();
-            let line = format!("session_id:{},\tchannel_id:{},\tcommand:{}\n",
-                _iter.0.0, _iter.0.1, command);
+            let line = format!(
+                "session_id:{},\tchannel_id:{},\tcommand:{}\n",
+                _iter.0 .0, _iter.0 .1, command
+            );
             result.push_str(line.as_str());
         }
         result
@@ -148,20 +153,36 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
             file_task.transfer.transfer_config.compress_type = CompressType::Lz4 as u8;
         }
         file_task.transfer.transfer_config.path = file_task.transfer.remote_path.clone();
-        let command_str = format!("[file send], local_path:{}, optional_name:{}",
+        let command_str = format!(
+            "[file send], local_path:{}, optional_name:{}",
             file_task.transfer.local_path.clone(),
             file_task.transfer.transfer_config.optional_name
         );
-        file_task.transfer.command_str.push_str(command_str.as_str());
+        file_task
+            .transfer
+            .command_str
+            .push_str(command_str.as_str());
         return true;
     } else {
-        hdctransfer::echo_client(session_id, channel_id, err_msg.as_bytes().to_vec(), MessageLevel::Fail).await;
+        hdctransfer::echo_client(
+            session_id,
+            channel_id,
+            err_msg.as_bytes().to_vec(),
+            MessageLevel::Fail,
+        )
+        .await;
     }
     false
 }
 
 async fn echo_finish(session_id: u32, channel_id: u32, msg: String) {
-    hdctransfer::echo_client(session_id, channel_id, msg.as_bytes().to_vec(), MessageLevel::Ok).await;
+    hdctransfer::echo_client(
+        session_id,
+        channel_id,
+        msg.as_bytes().to_vec(),
+        MessageLevel::Ok,
+    )
+    .await;
     task_finish(session_id, channel_id).await;
 }
 
@@ -179,6 +200,11 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
 
     let task = FileTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!(
+            "begin_transfer get task is none session_id={:#?},channel_id={:#?}",
+            session_id,
+            channel_id
+        );
         return false;
     }
     let task = task.unwrap();
@@ -205,6 +231,11 @@ async fn set_master_parameters(
 ) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!(
+            "set_master_parameters get task is none session_id={:#?},channel_id={:#?}",
+            session_id,
+            channel_id
+        );
         return false;
     }
     let task = task.unwrap();
@@ -241,12 +272,14 @@ async fn set_master_parameters(
         i += 1;
     }
     if argc == src_argv_index {
+        crate::error!("set_master_parameters argc = {:#?} return false", argc);
         return false;
     }
     task.transfer.remote_path = argv.last().unwrap().clone();
     task.transfer.local_path = argv.get(argv.len() - 2).unwrap().clone();
     if task.transfer.server_or_daemon {
         if src_argv_index + 1 == argc {
+            crate::error!("src_argv_index = {:#?} return false", src_argv_index);
             return false;
         }
         let cwd = task.transfer.transfer_config.client_cwd.clone();
@@ -269,8 +302,9 @@ async fn set_master_parameters(
         if !task.transfer.task_queue.is_empty() {
             task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
             task.transfer.local_name =
-                task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
+                task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
         } else {
+            crate::error!("task transfer task_queue is empty");
             return false;
         }
     } else if file.is_err() {
@@ -307,6 +341,11 @@ async fn put_file_check(session_id: u32, channel_id: u32) {
 pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!(
+            "check_slaver get task is none session_id={:#?},channel_id={:#?}",
+            session_id,
+            channel_id
+        );
         return false;
     }
     let task = task.unwrap();
@@ -320,9 +359,12 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     task.transfer.local_path = transconfig.path;
     task.transfer.is_master = false;
     task.transfer.index = 0;
-    let command_str = format!("[file recv],\t local_path:{},\t optional_name:{}\t",
-        task.transfer.local_path.clone(), transconfig.optional_name);
-        task.transfer.command_str.push_str(command_str.as_str());
+    let command_str = format!(
+        "[file recv],\t local_path:{},\t optional_name:{}\t",
+        task.transfer.local_path.clone(),
+        transconfig.optional_name
+    );
+    task.transfer.command_str.push_str(command_str.as_str());
     let mut error = String::new();
     let local_path = task.transfer.local_path.clone();
     let optional_name = transconfig.optional_name.clone();
@@ -330,9 +372,11 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     let check_result =
         hdctransfer::check_local_path(&mut task.transfer, &local_path, &optional_name, &mut error);
     if !check_result {
+        crate::error!("check_local_path return false channel_id={:#?}", channel_id);
         return false;
     }
     if task.transfer.transfer_config.update_if_new {
+        crate::error!("task.transfer.transfer_config.update_if_new is true");
         return false;
     }
     if task.dir_begin_time == 0 {
@@ -369,7 +413,7 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
     let mut task = task.lock().await;
     task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
     task.transfer.local_name =
-        task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
+        task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
     drop(task);
     check_local_path(session_id, channel_id).await
 }
@@ -399,14 +443,11 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
     );
     #[cfg(feature = "host")]
     {
-        let _ = transfer::send_channel_msg(
-            task.transfer.channel_id,
-            transfer::EchoLevel::OK,
-            message
-        )
-        .await;
+        let _ =
+            transfer::send_channel_msg(task.transfer.channel_id, transfer::EchoLevel::OK, message)
+                .await;
         hdctransfer::close_channel(channel_id).await;
-        return
+        return;
     }
     #[allow(unreachable_code)]
     {
@@ -425,6 +466,11 @@ async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
     if _payload[0] == 1 {
         let task = FileTaskMap::get(session_id, channel_id).await;
         if task.is_none() {
+            crate::error!(
+                "do_file_finish get task is none session_id={:#?},channel_id={:#?}",
+                session_id,
+                channel_id
+            );
             return;
         }
         let task = task.unwrap();
@@ -493,7 +539,9 @@ pub async fn command_dispatch(
                 hdctransfer::echo_client(
                     session_id,
                     channel_id,
-                    "Transfer failed: create file or directory error.".as_bytes().to_vec(),
+                    "Transfer failed: create file or directory error."
+                        .as_bytes()
+                        .to_vec(),
                     MessageLevel::Fail,
                 )
                 .await;

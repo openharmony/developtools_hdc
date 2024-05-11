@@ -229,7 +229,7 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
 
         string sStatus = conStatusDetail[STATUS_UNKNOW];
         if (hdi->connStatus < STATUS_UNAUTH) {
-            if (hdi->connStatus == STATUS_CONNECTED && hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
+            if (hdi->connStatus == STATUS_CONNECTED && hdi->daemonAuthStatus == DAEOMN_UNAUTHORIZED) {
                 sStatus = conStatusDetail[STATUS_UNAUTH];
             } else {
                 sStatus = conStatusDetail[hdi->connStatus];
@@ -245,7 +245,7 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
             out = Base::StringFormat("%s", hdi->connectKey.c_str());
-            if (hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
+            if (hdi->daemonAuthStatus == DAEOMN_UNAUTHORIZED) {
                 out.append("\tunauthorized");
             }
             out.append("\n");

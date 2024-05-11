@@ -90,8 +90,7 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
             if let Some(command) = CMD_MAP.get(cmd.as_str()) {
                 cmd_index = st;
                 cmd_opt = Some(command.to_owned());
-                if *command == HdcCommand::ForwardInit
-                    || *command == HdcCommand::ForwardRportInit {
+                if *command == HdcCommand::ForwardInit || *command == HdcCommand::ForwardRportInit {
                     continue;
                 } else {
                     break;
@@ -100,7 +99,8 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
         }
         if cmd_opt.is_some()
             && cmd_opt.unwrap() != HdcCommand::ForwardInit
-            && cmd_opt.unwrap() != HdcCommand::ForwardRportInit {
+            && cmd_opt.unwrap() != HdcCommand::ForwardRportInit
+        {
             break;
         }
     }

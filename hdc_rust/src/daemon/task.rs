@@ -304,7 +304,8 @@ fn check_control(command: HdcCommand) -> bool {
 
 pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     let cmd = task_message.command;
-    let special_cmd = (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
+    let special_cmd =
+        (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
     let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;
 
     if !auth_ok && !special_cmd {
@@ -314,8 +315,13 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
             task_message.channel_id,
             auth::get_auth_msg(session_id).await.as_bytes().to_vec(),
             MessageLevel::Fail,
-        ).await;
-        transfer::put(session_id, auth::make_channel_close_message(task_message.channel_id).await).await;
+        )
+        .await;
+        transfer::put(
+            session_id,
+            auth::make_channel_close_message(task_message.channel_id).await,
+        )
+        .await;
         return Err(Error::new(
             ErrorKind::Other,
             format!("auth status is nok, cannt accept cmd: {}", cmd as u32),
@@ -375,9 +381,7 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         | HdcCommand::ForwardActiveSlave
         | HdcCommand::ForwardActiveMaster
         | HdcCommand::ForwardData
-        | HdcCommand::ForwardFreeContext => {
-            daemon_file_task(task_message, session_id).await
-        }
+        | HdcCommand::ForwardFreeContext => daemon_file_task(task_message, session_id).await,
         HdcCommand::UnityRunmode
         | HdcCommand::UnityReboot
         | HdcCommand::UnityRemount

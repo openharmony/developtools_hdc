@@ -138,7 +138,6 @@ impl base::Reader for UsbReader {
         Err(utils::error_other("usb read error".to_string()))
     }
 
-
     fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
         let buf = self.read_frame(serializer::USB_HEAD_SIZE)?;
         if buf[..config::USB_PACKET_FLAG.len()] != config::USB_PACKET_FLAG[..] {

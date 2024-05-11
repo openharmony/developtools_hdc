@@ -18,15 +18,15 @@ use crate::task;
 use hdc::config;
 use hdc::config::HdcCommand;
 use hdc::config::TaskMessage;
+use hdc::host_transfer::host_usb;
 use hdc::transfer;
 use hdc::utils;
+#[allow(unused)]
+use hdc::utils::hdc_log::*;
+use std::io::{self, Error, ErrorKind};
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
-#[allow(unused)]
-use hdc::utils::hdc_log::*;
-use hdc::host_transfer::host_usb;
-use std::io::{self, Error, ErrorKind};
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
@@ -79,8 +79,8 @@ pub async fn get_process_pids() -> Vec<u32> {
     let mut pids: Vec<u32> = Vec::new();
     if cfg!(target_os = "windows") {
         let output_vec = match utils::execute_cmd("tasklist | findstr hdc".to_owned()) {
-                Ok(output) => [output.stdout, output.stderr].concat(), 
-                Err(e) => e.to_string().into_bytes(),
+            Ok(output) => [output.stdout, output.stderr].concat(),
+            Err(e) => e.to_string().into_bytes(),
         };
         let output_str = String::from_utf8_lossy(&output_vec);
         let mut get_pid = false;
@@ -94,8 +94,10 @@ pub async fn get_process_pids() -> Vec<u32> {
             }
         }
     } else {
-        let output_vec = match utils::execute_cmd("ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned()) {
-            Ok(output) => [output.stdout, output.stderr].concat(), 
+        let output_vec = match utils::execute_cmd(
+            "ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned(),
+        ) {
+            Ok(output) => [output.stdout, output.stderr].concat(),
             Err(e) => e.to_string().into_bytes(),
         };
         let output_str = String::from_utf8_lossy(&output_vec);
@@ -133,7 +135,14 @@ pub async fn server_fork(addr_str: String, log_level: usize) {
 pub async fn server_fork(addr_str: String, log_level: usize) {
     let current_exe = std::env::current_exe().unwrap().display().to_string();
     let result = process::Command::new(&current_exe)
-        .args(["-b", "-m", "-l", log_level.to_string().as_str(), "-s", addr_str.as_str()])
+        .args([
+            "-b",
+            "-m",
+            "-l",
+            log_level.to_string().as_str(),
+            "-s",
+            addr_str.as_str(),
+        ])
         .spawn();
     match result {
         Ok(_) => ylong_runtime::time::sleep(Duration::from_millis(1000)).await,
@@ -265,7 +274,7 @@ async fn handshake_with_client(
 fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
     let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]).unwrap();
     if msg != config::HANDSHAKE_MESSAGE {
-        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"))
+        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
     let key_buf = &recv[config::BANNER_SIZE..];
     let pos = match key_buf.iter().position(|c| *c == 0) {

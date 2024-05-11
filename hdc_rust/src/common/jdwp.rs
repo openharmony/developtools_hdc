@@ -173,8 +173,7 @@ impl Jdwp {
             let debug_or_release =
                 u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
             crate::info!("debug:{}", debug_or_release);
-            let pkg_name =
-                String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
+            let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
             crate::info!("pkg name:{}", pkg_name);
 
             let node_map = node_map.clone();

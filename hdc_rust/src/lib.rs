@@ -18,10 +18,10 @@ extern crate libc;
 
 pub mod common;
 pub mod config;
-pub mod serializer;
-pub mod transfer;
-pub mod utils;
 #[cfg(feature = "emulator")]
 pub mod daemon_lib;
 #[cfg(feature = "host")]
 pub mod host_transfer;
+pub mod serializer;
+pub mod transfer;
+pub mod utils;

@@ -16,14 +16,14 @@ use crate::auth;
 use crate::config::*;
 use crate::host_app;
 use crate::host_app::HostAppTaskMap;
+use hdc::common::forward::{self, ForwardTaskMap, HdcForward};
 /// ActionType 未定义，临时屏蔽
 /// use crate::host_app::HostAppTask;
 /// use hdc::common::hdcfile::HdcFile;
 use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
-use hdc::common::forward::{self, ForwardTaskMap, HdcForward};
-use hdc::config::{HdcCommand, ConnectType};
-use hdc::transfer;
+use hdc::config::{ConnectType, HdcCommand};
 use hdc::host_transfer::host_usb;
+use hdc::transfer;
 use hdc::transfer::send_channel_data;
 use hdc::utils;
 #[allow(unused)]
@@ -163,15 +163,23 @@ async fn channel_forward_remove(task_info: TaskInfo, forward_or_reverse: bool) -
     let task_string = task_info.params[2..].join(" ").clone();
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
-    hdc::info!("channel_forward_remove task_string:{}, session_id:{}", task_string, session_id);
-    let _result = forward::HdcForwardInfoMap::remove_forward(task_string.clone(),
-        forward_or_reverse).await;
+    hdc::info!(
+        "channel_forward_remove task_string:{}, session_id:{}",
+        task_string,
+        session_id
+    );
+    let _result =
+        forward::HdcForwardInfoMap::remove_forward(task_string.clone(), forward_or_reverse).await;
     hdc::info!("channel_forward_remove remove result:{}", _result);
     let forward_channel_id = forward::ForwardTaskMap::get_channel_id(session_id, task_string).await;
     if let Some(_channel_id) = forward_channel_id {
         forward::free_context(session_id, _channel_id, 0, true).await;
     }
-    send_channel_data(task_info.channel_id, "Forward remove success.".as_bytes().to_vec()).await;
+    send_channel_data(
+        task_info.channel_id,
+        "Forward remove success.".as_bytes().to_vec(),
+    )
+    .await;
     transfer::TcpMap::end(task_info.channel_id).await;
     Ok(())
 }
@@ -196,7 +204,10 @@ async fn channel_forward_list(task_info: TaskInfo, forward_or_reverse: bool) -> 
         } else {
             "[Reverse]".to_string()
         };
-        let line = format!("{}    {}    {}\n", info.connect_key, task_string, forward_str);
+        let line = format!(
+            "{}    {}    {}\n",
+            info.connect_key, task_string, forward_str
+        );
         result_str.push_str(&line);
     }
     send_channel_data(task_info.channel_id, result_str.as_bytes().to_vec()).await;
@@ -293,8 +304,9 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
                 task_info.channel_id,
                 task_info.command,
                 &payload,
-                payload.len() as u16)
-                .await;
+                payload.len() as u16,
+            )
+            .await;
             return Ok(());
         }
         HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish => {
@@ -303,9 +315,10 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
                 task_info.channel_id,
                 task_info.command,
                 &payload,
-                payload.len() as u16)
-                .await;
-                return Ok(());
+                payload.len() as u16,
+            )
+            .await;
+            return Ok(());
         }
         _ => {
             hdc::info!("other tasks, payload is {:#?}", payload);
@@ -528,7 +541,8 @@ async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> 
                 task_info.channel_id,
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
-            ).await?;
+            )
+            .await?;
             transfer::TcpMap::end(task_info.channel_id).await;
             Ok(())
         }
@@ -553,24 +567,28 @@ async fn channel_wait_for_any(task_info: TaskInfo) -> io::Result<()> {
     let target_list = ConnectMap::get_list(false).await;
     if target_list.is_empty() {
         hdc::info!("No any connected target");
-        let msg =  "No connected target".to_string();
+        let msg = "No connected target".to_string();
         transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
     } else if task_info.connect_key == "any" {
-            hdc::info!("Wait for connected target any");
-            let msg = "Wait for connected target any get ".to_string() +  target_list[0].as_str();
+        hdc::info!("Wait for connected target any");
+        let msg = "Wait for connected target any get ".to_string() + target_list[0].as_str();
+        transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+        transfer::TcpMap::end(task_info.channel_id).await;
+    } else {
+        // wait for special connectkey
+        if target_list
+            .iter()
+            .any(|connect_key| connect_key == &task_info.connect_key)
+        {
+            hdc::info!("Wait for connected target is {}", task_info.connect_key);
+            let msg = "Wait for connected target is ".to_string() + task_info.connect_key.as_str();
             transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
             transfer::TcpMap::end(task_info.channel_id).await;
-    } else { // wait for special connectkey
-            if target_list.iter().any(|connect_key| connect_key == &task_info.connect_key) {
-                hdc::info!("Wait for connected target is {}", task_info.connect_key);
-                let msg = "Wait for connected target is ".to_string() +  task_info.connect_key.as_str();
-                transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
-                transfer::TcpMap::end(task_info.channel_id).await; 
-            } else {
-                hdc::info!("No {} connected target ", task_info.connect_key);
-                let msg =  "No connected target".to_string();
-                transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
-            }
+        } else {
+            hdc::info!("No {} connected target ", task_info.connect_key);
+            let msg = "No connected target".to_string();
+            transfer::send_channel_msg(task_info.channel_id, transfer::EchoLevel::RAW, msg).await?;
+        }
     }
     Ok(())
 }

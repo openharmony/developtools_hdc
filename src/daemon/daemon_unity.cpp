@@ -91,36 +91,34 @@ int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
 
 bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
 {
-    int fd;
     int res;
-    char *token = nullptr;
-    const char delims[] = "\n";
+    int len = BUF_SIZE_DEFAULT2;
     char buf[BUF_SIZE_DEFAULT2];
 
-    fd = open("/proc/mounts", O_RDONLY | O_CLOEXEC);
-    if (fd < 0) {
+    FILE *fp = fopen("/proc/mounts", "r");
+    if (fp == nullptr) {
+        WRITE_LOG(LOG_FATAL, "fopen /proc/mounts error:%d", errno);
         return false;
     }
-    read(fd, buf, sizeof(buf) - 1);
-    Base::CloseFd(fd);
-    buf[sizeof(buf) - 1] = '\0';
-    token = strtok(buf, delims);
 
-    while (token) {
+    while (fgets(buf, len, fp) != nullptr) {
         char dir[BUF_SIZE_SMALL] = "";
         int freq;
         int passnno;
         // clang-format off
-        res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
+        res = sscanf_s(buf, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
                        dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
         // clang-format on
         dev[BUF_SIZE_SMALL - 1] = '\0';
         dir[BUF_SIZE_SMALL - 1] = '\0';
         if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
+            WRITE_LOG(LOG_DEBUG, "FindMountDeviceByPath dev:%s dir:%s", dev, dir);
+            fclose(fp);
             return true;
         }
-        token = strtok(nullptr, delims);
     }
+    WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath not found %s", toQuery);
+    fclose(fp);
     return false;
 }
 

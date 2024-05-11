@@ -60,7 +60,6 @@ pub fn get_dev_item(key: &str, def: &str) -> (bool, String) {
         );
         let output = String::from_utf8(out.to_vec()).unwrap().trim().to_string();
         let (val, _) = output.split_at(bytes as usize);
-        hdc::debug!("get param:{} bytes:{} val:{}", key, bytes, val);
         (bytes >= 0, val.to_string())
     }
 }

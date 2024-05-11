@@ -179,6 +179,8 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
 
     let task = FileTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!("begin_transfer get task is none session_id={:#?},channel_id={:#?}",
+            session_id, channel_id);
         return false;
     }
     let task = task.unwrap();
@@ -205,6 +207,8 @@ async fn set_master_parameters(
 ) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!("set_master_parameters get task is none session_id={:#?},channel_id={:#?}",
+            session_id, channel_id);
         return false;
     }
     let task = task.unwrap();
@@ -241,12 +245,14 @@ async fn set_master_parameters(
         i += 1;
     }
     if argc == src_argv_index {
+        crate::error!("set_master_parameters argc = {:#?} return false", argc);
         return false;
     }
     task.transfer.remote_path = argv.last().unwrap().clone();
     task.transfer.local_path = argv.get(argv.len() - 2).unwrap().clone();
     if task.transfer.server_or_daemon {
         if src_argv_index + 1 == argc {
+            crate::error!("src_argv_index = {:#?} return false", src_argv_index);
             return false;
         }
         let cwd = task.transfer.transfer_config.client_cwd.clone();
@@ -271,6 +277,7 @@ async fn set_master_parameters(
             task.transfer.local_name =
                 task.transfer.local_path[task.transfer.base_local_path.len()+1..].to_string();
         } else {
+            crate::error!("task transfer task_queue is empty");
             return false;
         }
     } else if file.is_err() {
@@ -307,6 +314,8 @@ async fn put_file_check(session_id: u32, channel_id: u32) {
 pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
     let task = FileTaskMap::get(session_id, channel_id).await;
     if task.is_none() {
+        crate::error!("check_slaver get task is none session_id={:#?},channel_id={:#?}",
+            session_id, channel_id);
         return false;
     }
     let task = task.unwrap();
@@ -330,9 +339,11 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     let check_result =
         hdctransfer::check_local_path(&mut task.transfer, &local_path, &optional_name, &mut error);
     if !check_result {
+        crate::error!("check_local_path return false channel_id={:#?}", channel_id);
         return false;
     }
     if task.transfer.transfer_config.update_if_new {
+        crate::error!("task.transfer.transfer_config.update_if_new is true");
         return false;
     }
     if task.dir_begin_time == 0 {
@@ -425,6 +436,8 @@ async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
     if _payload[0] == 1 {
         let task = FileTaskMap::get(session_id, channel_id).await;
         if task.is_none() {
+            crate::error!("do_file_finish get task is none session_id={:#?},channel_id={:#?}",
+                session_id, channel_id);
             return;
         }
         let task = task.unwrap();

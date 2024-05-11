@@ -91,7 +91,7 @@ int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
 
 bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
 {
-    int res;
+    int ret = false;
     int len = BUF_SIZE_DEFAULT2;
     char buf[BUF_SIZE_DEFAULT2];
 
@@ -105,6 +105,7 @@ bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
         char dir[BUF_SIZE_SMALL] = "";
         int freq;
         int passnno;
+        int res = 0;
         // clang-format off
         res = sscanf_s(buf, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
                        dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
@@ -113,13 +114,18 @@ bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
         dir[BUF_SIZE_SMALL - 1] = '\0';
         if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
             WRITE_LOG(LOG_DEBUG, "FindMountDeviceByPath dev:%s dir:%s", dev, dir);
-            fclose(fp);
-            return true;
+            ret = true;
+            break;
         }
     }
-    WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath not found %s", toQuery);
-    fclose(fp);
-    return false;
+    int rc = fclose(fp);
+    if (rc != 0) {
+        WRITE_LOG(LOG_WARN, "fclose rc:%d error:%d", rc, errno);
+    }
+    if (!ret) {
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath not found %s", toQuery);
+    }
+    return ret;
 }
 
 bool HdcDaemonUnity::RemountPartition(const char *dir)

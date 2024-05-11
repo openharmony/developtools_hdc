@@ -357,7 +357,6 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
                                 cur_session_id,
                             )
                             .await;
-                            PtyMap::clear(cur_session_id).await;
                             cur_session_id = session_id_in_msg;
                         }
                     }
@@ -370,7 +369,6 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());
-                PtyMap::clear(cur_session_id).await;
                 break;
             }
         }

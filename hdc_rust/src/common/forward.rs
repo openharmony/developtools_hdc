@@ -180,7 +180,7 @@ impl TcpReadStreamMap {
                 Ok(recv_size) => {
                     if recv_size == 0 {
                         free_context(session_id, channel_id, 0, true).await;
-                        crate::info!("tcp close shutdown session_id =  {:#?}, channel_id = {:#?}", session_id, channel_id);
+                        crate::info!("tcp close shutdown, channel_id = {:#?}", channel_id);
                         return;
                     }
                     if send_to_task(

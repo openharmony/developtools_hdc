@@ -190,13 +190,6 @@ async fn subprocess_task(
                             break;
                         }
 
-                        match pty_process.pty.write_all(&val).await {
-                            Ok(_) => {},
-                            Err(e) => {
-                                hdc::warn!("pty write failed: {e:?}");
-                                break;
-                            }
-                        };
                         if val[..].contains(&0x4_u8) {
                             // ctrl-D: end pty
                             hdc::info!("ctrl-D: end pty");

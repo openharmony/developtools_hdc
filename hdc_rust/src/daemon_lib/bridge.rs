@@ -14,24 +14,24 @@
  */
 //! bridge
 
-use crate::transfer::base;
 #[allow(unused)]
 use crate::config::*;
 #[allow(unused)]
 use crate::serializer;
-use crate::utils;
-#[allow(unused)]
-use crate::utils::hdc_log::*;
 #[allow(unused)]
 use crate::serializer::serialize::Serialization;
 use crate::serializer::serialize::SerializedBuffer;
+use crate::transfer::base;
+use crate::transfer::base::Writer;
+use crate::transfer::buffer::ConnectTypeMap;
+use crate::utils;
+#[allow(unused)]
+use crate::utils::hdc_log::*;
+use std::collections::HashMap;
 #[allow(unused)]
 use std::io::{self, Error, ErrorKind};
-use crate::transfer::buffer::ConnectTypeMap;
-use ylong_runtime::sync::{Mutex, RwLock};
-use std::collections::HashMap;
 use std::sync::Arc;
-use crate::transfer::base::Writer;
+use ylong_runtime::sync::{Mutex, RwLock};
 
 #[repr(C)]
 pub struct PersistBuffer {
@@ -59,57 +59,37 @@ extern "C" {
 
 #[allow(unused)]
 pub fn init_bridge() -> *mut libc::c_void {
-    unsafe {
-        InitBridge()
-    }
+    unsafe { InitBridge() }
 }
 
 #[allow(unused)]
 pub fn start_listen(ptr: u64) -> i32 {
-    unsafe {
-        StartListen(ptr as *mut libc::c_void)
-    }
+    unsafe { StartListen(ptr as *mut libc::c_void) }
 }
 
 #[allow(unused)]
 pub fn accept_server_socket_fd(ptr: u64, pipe_fd: i32) -> i32 {
-    unsafe {
-        AcceptServerSocketFd(
-            ptr as *mut libc::c_void,
-            pipe_fd
-        )
-    }
+    unsafe { AcceptServerSocketFd(ptr as *mut libc::c_void, pipe_fd) }
 }
 
 #[allow(unused)]
 pub fn init_client_fd(ptr: u64, socket_fd: i32) -> i32 {
-    unsafe {
-        InitClientFd(
-            ptr as *mut libc::c_void,
-            socket_fd
-        )
-    }
+    unsafe { InitClientFd(ptr as *mut libc::c_void, socket_fd) }
 }
 
 #[allow(unused)]
 pub fn write_client(ptr: u64, fd: i32, buf: SerializedBuffer) -> i32 {
-    unsafe {
-        WriteClient(ptr as *mut libc::c_void, fd, buf)
-    }
+    unsafe { WriteClient(ptr as *mut libc::c_void, fd, buf) }
 }
 
 #[allow(unused)]
 pub fn read_client(ptr: u64, fd: i32, excepted_size: i32) -> PersistBuffer {
-    unsafe {
-        ReadClient(ptr as *mut libc::c_void, fd, excepted_size)
-    }
+    unsafe { ReadClient(ptr as *mut libc::c_void, fd, excepted_size) }
 }
 
 #[allow(unused)]
 pub fn stop(ptr: u64) -> i32 {
-    unsafe {
-        Stop(ptr as *mut libc::c_void)
-    }
+    unsafe { Stop(ptr as *mut libc::c_void) }
 }
 
 pub struct BridgeReader {

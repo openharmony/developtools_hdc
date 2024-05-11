@@ -32,35 +32,35 @@ use std::time::SystemTime;
 
 use crate::utils::hdc_log::*;
 
+use crate::shell::PtyMap;
 use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;
+#[cfg(feature = "emulator")]
+use hdc::daemon_lib::bridge;
 use hdc::transfer;
-#[cfg(not(feature = "emulator"))]
-use hdc::transfer::uart::UartReader;
 #[cfg(not(feature = "emulator"))]
 use hdc::transfer::base::Reader;
 #[cfg(not(feature = "emulator"))]
+use hdc::transfer::uart::UartReader;
+#[cfg(not(feature = "emulator"))]
 use hdc::transfer::uart_wrapper;
 use hdc::utils;
-use crate::shell::PtyMap;
-#[cfg(feature = "emulator")]
-use hdc::daemon_lib::bridge;
 
+use crate::auth::clear_auth_pub_key_file;
+use crate::sys_para::*;
 use log::LevelFilter;
+#[cfg(not(feature = "emulator"))]
+use std::ffi::c_int;
 use std::ffi::CString;
 #[cfg(not(feature = "emulator"))]
 use ylong_runtime::net::{TcpListener, TcpStream};
 #[cfg(not(feature = "emulator"))]
 use ylong_runtime::sync::mpsc;
-#[cfg(not(feature = "emulator"))]
-use std::ffi::c_int;
-use crate::sys_para::{*};
-use crate::auth::clear_auth_pub_key_file;
 
 extern "C" {
     #[cfg(not(feature = "emulator"))]
-    fn NeedDropRootPrivileges()-> c_int;
+    fn NeedDropRootPrivileges() -> c_int;
 }
 
 #[cfg(not(feature = "emulator"))]
@@ -103,7 +103,10 @@ async fn bridge_daemon_start() -> io::Result<()> {
     hdc::info!("bridge_daemon_start pipe_read_fd:{}", pipe_read_fd);
     if pipe_read_fd < 0 {
         hdc::error!("daemon bridge listen fail.");
-        return Err(std::io::Error::new(ErrorKind::Other, "daemon bridge listen fail."));
+        return Err(std::io::Error::new(
+            ErrorKind::Other,
+            "daemon bridge listen fail.",
+        ));
     }
     loop {
         hdc::info!("bridge_daemon_start loop...");
@@ -117,7 +120,11 @@ async fn bridge_daemon_start() -> io::Result<()> {
             hdc::error!("bridge_daemon_start init client fd fail...");
             break;
         }
-        ylong_runtime::spawn(bridge_handle_client(ptr, client_fd, client_fd_for_hdc_server));
+        ylong_runtime::spawn(bridge_handle_client(
+            ptr,
+            client_fd,
+            client_fd_for_hdc_server,
+        ));
     }
     bridge::stop(ptr);
     Ok(())
@@ -126,8 +133,8 @@ async fn bridge_daemon_start() -> io::Result<()> {
 #[cfg(feature = "emulator")]
 async fn bridge_handle_client(ptr: u64, fd: i32, client_fd: i32) -> io::Result<()> {
     hdc::info!("bridge_handle_client start...");
-    let rd = bridge::BridgeReader {ptr, fd};
-    let wr = bridge::BridgeWriter {ptr, fd};
+    let rd = bridge::BridgeReader { ptr, fd };
+    let wr = bridge::BridgeWriter { ptr, fd };
     let recv_msg = bridge::unpack_task_message(&rd).await?;
     let (session_id, send_msg) = auth::handshake_init(recv_msg).await?;
     let channel_id = send_msg.channel_id;
@@ -147,11 +154,7 @@ async fn bridge_handle_client(ptr: u64, fd: i32, client_fd: i32) -> io::Result<(
     }
 
     loop {
-        let ret = handle_message(
-            transfer::tcp::unpack_task_message(&rd).await,
-            session_id,
-        )
-        .await;
+        let ret = handle_message(transfer::tcp::unpack_task_message(&rd).await, session_id).await;
         if ret.is_err() {
             unsafe {
                 libc::close(fd);
@@ -256,7 +259,10 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
         }
         Err(_e) => {
             hdc::info!("uart handshake error");
-            return Err(std::io::Error::new(ErrorKind::Other, "uart recv handshake error"));
+            return Err(std::io::Error::new(
+                ErrorKind::Other,
+                "uart recv handshake error",
+            ));
         }
     }
 
@@ -287,32 +293,32 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
         });
 
         loop {
-                match rx.recv().await {
-                    Ok(message) => {
-                        if message.command == config::HdcCommand::UartFinish {
-                            break;
-                        }
+            match rx.recv().await {
+                Ok(message) => {
+                    if message.command == config::HdcCommand::UartFinish {
+                        break;
+                    }
 
-                        if message.command == config::HdcCommand::KernelHandshake {
-                            real_session_id =
-                                uart_handshake(message.clone(), fd, &rd, package_index).await?;
-                            continue;
+                    if message.command == config::HdcCommand::KernelHandshake {
+                        real_session_id =
+                            uart_handshake(message.clone(), fd, &rd, package_index).await?;
+                        continue;
+                    }
+                    let command = message.command;
+                    ylong_runtime::spawn(async move {
+                        if let Err(e) = task::dispatch_task(message, real_session_id).await {
+                            log::error!("dispatch task failed: {}", e.to_string());
+                            hdc::info!("dispatch task({:#?}) fail: {:#?}", command, e);
                         }
-                        let command = message.command;
-                        ylong_runtime::spawn(async move {
-                            if let Err(e) = task::dispatch_task(message, real_session_id).await {
-                                log::error!("dispatch task failed: {}", e.to_string());
-                                hdc::info!("dispatch task({:#?}) fail: {:#?}", command, e);
-                            }
-                        });
-                    }
-                    Err(_e) => {
-                        hdc::info!("uart recv error: {:#?}", _e);
-                        return Err(std::io::Error::new(ErrorKind::Other, "RecvError"));
-                    }
+                    });
+                }
+                Err(_e) => {
+                    hdc::info!("uart recv error: {:#?}", _e);
+                    return Err(std::io::Error::new(ErrorKind::Other, "RecvError"));
                 }
             }
         }
+    }
 }
 
 #[cfg(not(feature = "emulator"))]
@@ -342,14 +348,17 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
             Ok((msg, _index)) => {
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(session_id_in_msg) = auth::get_session_id_from_msg(&msg).await {
-                            if session_id_in_msg != cur_session_id {
-                                hdc::info!("new session id:{}", session_id_in_msg);
-                                let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
-                                transfer::UsbMap::start(session_id_in_msg, wr).await;
-                                task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
-                                cur_session_id).await;
-                                PtyMap::clear(cur_session_id).await;
-                                cur_session_id = session_id_in_msg;
+                        if session_id_in_msg != cur_session_id {
+                            hdc::info!("new session id:{}", session_id_in_msg);
+                            let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
+                            transfer::UsbMap::start(session_id_in_msg, wr).await;
+                            task_manager::free_session(
+                                config::ConnectType::Usb("some_mount_point".to_string()),
+                                cur_session_id,
+                            )
+                            .await;
+                            PtyMap::clear(cur_session_id).await;
+                            cur_session_id = session_id_in_msg;
                         }
                     }
                 }
@@ -366,8 +375,11 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
             }
         }
     }
-    task_manager::free_session(config::ConnectType::Usb("some_mount_point".to_string()),
-        cur_session_id).await;
+    task_manager::free_session(
+        config::ConnectType::Usb("some_mount_point".to_string()),
+        cur_session_id,
+    )
+    .await;
     Ok(())
 }
 
@@ -393,21 +405,12 @@ fn logger_init(log_level: LevelFilter) {
 }
 
 fn get_logger_lv() -> LevelFilter {
-    let lv = match std::env::var_os("HDCD_LOGLV") {
-        None => 0_usize,
-        // no need to prevent panic here
-        Some(lv_str) => match lv_str.to_str() {
-            None => 0_usize,
-            Some(lv_parse) => {
-                match lv_parse.parse::<usize>() {
-                    Err(_) => 0_usize,
-                    Ok(lv_parse_usize) => {
-                        lv_parse_usize
-                    }
-                }
-                }
-        }
-    };
+    let lv = std::env::var_os("HDCD_LOGLV")
+        .unwrap_or_default()
+        .to_str()
+        .unwrap_or_default()
+        .parse::<usize>()
+        .unwrap_or(0_usize);
     config::LOG_LEVEL_ORDER[lv]
 }
 
@@ -415,7 +418,10 @@ fn get_logger_lv() -> LevelFilter {
 fn get_tcp_port() -> u16 {
     let (ret, host_port) = get_dev_item(config::ENV_HOST_PORT, "_");
     if !ret || host_port == "_" {
-        hdc::info!("get host port failed, will use default port {}.", config::DAEMON_PORT);
+        hdc::info!(
+            "get host port failed, will use default port {}.",
+            config::DAEMON_PORT
+        );
         return config::DAEMON_PORT;
     }
 
@@ -434,9 +440,12 @@ fn get_tcp_port() -> u16 {
     if let Ok(num) = number {
         hdc::info!("get host port:{} success", num);
         return num;
-    } 
+    }
 
-    hdc::info!("convert host port failed, will use default port {}.", config::DAEMON_PORT);
+    hdc::info!(
+        "convert host port failed, will use default port {}.",
+        config::DAEMON_PORT
+    );
     config::DAEMON_PORT
 }
 

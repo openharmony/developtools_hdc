@@ -53,7 +53,6 @@ extern "C" {
     ) -> i32;
 }
 
-
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct HdcTransferBase {
     pub need_close_notify: bool,
@@ -123,7 +122,11 @@ pub fn check_local_path(
     _optional_name: &str,
     _error: &mut str,
 ) -> bool {
-    crate::debug!("check_local_path, local_path:{}, optional_name:{}", _local_path, _optional_name);
+    crate::debug!(
+        "check_local_path, local_path:{}, optional_name:{}",
+        _local_path,
+        _optional_name
+    );
     let file = metadata(_local_path);
     if let Ok(f) = file {
         if transfer.is_local_dir_exsit.is_none() {
@@ -148,21 +151,29 @@ pub fn check_local_path(
     }
 
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        let local_dir = transfer.local_path.clone().replace(
-            '/', Base::get_path_sep().to_string().as_str()
-        );
+        let local_dir = transfer
+            .local_path
+            .clone()
+            .replace('/', Base::get_path_sep().to_string().as_str());
 
         if let Some(false) = transfer.is_local_dir_exsit {
             if op.contains(Base::get_path_sep()) {
                 let first_sep_index = op.find(Base::get_path_sep()).unwrap();
                 op = op.as_str()[first_sep_index..].to_string();
-                crate::debug!("check_local_path, combine 2 local_dir:{}, op:{}", local_dir, op);
+                crate::debug!(
+                    "check_local_path, combine 2 local_dir:{}, op:{}",
+                    local_dir,
+                    op
+                );
             }
         }
 
         transfer.local_path = Base::combine(local_dir, op);
     }
-    crate::debug!("check_local_path, final transfer.local_path:{}", transfer.local_path);
+    crate::debug!(
+        "check_local_path, final transfer.local_path:{}",
+        transfer.local_path
+    );
     if transfer.local_path.ends_with(Base::get_path_sep()) {
         create_dir_all(transfer.local_path.clone()).is_ok()
     } else {

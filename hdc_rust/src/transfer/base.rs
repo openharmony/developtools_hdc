@@ -98,7 +98,12 @@ pub async fn unpack_task_message_lock(
             let protect = body.split_at(expected_head_size).0;
             let payload = match expected_head_size + expected_data_size <= body.len() {
                 true => body.split_at(expected_head_size).1,
-                false => body.split_at(expected_head_size).1.split_at(expected_data_size).0,
+                false => {
+                    body.split_at(expected_head_size)
+                        .1
+                        .split_at(expected_data_size)
+                        .0
+                }
             };
 
             let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
@@ -199,7 +204,12 @@ pub fn unpack_task_message(
         let protect = body.split_at(expected_head_size).0;
         let payload = match expected_head_size + expected_data_size <= body.len() {
             true => body.split_at(expected_head_size).1,
-            false => body.split_at(expected_head_size).1.split_at(expected_data_size).0,
+            false => {
+                body.split_at(expected_head_size)
+                    .1
+                    .split_at(expected_data_size)
+                    .0
+            }
         };
 
         let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;

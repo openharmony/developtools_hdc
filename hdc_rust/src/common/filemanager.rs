@@ -15,11 +15,11 @@
 //! filemanager
 #![allow(missing_docs)]
 
+use crate::config::KERNEL_FILE_NODE_SIZE;
+use crate::utils::hdc_log::*;
 use std::fs::OpenOptions;
 use std::fs::{self, File};
-use crate::config::KERNEL_FILE_NODE_SIZE;
 use std::io::Read;
-use crate::utils::hdc_log::*;
 
 pub struct FileManager {
     path: Option<String>,
@@ -73,7 +73,6 @@ impl FileManager {
             } else {
                 return meta_size;
             }
-
         }
         0
     }
@@ -83,18 +82,20 @@ impl FileManager {
         let mut read_len = 0usize;
         if let Some(path) = &self.path {
             let mut _file = File::open(path);
-            if let Ok(mut f) = _file  {
+            if let Ok(mut f) = _file {
                 loop {
                     let single_len = match f.read(&mut buf[read_len..]) {
                         Ok(len) => len,
                         Err(e) => {
-                            crate::warn!("failed to read kernel file node with buffer, error: {:#?}", e);
+                            crate::warn!(
+                                "failed to read kernel file node with buffer, error: {:#?}",
+                                e
+                            );
                             break;
                         }
                     };
                     read_len += single_len;
                     if single_len == 0 {
-                        
                         break;
                     }
                 }

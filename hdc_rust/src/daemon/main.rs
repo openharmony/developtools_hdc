@@ -376,15 +376,15 @@ fn logger_init(log_level: LevelFilter) {
         .format(|buf, record| {
             let ts = humantime::format_rfc3339_millis(SystemTime::now()).to_string();
             let level = &record.level().to_string()[..1];
-            let file = record.file().unwrap();
+            let file = record.file().unwrap_or("unknown");
             writeln!(
                 buf,
                 "{} {} {} {}:{} - {}",
                 &ts[..10],
                 &ts[11..23],
                 level,
-                file.split('/').last().unwrap(),
-                record.line().unwrap(),
+                file.split('/').last().unwrap_or("unknown"),
+                record.line().unwrap_or(0),
                 record.args()
             )
         })
@@ -396,7 +396,17 @@ fn get_logger_lv() -> LevelFilter {
     let lv = match std::env::var_os("HDCD_LOGLV") {
         None => 0_usize,
         // no need to prevent panic here
-        Some(lv) => lv.to_str().unwrap().parse::<usize>().unwrap(),
+        Some(lv_str) => match lv_str.to_str() {
+            None => 0_usize,
+            Some(lv_parse) => {
+                match lv_parse.parse::<usize>() {
+                    Err(_) => 0_usize,
+                    Ok(lv_parse_usize) => {
+                        lv_parse_usize
+                    }
+                }
+                }
+        }
     };
     config::LOG_LEVEL_ORDER[lv]
 }

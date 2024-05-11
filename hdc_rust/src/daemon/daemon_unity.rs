@@ -126,7 +126,11 @@ async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
         sync();
     };
 
-    let param = String::from_utf8(_payload.to_vec()).unwrap();
+    let param = match String::from_utf8(_payload.to_vec()) {
+        Ok(param) => param,
+        Err(_) => String::from("Unknown"),
+    };
+
     let mut cmd = String::from("reboot");
     if !param.is_empty() {
         cmd.push(',');
@@ -155,7 +159,10 @@ async fn remount_device(session_id: u32, channel_id: u32) {
 }
 
 async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
-    let param = String::from_utf8(_payload.to_vec()).unwrap();
+    let param = match String::from_utf8(_payload.to_vec()) {
+        Ok(param) => param,
+        Err(_) => String::from("Unknown"),
+    };
     match param.as_str() {
         config::MODE_USB => {
             let result = set_dev_item(config::ENV_HDC_MODE, config::MODE_USB);

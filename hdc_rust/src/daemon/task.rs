@@ -38,7 +38,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
                 None,
                 HdcCommand::KernelEchoRaw,
             );
-            PtyMap::put(task_message.channel_id, pty_task).await;
+            PtyMap::put(session_id, task_message.channel_id, pty_task).await;
         }
         HdcCommand::UnityExecute => {
             let cmd = String::from_utf8(task_message.payload);
@@ -51,7 +51,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
                         Some(cmd),
                         HdcCommand::KernelEchoRaw,
                     );
-                    PtyMap::put(task_message.channel_id, pty_task).await;
+                    PtyMap::put(session_id, task_message.channel_id, pty_task).await;
                 }
                 Err(_) => {
                     hdc::common::hdctransfer::echo_client(
@@ -72,10 +72,10 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
         }
         _ => {
             let channel_id = task_message.channel_id;
-            if let Some(pty_task) = PtyMap::get(channel_id).await {
+            if let Some(pty_task) = PtyMap::get(session_id, channel_id).await {
                 let _ = &pty_task.tx.send(task_message.payload.clone()).await;
                 if task_message.payload[..].contains(&0x4_u8) {
-                    PtyMap::del(channel_id).await;
+                    PtyMap::del(session_id, channel_id).await;
                 }
                 return Ok(());
             } else {
@@ -90,9 +90,9 @@ async fn remove_task(session_id: u32, channel_id: u32) {
     AppTaskMap::remove(session_id, channel_id).await;
     FileTaskMap::remove(session_id, channel_id).await;
     // shell & hilog task
-    if let Some(pty_task) = PtyMap::get(channel_id).await {
+    if let Some(pty_task) = PtyMap::get(session_id, channel_id).await {
         let _ = &pty_task.tx.send(vec![0x04_u8]).await;
-        PtyMap::del(channel_id).await;
+        PtyMap::del(session_id, channel_id).await;
     }
 }
 
@@ -235,7 +235,7 @@ async fn daemon_hilog_task(task_message: TaskMessage, session_id: u32) -> io::Re
         Some(cmd),
         HdcCommand::KernelEchoRaw,
     );
-    PtyMap::put(task_message.channel_id, pty_task).await;
+    PtyMap::put(session_id, task_message.channel_id, pty_task).await;
     Ok(())
 }
 
@@ -246,7 +246,7 @@ async fn daemon_bug_report_task(task_message: TaskMessage, session_id: u32) -> i
         Some("hidumper".to_string()),
         HdcCommand::UnityBugreportData,
     );
-    PtyMap::put(task_message.channel_id, pty_task).await;
+    PtyMap::put(session_id, task_message.channel_id, pty_task).await;
     Ok(())
 }
 

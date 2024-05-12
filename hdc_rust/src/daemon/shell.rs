@@ -19,7 +19,7 @@
 use super::task_manager;
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG, SHELL_TEMP};
+use hdc::config::{HdcCommand, SHELL_PROG, MessageLevel};
 use hdc::transfer;
 use std::collections::HashMap;
 use std::io::{self};
@@ -159,7 +159,7 @@ async fn subprocess_task(
         }
         Ok(pty) => pty,
     };
-    PtyChildProcessMap::put(channel_id, pty_process.child.clone()).await;
+    PtyChildProcessMap::put(session_id, channel_id, pty_process.child.clone()).await;
     let mut buf = [0_u8; 30720];
     loop {
         ylong_runtime::select! {
@@ -249,7 +249,7 @@ async fn subprocess_task(
         hdc::debug!("subprocess_task kill child, result:{:#?}", kill_result);
         match child_lock.wait().await {
             Ok(exit_status) => {
-                PtyMap::del(channel_id).await;
+                PtyMap::del(session_id, channel_id).await;
                 hdc::debug!(
                     "subprocess_task waiting child exit success, status:{:?}.",
                     exit_status
@@ -267,7 +267,7 @@ async fn subprocess_task(
 
         match child_lock.wait().await {
             Ok(exit_status) => {
-                PtyMap::del(channel_id).await;
+                PtyMap::del(session_id, channel_id).await;
                 hdc::debug!(
                     "subprocess_task waiting child exit success, status:{:?}.",
                     exit_status
@@ -284,7 +284,7 @@ async fn subprocess_task(
             pty_process.nohup_flag
         );
         let ret = child_lock.wait().await;
-        PtyMap::del(channel_id).await;
+        PtyMap::del(session_id, channel_id).await;
         hdc::debug!(
             "subprocess_task nohup_flag:{} wait after: {:#?}",
             pty_process.nohup_flag,
@@ -327,7 +327,7 @@ impl PtyTask {
 }
 
 type Child_ = Arc<Mutex<ylongChild>>;
-type PtyChildProcessMap_ = Arc<Mutex<HashMap<u32, Child_>>>;
+type PtyChildProcessMap_ = Arc<Mutex<HashMap<(u32, u32), Child_>>>;
 pub struct PtyChildProcessMap {}
 impl PtyChildProcessMap {
     fn get_instance() -> PtyChildProcessMap_ {
@@ -339,30 +339,30 @@ impl PtyChildProcessMap {
         }
     }
 
-    pub async fn get(channel_id: u32) -> Option<Child_> {
+    pub async fn get(session_id: u32, channel_id: u32) -> Option<Child_> {
         let pty_child_map = Self::get_instance();
         let map = pty_child_map.lock().await;
-        if let Some(pty_child) = map.get(&channel_id) {
+        if let Some(pty_child) = map.get(&(session_id, channel_id)) {
             return Some(pty_child.clone());
         }
         None
     }
 
     #[allow(unused)]
-    pub async fn put(channel_id: u32, pty_child: Child_) {
+    pub async fn put(session_id: u32, channel_id: u32, pty_child: Child_) {
         let pty_child_map = Self::get_instance();
         let mut map = pty_child_map.lock().await;
-        map.insert(channel_id, pty_child);
+        map.insert((session_id, channel_id), pty_child);
     }
 
-    pub async fn del(channel_id: u32) {
+    pub async fn del(session_id: u32, channel_id: u32) {
         let pty_child_map = Self::get_instance();
         let mut map = pty_child_map.lock().await;
-        map.remove(&channel_id);
+        map.remove(&(session_id, channel_id));
     }
 }
 
-type PtyMap_ = Arc<Mutex<HashMap<u32, Arc<PtyTask>>>>;
+type PtyMap_ = Arc<Mutex<HashMap<(u32, u32), Arc<PtyTask>>>>;
 pub struct PtyMap {}
 impl PtyMap {
     fn get_instance() -> PtyMap_ {
@@ -374,30 +374,78 @@ impl PtyMap {
         }
     }
 
-    pub async fn get(channel_id: u32) -> Option<Arc<PtyTask>> {
+    pub async fn get(session_id: u32, channel_id: u32) -> Option<Arc<PtyTask>> {
         let pty_map = Self::get_instance();
         let map = pty_map.lock().await;
-        if let Some(pty_task) = map.get(&channel_id) {
+        if let Some(pty_task) = map.get(&(session_id, channel_id)) {
             return Some(pty_task.clone());
         }
         None
     }
 
-    pub async fn put(channel_id: u32, pty_task: PtyTask) {
+    pub async fn put(session_id: u32, channel_id: u32, pty_task: PtyTask) {
         let pty_map = Self::get_instance();
         let mut map = pty_map.lock().await;
         let arc_pty_task = Arc::new(pty_task);
-        map.insert(channel_id, arc_pty_task);
+        map.insert((session_id, channel_id), arc_pty_task);
     }
 
-    pub async fn del(channel_id: u32) {
+    pub async fn del(session_id: u32, channel_id: u32) {
         let pty_map = Self::get_instance();
         let mut map = pty_map.lock().await;
-        map.remove(&channel_id);
-        let file_name = format!("{SHELL_TEMP}-{channel_id}");
-        let _ = std::fs::remove_file(file_name);
+        map.remove(&(session_id, channel_id));
 
-        PtyChildProcessMap::del(channel_id).await;
+        PtyChildProcessMap::del(session_id, channel_id).await;
+    }
+
+    pub async fn stop_task(session_id: u32) {
+        hdc::info!(
+            "hdc shell free_task, session_id: {}",
+            session_id
+        );
+        let pty_map = Self::get_instance();
+        {
+            let map = pty_map.lock().await;
+            for _iter in map.iter() {
+                if _iter.0.0 != session_id {
+                    continue;
+                }
+                if let Some(pty_child) = PtyChildProcessMap::get(session_id, _iter.0.1).await {
+                    let mut child = pty_child.lock().await;
+                    let kill_result = child.kill().await;
+                    hdc::debug!(
+                        "do map clear kill child, result:{:?}, session_id {}, channel_id {}",
+                        kill_result,
+                        session_id,
+                        _iter.0.1
+                    );
+                    match child.wait().await {
+                        Ok(exit_status) => {               
+                            hdc::debug!(
+                                "waiting child exit success, status:{:?}, session_id {}, channel_id {}",
+                                exit_status,
+                                session_id,
+                                _iter.0.1
+                            );
+                        }
+                        Err(e) => {
+                            hdc::debug!(
+                                "waiting child exit fail, error:{:?}, session_id {}, channel_id {}",
+                                e,
+                                session_id,
+                                _iter.0.1
+                            );
+                        }
+                    }
+                    PtyChildProcessMap::del(session_id, _iter.0.1).await;
+                }
+                hdc::debug!(
+                    "Clear tty task, session_id: {}, channel_id:{}",
+                    _iter.0.0,
+                    session_id
+                );
+            }
+        }
     }
 
     pub async fn clear(session_id: u32) {
@@ -407,16 +455,17 @@ impl PtyMap {
         {
             let map = pty_map.lock().await;
             for _iter in map.iter() {
-                let pty_task = _iter.1;
-                if pty_task.session_id == session_id {
-                    let channel_id = *_iter.0;
-                    channel_list.push(channel_id);
-                    if let Some(pty_child) = PtyChildProcessMap::get(channel_id).await {
+                if _iter.0.0 == session_id {
+                    channel_list.push(_iter.0.1);
+                    if let Some(pty_child) = PtyChildProcessMap::get(session_id, _iter.0.1).await {
                         let mut child = pty_child.lock().await;
                         let kill_result = child.kill().await;
-                        hdc::debug!("do map clear kill child, result:{:#?}", kill_result);
+                        hdc::debug!(
+                            "do map clear kill child, result:{:#?}",
+                            kill_result
+                        );
                         match child.wait().await {
-                            Ok(exit_status) => {
+                            Ok(exit_status) => {               
                                 hdc::debug!(
                                     "waiting child exit success, status:{:?}.",
                                     exit_status
@@ -426,22 +475,23 @@ impl PtyMap {
                                 hdc::debug!("waiting child exit fail, error:{:?}.", e);
                             }
                         }
-                        PtyChildProcessMap::del(channel_id).await;
-                    }
+                        PtyChildProcessMap::del(session_id, _iter.0.1).await;
+                    } 
                     hdc::debug!(
                         "Clear tty task, channel_id:{}, session_id: {}.",
-                        channel_id,
+                        _iter.0.1,
                         session_id
                     );
                 }
             }
         }
-        let mut map = pty_map.lock().await;
-        for channel_id in channel_list {
-            map.remove(&channel_id);
-            let file_name = format!("{SHELL_TEMP}-{channel_id}");
-            let _ = std::fs::remove_file(file_name);
+        {
+            let mut map = pty_map.lock().await;
+            for channel_id in channel_list {
+                map.remove(&(session_id, channel_id));
+            }
         }
+
     }
 
     pub async fn dump_task() -> String {
@@ -463,7 +513,7 @@ impl PtyMap {
 }
 
 pub async fn stop_task(session_id: u32) {
-    PtyMap::clear(session_id).await;
+    PtyMap::stop_task(session_id).await;
 }
 
 pub async fn dump_task() -> String {

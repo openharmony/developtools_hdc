@@ -26,68 +26,65 @@ using namespace Hdc;
 
 bool FindMountDeviceByPath(const char *toQuery, char *dev)
 {
-    int fd;
-    int res;
-    int ret;
-    char *token = nullptr;
-    const char delims[] = "\n";
+    int ret = false;
+    int len = BUF_SIZE_DEFAULT2;
     char buf[BUF_SIZE_DEFAULT2];
 
-    fd = open("/proc/mounts", O_RDONLY | O_CLOEXEC);
-    if (fd < 0) {
+    FILE *fp = fopen("/proc/mounts", "r");
+    if (fp == nullptr) {
+        WRITE_LOG(LOG_FATAL, "fopen /proc/mounts error:%d", errno);
         return false;
     }
 
-    ret = read(fd, buf, sizeof(buf) - 1);
-    WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath read %d bytes\n", ret);
-    while (ret > 0) {
-        buf[sizeof(buf) - 1] = '\0';
-        token = strtok(buf, delims);
-
-        while (token) {
-            char dir[BUF_SIZE_SMALL] = "";
-            int freq;
-            int passnno;
-            // clang-format off
-            res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
-                           dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
-            // clang-format on
-            dev[BUF_SIZE_SMALL - 1] = '\0';
-            dir[BUF_SIZE_SMALL - 1] = '\0';
-            if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
-                close(fd);
-                return true;
-            }
-            token = strtok(nullptr, delims);
+    while (fgets(buf, len, fp) != nullptr) {
+        char dir[BUF_SIZE_SMALL] = "";
+        int freq;
+        int passnno;
+        int res = 0;
+        // clang-format off
+        res = sscanf_s(buf, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
+                       dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
+        // clang-format on
+        dev[BUF_SIZE_SMALL - 1] = '\0';
+        dir[BUF_SIZE_SMALL - 1] = '\0';
+        if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
+            WRITE_LOG(LOG_DEBUG, "FindMountDeviceByPath dev:%s dir:%s", dev, dir);
+            ret = true;
+            break;
         }
-        ret = read(fd, buf, sizeof(buf) - 1);
-        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath read again %d bytes", ret);
     }
-    if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "read failed, return %d", ret);
+    int rc = fclose(fp);
+    if (rc != 0) {
+        WRITE_LOG(LOG_WARN, "fclose rc:%d error:%d", rc, errno);
     }
-
-    close(fd);
-    return false;
+    if (!ret) {
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath not found %s", toQuery);
+    }
+    return ret;
 }
 
 bool RemountPartition(const char *dir)
 {
     int fd;
     int off = 0;
+    int ret = 0;
     char dev[BUF_SIZE_SMALL] = "";
 
     if (!FindMountDeviceByPath(dir, dev) || strlen(dev) < 4) {  // 4 : file count
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath dir:%s failed", dir);
         return false;
     }
 
     if ((fd = open(dev, O_RDONLY | O_CLOEXEC)) < 0) {
+        WRITE_LOG(LOG_FATAL, "open dev:%s failed, error:%d", dev, errno);
         return false;
     }
     ioctl(fd, BLKROSET, &off);
     close(fd);
 
-    if (mount(dev, dir, "none", MS_REMOUNT, nullptr) < 0) {
+    ret = mount(dev, dir, "none", MS_REMOUNT, nullptr); 
+    if (ret < 0) {
+        WRITE_LOG(LOG_FATAL, "mount %s failed, reason is %s", dev, strerror(errno));
         return false;
     }
     return true;
@@ -102,11 +99,6 @@ bool RemountDevice()
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
         // has vendor
         if (!RemountPartition("/vendor")) {
-            return false;
-        }
-    }
-    if (!lstat("/data", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
-        if (!RemountPartition("/data")) {
             return false;
         }
     }

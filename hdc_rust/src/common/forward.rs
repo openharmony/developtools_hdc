@@ -599,13 +599,30 @@ pub async fn forward_tcp_accept(
     cid: u32,
 ) -> io::Result<()> {
     let saddr = format!("127.0.0.1:{}", port);
-    let listener: TcpListener = TcpListener::bind(saddr.clone()).await?;
-    loop {
-        let (stream, _addr) = listener.accept().await?;
-        let (rd, wr) = stream.into_split();
-        TcpWriteStreamMap::put(cid, wr).await;
-        ylong_runtime::spawn(on_accept(session_id, channel_id, value.clone(), cid));
-        recv_tcp_msg(session_id, channel_id, rd, cid).await;
+    crate::info!("forward_tcp_accept bind addr:{:#?}", saddr);
+    let result = TcpListener::bind(saddr.clone()).await;
+    match result {
+        Ok(listener) => {
+            crate::info!("forward_tcp_accept bind ok");
+            ylong_runtime::spawn(async move {
+                loop {
+                    let client = listener.accept().await;
+                    if client.is_err() {
+                        continue;
+                    }
+                    let (stream, _addr) = client.unwrap();
+                    let (rd, wr) = stream.into_split();
+                    TcpWriteStreamMap::put(cid, wr).await;
+                    ylong_runtime::spawn(on_accept(session_id, channel_id, value.clone(), cid));
+                    recv_tcp_msg(session_id, channel_id, rd, cid).await;
+                }
+            });
+            Ok(())
+        }
+        Err(e) => {
+            crate::error!("forward_tcp_accept fail:{:#?}", e);
+            Err(e)
+        }
     }
 }
 
@@ -768,9 +785,9 @@ pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
     let cid = task.context_forward.id;
     if task.is_master {
         let parameters = task.remote_parameters.clone();
-        ylong_runtime::spawn(async move {
-            forward_tcp_accept(session_id, channel_id, port, parameters, cid).await
-        });
+        let result = forward_tcp_accept(session_id, channel_id, port, parameters, cid).await;
+        crate::info!("setup_tcp_point result:{:#?}", result);
+        return result.is_ok();
     } else {
         crate::info!("setup_tcp_point slaver");
         ylong_runtime::spawn(

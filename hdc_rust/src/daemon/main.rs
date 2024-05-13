@@ -218,7 +218,9 @@ async fn uart_handshake(
     transfer::start_uart(session_id, wr).await;
     transfer::start_session(session_id).await;
 
-    let head = rd.head.clone().unwrap();
+    let Some(head) = rd.head.clone() else {
+        return Err(std::io::Error::new(ErrorKind::Other, "rd head clone failed"));
+    };
     uart_wrapper::on_read_head(head).await;
     transfer::wrap_put(session_id, send_msg, package_index, 0).await;
 
@@ -270,7 +272,9 @@ async fn uart_handle_client(fd: i32) -> io::Result<()> {
     let mut real_session_id = session_id;
     loop {
         let (packet_size, _package_index) = rd.check_protocol_head()?;
-        let head = rd.head.clone().unwrap();
+        let Some(head) = rd.head.clone() else {
+            return Err(std::io::Error::new(ErrorKind::Other, "rd head clone file"));
+        };
         let package_index = head.package_index;
         let session_id = head.session_id;
         uart_wrapper::on_read_head(head).await;

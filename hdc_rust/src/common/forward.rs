@@ -69,11 +69,10 @@ impl TcpReadStreamMap {
     async fn read(session_id: u32, channel_id: u32, cid: u32) {
         let arc_map = Self::get_instance();
         let map = arc_map.read().await;
-        if map.get(&cid).is_none() {
+        let Some(arc_rd) = map.get(&cid) else {
             crate::error!("TcpReadStreamMap failed to get cid {:#?}", cid);
             return;
-        }
-        let arc_rd = map.get(&cid).unwrap();
+        };
         let rd = &mut arc_rd.lock().await;
         let mut data = vec![0_u8; SOCKET_BUFFER_SIZE];
         loop {
@@ -128,10 +127,10 @@ impl TcpWriteStreamMap {
     async fn write(id: u32, data: Vec<u8>) {
         let arc_map = Self::get_instance();
         let map = arc_map.write().await;
-        if map.get(&id).is_none() {
+        let Some(arc_wr) = map.get(&id) else {
+            crate::error!("TcpReadStreamMap failed to get id {:#?}", id);
             return;
-        }
-        let arc_wr = map.get(&id).unwrap();
+        };
         let mut wr = arc_wr.lock().await;
         let _ = wr.write_all(data.as_slice()).await;
     }
@@ -192,16 +191,28 @@ impl ForwardTaskMap {
         let arc = Self::get_instance();
         let map = arc.lock().await;
         let task = map.get(&(session_id, channel_id));
-        if task.is_none() {
-            crate::error!(
-                "ForwardTaskMap result:is none,session_id={:#?}, channel_id={:#?}",
-                session_id,
-                channel_id
-            );
-            return Option::None;
+        match task {
+            Some(task) => Some(task.clone()),
+            None => {
+                crate::error!(
+                    "ForwardTaskMap result:is none,session_id={:#?}, channel_id={:#?}",
+                    session_id,
+                    channel_id
+                );
+                Option::None
+            }
         }
+    }
 
-        Some(task.unwrap().clone())
+    pub async fn get_channel_id(session_id: u32, task_string: String) -> Option<u32> {
+        let arc = Self::get_instance();
+        let map = arc.lock().await;
+        for ((_session_id, _channel_id), value) in map.iter() {
+            if *_session_id == session_id && task_string.contains(&value.task_command) {
+                return Some(*_channel_id);
+            }
+        }
+        None
     }
 
     pub async fn clear(session_id: u32) {
@@ -330,15 +341,18 @@ pub async fn check_node_info(value: &String, arg: &mut Vec<String>) -> bool {
             );
             return false;
         }
-        let port = array[1].parse::<u32>();
-        if port.is_err() {
-            crate::error!("port must is int type, port is: {:#?}", array[1]);
-            return false;
-        }
 
-        if port.clone().unwrap() == 0 || port.unwrap() > config::MAX_PORT_NUM {
-            crate::error!("port can not greater than: 65535");
-            return false;
+        match array[1].parse::<u32>() {
+            Ok(port) => {
+                if port == 0 || port > config::MAX_PORT_NUM {
+                    crate::error!("port can not greater than: 65535");
+                    return false;
+                }
+            }
+            Err(_) => {
+                crate::error!("port must is int type, port is: {:#?}", array[1]);
+                return false;
+            }
         }
     }
     for item in array.iter() {
@@ -348,11 +362,10 @@ pub async fn check_node_info(value: &String, arg: &mut Vec<String>) -> bool {
 }
 
 pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     if !_payload.is_empty() {
         echo_client(
             session_id,
@@ -398,16 +411,15 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
 }
 
 pub async fn detech_forward_type(session_id: u32, channel_id: u32) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "detech_forward_type get task is none session_id = {:#?}, channel_id = {:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
 
     let type_str = &task.local_args[0];
 
@@ -551,16 +563,15 @@ pub async fn daemon_connect_tcp(session_id: u32, channel_id: u32, port: u32, cid
 }
 
 pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "deamon_read_socket_msg get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     loop {
         let mut buffer: [u8; SOCKET_BUFFER_SIZE] = [0; SOCKET_BUFFER_SIZE];
         let recv_size = UdsClient::wrap_recv(fd, &mut buffer);
@@ -586,16 +597,15 @@ pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
 
 pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: bool) {
     crate::info!("free context id = {id}");
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "free_context get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     if notify_remote {
         let vec_none = Vec::<u8>::new();
         send_to_task(
@@ -623,17 +633,19 @@ pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remo
 }
 
 pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(mut task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "setup_tcp_point get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap();
-    let port = task.local_args[1].parse::<u32>().unwrap();
+    };
+    let task = &mut task;
+    let Ok(port) = task.local_args[1].parse::<u32>() else {
+        crate::error!("setup_tcp_point parse error");
+        return false;
+    };
     let cid = task.context_forward.id;
     if task.is_master {
         let parameters = task.remote_parameters.clone();
@@ -655,8 +667,15 @@ async fn server_socket_bind_listen(
     path: String,
     cid: u32,
 ) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    let task = &mut task.unwrap().clone();
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
+        crate::error!(
+            "setup_tcp_point get task is none session_id={:#?},channel_id={:#?}",
+            session_id,
+            channel_id
+        );
+        return false;
+    };
+    let task = &mut task.clone();
     let parameters = task.remote_parameters.clone();
     let fd: i32 = UdsClient::wrap_socket(AF_UNIX);
     task.context_forward.fd = fd;
@@ -718,25 +737,22 @@ pub async fn canonicalize(path: String) -> Result<String, Error> {
 }
 
 pub async fn setup_device_point(session_id: u32, channel_id: u32) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "setup_device_point get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     let s_node_cfg = task.local_args[1].clone();
     let cid = task.context_forward.id;
 
-    let resolve = canonicalize(s_node_cfg).await;
-    if resolve.is_err() {
+    let Ok(resolv_path) = canonicalize(s_node_cfg).await else {
         crate::error!("Open unix-dev failed");
         return false;
-    }
-    let resolv_path = resolve.unwrap();
+    };
     let thread_path_ref = Arc::new(Mutex::new(resolv_path));
     if !send_active_master(session_id, channel_id).await {
         crate::error!(
@@ -749,11 +765,17 @@ pub async fn setup_device_point(session_id: u32, channel_id: u32) -> bool {
     ylong_runtime::spawn(async move {
         loop {
             let path = thread_path_ref.lock().await;
-            let mut file = File::open(&*path).unwrap();
+            let Ok(mut file) = File::open(&*path) else {
+                crate::error!("open {} failed.", *path);
+                break;
+            };
             let mut total = Vec::new();
             let mut buf: [u8; config::FILE_PACKAGE_PAYLOAD_SIZE] =
                 [0; config::FILE_PACKAGE_PAYLOAD_SIZE];
-            let read_len = file.read(&mut buf[4..]).unwrap();
+            let Ok(read_len) = file.read(&mut buf[4..]) else {
+                crate::error!("read {} failed.", *path);
+                break;
+            };
             if read_len == 0 {
                 free_context(session_id, channel_id, 0, true).await;
                 break;
@@ -774,38 +796,32 @@ pub async fn setup_device_point(session_id: u32, channel_id: u32) -> bool {
 }
 
 fn get_pid(parameter: &str, forward_type: ForwardType) -> u32 {
-    let mut res: u32 = 0;
-    if forward_type == ForwardType::Jdwp {
-        let pid = parameter.parse::<u32>();
-        if pid.is_err() {
-            crate::error!("Jdwp get pid err :{:#?}", pid);
-            return res;
+    match forward_type == ForwardType::Jdwp {
+        true => parameter.parse::<u32>().unwrap_or_else(|e| {
+            crate::error!("Jdwp get pid err :{:#?}", e);
+            0_u32
+        }),
+        false => {
+            let params: Vec<&str> = parameter.split('@').collect();
+            params[0].parse::<u32>().unwrap_or_else(|e| {
+                crate::error!("get pid err :{:#?}", e);
+                0_u32
+            })
         }
-        res = pid.unwrap();
-    } else {
-        let params: Vec<&str> = parameter.split('@').collect();
-        let pid = params[0].parse::<u32>();
-        if pid.is_err() {
-            crate::error!("get pid err :{:#?}", pid);
-            return res;
-        }
-        res = pid.unwrap();
     }
-    res
 }
 
 pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     crate::info!("setup_jdwp_point start.");
-    let task: Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task): Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "setup_jdwp_point get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     let local_args = task.local_args[1].clone();
     let parameter = local_args.as_str();
     let style = &task.forward_type;
@@ -925,16 +941,15 @@ pub async fn daemon_connect_pipe(session_id: u32, channel_id: u32, fd: i32, path
 }
 
 pub async fn setup_file_point(session_id: u32, channel_id: u32) -> bool {
-    let task: Option<HdcForward> = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "setup_file_point get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     let s_node_cfg = task.local_args[1].clone();
     if task.is_master {
         if task.forward_type == ForwardType::Reserved
@@ -975,16 +990,15 @@ pub async fn setup_point(session_id: u32, channel_id: u32) -> bool {
         crate::error!("setup_point forward type is not true");
         return false;
     }
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "setup_point get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     if cfg!(target_os = "windows") && task.forward_type != ForwardType::Tcp {
         task.context_forward.last_error = String::from("Not support forward-type");
         crate::error!("setup_point not support forward-type");
@@ -1040,16 +1054,15 @@ pub async fn filter_command(_payload: &[u8]) -> io::Result<(String, u32)> {
 }
 
 pub async fn send_active_master(session_id: u32, channel_id: u32) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "send_active_master get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     if task.context_forward.check_order {
         let flag = [0u8; 1];
         send_to_task(
@@ -1083,19 +1096,16 @@ pub async fn send_active_master(session_id: u32, channel_id: u32) -> bool {
 }
 
 pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
-    let s = String::from_utf8(_payload.to_vec());
-    if s.is_err() {
+    let Ok(command) = String::from_utf8(_payload.to_vec()) else {
         crate::error!("cmd argv  is not int utf8");
         return false;
-    }
-    let command = s.unwrap();
+    };
     crate::info!("begin forward, command: {:#?}", command);
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!("begin forward get task is none");
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     let result = Base::split_command_to_args(&command);
     let argv = result.0;
     let argc = result.1;
@@ -1125,8 +1135,11 @@ pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         return false;
     }
 
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    let task = &mut task.unwrap().clone();
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
+        crate::error!("begin forward get task is none");
+        return false;
+    };
+    let task = &mut task.clone();
     task.map_ctx_point
         .insert(task.context_forward.id, task.context_forward.clone());
 
@@ -1163,16 +1176,15 @@ pub async fn slave_connect(
     check_order: bool,
     error: &mut String,
 ) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "slave_connect get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap().clone();
+    };
+    let task = &mut task.clone();
     task.is_master = false;
     task.context_forward.check_order = check_order;
     if let Ok((content, id)) = filter_command(_payload).await {
@@ -1201,16 +1213,15 @@ pub async fn slave_connect(
 }
 
 pub async fn read_data_to_forward(session_id: u32, channel_id: u32) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(mut task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "read_data_to_forward get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap();
+    };
+    let task = &mut task;
     let cid = task.context_forward.id;
     match task.forward_type {
         ForwardType::Tcp | ForwardType::Jdwp | ForwardType::Ark => {
@@ -1240,16 +1251,15 @@ pub async fn write_forward_bufer(
     id: u32,
     content: Vec<u8>,
 ) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(mut task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "write_forward_bufer get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task = &mut task.unwrap();
+    };
+    let task = &mut task;
     if task.forward_type == ForwardType::Tcp {
         TcpWriteStreamMap::write(id, content).await;
     } else {
@@ -1265,16 +1275,15 @@ pub async fn forward_command_dispatch(
     command: HdcCommand,
     _payload: &[u8],
 ) -> bool {
-    let task = ForwardTaskMap::get(session_id, channel_id).await;
-    if task.is_none() {
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "forward_command_dispatch get task is none session_id={:#?},channel_id={:#?}",
             session_id,
             channel_id
         );
         return false;
-    }
-    let task: &mut HdcForward = &mut task.unwrap().clone();
+    };
+    let task: &mut HdcForward = &mut task.clone();
     let mut ret: bool = true;
     if let Ok((_content, id)) = filter_command(_payload).await {
         task.context_forward.id = id;

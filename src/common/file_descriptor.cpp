@@ -55,7 +55,10 @@ bool HdcFileDescriptor::ReadyForRelease()
 void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback)
 {
     workContinue = false;
-    NotifyWrite();
+    if (isInteractive) {
+        NotifyWrite();
+    }
+
     callbackCloseFd = closeFdCallback;
     if (tryCloseFdIo && refIO > 0) {
         if (callbackCloseFd != nullptr) {

@@ -135,19 +135,19 @@ bool HdcDaemonUnity::RemountPartition(const char *dir)
     char dev[BUF_SIZE_SMALL] = "";
 
     if (!FindMountDeviceByPath(dir, dev) || strlen(dev) < 4) {  // 4 : file count
-        WRITE_LOG(LOG_DEBUG, "FindMountDeviceByPath failed");
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath failed %s", dir);
         return false;
     }
 
     if ((fd = open(dev, O_RDONLY | O_CLOEXEC)) < 0) {
-        WRITE_LOG(LOG_DEBUG, "Open device:%s failed， error:%d", dev, errno);
+        WRITE_LOG(LOG_FATAL, "Open device:%s failed，error:%d", dev, errno);
         return false;
     }
     ioctl(fd, BLKROSET, &off);
     Base::CloseFd(fd);
 
     if (mount(dev, dir, "none", MS_REMOUNT, nullptr) < 0) {
-        WRITE_LOG(LOG_DEBUG, "Mount device failed");
+        WRITE_LOG(LOG_FATAL, "Mount device failed dev:%s dir:%s error:%d", dev, dir, errno);
         return false;
     }
     return true;
@@ -163,12 +163,13 @@ bool HdcDaemonUnity::RemountDevice()
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
         // has vendor
         if (!RemountPartition("/vendor")) {
-            LogMsg(MSG_FAIL, "Mount failed");
+            LogMsg(MSG_FAIL, "Mount failed /vendor");
             return false;
         }
     }
     if (!lstat("/data", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
         if (!RemountPartition("/data")) {
+            LogMsg(MSG_FAIL, "Mount failed /data");
             return false;
         }
     }

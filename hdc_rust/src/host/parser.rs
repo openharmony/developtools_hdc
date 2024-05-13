@@ -124,6 +124,16 @@ pub fn parse_command(args: std::env::Args) -> io::Result<ParsedCommand> {
     }
 }
 
+pub fn exchange_parsed_for_daemon(mut parsed: Parsed) -> Parsed  {
+    let valid_boot_cmd = vec!["-bootloader", "-recovery", "-flashd"];
+    if let Some(HdcCommand::UnityReboot) = parsed.command {
+        if parsed.parameters.len() > 1 &&  valid_boot_cmd.contains(&parsed.parameters[1].as_str()) {
+            parsed.parameters.remove(1);
+        }
+    }
+    parsed
+}
+
 #[derive(Default, Debug, PartialEq)]
 pub struct ParsedCommand {
     pub run_in_server: bool,

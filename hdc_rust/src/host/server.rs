@@ -222,6 +222,8 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
             }
         }
 
+        parsed = parser::exchange_parsed_for_daemon(parsed);
+
         hdc::debug!("parsed cmd: {:#?}", parsed);
 
         if let Some(cmd) = parsed.command {

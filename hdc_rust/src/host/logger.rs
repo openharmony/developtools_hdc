@@ -103,7 +103,18 @@ impl HostLoggerMeta {
         if file_path.exists(){
             std::fs::rename(&file_path, file_cache_path).unwrap();
         }
+    }
 
+    fn get_running_mode() -> String {
+        let instance = Self::get_instance();
+        let meta = instance.lock().unwrap();
+        let mut running_mode = String::new();
+        if meta.run_in_server {
+            running_mode += "server";
+        } else {
+            running_mode += "client";
+        }
+        running_mode
     }
 }
 
@@ -120,11 +131,13 @@ impl log::Log for SimpleHostLogger {
             // cargo编译下的文件目录可能存在\\的目录，需要通过编译宏隔离
             #[cfg(target_os = "windows")]
             let file = file.replace('\\', "/");
+            let running_mode = HostLoggerMeta::get_running_mode();
             let content = format!(
-                "{} {} {} {}:{} - {}",
+                "{} {} {} [{}] {}:{} - {}",
                 &ts[..10],
                 &ts[11..23],
                 level,
+                running_mode,
                 file.split_once('/').unwrap().1,
                 record.line().unwrap(),
                 record.args()

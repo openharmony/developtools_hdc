@@ -120,7 +120,9 @@ impl Client {
             | HdcCommand::FileRecvInit => self.file_send_task().await,
             HdcCommand::AppInit => self.app_install_task().await,
             HdcCommand::AppUninstall => self.app_uninstall_task().await,
-            HdcCommand::UnityRunmode => self.unity_task().await,
+            HdcCommand::UnityRunmode
+            | HdcCommand::UnityReboot
+            | HdcCommand::UnityRemount => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_root_run_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::KernelWaitFor => self.wait_task().await,

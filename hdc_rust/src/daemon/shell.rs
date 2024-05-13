@@ -182,14 +182,6 @@ async fn subprocess_task(
             recv_res = rx.recv() => {
                 match recv_res {
                     Ok(val) => {
-                        if let Err(e) = pty_process.pty.write_all(&val).await {
-                            hdc::warn!(
-                                "session_id: {} channel_id: {}, pty write failed: {e:?}",
-                                session_id, channel_id
-                            );
-                            break;
-                        }
-
                         if val[..].contains(&0x4_u8) {
                             // ctrl-D: end pty
                             hdc::info!("ctrl-D: end pty");
@@ -217,6 +209,13 @@ async fn subprocess_task(
                             };
                             #[cfg(feature = "hdc_debug")]
                             transfer::put(session_id, message).await;
+                        }
+                        if let Err(e) = pty_process.pty.write_all(&val).await {
+                            hdc::warn!(
+                                "session_id: {} channel_id: {}, pty write failed: {e:?}",
+                                session_id, channel_id
+                            );
+                            break;
                         }
                     }
                     Err(e) => {

@@ -33,8 +33,8 @@ use std::fs::{self, create_dir_all, File};
 use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-#[cfg(feature = "host")]
-extern crate ylong_runtime_static as ylong_runtime;
+// #[cfg(feature = "host")]
+// extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;
 
@@ -205,7 +205,15 @@ fn spawn_handler(
     let file_size = transfer_config.file_size as u64;
     ylong_runtime::spawn(async move {
         let path = thread_path_ref.lock().await;
-        let mut file = File::open(&*path).unwrap();
+        let Ok(mut file) = File::open(&*path) else {
+            crate::debug!("open file failed, path:{}", *path);
+            let _data_message = TaskMessage {
+                channel_id: _channel_id_,
+                command: _command_data,
+                payload: Vec::new(),
+            };
+            return (false, _data_message);
+        };
         let _ = file.seek(std::io::SeekFrom::Start(pos));
         let mut total = Vec::from([0; FILE_PACKAGE_HEAD]);
         let mut buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
@@ -216,7 +224,10 @@ fn spawn_handler(
             package_read_len = FILE_PACKAGE_PAYLOAD_SIZE;
         }
         while read_len < package_read_len {
-            let single_len = file.read(&mut buf[read_len..]).unwrap();
+            let Ok(single_len) = file.read(&mut buf[read_len..]) else {
+                crate::debug!("file read failed, path:{}", *path);
+                break;
+            };
             read_len += single_len;
             if single_len == 0 && read_len < package_read_len {
                 break;
@@ -339,9 +350,12 @@ pub async fn read_and_send_data(
             crate::debug!("read_and_send_data queue is empty");
             break;
         }
-        let handler = queue.pop_front();
-        let handler = handler.unwrap();
-        let (is_finish, task_message) = handler.await.unwrap();
+        let Some(handler) = queue.pop_front() else {
+            continue;
+        };
+        let Ok((is_finish, task_message)) = handler.await else {
+            continue;
+        };
         transfer::put(session_id, task_message).await;
         if is_finish {
             crate::debug!("read_and_send_data is finish return false");
@@ -431,8 +445,15 @@ pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {
         crate::debug!("file is invalid link, path:{}", _path);
         return result;
     }
-    for entry in fs::read_dir(dir_path).unwrap() {
-        let path = entry.unwrap().path();
+    let Ok(dir_list) = fs::read_dir(dir_path) else {
+        crate::debug!("read dir fail, path:{}", _path);
+        return result;
+    };
+    for entry in dir_list {
+        let Ok(path) = entry else {
+            continue;
+        };
+        let path = path.path();
         if path.is_file() {
             result.push(path.display().to_string());
         } else {

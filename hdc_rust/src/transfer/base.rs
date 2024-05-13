@@ -134,7 +134,7 @@ pub async fn unpack_task_message_lock(
                         if packet_size == 0 {
                             continue;
                         }
-                        let mut payload1 = rd.read_frame(packet_size as usize).unwrap();
+                        let mut payload1 = rd.read_frame(packet_size as usize)?;
                         total_payload.append(&mut payload1);
                         remaining -= packet_size as i32;
                         println!("remaining:{}, packet_size:{}", remaining, packet_size);

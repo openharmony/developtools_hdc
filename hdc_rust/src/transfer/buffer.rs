@@ -105,7 +105,9 @@ impl TcpMap {
         let send = serializer::concat_pack(data);
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            return;
+        };
         let mut wr = arc_wr.lock().await;
         let _ = wr.write_all(send.as_slice()).await;
     }
@@ -171,7 +173,9 @@ impl UsbMap {
         match map.get(&session_id) {
             Some(_wr) => {
                 {
-                    let arc_wr = map.get(&session_id).unwrap();
+                    let Some(arc_wr) = map.get(&session_id) else {
+                        return Err(Error::new(ErrorKind::NotFound, "session not found"));
+                    };
                     let mut wr = arc_wr.lock().await;
                     match wr.write_all(head) {
                         Ok(_) => {}
@@ -243,7 +247,9 @@ impl UartMap {
     pub async fn put(session_id: u32, data: Vec<u8>) -> io::Result<()> {
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            return Err(Error::new(ErrorKind::NotFound, "session not found"));
+        };
         let wr = arc_wr.lock().await;
         wr.write_all(data)?;
         Ok(())
@@ -338,7 +344,9 @@ impl ChannelMap {
     pub async fn recv() -> io::Result<Vec<u8>> {
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_rd = map.get(&0).unwrap();
+        let Some(arc_rd) = map.get(&0) else {
+            return Err(Error::new(ErrorKind::NotFound, "channel not found"));
+        };
         let mut rd = arc_rd.lock().await;
         tcp::recv_channel_message(&mut rd).await
     }

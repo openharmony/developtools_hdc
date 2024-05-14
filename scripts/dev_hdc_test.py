@@ -519,6 +519,11 @@ def prepare_source():
             index += 1024
         os.close(fd)
 
+    def create_file_with_size(path, size):
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+        os.write(fd, b'\0' * size)
+        os.close(fd)
+
     print(f"in prepare {GP.local_path},wait for 2 mins.")
     current_path = os.getcwd()
     os.mkdir(GP.local_path)
@@ -551,11 +556,15 @@ def prepare_source():
         os.mkdir(deep_path)
     gen_file(os.path.join(deep_path, "deep"), 102400)
 
-    print("generating dir with small file ...")
-    dir_path = os.path.join(GP.local_path, "normal_dir")
+    print("generating dir with file ...")
+    dir_path = os.path.join(GP.local_path, "problem_dir")
     rmdir(dir_path)
     os.mkdir(dir_path)
     gen_file(os.path.join(dir_path, "small2"), 102400)
+
+    fuzz_count = 47
+    for i in range(fuzz_count):
+        create_file_with_size(os.path.join(dir_path, f"file_{i*1024+936}.dat"), i*1024+936 )
 
     print("generating empty dir ...")
     dir_path = os.path.join(GP.local_path, "empty_dir")
@@ -777,7 +786,7 @@ def check_cmd_time(cmd, pattern, duration, times):
     if times < 1:
         print("times should be bigger than 0.")
         return False
-    if pattern == None:
+    if pattern is None:
         fetchable = True
     else:
         fetchable = False
@@ -801,8 +810,12 @@ def check_cmd_time(cmd, pattern, duration, times):
     
     end_time = time.time() * 1000
     
-    timecost = int(end_time - start_time) / times
-    print(f"{GP.hdc_head} {cmd}耗时平均值 {timecost}")
+    try: 
+        timecost = int(end_time - start_time) / times
+        print(f"{GP.hdc_head} {cmd}耗时平均值 {timecost}")
+    except ZeroDivisionError:
+        print(f"除数为0")
+    
     if duration is None:
         duration = 150 * 1.2
     # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status

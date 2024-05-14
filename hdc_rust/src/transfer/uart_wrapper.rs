@@ -182,7 +182,9 @@ impl QueueManager {
         if let Some(vec) = data_map.get(&session_id) {
             let vec = vec.lock().await;
             if !vec.is_empty() {
-                let arc = vec.get(index).unwrap();
+                let Some(arc) = vec.get(index) else {
+                    return None;
+                };
                 let data_mtx = arc.lock().await;
                 return Some(data_mtx.clone());
             }
@@ -214,7 +216,9 @@ impl QueueManager {
         if let Some(vec) = data_map.get(&session_id) {
             let vec = vec.lock().await;
             if !vec.is_empty() {
-                let arc = vec.get(index).unwrap();
+                let Some(arc) = vec.get(index) else {
+                    return false;
+                };
                 let mut data_mtx = arc.lock().await;
                 *data_mtx = data;
                 return true;
@@ -295,7 +299,9 @@ impl QueueManager {
             if Self::check_stop(session_id).await {
                 break;
             }
-            let mut first_pkg = first_pkg.unwrap();
+            let Some(mut first_pkg) = first_pkg else {
+                break;
+            };
             let mut status = first_pkg.status;
             let mut retry_count = first_pkg.retry_count;
 
@@ -323,9 +329,9 @@ impl QueueManager {
                 // 收到回复
                 // 重新获取数据
 
-                let first_pkg = Self::get_package(session_id, 0).await;
-
-                let mut first_pkg = first_pkg.unwrap();
+                let Some(mut first_pkg) = Self::get_package(session_id, 0).await else {
+                    break;
+                };
                 // 得到新状态
                 status = first_pkg.status;
 
@@ -350,9 +356,9 @@ impl QueueManager {
                         break;
                     }
 
-                    let first_pkg = Self::get_package(session_id, 0).await;
-
-                    let first_pkg = first_pkg.unwrap();
+                    let Some(first_pkg) = Self::get_package(session_id, 0).await else {
+                        break;
+                    };
                     status = first_pkg.status;
 
                     match status {
@@ -361,8 +367,9 @@ impl QueueManager {
                             break;
                         }
                         OutputDataStatus::WaitResponse => {
-                            let first_pkg = Self::get_package(session_id, 0).await;
-                            let first_pkg = first_pkg.unwrap();
+                            let Some(first_pkg) = Self::get_package(session_id, 0).await else {
+                                break;
+                            };
                             status = first_pkg.status;
                             retry_count = first_pkg.retry_count;
                             continue;
@@ -459,8 +466,9 @@ pub async fn on_read_head(head: UartHead) {
         return;
     }
     if is_response(option as u8) {
-        let pkg = QueueManager::get_package(session_id, 0).await;
-        let mut pkg = pkg.unwrap();
+        let Some(mut pkg) = QueueManager::get_package(session_id, 0).await else {
+            return;
+        };
         pkg.status = if option & (UartOption::Ack as u16) > 1 {
             OutputDataStatus::ResponseOk
         } else {

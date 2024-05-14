@@ -88,6 +88,9 @@ pub async fn unpack_task_message(rd: &mut SplitReadHalf) -> io::Result<TaskMessa
 
 pub async fn recv_channel_message(rd: &mut SplitReadHalf) -> io::Result<Vec<u8>> {
     let data = read_frame(rd, 4).await?;
-    let expected_size = u32::from_be_bytes(data.try_into().unwrap());
+    let Ok(data) = data.try_into() else {
+        return Err(Error::new(ErrorKind::Other, "Data forced conversion failed"));
+    };
+    let expected_size = u32::from_be_bytes(data);
     read_frame(rd, expected_size as usize).await
 }

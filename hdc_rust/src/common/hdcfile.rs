@@ -251,7 +251,6 @@ async fn set_master_parameters(
                 src_argv_index += 1;
             }
             "-m" => {
-                task.transfer.is_file_mode_sync = true;
                 src_argv_index += 1;
             }
             "-remote" => {
@@ -552,7 +551,9 @@ pub async fn command_dispatch(
                 put_file_finish(session_id, channel_id).await;
             }
         }
-        HdcCommand::FileMode => {}
+        HdcCommand::FileMode | HdcCommand::DirMode => {
+            put_file_mode(session_id, channel_id).await;
+        }
         HdcCommand::FileFinish => {
             do_file_finish(session_id, channel_id, _payload).await;
         }
@@ -562,6 +563,15 @@ pub async fn command_dispatch(
     }
 
     true
+}
+
+async fn put_file_mode(session_id: u32, channel_id: u32) {
+    let task_message = TaskMessage {
+        channel_id,
+        command: HdcCommand::FileMode,
+        payload: Vec::<u8>::new(),
+    };
+    transfer::put(session_id, task_message).await;
 }
 
 async fn task_finish(session_id: u32, channel_id: u32) {

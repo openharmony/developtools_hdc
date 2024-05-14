@@ -34,6 +34,7 @@ from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 
 def test_list_targets():
     assert check_hdc_targets()
+    assert check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
 
 
 @pytest.mark.repeat(5)

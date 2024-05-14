@@ -91,37 +91,41 @@ int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
 
 bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
 {
-    int fd;
-    int res;
-    char *token = nullptr;
-    const char delims[] = "\n";
+    int ret = false;
+    int len = BUF_SIZE_DEFAULT2;
     char buf[BUF_SIZE_DEFAULT2];
 
-    fd = open("/proc/mounts", O_RDONLY | O_CLOEXEC);
-    if (fd < 0) {
+    FILE *fp = fopen("/proc/mounts", "r");
+    if (fp == nullptr) {
+        WRITE_LOG(LOG_FATAL, "fopen /proc/mounts error:%d", errno);
         return false;
     }
-    read(fd, buf, sizeof(buf) - 1);
-    Base::CloseFd(fd);
-    buf[sizeof(buf) - 1] = '\0';
-    token = strtok(buf, delims);
 
-    while (token) {
+    while (fgets(buf, len, fp) != nullptr) {
         char dir[BUF_SIZE_SMALL] = "";
         int freq;
         int passnno;
+        int res = 0;
         // clang-format off
-        res = sscanf_s(token, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
+        res = sscanf_s(buf, "%255s %255s %*s %*s %d %d\n", dev, BUF_SIZE_SMALL - 1,
                        dir, BUF_SIZE_SMALL - 1, &freq, &passnno);
         // clang-format on
         dev[BUF_SIZE_SMALL - 1] = '\0';
         dir[BUF_SIZE_SMALL - 1] = '\0';
         if (res == 4 && (strcmp(toQuery, dir) == 0)) {  // 4 : The correct number of parameters
-            return true;
+            WRITE_LOG(LOG_DEBUG, "FindMountDeviceByPath dev:%s dir:%s", dev, dir);
+            ret = true;
+            break;
         }
-        token = strtok(nullptr, delims);
     }
-    return false;
+    int rc = fclose(fp);
+    if (rc != 0) {
+        WRITE_LOG(LOG_WARN, "fclose rc:%d error:%d", rc, errno);
+    }
+    if (!ret) {
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath not found %s", toQuery);
+    }
+    return ret;
 }
 
 bool HdcDaemonUnity::RemountPartition(const char *dir)
@@ -131,19 +135,19 @@ bool HdcDaemonUnity::RemountPartition(const char *dir)
     char dev[BUF_SIZE_SMALL] = "";
 
     if (!FindMountDeviceByPath(dir, dev) || strlen(dev) < 4) {  // 4 : file count
-        WRITE_LOG(LOG_DEBUG, "FindMountDeviceByPath failed");
+        WRITE_LOG(LOG_FATAL, "FindMountDeviceByPath failed %s", dir);
         return false;
     }
 
     if ((fd = open(dev, O_RDONLY | O_CLOEXEC)) < 0) {
-        WRITE_LOG(LOG_DEBUG, "Open device:%s failed， error:%d", dev, errno);
+        WRITE_LOG(LOG_FATAL, "Open device:%s failed，error:%d", dev, errno);
         return false;
     }
     ioctl(fd, BLKROSET, &off);
     Base::CloseFd(fd);
 
     if (mount(dev, dir, "none", MS_REMOUNT, nullptr) < 0) {
-        WRITE_LOG(LOG_DEBUG, "Mount device failed");
+        WRITE_LOG(LOG_FATAL, "Mount device failed dev:%s dir:%s error:%d", dev, dir, errno);
         return false;
     }
     return true;
@@ -159,12 +163,13 @@ bool HdcDaemonUnity::RemountDevice()
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
         // has vendor
         if (!RemountPartition("/vendor")) {
-            LogMsg(MSG_FAIL, "Mount failed");
+            LogMsg(MSG_FAIL, "Mount failed /vendor");
             return false;
         }
     }
     if (!lstat("/data", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
         if (!RemountPartition("/data")) {
+            LogMsg(MSG_FAIL, "Mount failed /data");
             return false;
         }
     }

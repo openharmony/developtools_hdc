@@ -327,16 +327,6 @@ impl ForwardTaskMap {
         None
     }
 
-    pub async fn get_channel_id(session_id: u32, task_string: String) -> Option<u32> {
-        let arc = Self::get_instance();
-        let map = arc.lock().await;
-        for ((_session_id, _channel_id), value) in map.iter() {
-            if *_session_id == session_id && task_string.contains(&value.task_command) {
-                return Some(*_channel_id);
-            }
-        }
-        None
-    }
     pub async fn clear(session_id: u32) {
         let arc = Self::get_instance();
         let mut channel_list = Vec::new();

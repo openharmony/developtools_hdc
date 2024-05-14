@@ -251,7 +251,6 @@ async fn set_master_parameters(
                 src_argv_index += 1;
             }
             "-m" => {
-                task.transfer.is_file_mode_sync = true;
                 src_argv_index += 1;
             }
             "-remote" => {

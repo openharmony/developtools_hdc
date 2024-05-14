@@ -189,10 +189,10 @@ impl Base {
         tlv.push_str(&" ".repeat(TLV_TAG_LEN - tlen));
         // append len
         let svlen = val.len().to_string();
-        tlv.push_str(svlen.as_str());
         if svlen.len() > TLV_VAL_LEN {
             return "".to_string();
         }
+        tlv.push_str(svlen.as_str());
         tlv.push_str(&" ".repeat(TLV_VAL_LEN - svlen.len()));
         // append value
         tlv.push_str(val);

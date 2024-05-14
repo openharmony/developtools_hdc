@@ -565,9 +565,15 @@ def prepare_source():
     os.mkdir(dir_path)
     gen_file(os.path.join(dir_path, "small2"), 102400)
 
-    fuzz_count = 47
+    fuzz_count = 47 # 47 is the count that circulated the file transfer
+    data_unit = 1024 # 1024 is the size that circulated the file transfer
+    data_extra = 936 # 936 is the size that cased the extra file transfer
     for i in range(fuzz_count):
-        create_file_with_size(os.path.join(dir_path, f"file_{i*1024+936}.dat"), i*1024+936 )
+        create_file_with_size(
+            os.path.join(
+                dir_path, f"file_{i*data_unit+data_extra}.dat"
+                ), i*data_unit+data_extra
+            )
 
     print("generating empty dir ...")
     dir_path = os.path.join(GP.local_path, "empty_dir")

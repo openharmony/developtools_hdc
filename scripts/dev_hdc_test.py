@@ -337,6 +337,8 @@ def _check_dir(local, remote):
     print("remote" + remote)
     output = _get_md5sum(remote)
     print(output)
+
+    result = 1
     for line in output.splitlines():
         if len(line) < 32: # length of MD5
             continue
@@ -345,13 +347,14 @@ def _check_dir(local, remote):
         file_path = os.path.join(os.getcwd(), local, file_name)  # 构建完整的文件路径
         print(file_path)
         actual_md5 = _calculate_md5(file_path)
-        logging.info(f"Expected: {expected_md5}")
-        logging.info(f"Actual: {actual_md5}")
-        logging.info(f"MD5 matched {file_name}")
+        print(f"Expected: {expected_md5}")
+        print(f"Actual: {actual_md5}")
+        print(f"MD5 matched {file_name}")
         if actual_md5 != expected_md5:
-            logging.info(f"[Fail]MD5 mismatch for {file_name}")
-            return False
-    return True
+            print(f"[Fail]MD5 mismatch for {file_name}")
+            result *= 0
+
+    return (result == 1)
         
 
 def _check_file(local, remote):
@@ -519,6 +522,11 @@ def prepare_source():
             index += 1024
         os.close(fd)
 
+    def create_file_with_size(path, size):
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+        os.write(fd, b'\0' * size)
+        os.close(fd)
+
     print(f"in prepare {GP.local_path},wait for 2 mins.")
     current_path = os.getcwd()
     os.mkdir(GP.local_path)
@@ -551,11 +559,21 @@ def prepare_source():
         os.mkdir(deep_path)
     gen_file(os.path.join(deep_path, "deep"), 102400)
 
-    print("generating dir with small file ...")
-    dir_path = os.path.join(GP.local_path, "normal_dir")
+    print("generating dir with file ...")
+    dir_path = os.path.join(GP.local_path, "problem_dir")
     rmdir(dir_path)
     os.mkdir(dir_path)
     gen_file(os.path.join(dir_path, "small2"), 102400)
+
+    fuzz_count = 47 # 47 is the count that circulated the file transfer
+    data_unit = 1024 # 1024 is the size that circulated the file transfer
+    data_extra = 936 # 936 is the size that cased the extra file transfer
+    for i in range(fuzz_count):
+        create_file_with_size(
+            os.path.join(
+                dir_path, f"file_{i*data_unit+data_extra}.dat"
+                ), i*data_unit+data_extra
+            )
 
     print("generating empty dir ...")
     dir_path = os.path.join(GP.local_path, "empty_dir")
@@ -684,15 +702,15 @@ def make_multiprocess_file(local, remote, mode, num, task_type):
             return False        
     print(file_list[0])
     p_list = [subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE) for cmd in file_list]
-    logging.info(f"{mode} target {num} start")
+    print(f"{mode} target {num} start")
     while(len(p_list)):
         for p in p_list:
             if p.poll() is not None:
                 stdout, stderr = p.communicate(timeout=512) # timeout wait 512s
                 if stderr:
-                    logging.error(f"{stderr.decode()}")
+                    print(f"{stderr.decode()}")
                 if stdout:
-                    logging.info(f"{stdout.decode()}")
+                    print(f"{stdout.decode()}")
                 if stdout.decode().find("FileTransfer finish") == -1:
                     return False
                 p_list.remove(p)
@@ -777,7 +795,7 @@ def check_cmd_time(cmd, pattern, duration, times):
     if times < 1:
         print("times should be bigger than 0.")
         return False
-    if pattern == None:
+    if pattern is None:
         fetchable = True
     else:
         fetchable = False
@@ -801,8 +819,12 @@ def check_cmd_time(cmd, pattern, duration, times):
     
     end_time = time.time() * 1000
     
-    timecost = int(end_time - start_time) / times
-    print(f"{GP.hdc_head} {cmd}耗时平均值 {timecost}")
+    try: 
+        timecost = int(end_time - start_time) / times
+        print(f"{GP.hdc_head} {cmd}耗时平均值 {timecost}")
+    except ZeroDivisionError:
+        print(f"除数为0")
+    
     if duration is None:
         duration = 150 * 1.2
     # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status

@@ -28,11 +28,13 @@ from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
+from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 
 
 def test_list_targets():
     assert check_hdc_targets()
+    assert check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
 
 
 @pytest.mark.repeat(5)
@@ -63,6 +65,15 @@ def test_medium_file():
 def test_large_file():
     assert check_hdc_cmd(f"file send {get_local_path('large')} {get_remote_path('it_large')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_recv_dir():
+    assert make_multiprocess_file(get_local_path('problem_dir'), get_remote_path(''), 'send', 1, "dir")
+    assert check_hdc_cmd(f"shell mv {get_remote_path('problem_dir')} {get_remote_path('it_problem_dir')}")
+    assert make_multiprocess_file(get_local_path(''), get_remote_path('it_problem_dir'), 'recv', 1, "dir")
+    if os.path.exists(get_local_path('it_problem_dir')):
+        rmdir(get_local_path('it_problem_dir'))
 
 
 @pytest.mark.repeat(5)
@@ -168,7 +179,7 @@ def test_shell_cmd_timecost():
     assert check_cmd_time(
         cmd="shell \"ps -ef | grep hdcd\"",
         pattern="hdcd",
-        duration=150,
+        duration=None,
         times=10)
 
 

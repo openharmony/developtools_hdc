@@ -102,7 +102,6 @@ config("hdc_common_config") {
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/host",
     "${hdc_path}/test/unittest/common/include",
-    "../../../base/startup/init/interfaces/innerkits/include/syspara",  #async_cmd.cpp
   ]
 
   if (hdc_support_uart) {
@@ -128,6 +127,7 @@ ohos_source_set("hdc_common") {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
   }
   public_external_deps = common_external_deps
+  external_deps = [ "init:libbegetutil" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -140,11 +140,11 @@ ohos_source_set("hdc_daemon") {
   sources = hdc_common_sources
   sources += hdc_daemon_sources
   if (hdc_support_uart) {
-    include_dirs = [ "//commonlibrary/c_utils/base/include" ]
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
     sources += [ "${hdc_path}/src/daemon/daemon_uart.cpp" ]
   }
   public_external_deps = common_external_deps
+  external_deps = [ "init:libbegetutil" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",

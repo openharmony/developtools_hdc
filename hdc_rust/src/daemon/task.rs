@@ -139,7 +139,7 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             .await;
             return Ok(());
         }
-        HdcCommand::FileCheck | HdcCommand::FileInit => {
+        HdcCommand::FileMode | HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_message.channel_id).await {
                 let mut task = HdcFile::new(session_id, task_message.channel_id);
                 task.transfer.server_or_daemon = false;
@@ -185,7 +185,7 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             .await;
             return Ok(());
         }
-        HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish => {
+        HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish | HdcCommand::DirMode => {
             hdcfile::command_dispatch(
                 session_id,
                 task_message.channel_id,
@@ -372,6 +372,8 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         | HdcCommand::FileData
         | HdcCommand::FileBegin
         | HdcCommand::FileFinish
+        | HdcCommand::FileMode
+        | HdcCommand::DirMode
         | HdcCommand::AppCheck
         | HdcCommand::AppData
         | HdcCommand::AppUninstall

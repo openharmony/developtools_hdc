@@ -183,10 +183,6 @@ impl Base {
         if tlen == 0 || tlen > TLV_TAG_LEN {
             return "".to_string();
         }
-        let vlen = val.len();
-        if vlen > TLV_VAL_LEN {
-            return "".to_string();
-        }
 
         // append tag
         tlv.push_str(tag);
@@ -194,6 +190,9 @@ impl Base {
         // append len
         let svlen = val.len().to_string();
         tlv.push_str(svlen.as_str());
+        if svlen.len() > TLV_VAL_LEN {
+            return "".to_string();
+        }
         tlv.push_str(&" ".repeat(TLV_VAL_LEN - svlen.len()));
         // append value
         tlv.push_str(val);

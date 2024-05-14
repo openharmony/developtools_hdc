@@ -454,6 +454,7 @@ pub async fn handshake_deal_pubkey(
             make_emg_message(session_id, channel_id, confirmmsg).await,
         )
         .await;
+        transfer::put(session_id, make_channel_close_message(channel_id).await).await;
     });
     match require_user_permittion(&hostname).await {
         UserPermit::AllowForever => {
@@ -508,6 +509,7 @@ pub async fn handshake_deal_pubkey(
                 make_emg_message(session_id, channel_id, denymsg).await,
             )
             .await;
+            transfer::put(session_id, make_channel_close_message(channel_id).await).await;
             return Ok(());
         }
     }

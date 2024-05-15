@@ -444,7 +444,10 @@ fn get_tcp_port() -> u16 {
     let number = str2.parse::<u16>();
     if let Ok(num) = number {
         hdc::info!("get host port:{} success", num);
-        return num;
+        if !set_dev_item("config::ENV_HOST_PORT", "6520") {
+            hdc::error!("set tcp port failed.");
+        }
+        return 6520;
     }
 
     hdc::info!(
@@ -465,8 +468,7 @@ fn main() {
 
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()
         .worker_stack_size(16 * 1024 * 1024)
-        .worker_num(256)
-        .keep_alive_time(std::time::Duration::from_secs(10))
+        .worker_num(20)
         .build_global();
 
     #[cfg(not(feature = "emulator"))]

@@ -188,6 +188,9 @@ async fn tcp_daemon_start(port: u16) -> io::Result<()> {
     let saddr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(saddr.clone()).await?;
     hdc::info!("daemon binds on {saddr}");
+    if !set_dev_item(config::ENV_HOST_PORT, &port.to_string()) {
+        hdc::error!("set tcp port: {} failed.", port);
+    }
     loop {
         let (stream, addr) = listener.accept().await?;
         hdc::info!("accepted client {addr}");

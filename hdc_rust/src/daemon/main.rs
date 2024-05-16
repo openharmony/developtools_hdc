@@ -185,10 +185,12 @@ async fn tcp_handle_client(stream: TcpStream) -> io::Result<()> {
 
 #[cfg(not(feature = "emulator"))]
 async fn tcp_daemon_start(port: u16) -> io::Result<()> {
+    hdc::info!("tcp_daemon_start port = {:#?}", port);
     let saddr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(saddr.clone()).await?;
-    hdc::info!("daemon binds on {saddr}");
-    if !set_dev_item(config::ENV_HOST_PORT, &port.to_string()) {
+    let random_port = listener.local_addr()?.port();
+    hdc::info!("daemon binds on saddr = {:#?}, port = {:#?}", saddr, random_port);
+    if !set_dev_item(config::ENV_HOST_PORT, &random_port.to_string()) {
         hdc::error!("set tcp port: {} failed.", port);
     }
     loop {
@@ -444,10 +446,7 @@ fn get_tcp_port() -> u16 {
     let number = str2.parse::<u16>();
     if let Ok(num) = number {
         hdc::info!("get host port:{} success", num);
-        if !set_dev_item("config::ENV_HOST_PORT", "6520") {
-            hdc::error!("set tcp port failed.");
-        }
-        return 6520;
+        return num;
     }
 
     hdc::info!(

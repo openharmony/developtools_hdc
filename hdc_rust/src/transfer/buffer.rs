@@ -302,11 +302,37 @@ pub async fn send_channel_data(channel_id: u32, data: Vec<u8>) {
     let _ = TcpMap::send_channel_message(channel_id, data).await;
 }
 
+#[repr(u8)]
 pub enum EchoLevel {
     INFO,
     FAIL,
     RAW,
     OK, // this echo maybe OK with carriage return and newline
+}
+
+#[allow(unused)]
+impl TryFrom<u8> for EchoLevel {
+    type Error = ();
+    fn try_from(cmd: u8) -> Result<Self, ()> {
+        match cmd {
+            0 => Ok(Self::INFO),
+            1 => Ok(Self::FAIL),
+            2 => Ok(Self::RAW),
+            3 => Ok(Self::OK),
+            _ => Err(())
+        }
+    }
+}
+
+impl EchoLevel {
+    pub fn convert_from_message_level(cmd: u8) -> Result<Self, Error> {
+        match cmd {
+            0 => Ok(Self::FAIL),
+            1 => Ok(Self::INFO),
+            2 => Ok(Self::OK),
+            _ => Err(Error::new(ErrorKind::Other, "invalid message level type"))
+        }
+    }
 }
 
 pub async fn send_channel_msg(channel_id: u32, level: EchoLevel, msg: String) -> io::Result<()> {

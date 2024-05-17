@@ -14,7 +14,8 @@
  */
 //! hdctransfer
 #![allow(missing_docs)]
-
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use std::collections::VecDeque;
 
 use crate::common::base::Base;

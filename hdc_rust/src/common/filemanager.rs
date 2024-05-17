@@ -16,6 +16,7 @@
 #![allow(missing_docs)]
 
 use crate::config::KERNEL_FILE_NODE_SIZE;
+#[allow(unused)]
 use crate::utils::hdc_log::*;
 use std::fs::OpenOptions;
 use std::fs::{self, File};

@@ -17,6 +17,7 @@
 #![allow(clippy::missing_safety_doc)]
 use std::io::{self, ErrorKind, Result};
 use std::mem;
+#[allow(unused)]
 use crate::utils::hdc_log::*;
 use libc::bind;
 use libc::c_void;

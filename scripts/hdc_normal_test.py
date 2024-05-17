@@ -156,6 +156,7 @@ def test_version_cmd():
 
 def test_fport_cmd():
     fport_list = []
+    rport_list = []
     start_port = 10000
     end_port = 10020
     for i in range(start_port, end_port):
@@ -163,16 +164,26 @@ def test_fport_cmd():
         rport = f"tcp:{i+300} tcp:{i+400}"
         localabs = f"tcp:{i+500} localabstract:{f'helloworld.com.app.{i+600}'}"
         fport_list.append(fport)
-        fport_list.append(rport)
+        rport_list.append(rport)
         fport_list.append(localabs)
     
     for fport in fport_list:
         assert check_hdc_cmd(f"fport {fport}", "Forwardport result:OK")
+        assert check_hdc_cmd(f"fport {fport}", "TCP Port listen failed at")
         assert check_hdc_cmd("fport ls", fport)
 
     for fport in fport_list:
         assert check_hdc_cmd(f"fport rm {fport}", "success")
         assert not check_hdc_cmd("fport ls", fport)
+
+    for rport in rport_list:
+        assert check_hdc_cmd(f"rport {rport}", "Forwardport result:OK")
+        assert check_hdc_cmd(f"rport {rport}", "TCP Port listen failed at")
+        assert check_hdc_cmd("rport ls", rport) or check_hdc_cmd("fport ls", rport)
+
+    for rport in rport_list:
+        assert check_hdc_cmd(f"rport rm {rport}", "success")
+        assert not check_hdc_cmd("rport ls", fport) and not check_hdc_cmd("fport ls", fport)
 
 
 def test_shell_cmd_timecost():

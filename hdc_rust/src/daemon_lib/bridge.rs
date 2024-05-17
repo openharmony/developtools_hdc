@@ -158,7 +158,13 @@ impl BridgeMap {
     }
 
     pub async fn send_channel_message(channel_id: u32, buf: Vec<u8>) -> io::Result<()> {
-        crate::trace!("send channel msg: {:#?}", buf.clone());
+        crate::trace!(
+            "send channel msg: {:?}",
+            buf.iter()
+                .map(|&c| format!("{c:02X}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         let send = [
             u32::to_be_bytes(buf.len() as u32).as_slice(),
             buf.as_slice(),

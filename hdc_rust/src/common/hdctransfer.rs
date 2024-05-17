@@ -297,7 +297,7 @@ fn is_file_access(path: String) -> bool {
             }
         }
         Err(_e) => {
-            crate::debug!("metadata file is error, path:{}", path);
+            crate::error!("metadata file is error, path:{}", path);
             return false;
         }
     }
@@ -308,7 +308,7 @@ fn is_file_access(path: String) -> bool {
             p.exists()
         }
         Err(e) => {
-            crate::debug!("read_link fail:{:#?}", e);
+            crate::error!("read_link fail:{:#?}", e);
             false
         }
     }
@@ -442,11 +442,11 @@ pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {
     let mut result = Vec::new();
     let dir_path = PathBuf::from(_path);
     if !is_file_access(_path.clone()) {
-        crate::debug!("file is invalid link, path:{}", _path);
+        crate::error!("file is invalid link, path:{}", _path);
         return result;
     }
     let Ok(dir_list) = fs::read_dir(dir_path) else {
-        crate::debug!("read dir fail, path:{}", _path);
+        crate::error!("read dir fail, path:{}", _path);
         return result;
     };
     for entry in dir_list {

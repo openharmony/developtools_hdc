@@ -72,7 +72,7 @@ pub fn uart_init() -> io::Result<i32> {
         {
             return Err(utils::error_other("set uart config failed".to_string()));
         }
-        println!("uart init fd: {fd}");
+        crate::debug!("uart init fd: {fd}");
         fd
     };
     Ok(fd)
@@ -130,7 +130,6 @@ impl base::Reader for UartReader {
         let mut head = serializer::native_struct::UartHead::default();
 
         if let Err(e) = head.parse(buf) {
-            println!("parse uart head error {:#?}", e);
             log::warn!("parse uart head error: {}", e.to_string());
             return Err(e);
         }
@@ -157,9 +156,9 @@ impl base::Writer for UartWriter {
             ptr: data.as_ptr() as *const libc::c_char,
             size: data.len() as u64,
         };
-        println!("write all start, fd:{}...", self.fd);
+        crate::debug!("write all start, fd:{}...", self.fd);
         let write_count = unsafe { WriteUartDevExt(self.fd, buf) } as i32;
-        println!("write count:{}", write_count);
+        crate::debug!("write count:{}", write_count);
         if write_count < 0 {
             Err(utils::error_other("uart write failed".to_string()))
         } else {

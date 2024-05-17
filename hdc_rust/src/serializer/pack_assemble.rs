@@ -32,7 +32,13 @@ pub fn unpack_payload_head(data: Vec<u8>) -> io::Result<native_struct::PayloadHe
     if data[..PACKET_FLAG.len()] != PACKET_FLAG[..] {
         return Err(Error::new(
             ErrorKind::Other,
-            format!("PACKET_FLAG incorrect, content: {:#?}", data),
+            format!(
+                "PACKET_FLAG incorrect, content: {:?}",
+                data.iter()
+                    .map(|&c| format!("{c:02X}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ),
         ));
     }
 

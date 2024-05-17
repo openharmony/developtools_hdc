@@ -106,6 +106,7 @@ impl TcpMap {
         let instance = Self::get_instance();
         let map = instance.read().await;
         let Some(arc_wr) = map.get(&session_id) else {
+            crate::error!("get tcp is None, session_id={session_id}");
             return;
         };
         let mut wr = arc_wr.lock().await;
@@ -113,7 +114,13 @@ impl TcpMap {
     }
 
     pub async fn send_channel_message(channel_id: u32, buf: Vec<u8>) -> io::Result<()> {
-        crate::trace!("send channel msg: {:#?}", buf.clone());
+        crate::trace!(
+            "send channel msg: {:?}",
+            buf.iter()
+                .map(|&c| format!("{c:02X}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         let send = [
             u32::to_be_bytes(buf.len() as u32).as_slice(),
             buf.as_slice(),
@@ -260,7 +267,7 @@ impl UartMap {
         let mut map = instance.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         if map.contains_key(&session_id) {
-            println!("uart start, contain session:{}", session_id);
+            crate::error!("uart start, contain session:{}", session_id);
             return;
         }
         map.insert(session_id, arc_wr);

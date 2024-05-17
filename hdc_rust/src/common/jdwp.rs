@@ -20,7 +20,7 @@ use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::transfer;
 use crate::utils::hdc_log::*;
-use libc::{POLLIN, POLLERR, POLLHUP, POLLNVAL, POLLRDHUP, SOCK_STREAM};
+use libc::{POLLERR, POLLHUP, POLLIN, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -155,11 +155,7 @@ impl Jdwp {
         result
     }
 
-    pub async fn handle_client(
-        fd: i32,
-        waiter: Arc<Waiter>,
-        node_map: NodeMap,
-    ) {
+    pub async fn handle_client(fd: i32, waiter: Arc<Waiter>, node_map: NodeMap) {
         crate::info!("handle_client start...");
         let mut buffer: [u8; 1024] = [0; 1024];
         let size = UdsServer::wrap_recv(fd, &mut buffer);
@@ -207,14 +203,13 @@ impl Jdwp {
         socket_name[1..].copy_from_slice(name);
         let addr = UdsAddr::parse_abstract(&socket_name[1..]);
         if let Ok(addr_obj) = &addr {
-            let ret = UdsServer::wrap_bind(fd, addr_obj);
-            if ret.is_err() {
-                crate::info!("bind fail");
+            if let Err(ret) = UdsServer::wrap_bind(fd, addr_obj) {
+                crate::error!("bind fail. {ret:?}");
                 return false;
             }
             let ret = UdsServer::wrap_listen(fd);
             if ret < 0 {
-                crate::info!("listen fail");
+                crate::error!("listen fail, ret = {ret}");
                 return false;
             }
             let node_map = self.poll_node_map.clone();
@@ -223,6 +218,7 @@ impl Jdwp {
                 loop {
                     let client_fd = UdsServer::wrap_accept(fd);
                     if client_fd == -1 {
+                        crate::error!("wrap_accept failed");
                         break;
                     }
                     let map = node_map.clone();

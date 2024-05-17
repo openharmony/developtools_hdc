@@ -15,17 +15,18 @@
 //! uds
 #![allow(missing_docs)]
 #![allow(clippy::missing_safety_doc)]
-use std::io::{self, ErrorKind, Result};
-use std::mem;
+#[cfg(not(feature = "host"))]
 use crate::utils::hdc_log::*;
 use libc::bind;
 use libc::c_void;
 use libc::{accept4, close, connect};
 use libc::{c_char, listen, poll, recv, socket, MSG_NOSIGNAL};
 use libc::{c_int, sa_family_t, sockaddr, sockaddr_un, socklen_t, AF_UNIX};
-use libc::{fcntl, pipe, read, send, socketpair, write, eventfd, MSG_EOR};
+use libc::{eventfd, fcntl, pipe, read, send, socketpair, write, MSG_EOR};
+use libc::{EFD_CLOEXEC, EFD_NONBLOCK, SOCK_CLOEXEC, SOCK_STREAM};
 use libc::{POLLERR, POLLHUP, POLLNVAL, POLLRDHUP};
-use libc::{SOCK_CLOEXEC, SOCK_STREAM, EFD_CLOEXEC, EFD_NONBLOCK};
+use std::io::{self, ErrorKind, Result};
+use std::mem;
 
 const LISTEN_BACKLOG: c_int = 10;
 const MAX_CLIENT_FD_COUNT: usize = 256;
@@ -121,10 +122,10 @@ impl UdsServer {
             let (addr_raw, len_raw) = addr.as_raw_general();
             loop {
                 let ret = bind(socket_fd, addr_raw, len_raw);
-                println!("bind ret : {}", ret);
                 if ret != -1 {
                     break Ok(());
                 }
+                crate::error!("bind failed ret : {}", ret);
                 let err = io::Error::last_os_error();
                 if err.kind() != ErrorKind::Interrupted {
                     break Err(err);
@@ -163,9 +164,7 @@ impl UdsServer {
     }
 
     pub fn wrap_event_fd() -> i32 {
-        unsafe {
-            eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK)
-        }
+        unsafe { eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK) }
     }
 
     pub fn wrap_write_fd(fd: i32) {
@@ -240,9 +239,9 @@ impl UdsServer {
     pub fn wrap_pipe() -> Result<(i32, i32)> {
         let mut fd_buf = [-1; 2];
         unsafe {
-            println!("pipe() begin...");
+            crate::debug!("pipe() begin...");
             let ret = pipe(fd_buf[..].as_mut_ptr());
-            println!("pipe() ret:{}", ret);
+            crate::debug!("pipe() ret:{}", ret);
             if ret >= 0 {
                 fcntl(fd_buf[1], 100, 20);
             }
@@ -264,7 +263,7 @@ impl UdsClient {
             let (addr_raw, len_raw) = addr.as_raw_general();
             loop {
                 let ret = bind(socket_fd, addr_raw, len_raw);
-                println!("bind ret : {}", ret);
+                crate::debug!("bind ret : {}", ret);
                 if ret != -1 {
                     break Ok(());
                 }
@@ -283,11 +282,11 @@ impl UdsClient {
     pub fn wrap_connect(socket_fd: i32, addr: &UdsAddr) -> Result<()> {
         unsafe {
             let (addr_raw, len_raw) = addr.as_raw_general();
-            println!("wrap_connect:len_raw: {:#?}", len_raw);
-            println!("wrap_connect:addr_raw: {:#?}", addr_raw.sa_data);
+            crate::debug!("wrap_connect:len_raw: {:#?}", len_raw);
+            crate::debug!("wrap_connect:addr_raw: {:#?}", addr_raw.sa_data);
             loop {
                 let ret = connect(socket_fd, addr_raw, len_raw);
-                println!("connect ret ++++++---->: {}", ret);
+                crate::debug!("connect ret ++++++---->: {}", ret);
                 if ret != -1 {
                     break Ok(());
                 }

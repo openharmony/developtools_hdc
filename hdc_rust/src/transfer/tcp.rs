@@ -56,7 +56,7 @@ async fn read_frame(rd: &mut SplitReadHalf, expected_size: usize) -> io::Result<
 pub async fn unpack_task_message(rd: &mut SplitReadHalf) -> io::Result<TaskMessage> {
     let data = read_frame(rd, serializer::HEAD_SIZE).await?;
     let payload_head = serializer::unpack_payload_head(data)?;
-    crate::trace!("get payload_head: {:#?}", payload_head);
+    crate::trace!("get payload_head: {:?}", payload_head);
 
     let expected_head_size = u16::from_be(payload_head.head_size) as usize;
     let expected_data_size = u32::from_be(payload_head.data_size) as usize;
@@ -68,7 +68,7 @@ pub async fn unpack_task_message(rd: &mut SplitReadHalf) -> io::Result<TaskMessa
 
     let data = read_frame(rd, expected_head_size).await?;
     let payload_protect = serializer::unpack_payload_protect(data)?;
-    crate::trace!("get payload_protect: {:#?}", payload_protect);
+    crate::trace!("get payload_protect: {:?}", payload_protect);
     let channel_id = payload_protect.channel_id;
 
     let command = match HdcCommand::try_from(payload_protect.command_flag) {
@@ -89,7 +89,10 @@ pub async fn unpack_task_message(rd: &mut SplitReadHalf) -> io::Result<TaskMessa
 pub async fn recv_channel_message(rd: &mut SplitReadHalf) -> io::Result<Vec<u8>> {
     let data = read_frame(rd, 4).await?;
     let Ok(data) = data.try_into() else {
-        return Err(Error::new(ErrorKind::Other, "Data forced conversion failed"));
+        return Err(Error::new(
+            ErrorKind::Other,
+            "Data forced conversion failed",
+        ));
     };
     let expected_size = u32::from_be_bytes(data);
     read_frame(rd, expected_size as usize).await

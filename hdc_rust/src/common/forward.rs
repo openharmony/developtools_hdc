@@ -422,6 +422,10 @@ impl ForwardTaskMap {
     }
 }
 
+pub async fn free_channel_task(session_id: u32, channel_id: u32) {
+    free_context(session_id, channel_id, 0, false).await;
+}
+
 pub async fn stop_task(session_id: u32) {
     ForwardTaskMap::clear(session_id).await;
 }

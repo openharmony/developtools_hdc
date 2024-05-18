@@ -317,20 +317,6 @@ pub enum EchoLevel {
     OK, // this echo maybe OK with carriage return and newline
 }
 
-#[allow(unused)]
-impl TryFrom<u8> for EchoLevel {
-    type Error = ();
-    fn try_from(cmd: u8) -> Result<Self, ()> {
-        match cmd {
-            0 => Ok(Self::INFO),
-            1 => Ok(Self::FAIL),
-            2 => Ok(Self::RAW),
-            3 => Ok(Self::OK),
-            _ => Err(())
-        }
-    }
-}
-
 impl EchoLevel {
     pub fn convert_from_message_level(cmd: u8) -> Result<Self, Error> {
         match cmd {

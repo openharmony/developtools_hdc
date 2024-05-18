@@ -650,12 +650,12 @@ pub async fn forward_tcp_accept(
                     }
                     let (stream, _addr) = client.unwrap();
                     let (rd, wr) = stream.into_split();
-                    TcpWriteStreamMap::put(cid, wr).await;
+                    TcpWriteStreamMap::put(channel_id, wr).await;
                     ylong_runtime::spawn(on_accept(session_id, channel_id, value.clone(), cid));
                     recv_tcp_msg(session_id, channel_id, rd, cid).await;
                 }
             });
-            TcpListenerMap::put(cid, join_handle).await;
+            TcpListenerMap::put(channel_id, join_handle).await;
             Ok(())
         }
         Err(e) => {
@@ -731,7 +731,7 @@ pub async fn daemon_connect_tcp(session_id: u32, channel_id: u32, port: u32, cid
     };
     send_active_master(session_id, channel_id).await;
     let (rd, wr) = stream.into_split();
-    TcpWriteStreamMap::put(cid, wr).await;
+    TcpWriteStreamMap::put(channel_id, wr).await;
     recv_tcp_msg(session_id, channel_id, rd, cid).await;
 }
 
@@ -794,8 +794,8 @@ pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remo
     }
     match task.forward_type {
         ForwardType::Tcp | ForwardType::Jdwp | ForwardType::Ark => {
-            TcpWriteStreamMap::end(task.context_forward.id).await;
-            TcpListenerMap::end(task.context_forward.id).await;
+            TcpWriteStreamMap::end(channel_id).await;
+            TcpListenerMap::end(channel_id).await;
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             #[cfg(not(target_os = "windows"))]
@@ -1464,7 +1464,7 @@ pub async fn read_data_to_forward(session_id: u32, channel_id: u32) -> bool {
 pub async fn write_forward_bufer(
     session_id: u32,
     channel_id: u32,
-    id: u32,
+    _id: u32,
     content: Vec<u8>,
 ) -> bool {
     let Some(mut task) = ForwardTaskMap::get(session_id, channel_id).await else {
@@ -1477,7 +1477,7 @@ pub async fn write_forward_bufer(
     };
     let task = &mut task;
     if task.forward_type == ForwardType::Tcp {
-        TcpWriteStreamMap::write(id, content).await;
+        TcpWriteStreamMap::write(channel_id, content).await;
     } else {
         #[cfg(not(target_os = "windows"))]
         {

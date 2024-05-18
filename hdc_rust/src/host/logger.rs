@@ -50,9 +50,8 @@ impl HostLoggerMeta {
             meta.stdout_require = true;
         }
         meta.run_in_server = run_in_server;
-        meta.log_file = 
-            Path::new(&std::env::temp_dir())
-                .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
+        meta.log_file = Path::new(&std::env::temp_dir())
+            .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
         if run_in_server {
             Self::dump_log_file(config::LOG_BAK_NAME, meta.level_char);
             std::fs::File::create(&meta.log_file).unwrap();
@@ -65,7 +64,7 @@ impl HostLoggerMeta {
         if meta.run_in_server && meta.current_size > config::LOG_FILE_SIZE {
             meta.current_size = 0;
             Self::dump_log_file(config::LOG_CACHE_NAME, meta.level_char);
-            std::fs::File::create(&meta.log_file).unwrap(); 
+            std::fs::File::create(&meta.log_file).unwrap();
         }
         meta.current_size += content.len();
         if let Ok(mut f) = std::fs::File::options().append(true).open(&meta.log_file) {
@@ -77,30 +76,18 @@ impl HostLoggerMeta {
     }
 
     fn dump_log_file(file_type: &str, level_char: char) {
-
-        let file_path = 
+        let file_path = Path::new(&std::env::temp_dir())
+            .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
+        let ts = humantime::format_rfc3339_millis(SystemTime::now())
+            .to_string()
+            .replace(':', "");
+        let file_cache_path = if level_char == 'T' {
             Path::new(&std::env::temp_dir())
-                .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
-        let ts = 
-            humantime::format_rfc3339_millis(SystemTime::now())
-                .to_string()
-                .replace(':', "");
-        let file_cache_path = 
-        if level_char == 'T' {
-            Path::new(&std::env::temp_dir())
-                .join(
-                    file_type.to_string()
-                    + &ts[..19]
-                    + config::LOG_TAIL_NAME
-                )         
+                .join(file_type.to_string() + &ts[..19] + config::LOG_TAIL_NAME)
         } else {
-            Path::new(&std::env::temp_dir())
-                .join(
-                    file_type.to_string()
-                    + config::LOG_TAIL_NAME
-                )
+            Path::new(&std::env::temp_dir()).join(file_type.to_string() + config::LOG_TAIL_NAME)
         };
-        if file_path.exists(){
+        if file_path.exists() {
             std::fs::rename(&file_path, file_cache_path).unwrap();
         }
     }

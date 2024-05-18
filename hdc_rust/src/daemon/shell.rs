@@ -15,25 +15,24 @@
 //! shell
 #![allow(missing_docs)]
 
-use crate::utils::hdc_log::*;
-use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, SHELL_PROG, SHELL_TEMP, MessageLevel};
-use hdc::transfer;
 #[allow(unused_imports)]
 use super::task_manager;
+use crate::utils::hdc_log::*;
+use hdc::config::TaskMessage;
+use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG};
+use hdc::transfer;
 use std::collections::HashMap;
 use std::io::{self};
 use std::sync::Arc;
 
-use ylong_runtime::sync::mpsc;
-use ylong_runtime::sync::Mutex;
-use ylong_runtime::process::pty_process::{Pty,PtyCommand};
+use std::os::fd::AsRawFd;
+use std::process::Stdio;
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
+use ylong_runtime::process::pty_process::{Pty, PtyCommand};
 use ylong_runtime::process::Child as ylongChild;
-use std::process::Stdio;
-use std::os::fd::AsRawFd;
-
+use ylong_runtime::sync::mpsc;
+use ylong_runtime::sync::Mutex;
 
 pub struct PtyTask {
     pub handle: ylong_runtime::task::JoinHandle<()>,
@@ -67,13 +66,27 @@ impl PtyProcess {
 // hdc shell "nohup /data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 // hdc shell "/data/local/tmp/test.sh >/data/local/tmp/log 2>&1 &"
 fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProcess> {
-    let pty = Pty::new().unwrap();
-    let pts = pty.pts().unwrap();
+    let pty = match Pty::new() {
+        Ok(pty) => pty,
+        Err(e) => {
+            hdc::error!("pty create error: {}", e);
+            return Err(e);
+        }
+    };
+
+    let pts = match pty.pts() {
+        Ok(pts) => pts,
+        Err(e) => {
+            hdc::error!("pty pts error: {}", e);
+            return Err(e);
+        }
+    };
     let mut nohup_flag = false;
     let child = match cmd {
         None => {
+            hdc::debug!("input cmd is None. channel_id {_channel_id}");
             let mut command = PtyCommand::new(SHELL_PROG);
-            command.spawn(&pts).unwrap()
+            command.spawn(&pts)?
         }
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
@@ -94,28 +107,29 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
             let command = proc.args(params);
             if nohup_flag {
                 unsafe {
-                    command.pre_exec(
-                        move || {
-                            if nohup_flag {
-                                libc::setsid();
-                                libc::signal(libc::SIGHUP, libc::SIG_IGN);
-                            }
-                            Ok(())
+                    command.pre_exec(move || {
+                        if nohup_flag {
+                            libc::setsid();
+                            libc::signal(libc::SIGHUP, libc::SIG_IGN);
                         }
-                    );
+                        Ok(())
+                    });
                 }
-                command.stdin(Stdio::null())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn(&pts).unwrap()
+                command
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn(&pts)?
             } else {
-                command.spawn(&pts).unwrap()
-                
+                command.spawn(&pts)?
             }
-
         }
     };
-    Ok(PtyProcess::new(pty, Arc::new(Mutex::new(child)), nohup_flag))
+    Ok(PtyProcess::new(
+        pty,
+        Arc::new(Mutex::new(child)),
+        nohup_flag,
+    ))
 }
 
 async fn subprocess_task(
@@ -127,12 +141,11 @@ async fn subprocess_task(
 ) {
     let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
         Err(e) => {
-            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
             hdc::common::hdctransfer::echo_client(
                 session_id,
                 channel_id,
                 "execute cmd fail".as_bytes().to_vec(),
-                MessageLevel::Fail
+                MessageLevel::Fail,
             )
             .await;
             let task_message = TaskMessage {
@@ -141,15 +154,16 @@ async fn subprocess_task(
                 payload: [1].to_vec(),
             };
             transfer::put(session_id, task_message).await;
+            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
             hdc::error!("{}", msg);
             panic!("{}", msg);
-        },
-        Ok(pty) => pty
+        }
+        Ok(pty) => pty,
     };
-    PtyChildProcessMap::put(channel_id, pty_process.child.clone()).await;
+    PtyChildProcessMap::put(session_id, channel_id, pty_process.child.clone()).await;
     let mut buf = [0_u8; 30720];
     loop {
-        ylong_runtime::select!{
+        ylong_runtime::select! {
             read_res = pty_process.pty.read(&mut buf) => {
                 match read_res {
                     Ok(bytes) => {
@@ -169,7 +183,6 @@ async fn subprocess_task(
             recv_res = rx.recv() => {
                 match recv_res {
                     Ok(val) => {
-                        pty_process.pty.write_all(&val).await.unwrap();
                         if val[..].contains(&0x4_u8) {
                             // ctrl-D: end pty
                             hdc::info!("ctrl-D: end pty");
@@ -197,6 +210,13 @@ async fn subprocess_task(
                             };
                             #[cfg(feature = "hdc_debug")]
                             transfer::put(session_id, message).await;
+                        }
+                        if let Err(e) = pty_process.pty.write_all(&val).await {
+                            hdc::warn!(
+                                "session_id: {} channel_id: {}, pty write failed: {e:?}",
+                                session_id, channel_id
+                            );
+                            break;
                         }
                     }
                     Err(e) => {
@@ -226,22 +246,32 @@ async fn subprocess_task(
         let mut child_lock = pty_process.child.lock().await;
 
         let kill_result = child_lock.kill().await;
-        hdc::debug!("subprocess_task kill child, result:{:#?}", kill_result);
+        hdc::debug!("subprocess_task kill child(session_id {session_id}, channel_id {channel_id}), result:{:?}", kill_result);
         match child_lock.wait().await {
             Ok(exit_status) => {
-                PtyMap::del(channel_id).await;
-                hdc::debug!("subprocess_task waiting child exit success, status:{:?}.", exit_status);
+                PtyMap::del(session_id, channel_id).await;
+                hdc::debug!(
+                    "subprocess_task waiting child exit success, status:{:?}.",
+                    exit_status
+                );
             }
             Err(e) => {
                 let kill_result = child_lock.kill().await;
-                hdc::debug!("subprocess_task child exit status {:?}, kill child, result:{:#?}", e, kill_result);
+                hdc::debug!(
+                    "subprocess_task child exit status {:?}, kill child, result:{:?}",
+                    e,
+                    kill_result
+                );
             }
         }
 
         match child_lock.wait().await {
             Ok(exit_status) => {
-                PtyMap::del(channel_id).await;
-                hdc::debug!("subprocess_task waiting child exit success, status:{:?}.", exit_status);
+                PtyMap::del(session_id, channel_id).await;
+                hdc::debug!(
+                    "subprocess_task waiting child exit success, status:{:?}.",
+                    exit_status
+                );
             }
             Err(e) => {
                 hdc::debug!("subprocess_task waiting child exit fail, error:{:?}.", e);
@@ -249,10 +279,17 @@ async fn subprocess_task(
         }
     } else {
         let mut child_lock = pty_process.child.lock().await;
-        hdc::debug!("subprocess_task nohup_flag:{} wait before", pty_process.nohup_flag);
-        let ret  = child_lock.wait().await;
-        PtyMap::del(channel_id).await;
-        hdc::debug!("subprocess_task nohup_flag:{} wait after: {:#?}", pty_process.nohup_flag, ret);
+        hdc::debug!(
+            "subprocess_task nohup_flag:{} wait before",
+            pty_process.nohup_flag
+        );
+        let ret = child_lock.wait().await;
+        PtyMap::del(session_id, channel_id).await;
+        hdc::info!(
+            "subprocess_task nohup_flag:{} wait after: {:#?}",
+            pty_process.nohup_flag,
+            ret
+        );
     }
 
     let message = TaskMessage {
@@ -261,7 +298,6 @@ async fn subprocess_task(
         payload: vec![1],
     };
     transfer::put(session_id, message).await;
-    
 }
 
 impl PtyTask {
@@ -273,6 +309,7 @@ impl PtyTask {
     ) -> Self {
         let (tx, rx) = ylong_runtime::sync::mpsc::bounded_channel::<Vec<u8>>(16);
         let cmd = option_cmd.clone();
+        hdc::debug!("PtyTask new session_id {session_id}, channel_id {channel_id}");
         let handle = ylong_runtime::spawn(subprocess_task(
             option_cmd,
             session_id,
@@ -280,12 +317,28 @@ impl PtyTask {
             ret_command,
             rx,
         ));
-        Self { handle, tx, session_id, channel_id, cmd}
+        Self {
+            handle,
+            tx,
+            session_id,
+            channel_id,
+            cmd,
+        }
+    }
+}
+
+impl Drop for PtyTask {
+    fn drop(&mut self) {
+        hdc::info!(
+            "PtyTask Drop session_id {}, channel_id {}",
+            self.session_id,
+            self.channel_id
+        );
     }
 }
 
 type Child_ = Arc<Mutex<ylongChild>>;
-type PtyChildProcessMap_ = Arc<Mutex<HashMap<u32, Child_>>>;
+type PtyChildProcessMap_ = Arc<Mutex<HashMap<(u32, u32), Child_>>>;
 pub struct PtyChildProcessMap {}
 impl PtyChildProcessMap {
     fn get_instance() -> PtyChildProcessMap_ {
@@ -297,30 +350,30 @@ impl PtyChildProcessMap {
         }
     }
 
-    pub async fn get(channel_id: u32) -> Option<Child_> {
+    pub async fn get(session_id: u32, channel_id: u32) -> Option<Child_> {
         let pty_child_map = Self::get_instance();
         let map = pty_child_map.lock().await;
-        if let Some(pty_child) = map.get(&channel_id) {
+        if let Some(pty_child) = map.get(&(session_id, channel_id)) {
             return Some(pty_child.clone());
         }
         None
     }
 
     #[allow(unused)]
-    pub async fn put(channel_id: u32, pty_child: Child_) {
+    pub async fn put(session_id: u32, channel_id: u32, pty_child: Child_) {
         let pty_child_map = Self::get_instance();
         let mut map = pty_child_map.lock().await;
-        map.insert(channel_id, pty_child);
+        map.insert((session_id, channel_id), pty_child);
     }
 
-    pub async fn del(channel_id: u32) {
+    pub async fn del(session_id: u32, channel_id: u32) {
         let pty_child_map = Self::get_instance();
         let mut map = pty_child_map.lock().await;
-        map.remove(&channel_id);
+        map.remove(&(session_id, channel_id));
     }
 }
 
-type PtyMap_ = Arc<Mutex<HashMap<u32, Arc<PtyTask>>>>;
+type PtyMap_ = Arc<Mutex<HashMap<(u32, u32), Arc<PtyTask>>>>;
 pub struct PtyMap {}
 impl PtyMap {
     fn get_instance() -> PtyMap_ {
@@ -332,30 +385,75 @@ impl PtyMap {
         }
     }
 
-    pub async fn get(channel_id: u32) -> Option<Arc<PtyTask>> {
+    pub async fn get(session_id: u32, channel_id: u32) -> Option<Arc<PtyTask>> {
         let pty_map = Self::get_instance();
         let map = pty_map.lock().await;
-        if let Some(pty_task) = map.get(&channel_id) {
+        if let Some(pty_task) = map.get(&(session_id, channel_id)) {
             return Some(pty_task.clone());
         }
         None
     }
 
-    pub async fn put(channel_id: u32, pty_task: PtyTask) {
+    pub async fn put(session_id: u32, channel_id: u32, pty_task: PtyTask) {
         let pty_map = Self::get_instance();
         let mut map = pty_map.lock().await;
         let arc_pty_task = Arc::new(pty_task);
-        map.insert(channel_id, arc_pty_task);
+        map.insert((session_id, channel_id), arc_pty_task);
     }
 
-    pub async fn del(channel_id: u32) {
+    pub async fn del(session_id: u32, channel_id: u32) {
         let pty_map = Self::get_instance();
         let mut map = pty_map.lock().await;
-        map.remove(&channel_id);
-        let file_name = format!("{SHELL_TEMP}-{channel_id}");
-        let _ = std::fs::remove_file(file_name);
+        map.remove(&(session_id, channel_id));
 
-        PtyChildProcessMap::del(channel_id).await;
+        PtyChildProcessMap::del(session_id, channel_id).await;
+    }
+
+    pub async fn stop_task(session_id: u32) {
+        hdc::info!("hdc shell free_task, session_id: {}", session_id);
+        let pty_map = Self::get_instance();
+        {
+            let map = pty_map.lock().await;
+            for _iter in map.iter() {
+                if _iter.0 .0 != session_id {
+                    continue;
+                }
+                if let Some(pty_child) = PtyChildProcessMap::get(session_id, _iter.0 .1).await {
+                    let mut child = pty_child.lock().await;
+                    let kill_result = child.kill().await;
+                    hdc::debug!(
+                        "do map clear kill child, result:{:?}, session_id {}, channel_id {}",
+                        kill_result,
+                        session_id,
+                        _iter.0 .1
+                    );
+                    match child.wait().await {
+                        Ok(exit_status) => {
+                            hdc::debug!(
+                                "waiting child exit success, status:{:?}, session_id {}, channel_id {}",
+                                exit_status,
+                                session_id,
+                                _iter.0.1
+                            );
+                        }
+                        Err(e) => {
+                            hdc::error!(
+                                "waiting child exit fail, error:{:?}, session_id {}, channel_id {}",
+                                e,
+                                session_id,
+                                _iter.0 .1
+                            );
+                        }
+                    }
+                    PtyChildProcessMap::del(session_id, _iter.0 .1).await;
+                }
+                hdc::debug!(
+                    "Clear tty task, session_id: {}, channel_id:{}",
+                    _iter.0 .0,
+                    session_id
+                );
+            }
+        }
     }
 
     pub async fn clear(session_id: u32) {
@@ -365,37 +463,38 @@ impl PtyMap {
         {
             let map = pty_map.lock().await;
             for _iter in map.iter() {
-                let pty_task = _iter.1;
-                if pty_task.session_id == session_id {
-                    let channel_id = *_iter.0;
-                    channel_list.push(channel_id);
-                    if let Some(pty_child) = PtyChildProcessMap::get(channel_id).await {
+                if _iter.0 .0 == session_id {
+                    channel_list.push(_iter.0 .1);
+                    if let Some(pty_child) = PtyChildProcessMap::get(session_id, _iter.0 .1).await {
                         let mut child = pty_child.lock().await;
                         let kill_result = child.kill().await;
-                        hdc::debug!("do map clear kill child, result:{:#?}", kill_result);
+                        hdc::debug!("do map clear kill child, result:{:?}", kill_result);
                         match child.wait().await {
-                            Ok(exit_status) => {               
-                                hdc::debug!("waiting child exit success, status:{:?}.", exit_status);
+                            Ok(exit_status) => {
+                                hdc::debug!(
+                                    "waiting child exit success, status:{:?}.",
+                                    exit_status
+                                );
                             }
                             Err(e) => {
-                                hdc::debug!("waiting child exit fail, error:{:?}.", e);
+                                hdc::info!("waiting child exit fail, error:{:?}.", e);
                             }
                         }
-                        PtyChildProcessMap::del(channel_id).await;
-                    } 
+                        PtyChildProcessMap::del(session_id, _iter.0 .1).await;
+                    }
                     hdc::debug!(
                         "Clear tty task, channel_id:{}, session_id: {}.",
-                        channel_id,
+                        _iter.0 .1,
                         session_id
                     );
                 }
             }
         }
-        let mut map = pty_map.lock().await;
-        for channel_id in channel_list {
-            map.remove(&channel_id);
-            let file_name = format!("{SHELL_TEMP}-{channel_id}");
-            let _ = std::fs::remove_file(file_name);
+        {
+            let mut map = pty_map.lock().await;
+            for channel_id in channel_list {
+                map.remove(&(session_id, channel_id));
+            }
         }
     }
 
@@ -404,20 +503,21 @@ impl PtyMap {
         let map = arc.lock().await;
         let mut result = String::new();
         for _iter in map.iter() {
-            let command =
-                match &_iter.1.cmd {
-                    Some(b) => b,
-                    _ => "",
-                };
-            result.push_str(&format!("session_id:{},\tchannel_id:{},\tcommand:{}\n",
-                _iter.1.session_id, _iter.1.channel_id, command));
+            let command = match &_iter.1.cmd {
+                Some(b) => b,
+                _ => "",
+            };
+            result.push_str(&format!(
+                "session_id:{},\tchannel_id:{},\tcommand:{}\n",
+                _iter.1.session_id, _iter.1.channel_id, command
+            ));
         }
         result
     }
 }
 
 pub async fn stop_task(session_id: u32) {
-    PtyMap::clear(session_id).await;
+    PtyMap::stop_task(session_id).await;
 }
 
 pub async fn dump_task() -> String {

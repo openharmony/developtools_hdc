@@ -22,8 +22,8 @@ use hdc::transfer;
 use hdc::utils;
 #[allow(unused)]
 use hdc::utils::hdc_log::*;
-use std::time::Duration;
 use libc::exit;
+use std::time::Duration;
 
 use std::env;
 use std::io::{self, Error, ErrorKind, Write};
@@ -114,10 +114,10 @@ impl Client {
         match self.command {
             HdcCommand::KernelTargetList
             | HdcCommand::KernelTargetConnect
-            | HdcCommand::UnityHilog =>  self.general_task().await,
-            HdcCommand::FileInit
-            | HdcCommand::FileCheck
-            | HdcCommand::FileRecvInit => self.file_send_task().await,
+            | HdcCommand::UnityHilog => self.general_task().await,
+            HdcCommand::FileInit | HdcCommand::FileCheck | HdcCommand::FileRecvInit => {
+                self.file_send_task().await
+            }
             HdcCommand::AppInit => self.app_install_task().await,
             HdcCommand::AppUninstall => self.app_uninstall_task().await,
             HdcCommand::UnityRunmode
@@ -135,10 +135,15 @@ impl Client {
             | HdcCommand::ForwardRportRemove => {
                 if (self.command == HdcCommand::ForwardRemove
                     || self.command == HdcCommand::ForwardRportRemove)
-                    && self.params.len() < 3 {
-                            return Err(Error::new(
-                                ErrorKind::Other,
-                                format!("arguments are too small for command : {}", self.command as u32)));
+                    && self.params.len() < 3
+                {
+                    return Err(Error::new(
+                        ErrorKind::Other,
+                        format!(
+                            "arguments are too small for command : {}",
+                            self.command as u32
+                        ),
+                    ));
                 }
                 self.forward_task().await
             }
@@ -238,8 +243,7 @@ impl Client {
         let mut stdin = ylong_runtime::io::stdin();
 
         #[cfg(not(target_os = "windows"))]
-        while let Ok(bytes) = stdin.read(&mut buf).await
-        {
+        while let Ok(bytes) = stdin.read(&mut buf).await {
             self.send(&buf[..bytes]).await;
             if buf[..bytes].contains(&0x4_u8) {
                 break;
@@ -294,8 +298,7 @@ impl Client {
 
     async fn file_send_task(&mut self) -> io::Result<()> {
         let mut params = self.params.clone();
-        if self.command == HdcCommand::FileInit ||
-           self.command == HdcCommand::FileRecvInit {
+        if self.command == HdcCommand::FileInit || self.command == HdcCommand::FileRecvInit {
             let command_field_count = 2;
             let current_dir = env::current_dir().unwrap();
             let mut s = current_dir.display().to_string();
@@ -320,7 +323,7 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    println!("{}", String::from_utf8(recv).unwrap());
+                    print!("{}", String::from_utf8(recv).unwrap());
                 }
                 Err(e) => {
                     return Err(e);
@@ -341,7 +344,7 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    if let HdcCommand::KernelWaitFor  = self.command {
+                    if let HdcCommand::KernelWaitFor = self.command {
                         let wait_for = "No connected target\r\n".to_string();
                         if wait_for == String::from_utf8(recv).expect("invalid UTF-8") {
                             self.send(self.params.join(" ").as_bytes()).await;
@@ -350,7 +353,9 @@ impl Client {
                             ylong_runtime::time::sleep(Duration::from_millis(wait_interval)).await;
                         } else {
                             hdc::debug!("exit client");
-                            unsafe {exit(0);}
+                            unsafe {
+                                exit(0);
+                            }
                         }
                     }
                 }
@@ -383,7 +388,7 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    println!("{}", String::from_utf8(recv).unwrap());
+                    print!("{}", String::from_utf8(recv).unwrap());
                 }
                 Err(e) => {
                     return Err(e);
@@ -450,9 +455,7 @@ impl Client {
                 );
                 Ok(())
             }
-            Err(e) => {
-                Err(e)
-            }
+            Err(e) => Err(e),
         }
     }
 }

@@ -19,7 +19,8 @@ use crate::config::ErrCode;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::transfer;
-use libc::{POLLERR, POLLHUP, POLLNVAL, POLLRDHUP, SOCK_STREAM};
+use crate::utils::hdc_log::*;
+use libc::{POLLERR, POLLHUP, POLLIN, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -37,9 +38,9 @@ type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
 pub trait JdwpBase: Send + Sync + 'static {}
 pub struct Jdwp {
     poll_node_map: NodeMap,
-    empty_waiter: Arc<Waiter>,
     new_process_waiter: Arc<Waiter>,
     trackers: Trackers,
+    await_fd: i32,
 }
 
 impl JdwpBase for Jdwp {}
@@ -65,9 +66,9 @@ impl Jdwp {
     pub fn new() -> Self {
         Self {
             poll_node_map: Arc::new(Mutex::new(HashMap::default())),
-            empty_waiter: Arc::new(Waiter::new()),
             new_process_waiter: Arc::new(Waiter::new()),
             trackers: Arc::new(Mutex::new(Vec::new())),
+            await_fd: UdsServer::wrap_event_fd(),
         }
     }
 }
@@ -87,7 +88,7 @@ impl Jdwp {
                     let param_bytes = [fd_bytes, param_bytes].concat();
                     let param_bytes = param_bytes.as_slice();
                     let ret = send_msg(node.fd, fd, param_bytes);
-                    println!("send_fd_to_target ret:{}", ret);
+                    crate::info!("send_fd_to_target ret:{}", ret);
                     return ret > 0;
                 }
             }
@@ -154,13 +155,8 @@ impl Jdwp {
         result
     }
 
-    pub async fn handle_client(
-        fd: i32,
-        waiter: Arc<Waiter>,
-        node_map: NodeMap,
-        trackers: Trackers,
-    ) {
-        println!("handle_client start...");
+    pub async fn handle_client(fd: i32, waiter: Arc<Waiter>, node_map: NodeMap) {
+        crate::info!("handle_client start...");
         let mut buffer: [u8; 1024] = [0; 1024];
         let size = UdsServer::wrap_recv(fd, &mut buffer);
         let u32_size = std::mem::size_of::<u32>();
@@ -169,13 +165,12 @@ impl Jdwp {
         } else if size > u32_size.try_into().unwrap() {
             let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
             let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
-            println!("pid:{}", pid);
+            crate::info!("pid:{}", pid);
             let debug_or_release =
                 u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
-            println!("debug:{}", debug_or_release);
-            let pkg_name =
-                String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
-            println!("pkg name:{}", pkg_name);
+            crate::info!("debug:{}", debug_or_release);
+            let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
+            crate::info!("pkg name:{}", pkg_name);
 
             let node_map = node_map.clone();
             let mut map = node_map.lock().await;
@@ -188,17 +183,15 @@ impl Jdwp {
                     break;
                 }
             }
-            map.remove(&key_);
+            if key_ != -1 {
+                map.remove(&key_);
+            }
             map.insert(fd, node);
             drop(map);
 
-            let trackers = trackers.clone();
-            let node_map = node_map.clone();
-            Self::send_process_list(trackers, node_map).await;
-
             waiter.wake_one();
         } else if size <= 0 {
-            println!("size <= 0");
+            crate::info!("size <= 0");
         }
     }
 
@@ -210,84 +203,67 @@ impl Jdwp {
         socket_name[1..].copy_from_slice(name);
         let addr = UdsAddr::parse_abstract(&socket_name[1..]);
         if let Ok(addr_obj) = &addr {
-            let ret = UdsServer::wrap_bind(fd, addr_obj);
-            if ret.is_err() {
-                println!("bind fail");
+            if let Err(ret) = UdsServer::wrap_bind(fd, addr_obj) {
+                crate::error!("bind fail. {ret:?}");
                 return false;
             }
             let ret = UdsServer::wrap_listen(fd);
             if ret < 0 {
-                println!("listen fail");
+                crate::error!("listen fail, ret = {ret}");
                 return false;
             }
             let node_map = self.poll_node_map.clone();
-            let trackers = self.trackers.clone();
             let waiter = self.new_process_waiter.clone();
             ylong_runtime::spawn(async move {
                 loop {
                     let client_fd = UdsServer::wrap_accept(fd);
                     if client_fd == -1 {
+                        crate::error!("wrap_accept failed");
                         break;
                     }
                     let map = node_map.clone();
-                    let trackers = trackers.clone();
                     let w = waiter.clone();
-                    ylong_runtime::spawn(Self::handle_client(client_fd, w, map, trackers));
+                    ylong_runtime::spawn(Self::handle_client(client_fd, w, map));
                 }
             });
             true
         } else {
-            println!("parse addr fail  ");
+            crate::info!("parse addr fail  ");
             false
         }
     }
 
     pub fn start_data_looper(&self) {
         let node_map = self.poll_node_map.clone();
-        let waiter = self.empty_waiter.clone();
         let trackers = self.trackers.clone();
+        let await_fd = self.await_fd;
         ylong_runtime::spawn(async move {
             loop {
                 let mut poll_nodes = Vec::<PollNode>::new();
-                let mut size = poll_nodes.len();
+                let mut fd_node = PollNode::new(await_fd, 0, "".to_string(), false);
+                fd_node.revents = 0;
+                fd_node.events = POLLIN;
+                poll_nodes.push(fd_node);
+
                 let node_map_value = node_map.lock().await;
-                if node_map_value.is_empty() {
-                    let w = waiter.clone();
-                    drop(node_map_value);
-                    println!("start_data_looper, empty_waiter wait...");
-                    w.wait().await;
-                    println!("start_data_looper, empty_waiter wait continue...");
-                    continue;
-                }
                 let keys = node_map_value.keys();
                 for k in keys {
                     if let Some(n) = node_map_value.get(k) {
                         poll_nodes.push(n.clone());
-                        size = poll_nodes.len();
                     }
                 }
-                if poll_nodes.is_empty() {
-                    continue;
-                }
-                for pnode in &poll_nodes {
-                    println!(
-                        "before poll, node:{},{},{},{}",
-                        pnode.fd, pnode.events, pnode.revents, pnode.ppid
-                    );
-                }
+                let size = poll_nodes.len();
+
                 drop(node_map_value);
                 UdsServer::wrap_poll(poll_nodes.as_mut_slice(), size.try_into().unwrap(), -1);
                 let mut node_map_value = node_map.lock().await;
                 for pnode in &poll_nodes {
-                    println!(
-                        "after poll, node:{},{},{},{}",
-                        pnode.fd, pnode.events, pnode.revents, pnode.ppid
-                    );
-
                     if pnode.revents & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR) != 0 {
+                        crate::info!("start_data_looper remove node:{}", pnode.pkg_name);
                         node_map_value.remove(&pnode.fd);
                         UdsServer::wrap_close(pnode.fd);
-                        break;
+                    } else if pnode.fd == await_fd && pnode.revents & POLLIN != 0 {
+                        UdsServer::wrap_read_fd(await_fd);
                     }
                 }
                 drop(node_map_value);
@@ -303,20 +279,13 @@ impl Jdwp {
             let waiter = self.new_process_waiter.clone();
             waiter.wait().await;
 
-            let node_map = self.poll_node_map.clone();
-            let node_map_value = node_map.lock().await;
-            if !node_map_value.is_empty() {
-                let empty_waiter = self.empty_waiter.clone();
-                empty_waiter.wake_one();
-            }
+            UdsServer::wrap_write_fd(self.await_fd);
         }
     }
 
     pub async fn init(&self) -> ErrCode {
-        println!("jdwp init....");
-
         if !self.jdwp_listen() {
-            println!("jdwp_listen failed");
+            crate::info!("jdwp_listen failed");
             return ErrCode::ModuleJdwpFailed;
         }
 

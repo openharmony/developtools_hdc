@@ -18,12 +18,12 @@
 use crate::config::*;
 
 use hdc::config;
-use hdc::utils;
 use hdc::config::TaskMessage;
 use hdc::host_transfer::host_usb;
-use hdc::serializer::serialize::Serialization;
 use hdc::serializer::native_struct::SessionHandShake;
+use hdc::serializer::serialize::Serialization;
 use hdc::transfer;
+use hdc::utils;
 
 use std::io::{self, Error, ErrorKind};
 use std::path::Path;
@@ -241,15 +241,14 @@ fn get_home_dir() -> String {
 }
 
 fn get_hostname() -> io::Result<String> {
-
     use std::process::Command;
-    
+
     let output = if cfg!(target_os = "windows") {
         Command::new("cmd").args(["/c", "hostname"]).output()
     } else {
         Command::new("cmd").args(["-c", "hostname"]).output()
     };
-   
+
     if let Ok(result) = output {
         Ok(String::from_utf8(result.stdout).unwrap())
     } else {

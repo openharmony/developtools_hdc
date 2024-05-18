@@ -26,18 +26,18 @@ use crate::utils;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 
-use std::io::{self, Error, ErrorKind};
+use crate::config::ConnectType;
+use crate::config::TaskMessage;
+use crate::transfer::base::Reader;
+use crate::transfer::base::Writer;
+use crate::transfer::buffer::ConnectTypeMap;
 use std::collections::HashMap;
+use std::io::{self, Error, ErrorKind};
+use std::string::FromUtf8Error;
 use std::sync::Arc;
 use ylong_runtime::sync::mpsc;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::sync::RwLock;
-use crate::config::TaskMessage;
-use crate::config::ConnectType;
-use crate::transfer::buffer::ConnectTypeMap;
-use crate::transfer::base::Reader;
-use crate::transfer::base::Writer;
-use std::string::FromUtf8Error;
 #[repr(C)]
 pub struct PersistBuffer {
     pub ptr: *const libc::c_char,
@@ -53,7 +53,12 @@ pub fn buf_to_vec(buf: PersistBuffer) -> Vec<u8> {
 extern "C" {
     fn InitHostUsb() -> *mut libc::c_void;
     fn GetReadyUsbDevice(ptr: *mut libc::c_void) -> PersistBuffer;
-    fn OnDeviceConnected(ptr: *mut libc::c_void, connect_key: *mut libc::c_char, len: i32, connectSuccess: bool);
+    fn OnDeviceConnected(
+        ptr: *mut libc::c_void,
+        connect_key: *mut libc::c_char,
+        len: i32,
+        connectSuccess: bool,
+    );
     fn WriteUsb(
         ptr: *mut libc::c_void,
         connect_key: *mut libc::c_char,
@@ -201,7 +206,6 @@ pub async fn recv_channel_message(rd: &mut HostUsbReader) -> io::Result<Vec<u8>>
     rd.read_frame(expected_size as usize)
 }
 
-
 pub fn start_recv(
     ptr: u64,
     connect_key: String,
@@ -235,7 +239,6 @@ pub fn start_recv_once(
     rx
 }
 
-
 type HostUsbWriter_ = Arc<Mutex<HostUsbWriter>>;
 type HostUsbMap_ = Arc<RwLock<HashMap<u32, HostUsbWriter_>>>;
 
@@ -258,10 +261,8 @@ impl HostUsbMap {
         let tail = build_header(session_id, 0, 0);
 
         let instance = Self::get_instance();
-        let map: ylong_runtime::sync::RwLockReadGuard<
-            '_,
-            HashMap<u32, Arc<Mutex<HostUsbWriter>>>,
-        > = instance.read().await;
+        let map: ylong_runtime::sync::RwLockReadGuard<'_, HashMap<u32, Arc<Mutex<HostUsbWriter>>>> =
+            instance.read().await;
         let arc_wr = map.get(&session_id).unwrap();
         let mut wr = arc_wr.lock().await;
         wr.write_all(head)?;
@@ -309,4 +310,3 @@ impl HostUsbMap {
         ConnectTypeMap::del(id).await;
     }
 }
-

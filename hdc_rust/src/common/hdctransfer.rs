@@ -33,8 +33,8 @@ use std::fs::{self, create_dir_all, File};
 use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-#[cfg(feature = "host")]
-extern crate ylong_runtime_static as ylong_runtime;
+// #[cfg(feature = "host")]
+// extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;
 
@@ -52,7 +52,6 @@ extern "C" {
         decompressCapacity: i32,
     ) -> i32;
 }
-
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct HdcTransferBase {
@@ -123,7 +122,11 @@ pub fn check_local_path(
     _optional_name: &str,
     _error: &mut str,
 ) -> bool {
-    crate::debug!("check_local_path, local_path:{}, optional_name:{}", _local_path, _optional_name);
+    crate::debug!(
+        "check_local_path, local_path:{}, optional_name:{}",
+        _local_path,
+        _optional_name
+    );
     let file = metadata(_local_path);
     if let Ok(f) = file {
         if transfer.is_local_dir_exsit.is_none() {
@@ -148,21 +151,29 @@ pub fn check_local_path(
     }
 
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        let local_dir = transfer.local_path.clone().replace(
-            '/', Base::get_path_sep().to_string().as_str()
-        );
+        let local_dir = transfer
+            .local_path
+            .clone()
+            .replace('/', Base::get_path_sep().to_string().as_str());
 
         if let Some(false) = transfer.is_local_dir_exsit {
             if op.contains(Base::get_path_sep()) {
                 let first_sep_index = op.find(Base::get_path_sep()).unwrap();
                 op = op.as_str()[first_sep_index..].to_string();
-                crate::debug!("check_local_path, combine 2 local_dir:{}, op:{}", local_dir, op);
+                crate::debug!(
+                    "check_local_path, combine 2 local_dir:{}, op:{}",
+                    local_dir,
+                    op
+                );
             }
         }
 
         transfer.local_path = Base::combine(local_dir, op);
     }
-    crate::debug!("check_local_path, final transfer.local_path:{}", transfer.local_path);
+    crate::debug!(
+        "check_local_path, final transfer.local_path:{}",
+        transfer.local_path
+    );
     if transfer.local_path.ends_with(Base::get_path_sep()) {
         create_dir_all(transfer.local_path.clone()).is_ok()
     } else {
@@ -194,7 +205,15 @@ fn spawn_handler(
     let file_size = transfer_config.file_size as u64;
     ylong_runtime::spawn(async move {
         let path = thread_path_ref.lock().await;
-        let mut file = File::open(&*path).unwrap();
+        let Ok(mut file) = File::open(&*path) else {
+            crate::debug!("open file failed, path:{}", *path);
+            let _data_message = TaskMessage {
+                channel_id: _channel_id_,
+                command: _command_data,
+                payload: Vec::new(),
+            };
+            return (false, _data_message);
+        };
         let _ = file.seek(std::io::SeekFrom::Start(pos));
         let mut total = Vec::from([0; FILE_PACKAGE_HEAD]);
         let mut buf: [u8; FILE_PACKAGE_PAYLOAD_SIZE] = [0; FILE_PACKAGE_PAYLOAD_SIZE];
@@ -205,8 +224,14 @@ fn spawn_handler(
             package_read_len = FILE_PACKAGE_PAYLOAD_SIZE;
         }
         while read_len < package_read_len {
-            let single_len = file.read(&mut buf[read_len..]).unwrap();
+            let Ok(single_len) = file.read(&mut buf[read_len..]) else {
+                crate::debug!("file read failed, path:{}", *path);
+                break;
+            };
             read_len += single_len;
+            if single_len == 0 && read_len < package_read_len {
+                break;
+            }
         }
         let transfer_compress_type = match CompressType::try_from(compress_type) {
             Ok(compress_type) => compress_type,
@@ -272,6 +297,7 @@ fn is_file_access(path: String) -> bool {
             }
         }
         Err(_e) => {
+            crate::error!("metadata file is error, path:{}", path);
             return false;
         }
     }
@@ -282,7 +308,7 @@ fn is_file_access(path: String) -> bool {
             p.exists()
         }
         Err(e) => {
-            crate::debug!("read_link fail:{:#?}", e);
+            crate::error!("read_link fail:{:#?}", e);
             false
         }
     }
@@ -321,13 +347,18 @@ pub async fn read_and_send_data(
     }
     loop {
         if queue.is_empty() {
+            crate::debug!("read_and_send_data queue is empty");
             break;
         }
-        let handler = queue.pop_front();
-        let handler = handler.unwrap();
-        let (is_finish, task_message) = handler.await.unwrap();
+        let Some(handler) = queue.pop_front() else {
+            continue;
+        };
+        let Ok((is_finish, task_message)) = handler.await else {
+            continue;
+        };
         transfer::put(session_id, task_message).await;
         if is_finish {
+            crate::debug!("read_and_send_data is finish return false");
             return false;
         }
 
@@ -395,6 +426,12 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     });
 
     tbase.index += buffer.len() as u64;
+    crate::debug!(
+        "transfer file [{}] index {} / {}",
+        tbase.local_path.clone(),
+        tbase.index,
+        tbase.file_size
+    );
     if tbase.index >= tbase.file_size {
         return true;
     }
@@ -405,11 +442,18 @@ pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {
     let mut result = Vec::new();
     let dir_path = PathBuf::from(_path);
     if !is_file_access(_path.clone()) {
-        crate::debug!("file is invalid link, path:{}", _path);
+        crate::error!("file is invalid link, path:{}", _path);
         return result;
     }
-    for entry in fs::read_dir(dir_path).unwrap() {
-        let path = entry.unwrap().path();
+    let Ok(dir_list) = fs::read_dir(dir_path) else {
+        crate::error!("read dir fail, path:{}", _path);
+        return result;
+    };
+    for entry in dir_list {
+        let Ok(path) = entry else {
+            continue;
+        };
+        let path = path.path();
         if path.is_file() {
             result.push(path.display().to_string());
         } else {

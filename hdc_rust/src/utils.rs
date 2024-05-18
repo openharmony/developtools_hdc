@@ -93,7 +93,7 @@ pub mod hdc_log {
     macro_rules! trace {
         ($($arg:tt)+) => {
             let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-            hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
+            hilog_rust::debug!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::trace!($($arg)+);
         };
     }
@@ -111,7 +111,7 @@ pub mod hdc_log {
     macro_rules! debug {
         ($($arg:tt)+) => {
             let head = format!("{}:{}", file!().split('/').last().unwrap(), line!());
-            hilog_rust::info!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
+            hilog_rust::debug!(LOG_LABEL, "{} {}", @public(head), @public(format!($($arg)+)));
             log::debug!($($arg)+);
         };
     }

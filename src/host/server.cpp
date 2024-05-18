@@ -149,7 +149,7 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
 #endif
-    if (!CreateProcess(runPath.c_str(), buf, nullptr, nullptr, true, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
+    if (!CreateProcess(runPath.c_str(), buf, nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
         WRITE_LOG(LOG_WARN, "CreateProcess failed with cmd:%s, args:%s, Error Code %d", runPath.c_str(), buf,
                   GetLastError());
         retVal = false;
@@ -229,7 +229,7 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
 
         string sStatus = conStatusDetail[STATUS_UNKNOW];
         if (hdi->connStatus < STATUS_UNAUTH) {
-            if (hdi->connStatus == STATUS_CONNECTED && hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
+            if (hdi->connStatus == STATUS_CONNECTED && hdi->daemonAuthStatus == DAEOMN_UNAUTHORIZED) {
                 sStatus = conStatusDetail[STATUS_UNAUTH];
             } else {
                 sStatus = conStatusDetail[hdi->connStatus];
@@ -245,8 +245,8 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
     } else {
         if (hdi->connStatus == STATUS_CONNECTED) {
             out = Base::StringFormat("%s", hdi->connectKey.c_str());
-            if (hdi->daemonAuthStatus != DAEOMN_AUTH_SUCCESS) {
-                out.append("\tunauthorized");
+            if (hdi->daemonAuthStatus == DAEOMN_UNAUTHORIZED) {
+                out.append("\tUnauthorized");
             }
             out.append("\n");
         }
@@ -913,7 +913,7 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
         if (hChannel->hChildWorkTCP.loop == NULL) {
             WRITE_LOG(LOG_DEBUG, "Childchannel loop is null, cid:%u", hChannel->channelId);
         }
-        uv_close((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
+        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             hChannel->childCleared = true;
             WRITE_LOG(LOG_DEBUG, "Childchannel free callback, cid:%u", hChannel->channelId);

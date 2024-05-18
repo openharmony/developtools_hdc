@@ -15,17 +15,13 @@
 //! base
 #![allow(missing_docs)]
 
-use std::{env, ffi::CString};
+use crate::config::{TLV_MIN_LEN, TLV_TAG_LEN, TLV_VAL_INVALID_LEN, TLV_VAL_LEN, TLV_VAL_MAXLEN};
 use libc::{c_char, c_int};
-use crate::config::{TLV_TAG_LEN, TLV_VAL_LEN, TLV_MIN_LEN, TLV_VAL_MAXLEN, TLV_VAL_INVALID_LEN};
 use std::collections::HashMap;
+use std::{env, ffi::CString};
 
 extern "C" {
-    fn ProgramMutex(
-        procname: *const c_char,
-        checkOrNew: bool,
-        tmpDir: *const c_char,
-    ) -> c_int;
+    fn ProgramMutex(procname: *const c_char, checkOrNew: bool, tmpDir: *const c_char) -> c_int;
 }
 
 pub struct Base {}
@@ -152,9 +148,9 @@ impl Base {
         let mut i = list2.len();
         while i > 0 {
             i -= 1;
-            if list1.ends_with(&list2[0..i+1]) {
+            if list1.ends_with(&list2[0..i + 1]) {
                 // Remove the matched part
-                list2.drain(0..i+1);
+                list2.drain(0..i + 1);
                 break;
             }
         }
@@ -174,11 +170,7 @@ impl Base {
         let ret = unsafe {
             let procname_cstr = CString::new(procname).unwrap();
             let temp_dir_cstr = CString::new(temp_dir).unwrap();
-            ProgramMutex(
-                procname_cstr.as_ptr(),
-                check_or_new,
-                temp_dir_cstr.as_ptr(),
-            )
+            ProgramMutex(procname_cstr.as_ptr(), check_or_new, temp_dir_cstr.as_ptr())
         };
 
         matches!(ret, 0)
@@ -191,16 +183,15 @@ impl Base {
         if tlen == 0 || tlen > TLV_TAG_LEN {
             return "".to_string();
         }
-        let vlen = val.len();
-        if vlen > TLV_VAL_LEN {
-            return "".to_string();
-        }
 
         // append tag
         tlv.push_str(tag);
         tlv.push_str(&" ".repeat(TLV_TAG_LEN - tlen));
         // append len
         let svlen = val.len().to_string();
+        if svlen.len() > TLV_VAL_LEN {
+            return "".to_string();
+        }
         tlv.push_str(svlen.as_str());
         tlv.push_str(&" ".repeat(TLV_VAL_LEN - svlen.len()));
         // append value
@@ -212,11 +203,15 @@ impl Base {
         let mut tlvmap: HashMap<&str, &str> = HashMap::<&str, &str>::new();
         while tlv.len() >= TLV_MIN_LEN && tlv.len() > cur_index {
             // get tag
-            let Some(tag) = tlv.get(cur_index..(cur_index + TLV_TAG_LEN)) else { return None; };
+            let Some(tag) = tlv.get(cur_index..(cur_index + TLV_TAG_LEN)) else {
+                return None;
+            };
             let tag = tag.trim();
             cur_index += TLV_TAG_LEN;
             // get len
-            let Some(svlen) = tlv.get(cur_index..(cur_index + TLV_VAL_LEN)) else { return None; };
+            let Some(svlen) = tlv.get(cur_index..(cur_index + TLV_VAL_LEN)) else {
+                return None;
+            };
             let svlen = svlen.trim();
             cur_index += TLV_VAL_LEN;
             let vlen = svlen.parse::<usize>().unwrap_or(TLV_VAL_INVALID_LEN);
@@ -224,7 +219,9 @@ impl Base {
                 return None;
             }
             // get value
-            let Some(val) = tlv.get(cur_index..(cur_index + vlen)) else { return None; };
+            let Some(val) = tlv.get(cur_index..(cur_index + vlen)) else {
+                return None;
+            };
             let val = val.trim();
             cur_index += vlen;
 

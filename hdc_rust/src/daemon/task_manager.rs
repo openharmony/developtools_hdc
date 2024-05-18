@@ -15,29 +15,24 @@
 //! shell
 
 #[allow(unused_imports)]
-use hdc::common::hdcfile;
-#[allow(unused_imports)]
-use hdc::common::forward;
-use hdc::config::ConnectType;
-use hdc::transfer::UsbMap;
-use hdc::transfer::TcpMap;
-use hdc::transfer::buffer;
+use super::daemon_app;
 use super::shell;
 #[allow(unused_imports)]
-use super::daemon_app;
+use hdc::common::forward;
+#[allow(unused_imports)]
+use hdc::common::hdcfile;
+use hdc::config::ConnectType;
+use hdc::transfer::buffer;
+use hdc::transfer::TcpMap;
+use hdc::transfer::UsbMap;
 
 pub async fn free_session(connect_type: ConnectType, session_id: u32) {
-    
     match connect_type {
-        ConnectType::Bt => {
-
-        }
+        ConnectType::Bt => {}
         ConnectType::Tcp => {
             TcpMap::end(session_id).await;
         }
-        ConnectType::Uart => {
-            
-        }
+        ConnectType::Uart => {}
         ConnectType::Usb(_) => {
             UsbMap::end(session_id).await;
         }
@@ -45,6 +40,8 @@ pub async fn free_session(connect_type: ConnectType, session_id: u32) {
         ConnectType::HostUsb(_) => {
             // add to avoid warning
         }
+
+        ConnectType::Bridge => {}
     }
     stop_task(session_id).await;
 }

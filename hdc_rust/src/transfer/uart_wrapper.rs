@@ -182,7 +182,10 @@ impl QueueManager {
         if let Some(vec) = data_map.get(&session_id) {
             let vec = vec.lock().await;
             if !vec.is_empty() {
-                let arc = vec.get(index).unwrap();
+                let Some(arc) = vec.get(index) else {
+                    crate::error!("get_package get is None");
+                    return None;
+                };
                 let data_mtx = arc.lock().await;
                 return Some(data_mtx.clone());
             }
@@ -214,7 +217,10 @@ impl QueueManager {
         if let Some(vec) = data_map.get(&session_id) {
             let vec = vec.lock().await;
             if !vec.is_empty() {
-                let arc = vec.get(index).unwrap();
+                let Some(arc) = vec.get(index) else {
+                    crate::error!("update_package get is None");
+                    return false;
+                };
                 let mut data_mtx = arc.lock().await;
                 *data_mtx = data;
                 return true;
@@ -263,7 +269,7 @@ impl QueueManager {
         mtx.data_map.remove(&session_id);
         mtx.stop_flag_map.remove(&session_id);
         mtx.thread_map.remove(&session_id);
-        println!("remove_session:{session_id}");
+        crate::info!("remove_session:{session_id}");
     }
 
     async fn check_stop(session_id: u32) -> bool {
@@ -279,9 +285,10 @@ impl QueueManager {
         //   3.收到wakeup,则检查状态是否为ResponseOK 如果是，则remove掉，继续step 1;
         //      如果不是，则检查retry_count, 自减1，继续send， 同时继续超时wait(如果超时，则继续检查状态，retry count 减1，继续send, 超时wait)
         //      retry count为0， 则表示连接中断，stop session
-        println!("session_loop for {}", session_id);
+        crate::info!("session_loop for {}", session_id);
         loop {
             if Self::check_stop(session_id).await {
+                crate::info!("session_loop stop");
                 break;
             }
             let mut first_pkg = Self::get_package(session_id, 0).await;
@@ -289,13 +296,18 @@ impl QueueManager {
                 WaiterManager::wait_empty(session_id).await;
                 first_pkg = Self::get_package(session_id, 0).await;
                 if Self::check_stop(session_id).await {
+                    crate::info!("session_loop stop");
                     break;
                 }
             }
             if Self::check_stop(session_id).await {
+                crate::info!("session_loop stop");
                 break;
             }
-            let mut first_pkg = first_pkg.unwrap();
+            let Some(mut first_pkg) = first_pkg else {
+                crate::info!("session_loop first_pkg is None");
+                break;
+            };
             let mut status = first_pkg.status;
             let mut retry_count = first_pkg.retry_count;
 
@@ -318,14 +330,16 @@ impl QueueManager {
                 WaiterManager::wait_response(session_id).await;
 
                 if Self::check_stop(session_id).await {
+                    crate::info!("session_loop stop");
                     break;
                 }
                 // 收到回复
                 // 重新获取数据
 
-                let first_pkg = Self::get_package(session_id, 0).await;
-
-                let mut first_pkg = first_pkg.unwrap();
+                let Some(mut first_pkg) = Self::get_package(session_id, 0).await else {
+                    crate::info!("session_loop first_pkg is None");
+                    break;
+                };
                 // 得到新状态
                 status = first_pkg.status;
 
@@ -350,9 +364,9 @@ impl QueueManager {
                         break;
                     }
 
-                    let first_pkg = Self::get_package(session_id, 0).await;
-
-                    let first_pkg = first_pkg.unwrap();
+                    let Some(first_pkg) = Self::get_package(session_id, 0).await else {
+                        break;
+                    };
                     status = first_pkg.status;
 
                     match status {
@@ -361,8 +375,9 @@ impl QueueManager {
                             break;
                         }
                         OutputDataStatus::WaitResponse => {
-                            let first_pkg = Self::get_package(session_id, 0).await;
-                            let first_pkg = first_pkg.unwrap();
+                            let Some(first_pkg) = Self::get_package(session_id, 0).await else {
+                                break;
+                            };
                             status = first_pkg.status;
                             retry_count = first_pkg.retry_count;
                             continue;
@@ -376,7 +391,7 @@ impl QueueManager {
             }
         }
         Self::remove_session(session_id).await;
-        println!("session_loop for {} end.", session_id);
+        crate::info!("session_loop for {} end.", session_id);
     }
 }
 
@@ -385,7 +400,7 @@ pub async fn start_session(session_id: u32) {
     let mut mtx = instance.lock().await;
     let thread_map = &mut mtx.thread_map;
     if thread_map.contains_key(&session_id) {
-        println!("session thread has started.");
+        crate::error!("session thread has started.");
         return;
     }
 
@@ -459,8 +474,9 @@ pub async fn on_read_head(head: UartHead) {
         return;
     }
     if is_response(option as u8) {
-        let pkg = QueueManager::get_package(session_id, 0).await;
-        let mut pkg = pkg.unwrap();
+        let Some(mut pkg) = QueueManager::get_package(session_id, 0).await else {
+            return;
+        };
         pkg.status = if option & (UartOption::Ack as u16) > 1 {
             OutputDataStatus::ResponseOk
         } else {

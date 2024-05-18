@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- //! host server & client
+//! host server & client
 
 mod auth;
 mod client;
@@ -26,9 +26,9 @@ mod unittest;
 
 use std::io::ErrorKind;
 
-use hdc::config;
 use hdc::common::base;
 use hdc::common::base::Base;
+use hdc::config;
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
@@ -93,7 +93,9 @@ fn main() {
             if let Err(e) = client::run_client_mode(parsed_cmd).await {
                 match e.kind() {
                     ErrorKind::Other => println!("[Fail]{}", e),
-                    _ => {hdc::trace!("client exit with err: {e:?}");},
+                    _ => {
+                        hdc::trace!("client exit with err: {e:?}");
+                    }
                 }
             }
         })

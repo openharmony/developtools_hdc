@@ -49,6 +49,7 @@ pub enum ConnectType {
     Tcp,
     Uart,
     Bt,
+    Bridge,
     HostUsb(String),
 }
 
@@ -280,6 +281,7 @@ pub const BANNER_SIZE: usize = 12;
 pub const KEY_MAX_SIZE: usize = 32;
 pub const FILE_PACKAGE_HEAD: usize = 64;
 pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
+pub const KERNEL_FILE_NODE_SIZE: u16 = 1024 * 4; // kernel file node 4K buffer
 pub const MAX_PACKET_SIZE_HISPEED: i32 = 512;
 pub const MAX_SIZE_IOBUF: usize = 61440;
 

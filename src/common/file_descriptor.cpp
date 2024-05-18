@@ -55,7 +55,10 @@ bool HdcFileDescriptor::ReadyForRelease()
 void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()> closeFdCallback)
 {
     workContinue = false;
-    NotifyWrite();
+    if (isInteractive) {
+        NotifyWrite();
+    }
+
     callbackCloseFd = closeFdCallback;
     if (tryCloseFdIo && refIO > 0) {
         if (callbackCloseFd != nullptr) {
@@ -93,6 +96,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 
         if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
             WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
+            bFinish = true;
             break;
         }
 #ifndef HDC_HOST
@@ -109,6 +113,9 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "FileIOOnThread select or epoll_wait fdIO:%d error:%d",
                 thisClass->fdIO, errno);
+            if (errno == EINTR || errno == EAGAIN) {
+                continue;
+            }
             bFinish = true;
             break;
         } else if (rc == 0) {

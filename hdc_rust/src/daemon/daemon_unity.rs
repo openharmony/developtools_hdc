@@ -15,11 +15,11 @@
 use super::mount;
 use super::shell::PtyMap;
 use crate::jdwp::Jdwp;
+use crate::sys_para::*;
+use crate::utils::hdc_log::*;
 use hdc::common::hdctransfer;
 use hdc::config::{self, HdcCommand, MessageLevel};
 use libc::sync;
-use crate::sys_para::{*};
-use crate::utils::hdc_log::*;
 
 extern "C" {
     fn Restart();
@@ -38,7 +38,13 @@ async fn echo_client(session_id: u32, channel_id: u32, message: &str, level: Mes
 
 async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
-        echo_client(session_id, channel_id, "Set device run mode successful.", MessageLevel::Ok).await;
+        echo_client(
+            session_id,
+            channel_id,
+            "Set device run mode successful.",
+            MessageLevel::Ok,
+        )
+        .await;
     } else {
         let msg = format!("Set device run mode failed: {}", message);
         echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Fail).await;
@@ -48,7 +54,13 @@ async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool,
 
 async fn echo_reboot_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
-        echo_client(session_id, channel_id, "Reboot successful.", MessageLevel::Ok).await;
+        echo_client(
+            session_id,
+            channel_id,
+            "Reboot successful.",
+            MessageLevel::Ok,
+        )
+        .await;
     } else {
         let msg = format!("Reboot failed: {}", message);
         echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Fail).await;
@@ -56,12 +68,7 @@ async fn echo_reboot_result(session_id: u32, channel_id: u32, result: bool, mess
     task_finish(session_id, channel_id).await;
 }
 
-async fn echo_root_run_mode_result(
-    session_id: u32,
-    channel_id: u32,
-    result: bool,
-    message: &str,
-) {
+async fn echo_root_run_mode_result(session_id: u32, channel_id: u32, result: bool, message: &str) {
     if result {
         let msg = format!("Set {} run mode successful.", message);
         echo_client(session_id, channel_id, msg.as_str(), MessageLevel::Ok).await;
@@ -98,7 +105,7 @@ async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
             session_id,
             channel_id,
             "Cannot set root run mode in undebuggable version.",
-            MessageLevel::Fail
+            MessageLevel::Fail,
         )
         .await;
         task_finish(session_id, channel_id).await;
@@ -110,13 +117,7 @@ async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
     } else if _payload == [b'r'] {
         set_root_run_enable(session_id, channel_id, true).await;
     } else {
-        echo_root_run_mode_result(
-            session_id,
-            channel_id,
-            false,
-            "Unknown command",
-        )
-        .await;
+        echo_root_run_mode_result(session_id, channel_id, false, "Unknown command").await;
     }
 }
 
@@ -126,7 +127,11 @@ async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
         sync();
     };
 
-    let param = String::from_utf8(_payload.to_vec()).unwrap();
+    let param = match String::from_utf8(_payload.to_vec()) {
+        Ok(param) => param,
+        Err(_) => String::from("Unknown"),
+    };
+
     let mut cmd = String::from("reboot");
     if !param.is_empty() {
         cmd.push(',');
@@ -139,8 +144,14 @@ async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
 
 async fn remount_device(session_id: u32, channel_id: u32) {
     unsafe {
-        if libc::getuid() !=0 {
-            echo_client(session_id, channel_id, "Operate need running as root", MessageLevel::Fail).await;
+        if libc::getuid() != 0 {
+            echo_client(
+                session_id,
+                channel_id,
+                "Operate need running as root",
+                MessageLevel::Fail,
+            )
+            .await;
             task_finish(session_id, channel_id).await;
             return;
         }
@@ -155,7 +166,10 @@ async fn remount_device(session_id: u32, channel_id: u32) {
 }
 
 async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
-    let param = String::from_utf8(_payload.to_vec()).unwrap();
+    let param = match String::from_utf8(_payload.to_vec()) {
+        Ok(param) => param,
+        Err(_) => String::from("Unknown"),
+    };
     match param.as_str() {
         config::MODE_USB => {
             let result = set_dev_item(config::ENV_HDC_MODE, config::MODE_USB);
@@ -183,25 +197,25 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
             }
         }
         _ => {
-            echo_device_mode_result(
-                session_id,
-                channel_id,
-                false,
-                "Unknown command",
-            )
-            .await;
+            echo_device_mode_result(session_id, channel_id, false, "Unknown command").await;
         }
     }
 }
 
 async fn do_jdwp_list(session_id: u32, channel_id: u32) {
-    println!("do_jdwp_list");
+    hdc::debug!("do_jdwp_list, session_id {session_id}, channel_id {channel_id}");
     let jdwp = Jdwp::get_instance().clone();
     let process_list = jdwp.get_process_list().await;
     if process_list.is_empty() {
         echo_client(session_id, channel_id, "[Empty]", MessageLevel::Ok).await;
     } else {
-        echo_client(session_id, channel_id, process_list.as_str(), MessageLevel::Ok).await;
+        echo_client(
+            session_id,
+            channel_id,
+            process_list.as_str(),
+            MessageLevel::Ok,
+        )
+        .await;
     }
     task_finish(session_id, channel_id).await;
 }
@@ -211,7 +225,6 @@ async fn do_jdwp_track(session_id: u32, channel_id: u32, payload: &[u8]) {
     if !payload.is_empty() && payload[0] == b'p' {
         debug_or_release = false;
     }
-    println!("do_jdwp_track");
     let jdwp = Jdwp::get_instance().clone();
     jdwp.add_tracker(channel_id, session_id, debug_or_release)
         .await;
@@ -224,28 +237,16 @@ pub async fn command_dispatch(
     _payload: &[u8],
     _payload_size: u16,
 ) -> bool {
-    println!("DaemonUnityTask: command:{:#?}", _command);
+    hdc::info!("DaemonUnityTask: command:{:?}", _command);
     match _command {
-        HdcCommand::UnityReboot => {
-            reboot_device(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::UnityRunmode => {
-            set_device_mode(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::UnityRootrun => {
-            set_root_run(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::JdwpList => {
-            do_jdwp_list(session_id, channel_id).await;
-        }
-        HdcCommand::JdwpTrack => {
-            do_jdwp_track(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::UnityRemount => {
-            remount_device(session_id, channel_id).await;
-        }
+        HdcCommand::UnityReboot => reboot_device(session_id, channel_id, _payload).await,
+        HdcCommand::UnityRunmode => set_device_mode(session_id, channel_id, _payload).await,
+        HdcCommand::UnityRootrun => set_root_run(session_id, channel_id, _payload).await,
+        HdcCommand::JdwpList => do_jdwp_list(session_id, channel_id).await,
+        HdcCommand::JdwpTrack => do_jdwp_track(session_id, channel_id, _payload).await,
+        HdcCommand::UnityRemount => remount_device(session_id, channel_id).await,
         _ => {
-            println!("other command");
+            hdc::error!("other command, {:?}", _command);
         }
     }
     true

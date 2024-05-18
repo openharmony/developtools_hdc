@@ -19,6 +19,8 @@ use super::base::{self, Writer};
 use super::uart::UartWriter;
 use super::usb::{self, UsbReader, UsbWriter};
 use super::{tcp, uart_wrapper};
+#[cfg(feature = "emulator")]
+use crate::daemon_lib::bridge::BridgeMap;
 #[cfg(feature = "host")]
 use crate::host_transfer::host_usb::HostUsbMap;
 
@@ -103,13 +105,22 @@ impl TcpMap {
         let send = serializer::concat_pack(data);
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            crate::error!("get tcp is None, session_id={session_id}");
+            return;
+        };
         let mut wr = arc_wr.lock().await;
         let _ = wr.write_all(send.as_slice()).await;
     }
 
     pub async fn send_channel_message(channel_id: u32, buf: Vec<u8>) -> io::Result<()> {
-        crate::trace!("send channel msg: {:#?}", buf.clone());
+        crate::trace!(
+            "send channel msg: {:?}",
+            buf.iter()
+                .map(|&c| format!("{c:02X}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         let send = [
             u32::to_be_bytes(buf.len() as u32).as_slice(),
             buf.as_slice(),
@@ -169,42 +180,40 @@ impl UsbMap {
         match map.get(&session_id) {
             Some(_wr) => {
                 {
-                    let arc_wr = map.get(&session_id).unwrap();
+                    let Some(arc_wr) = map.get(&session_id) else {
+                        return Err(Error::new(ErrorKind::NotFound, "session not found"));
+                    };
                     let mut wr = arc_wr.lock().await;
                     match wr.write_all(head) {
-                        Ok(_) => {},
+                        Ok(_) => {}
                         Err(e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing head"));
-                        },
+                        }
                     }
-                    
+
                     match wr.write_all(body) {
                         Ok(ret) => {
                             let child_ret = ret;
-                        },
+                        }
                         Err(e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing body"));
-                        },
+                        }
                     }
 
-                    if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0 ) && (child_ret > 0) {
+                    if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0) && (child_ret > 0) {
                         let tail = usb::build_header(session_id, 0, 0);
                         // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
                         // so, we send dummy packet to prevent zero packet generate
                         match wr.write_all(tail) {
-                            Ok(_) => {},
+                            Ok(_) => {}
                             Err(e) => {
                                 return Err(Error::new(ErrorKind::Other, "Error writing tail"));
-                            },
+                            }
                         }
                     }
-
-                    
                 }
             }
-            None => {
-                return Err(Error::new(ErrorKind::NotFound, "session not found"))
-            }
+            None => return Err(Error::new(ErrorKind::NotFound, "session not found")),
         }
         Ok(())
     }
@@ -245,7 +254,9 @@ impl UartMap {
     pub async fn put(session_id: u32, data: Vec<u8>) -> io::Result<()> {
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            return Err(Error::new(ErrorKind::NotFound, "session not found"));
+        };
         let wr = arc_wr.lock().await;
         wr.write_all(data)?;
         Ok(())
@@ -256,7 +267,7 @@ impl UartMap {
         let mut map = instance.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         if map.contains_key(&session_id) {
-            println!("uart start, contain session:{}", session_id);
+            crate::error!("uart start, contain session:{}", session_id);
             return;
         }
         map.insert(session_id, arc_wr);
@@ -278,6 +289,10 @@ pub async fn put(session_id: u32, data: TaskMessage) {
             uart_wrapper::wrap_put(session_id, data, 0, 0).await;
         }
         Some(ConnectType::Bt) => {}
+        Some(ConnectType::Bridge) => {
+            #[cfg(feature = "emulator")]
+            BridgeMap::put(session_id, data).await;
+        }
         Some(ConnectType::HostUsb(_mount_point)) => {
             #[cfg(feature = "host")]
             if let Err(e) = HostUsbMap::put(session_id, data).await {
@@ -336,7 +351,9 @@ impl ChannelMap {
     pub async fn recv() -> io::Result<Vec<u8>> {
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_rd = map.get(&0).unwrap();
+        let Some(arc_rd) = map.get(&0) else {
+            return Err(Error::new(ErrorKind::NotFound, "channel not found"));
+        };
         let mut rd = arc_rd.lock().await;
         tcp::recv_channel_message(&mut rd).await
     }

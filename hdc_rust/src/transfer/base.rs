@@ -84,9 +84,9 @@ pub async fn unpack_task_message_lock(
             if serializer::HEAD_SIZE + expected_head_size + expected_data_size != pack_size as usize
             {
                 crate::warn!(
-            "protocol size diff: {pack_size} != {} + {expected_head_size} + {expected_data_size}",
-            serializer::HEAD_SIZE
-        );
+                    "protocol size diff: {pack_size} != {} + {expected_head_size} + {expected_data_size}",
+                    serializer::HEAD_SIZE
+                );
             }
 
             if expected_head_size + expected_data_size == 0
@@ -95,11 +95,8 @@ pub async fn unpack_task_message_lock(
                 return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
             }
 
-            let protect = body.split_at(expected_head_size).0;
-            let payload = match expected_head_size + expected_data_size <= body.len() {
-                true => body.split_at(expected_head_size).1,
-                false => body.split_at(expected_head_size).1.split_at(expected_data_size).0,
-            };
+            let (protect, payload_raw) = body.split_at(expected_head_size);
+            let (payload, _) = payload_raw.split_at(expected_data_size);
 
             let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
             let channel_id = payload_protect.channel_id;
@@ -129,10 +126,10 @@ pub async fn unpack_task_message_lock(
                         if packet_size == 0 {
                             continue;
                         }
-                        let mut payload1 = rd.read_frame(packet_size as usize).unwrap();
+                        let mut payload1 = rd.read_frame(packet_size as usize)?;
                         total_payload.append(&mut payload1);
                         remaining -= packet_size as i32;
-                        println!("remaining:{}, packet_size:{}", remaining, packet_size);
+                        crate::debug!("remaining:{}, packet_size:{}", remaining, packet_size);
                         if remaining == 0 {
                             let _ = tx
                                 .send(TaskMessage {
@@ -145,7 +142,7 @@ pub async fn unpack_task_message_lock(
                         }
                     }
                     Err(e) => {
-                        println!("check head error: {:#?}", e);
+                        crate::error!("check head error: {:?}", e);
                         return Err(e);
                     }
                 }
@@ -161,7 +158,7 @@ pub async fn unpack_task_message_lock(
             Ok(())
         }
         Err(e) => {
-            println!("uart unpack_task_message_lock, err:{:#?}", e);
+            crate::error!("uart unpack_task_message_lock, err:{:?}", e);
             Err(e)
         }
     }
@@ -196,11 +193,8 @@ pub fn unpack_task_message(
             return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
         }
 
-        let protect = body.split_at(expected_head_size).0;
-        let payload = match expected_head_size + expected_data_size <= body.len() {
-            true => body.split_at(expected_head_size).1,
-            false => body.split_at(expected_head_size).1.split_at(expected_data_size).0,
-        };
+        let (protect, payload_raw) = body.split_at(expected_head_size);
+        let (payload, _) = payload_raw.split_at(expected_data_size);
 
         let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
         let channel_id = payload_protect.channel_id;

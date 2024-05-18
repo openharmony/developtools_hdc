@@ -309,7 +309,6 @@ pub async fn send_channel_data(channel_id: u32, data: Vec<u8>) {
     let _ = TcpMap::send_channel_message(channel_id, data).await;
 }
 
-#[repr(u8)]
 pub enum EchoLevel {
     INFO,
     FAIL,

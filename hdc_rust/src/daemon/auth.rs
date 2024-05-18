@@ -75,7 +75,7 @@ impl AuthStatusMap {
 
     async fn put(session_id: u32, auth_status: AuthStatus) {
         hdc::info!(
-            "update auth status {:#?} for session {}",
+            "update auth status {:?} for session {}",
             auth_status,
             session_id
         );
@@ -142,7 +142,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
         version: get_version(),
     };
 
-    hdc::info!("send handshake: {:#?}", send);
+    hdc::info!("send handshake: {:?}", send);
     let message = TaskMessage {
         channel_id,
         command: HdcCommand::KernelHandshake,
@@ -376,7 +376,7 @@ pub async fn handshake_init_new(session_id: u32, channel_id: u32) -> io::Result<
         version: get_version(),
     };
 
-    hdc::info!("send handshake: {:#?}", send);
+    hdc::info!("send handshake: {:?}", send);
     let message = TaskMessage {
         channel_id,
         command: HdcCommand::KernelHandshake,
@@ -547,7 +547,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
 
     let mut recv = native_struct::SessionHandShake::default();
     recv.parse(task_message.payload)?;
-    hdc::info!("recv handshake: {:#?}", recv);
+    hdc::info!("recv handshake: {:?}", recv);
     if recv.banner != HANDSHAKE_MESSAGE {
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }
@@ -674,10 +674,10 @@ pub fn clear_auth_pub_key_file() {
     let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
     match std::fs::remove_file(&file_name) {
         Ok(_) => {
-            hdc::info!("remove pubkey file {:#?} success", file_name);
+            hdc::info!("remove pubkey file {:?} success", file_name);
         }
         Err(err) => {
-            hdc::error!("remove pubkey file {:#?} failed: {}", file_name, err);
+            hdc::error!("remove pubkey file {:?} failed: {}", file_name, err);
         }
     }
 }
@@ -701,7 +701,7 @@ fn read_known_hosts_pubkey() -> Vec<String> {
         hdc::debug!("read {} known hosts from file", key_vec.len());
         key_vec
     } else {
-        hdc::info!("pubkey file {:#?} not exists", file_name);
+        hdc::info!("pubkey file {:?} not exists", file_name);
         vec![]
     }
 }
@@ -709,7 +709,7 @@ fn read_known_hosts_pubkey() -> Vec<String> {
 fn write_known_hosts_pubkey(pubkey: &String) -> io::Result<()> {
     let file_name = Path::new(config::RSA_PUBKEY_PATH).join(config::RSA_PUBKEY_NAME);
     if !file_name.exists() {
-        hdc::info!("will create pubkeys file at {:#?}", file_name);
+        hdc::info!("will create pubkeys file at {:?}", file_name);
 
         if let Err(e) = std::fs::create_dir_all(config::RSA_PUBKEY_PATH) {
             log::error!("create pubkeys dir: {}", e.to_string());
@@ -840,6 +840,7 @@ async fn generate_token() -> io::Result<String> {
     let token = random_vec.join("");
     Ok(token)
 }
+
 async fn generate_token_wait() -> String {
     loop {
         match generate_token().await {

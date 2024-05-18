@@ -127,6 +127,7 @@ template("hdcd_source_set") {
     }
 
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "c_utils:utilsbase",
       "hilog:libhilog",
       "init:libbegetutil",
@@ -135,16 +136,8 @@ template("hdcd_source_set") {
       "openssl:libcrypto_shared",
     ]
 
-    include_dirs = [
-      "//third_party/bounds_checking_function/include",
-      "//third_party/lz4/lib",
-      "//third_party/openssl/include",
-      "//third_party/libuv",
-    ]
-
     if (build_selinux) {
       external_deps += [ "selinux:libselinux" ]
-      include_dirs += [ "//third_party/selinux/libselinux/include" ]
       defines += [ "SURPPORT_SELINUX" ]
       if (image_name == "updater") {
         defines += [ "UPDATER_MODE" ]
@@ -373,7 +366,6 @@ ohos_executable("hdc") {
 
   if (!(is_mingw || is_mac) && build_selinux) {
     external_deps += [ "selinux:libselinux" ]
-    include_dirs = [ "//third_party/selinux/libselinux/include" ]
     defines += [ "SURPPORT_SELINUX" ]
   }
 
@@ -451,6 +443,11 @@ action("hdc_hash_gen") {
 }
 
 config("hdc_register_config") {
+  include_dirs = [
+    "src/common",
+    "src/daemon",
+  ]
+
   cflags_cc = [
     "-fexceptions",
     "-fno-complete-member-pointers",
@@ -480,7 +477,7 @@ ohos_shared_library("hdc_register") {
     "src/register/hdc_jdwp.cpp",
   ]
 
-  configs = [ ":hdc_register_config" ]
+  public_configs = [ ":hdc_register_config" ]
 
   innerapi_tags = [ "platformsdk" ]
   subsystem_name = "developtools"

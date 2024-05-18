@@ -134,6 +134,9 @@ impl FileTaskMap {
 
 async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+        crate::error!(
+            "check_local_path get task is none session_id={session_id},channel_id={channel_id}"
+        );
         return false;
     };
     let mut file_task = task.lock().await;
@@ -198,9 +201,7 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
 
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
         crate::error!(
-            "begin_transfer get task is none session_id={:#?},channel_id={:#?}",
-            session_id,
-            channel_id
+            "begin_transfer get task is none session_id={session_id},channel_id={channel_id}"
         );
         return false;
     };
@@ -227,9 +228,7 @@ async fn set_master_parameters(
 ) -> bool {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
         crate::error!(
-            "set_master_parameters get task is none session_id={:#?},channel_id={:#?}",
-            session_id,
-            channel_id
+            "set_master_parameters get task is none session_id={session_id},channel_id={channel_id}"
         );
         return false;
     };
@@ -332,9 +331,7 @@ async fn put_file_check(session_id: u32, channel_id: u32) {
 pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
         crate::error!(
-            "check_slaver get task is none session_id={:#?},channel_id={:#?}",
-            session_id,
-            channel_id
+            "check_slaver get task is none session_id={session_id:?},channel_id={channel_id:?}"
         );
         return false;
     };
@@ -395,10 +392,16 @@ async fn put_file_begin(session_id: u32, channel_id: u32) {
 
 async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+        crate::error!(
+            "transfer_next get task is none session_id={session_id:?},channel_id={channel_id:?}"
+        );
         return false;
     };
     let mut task = task.lock().await;
     let Some(local_path) = task.transfer.task_queue.pop() else {
+        crate::error!(
+            "transfer_next get local path is none session_id={session_id:?},channel_id={channel_id:?}"
+        );
         return false;
     };
     task.transfer.local_path = local_path;
@@ -410,6 +413,9 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
 
 async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+        crate::error!(
+            "on_all_transfer_finish get task is none session_id={session_id:?},channel_id={channel_id:?}"
+        );
         return;
     };
     let task = task.lock().await;
@@ -454,9 +460,7 @@ async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
     if _payload[0] == 1 {
         let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
             crate::error!(
-                "do_file_finish get task is none session_id={:#?},channel_id={:#?}",
-                session_id,
-                channel_id
+                "do_file_finish get task is none session_id={session_id:?},channel_id={channel_id:?}"
             );
             return;
         };
@@ -482,6 +486,9 @@ async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
 
 async fn put_file_finish(session_id: u32, channel_id: u32) {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+        crate::error!(
+            "put_file_finish get task is none session_id={session_id:?},channel_id={channel_id:?}"
+        );
         return;
     };
     let mut task = task.lock().await;
@@ -512,8 +519,8 @@ pub async fn command_dispatch(
                     begin_transfer(session_id, channel_id, &str).await;
                 }
                 Err(e) => {
-                    println!("error {}", e);
-                    let err_msg = format!("Transfer failed: arguments is invalid {:#?}", e);
+                    let err_msg = format!("Transfer failed: arguments is invalid {:?}", e);
+                    crate::error!("HdcCommand::FileInit: {}", err_msg);
                     echo_finish(session_id, channel_id, err_msg.to_string()).await;
                 }
             }
@@ -536,6 +543,9 @@ pub async fn command_dispatch(
         }
         HdcCommand::FileBegin => {
             let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+                crate::error!(
+                    "command_dispatch get task is none session_id={session_id:?},channel_id={channel_id:?}"
+                );
                 return false;
             };
             let task = task.lock().await;
@@ -543,6 +553,9 @@ pub async fn command_dispatch(
         }
         HdcCommand::FileData => {
             let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+                crate::error!(
+                    "command_dispatch get task is none session_id={session_id:?},channel_id={channel_id:?}"
+                );
                 return false;
             };
             let mut task = task.lock().await;
@@ -558,7 +571,7 @@ pub async fn command_dispatch(
             do_file_finish(session_id, channel_id, _payload).await;
         }
         _ => {
-            println!("others");
+            crate::error!("others, command {:?}", _command);
         }
     }
 

@@ -16,7 +16,7 @@
 #![allow(missing_docs)]
 
 use crate::config::KERNEL_FILE_NODE_SIZE;
-#[allow(unused)]
+#[cfg(not(feature = "host"))]
 use crate::utils::hdc_log::*;
 use std::fs::OpenOptions;
 use std::fs::{self, File};
@@ -49,9 +49,9 @@ impl FileManager {
                     self.file = Some(f);
                     result = true;
                 }
-                Err(_e) => {
-                    println!("failed to open file {:?}", _e);
-                    err_msg = format!("Transfer {} failed: {:#?}.", path, _e);
+                Err(e) => {
+                    err_msg = format!("Transfer {} failed: {:?}.", path, e);
+                    crate::error!("{err_msg}");
                     result = false;
                 }
             }

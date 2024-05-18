@@ -183,6 +183,7 @@ impl QueueManager {
             let vec = vec.lock().await;
             if !vec.is_empty() {
                 let Some(arc) = vec.get(index) else {
+                    crate::error!("get_package get is None");
                     return None;
                 };
                 let data_mtx = arc.lock().await;
@@ -217,6 +218,7 @@ impl QueueManager {
             let vec = vec.lock().await;
             if !vec.is_empty() {
                 let Some(arc) = vec.get(index) else {
+                    crate::error!("update_package get is None");
                     return false;
                 };
                 let mut data_mtx = arc.lock().await;
@@ -267,7 +269,7 @@ impl QueueManager {
         mtx.data_map.remove(&session_id);
         mtx.stop_flag_map.remove(&session_id);
         mtx.thread_map.remove(&session_id);
-        println!("remove_session:{session_id}");
+        crate::info!("remove_session:{session_id}");
     }
 
     async fn check_stop(session_id: u32) -> bool {
@@ -283,9 +285,10 @@ impl QueueManager {
         //   3.收到wakeup,则检查状态是否为ResponseOK 如果是，则remove掉，继续step 1;
         //      如果不是，则检查retry_count, 自减1，继续send， 同时继续超时wait(如果超时，则继续检查状态，retry count 减1，继续send, 超时wait)
         //      retry count为0， 则表示连接中断，stop session
-        println!("session_loop for {}", session_id);
+        crate::info!("session_loop for {}", session_id);
         loop {
             if Self::check_stop(session_id).await {
+                crate::info!("session_loop stop");
                 break;
             }
             let mut first_pkg = Self::get_package(session_id, 0).await;
@@ -293,13 +296,16 @@ impl QueueManager {
                 WaiterManager::wait_empty(session_id).await;
                 first_pkg = Self::get_package(session_id, 0).await;
                 if Self::check_stop(session_id).await {
+                    crate::info!("session_loop stop");
                     break;
                 }
             }
             if Self::check_stop(session_id).await {
+                crate::info!("session_loop stop");
                 break;
             }
             let Some(mut first_pkg) = first_pkg else {
+                crate::info!("session_loop first_pkg is None");
                 break;
             };
             let mut status = first_pkg.status;
@@ -324,12 +330,14 @@ impl QueueManager {
                 WaiterManager::wait_response(session_id).await;
 
                 if Self::check_stop(session_id).await {
+                    crate::info!("session_loop stop");
                     break;
                 }
                 // 收到回复
                 // 重新获取数据
 
                 let Some(mut first_pkg) = Self::get_package(session_id, 0).await else {
+                    crate::info!("session_loop first_pkg is None");
                     break;
                 };
                 // 得到新状态
@@ -383,7 +391,7 @@ impl QueueManager {
             }
         }
         Self::remove_session(session_id).await;
-        println!("session_loop for {} end.", session_id);
+        crate::info!("session_loop for {} end.", session_id);
     }
 }
 
@@ -392,7 +400,7 @@ pub async fn start_session(session_id: u32) {
     let mut mtx = instance.lock().await;
     let thread_map = &mut mtx.thread_map;
     if thread_map.contains_key(&session_id) {
-        println!("session thread has started.");
+        crate::error!("session thread has started.");
         return;
     }
 

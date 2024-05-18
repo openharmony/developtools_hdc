@@ -89,6 +89,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
 async fn remove_task(session_id: u32, channel_id: u32) {
     AppTaskMap::remove(session_id, channel_id).await;
     FileTaskMap::remove(session_id, channel_id).await;
+    forward::free_channel_task(session_id, channel_id).await;
     // shell & hilog task
     if let Some(pty_task) = PtyMap::get(session_id, channel_id).await {
         let _ = &pty_task.tx.send(vec![0x04_u8]).await;

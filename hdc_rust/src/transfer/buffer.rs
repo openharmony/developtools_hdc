@@ -316,6 +316,17 @@ pub enum EchoLevel {
     OK, // this echo maybe OK with carriage return and newline
 }
 
+impl EchoLevel {
+    pub fn convert_from_message_level(cmd: u8) -> Result<Self, Error> {
+        match cmd {
+            0 => Ok(Self::FAIL),
+            1 => Ok(Self::INFO),
+            2 => Ok(Self::OK),
+            _ => Err(Error::new(ErrorKind::Other, "invalid message level type"))
+        }
+    }
+}
+
 pub async fn send_channel_msg(channel_id: u32, level: EchoLevel, msg: String) -> io::Result<()> {
     let data = match level {
         EchoLevel::INFO => format!("[Info]{msg}") + "\r\n",

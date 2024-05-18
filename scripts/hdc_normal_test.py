@@ -185,6 +185,18 @@ def test_fport_cmd():
         assert check_hdc_cmd(f"rport rm {rport}", "success")
         assert not check_hdc_cmd("rport ls", fport) and not check_hdc_cmd("fport ls", fport)
 
+    task_str1 = "tcp:33333 tcp:33333"
+    assert check_hdc_cmd(f"fport {task_str1}", "Forwardport result:OK")
+    assert check_hdc_cmd(f"fport rm {task_str1}", "success")
+    assert check_hdc_cmd(f"fport {task_str1}", "Forwardport result:OK")
+    assert check_hdc_cmd(f"fport rm {task_str1}", "success")
+
+    task_str2 = "tcp:44444 tcp:44444"
+    assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
+    assert check_hdc_cmd(f"rport rm {task_str2}", "success")
+    assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
+    assert check_hdc_cmd(f"rport rm {task_str2}", "success")    
+
 
 def test_shell_cmd_timecost():
     assert check_cmd_time(

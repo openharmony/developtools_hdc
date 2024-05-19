@@ -188,16 +188,6 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
     loop {
         let recv_opt = transfer::tcp::recv_channel_message(&mut rd).await;
         if recv_opt.is_err() {
-            let session_id = match task::ConnectMap::get_session_id(connect_key.clone()).await {
-                Some(seid) => seid,
-                None => return Ok(()),
-            };
-            let message = TaskMessage {
-                channel_id,
-                command: HdcCommand::KernelChannelClose,
-                payload: vec![0],
-            };
-            transfer::put(session_id, message).await;
             return Ok(());
         }
         let recv = recv_opt.unwrap();

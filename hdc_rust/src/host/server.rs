@@ -17,7 +17,6 @@ use crate::task;
 
 use hdc::config;
 use hdc::config::HdcCommand;
-use hdc::config::TaskMessage;
 use hdc::host_transfer::host_usb;
 use hdc::transfer;
 use hdc::utils;
@@ -71,7 +70,7 @@ async fn start_client_listen(addr_str: String) -> io::Result<()> {
     loop {
         let (stream, addr) = listener.accept().await?;
         hdc::info!("accepted client {addr}");
-        ylong_runtime::spawn(handle_client(stream));
+        let _ = ylong_runtime::spawn(handle_client(stream)).await;
     }
 }
 
@@ -188,16 +187,6 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
     loop {
         let recv_opt = transfer::tcp::recv_channel_message(&mut rd).await;
         if recv_opt.is_err() {
-            let session_id = match task::ConnectMap::get_session_id(connect_key.clone()).await {
-                Some(seid) => seid,
-                None => return Ok(()),
-            };
-            let message = TaskMessage {
-                channel_id,
-                command: HdcCommand::KernelChannelClose,
-                payload: vec![0],
-            };
-            transfer::put(session_id, message).await;
             return Ok(());
         }
         let recv = recv_opt.unwrap();

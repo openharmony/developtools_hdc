@@ -76,6 +76,7 @@ lazy_static! {
 
 const MAX_CMD_LEN: usize = 3;
 const MAX_CONNECTKEY_SIZE: u16 = 32;
+const COMBINED_COMMAND_LEN: usize = 2;
 
 // TODO: trial tree
 pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
@@ -125,11 +126,19 @@ pub fn parse_command(args: std::env::Args) -> io::Result<ParsedCommand> {
 }
 
 pub fn exchange_parsed_for_daemon(mut parsed: Parsed) -> Parsed  {
-    let valid_boot_cmd = vec!["-bootloader", "-recovery", "-flashd"];
     if let Some(HdcCommand::UnityReboot) = parsed.command {
-        if parsed.parameters.len() > 1 &&  valid_boot_cmd.contains(&parsed.parameters[1].as_str()) {
-            parsed.parameters.remove(1);
+        if parsed.parameters.len() > COMBINED_COMMAND_LEN {
+            let valid_boot_cmd = ["-bootloader", "-recovery", "-flashd"];
+            for str in valid_boot_cmd {
+                if str == parsed.parameters[COMBINED_COMMAND_LEN].as_str() {
+                    parsed.parameters.clear();
+                    parsed.parameters.push(str.to_string()[1..].to_string());
+                    return parsed;
+                }
+            }
         }
+        parsed.parameters.clear();
+        hdc::info!("parsed parameter is {:?}", parsed.parameters);
     }
     parsed
 }

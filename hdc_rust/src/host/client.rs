@@ -469,10 +469,7 @@ fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
         | HdcCommand::KernelCheckServer
         | HdcCommand::KernelTargetConnect
         | HdcCommand::KernelCheckDevice
-        | HdcCommand::KernelWaitFor
-        | HdcCommand::KernelServerKill
-        | HdcCommand::ForwardList
-        | HdcCommand::ForwardRemove => "".to_string(),
+        | HdcCommand::KernelServerKill => "".to_string(),
         _ => {
             if key.is_empty() {
                 "any".to_string()

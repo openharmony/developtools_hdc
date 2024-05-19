@@ -477,7 +477,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     panic_handler::init();
     if args.len() == 2 && args[1] == "-v" {
-        hdc::info!("{}", config::get_version());
+        println!("{}", config::get_version());
         return;
     }
     logger_init(get_logger_lv());

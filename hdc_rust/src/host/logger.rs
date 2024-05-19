@@ -95,13 +95,11 @@ impl HostLoggerMeta {
     fn get_running_mode() -> String {
         let instance = Self::get_instance();
         let meta = instance.lock().unwrap();
-        let mut running_mode = String::new();
         if meta.run_in_server {
-            running_mode += "server";
+            "server".to_string()
         } else {
-            running_mode += "client";
+            "client".to_string()
         }
-        running_mode
     }
 }
 

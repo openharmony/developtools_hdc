@@ -331,6 +331,13 @@ impl ForwardTaskMap {
         map.insert((session_id, channel_id), value.clone());
     }
 
+    pub async fn remove(session_id: u32, channel_id: u32) {
+        crate::info!("remove, session:{}, channel:{}", session_id, channel_id);
+        let map = Self::get_instance();
+        let mut map = map.lock().await;
+        let _ = map.remove(&(session_id, channel_id));
+    }
+
     pub async fn get(session_id: u32, channel_id: u32) -> Option<HdcForward> {
         let arc = Self::get_instance();
         let map = arc.lock().await;
@@ -805,7 +812,7 @@ pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remo
             return;
         }
     }
-    ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
+    ForwardTaskMap::remove(session_id, channel_id).await;
 }
 
 pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {

@@ -50,6 +50,7 @@ use std::time::Duration;
 use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
+use ylong_runtime::task::JoinHandle;
 
 pub const ARG_COUNT2: u32 = 2;
 pub const BUF_SIZE_SMALL: usize = 256;
@@ -257,6 +258,37 @@ impl TcpWriteStreamMap {
     }
 }
 
+type TcpListener_ = Arc<Mutex<JoinHandle<()>>>;
+type TcpListenerMap_ = Arc<RwLock<HashMap<u32, TcpListener_>>>;
+pub struct TcpListenerMap {}
+impl TcpListenerMap {
+    fn get_instance() -> TcpListenerMap_ {
+        static mut TCP_MAP: Option<TcpListenerMap_> = None;
+        unsafe {
+            TCP_MAP
+                .get_or_insert_with(|| Arc::new(RwLock::new(HashMap::new())))
+                .clone()
+        }
+    }
+    #[allow(unused)]
+    async fn put(id: u32, listener: JoinHandle<()>) {
+        let instance = Self::get_instance();
+        let mut map = instance.write().await;
+        let arc_listener = Arc::new(Mutex::new(listener));
+        map.insert(id, arc_listener);
+        crate::info!("forward tcp put listener id = {id}");
+    }
+
+    pub async fn end(id: u32) {
+        let instance = Self::get_instance();
+        let mut map = instance.write().await;
+        if let Some(arc_listener) = map.remove(&id) {
+            let join_handle = arc_listener.lock().await;
+            join_handle.cancel();
+        }
+    }
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 enum ForwardType {
     #[default]
@@ -297,6 +329,13 @@ impl ForwardTaskMap {
         let map = Self::get_instance();
         let mut map = map.lock().await;
         map.insert((session_id, channel_id), value.clone());
+    }
+
+    pub async fn remove(session_id: u32, channel_id: u32) {
+        crate::info!("remove, session:{}, channel:{}", session_id, channel_id);
+        let map = Self::get_instance();
+        let mut map = map.lock().await;
+        let _ = map.remove(&(session_id, channel_id));
     }
 
     pub async fn get(session_id: u32, channel_id: u32) -> Option<HdcForward> {
@@ -388,6 +427,10 @@ impl ForwardTaskMap {
         }
         result
     }
+}
+
+pub async fn free_channel_task(session_id: u32, channel_id: u32) {
+    free_context(session_id, channel_id, 0, false).await;
 }
 
 pub async fn stop_task(session_id: u32) {
@@ -607,7 +650,7 @@ pub async fn forward_tcp_accept(
     match result {
         Ok(listener) => {
             crate::info!("forward_tcp_accept bind ok");
-            ylong_runtime::spawn(async move {
+            let join_handle = ylong_runtime::spawn(async move {
                 loop {
                     let client = listener.accept().await;
                     if client.is_err() {
@@ -615,11 +658,12 @@ pub async fn forward_tcp_accept(
                     }
                     let (stream, _addr) = client.unwrap();
                     let (rd, wr) = stream.into_split();
-                    TcpWriteStreamMap::put(cid, wr).await;
+                    TcpWriteStreamMap::put(channel_id, wr).await;
                     ylong_runtime::spawn(on_accept(session_id, channel_id, value.clone(), cid));
                     recv_tcp_msg(session_id, channel_id, rd, cid).await;
                 }
             });
+            TcpListenerMap::put(channel_id, join_handle).await;
             Ok(())
         }
         Err(e) => {
@@ -693,7 +737,7 @@ pub async fn daemon_connect_tcp(session_id: u32, channel_id: u32, port: u32, cid
     };
     send_active_master(session_id, channel_id).await;
     let (rd, wr) = stream.into_split();
-    TcpWriteStreamMap::put(cid, wr).await;
+    TcpWriteStreamMap::put(channel_id, wr).await;
     recv_tcp_msg(session_id, channel_id, rd, cid).await;
 }
 
@@ -750,7 +794,8 @@ pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remo
     }
     match task.forward_type {
         ForwardType::Tcp | ForwardType::Jdwp | ForwardType::Ark => {
-            TcpWriteStreamMap::end(task.context_forward.id).await;
+            TcpWriteStreamMap::end(channel_id).await;
+            TcpListenerMap::end(channel_id).await;
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             #[cfg(not(target_os = "windows"))]
@@ -760,7 +805,7 @@ pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remo
             return;
         }
     }
-    ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
+    ForwardTaskMap::remove(session_id, channel_id).await;
 }
 
 pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
@@ -1414,7 +1459,7 @@ pub async fn read_data_to_forward(session_id: u32, channel_id: u32) -> bool {
 pub async fn write_forward_bufer(
     session_id: u32,
     channel_id: u32,
-    id: u32,
+    _id: u32,
     content: Vec<u8>,
 ) -> bool {
     let Some(mut task) = ForwardTaskMap::get(session_id, channel_id).await else {
@@ -1425,7 +1470,7 @@ pub async fn write_forward_bufer(
     };
     let task = &mut task;
     if task.forward_type == ForwardType::Tcp {
-        TcpWriteStreamMap::write(id, content).await;
+        TcpWriteStreamMap::write(channel_id, content).await;
     } else {
         #[cfg(not(target_os = "windows"))]
         {

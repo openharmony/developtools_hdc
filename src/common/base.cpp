@@ -981,15 +981,26 @@ namespace Base {
             uv_fs_close(nullptr, &req, fd, nullptr);
             return ERR_BUF_OVERFLOW;
         }
-        HANDLE hMutex = CreateMutex(nullptr, FALSE, buf);
-        DWORD dwError = GetLastError();
-        if (ERROR_ALREADY_EXISTS == dwError || ERROR_ACCESS_DENIED == dwError) {
-            uv_fs_close(nullptr, &req, fd, nullptr);
-            WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", procname);
-            return 1;
-        }
         if (checkOrNew) {
-            CloseHandle(hMutex);
+            // CheckOrNew is true means to confirm whether the service is running
+            uv_fs_close(nullptr, &req, fd, nullptr);
+            HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, buf);
+            if (hMutex != nullptr) {
+                CloseHandle(hMutex);
+                WRITE_LOG(LOG_DEBUG, "Mutex \"%s\" locked. Server already exist.", procname);
+                return 1;
+            } else {
+                WRITE_LOG(LOG_DEBUG, "Server is not exist");
+                return 0;
+            }
+        } else {
+            HANDLE hMutex = CreateMutex(nullptr, TRUE, buf);
+            DWORD dwError = GetLastError();
+            if (ERROR_ALREADY_EXISTS == dwError || ERROR_ACCESS_DENIED == dwError) {
+                uv_fs_close(nullptr, &req, fd, nullptr);
+                WRITE_LOG(LOG_DEBUG, "Creat mutex, \"%s\" locked. proc already exit!!!\n", procname);
+                return 1;
+            }
         }
 #else
         struct flock fl;

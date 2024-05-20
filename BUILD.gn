@@ -482,4 +482,5 @@ ohos_shared_library("hdc_register") {
   innerapi_tags = [ "platformsdk" ]
   subsystem_name = "developtools"
   part_name = "hdc"
+  install_images = [ "updater" ]
 }

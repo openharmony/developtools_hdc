@@ -120,7 +120,9 @@ impl Client {
             }
             HdcCommand::AppInit => self.app_install_task().await,
             HdcCommand::AppUninstall => self.app_uninstall_task().await,
-            HdcCommand::UnityRunmode => self.unity_task().await,
+            HdcCommand::UnityRunmode
+            | HdcCommand::UnityReboot
+            | HdcCommand::UnityRemount => self.unity_task().await,
             HdcCommand::UnityRootrun => self.unity_root_run_task().await,
             HdcCommand::UnityExecute => self.shell_task().await,
             HdcCommand::KernelWaitFor => self.wait_task().await,
@@ -467,7 +469,6 @@ fn auto_connect_key(key: String, cmd: HdcCommand) -> String {
         | HdcCommand::KernelCheckServer
         | HdcCommand::KernelTargetConnect
         | HdcCommand::KernelCheckDevice
-        | HdcCommand::KernelWaitFor
         | HdcCommand::KernelServerKill => "".to_string(),
         _ => {
             if key.is_empty() {

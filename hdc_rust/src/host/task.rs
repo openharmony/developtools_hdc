@@ -59,6 +59,12 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             hdc::trace!("dispatch to runmode task");
             channel_unity_task(task_info).await?
         }
+        HdcCommand::UnityReboot => {
+            send_to_daemon(task_info, HdcCommand::UnityReboot, 0, true).await?;
+        }
+        | HdcCommand::UnityRemount => {
+            send_to_daemon(task_info, HdcCommand::UnityRemount, 2, false).await?;
+        }
         HdcCommand::UnityExecute | HdcCommand::ShellInit | HdcCommand::ShellData => {
             hdc::trace!("dispatch to shell task");
             channel_shell_task(task_info).await?
@@ -92,7 +98,7 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             channel_file_task(task_info).await?;
         }
         HdcCommand::FileRecvInit => {
-            send_to_daemon(task_info, HdcCommand::FileInit, 2).await?;
+            send_to_daemon(task_info, HdcCommand::FileInit, 2, false).await?;
         }
         HdcCommand::UnityHilog => {
             channel_hilog_task(task_info).await?;
@@ -105,7 +111,7 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             channel_forward_task(task_info).await?;
         }
         HdcCommand::ForwardRportInit => {
-            send_to_daemon(task_info, HdcCommand::ForwardInit, 1).await?;
+            send_to_daemon(task_info, HdcCommand::ForwardInit, 1, false).await?;
         }
         HdcCommand::ForwardRportList => {
             channel_forward_list(task_info, false).await?;
@@ -344,18 +350,22 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
     Ok(())
 }
 
-async fn send_to_daemon(task_info: TaskInfo, _cmd: HdcCommand, index: usize) -> io::Result<()> {
+async fn send_to_daemon(task_info: TaskInfo, _cmd: HdcCommand, param_start_idx: usize, async_flag: bool) -> io::Result<()> {
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+    hdc::info!("task_info params is {:?}", task_info);
     transfer::put(
         session_id,
         TaskMessage {
             channel_id: task_info.channel_id,
             command: _cmd,
-            payload: task_info.params[index..].join(" ").into_bytes(),
+            payload: task_info.params[param_start_idx..].join(" ").into_bytes(),
         },
     )
     .await;
+    if async_flag {
+        transfer::TcpMap::end(task_info.channel_id).await;
+    }
     Ok(())
 }
 

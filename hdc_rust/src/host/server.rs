@@ -17,7 +17,6 @@ use crate::task;
 
 use hdc::config;
 use hdc::config::HdcCommand;
-use hdc::config::TaskMessage;
 use hdc::host_transfer::host_usb;
 use hdc::transfer;
 use hdc::utils;
@@ -71,7 +70,7 @@ async fn start_client_listen(addr_str: String) -> io::Result<()> {
     loop {
         let (stream, addr) = listener.accept().await?;
         hdc::info!("accepted client {addr}");
-        ylong_runtime::spawn(handle_client(stream));
+        let _ = ylong_runtime::spawn(handle_client(stream)).await;
     }
 }
 
@@ -220,6 +219,8 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
                 parsed.command = Some(HdcCommand::ShellInit);
             }
         }
+
+        parsed = parser::exchange_parsed_for_daemon(parsed);
 
         hdc::debug!("parsed cmd: {:#?}", parsed);
 

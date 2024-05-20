@@ -215,7 +215,7 @@ pub fn start_recv(
     ylong_runtime::spawn(async move {
         let mut rd: HostUsbReader = HostUsbReader { connect_key, ptr };
         loop {
-            if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()) {
+            if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()).await {
                 crate::warn!("unpack task failed: {}, reopen fd...", e.to_string());
                 break;
             }
@@ -232,7 +232,7 @@ pub fn start_recv_once(
     let (tx, rx) = mpsc::bounded_channel::<(TaskMessage, u32)>(config::USB_QUEUE_LEN);
     ylong_runtime::spawn(async move {
         let mut rd: HostUsbReader = HostUsbReader { connect_key, ptr };
-        if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()) {
+        if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()).await {
             crate::warn!("unpack task failed: {}, reopen fd...", e.to_string());
         }
     });

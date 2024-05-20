@@ -1321,6 +1321,7 @@ pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         return false;
     };
     let task = &mut task.clone();
+    task.task_command = command.clone();
     let result = Base::split_command_to_args(&command);
     let argv = result.0;
     let argc = result.1;
@@ -1379,7 +1380,6 @@ pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         task.context_forward.id,
     )
     .await;
-    task.task_command = command.clone();
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
     true
 }

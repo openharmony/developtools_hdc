@@ -375,7 +375,7 @@ pub fn usb_start_recv(fd: i32, _session_id: u32) -> mpsc::BoundedReceiver<(TaskM
     ylong_runtime::spawn(async move {
         let mut rd = UsbReader { fd };
         loop {
-            if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()) {
+            if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()).await {
                 crate::warn!("unpack task failed: {}, reopen fd...", e.to_string());
                 break;
             }

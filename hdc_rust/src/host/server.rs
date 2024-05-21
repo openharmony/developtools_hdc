@@ -26,6 +26,7 @@ use std::io::{self, Error, ErrorKind};
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
+use crate::task::ConnectMap;
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
@@ -185,6 +186,12 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
     let mut channel_state = ChannelState::None;
 
     loop {
+        let target_list = ConnectMap::get_list(true).await;
+        if target_list.is_empty() {
+            hdc::warn!("found no targets.");
+            std::thread::sleep(Duration::from_millis(200));
+            continue;
+        }
         let recv_opt = transfer::tcp::recv_channel_message(&mut rd).await;
         if recv_opt.is_err() {
             return Ok(());

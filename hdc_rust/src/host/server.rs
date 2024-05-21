@@ -40,7 +40,7 @@ enum TargetStatus {
 }
 
 static mut IS_FIRST_NO_TARGETS: TargetStatus = TargetStatus::NotReadyAndUnknown;
-const WAIT_TIME_MS: usize = 200;
+const WAIT_TIME_MS: u64 = 200;
 
 fn set_target_status(value: TargetStatus) {
     unsafe {

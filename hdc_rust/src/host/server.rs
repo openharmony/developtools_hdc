@@ -185,12 +185,19 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
     let (connect_key, channel_id) = handshake_with_client(&mut rd, wr).await?;
     let mut channel_state = ChannelState::None;
 
+    let mut retry_count = 0;
+    const RETRY_MAX_COUNT: usize = 20;
     loop {
         let target_list = ConnectMap::get_list(true).await;
         if target_list.is_empty() {
             hdc::warn!("found no targets.");
             std::thread::sleep(Duration::from_millis(200));
-            continue;
+            retry_count += 1;
+            if retry_count >= RETRY_MAX_COUNT {
+                retry_count = 0;
+            } else {
+                continue;
+            }
         }
         let recv_opt = transfer::tcp::recv_channel_message(&mut rd).await;
         if recv_opt.is_err() {

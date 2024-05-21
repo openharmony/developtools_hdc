@@ -889,7 +889,7 @@ impl ConnectMap {
         map.get(key).cloned()
     }
 
-    async fn get_list(is_full: bool) -> Vec<String> {
+    pub async fn get_list(is_full: bool) -> Vec<String> {
         let instance = Self::get_instance();
         let map = instance.read().await;
         let mut list = vec![];

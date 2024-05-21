@@ -26,10 +26,33 @@ use std::io::{self, Error, ErrorKind};
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
+use crate::task::ConnectMap;
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
+
+#[derive(PartialEq)]
+enum TargetStatus {
+    NotReadyAndUnknown,
+    NotReadyAndknown,
+    Ready
+}
+
+static mut IS_FIRST_NO_TARGETS: TargetStatus = TargetStatus::NotReadyAndUnknown;
+const WAIT_TIME_MS: u64 = 200;
+
+fn set_target_status(value: TargetStatus) {
+    unsafe {
+        IS_FIRST_NO_TARGETS = value;
+    }
+}
+
+fn is_target_status_equal(value: TargetStatus) -> bool {
+    unsafe {
+        IS_FIRST_NO_TARGETS == value
+    }
+}
 
 pub async fn run_server_mode(addr_str: String) -> io::Result<()> {
     ylong_runtime::spawn(start_usb_server());
@@ -43,7 +66,7 @@ async fn start_usb_server() {
         match device_list {
             Ok(str) => {
                 if str.is_empty() {
-                    std::thread::sleep(Duration::from_secs(1));
+                    std::thread::sleep(Duration::from_millis(WAIT_TIME_MS));
                     continue;
                 }
                 for sn in str.split(' ') {
@@ -52,7 +75,7 @@ async fn start_usb_server() {
                     }
                     task::start_usb_device_loop(ptr, sn.to_string()).await;
                 }
-                std::thread::sleep(Duration::from_secs(1));
+                std::thread::sleep(Duration::from_millis(WAIT_TIME_MS));
             }
             Err(_) => {
                 break;
@@ -179,12 +202,33 @@ enum ChannelState {
     None,
 }
 
+
+
 async fn handle_client(stream: TcpStream) -> io::Result<()> {
     let (mut rd, wr) = stream.into_split();
     let (connect_key, channel_id) = handshake_with_client(&mut rd, wr).await?;
     let mut channel_state = ChannelState::None;
 
+    let mut retry_count = 0;
+    const RETRY_MAX_COUNT: usize = 20;
     loop {
+        let target_list = ConnectMap::get_list(true).await;
+        if target_list.is_empty() && is_target_status_equal(TargetStatus::Ready) {
+            set_target_status(TargetStatus::NotReadyAndUnknown);
+        }
+        if target_list.is_empty() && is_target_status_equal(TargetStatus::NotReadyAndUnknown) {
+            hdc::warn!("found no targets.");
+            std::thread::sleep(Duration::from_millis(WAIT_TIME_MS));
+            retry_count += 1;
+            if retry_count >= RETRY_MAX_COUNT {
+                retry_count = 0;
+                set_target_status(TargetStatus::NotReadyAndknown);
+            } else {
+                continue;
+            }
+        } else if !target_list.is_empty() {
+            set_target_status(TargetStatus::Ready);
+        }
         let recv_opt = transfer::tcp::recv_channel_message(&mut rd).await;
         if recv_opt.is_err() {
             return Ok(());

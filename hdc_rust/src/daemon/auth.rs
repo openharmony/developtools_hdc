@@ -105,7 +105,7 @@ pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskM
     hdc::info!("client version({}) for session:{}", host_ver, session_id);
     create_basic_channel(session_id, channel_id, host_ver).await;
 
-    if host_ver < "Ver: 3.0.0b" {
+    if host_ver < AUTH_BASE_VERSDION {
         hdc::info!(
             "client version({}) is too low, return OK for session:{}",
             host_ver,
@@ -170,7 +170,7 @@ async fn make_sign_message(session_id: u32, token: String, channel_id: u32) -> T
 async fn make_bypass_message(session_id: u32, channel_id: u32, host_ver: &str) -> TaskMessage {
     let mut handshake_msg = "".to_string();
     let hostname = get_hostname();
-    if host_ver < "Ver: 3.0.0b" {
+    if host_ver < AUTH_BASE_VERSDION {
         handshake_msg = hostname;
     } else {
         handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
@@ -243,7 +243,7 @@ async fn make_reject_message(
 ) -> TaskMessage {
     let mut handshake_msg = "".to_string();
     let hostname = get_hostname();
-    if host_ver < "Ver: 3.0.0b" {
+    if host_ver < AUTH_BASE_VERSDION {
         handshake_msg = hostname;
     } else {
         handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
@@ -565,7 +565,7 @@ pub async fn handshake_task(task_message: TaskMessage, session_id: u32) -> io::R
     }
     create_basic_channel(session_id, channel_id, host_ver).await;
 
-    if host_ver < "Ver: 3.0.0b" {
+    if host_ver < AUTH_BASE_VERSDION {
         hdc::info!(
             "client version({}) is too low, cannt access for session:{}",
             host_ver,

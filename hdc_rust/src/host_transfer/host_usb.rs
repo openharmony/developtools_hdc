@@ -17,6 +17,7 @@
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
 use crate::config;
+use crate::config::*;
 use crate::serializer;
 use crate::serializer::native_struct::UsbHead;
 use crate::serializer::serialize::Serialization;
@@ -36,6 +37,7 @@ use std::io::{self, Error, ErrorKind};
 use std::string::FromUtf8Error;
 use std::sync::Arc;
 use ylong_runtime::sync::mpsc;
+use ylong_runtime::sync::mpsc::BoundedSender;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::sync::RwLock;
 #[repr(C)]
@@ -206,6 +208,59 @@ pub async fn recv_channel_message(rd: &mut HostUsbReader) -> io::Result<Vec<u8>>
     rd.read_frame(expected_size as usize)
 }
 
+async fn unpack_task_message(
+    rd: &mut dyn Reader,
+    tx: BoundedSender<(TaskMessage, u32)>,
+) -> io::Result<()> {
+    let (pack_size, package_index) = rd.check_protocol_head()?;
+    if pack_size == 0 {
+        return Ok(());
+    }
+
+    let data = rd.read_frame(pack_size as usize)?;
+    let (head, body) = data.split_at(serializer::HEAD_SIZE);
+    let payload_head = serializer::unpack_payload_head(head.to_vec())?;
+    let expected_head_size = u16::from_be(payload_head.head_size) as usize;
+    let expected_data_size = u32::from_be(payload_head.data_size) as usize;
+
+    if serializer::HEAD_SIZE + expected_head_size + expected_data_size != pack_size as usize {
+        crate::warn!(
+            "protocol size diff: {pack_size} != {} + {expected_head_size} + {expected_data_size}",
+            serializer::HEAD_SIZE
+        );
+    }
+
+    if expected_head_size + expected_data_size == 0
+        || expected_head_size + expected_data_size > HDC_BUF_MAX_SIZE
+    {
+        return Err(Error::new(ErrorKind::Other, "Packet size incorrect"));
+    }
+
+    let (protect, payload_raw) = body.split_at(expected_head_size);
+    let (payload, _) = payload_raw.split_at(expected_data_size);
+
+    let payload_protect = serializer::unpack_payload_protect(protect.to_vec())?;
+    let channel_id = payload_protect.channel_id;
+
+    let command = match HdcCommand::try_from(payload_protect.command_flag) {
+        Ok(command) => command,
+        Err(_) => {
+            return Err(Error::new(ErrorKind::Other, "unknown command"));
+        }
+    };
+    let _ = tx
+        .send((
+            TaskMessage {
+                channel_id,
+                command,
+                payload: payload.to_vec(),
+            },
+            package_index,
+        ))
+        .await;
+    Ok(())
+}
+
 pub fn start_recv(
     ptr: u64,
     connect_key: String,
@@ -215,7 +270,7 @@ pub fn start_recv(
     ylong_runtime::spawn(async move {
         let mut rd: HostUsbReader = HostUsbReader { connect_key, ptr };
         loop {
-            if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()).await {
+            if let Err(e) = unpack_task_message(&mut rd, tx.clone()).await {
                 crate::warn!("unpack task failed: {}, reopen fd...", e.to_string());
                 break;
             }
@@ -232,7 +287,7 @@ pub fn start_recv_once(
     let (tx, rx) = mpsc::bounded_channel::<(TaskMessage, u32)>(config::USB_QUEUE_LEN);
     ylong_runtime::spawn(async move {
         let mut rd: HostUsbReader = HostUsbReader { connect_key, ptr };
-        if let Err(e) = base::unpack_task_message(&mut rd, tx.clone()).await {
+        if let Err(e) = unpack_task_message(&mut rd, tx.clone()).await {
             crate::warn!("unpack task failed: {}, reopen fd...", e.to_string());
         }
     });

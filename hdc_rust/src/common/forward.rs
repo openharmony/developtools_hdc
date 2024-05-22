@@ -370,7 +370,7 @@ impl ForwardTaskMap {
         let arc = Self::get_instance();
         let mut channel_list = Vec::new();
         {
-            let mut map = arc.lock().await;
+            let map = arc.lock().await;
             if map.is_empty() {
                 return;
             }
@@ -380,10 +380,9 @@ impl ForwardTaskMap {
                     channel_list.push(id);
                 }
             }
-
-            for id in channel_list {
-                map.remove(&id);
-            }
+        }
+        for id in channel_list {
+            free_channel_task(id.0, id.1).await;
         }
     }
 
@@ -825,7 +824,7 @@ pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
         let parameters = task.remote_parameters.clone();
         let result = forward_tcp_accept(session_id, channel_id, port, parameters, cid).await;
         crate::info!("setup_tcp_point result:{:?}", result);
-        task.context_forward.last_error = format!("TCP Port listen failed at {}", port).to_string();
+        task.context_forward.last_error = format!("TCP Port listen failed at {}", port);
         ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         return result.is_ok();
     } else {
@@ -1525,7 +1524,7 @@ async fn get_last_error(session_id: u32, channel_id: u32) -> io::Result<String> 
     let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         return Err(Error::new(ErrorKind::Other, "task not found."));
     };
-    Ok(task.context_forward.last_error.clone())
+    Ok(task.context_forward.last_error)
 }
 
 async fn print_error_info(session_id: u32, channel_id: u32) {

@@ -130,7 +130,7 @@ extern "C" {
             return ERR_BUF_OVERFLOW;
         }
 
-        int fd = open(bufPath, O_RDWR | O_CREAT, 0666);
+        int fd = open(bufPath, O_RDWR | O_CREAT, 0644);  // 0644:-rw-r--r--
         if (fd < 0) {
             return ERR_FILE_OPEN;
         }

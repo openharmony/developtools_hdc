@@ -45,8 +45,8 @@ public:
     void Stop();
 
 private:
-    int bridgeListenPort;
-    int bridgeFd;
+    int bridgeListenPort = 0;
+    int bridgeFd = 0;
 };
 }
 #endif

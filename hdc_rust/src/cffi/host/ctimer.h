@@ -31,7 +31,7 @@ public:
         this->func = func;
     }
     virtual ~CTimer() {}
-    void Start(unsigned int msec, bool immediatelyRun = false);
+    void Start(unsigned int imsec, bool immediatelyRun = false);
     void Stop();
     void SetExit(bool exit);
 private:

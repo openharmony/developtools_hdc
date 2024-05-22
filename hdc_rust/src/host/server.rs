@@ -70,7 +70,7 @@ async fn start_client_listen(addr_str: String) -> io::Result<()> {
     loop {
         let (stream, addr) = listener.accept().await?;
         hdc::info!("accepted client {addr}");
-        let _ = ylong_runtime::spawn(handle_client(stream)).await;
+        ylong_runtime::spawn(handle_client(stream));
     }
 }
 

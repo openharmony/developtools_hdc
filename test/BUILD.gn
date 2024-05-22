@@ -171,8 +171,8 @@ ohos_source_set("hdc_host") {
 }
 
 ohos_source_set("hdc_daemon_platform") {
+  testonly = true
   public_configs = [ ":hdc_ut_config" ]
-  public_configs += [ "//third_party/googletest:gtest_config" ]
 
   #defines = [ "HARMONY_PROJECT" ]
   defines = []
@@ -194,6 +194,7 @@ ohos_source_set("hdc_daemon_platform") {
 
   public_external_deps = [
     "bounds_checking_function:libsec_static",
+    "googletest:gtest",
     "libuv:uv",
     "openssl:libcrypto_static",
   ]

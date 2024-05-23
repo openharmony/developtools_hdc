@@ -82,8 +82,8 @@ const COMBINED_COMMAND_LEN: usize = 2;
 pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
     let mut cmd_opt: Option<HdcCommand> = None;
     let mut cmd_index = input.len();
-    for len in 1..MAX_CMD_LEN {
-        for st in 0..input.len() {
+    for st in 0..input.len() {
+        for len in 1..MAX_CMD_LEN {
             if st + len > input.len() {
                 break;
             }

@@ -19,11 +19,9 @@ use crate::config::*;
 
 use hdc::config;
 use hdc::config::TaskMessage;
-use hdc::host_transfer::host_usb;
-use hdc::serializer::native_struct::SessionHandShake;
+use hdc::serializer::native_struct::{SessionHandShake};
 use hdc::serializer::serialize::Serialization;
 use hdc::transfer;
-use hdc::utils;
 
 use std::io::{self, Error, ErrorKind};
 use std::path::Path;
@@ -32,120 +30,136 @@ use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
-use ylong_runtime::net::SplitReadHalf;
+use hdc::common::base::Base;
+use crate::task::{ConnectMap, ConnectStatus, DaemonInfo};
 
-pub async fn usb_handshake_with_daemon(
-    ptr: u64,
+pub async fn start_handshake_with_daemon(
     connect_key: String,
     session_id: u32,
     channel_id: u32,
-) -> io::Result<(String, String)> {
-    let rsa = load_or_create_prikey()?;
-
-    let mut handshake = SessionHandShake {
+    conn_type: ConnectType,
+) {
+    let handshake = SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
         session_id,
         connect_key: connect_key.clone(),
         version: config::get_version(),
+        auth_type: config::AuthType::None as u8,
         ..Default::default()
     };
 
     send_handshake_to_daemon(&handshake, channel_id).await;
-    loop {
-        let mut rx = host_usb::start_recv_once(ptr, connect_key.clone(), session_id);
-        let (msg, _package_index) = match rx.recv().await {
-            Ok((msg, index)) => (msg, index),
-            Err(_) => {
-                println!("usb handshake recv fail");
-                return Err(utils::error_other("usb recv failed, reopen...".to_string()));
-            }
-        };
-        if msg.command == config::HdcCommand::KernelHandshake {
-            let mut recv = SessionHandShake::default();
-            recv.parse(msg.payload)?;
 
-            hdc::info!("recv handshake: {:#?}", recv);
-            if recv.banner != config::HANDSHAKE_MESSAGE {
-                return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
-            }
+    ConnectMap::put(
+        connect_key.clone(),
+        DaemonInfo {
+            session_id,
+            conn_type,
+            version: "unknown".to_string(),
+            conn_status: ConnectStatus::Unknown,
+            dev_name: "unknown".to_string(),
+            emg_msg: "".to_string(),
+            daemon_auth_status: DAEOMN_UNAUTHORIZED.to_string(),
+        },
+    ).await;
+}
 
-            if recv.auth_type == config::AuthType::OK as u8 {
-                return Ok((recv.buf, recv.version));
-            } else if recv.auth_type == config::AuthType::Publickey as u8 {
-                // send public key
-                handshake.auth_type = config::AuthType::Publickey as u8;
-                handshake.buf = get_hostname()?;
-                handshake.buf.push(char::from_u32(12).unwrap());
-                let pubkey_pem = get_pubkey_pem(&rsa)?;
-                handshake.buf.push_str(pubkey_pem.as_str());
-                send_handshake_to_daemon(&handshake, channel_id).await;
+async fn handshake_deal_daemon_auth_result(daemon: SessionHandShake, connect_key: String) -> io::Result<()> {
+    let mut devname = "".to_string();
+    let mut auth_result = "".to_string();
+    let mut emg_msg = "".to_string();
 
-                // send signature
-                handshake.auth_type = config::AuthType::Signature as u8;
-                handshake.buf = get_signature_b64(&rsa, recv.buf)?;
-                send_handshake_to_daemon(&handshake, channel_id).await;
-            } else if recv.auth_type == config::AuthType::Fail as u8 {
-                return Err(Error::new(ErrorKind::Other, recv.buf.as_str()));
-            } else {
-                return Err(Error::new(ErrorKind::Other, "unknown auth type"));
-            }
-        } else {
-            return Err(Error::new(ErrorKind::Other, "unknown command flag"));
+    if daemon.version.as_str() < "Ver: 3.0.0b" {
+        if !daemon.buf.is_empty() {
+            devname = daemon.buf;
         }
+    } else {
+        let auth_info = match Base::tlv_to_stringmap(daemon.buf.as_str()) {
+            Some(tlv_map) => tlv_map,
+            _ => { return Err(Error::new(ErrorKind::Other, "parse tlv failed")); },
+        };
+        devname = match auth_info.get(TAG_DEVNAME) {
+            Some(devname) => devname.to_string(),
+            _ => "".to_string(),
+        };
+        auth_result = match auth_info.get(TAG_DAEOMN_AUTHSTATUS) {
+            Some(auth_result) => auth_result.to_string(),
+            _ => "".to_string(),
+        };
+        emg_msg = match auth_info.get(TAG_EMGMSG) {
+            Some(emg_msg) => emg_msg.to_string(),
+            _ => "".to_string(),
+        };
+    }
+
+    hdc::info!("daemon auth result[{}] key[{}] ver[{}] devname[{}] emgmsg[{}]",
+            auth_result.clone(), connect_key.clone(), daemon.version.clone(),
+            devname.clone(), emg_msg.clone());
+
+    if ConnectMap::update(
+        connect_key.clone(),
+        ConnectStatus::Connected,
+        daemon.version.to_string(),
+        devname.to_string(),
+        emg_msg.to_string(),
+        auth_result.to_string()
+    ).await {
+        Ok(())
+    } else {
+        hdc::error!("update connect status for {} failed", connect_key);
+        Err(Error::new(ErrorKind::Other, "not exist connect key"))
     }
 }
 
-pub async fn handshake_with_daemon(
-    connect_key: String,
-    session_id: u32,
-    channel_id: u32,
-    rd: &mut SplitReadHalf,
-) -> io::Result<(String, String)> {
+pub async fn handshake_task(msg: TaskMessage, session_id: u32, connect_key: String) -> io::Result<()> {
     let rsa = load_or_create_prikey()?;
+    let mut recv = SessionHandShake::default();
+    let channel_id = msg.channel_id;
+    recv.parse(msg.payload)?;
+    hdc::info!("recv handshake: {:#?}", recv);
 
-    let mut handshake = SessionHandShake {
-        banner: HANDSHAKE_MESSAGE.to_string(),
-        session_id,
-        connect_key,
-        version: config::get_version(),
-        ..Default::default()
-    };
+    if recv.banner != config::HANDSHAKE_MESSAGE {
+        hdc::info!("invalid banner {}", recv.banner);
+        return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
+    }
 
-    send_handshake_to_daemon(&handshake, channel_id).await;
-    loop {
-        let msg = transfer::tcp::unpack_task_message(rd).await?;
-        if msg.command == config::HdcCommand::KernelHandshake {
-            let mut recv = SessionHandShake::default();
-            recv.parse(msg.payload)?;
-
-            hdc::info!("recv handshake: {:#?}", recv);
-            if recv.banner != config::HANDSHAKE_MESSAGE {
-                return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
-            }
-
-            if recv.auth_type == config::AuthType::OK as u8 {
-                return Ok((recv.buf, recv.version));
-            } else if recv.auth_type == config::AuthType::Publickey as u8 {
-                // send public key
-                handshake.auth_type = config::AuthType::Publickey as u8;
-                handshake.buf = get_hostname()?;
-                handshake.buf.push(char::from_u32(12).unwrap());
-                let pubkey_pem = get_pubkey_pem(&rsa)?;
-                handshake.buf.push_str(pubkey_pem.as_str());
-                send_handshake_to_daemon(&handshake, channel_id).await;
-
-                // send signature
-                handshake.auth_type = config::AuthType::Signature as u8;
-                handshake.buf = get_signature_b64(&rsa, recv.buf)?;
-                send_handshake_to_daemon(&handshake, channel_id).await;
-            } else if recv.auth_type == config::AuthType::Fail as u8 {
-                return Err(Error::new(ErrorKind::Other, recv.buf.as_str()));
-            } else {
-                return Err(Error::new(ErrorKind::Other, "unknown auth type"));
-            }
-        } else {
-            return Err(Error::new(ErrorKind::Other, "unknown command flag"));
-        }
+    if recv.auth_type == config::AuthType::OK as u8 {
+        handshake_deal_daemon_auth_result(recv.clone(), connect_key.clone()).await
+    } else if recv.auth_type == config::AuthType::Publickey as u8 {
+        // send public key
+        let pubkey_pem = get_pubkey_pem(&rsa)?;
+        let mut buf = get_hostname()?;
+        buf.push(char::from_u32(12).unwrap());
+        buf.push_str(pubkey_pem.as_str());
+        let handshake = SessionHandShake {
+            banner: HANDSHAKE_MESSAGE.to_string(),
+            session_id,
+            connect_key: connect_key.clone(),
+            version: config::get_version(),
+            auth_type: config::AuthType::Publickey as u8,
+            buf,
+        };
+        send_handshake_to_daemon(&handshake, channel_id).await;
+        return Ok(());
+    } else if recv.auth_type == config::AuthType::Signature as u8 {
+        // send signature
+        let buf = get_signature_b64(&rsa, recv.buf)?;
+        let handshake = SessionHandShake {
+            banner: HANDSHAKE_MESSAGE.to_string(),
+            session_id,
+            connect_key: connect_key.clone(),
+            version: config::get_version(),
+            auth_type: config::AuthType::Signature as u8,
+            buf,
+        };
+        send_handshake_to_daemon(&handshake, channel_id).await;
+        return Ok(());
+    } else if recv.auth_type == config::AuthType::Fail as u8 {
+        hdc::info!("daemon auth failed");
+        return Err(Error::new(ErrorKind::Other, recv.buf.as_str()));
+    } else {
+        hdc::info!("invalid auth type {}", recv.auth_type);
+        return Err(Error::new(ErrorKind::Other, "unknown auth type"));
     }
 }
 
@@ -210,6 +224,7 @@ fn get_signature_b64(rsa: &Rsa<openssl::pkey::Private>, plain: String) -> io::Re
 }
 
 async fn send_handshake_to_daemon(handshake: &SessionHandShake, channel_id: u32) {
+    hdc::info!("send handshake: {:#?}", handshake.clone());
     transfer::put(
         handshake.session_id,
         TaskMessage {

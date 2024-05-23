@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::auth;
+use crate::auth::{handshake_task, start_handshake_with_daemon};
 use crate::config::*;
 use crate::host_app;
 use crate::host_app::HostAppTaskMap;
@@ -36,7 +36,7 @@ use std::sync::Arc;
 extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::SplitReadHalf;
 use ylong_runtime::net::TcpStream;
-use ylong_runtime::sync::{Mutex, RwLock};
+use ylong_runtime::sync::{Mutex, RwLock, mpsc};
 
 use crate::host_app::HostAppTask;
 
@@ -457,8 +457,7 @@ async fn channel_connect_task(task_info: TaskInfo) -> io::Result<()> {
     start_tcp_daemon_session(connect_key, &task_info).await
 }
 
-pub async fn usb_handle_deamon(ptr: u64, session_id: u32, connect_key: String) -> io::Result<()> {
-    let mut rx = host_usb::start_recv(ptr, connect_key.clone(), session_id);
+pub async fn usb_handle_deamon(ptr: u64, mut rx: mpsc::BoundedReceiver<(TaskMessage, u32)>, session_id: u32, connect_key: String) -> io::Result<()> {
     loop {
         match rx.recv().await {
             Ok((task_message, _index)) => {
@@ -467,14 +466,14 @@ pub async fn usb_handle_deamon(ptr: u64, session_id: u32, connect_key: String) -
                     task_message.command,
                     task_message.payload.len(),
                 );
-                if let Err(e) = session_task_dispatch(task_message, session_id).await {
+                if let Err(e) = session_task_dispatch(task_message, session_id, connect_key.clone()).await {
                     hdc::error!("dispatch task failed: {}", e.to_string());
                 }
             }
             Err(e) => {
                 hdc::warn!("unpack task failed: {}", e.to_string());
                 ConnectMap::remove(connect_key.clone()).await;
-                host_usb::on_device_connected(ptr, connect_key.clone(), false);
+                host_usb::on_device_connected(ptr, connect_key, false);
                 return Err(Error::new(ErrorKind::Other, "recv error"));
             }
         };
@@ -483,34 +482,16 @@ pub async fn usb_handle_deamon(ptr: u64, session_id: u32, connect_key: String) -
 
 pub async fn start_usb_device_loop(ptr: u64, connect_key: String) {
     let session_id = utils::get_pseudo_random_u32();
-    let channel_id = utils::get_pseudo_random_u32();
     let wr = host_usb::HostUsbWriter {
         connect_key: connect_key.clone(),
         ptr,
     };
     host_usb::HostUsbMap::start(session_id, wr).await;
-    match auth::usb_handshake_with_daemon(ptr, connect_key.clone(), session_id, channel_id).await {
-        Ok((dev_name, version)) => {
-            host_usb::on_device_connected(ptr, connect_key.clone(), true);
-            ConnectMap::put(
-                connect_key.clone(),
-                DaemonInfo {
-                    session_id,
-                    conn_type: ConnectType::HostUsb(connect_key.clone()),
-                    conn_status: ConnectStatus::Connected,
-                    dev_name,
-                    version,
-                },
-            )
-            .await;
-        }
-        Err(e) => {
-            let _ =
-                transfer::send_channel_msg(channel_id, transfer::EchoLevel::FAIL, e.to_string())
-                    .await;
-        }
-    };
-    ylong_runtime::spawn(usb_handle_deamon(ptr, session_id, connect_key));
+    let rx = host_usb::start_recv(ptr, connect_key.clone(), session_id);
+    let channel_id = utils::get_pseudo_random_u32();
+    hdc::info!("generate new session {} channel {}", session_id, channel_id);
+    start_handshake_with_daemon(connect_key.clone(), session_id, channel_id, ConnectType::HostUsb(connect_key.clone())).await;
+    let _ = ylong_runtime::spawn(usb_handle_deamon(ptr, rx, session_id, connect_key)).await;
 }
 
 async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> io::Result<()> {
@@ -527,42 +508,10 @@ async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> 
         }
         Ok(stream) => {
             let session_id = utils::get_pseudo_random_u32();
-            let (mut rd, wr) = stream.into_split();
+            let (rd, wr) = stream.into_split();
             transfer::TcpMap::start(session_id, wr).await;
 
-            match auth::handshake_with_daemon(
-                connect_key.clone(),
-                session_id,
-                task_info.channel_id,
-                &mut rd,
-            )
-            .await
-            {
-                Ok((dev_name, version)) => {
-                    ConnectMap::put(
-                        connect_key.clone(),
-                        DaemonInfo {
-                            session_id,
-                            conn_type: ConnectType::Tcp,
-                            conn_status: ConnectStatus::Connected,
-                            dev_name,
-                            version,
-                        },
-                    )
-                    .await;
-                }
-                Err(e) => {
-                    let _ = transfer::send_channel_msg(
-                        task_info.channel_id,
-                        transfer::EchoLevel::FAIL,
-                        e.to_string(),
-                    )
-                    .await;
-                    transfer::TcpMap::end(task_info.channel_id).await;
-                    return Ok(());
-                }
-            };
-
+            start_handshake_with_daemon(connect_key.clone(), session_id, task_info.channel_id, ConnectType::Tcp).await;
             ylong_runtime::spawn(tcp_handle_deamon(rd, session_id, connect_key));
             transfer::send_channel_msg(
                 task_info.channel_id,
@@ -633,7 +582,7 @@ async fn tcp_handle_deamon(
                 //     task_message.command,
                 //     task_message.payload.len(),
                 // );
-                if let Err(e) = session_task_dispatch(task_message, session_id).await {
+                if let Err(e) = session_task_dispatch(task_message, session_id, connect_key.clone()).await {
                     hdc::error!("dispatch task failed: {}", e.to_string());
                 }
             }
@@ -646,7 +595,7 @@ async fn tcp_handle_deamon(
     }
 }
 
-async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+async fn session_task_dispatch(task_message: TaskMessage, session_id: u32, connect_key: String) -> io::Result<()> {
     match task_message.command {
         HdcCommand::KernelEcho => {
             let data = task_message.payload[1..].to_vec();
@@ -654,11 +603,13 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io
             match level_result {
                 Ok(level) => {
                     if let Ok(str) = String::from_utf8(data) {
-                        let _ = transfer::send_channel_msg(
+                        if let Err(e) = transfer::send_channel_msg(
                             task_message.channel_id,
                             level,
                             str,
-                        ).await;
+                        ).await {
+                            hdc::error!("echo to client failed: {}", e.to_string());
+                        };
                     }
                 }
                 Err(_) => {
@@ -671,6 +622,9 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io
         }
         HdcCommand::KernelChannelClose => {
             session_channel_close(task_message, session_id).await?;
+        }
+        HdcCommand::KernelHandshake => {
+            handshake_task(task_message, session_id, connect_key).await?;
         }
         HdcCommand::AppBegin
         | HdcCommand::AppData
@@ -807,7 +761,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
     Ok(())
 }
 
-async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+pub async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     HostAppTaskMap::remove(session_id, task_message.channel_id).await;
     if task_message.payload[0] > 0 {
         let message = TaskMessage {
@@ -817,7 +771,7 @@ async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io
         };
         transfer::put(session_id, message).await;
     }
-    hdc::info!("recv channel close");
+    hdc::info!("recv channel close {}", task_message.channel_id);
     transfer::TcpMap::end(task_message.channel_id).await;
     Ok(())
 }
@@ -834,7 +788,7 @@ async fn check_server_task(task_info: TaskInfo) -> io::Result<()> {
 
 #[allow(unused)]
 #[derive(Default)]
-enum ConnectStatus {
+pub enum ConnectStatus {
     #[default]
     Unknown = 0,
     Ready,
@@ -844,12 +798,14 @@ enum ConnectStatus {
 
 #[allow(unused)]
 #[derive(Default)]
-struct DaemonInfo {
+pub struct DaemonInfo {
     pub session_id: u32,
     pub conn_type: ConnectType,
     pub conn_status: ConnectStatus,
     pub dev_name: String,
     pub version: String,
+    pub emg_msg: String,
+    pub daemon_auth_status: String,
 }
 
 type DaemonInfo_ = Arc<Mutex<DaemonInfo>>;
@@ -872,10 +828,31 @@ impl ConnectMap {
         map.remove(&connect_key);
     }
 
-    async fn put(connect_key: String, daemon_info: DaemonInfo) {
+    pub async fn put(connect_key: String, daemon_info: DaemonInfo) {
         let instance = Self::get_instance();
         let mut map = instance.write().await;
         map.insert(connect_key, Arc::new(Mutex::new(daemon_info)));
+    }
+
+    pub async fn update(connect_key: String,
+                        conn_status: crate::task::ConnectStatus,
+                        version: String,
+                        dev_name: String,
+                        emg_msg: String,
+                        daemon_auth_status: String) -> bool {
+        let instance = Self::get_instance();
+        let mut map = instance.write().await;
+        if let Some(item) = map.get_mut(&connect_key) {
+            let info = &mut *item.lock().await;
+            info.conn_status = conn_status;
+            info.version = version;
+            info.dev_name = dev_name;
+            info.emg_msg = emg_msg;
+            info.daemon_auth_status = daemon_auth_status;
+            true
+        } else {
+            false
+        }
     }
 
     async fn get(connect_key: String) -> Option<DaemonInfo_> {
@@ -905,12 +882,16 @@ impl ConnectMap {
                     ConnectType::HostUsb(_) => "HOSTUSB",
                     ConnectType::Bridge => "BRIDGE",
                 });
-                output.push(match guard.conn_status {
-                    ConnectStatus::Connected => "Connected",
-                    ConnectStatus::Ready => "Ready",
-                    ConnectStatus::Offline => "Offline",
-                    ConnectStatus::Unknown => "Unknown",
-                });
+                if guard.daemon_auth_status == DAEOMN_UNAUTHORIZED {
+                    output.push("Unauthorized");
+                }  else {
+                    output.push(match guard.conn_status {
+                        ConnectStatus::Connected => "Connected",
+                        ConnectStatus::Ready => "Ready",
+                        ConnectStatus::Offline => "Offline",
+                        ConnectStatus::Unknown => "Unknown",
+                    });
+                }
                 if guard.dev_name.is_empty() {
                     output.push("unknown...");
                 } else {
@@ -920,7 +901,12 @@ impl ConnectMap {
                 output.push("hdc");
                 list.push(output.join("\t"));
             } else {
-                list.push(key.to_owned());
+                let mut output = vec![key.as_str()];
+                let guard = info.lock().await;
+                if guard.daemon_auth_status == DAEOMN_UNAUTHORIZED {
+                    output.push("Unauthorized");
+                }
+                list.push(output.join("\t"));
             }
         }
         list

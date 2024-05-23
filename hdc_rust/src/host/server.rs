@@ -73,6 +73,7 @@ async fn start_usb_server() {
                     if sn.is_empty() {
                         continue;
                     }
+                    hdc::info!("start_usb_server sn:{}", sn);
                     task::start_usb_device_loop(ptr, sn.to_string()).await;
                 }
                 std::thread::sleep(Duration::from_millis(WAIT_TIME_MS));

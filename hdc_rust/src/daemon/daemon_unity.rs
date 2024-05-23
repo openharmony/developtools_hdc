@@ -203,7 +203,7 @@ async fn set_device_mode(session_id: u32, channel_id: u32, _payload: &[u8]) {
 }
 
 async fn do_jdwp_list(session_id: u32, channel_id: u32) {
-    println!("do_jdwp_list");
+    hdc::debug!("do_jdwp_list, session_id {session_id}, channel_id {channel_id}");
     let jdwp = Jdwp::get_instance().clone();
     let process_list = jdwp.get_process_list().await;
     if process_list.is_empty() {
@@ -225,7 +225,6 @@ async fn do_jdwp_track(session_id: u32, channel_id: u32, payload: &[u8]) {
     if !payload.is_empty() && payload[0] == b'p' {
         debug_or_release = false;
     }
-    println!("do_jdwp_track");
     let jdwp = Jdwp::get_instance().clone();
     jdwp.add_tracker(channel_id, session_id, debug_or_release)
         .await;
@@ -238,28 +237,16 @@ pub async fn command_dispatch(
     _payload: &[u8],
     _payload_size: u16,
 ) -> bool {
-    println!("DaemonUnityTask: command:{:#?}", _command);
+    hdc::info!("DaemonUnityTask: command:{:?}", _command);
     match _command {
-        HdcCommand::UnityReboot => {
-            reboot_device(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::UnityRunmode => {
-            set_device_mode(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::UnityRootrun => {
-            set_root_run(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::JdwpList => {
-            do_jdwp_list(session_id, channel_id).await;
-        }
-        HdcCommand::JdwpTrack => {
-            do_jdwp_track(session_id, channel_id, _payload).await;
-        }
-        HdcCommand::UnityRemount => {
-            remount_device(session_id, channel_id).await;
-        }
+        HdcCommand::UnityReboot => reboot_device(session_id, channel_id, _payload).await,
+        HdcCommand::UnityRunmode => set_device_mode(session_id, channel_id, _payload).await,
+        HdcCommand::UnityRootrun => set_root_run(session_id, channel_id, _payload).await,
+        HdcCommand::JdwpList => do_jdwp_list(session_id, channel_id).await,
+        HdcCommand::JdwpTrack => do_jdwp_track(session_id, channel_id, _payload).await,
+        HdcCommand::UnityRemount => remount_device(session_id, channel_id).await,
         _ => {
-            println!("other command");
+            hdc::error!("other command, {:?}", _command);
         }
     }
     true

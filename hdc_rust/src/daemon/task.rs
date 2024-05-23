@@ -44,7 +44,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
             let cmd = String::from_utf8(task_message.payload);
             match cmd {
                 Ok(cmd) => {
-                    hdc::debug!("Execute cmd:{}", cmd);
+                    hdc::info!("Execute cmd:{}", cmd);
                     let pty_task = PtyTask::new(
                         session_id,
                         task_message.channel_id,
@@ -89,6 +89,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
 async fn remove_task(session_id: u32, channel_id: u32) {
     AppTaskMap::remove(session_id, channel_id).await;
     FileTaskMap::remove(session_id, channel_id).await;
+    forward::free_channel_task(session_id, channel_id).await;
     // shell & hilog task
     if let Some(pty_task) = PtyMap::get(session_id, channel_id).await {
         let _ = &pty_task.tx.send(vec![0x04_u8]).await;
@@ -98,6 +99,10 @@ async fn remove_task(session_id: u32, channel_id: u32) {
 
 async fn daemon_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     // task stop:
+    hdc::info!(
+        "daemon_channel_close session_id {session_id}, channel_id {}",
+        task_message.channel_id
+    );
     remove_task(session_id, task_message.channel_id).await;
 
     if task_message.payload[0] > 0 {
@@ -139,7 +144,7 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             .await;
             return Ok(());
         }
-        HdcCommand::FileCheck | HdcCommand::FileInit => {
+        HdcCommand::FileMode | HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_message.channel_id).await {
                 let mut task = HdcFile::new(session_id, task_message.channel_id);
                 task.transfer.server_or_daemon = false;
@@ -185,7 +190,10 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             .await;
             return Ok(());
         }
-        HdcCommand::FileBegin | HdcCommand::FileData | HdcCommand::FileFinish => {
+        HdcCommand::FileBegin
+        | HdcCommand::FileData
+        | HdcCommand::FileFinish
+        | HdcCommand::DirMode => {
             hdcfile::command_dispatch(
                 session_id,
                 task_message.channel_id,
@@ -213,7 +221,11 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             return Ok(());
         }
         _ => {
-            println!("other tasks");
+            hdc::error!(
+                "other tasks, cmd {:?}. session_id {session_id}, channel_id {}",
+                task_message.command,
+                task_message.channel_id
+            );
         }
     }
 
@@ -304,6 +316,19 @@ fn check_control(command: HdcCommand) -> bool {
 
 pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     let cmd = task_message.command;
+    if (HdcCommand::ShellData != cmd) && (HdcCommand::FileData != cmd) {
+        hdc::info!(
+            "dispatch_task channel_id {}, cmd {:?}",
+            task_message.channel_id,
+            cmd
+        );
+    } else {
+        hdc::debug!(
+            "dispatch_task channel_id {}, cmd {:?}",
+            task_message.channel_id,
+            cmd
+        );
+    }
     let special_cmd =
         (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
     let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;
@@ -348,30 +373,20 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         return Ok(());
     }
     match task_message.command {
-        HdcCommand::KernelHandshake => {
-            hdc::debug!("KernelHandshake");
-            auth::handshake_task(task_message, session_id).await
-        }
-        HdcCommand::UnityHilog => {
-            hdc::debug!("UnityHilog");
-            daemon_hilog_task(task_message, session_id).await
-        }
-        HdcCommand::UnityBugreportInit => {
-            hdc::debug!("UnityBugreportInit");
-            daemon_bug_report_task(task_message, session_id).await
-        }
+        HdcCommand::KernelHandshake => auth::handshake_task(task_message, session_id).await,
+        HdcCommand::UnityHilog => daemon_hilog_task(task_message, session_id).await,
+        HdcCommand::UnityBugreportInit => daemon_bug_report_task(task_message, session_id).await,
         HdcCommand::ShellInit | HdcCommand::ShellData | HdcCommand::UnityExecute => {
             daemon_shell_task(task_message, session_id).await
         }
-        HdcCommand::KernelChannelClose => {
-            hdc::debug!("KernelChannelClose");
-            daemon_channel_close(task_message, session_id).await
-        }
+        HdcCommand::KernelChannelClose => daemon_channel_close(task_message, session_id).await,
         HdcCommand::FileInit
         | HdcCommand::FileCheck
         | HdcCommand::FileData
         | HdcCommand::FileBegin
         | HdcCommand::FileFinish
+        | HdcCommand::FileMode
+        | HdcCommand::DirMode
         | HdcCommand::AppCheck
         | HdcCommand::AppData
         | HdcCommand::AppUninstall
@@ -381,20 +396,14 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         | HdcCommand::ForwardActiveSlave
         | HdcCommand::ForwardActiveMaster
         | HdcCommand::ForwardData
-        | HdcCommand::ForwardFreeContext => daemon_file_task(task_message, session_id).await,
-        HdcCommand::UnityRunmode
+        | HdcCommand::ForwardFreeContext
+        | HdcCommand::UnityRunmode
         | HdcCommand::UnityReboot
         | HdcCommand::UnityRemount
         | HdcCommand::UnityRootrun
         | HdcCommand::JdwpList
-        | HdcCommand::JdwpTrack => {
-            hdc::debug!("unity command: {:#?}", task_message.command);
-            daemon_file_task(task_message, session_id).await
-        }
-        HdcCommand::KernelWakeupSlavetask => {
-            hdc::debug!("task command: {:#?}", task_message.command);
-            Ok(())
-        }
+        | HdcCommand::JdwpTrack => daemon_file_task(task_message, session_id).await,
+        HdcCommand::KernelWakeupSlavetask => Ok(()),
         _ => Err(Error::new(
             ErrorKind::Other,
             format!("unknown command: {}", task_message.command as u32),

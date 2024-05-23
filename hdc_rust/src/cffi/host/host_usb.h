@@ -23,7 +23,7 @@
 #include <mutex>
 #include <condition_variable>
 #include "securec.h"
-#include "../ffi_utils.h"
+#include "ffi_utils.h"
 
 namespace Hdc {
 using namespace std;

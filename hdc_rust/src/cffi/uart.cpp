@@ -159,7 +159,7 @@ static constexpr int PORT_NAME_LEN = 10;
 static constexpr int NUM = 2;
 
 HANDLE WinOpenSerialPort(std::string portName) {
-    printf("WinOpenSerialPort start\n");
+    WRITE_LOG(LOG_INFO, "WinOpenSerialPort start, portName %s", portName.c_str());
     TCHAR buf[PORT_NAME_LEN * NUM];
     #ifdef UNICODE
         _stprintf_s(buf, MAX_PATH, _T("\\\\.\\%S"), portName.c_str());
@@ -171,9 +171,9 @@ HANDLE WinOpenSerialPort(std::string portName) {
                                         OPEN_EXISTING, dwFlagsAndAttributes, NULL);
     if (devUartHandle == INVALID_HANDLE_VALUE)
     {
-        printf("CreateFile, open handle ok\n");
+        WRITE_LOG(LOG_INFO, "CreateFile, open handle ok");
     } else {
-        printf("CreateFile open failed\n");
+        WRITE_LOG(LOG_WARN, "CreateFile open failed");
     }
 
     return devUartHandle;
@@ -193,14 +193,13 @@ bool WinSetSerialPort(HANDLE devUartHandle, string serialport, int byteSize, int
     constexpr int max = DEFAULT_BAUD_RATE_VALUE / 8 * 2; // 2 second buffer size
     do {
         if (!SetupComm(devUartHandle, max, max)) {
-            printf("SetupComm %s fail, err:%lu.", serialport.c_str(), GetLastError());
+            WRITE_LOG(LOG_WARN, "SetupComm %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
             break;
         }
         DCB dcb;
         if (!GetCommState(devUartHandle, &dcb)) {
-            printf("GetCommState %s fail, err:%lu.", serialport.c_str(),
-                      GetLastError());
+            WRITE_LOG(LOG_WARN, "GetCommState %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
         }
         dcb.DCBlength = sizeof(DCB);
@@ -209,27 +208,25 @@ bool WinSetSerialPort(HANDLE devUartHandle, string serialport, int byteSize, int
         dcb.ByteSize = byteSize;
         dcb.StopBits = ONESTOPBIT;
         if (!SetCommState(devUartHandle, &dcb)) {
-            printf("SetCommState %s fail, err:%lu.", serialport.c_str(),
-                      GetLastError());
+            WRITE_LOG(LOG_WARN, "SetCommState %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
             break;
         }
         if (!PurgeComm(devUartHandle,
                        PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT)) {
-            printf("PurgeComm  %s fail, err:%lu.", serialport.c_str(), GetLastError());
+            WRITE_LOG(LOG_WARN, "PurgeComm  %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
             break;
         }
         DWORD dwError;
         COMSTAT cs;
         if (!ClearCommError(devUartHandle, &dwError, &cs)) {
-            printf("ClearCommError %s fail, err:%lu.", serialport.c_str(),
-                      GetLastError());
+            WRITE_LOG(LOG_WARN, "ClearCommError %s fail, err:%lu.", serialport.c_str(), GetLastError());
             winRet = false;
             break;
         }
     } while (false);
-    printf("WinSetSerialPort ret %d\n", winRet);
+    WRITE_LOG(LOG_INFO, "WinSetSerialPort ret %d\n", winRet);
     if (!winRet) {
         WinCloseSerialPort(devUartHandle);
     }
@@ -237,7 +234,7 @@ bool WinSetSerialPort(HANDLE devUartHandle, string serialport, int byteSize, int
 }
 
 bool WinCloseSerialPort(HANDLE &handle) {
-    printf("CloseSerialPort\n");
+    WRITE_LOG(LOG_DEBUG, "CloseSerialPort");
     if (handle != INVALID_HANDLE_VALUE) {
         CloseHandle(handle);
         handle = INVALID_HANDLE_VALUE;
@@ -266,22 +263,22 @@ ssize_t WinReadUartDev(HANDLE handle, std::vector<uint8_t> &readBuf, size_t expe
                     DWORD error = GetLastError();
                     if (error == ERROR_OPERATION_ABORTED) {
                         totalBytesRead += bytesRead;
-                        printf("%s error cancel read. %lu %zd", __FUNCTION__,
-                                  bytesRead, totalBytesRead);
+                        WRITE_LOG(LOG_WARN, "%s error cancel read. %lu %zd",
+                                  __FUNCTION__, bytesRead, totalBytesRead);
                         return totalBytesRead;
                     } else if (error == WAIT_TIMEOUT) {
                         totalBytesRead += bytesRead;
-                        printf("%s error timeout. %lu %zd", __FUNCTION__, bytesRead,
-                                  totalBytesRead);
+                        WRITE_LOG(LOG_WARN, "%s error timeout. %lu %zd",
+                                  __FUNCTION__, bytesRead, totalBytesRead);
                         return totalBytesRead;
                     } else {
-                        printf("%s error wait io:%lu.", __FUNCTION__, GetLastError());
+                        WRITE_LOG(LOG_WARN, "%s error wait io:%lu.", __FUNCTION__, GetLastError());
                     }
                     return -1;
                 }
             } else {
                 // not ERROR_IO_PENDING
-                printf("%s  err:%lu. ", __FUNCTION__, GetLastError());
+                WRITE_LOG(LOG_WARN, "%s  err:%lu. ", __FUNCTION__, GetLastError());
                 return -1;
             }
         }
@@ -301,12 +298,12 @@ ssize_t WinWriteUartDev(HANDLE handle, uint8_t *data, const size_t length, OVERL
         if (!bWriteStat) {
             if (GetLastError() == ERROR_IO_PENDING) {
                 if (!GetOverlappedResult(handle, &ovWrite, &bytesWrite, TRUE)) {
-                    printf("%s error wait io:%lu. bytesWrite %lu", __FUNCTION__,
+                    WRITE_LOG(LOG_WARN, "%s error wait io:%lu. bytesWrite %lu", __FUNCTION__,
                            GetLastError(), bytesWrite);
                     return -1;
                 }
             } else {
-                printf("%s err:%lu. bytesWrite %lu", __FUNCTION__, GetLastError(),
+                WRITE_LOG(LOG_WARN, "%s err:%lu. bytesWrite %lu", __FUNCTION__, GetLastError(),
                        bytesWrite);
                 return -1;
             }

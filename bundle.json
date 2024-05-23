@@ -36,9 +36,7 @@
         "libusb",
         "libuv"
       ],
-      "third_party": [
-        "lz4"
-      ]
+      "third_party": []
     },
     "build": {
       "sub_component": [
@@ -46,6 +44,16 @@
         "//developtools/hdc/hdcd_user_permit:hdcd_user_permit",
         "//developtools/hdc:hdc_register",
         "//developtools/hdc:hdcd_updater"
+      ],
+      "inner_kits": [
+        {
+            "name":"//developtools/hdc:hdc_register",
+            "header":{
+                "header_files":[
+                ],
+                "header_base":"//developtools/hdc/src"
+            }
+        }
       ],
       "test": [ "//developtools/hdc/test:hdc_fuzztest" ]
     }

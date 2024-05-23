@@ -150,13 +150,21 @@ impl BridgeMap {
         let send = serializer::concat_pack(data);
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            return;
+        };
         let wr = arc_wr.lock().await;
         let _ = wr.write_all(send);
     }
 
     pub async fn send_channel_message(channel_id: u32, buf: Vec<u8>) -> io::Result<()> {
-        crate::trace!("send channel msg: {:#?}", buf.clone());
+        crate::trace!(
+            "send channel msg: {:?}",
+            buf.iter()
+                .map(|&c| format!("{c:02X}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         let send = [
             u32::to_be_bytes(buf.len() as u32).as_slice(),
             buf.as_slice(),

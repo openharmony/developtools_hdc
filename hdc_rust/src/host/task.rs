@@ -59,6 +59,12 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             hdc::trace!("dispatch to runmode task");
             channel_unity_task(task_info).await?
         }
+        HdcCommand::UnityReboot => {
+            send_to_daemon(task_info, HdcCommand::UnityReboot, 0, true).await?;
+        }
+        | HdcCommand::UnityRemount => {
+            send_to_daemon(task_info, HdcCommand::UnityRemount, 2, false).await?;
+        }
         HdcCommand::UnityExecute | HdcCommand::ShellInit | HdcCommand::ShellData => {
             hdc::trace!("dispatch to shell task");
             channel_shell_task(task_info).await?
@@ -92,7 +98,7 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             channel_file_task(task_info).await?;
         }
         HdcCommand::FileRecvInit => {
-            send_to_daemon(task_info, HdcCommand::FileInit).await?;
+            send_to_daemon(task_info, HdcCommand::FileInit, 2, false).await?;
         }
         HdcCommand::UnityHilog => {
             channel_hilog_task(task_info).await?;
@@ -105,7 +111,7 @@ pub async fn channel_task_dispatch(task_info: TaskInfo) -> io::Result<()> {
             channel_forward_task(task_info).await?;
         }
         HdcCommand::ForwardRportInit => {
-            send_to_daemon(task_info, HdcCommand::ForwardInit).await?;
+            send_to_daemon(task_info, HdcCommand::ForwardInit, 1, false).await?;
         }
         HdcCommand::ForwardRportList => {
             channel_forward_list(task_info, false).await?;
@@ -171,13 +177,25 @@ async fn channel_forward_remove(task_info: TaskInfo, forward_or_reverse: bool) -
     let _result =
         forward::HdcForwardInfoMap::remove_forward(task_string.clone(), forward_or_reverse).await;
     hdc::info!("channel_forward_remove remove result:{}", _result);
-    let forward_channel_id = forward::ForwardTaskMap::get_channel_id(session_id, task_string).await;
+    if !_result {
+        let message_str = format!("Remove forward ruler failed, ruler is not exist {}", task_string);
+        let _ = transfer::send_channel_msg(
+            task_info.channel_id,
+            transfer::EchoLevel::FAIL,
+            message_str,
+        )
+        .await;
+        transfer::TcpMap::end(task_info.channel_id).await;
+        return Ok(());
+    }
+    let forward_channel_id = forward::ForwardTaskMap::get_channel_id(session_id, task_string.clone()).await;
     if let Some(_channel_id) = forward_channel_id {
         forward::free_context(session_id, _channel_id, 0, true).await;
     }
+    let message_str = format!("Remove forward ruler success, ruler:{}", task_string);
     send_channel_data(
         task_info.channel_id,
-        "Forward remove success.".as_bytes().to_vec(),
+        message_str.as_bytes().to_vec(),
     )
     .await;
     transfer::TcpMap::end(task_info.channel_id).await;
@@ -186,6 +204,11 @@ async fn channel_forward_remove(task_info: TaskInfo, forward_or_reverse: bool) -
 
 async fn channel_forward_list(task_info: TaskInfo, forward_or_reverse: bool) -> io::Result<()> {
     let mut result = forward::HdcForwardInfoMap::get_all_forward_infos().await;
+    if result.is_empty() {
+        send_channel_data(task_info.channel_id, "[Empty]".as_bytes().to_vec()).await;
+        transfer::TcpMap::end(task_info.channel_id).await;
+        return Ok(());
+    }
     for item in &mut result {
         let connect_key = ConnectMap::get_connect_key(item.session_id).await;
         if let Some(key) = connect_key {
@@ -327,18 +350,22 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
     Ok(())
 }
 
-async fn send_to_daemon(task_info: TaskInfo, _cmd: HdcCommand) -> io::Result<()> {
+async fn send_to_daemon(task_info: TaskInfo, _cmd: HdcCommand, param_start_idx: usize, async_flag: bool) -> io::Result<()> {
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
+    hdc::info!("task_info params is {:?}", task_info);
     transfer::put(
         session_id,
         TaskMessage {
             channel_id: task_info.channel_id,
             command: _cmd,
-            payload: task_info.params[2..].join(" ").into_bytes(),
+            payload: task_info.params[param_start_idx..].join(" ").into_bytes(),
         },
     )
     .await;
+    if async_flag {
+        transfer::TcpMap::end(task_info.channel_id).await;
+    }
     Ok(())
 }
 
@@ -621,7 +648,25 @@ async fn tcp_handle_deamon(
 
 async fn session_task_dispatch(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     match task_message.command {
-        HdcCommand::KernelEchoRaw | HdcCommand::UnityBugreportData | HdcCommand::KernelEcho => {
+        HdcCommand::KernelEcho => {
+            let data = task_message.payload[1..].to_vec();
+            let level_result = transfer::EchoLevel::convert_from_message_level(task_message.payload[0]);
+            match level_result {
+                Ok(level) => {
+                    if let Ok(str) = String::from_utf8(data) {
+                        let _ = transfer::send_channel_msg(
+                            task_message.channel_id,
+                            level,
+                            str,
+                        ).await;
+                    }
+                }
+                Err(_) => {
+                    return Err(Error::new(ErrorKind::Other, "message level invalid."));
+                }
+            }
+        }
+        HdcCommand::KernelEchoRaw | HdcCommand::UnityBugreportData => {
             transfer::send_channel_data(task_message.channel_id, task_message.payload).await;
         }
         HdcCommand::KernelChannelClose => {
@@ -670,9 +715,7 @@ async fn session_forward_task(task_message: TaskMessage, session_id: u32) -> io:
 }
 
 async fn session_forward_success(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    #[cfg(feature = "host")]
     let _ = forward::on_forward_success(task_message.clone(), session_id).await;
-    transfer::TcpMap::end(task_message.channel_id).await;
     Ok(())
 }
 
@@ -846,7 +889,7 @@ impl ConnectMap {
         map.get(key).cloned()
     }
 
-    async fn get_list(is_full: bool) -> Vec<String> {
+    pub async fn get_list(is_full: bool) -> Vec<String> {
         let instance = Self::get_instance();
         let map = instance.read().await;
         let mut list = vec![];

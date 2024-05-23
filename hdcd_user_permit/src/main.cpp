@@ -75,13 +75,19 @@ static int GetUserPermit(void)
     }
     if (!con->GetShowDialogResult()) {
         AUTH_LOGE("show dialog failed");
+        delete con;
+        con = nullptr;
         return USER_PERMIT_ERR_SHOW_DIALOG_FAIL;
     }
     if (!WaitDialogResult()) {
         AUTH_LOGE("wait ability result failed");
+        delete con;
+        con = nullptr;
         return USER_PERMIT_ERR_WAIT_DIALOG_FAIL;
     }
 
+    delete con;
+    con = nullptr;
     return USER_PERMIT_SUCCESS;
 }
 

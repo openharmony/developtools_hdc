@@ -96,24 +96,24 @@ bool EnumSerialPort(bool &portChange)
 #else
     DIR *dir = opendir("/dev");
     dirent *p = nullptr;
-    while (dir != nullptr && ((p = readdir(dir)) != nullptr)) {
+    if (dir != nullptr) {
+        while ((p = readdir(dir)) != nullptr) {
 #ifdef HOST_LINUX
-        if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
+            if (p->d_name[0] != '.' && string(p->d_name).find("tty") != std::string::npos) {
 #else
-        if (p->d_name[0] != '.' && string(p->d_name).find("serial") != std::string::npos) {
+            if (p->d_name[0] != '.' && string(p->d_name).find("serial") != std::string::npos) {
 #endif
-            string port = "/dev/" + string(p->d_name);
-            if (port.find("/dev/ttyUSB") == 0 || port.find("/dev/ttySerial") == 0 || port.find("/dev/cu.") == 0) {
-                newPortInfo.push_back(port);
-                auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
-                if (it == serialPortInfo.end()) {
-                    portChange = true;
-                    WRITE_LOG(LOG_INFO, "new port:%s", port.c_str());
+                string port = "/dev/" + string(p->d_name);
+                if (port.find("/dev/ttyUSB") == 0 || port.find("/dev/ttySerial") == 0 || port.find("/dev/cu.") == 0) {
+                    newPortInfo.push_back(port);
+                    auto it = std::find(serialPortInfo.begin(), serialPortInfo.end(), port);
+                    if (it == serialPortInfo.end()) {
+                        portChange = true;
+                        WRITE_LOG(LOG_INFO, "new port:%s", port.c_str());
+                    }
                 }
             }
         }
-    }
-    if (dir != nullptr) {
         closedir(dir);
     }
 #endif
@@ -355,6 +355,9 @@ int OpenSerialPort(std::string portName) {
     // cannot open with O_CLOEXEC, must fcntl
     fcntl(uartHandle, F_SETFD, FD_CLOEXEC);
     int flag = fcntl(uartHandle, F_GETFL);
+    if (flag < 0) {
+        return -1;
+    }
     flag &= ~O_NONBLOCK;
     fcntl(uartHandle, F_SETFL, flag);
 

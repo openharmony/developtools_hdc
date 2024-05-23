@@ -95,7 +95,7 @@ int HdcBridge::WriteClient(int fd, SerializedBuffer buf)
 {
     uint8_t* ptr = reinterpret_cast<uint8_t *>(buf.ptr);
     size_t size = static_cast<size_t>(buf.size);
-    int cnt = size;
+    int cnt = static_cast<int>(size);
     constexpr int intrmax = 1000;
     int intrcnt = 0;
     while (cnt > 0) {
@@ -116,7 +116,7 @@ int HdcBridge::WriteClient(int fd, SerializedBuffer buf)
         ptr += rc;
         cnt -= rc;
     }
-    return cnt == 0 ? size : cnt;
+    return cnt == 0 ? static_cast<int>(size) : cnt;
 }
 
 void HdcBridge::Stop()

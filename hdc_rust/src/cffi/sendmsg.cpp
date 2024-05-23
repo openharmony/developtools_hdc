@@ -30,7 +30,7 @@ extern "C" int SendMsg(int socketFd, int fd, char* data, int size)
     constexpr int cmsgNullptrError = -5;
     struct iovec iov;
     iov.iov_base = data;
-    iov.iov_len = size;
+    iov.iov_len = static_cast<size_t>(size);
     struct msghdr msg;
     msg.msg_name = nullptr;
     msg.msg_namelen = 0;

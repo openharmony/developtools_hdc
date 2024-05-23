@@ -25,7 +25,7 @@ ohos_executable("exec_hdcd_user_permit") {
       "ability_base:want",
       "ability_base:zuri",
       "ability_runtime:extension_manager",
-      "c_utils:utilsbase",
+      "c_utils:utils",
       "init:libbegetutil",
       "ipc:ipc_core",
       "window_manager:libwsutils",

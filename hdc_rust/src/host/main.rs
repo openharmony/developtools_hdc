@@ -24,7 +24,11 @@ mod task;
 mod translate;
 mod unittest;
 
-use std::io::ErrorKind;
+use std::{
+    backtrace::{Backtrace, BacktraceStatus},
+    io::ErrorKind,
+    panic,
+};
 
 use hdc::common::base;
 use hdc::common::base::Base;

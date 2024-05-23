@@ -212,6 +212,7 @@ bool DropRootPrivileges()
         struct group *group = getgrnam(groupsNames[i]);
         if (group == nullptr) {
             WRITE_LOG(LOG_FATAL, "calloc fail");
+            continue;
         }
         gids[i] = group->gr_gid;
     }

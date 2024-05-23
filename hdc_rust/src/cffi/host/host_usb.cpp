@@ -15,7 +15,7 @@
 #include "host_usb.h"
 
 #include <thread>
-#include "../usb_util.h"
+#include "usb_util.h"
 
 namespace Hdc {
 constexpr uint16_t DEVICE_CHECK_INTERVAL = 3000;  // ms

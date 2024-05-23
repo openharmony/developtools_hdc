@@ -105,13 +105,22 @@ impl TcpMap {
         let send = serializer::concat_pack(data);
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            crate::error!("get tcp is None, session_id={session_id}");
+            return;
+        };
         let mut wr = arc_wr.lock().await;
         let _ = wr.write_all(send.as_slice()).await;
     }
 
     pub async fn send_channel_message(channel_id: u32, buf: Vec<u8>) -> io::Result<()> {
-        crate::trace!("send channel msg: {:#?}", buf.clone());
+        crate::trace!(
+            "send channel msg: {:?}",
+            buf.iter()
+                .map(|&c| format!("{c:02X}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
         let send = [
             u32::to_be_bytes(buf.len() as u32).as_slice(),
             buf.as_slice(),
@@ -171,7 +180,9 @@ impl UsbMap {
         match map.get(&session_id) {
             Some(_wr) => {
                 {
-                    let arc_wr = map.get(&session_id).unwrap();
+                    let Some(arc_wr) = map.get(&session_id) else {
+                        return Err(Error::new(ErrorKind::NotFound, "session not found"));
+                    };
                     let mut wr = arc_wr.lock().await;
                     match wr.write_all(head) {
                         Ok(_) => {}
@@ -243,7 +254,9 @@ impl UartMap {
     pub async fn put(session_id: u32, data: Vec<u8>) -> io::Result<()> {
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_wr = map.get(&session_id).unwrap();
+        let Some(arc_wr) = map.get(&session_id) else {
+            return Err(Error::new(ErrorKind::NotFound, "session not found"));
+        };
         let wr = arc_wr.lock().await;
         wr.write_all(data)?;
         Ok(())
@@ -254,7 +267,7 @@ impl UartMap {
         let mut map = instance.write().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         if map.contains_key(&session_id) {
-            println!("uart start, contain session:{}", session_id);
+            crate::error!("uart start, contain session:{}", session_id);
             return;
         }
         map.insert(session_id, arc_wr);
@@ -303,6 +316,17 @@ pub enum EchoLevel {
     OK, // this echo maybe OK with carriage return and newline
 }
 
+impl EchoLevel {
+    pub fn convert_from_message_level(cmd: u8) -> Result<Self, Error> {
+        match cmd {
+            0 => Ok(Self::FAIL),
+            1 => Ok(Self::INFO),
+            2 => Ok(Self::OK),
+            _ => Err(Error::new(ErrorKind::Other, "invalid message level type"))
+        }
+    }
+}
+
 pub async fn send_channel_msg(channel_id: u32, level: EchoLevel, msg: String) -> io::Result<()> {
     let data = match level {
         EchoLevel::INFO => format!("[Info]{msg}") + "\r\n",
@@ -338,7 +362,9 @@ impl ChannelMap {
     pub async fn recv() -> io::Result<Vec<u8>> {
         let instance = Self::get_instance();
         let map = instance.read().await;
-        let arc_rd = map.get(&0).unwrap();
+        let Some(arc_rd) = map.get(&0) else {
+            return Err(Error::new(ErrorKind::NotFound, "channel not found"));
+        };
         let mut rd = arc_rd.lock().await;
         tcp::recv_channel_message(&mut rd).await
     }

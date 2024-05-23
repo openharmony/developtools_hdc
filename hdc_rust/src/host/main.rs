@@ -46,7 +46,22 @@ extern crate lazy_static;
 //     log::set_max_level(log_level);
 // }
 
+fn setup_panic_hook() {
+    panic::set_hook(Box::new(move |info| {
+        hdc::error!("panic info: {}", info);
+        let backtrace = Backtrace::capture();
+        if backtrace.status() == BacktraceStatus::Disabled {
+            hdc::error!(
+                "backtrace: disabled. run with `RUST_BACKTRACE=1` environment variable to display a backtrace."
+            );
+        } else {
+            hdc::error!("backtrace: \n{}", backtrace);
+        }
+    }));
+}
+
 fn main() {
+    setup_panic_hook();
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()
         .worker_stack_size(16 * 1024 * 1024)
         .worker_num(64)

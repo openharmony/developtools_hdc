@@ -259,7 +259,7 @@ impl Client {
         {
             return Err(Error::new(
                 ErrorKind::Other,
-                "Too few parameters.".to_string()
+                "Too few arguments.".to_string()
             ));
         }
         if (self.command == HdcCommand::ForwardInit
@@ -268,7 +268,7 @@ impl Client {
         {
             return Err(Error::new(
                 ErrorKind::Other,
-                "Too few parameters.".to_string()
+                "Too few arguments.".to_string()
             ));
         }
         self.send(self.params.join(" ").as_bytes()).await;

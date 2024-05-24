@@ -62,7 +62,7 @@ namespace SystemDepend {
         if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
             // failed
             ret = false;
-            Base::ZeroStruct(tmpStringBuf);
+            Base::ZeroBuf(tmpStringBuf, BUF_SIZE_MEDIUM);
         }
 #endif
         out = tmpStringBuf;

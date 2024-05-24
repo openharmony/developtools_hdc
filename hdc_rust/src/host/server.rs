@@ -311,7 +311,11 @@ async fn handshake_with_client(
 }
 
 fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
-    let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]).unwrap();
+    let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]);
+    if msg.is_err() {
+        return Err(Error::new(ErrorKind::Other, "not utf-8 chars."));
+    }
+    let msg = msg.unwrap();
     if msg != config::HANDSHAKE_MESSAGE {
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }

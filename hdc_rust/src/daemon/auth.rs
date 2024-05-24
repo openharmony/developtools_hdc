@@ -202,7 +202,6 @@ async fn create_basic_channel(session_id: u32, channel_id: u32, host_ver: &str) 
                 make_bypass_message(session_id, channel_id, host_ver).await,
             )
             .await;
-            transfer::put(session_id, make_channel_close_message(channel_id).await).await;
             hdc::info!(
                 "create_basic_channel created success for session {}",
                 session_id

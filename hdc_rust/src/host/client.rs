@@ -133,18 +133,6 @@ impl Client {
             | HdcCommand::ForwardRportList
             | HdcCommand::ForwardRemove
             | HdcCommand::ForwardRportRemove => {
-                if (self.command == HdcCommand::ForwardRemove
-                    || self.command == HdcCommand::ForwardRportRemove)
-                    && self.params.len() < 3
-                {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        format!(
-                            "arguments are too small for command : {}",
-                            self.command as u32
-                        ),
-                    ));
-                }
                 self.forward_task().await
             }
             HdcCommand::JdwpList | HdcCommand::JdwpTrack => self.jdwp_task().await,
@@ -265,6 +253,24 @@ impl Client {
     }
 
     async fn forward_task(&mut self) -> io::Result<()> {
+        if (self.command == HdcCommand::ForwardRemove
+            || self.command == HdcCommand::ForwardRportRemove)
+            && self.params.len() < 3
+        {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Too few arguments.".to_string()
+            ));
+        }
+        if (self.command == HdcCommand::ForwardInit
+            || self.command == HdcCommand::ForwardRportInit)
+            && self.params.len() < 3
+        {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Too few arguments.".to_string()
+            ));
+        }
         self.send(self.params.join(" ").as_bytes()).await;
         self.loop_recv().await
     }

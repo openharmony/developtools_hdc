@@ -952,7 +952,7 @@ async fn get_valid_session_id(connect_key: String, channel_id: u32) -> io::Resul
             transfer::send_channel_msg(
                 channel_id,
                 transfer::EchoLevel::FAIL,
-                "Not match target founded, check connect-key please".to_string(),
+                "Targets not found, please check the connect-key.".to_string(),
             )
             .await?;
             transfer::TcpMap::end(channel_id).await;

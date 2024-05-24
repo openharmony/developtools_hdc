@@ -242,7 +242,11 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
                 .join(" ")
         );
 
-        let recv_str = String::from_utf8(recv.clone()).unwrap();
+        let recv_str = String::from_utf8(recv.clone());
+        if recv_str.is_err() {
+            return Err(Error::new(ErrorKind::Other, "not utf-8 chars."));
+        }
+        let recv_str = recv_str.unwrap();
         hdc::debug!("recv str: {}", recv_str.clone());
         let mut parsed = parser::split_opt_and_cmd(
             String::from_utf8(recv)
@@ -301,13 +305,17 @@ async fn handshake_with_client(
     .concat();
 
     transfer::send_channel_data(channel_id, buf).await;
-    let recv = transfer::tcp::recv_channel_message(rd).await.unwrap();
+    let recv = transfer::tcp::recv_channel_message(rd).await?;
     let connect_key = unpack_channel_handshake(recv)?;
     Ok((connect_key, channel_id))
 }
 
 fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
-    let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]).unwrap();
+    let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]);
+    if msg.is_err() {
+        return Err(Error::new(ErrorKind::Other, "not utf-8 chars."));
+    }
+    let msg = msg.unwrap();
     if msg != config::HANDSHAKE_MESSAGE {
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }

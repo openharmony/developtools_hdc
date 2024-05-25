@@ -122,14 +122,26 @@ pub struct UsbWriter {
 impl base::Reader for UsbReader {
     // 屏蔽window编译报错
     #[cfg(not(target_os = "windows"))]
-    fn read_frame(&self, _expected_size: usize) -> io::Result<Vec<u8>> {
+    fn read_frame(&self, expected_size: usize) -> io::Result<Vec<u8>> {
         let buf = unsafe { ReadUsbDevEx(self.fd) };
         if buf.size == 0 {
             crate::warn!("usb read result < 0");
             return Err(utils::error_other("usb read error".to_string()));
         }
-
-        Ok(buf_to_vec(buf))
+        if buf.size == expected_size.try_into().expect("trasnfer usize into u64 error") {
+            Ok(buf_to_vec(buf))
+        } else {
+            crate::warn!(
+                "usb read result size: {:}, is not equal to expected_size: {}",
+                buf.size,
+                expected_size,
+            );
+            if buf.size > expected_size.try_into().expect("trasnfer usize into u64 error") {
+                return Ok(buf_to_vec(buf).split_at(expected_size).0.to_vec());
+            } else {
+                Err(utils::error_other("usb read error".to_string()))
+            }
+        }
     }
 
     // 屏蔽window编译报错

@@ -370,7 +370,7 @@ impl ForwardTaskMap {
         let arc = Self::get_instance();
         let mut channel_list = Vec::new();
         {
-            let mut map = arc.lock().await;
+            let map = arc.lock().await;
             if map.is_empty() {
                 return;
             }
@@ -380,10 +380,9 @@ impl ForwardTaskMap {
                     channel_list.push(id);
                 }
             }
-
-            for id in channel_list {
-                map.remove(&id);
-            }
+        }
+        for id in channel_list {
+            free_channel_task(id.0, id.1).await;
         }
     }
 
@@ -825,7 +824,7 @@ pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
         let parameters = task.remote_parameters.clone();
         let result = forward_tcp_accept(session_id, channel_id, port, parameters, cid).await;
         crate::info!("setup_tcp_point result:{:?}", result);
-        task.context_forward.last_error = format!("TCP Port listen failed at {}", port).to_string();
+        task.context_forward.last_error = format!("TCP Port listen failed at {}", port);
         ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         return result.is_ok();
     } else {
@@ -1330,18 +1329,26 @@ pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) ->
 
     if argc < ARG_COUNT2 {
         crate::error!("argc < 2 parse is failed.");
+        task.context_forward.last_error = "Too few arguments.".to_string();
+        ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         return false;
     }
     if argv[0].len() > BUF_SIZE_SMALL || argv[1].len() > BUF_SIZE_SMALL {
         crate::error!("parse's length is flase.");
+        task.context_forward.last_error = "Some argument too long.".to_string();
+        ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         return false;
     }
     if !check_node_info(&argv[0], &mut task.local_args).await {
         crate::error!("check argv[0] node info is flase.");
+        task.context_forward.last_error = "Arguments parsing failed.".to_string();
+        ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         return false;
     }
     if !check_node_info(&argv[1], &mut task.remote_args).await {
         crate::error!("check argv[1] node info is flase.");
+        task.context_forward.last_error = "Arguments parsing failed.".to_string();
+        ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         return false;
     }
     task.remote_parameters = argv[1].clone();
@@ -1525,7 +1532,7 @@ async fn get_last_error(session_id: u32, channel_id: u32) -> io::Result<String> 
     let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         return Err(Error::new(ErrorKind::Other, "task not found."));
     };
-    Ok(task.context_forward.last_error.clone())
+    Ok(task.context_forward.last_error)
 }
 
 async fn print_error_info(session_id: u32, channel_id: u32) {

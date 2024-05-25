@@ -127,7 +127,7 @@ public:
     static void UsbWorkThread(void *arg);  // 3rd thread
     static void WatchUsbNodeChange(void *arg);
     static void LIBUSB_CALL USBBulkCallback(struct libusb_transfer *transfer);
-    void CancelUsbIo(HUSB hUsb);
+    void CancelUsbIo(HUSB hUSB);
     PersistBuffer ReadUsbIO(HUSB hUsb, int exceptedSize);
     int WriteUsbIO(HUSB hUsb, SerializedBuffer buf);
     HUSB GetUsbDevice(std::string connectKey);

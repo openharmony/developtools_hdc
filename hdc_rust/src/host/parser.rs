@@ -82,13 +82,23 @@ const COMBINED_COMMAND_LEN: usize = 2;
 pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
     let mut cmd_opt: Option<HdcCommand> = None;
     let mut cmd_index = input.len();
-    for len in 1..MAX_CMD_LEN {
-        for st in 0..input.len() {
+    for st in 0..input.len() {
+        for len in 1..MAX_CMD_LEN {
             if st + len > input.len() {
                 break;
             }
             let cmd = input[st..st + len].join(" ");
             if let Some(command) = CMD_MAP.get(cmd.as_str()) {
+                // if first command parsed is "fport", but next command parsed
+                // is not "fport ls" or "fport rm", discard the new command.
+                if cmd_opt.is_some()
+                    && (cmd_opt.unwrap() == HdcCommand::ForwardInit
+                        || cmd_opt.unwrap() == HdcCommand::ForwardRportInit)  
+                    && (*command != HdcCommand::ForwardRemove
+                        && *command != HdcCommand::ForwardList)
+                {
+                    break;  
+                }
                 cmd_index = st;
                 cmd_opt = Some(command.to_owned());
                 if *command == HdcCommand::ForwardInit || *command == HdcCommand::ForwardRportInit {

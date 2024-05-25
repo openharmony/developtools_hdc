@@ -74,9 +74,11 @@ fn need_drop_root_privileges() {
 async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
     match res {
         Ok(msg) => {
-            if let Err(e) = task::dispatch_task(msg, session_id).await {
-                hdc::error!("dispatch task failed: {}", e.to_string());
-            }
+            ylong_runtime::spawn(async move {
+                if let Err(e) = task::dispatch_task(msg, session_id).await {
+                    hdc::error!("dispatch tcp task failed: {}", e.to_string());
+                }
+            });
         }
         Err(e) => {
             hdc::debug!("clear pty map: {}", session_id);

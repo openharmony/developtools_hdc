@@ -23,6 +23,7 @@ mod server;
 mod task;
 mod translate;
 mod unittest;
+mod tty_utility;
 
 use std::io::ErrorKind;
 

@@ -38,9 +38,13 @@ use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitWriteHalf, TcpStream};
 
 #[cfg(target_os = "windows")]
+use crate::tty_utility::*;
+
+#[cfg(target_os = "windows")]
 extern "C" {
     fn getch() -> libc::c_int;
 }
+
 
 #[allow(unused)]
 pub struct Client {
@@ -53,6 +57,7 @@ pub struct Client {
 pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
     match parsed_cmd.command.unwrap() {
         HdcCommand::KernelServerStart => {
+
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
                 server::server_kill().await;
             }
@@ -196,6 +201,53 @@ impl Client {
         self.loop_recv().await
     }
 
+
+    #[cfg(target_os = "windows")]
+    async fn  shell_task(&mut self) -> io::Result<()> {
+        let cmd = match self.params.len() {
+            1 => "shell\0".to_string(),
+            _ => self.params.join(" "),
+        };
+
+        self.send(cmd.as_bytes()).await;
+
+        let _handle = ylong_runtime::spawn(async move {
+            loop {
+                match transfer::ChannelMap::recv().await {
+                    Ok(recv) => {
+                        let _ = utils::print_msg(recv).await;
+                    }
+                    Err(_) => {
+                        std::process::exit(0);
+                    }
+                }
+            }
+        });
+        
+        loop {
+            let c = unsafe { getch() };
+
+            // 判断如果是ctrl_D,发送给serer端，client直接退出
+            if c == 0x4 {
+                self.send([c as u8].as_slice()).await;
+                break;
+            }
+
+            // win下的控制字符以0xe0开头，转换后发送给server，
+            if c == 0xe0 {
+                let control_code = convert_to_control_code();
+                self.send(control_code.as_slice()).await;
+                continue;
+            }
+
+            let unicode_byte = unicode_assemble(c);
+            hdc::info!("unicode_byte is {:?}", unicode_byte);
+            self.send(unicode_byte.as_slice()).await;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
     async fn shell_task(&mut self) -> io::Result<()> {
         let cmd = match self.params.len() {
             1 => "shell\0".to_string(),
@@ -204,9 +256,7 @@ impl Client {
 
         self.send(cmd.as_bytes()).await;
 
-        #[cfg(not(target_os = "windows"))]
         let termios = setup_raw_terminal().unwrap();
-        #[cfg(not(target_os = "windows"))]
         let termios_clone = termios;
 
         let _handle = ylong_runtime::spawn(async move {
@@ -216,7 +266,6 @@ impl Client {
                         let _ = utils::print_msg(recv).await;
                     }
                     Err(_) => {
-                        #[cfg(not(target_os = "windows"))]
                         let _ = recover_terminal(termios_clone);
 
                         std::process::exit(0);
@@ -225,12 +274,9 @@ impl Client {
             }
         });
 
-        #[cfg(not(target_os = "windows"))]
         let mut buf = [0_u8; 1];
-        #[cfg(not(target_os = "windows"))]
         let mut stdin = ylong_runtime::io::stdin();
 
-        #[cfg(not(target_os = "windows"))]
         while let Ok(bytes) = stdin.read(&mut buf).await {
             self.send(&buf[..bytes]).await;
             if buf[..bytes].contains(&0x4_u8) {
@@ -238,16 +284,6 @@ impl Client {
             }
         }
 
-        #[cfg(target_os = "windows")]
-        loop {
-            let c = unsafe { getch() };
-            self.send([c as u8].as_slice()).await;
-            if c == 0x4 {
-                break;
-            }
-        }
-
-        #[cfg(not(target_os = "windows"))]
         let _ = recover_terminal(termios);
         Ok(())
     }

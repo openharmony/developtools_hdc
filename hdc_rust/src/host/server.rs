@@ -243,15 +243,11 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
                 .join(" ")
         );
 
-        let recv_str = String::from_utf8(recv.clone());
-        if recv_str.is_err() {
-            return Err(Error::new(ErrorKind::Other, "not utf-8 chars."));
-        }
-        let recv_str = recv_str.unwrap();
+        let recv_str = String::from_utf8_lossy(&recv.clone()).into_owned();
         hdc::debug!("recv str: {}", recv_str.clone());
         let mut parsed = parser::split_opt_and_cmd(
-            String::from_utf8(recv)
-                .unwrap()
+            String::from_utf8_lossy(&recv)
+                .into_owned()
                 .split(' ')
                 .map(|s| s.trim_end_matches('\0').to_string())
                 .collect::<Vec<_>>(),

@@ -56,7 +56,8 @@ impl ConnectTypeMap {
     pub async fn put(session_id: u32, conn_type: ConnectType) {
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
-        map.insert(session_id, conn_type);
+        map.insert(session_id, conn_type.clone());
+        crate::debug!("connect map: add {session_id}, {:?}", conn_type);
     }
 
     async fn get(session_id: u32) -> Option<ConnectType> {
@@ -68,7 +69,8 @@ impl ConnectTypeMap {
     pub async fn del(session_id: u32) {
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
-        let _ = map.remove(&session_id);
+        let item = map.remove(&session_id);
+        crate::debug!("connect map: del {session_id}: {:?}", item);
     }
 
     pub async fn dump() -> String {
@@ -115,7 +117,7 @@ impl TcpMap {
 
     pub async fn send_channel_message(channel_id: u32, buf: Vec<u8>) -> io::Result<()> {
         crate::trace!(
-            "send channel msg: {:?}",
+            "send channel({channel_id}) msg: {:?}",
             buf.iter()
                 .map(|&c| format!("{c:02X}"))
                 .collect::<Vec<_>>()
@@ -142,6 +144,7 @@ impl TcpMap {
         let arc_wr = Arc::new(Mutex::new(wr));
         map.insert(id, arc_wr);
         ConnectTypeMap::put(id, ConnectType::Tcp).await;
+        crate::warn!("tcp start {id}");
     }
 
     pub async fn end(id: u32) {
@@ -151,6 +154,7 @@ impl TcpMap {
             let mut wr = arc_wr.lock().await;
             let _ = wr.shutdown().await;
         }
+        crate::warn!("tcp end {id}");
         ConnectTypeMap::del(id).await;
     }
 }

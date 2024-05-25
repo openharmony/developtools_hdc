@@ -174,6 +174,9 @@ async fn make_bypass_message(session_id: u32, channel_id: u32, host_ver: &str) -
         handshake_msg = hostname;
     } else {
         handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
+        if is_auth_enable() {
+            handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DAEOMN_AUTHSTATUS, DAEOMN_UNAUTHORIZED);
+        }
     }
 
     let send = native_struct::SessionHandShake {
@@ -199,7 +202,6 @@ async fn create_basic_channel(session_id: u32, channel_id: u32, host_ver: &str) 
                 make_bypass_message(session_id, channel_id, host_ver).await,
             )
             .await;
-            transfer::put(session_id, make_channel_close_message(channel_id).await).await;
             hdc::info!(
                 "create_basic_channel created success for session {}",
                 session_id
@@ -219,6 +221,7 @@ async fn make_emg_message(session_id: u32, channel_id: u32, emgmsg: &str) -> Tas
 
     handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DEVNAME, hostname.as_str());
     handshake_msg = Base::tlv_append(handshake_msg, config::TAG_EMGMSG, emgmsg);
+    handshake_msg = Base::tlv_append(handshake_msg, config::TAG_DAEOMN_AUTHSTATUS, DAEOMN_UNAUTHORIZED);
 
     let send = native_struct::SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
@@ -343,6 +346,7 @@ pub async fn get_auth_msg(session_id: u32) -> String {
     }
 }
 pub async fn make_channel_close_message(channel_id: u32) -> TaskMessage {
+    hdc::debug!("make_channel_close_message: channel {channel_id}");
     TaskMessage {
         channel_id,
         command: HdcCommand::KernelChannelClose,

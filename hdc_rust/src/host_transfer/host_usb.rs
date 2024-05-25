@@ -344,7 +344,6 @@ impl HostUsbMap {
         Err(Error::new(ErrorKind::NotFound, "channel not found"))
     }
 
-    #[allow(unused)]
     pub async fn start(session_id: u32, wr: HostUsbWriter) {
         let buffer_map = Self::get_instance();
         let mut map = buffer_map.write().await;
@@ -359,6 +358,7 @@ impl HostUsbMap {
 
     #[allow(unused)]
     pub async fn end(id: u32) {
+        crate::warn!("usb session {} will end", id);
         let instance = Self::get_instance();
         let mut map = instance.write().await;
         let _ = map.remove(&id);

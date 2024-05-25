@@ -95,7 +95,8 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
                     && (cmd_opt.unwrap() == HdcCommand::ForwardInit
                         || cmd_opt.unwrap() == HdcCommand::ForwardRportInit)  
                     && (*command != HdcCommand::ForwardRemove
-                        && *command != HdcCommand::ForwardList)
+                        && *command != HdcCommand::ForwardList
+                        && *command != HdcCommand::ForwardRportList)
                 {
                     break;  
                 }

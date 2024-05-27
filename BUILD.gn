@@ -128,7 +128,7 @@ template("hdcd_source_set") {
 
     external_deps = [
       "bounds_checking_function:libsec_shared",
-      "c_utils:utilsbase",
+      "c_utils:utils",
       "hilog:libhilog",
       "init:libbegetutil",
       "libuv:uv",
@@ -467,7 +467,7 @@ ohos_shared_library("hdc_register") {
 
   external_deps = [
     "bounds_checking_function:libsec_shared",
-    "c_utils:utilsbase",
+    "c_utils:utils",
     "hilog:libhilog",
     "libuv:uv",
   ]

@@ -17,20 +17,19 @@
 #include <random>
 #include <sstream>
 #include <thread>
-#ifdef HDC_HILOG
-#include "hilog/log.h"
-#endif
 #include <fcntl.h>
 #ifdef _WIN32
 #include <synchapi.h>
 #include <errhandlingapi.h>
 #include <winerror.h>
 #include <handleapi.h>
+#include <windows.h>
 #else
 #include <pthread.h>
 #endif
 #include <unistd.h>
 #include <securec.h>
+#include "log.h"
 
 constexpr uint16_t BUF_SIZE_TINY = 64;
 constexpr uint16_t BUF_SIZE_DEFAULT = 1024;
@@ -39,6 +38,10 @@ constexpr int ERR_BUF_OVERFLOW = -9998;
 constexpr int ERR_FILE_OPEN = -11000;
 constexpr int ERR_FILE_WRITE = -10996;
 constexpr int ERR_FILE_STAT = -10997;
+
+#ifdef _WIN32
+constexpr uint16_t BUF_SIZE_SMALL = 256;
+#endif
 
 extern "C" {
     static char GetPathSep()
@@ -163,6 +166,34 @@ extern "C" {
 
         return 0;
     }
+#endif
+
+#ifdef _WIN32
+__declspec(dllexport) bool LaunchServerWin32(const char *runPath, const char *listenString, int logLevel)
+{
+    bool retVal = false;
+    STARTUPINFO si = {};
+    PROCESS_INFORMATION pi = {};
+    ZeroMemory(&si, sizeof(si));
+    ZeroMemory(&pi, sizeof(pi));
+
+    char buf[BUF_SIZE_SMALL] = "";
+    // here we give a dummy option first, because getopt will assume the first option is command. it
+    // begin from 2nd args.
+    if (sprintf_s(buf, sizeof(buf), "dummy -b -l %d -s %s -m", logLevel, listenString) < 0) {
+        return retVal;
+    }
+
+    si.cb = sizeof(STARTUPINFO);
+    if (!CreateProcess(runPath, buf, nullptr, nullptr, false, DETACHED_PROCESS, nullptr, nullptr, &si, &pi)) {
+        retVal = false;
+    } else {
+        retVal = true;
+    }
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return retVal;
+}
 #endif
 }
 

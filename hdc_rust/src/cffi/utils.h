@@ -20,6 +20,7 @@ extern "C" {
 #ifdef _WIN32
     // return value: <0 error; 0 can start new server instance; >0 server already exists
     __declspec(dllexport) int ProgramMutex(const char* procname, bool checkOrNew, const char* tmpDir);
+    __declspec(dllexport) bool PullupServerWin32(const char *runPath, const char *listenString, int logLevel);
 #else
     // return value: <0 error; 0 can start new server instance; >0 server already exists
     int ProgramMutex(const char* procname, bool checkOrNew, const char* tmpDir);

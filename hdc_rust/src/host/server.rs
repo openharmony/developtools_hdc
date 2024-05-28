@@ -14,7 +14,12 @@
  */
 use crate::parser;
 use crate::task;
+#[cfg(target_os = "windows")]
+use libc::{c_char, c_int};
+#[cfg(target_os = "windows")]
+use std::ffi::CString;
 
+use crate::task::ConnectMap;
 use hdc::config;
 use hdc::config::HdcCommand;
 use hdc::host_transfer::host_usb;
@@ -26,11 +31,19 @@ use std::io::{self, Error, ErrorKind};
 use std::process;
 use std::str::FromStr;
 use std::time::Duration;
-use crate::task::ConnectMap;
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf, TcpListener, TcpStream};
+
+#[cfg(target_os = "windows")]
+extern "C" {
+    fn LaunchServerWin32(
+        runPath: *const c_char,
+        listenString: *const c_char,
+        logLevel: c_int,
+    ) -> bool;
+}
 
 #[derive(PartialEq)]
 enum TargetStatus {
@@ -135,22 +148,18 @@ pub async fn get_process_pids() -> Vec<u32> {
 #[cfg(target_os = "windows")]
 pub async fn server_fork(addr_str: String, log_level: usize) {
     let current_exe = std::env::current_exe().unwrap();
-    let result = process::Command::new("cmd.exe")
-        .arg("/C")
-        .arg("start")
-        .arg("")
-        .arg("/B")
-        .arg(current_exe)
-        .arg("-b")
-        .arg("-m")
-        .arg("-l")
-        .arg(log_level.to_string())
-        .arg("-s")
-        .arg(addr_str)
-        .spawn();
-    match result {
-        Ok(_) => ylong_runtime::time::sleep(Duration::from_millis(1000)).await,
-        Err(_) => hdc::info!("server fork failed"),
+    let run_path = CString::new(current_exe.display().to_string()).unwrap();
+    let listen_string = CString::new(addr_str).unwrap();
+    if unsafe {
+        LaunchServerWin32(
+            run_path.as_ptr(),
+            listen_string.as_ptr(),
+            log_level as c_int,
+        )
+    } {
+        ylong_runtime::time::sleep(Duration::from_millis(1000)).await
+    } else {
+        hdc::info!("server fork failed")
     }
 }
 
@@ -202,8 +211,6 @@ enum ChannelState {
     App,
     None,
 }
-
-
 
 async fn handle_client(stream: TcpStream) -> io::Result<()> {
     let (mut rd, wr) = stream.into_split();

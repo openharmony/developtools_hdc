@@ -25,7 +25,11 @@ mod translate;
 mod unittest;
 mod tty_utility;
 
-use std::io::ErrorKind;
+use std::{
+    backtrace::{Backtrace, BacktraceStatus},
+    io::ErrorKind,
+    panic,
+};
 
 use hdc::common::base;
 use hdc::common::base::Base;

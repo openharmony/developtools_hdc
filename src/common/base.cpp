@@ -35,7 +35,7 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     constexpr int DEF_FILE_PERMISSION = 0750;
-#ifndef HDC_HOST
+#ifndef _WIN32
     sigset_t g_blockList;
 #endif
     uint8_t GetLogLevel()

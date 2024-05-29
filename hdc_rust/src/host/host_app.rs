@@ -14,6 +14,7 @@
  */
 use hdc::common::base::Base;
 use hdc::common::filemanager::FileManager;
+use hdc::common::hdcfile;
 use hdc::common::hdctransfer::{self, HdcTransferBase};
 use hdc::config;
 use hdc::config::HdcCommand;
@@ -313,6 +314,7 @@ pub async fn command_dispatch(
                         transfer::TcpMap::end(channel_id).await;
                         return Ok(false);
                     }
+                    hdcfile::wake_up_slaver(session_id, channel_id).await;
                     put_app_check(session_id, channel_id).await
                 }
                 Err(e) => {

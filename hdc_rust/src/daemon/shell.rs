@@ -19,21 +19,64 @@
 use super::task_manager;
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG};
+use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG, MAX_SIZE_IOBUF};
 use hdc::transfer;
-use std::collections::HashMap;
-use std::io::{self};
-use std::sync::Arc;
 
+use std::collections::HashMap;
+use std::io::{self, Error, ErrorKind};
+use std::mem::MaybeUninit;
 use std::os::fd::AsRawFd;
 use std::process::Stdio;
-use ylong_runtime::io::AsyncReadExt;
-use ylong_runtime::io::AsyncWriteExt;
-use ylong_runtime::process::pty_process::{Pty, PtyCommand};
-use ylong_runtime::process::Child as ylongChild;
-use ylong_runtime::sync::mpsc;
-use ylong_runtime::sync::Mutex;
+use std::sync::{Arc, Once};
 
+use ylong_runtime::process::pty_process::{Pty, PtyCommand};
+use ylong_runtime::process::{Child, Command, ChildStdin, ChildStdout, ChildStderr};
+use ylong_runtime::io::{AsyncReadExt, AsyncWriteExt, AsyncBufReadExt, AsyncBufReader};
+use ylong_runtime::sync::{mpsc, Mutex};
+use ylong_runtime::sync::error::TryRecvError::Closed;
+
+
+// -----inner common functions-----
+#[derive(Debug)]
+struct ShellTaskID {
+    session_id: u32,
+    channel_id: u32,
+}
+
+fn trim_quotation_for_cmd(cmd_input: String) -> String {
+    let mut cmd = cmd_input.trim().to_string();
+    if cmd.starts_with('"') && cmd.ends_with('"') {
+        cmd = match cmd.strip_prefix('"') {
+            Some(cmd_res) => cmd_res.to_string(),
+            None => cmd,
+        };
+        cmd = match cmd.strip_suffix('"') {
+            Some(cmd_res) => cmd_res.to_string(),
+            None => cmd,
+        };
+    }
+    cmd
+}
+
+async fn shell_channel_close(channel_id: u32, session_id: u32){
+    let message = TaskMessage {
+        channel_id,
+        command: HdcCommand::KernelChannelClose,
+        payload: [1].to_vec(),
+    };
+    transfer::put(session_id, message).await;
+}
+
+pub async fn stop_task(session_id: u32) {
+    PtyMap::stop_task(session_id).await;
+    ShellExecuteMap::stop_task(session_id).await;
+}
+
+pub async fn dump_task() -> String {
+    PtyMap::dump_task().await
+}
+
+// -----interactive shell inplementation-----
 pub struct PtyTask {
     pub handle: ylong_runtime::task::JoinHandle<()>,
     pub tx: mpsc::BoundedSender<Vec<u8>>,
@@ -44,16 +87,14 @@ pub struct PtyTask {
 
 struct PtyProcess {
     pub pty: Pty,
-    pub child: Arc<Mutex<ylongChild>>,
-    pub nohup_flag: bool,
+    pub child: Arc<Mutex<Child>>,
 }
 
 impl PtyProcess {
-    fn new(pty: Pty, child: Arc<Mutex<ylongChild>>, nohup_flag: bool) -> Self {
+    fn new(pty: Pty, child: Arc<Mutex<Child>>) -> Self {
         Self {
             pty,
             child,
-            nohup_flag,
         }
     }
 }
@@ -81,7 +122,6 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
             return Err(e);
         }
     };
-    let mut nohup_flag = false;
     let child = match cmd {
         None => {
             hdc::debug!("input cmd is None. channel_id {_channel_id}");
@@ -90,45 +130,16 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
         }
         Some(mut cmd) => {
             hdc::debug!("input cmd [{}]", cmd);
-            cmd = cmd.trim().to_string();
-            if cmd.starts_with('"') && cmd.ends_with('"') {
-                cmd = match cmd.strip_prefix('"') {
-                    Some(cmd_res) => cmd_res.to_string(),
-                    None => cmd,
-                };
-                cmd = match cmd.strip_suffix('"') {
-                    Some(cmd_res) => cmd_res.to_string(),
-                    None => cmd,
-                };
-            }
-            nohup_flag = cmd.ends_with('&');
+            cmd = trim_quotation_for_cmd(cmd);
             let params = ["-c", cmd.as_str()].to_vec();
             let mut proc = PtyCommand::new(SHELL_PROG);
             let command = proc.args(params);
-            if nohup_flag {
-                unsafe {
-                    command.pre_exec(move || {
-                        if nohup_flag {
-                            libc::setsid();
-                            libc::signal(libc::SIGHUP, libc::SIG_IGN);
-                        }
-                        Ok(())
-                    });
-                }
-                command
-                    .stdin(Stdio::null())
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .spawn(&pts)?
-            } else {
-                command.spawn(&pts)?
-            }
+            command.spawn(&pts)?
         }
     };
     Ok(PtyProcess::new(
         pty,
         Arc::new(Mutex::new(child)),
-        nohup_flag,
     ))
 }
 
@@ -148,12 +159,7 @@ async fn subprocess_task(
                 MessageLevel::Fail,
             )
             .await;
-            let task_message = TaskMessage {
-                channel_id,
-                command: HdcCommand::KernelChannelClose,
-                payload: [1].to_vec(),
-            };
-            transfer::put(session_id, task_message).await;
+            shell_channel_close(channel_id, session_id).await;
             let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
             hdc::error!("{}", msg);
             panic!("{}", msg);
@@ -242,56 +248,41 @@ async fn subprocess_task(
         }
     }
 
-    if !pty_process.nohup_flag {
-        let mut child_lock = pty_process.child.lock().await;
+    let mut child_lock = pty_process.child.lock().await;
 
-        let kill_result = child_lock.kill().await;
-        hdc::debug!("subprocess_task kill child(session_id {session_id}, channel_id {channel_id}), result:{:?}", kill_result);
-        match child_lock.wait().await {
-            Ok(exit_status) => {
-                PtyMap::del(session_id, channel_id).await;
-                hdc::debug!(
-                    "subprocess_task waiting child exit success, status:{:?}.",
-                    exit_status
-                );
-            }
-            Err(e) => {
-                let kill_result = child_lock.kill().await;
-                hdc::debug!(
-                    "subprocess_task child exit status {:?}, kill child, result:{:?}",
-                    e,
-                    kill_result
-                );
-            }
+    let kill_result = child_lock.kill().await;
+    hdc::debug!("subprocess_task kill child(session_id {session_id}, channel_id {channel_id}), result:{:?}", kill_result);
+    match child_lock.wait().await {
+        Ok(exit_status) => {
+            PtyMap::del(session_id, channel_id).await;
+            hdc::debug!(
+                "subprocess_task waiting child exit success, status:{:?}.",
+                exit_status
+            );
         }
-
-        match child_lock.wait().await {
-            Ok(exit_status) => {
-                PtyMap::del(session_id, channel_id).await;
-                hdc::debug!(
-                    "subprocess_task waiting child exit success, status:{:?}.",
-                    exit_status
-                );
-            }
-            Err(e) => {
-                hdc::debug!("subprocess_task waiting child exit fail, error:{:?}.", e);
-            }
+        Err(e) => {
+            let kill_result = child_lock.kill().await;
+            hdc::debug!(
+                "subprocess_task child exit status {:?}, kill child, result:{:?}",
+                e,
+                kill_result
+            );
         }
-    } else {
-        let mut child_lock = pty_process.child.lock().await;
-        hdc::debug!(
-            "subprocess_task nohup_flag:{} wait before",
-            pty_process.nohup_flag
-        );
-        let ret = child_lock.wait().await;
-        PtyMap::del(session_id, channel_id).await;
-        hdc::info!(
-            "subprocess_task nohup_flag:{} wait after: {:#?}",
-            pty_process.nohup_flag,
-            ret
-        );
     }
 
+    match child_lock.wait().await {
+        Ok(exit_status) => {
+            PtyMap::del(session_id, channel_id).await;
+            hdc::debug!(
+                "subprocess_task waiting child exit success, status:{:?}.",
+                exit_status
+            );
+        }
+        Err(e) => {
+            hdc::debug!("subprocess_task waiting child exit fail, error:{:?}.", e);
+        }
+    }
+    
     let message = TaskMessage {
         channel_id,
         command: HdcCommand::KernelChannelClose,
@@ -337,7 +328,7 @@ impl Drop for PtyTask {
     }
 }
 
-type Child_ = Arc<Mutex<ylongChild>>;
+type Child_ = Arc<Mutex<Child>>;
 type PtyChildProcessMap_ = Arc<Mutex<HashMap<(u32, u32), Child_>>>;
 pub struct PtyChildProcessMap {}
 impl PtyChildProcessMap {
@@ -516,10 +507,257 @@ impl PtyMap {
     }
 }
 
-pub async fn stop_task(session_id: u32) {
-    PtyMap::stop_task(session_id).await;
+// -----noninteractive shell implementation-----
+
+type ShellExecuteMap_ = Mutex<HashMap<(u32, u32), Arc<ShellExecuteTask>>>;
+pub struct ShellExecuteMap {}
+impl ShellExecuteMap {
+    fn get_instance() -> &'static ShellExecuteMap_ {
+        static mut SHELLEXECUTE_MAP: MaybeUninit<ShellExecuteMap_> = MaybeUninit::uninit();
+        static ONCE: Once = Once::new();
+
+        unsafe {
+            ONCE.call_once(|| {
+                    SHELLEXECUTE_MAP = MaybeUninit::new(Mutex::new(HashMap::new()));
+                }
+            );
+            &*SHELLEXECUTE_MAP.as_ptr()
+        }
+    }
+
+    pub async fn put(session_id: u32, channel_id: u32, shell_execute_task: ShellExecuteTask) {
+        let shell_execute_map = Self::get_instance();
+        let mut map = shell_execute_map.lock().await;
+        let arc_shell_execute_task = Arc::new(shell_execute_task);
+        map.insert((session_id, channel_id), arc_shell_execute_task);
+    }
+
+    pub async fn del(session_id: u32, channel_id: u32) {
+        let shell_execute_map = Self::get_instance();
+        let mut map = shell_execute_map.lock().await;
+        map.remove(&(session_id, channel_id));
+    }
+
+    pub async fn stop_task(session_id: u32) {
+        let shell_execute_map = Self::get_instance();
+        {
+            let mut map = shell_execute_map.lock().await;
+            let mut channel_vec = vec![];
+            for _iter in map.iter() {
+                if _iter.0 .0 != session_id {
+                    continue;
+                }
+                channel_vec.push(_iter.0 .1);
+                hdc::debug!(
+                    "Clear tty task, session_id: {}, channel_id:{}",
+                    session_id,
+                    _iter.0 .1,
+                );
+            }
+            for channel_id in channel_vec{
+                map.remove(&(session_id, channel_id));
+            }
+        }
+    }
 }
 
-pub async fn dump_task() -> String {
-    PtyMap::dump_task().await
+pub struct ShellExecuteTask {
+    pub handle: ylong_runtime::task::JoinHandle<()>,
+    pub tx: mpsc::BoundedSender<Vec<u8>>,
+    pub session_id: u32,
+    pub channel_id: u32,
+    pub cmd: String,
+}
+
+
+async fn watch_pipe_states(rx: &mut mpsc::BoundedReceiver<Vec<u8>>, child_in: &mut ChildStdin) -> io::Result<()> {
+    match rx.try_recv() {
+        Err(e) => {
+            if e == Closed {
+                return Err(Error::new(ErrorKind::Other, "pipe closed"));
+            }
+            hdc::trace!("rx have get Empty or Err {:?}", e);
+            // 执行top指令时，存在短暂无返回值场景，此时返回值为Err(Empty),需要返回Empty
+            Ok(())
+        },
+        Ok(val) => {
+            hdc::debug!("pipe recv {:?}", val);
+            let _ = child_in.write_all(&val).await;
+            Ok(())
+        }
+    }
+}
+
+async fn transfer_output_from_child(child_out_reader: &mut AsyncBufReader<ChildStdout>, shell_task_id: &ShellTaskID, ret_command: HdcCommand) {
+    let mut line: String = String::new();
+    match child_out_reader.read_line(&mut line).await {
+        Ok(n) => {
+            if n > 0 {
+                hdc::debug!("read {n} bytes");
+                // when read bytes >= 61440 * 2, host server will throw log
+                // FetchIOBuf read io failed, no buffer space available
+                // so we need to limit the read bytes
+                let mut start = 0;
+                while start < n {
+                    let end = std::cmp::min(start + MAX_SIZE_IOBUF/2, n);
+
+                    let message = TaskMessage {
+                        channel_id: shell_task_id.channel_id,
+                        command: ret_command,
+                        payload: line[start..end].to_string().into(),
+                    };
+                    transfer::put(shell_task_id.session_id, message).await;
+                    start = end;
+                }
+            }
+        },
+        Err(e) => {
+            hdc::error!("Command oupput erorr for {:?}", e);
+        }
+    }
+}
+
+async fn read_buf_from_stdout_stderr(child_out_reader: &mut AsyncBufReader<ChildStdout>, child_err_reader: &mut AsyncBufReader<ChildStderr>, shell_task_id: &ShellTaskID,  ret_command: HdcCommand) {
+    let mut buffer = Vec::new();
+    if let Ok(n) = child_out_reader.read_to_end(&mut buffer).await {
+        hdc::debug!("read {n} bytes child_out after child exit");
+        if n > 0 {
+            let message = TaskMessage {
+                channel_id: shell_task_id.channel_id,
+                command: ret_command,
+                payload: buffer,
+            };
+            transfer::put(shell_task_id.session_id, message).await;
+        }
+    }
+
+    let mut buffer = Vec::new();
+    if let Ok(n) = child_err_reader.read_to_end(&mut buffer).await {
+        hdc::debug!("read {n} bytes child_err  child exit");
+        if n > 0 {
+            let message = TaskMessage {
+                channel_id: shell_task_id.channel_id,
+                command: ret_command,
+                payload: buffer,
+            };
+            transfer::put(shell_task_id.session_id, message).await;
+        }
+    }
+}
+
+async fn task_for_shell_execute(
+    cmd_param: String,
+    shell_task_id: ShellTaskID,
+    ret_command: HdcCommand,
+    mut rx: mpsc::BoundedReceiver<Vec<u8>>,
+) {
+    hdc::info!("Execute cmd:{:?}", cmd_param);
+    let cmd = trim_quotation_for_cmd(cmd_param);
+    let mut shell_cmd = Command::new(SHELL_PROG);
+    shell_cmd.args(["-c", &cmd])
+        .stdout(Stdio::piped())
+        .stdin(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    if let Ok(mut child) = shell_cmd.spawn() {
+
+        let mut child_in = match child.take_stdin() {
+            Some(child_in_inner) => {
+                child_in_inner
+            },
+            None => {
+                hdc::error!("take_stdin failed");
+                shell_channel_close(shell_task_id.channel_id, shell_task_id.session_id).await;
+                return;
+            },
+        };
+
+        let child_out = match child.take_stdout() {
+            Some(child_out_inner) => {
+                child_out_inner
+            },
+            None => {
+                hdc::error!("take_stdin failed");
+                shell_channel_close(shell_task_id.channel_id, shell_task_id.session_id).await;
+                return;
+            },
+        };
+
+        let child_err = match child.take_stderr() {
+            Some(child_err_inner) => {
+                child_err_inner
+            },
+            None => {
+                hdc::error!("take_stdin failed");
+                shell_channel_close(shell_task_id.channel_id, shell_task_id.session_id).await;
+                return;
+            },
+        };
+
+        let mut child_out_reader = ylong_runtime::io::AsyncBufReader::new(child_out);
+        let mut child_err_reader = ylong_runtime::io::AsyncBufReader::new(child_err);
+
+        loop {
+            transfer_output_from_child(&mut child_out_reader, &shell_task_id, ret_command).await;
+
+            if (watch_pipe_states(&mut rx, &mut child_in).await).is_err() {
+                ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
+                hdc::error!("pipe closed shell_task_id:{:?}", shell_task_id);
+                break;
+            }
+
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    hdc::error!("child exited with:{status} shell_task_id:{:?}", shell_task_id);
+                    read_buf_from_stdout_stderr(&mut child_out_reader, &mut child_err_reader, &shell_task_id, ret_command).await;
+                    ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
+                    break;
+                },
+                Ok(None) => {},
+                Err(e) => {
+                    hdc::error!("child exited with: {:?} shell_task_id:{:?}", e, shell_task_id);
+                    ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
+                    break;
+                }
+            }
+        }
+
+        let _ = child.kill().await;
+        hdc::debug!("child kill shell_task_id:{:?}", shell_task_id);
+        let _ = child.wait().await;
+        hdc::info!("shell execute finish shell_task_id:{:?}", shell_task_id);
+    } else {
+        hdc::info!("shell spawn failed shell_task_id:{:?}", shell_task_id);
+    }
+
+    shell_channel_close(shell_task_id.channel_id, shell_task_id.session_id).await;
+}
+
+
+
+impl ShellExecuteTask {
+    pub fn new(
+        session_id: u32,
+        channel_id: u32,
+        cmd_param: String,
+        ret_command: HdcCommand,
+    ) -> Self {
+        let (tx, rx) = ylong_runtime::sync::mpsc::bounded_channel::<Vec<u8>>(16);
+        let cmd = cmd_param.clone();
+        hdc::debug!("ShellExecuteTask new session_id {session_id}, channel_id {channel_id}");
+        let shell_task_id = ShellTaskID {session_id, channel_id};
+        let handle = ylong_runtime::spawn(task_for_shell_execute(
+            cmd_param,
+            shell_task_id,
+            ret_command,
+            rx,
+        ));
+        Self {
+            handle,
+            tx,
+            session_id,
+            channel_id,
+            cmd,
+        }
+    }
 }

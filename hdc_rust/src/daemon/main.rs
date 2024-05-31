@@ -385,6 +385,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
                                 cur_session_id,
                             )
                             .await;
+                            hdc::debug!("free session(usb) sucessfully {:?}", cur_session_id);
                             cur_session_id = session_id_in_msg;
                         }
                     }

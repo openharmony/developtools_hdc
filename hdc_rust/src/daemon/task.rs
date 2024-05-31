@@ -17,7 +17,7 @@
 
 use crate::{auth, daemon_unity};
 
-use super::shell::{PtyMap, PtyTask};
+use super::shell::*;
 
 use super::daemon_app::{self, AppTaskMap, DaemonAppTask};
 use super::sys_para::*;
@@ -30,6 +30,11 @@ use hdc::transfer;
 use std::io::{self, Error, ErrorKind};
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    hdc::info!("daemon_shell_task channel_id {:?}:{:?}, cmd {:?}",
+        session_id,
+        task_message.channel_id,
+        task_message.command
+    );
     match task_message.command {
         HdcCommand::ShellInit => {
             let pty_task = PtyTask::new(
@@ -41,18 +46,17 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
             PtyMap::put(session_id, task_message.channel_id, pty_task).await;
         }
         HdcCommand::UnityExecute => {
-            let cmd = String::from_utf8(task_message.payload);
-            match cmd {
-                Ok(cmd) => {
-                    hdc::info!("Execute cmd:{}", cmd);
-                    let pty_task = PtyTask::new(
+            match String::from_utf8(task_message.payload) {
+                Ok(cmd_str) => {
+                    let shell_execute_task: ShellExecuteTask = ShellExecuteTask::new(
                         session_id,
                         task_message.channel_id,
-                        Some(cmd),
+                        cmd_str,
                         HdcCommand::KernelEchoRaw,
                     );
-                    PtyMap::put(session_id, task_message.channel_id, pty_task).await;
-                }
+                    
+                    ShellExecuteMap::put(session_id, task_message.channel_id, shell_execute_task).await;
+                },
                 Err(_) => {
                     hdc::common::hdctransfer::echo_client(
                         session_id,
@@ -67,6 +71,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
                         payload: [1].to_vec(),
                     };
                     let _ = daemon_channel_close(message, session_id).await;
+                    return Err(Error::new(ErrorKind::Other, "Get an FromUtf8Error"));
                 }
             }
         }
@@ -95,6 +100,7 @@ async fn remove_task(session_id: u32, channel_id: u32) {
         let _ = &pty_task.tx.send(vec![0x04_u8]).await;
         PtyMap::del(session_id, channel_id).await;
     }
+    ShellExecuteMap::del(session_id, channel_id).await;
 }
 
 async fn daemon_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {

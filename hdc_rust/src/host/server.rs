@@ -265,11 +265,9 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
             parsed.parameters = vec![recv_str];
         }
 
-        if parsed.command == Some(HdcCommand::UnityExecute) {
+        if parsed.command == Some(HdcCommand::UnityExecute) && parsed.parameters.len() == 1 {
             channel_state = ChannelState::InteractiveShell;
-            if parsed.parameters.len() == 1 {
-                parsed.command = Some(HdcCommand::ShellInit);
-            }
+            parsed.command = Some(HdcCommand::ShellInit);
         }
 
         parsed = parser::exchange_parsed_for_daemon(parsed);

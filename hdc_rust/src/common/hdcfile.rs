@@ -21,6 +21,7 @@ use std::fs::metadata;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::io::{Error, ErrorKind};
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
@@ -189,14 +190,27 @@ async fn echo_finish(session_id: u32, channel_id: u32, msg: String) {
 
 pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) -> bool {
     let (argv, argc) = Base::split_command_to_args(command);
-    if argc < 2 || !set_master_parameters(session_id, channel_id, command, argc, argv).await {
+    if argc < 2 {
         echo_finish(
             session_id,
             channel_id,
-            "Transfer fail, arguments is invalid.".to_string(),
+            "Transfer failed, arguments is invalid.".to_string(),
         )
         .await;
         return false;
+    }
+    match set_master_parameters(session_id, channel_id, command, argc, argv).await {
+        Ok(_) => (),
+        Err(e) => {
+            let message = format!("Transfer failed: {}", e);
+            echo_finish(
+                session_id,
+                channel_id,
+                message.to_string(),
+            )
+            .await;
+            return false;
+        }
     }
 
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
@@ -225,12 +239,12 @@ async fn set_master_parameters(
     _command: &str,
     argc: u32,
     argv: Vec<String>,
-) -> bool {
+) -> Result<bool, Error> {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "set_master_parameters get task is none session_id={session_id},channel_id={channel_id}"
         );
-        return false;
+        return Err(Error::new(ErrorKind::Other, "Other failed"));
     };
     let mut task = task.lock().await;
     let mut i: usize = 0;
@@ -265,14 +279,14 @@ async fn set_master_parameters(
     }
     if argc == src_argv_index {
         crate::error!("set_master_parameters argc = {:#?} return false", argc);
-        return false;
+        return Err(Error::new(ErrorKind::Other, "Other failed"));
     }
     task.transfer.remote_path = argv.last().unwrap().clone();
     task.transfer.local_path = argv.get(argv.len() - 2).unwrap().clone();
     if task.transfer.server_or_daemon {
         if src_argv_index + 1 == argc {
             crate::error!("src_argv_index = {:#?} return false", src_argv_index);
-            return false;
+            return Err(Error::new(ErrorKind::Other, "Other failed"));
         }
         let cwd = task.transfer.transfer_config.client_cwd.clone();
         task.transfer.local_path = Base::extract_relative_path(&cwd, &task.transfer.local_path);
@@ -281,28 +295,31 @@ async fn set_master_parameters(
         task.transfer.local_path = argv.get((argc - 1) as usize).unwrap().clone();
     }
     task.transfer.local_name = Base::get_file_name(&mut task.transfer.local_path).unwrap();
-    let file = metadata(task.transfer.local_path.clone());
-    if let Ok(f) = file {
-        if !f.is_dir() {
-            task.transfer.is_dir = false;
-            return true;
-        }
-        task.transfer.is_dir = true;
-        task.transfer.task_queue = get_sub_files_resurively(&task.transfer.local_path.clone());
-        task.transfer.base_local_path = get_base_path(task.transfer.local_path.clone());
+    match metadata(task.transfer.local_path.clone()) {
+        Ok(metadata) => {
+            if !metadata.is_dir() {
+                task.transfer.is_dir = false;
+                return Ok(true);
+            }
+            task.transfer.is_dir = true;
+            task.transfer.task_queue = get_sub_files_resurively(&task.transfer.local_path.clone());
+            task.transfer.base_local_path = get_base_path(task.transfer.local_path.clone());
 
-        if !task.transfer.task_queue.is_empty() {
-            task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
-            task.transfer.local_name =
-                task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
-        } else {
-            crate::error!("task transfer task_queue is empty");
-            return false;
-        }
-    } else if file.is_err() {
-        return false;
+            if !task.transfer.task_queue.is_empty() {
+                task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
+                task.transfer.local_name =
+                    task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
+            } else {
+                crate::error!("task transfer task_queue is empty");
+                return Err(Error::new(ErrorKind::Other, "because the source folder is empty"));
+            }
+        },
+        Err(error) => {
+            crate::error!("error :{}", error);
+            return Err(error);
+        },
     }
-    true
+    Ok(true)
 }
 
 fn get_base_path(path: String) -> String {
@@ -328,12 +345,12 @@ async fn put_file_check(session_id: u32, channel_id: u32) {
     transfer::put(task.transfer.session_id, file_check_message).await;
 }
 
-pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
+pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> Result<bool, Error> {
     let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
         crate::error!(
             "check_slaver get task is none session_id={session_id:?},channel_id={channel_id:?}"
         );
-        return false;
+        return Err(Error::new(ErrorKind::Other, "Other failed"));
     };
     let mut task = task.lock().await;
     let mut transconfig = TransferConfig {
@@ -351,25 +368,25 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
         transconfig.optional_name
     );
     task.transfer.command_str.push_str(command_str.as_str());
-    let mut error = String::new();
     let local_path = task.transfer.local_path.clone();
     let optional_name = transconfig.optional_name.clone();
     task.transfer.transfer_config.compress_type = transconfig.compress_type;
-    let check_result =
-        hdctransfer::check_local_path(&mut task.transfer, &local_path, &optional_name, &mut error);
-    if !check_result {
-        crate::error!("check_local_path return false channel_id={:#?}", channel_id);
-        return false;
+    match hdctransfer::check_local_path(&mut task.transfer, &local_path, &optional_name) {
+        Ok(_) => (),
+        Err(e) => {
+            crate::error!("check_local_path return false channel_id={:#?}", channel_id);
+            return Err(e);
+        },
     }
     if task.transfer.transfer_config.update_if_new {
         crate::error!("task.transfer.transfer_config.update_if_new is true");
-        return false;
+        return Err(Error::new(ErrorKind::Other, "Other failede"));
     }
     if task.dir_begin_time == 0 {
         task.dir_begin_time = utils::get_current_time();
     }
     task.file_begin_time = utils::get_current_time();
-    true
+    Ok(true)
 }
 
 pub async fn wake_up_slaver(session_id: u32, channel_id: u32) {
@@ -526,19 +543,21 @@ pub async fn command_dispatch(
             }
         }
         HdcCommand::FileCheck => {
-            if !check_slaver(session_id, channel_id, _payload).await {
-                hdctransfer::echo_client(
-                    session_id,
-                    channel_id,
-                    "Transfer failed: create file or directory error."
-                        .as_bytes()
-                        .to_vec(),
-                    MessageLevel::Fail,
-                )
-                .await;
-                task_finish(session_id, channel_id).await;
-            } else {
-                put_file_begin(session_id, channel_id).await;
+            match check_slaver(session_id, channel_id, _payload).await {
+                Ok(_) => {
+                    put_file_begin(session_id, channel_id).await;
+                },
+                Err(e) => {
+                    let message = format!("Transfer failed: {}", e);
+                    hdctransfer::echo_client(
+                        session_id,
+                        channel_id,
+                        message.as_bytes().to_vec(),
+                        MessageLevel::Fail,
+                    )
+                    .await;
+                    task_finish(session_id, channel_id).await;
+                }
             }
         }
         HdcCommand::FileBegin => {

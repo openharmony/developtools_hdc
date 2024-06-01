@@ -31,7 +31,7 @@ use crate::utils::hdc_log::*;
 use std::fs::metadata;
 use std::fs::OpenOptions;
 use std::fs::{self, create_dir_all, File};
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Seek, Write, Error};
 use std::path::PathBuf;
 use std::sync::Arc;
 // #[cfg(feature = "host")]
@@ -121,9 +121,8 @@ pub fn check_local_path(
     transfer: &mut HdcTransferBase,
     _local_path: &str,
     _optional_name: &str,
-    _error: &mut str,
-) -> bool {
-    crate::debug!(
+) -> Result<bool, Error> {
+    crate::error!(
         "check_local_path, local_path:{}, optional_name:{}",
         _local_path,
         _optional_name
@@ -176,19 +175,42 @@ pub fn check_local_path(
         transfer.local_path
     );
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        create_dir_all(transfer.local_path.clone()).is_ok()
+        match create_dir_all(transfer.local_path.clone()) {
+            Ok(_) => Ok(true),
+            Err(error) => {
+                crate::error!("dir create failed, error:{}", &error);
+                Err(error)
+            },
+        }
     } else {
         let last = transfer.local_path.rfind(Base::get_path_sep());
         match last {
             Some(index) => {
-                let result = create_dir_all(&transfer.local_path[0..index]);
-                if result.is_ok() {
-                    File::create(transfer.local_path.clone()).is_ok()
-                } else {
-                    false
+                match create_dir_all(&transfer.local_path[0..index]) {
+                    Ok(_) => {
+                        match File::create(transfer.local_path.clone()) {
+                            Ok(_) => Ok(true),
+                            Err(error) => {
+                                crate::error!("file create failed, error:{}", &error);
+                                Err(error)
+                            },
+                        }
+                    }
+                    Err(error) => {
+                        crate::error!("dir create failed, error:{}", &error);
+                        Err(error)
+                    },
                 }
             }
-            None => File::create(transfer.local_path.clone()).is_ok(),
+            None => {
+                match File::create(transfer.local_path.clone()) {
+                    Ok(_) => Ok(true),
+                    Err(error) => {
+                        crate::error!("file create failed, error:{}", &error);
+                        Err(error)
+                    },
+                }
+            }
         }
     }
 }

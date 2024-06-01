@@ -20,6 +20,7 @@ use hdc::utils;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::str::FromStr;
+use std::{env, path::PathBuf};
 
 #[derive(Default, Debug, Clone)]
 pub struct Parsed {
@@ -93,13 +94,13 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
                 // is not "fport ls" or "fport rm", discard the new command.
                 if cmd_opt.is_some()
                     && (cmd_opt.unwrap() == HdcCommand::ForwardInit
-                        || cmd_opt.unwrap() == HdcCommand::ForwardRportInit)  
+                        || cmd_opt.unwrap() == HdcCommand::ForwardRportInit)
                     && (*command != HdcCommand::ForwardRemove
                         && *command != HdcCommand::ForwardList
                         && *command != HdcCommand::ForwardRportList
                         && *command != HdcCommand::ForwardRportRemove)
                 {
-                    break;  
+                    break;
                 }
                 cmd_index = st;
                 cmd_opt = Some(command.to_owned());
@@ -127,17 +128,119 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
 pub fn parse_command(args: std::env::Args) -> io::Result<ParsedCommand> {
     let input = args.collect::<Vec<_>>()[1..].to_vec();
     let parsed = split_opt_and_cmd(input);
-    match extract_global_params(parsed.options) {
-        Ok(parsed_cmd) => Ok(ParsedCommand {
-            command: parsed.command,
-            parameters: parsed.parameters,
-            ..parsed_cmd
-        }),
-        Err(e) => Err(e),
+    let parsed_cmd = match extract_global_params(parsed.options) {
+        Ok(parsed_cmd) => parsed_cmd,
+        Err(e) => return Err(e),
+    };
+
+    let mut command_sets = Vec::new();
+
+    match parsed.command {
+        Some(HdcCommand::AppInit) => {
+            let params = parsed.parameters.clone();
+
+            let (params, other): (Vec<&str>, Vec<&str>) = params
+                .iter()
+                .map(|s| s.as_str())
+                .partition(|s| s.starts_with('-'));
+            let mut exist_install = false;
+            let mut dir_list = Vec::new();
+            let mut file_list = Vec::new();
+            for it in other.into_iter() {
+                if it == "install" {
+                    exist_install = true;
+                    continue;
+                }
+
+                let Ok(metadata) = std::fs::metadata(it.clone()) else {
+                    return Err(Error::new(
+                        ErrorKind::NotFound,
+                        std::io::Error::last_os_error(),
+                    ));
+                };
+
+                if metadata.is_dir() {
+                    dir_list.push(it);
+                } else if metadata.is_file() {
+                    file_list.push(it);
+                }
+            }
+            if !exist_install {
+                return Err(Error::new(ErrorKind::NotFound, "cmd failed"));
+            }
+            if dir_list.is_empty() {
+                command_sets.push(CommandSet {command: parsed.command, parameters: parsed.parameters });
+            } else {
+                if !file_list.is_empty() {
+                    let command_set = CommandSet {
+                        command: Some(HdcCommand::AppInit),
+                        parameters: vec![
+                            "install".to_string(),
+                            params.iter().map(|s| s.to_string()).collect(),
+                            file_list.iter().map(|s| s.to_string()).collect(),
+                        ],
+                    };
+                    command_sets.push(command_set);
+                }
+
+                if !dir_list.is_empty() {
+                    for it in dir_list.into_iter() {
+                        let it_rel_path = PathBuf::from_str(it).unwrap();
+                        let it_abs_path = if it_rel_path.is_absolute() {
+                            it_rel_path
+                        } else {
+                            env::current_dir().unwrap().join(it_rel_path)
+                        };
+                        let it_abs_path = std::fs::canonicalize(it_abs_path)?;
+                        let it_abs_path = it_abs_path.display().to_string();
+                        let it_abs_path = it_abs_path.trim_start_matches(r"\\?\");
+                        let tmp_dir = utils::get_pseudo_random_u32().to_string();
+                        let tmp_path = config::INSTALL_TMP_DIR.to_string() + &tmp_dir;
+                        let command_set = CommandSet {
+                            command: Some(HdcCommand::FileInit),
+                            parameters: vec![
+                                "file".to_string(),
+                                "send".to_string(),
+                                it_abs_path.to_string(),
+                                tmp_path.clone(),
+                            ],
+                        };
+                        command_sets.push(command_set);
+
+                        let command_str = format!(
+                            "bm install {} {}; rm -rf {}",
+                            params
+                                .iter()
+                                .map(|s| s.to_string())
+                                .collect::<Vec<String>>()
+                                .join(" "),
+                            tmp_path,
+                            tmp_path
+                        );
+                        let command_set = CommandSet {
+                            command: Some(HdcCommand::UnityExecute),
+                            parameters: vec!["shell".to_string(), command_str],
+                        };
+                        command_sets.push(command_set);
+                    }
+                }
+            }
+        }
+        _ => {
+            command_sets.push(CommandSet {
+                command: parsed.command,
+                parameters: parsed.parameters,
+            });
+        }
     }
+
+    Ok(ParsedCommand {
+        command_set: command_sets,
+        ..parsed_cmd
+    })
 }
 
-pub fn exchange_parsed_for_daemon(mut parsed: Parsed) -> Parsed  {
+pub fn exchange_parsed_for_daemon(mut parsed: Parsed) -> Parsed {
     if let Some(HdcCommand::UnityReboot) = parsed.command {
         if parsed.parameters.len() > COMBINED_COMMAND_LEN {
             let valid_boot_cmd = ["-bootloader", "-recovery", "-flashd"];
@@ -155,6 +258,12 @@ pub fn exchange_parsed_for_daemon(mut parsed: Parsed) -> Parsed  {
     parsed
 }
 
+#[derive(Default, Debug, PartialEq, Clone)]
+pub struct CommandSet {
+    pub command: Option<HdcCommand>,
+    pub parameters: Vec<String>,
+}
+
 #[derive(Default, Debug, PartialEq)]
 pub struct ParsedCommand {
     pub run_in_server: bool,
@@ -163,8 +272,7 @@ pub struct ParsedCommand {
     pub connect_key: String,
     pub log_level: usize,
     pub server_addr: String,
-    pub command: Option<HdcCommand>,
-    pub parameters: Vec<String>,
+    pub command_set: Vec<CommandSet>,
 }
 
 pub fn extract_global_params(opts: Vec<String>) -> io::Result<ParsedCommand> {

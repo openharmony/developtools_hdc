@@ -37,6 +37,7 @@ use ylong_runtime::io::AsyncReadExt;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitWriteHalf, TcpStream};
 
+use crate::parser::CommandSet;
 #[cfg(target_os = "windows")]
 use crate::tty_utility::*;
 
@@ -44,7 +45,6 @@ use crate::tty_utility::*;
 extern "C" {
     fn getch() -> libc::c_int;
 }
-
 
 #[allow(unused)]
 pub struct Client {
@@ -54,11 +54,10 @@ pub struct Client {
     wr: SplitWriteHalf,
 }
 
-pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
-    match parsed_cmd.command.unwrap() {
+pub async fn run_client_mode(parsed_cmd: &ParsedCommand, command_set: &CommandSet) -> io::Result<()> {
+    match command_set.command.unwrap() {
         HdcCommand::KernelServerStart => {
-
-            if parsed_cmd.parameters.contains(&"-r".to_string()) {
+            if command_set.parameters.contains(&"-r".to_string()) {
                 server::server_kill().await;
             }
             server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
@@ -66,7 +65,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
         }
         HdcCommand::KernelServerKill => {
             server::server_kill().await;
-            if parsed_cmd.parameters.contains(&"-r".to_string()) {
+            if command_set.parameters.contains(&"-r".to_string()) {
                 server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             }
             return Ok(());
@@ -81,7 +80,7 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
 
     // TODO: other cmd before initial client
 
-    let mut client = Client::new(parsed_cmd).await?;
+    let mut client = Client::new(parsed_cmd, command_set).await?;
 
     if let Err(e) = client.handshake().await {
         hdc::error!("handshake with server failed: {e:?}");
@@ -91,11 +90,11 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
 }
 
 impl Client {
-    pub async fn new(parsed_cmd: ParsedCommand) -> io::Result<Self> {
-        let command = parsed_cmd.command.unwrap();
-        let connect_key = auto_connect_key(parsed_cmd.connect_key, command);
+    pub async fn new(parsed_cmd: &ParsedCommand, command_set: &CommandSet) -> io::Result<Self> {
+        let command = command_set.command.unwrap();
+        let connect_key = auto_connect_key(parsed_cmd.connect_key.clone(), command);
 
-        let stream = match TcpStream::connect(parsed_cmd.server_addr).await {
+        let stream = match TcpStream::connect(parsed_cmd.server_addr.clone()).await {
             Ok(stream) => stream,
             Err(_) => return Err(Error::new(ErrorKind::Other, "Connect to server failed")),
         };
@@ -106,7 +105,7 @@ impl Client {
 
         Ok(Self {
             command,
-            params: parsed_cmd.parameters,
+            params: command_set.parameters.clone(),
             connect_key,
             wr,
         })
@@ -169,7 +168,7 @@ impl Client {
     }
 
     async fn send(&mut self, buf: &[u8]) {
-        hdc::debug!("channel send buf: {:#?}", buf);
+        hdc::debug!("channel send buf: {:?}", buf);
         let msg = [u32::to_be_bytes(buf.len() as u32).as_slice(), buf].concat();
         let _ = self.wr.write_all(msg.as_slice()).await;
     }
@@ -201,9 +200,8 @@ impl Client {
         self.loop_recv().await
     }
 
-
     #[cfg(target_os = "windows")]
-    async fn  shell_task(&mut self) -> io::Result<()> {
+    async fn shell_task(&mut self) -> io::Result<()> {
         let cmd = match self.params.len() {
             1 => "shell\0".to_string(),
             _ => self.params.join(" "),
@@ -218,12 +216,13 @@ impl Client {
                         let _ = utils::print_msg(recv).await;
                     }
                     Err(_) => {
+                        hdc::error!("process exit");
                         std::process::exit(0);
                     }
                 }
             }
         });
-        
+
         loop {
             let c = unsafe { getch() };
 

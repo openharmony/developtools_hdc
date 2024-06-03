@@ -204,7 +204,9 @@ impl UsbMap {
                     }
 
                     match wr.write_all(body) {
-                        Ok(_) => {}
+                        Ok(ret) => {
+                            child_ret = ret;
+                        }
                         Err(e) => {
                             return Err(Error::new(ErrorKind::Other, "Error writing body"));
                         }

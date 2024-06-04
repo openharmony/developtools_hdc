@@ -246,7 +246,7 @@ void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string
         if (hdi->connStatus == STATUS_CONNECTED) {
             out = Base::StringFormat("%s", hdi->connectKey.c_str());
             if (hdi->daemonAuthStatus == DAEOMN_UNAUTHORIZED) {
-                out.append("\tunauthorized");
+                out.append("\tUnauthorized");
             }
             out.append("\n");
         }
@@ -913,7 +913,7 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
         if (hChannel->hChildWorkTCP.loop == NULL) {
             WRITE_LOG(LOG_DEBUG, "Childchannel loop is null, cid:%u", hChannel->channelId);
         }
-        uv_close((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
+        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP, [](uv_handle_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             hChannel->childCleared = true;
             WRITE_LOG(LOG_DEBUG, "Childchannel free callback, cid:%u", hChannel->channelId);

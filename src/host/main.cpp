@@ -459,7 +459,7 @@ int main(int argc, const char *argv[])
         if (!ExtClient::SharedLibraryExist()) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
             Hdc::Base::RemoveLogCache();
-            return 0;
+            _exit(0);
         }
         string str = "list targets";
         if (!strncmp(commands.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {

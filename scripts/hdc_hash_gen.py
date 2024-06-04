@@ -23,7 +23,7 @@ hdc_file = ""
 input_dir = ""
 output_dir = ""
 struct_vals = []
-cfg_file_name = r"/scripts/file_path.cfg"
+cfg_file_name = r"scripts/file_path.cfg"
 output_file_name = r"all.txt"
 
 def calc_file_hash():
@@ -64,7 +64,7 @@ def write_hdc_file():
 def read_struct():
     if input_dir == "":
         return
-    with open("{}{}".format(input_dir, cfg_file_name), mode='r', encoding='utf-8') as fd_path:
+    with open("{}/{}".format(input_dir, cfg_file_name), mode='r', encoding='utf-8') as fd_path:
         for line in fd_path.readlines():
             file_name = line.strip()
             with open("{}{}".format(input_dir, file_name), mode='r', encoding='utf-8') as fd_file:

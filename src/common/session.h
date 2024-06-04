@@ -14,6 +14,7 @@
  */
 #ifndef HDC_SESSION_H
 #define HDC_SESSION_H
+#include <shared_mutex>
 #include <sstream>
 #include "common.h"
 
@@ -94,6 +95,8 @@ public:
              const int dataSize);
     int SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo = false);
     virtual HSession AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput);
+    void AddDeletedSessionId(uint32_t sessionId);
+    bool IsSessionDeleted(uint32_t sessionId) const;
     virtual int FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read);
     virtual void PushAsyncMessage(const uint32_t sessionId, const uint8_t method, const void *data, const int dataSize);
     HTaskInfo AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput);
@@ -208,6 +211,9 @@ private:
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
 
     map<uint32_t, HSession> mapSession;
+    std::set<uint32_t> deletedSessionIdSet;
+    std::queue<uint32_t> deletedSessionIdQueue;
+    mutable std::shared_mutex deletedSessionIdRecordMutex;
     uv_rwlock_t lockMapSession;
     std::atomic<uint32_t> sessionRef = 0;
     const uint8_t payloadProtectStaticVcode = 0x09;

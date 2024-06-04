@@ -544,5 +544,15 @@ struct HdcForwardInformation {
     std::string connectKey;
 };
 using HForwardInfo = struct HdcForwardInformation *;
+
+struct HdcSessionInfo {
+    uint32_t sessionId = 0;
+    HSession hSession = nullptr;
+
+    // class ptr
+    void *classInstance = nullptr;  //  HdcSessionBase instance, HdcServer or HdcDaemon
+    void *classModule = nullptr;    //  Communicate module, TCP or USB instance,HdcDaemonUSB HdcDaemonTCP etc...
+};
+using HSessionInfo = struct HdcSessionInfo *;
 }
 #endif

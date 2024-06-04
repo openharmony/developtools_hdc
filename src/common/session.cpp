@@ -632,6 +632,7 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
 void HdcSessionBase::FreeSession(const uint32_t sessionId)
 {
     StartTraceScope("HdcSessionBase::FreeSession");
+    AddDeletedSessionId(sessionId);
     if (threadSessionMain != uv_thread_self()) {
         PushAsyncMessage(sessionId, ASYNC_FREE_SESSION, nullptr, 0);
         return;
@@ -719,6 +720,32 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
             break;
     }
     return hRet;
+}
+
+void HdcSessionBase::AddDeletedSessionId(uint32_t sessionId)
+{
+    WRITE_LOG(LOG_INFO, "AddDeletedSessionId:%u", sessionId);
+    std::unique_lock<std::shared_mutex> lock(deletedSessionIdRecordMutex);
+    deletedSessionIdSet.insert(sessionId);
+    deletedSessionIdQueue.push(sessionId);
+
+    // Delete old records and only save MAX_DELETED_SESSION_ID_RECORD_COUNT records
+    if (deletedSessionIdQueue.size() > MAX_DELETED_SESSION_ID_RECORD_COUNT) {
+        uint32_t id = deletedSessionIdQueue.front();
+        WRITE_LOG(LOG_INFO, "deletedSessionIdQueue size:%u, deletedSessionIdSet size:%u, pop one session id:%u",
+            deletedSessionIdQueue.size(), deletedSessionIdSet.size(), id);
+        deletedSessionIdQueue.pop();
+        deletedSessionIdSet.erase(id);
+    }
+}
+
+bool HdcSessionBase::IsSessionDeleted(uint32_t sessionId) const
+{
+    std::shared_lock<std::shared_mutex> lock(deletedSessionIdRecordMutex);
+    if (deletedSessionIdSet.find(sessionId) != deletedSessionIdSet.end()) {
+        return true;
+    }
+    return false;
 }
 
 void HdcSessionBase::DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask)

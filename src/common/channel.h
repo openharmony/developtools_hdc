@@ -63,7 +63,6 @@ protected:
     uv_rwlock_t mainAsync;
     uv_async_t asyncMainLoop;
     list<void *> lstMainThreadOP;
-    std::atomic<bool> sessionIsDead;
 
 private:
     static void MainAsyncCallback(uv_async_t *handle);

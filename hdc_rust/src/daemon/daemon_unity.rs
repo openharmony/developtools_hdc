@@ -122,7 +122,6 @@ async fn set_root_run(session_id: u32, channel_id: u32, _payload: &[u8]) {
 }
 
 async fn reboot_device(session_id: u32, channel_id: u32, _payload: &[u8]) {
-    mount::remount_device();
     unsafe {
         sync();
     };

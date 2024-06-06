@@ -139,22 +139,7 @@ namespace Base {
     }
 
     // Trim from both sides and paired
-    inline string &ShellCmdTrim(string &cmd)
-    {
-        const string pairedQuot("\"\"");
-        if (cmd.empty()) {
-            return cmd;
-        }
-        cmd = Trim(cmd);
-        if (cmd.length() < pairedQuot.length()) {
-            return cmd;
-        }
-        if (*cmd.begin() == '"' && cmd.back() == '"') {
-            cmd.erase(cmd.begin());
-            cmd.pop_back();
-        }
-        return cmd;
-    }
+    string &ShellCmdTrim(string &cmd);
 
     string ReplaceAll(string str, const string from, const string to);
     uint8_t CalcCheckSum(const uint8_t *data, int len);

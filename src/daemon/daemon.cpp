@@ -519,7 +519,7 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
     } else {
         WRITE_LOG(LOG_FATAL, "auth fail for session %u", hSession->sessionId);
     }
-    return true;
+    return verifyret;
 }
 
 bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)

@@ -768,6 +768,14 @@ bool HdcServerForClient::CheckAutoFillTarget(HChannel hChannel)
             WRITE_LOG(LOG_WARN, "No any key found channelId:%u", hChannel->channelId);
             return false;
         }
+        if (!hdiOld->hSession) {
+            WRITE_LOG(LOG_WARN, "hSession is null. channelId:%u", hChannel->channelId);
+            return false;
+        }
+        if (!hdiOld->hSession->handshakeOK) {
+            WRITE_LOG(LOG_WARN, "hSession handShake is false SessionId:%u", hdiOld->hSession->sessionId);
+            return false;
+        }
         hChannel->connectKey = hdiOld->connectKey;
         return true;
     }
@@ -884,7 +892,6 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
 {
     HSession hSession = FindAliveSession(sessionId);
     if (!hSession) {
-        sessionIsDead = true;
         WRITE_LOG(LOG_FATAL, "ChannelSendSessionCtrlMsg hSession nullptr sessionId:%u", sessionId);
         return false;
     }

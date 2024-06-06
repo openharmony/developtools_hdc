@@ -292,9 +292,12 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           context->localPath.c_str());
         WRITE_LOG(LOG_FATAL, "open path:%s error:%s", context->localPath.c_str(), buf);
-        if (context->isDir) {
+        if (context->isDir && context->master) {
             uint8_t payload = 1;
             thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
+        } else if (context->isDir && !context->master) {
+            uint8_t payload = 1;
+            thisClass->SendToAnother(CMD_FILE_FINISH, &payload, 1);
         } else {
             thisClass->TaskFinish();
         }

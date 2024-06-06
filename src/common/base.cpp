@@ -976,7 +976,7 @@ namespace Base {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            WRITE_LOG(LOG_FATAL, "Open mutex file %s failed!!! %s", bufPath, buffer);
+            WRITE_LOG(LOG_DEBUG, "Open mutex file %s failed!!! %s", bufPath, buffer);
             return ERR_FILE_OPEN;
         }
 #ifdef _WIN32

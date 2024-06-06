@@ -20,6 +20,7 @@
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <openssl/err.h>
 #include <openssl/pem.h>
 #include <fstream>
 #include <unistd.h>
@@ -475,12 +476,13 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
     const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
     const unsigned char *tokenp = reinterpret_cast<const unsigned char *>(encryptToken.c_str());
     unsigned char tokenDecode[1024] = { 0 };
+    unsigned char decryptToken[BUF_SIZE_DEFAULT2] = { 0 };
     BIO *bio = nullptr;
     RSA *rsa = nullptr;
     bool verifyret = false;
 
     do {
-        int tbytes = EVP_DecodeBlock(tokenDecode, tokenp, token.length());
+        int tbytes = EVP_DecodeBlock(tokenDecode, tokenp, encryptToken.length());
         if (tbytes <= 0) {
             WRITE_LOG(LOG_FATAL, "base64 decode pubkey failed");
             break;
@@ -501,10 +503,22 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
             WRITE_LOG(LOG_FATAL, "rsa failed for session %u", hSession->sessionId);
             break;
         }
-        int ret = RSA_verify(NID_sha256, reinterpret_cast<const unsigned char *>(token.c_str()),
-                             20, tokenDecode, encryptToken.size(), rsa);
+        int bytes = RSA_public_decrypt(tbytes, tokenDecode, decryptToken, rsa, RSA_PKCS1_PADDING);
+        if (bytes < 0) {
+            verifyret = false;
+            WRITE_LOG(LOG_FATAL, "decrypt failed(%lu) for session %u", ERR_get_error(), hSession->sessionId);
+            break;
+        }
+        string sdecryptToken(reinterpret_cast<const char *>(decryptToken), bytes);
+        if (sdecryptToken != token) {
+            verifyret = false;
+            WRITE_LOG(LOG_FATAL, "verify failed(%lu) for session %u ([%s][%s])",
+                    ERR_get_error(), hSession->sessionId, sdecryptToken.c_str(), token.c_str());
+            break;
+        }
 
-        verifyret = (ret == 1);
+        WRITE_LOG(LOG_FATAL, "verify success(%lu) for session %u", ERR_get_error() , hSession->sessionId);
+        verifyret = true;
     } while (0);
 
     if (bio) {
@@ -535,7 +549,7 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
         WRITE_LOG(LOG_FATAL, "auth failed for %u", hSession->sessionId);
         // Next auth
         EchoHandshakeMsg(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
-        return false;
+        return true;
     }
 
     UpdateSessionAuthOk(hSession->sessionId);

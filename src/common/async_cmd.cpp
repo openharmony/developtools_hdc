@@ -254,7 +254,7 @@ void *AsyncCmd::Popen(void *arg)
 bool AsyncCmd::ExecuteCommand(const string &command)
 {
     string cmd = command;
-    Base::Trim(cmd, "\"");
+    cmd = Base::ShellCmdTrim(cmd);
     if ((fd = ThreadFork(cmd, true, pid)) < 0) {
         WRITE_LOG(LOG_FATAL, "ExecuteCommand failed cmd:%s fd:%d", cmd.c_str(), fd);
         return false;

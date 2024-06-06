@@ -891,7 +891,7 @@ HSession HdcServerForClient::FindAliveSession(uint32_t sessionId)
 bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId)
 {
     HSession hSession = FindAliveSession(sessionId);
-    if (!hSession) {;
+    if (!hSession) {
         WRITE_LOG(LOG_FATAL, "ChannelSendSessionCtrlMsg hSession nullptr sessionId:%u", sessionId);
         return false;
     }

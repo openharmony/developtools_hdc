@@ -96,7 +96,7 @@ private:
                        uint32_t sessionid, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
     void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);
     void EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
-    bool AuthVerify(HSession hSession, string encryptToken);
+    bool AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey);
     void InitSessionAuthInfo(uint32_t sessionid, string token);
     void UpdateSessionAuthOk(uint32_t sessionid);
     void UpdateSessionAuthmsg(uint32_t sessionid, string authmsg);

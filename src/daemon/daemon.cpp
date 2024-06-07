@@ -469,10 +469,8 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
     return true;
 }
 
-bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
+bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey)
 {
-    string token = GetSessionAuthToken(hSession->sessionId);
-    string pubkey = GetSessionAuthPubkey(hSession->sessionId);
     const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
     const unsigned char *tokenp = reinterpret_cast<const unsigned char *>(encryptToken.c_str());
     unsigned char tokenDecode[1024] = { 0 };
@@ -487,7 +485,6 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
             WRITE_LOG(LOG_FATAL, "base64 decode pubkey failed");
             break;
         }
-
         bio = BIO_new(BIO_s_mem());
         if (bio == nullptr) {
             WRITE_LOG(LOG_FATAL, "bio failed for session %u", hSession->sessionId);
@@ -510,12 +507,9 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
         }
         string sdecryptToken(reinterpret_cast<const char *>(decryptToken), bytes);
         if (sdecryptToken != token) {
-            WRITE_LOG(LOG_FATAL, "auth failed(%lu) for session %u)",
-                    ERR_get_error(), hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "auth failed(%lu) for session %u)", ERR_get_error(), hSession->sessionId);
             break;
         }
-
-        WRITE_LOG(LOG_FATAL, "auth success for session %u", hSession->sessionId);
         verifyret = true;
     } while (0);
 
@@ -538,12 +532,16 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     // jump out dialog, and click the system, the system will store the Host public key certificate in the
     // device locally, and the signature authentication will be correct when the subsequent connection is
     // connected.
-    if (!AuthVerify(hSession, handshake.buf)) {
-        WRITE_LOG(LOG_FATAL, "auth failed for %u", hSession->sessionId);
+    string token = GetSessionAuthToken(hSession->sessionId);
+    string pubkey = GetSessionAuthPubkey(hSession->sessionId);
+    if (!AuthVerify(hSession, handshake.buf, token, pubkey)) {
+        WRITE_LOG(LOG_FATAL, "auth failed for session %u", hSession->sessionId);
         // Next auth
         EchoHandshakeMsg(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
         return true;
     }
+
+    WRITE_LOG(LOG_FATAL, "auth success for session %u", hSession->sessionId);
 
     UpdateSessionAuthOk(hSession->sessionId);
     SendAuthOkMsg(handshake, channelId, hSession->sessionId);

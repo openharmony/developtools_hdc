@@ -162,18 +162,18 @@ bool HdcDaemonUnity::RemountDevice()
         LogMsg(MSG_FAIL, "Operate need running as root");
         return false;
     }
-    bool ret = true;
     struct stat info;
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
+        // has vendor
         if (!RemountPartition("/vendor")) {
             LogMsg(MSG_FAIL, "Mount failed /vendor");
-            ret = false;
+            return false;
         }
     }
-    if (!lstat("/system", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
-        if (!RemountPartition("/")) {
-            LogMsg(MSG_FAIL, "Mount failed /system");
-            ret = false;
+    if (!lstat("/data", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
+        if (!RemountPartition("/data")) {
+            LogMsg(MSG_FAIL, "Mount failed /data");
+            return false;
         }
     }
 
@@ -183,23 +183,18 @@ bool HdcDaemonUnity::RemountDevice()
         return false;
     } else if (pid == 0) {
         execl("/bin/remount", "remount", (char*)NULL);
-        perror("execl remount failed");
+        perror("execl failed");
         _exit(EXIT_FAILURE);
     } else {
         int status;
         waitpid(pid, &status, 0);
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
             WRITE_LOG(LOG_FATAL, "Remount via binary failed with exit code: %d", WEXITSTATUS(status));
-            ret = false;
+            return false;
         }
     }
-
-    if (ret) {
-        LogMsg(MSG_OK, "Mount finish");
-        return true;
-    } else {
-        return false;
-    }
+    LogMsg(MSG_OK, "Mount finish");
+    return true;
 }
 
 bool HdcDaemonUnity::RebootDevice(const string &cmd)

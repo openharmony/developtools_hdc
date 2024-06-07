@@ -19,6 +19,7 @@ extern crate ylong_runtime_static as ylong_runtime;
 use std::collections::VecDeque;
 
 use crate::common::base::Base;
+use crate::common::hdcfile::FileTaskMap;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
 use crate::config::*;
@@ -429,6 +430,8 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
 
     let path = tbase.local_path.clone();
     let write_buf = buffer.clone();
+    let session_id = tbase.session_id.to_owned();
+    let channel_id = tbase.channel_id.to_owned();
     ylong_runtime::spawn(async move {
         let open_result = OpenOptions::new()
             .write(true)
@@ -438,12 +441,15 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
             Ok(mut file) => {
                 let _ = file.seek(std::io::SeekFrom::Start(file_index));
                 let write_result = file.write_all(write_buf.as_slice());
-                if write_result.is_err() {
-                    crate::warn!("write_all error:{:#?}", write_result);
+                match write_result {
+                    Ok(()) => {}
+                    Err(e) => {
+                        let _ = put_last_error(e, session_id, channel_id).await;
+                    }
                 }
             }
             Err(e) => {
-                crate::warn!("open path:{}, error:{:#?}", path, e);
+                let _ = put_last_error(e, session_id, channel_id).await;
             }
         }
     });
@@ -459,6 +465,34 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
         return true;
     }
     false
+}
+
+async fn put_last_error(error: std::io::Error, session_id: u32, channel_id: u32) ->bool {
+    crate::warn!(
+        "put_last_error sesssion_id:{}, channel_id:{}, error:{}",
+        session_id,
+        channel_id,
+        error,
+    );
+    let errno = match error.raw_os_error() {
+        Some(errno) => errno as u32,
+        None => std::i32::MAX as u32
+    };
+    match FileTaskMap::get(session_id, channel_id).await {
+        Some(task) => {
+            let mut task = task.lock().await;
+            task.transfer.last_error = errno;
+        }
+        None => {
+            crate::error!(
+                "recv_and_write_file get task is none session_id:{},channel_id:{}",
+                session_id,
+                channel_id,
+            );
+            return false;
+        }
+    }
+    true
 }
 
 pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {

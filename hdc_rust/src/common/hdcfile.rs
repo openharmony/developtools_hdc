@@ -19,6 +19,7 @@ use crate::transfer;
 use std::fs::metadata;
 
 use std::collections::HashMap;
+use std::io;
 use std::path::Path;
 use std::sync::Arc;
 use std::io::{Error, ErrorKind};
@@ -436,6 +437,7 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         return;
     };
     let task = task.lock().await;
+    let last_error = task.transfer.last_error;
     let size = if task.file_cnt > 1 {
         task.dir_size
     } else {
@@ -448,25 +450,42 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
     };
     let rate = size as f64 / time as f64;
     #[allow(unused_variables)]
-    let message = format!(
-        "FileTransfer finish, Size:{}, File count = {}, time:{}ms rate:{:.2}kB/s",
-        size, task.file_cnt, time, rate
-    );
+    let message = if last_error == 0 {
+        format!(
+            "FileTransfer finish, Size:{}, File count = {}, time:{}ms rate:{:.2}kB/s",
+            size, task.file_cnt, time, rate
+        )
+    } else {
+        format!(
+            "Transfer failed: {}",
+            io::Error::from_raw_os_error(last_error as i32)
+        )
+    };
     #[cfg(feature = "host")]
     {
+        let level = if last_error == 0 {
+            transfer::EchoLevel::OK
+        } else {
+            transfer::EchoLevel::FAIL
+        };
         let _ =
-            transfer::send_channel_msg(task.transfer.channel_id, transfer::EchoLevel::OK, message)
+            transfer::send_channel_msg(task.transfer.channel_id, level, message)
                 .await;
         hdctransfer::close_channel(channel_id).await;
         return;
     }
     #[allow(unreachable_code)]
     {
+        let level = if last_error == 0 {
+            MessageLevel::Ok
+        } else {
+            MessageLevel::Fail
+        };
         hdctransfer::echo_client(
             task.transfer.session_id,
             task.transfer.channel_id,
             message.as_bytes().to_vec(),
-            MessageLevel::Ok,
+            level,
         )
         .await;
         hdctransfer::close_channel(channel_id).await;

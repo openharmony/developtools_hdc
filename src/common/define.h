@@ -85,8 +85,8 @@ constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 10;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000200 is 3.0.0c
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30000200;
+// 0x30000200 is 3.0.0d
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30000300;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;

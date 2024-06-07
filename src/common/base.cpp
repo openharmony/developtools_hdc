@@ -1854,6 +1854,24 @@ namespace Base {
 #endif
     }
 
+    // Trim from both sides and paired
+    string &ShellCmdTrim(string &cmd)
+    {
+        const string pairedQuot("\"\"");
+        if (cmd.empty()) {
+            return cmd;
+        }
+        cmd = Trim(cmd);
+        if (cmd.length() < pairedQuot.length()) {
+            return cmd;
+        }
+        if (*cmd.begin() == '"' && cmd.back() == '"') {
+            cmd.erase(cmd.begin());
+            cmd.pop_back();
+        }
+        return cmd;
+    }
+
     void TrimSubString(string &str, string substr)
     {
         std::string::size_type pos = 0;

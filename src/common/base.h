@@ -137,6 +137,10 @@ namespace Base {
     {
         return LeftTrim(RightTrim(s, w), w);
     }
+
+    // Trim from both sides and paired
+    string &ShellCmdTrim(string &cmd);
+
     string ReplaceAll(string str, const string from, const string to);
     uint8_t CalcCheckSum(const uint8_t *data, int len);
     string GetFileNameAny(string &path);

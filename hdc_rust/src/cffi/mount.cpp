@@ -96,18 +96,11 @@ bool RemountDevice()
     if (getuid() != 0) {
         return false;
     }
-    bool ret = true;
     struct stat info;
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
+        // has vendor
         if (!RemountPartition("/vendor")) {
-            WRITE_LOG(LOG_FATAL, "Mount failed /vendor");
-            ret = false;
-        }
-    }
-    if (!lstat("/system", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
-        if (!RemountPartition("/")) {
-            WRITE_LOG(LOG_FATAL, "Mount failed /system");
-            ret = false;
+            return false;
         }
     }
     
@@ -117,15 +110,15 @@ bool RemountDevice()
         return false;
     } else if (pid == 0) {
         execl("/bin/remount", "remount", (char*)NULL);
-        perror("execl remount failed");
+        perror("execl failed");
         _exit(EXIT_FAILURE);
     } else {
         int status;
         waitpid(pid, &status, 0);
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
             WRITE_LOG(LOG_FATAL, "Remount via binary failed with exit code: %d", WEXITSTATUS(status));
-            ret = false;
+            return false;
         }
     }
-    return ret;
+    return true;
 }

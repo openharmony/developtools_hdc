@@ -505,19 +505,17 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
         }
         int bytes = RSA_public_decrypt(tbytes, tokenDecode, decryptToken, rsa, RSA_PKCS1_PADDING);
         if (bytes < 0) {
-            verifyret = false;
             WRITE_LOG(LOG_FATAL, "decrypt failed(%lu) for session %u", ERR_get_error(), hSession->sessionId);
             break;
         }
         string sdecryptToken(reinterpret_cast<const char *>(decryptToken), bytes);
         if (sdecryptToken != token) {
-            verifyret = false;
-            WRITE_LOG(LOG_FATAL, "verify failed(%lu) for session %u ([%s][%s])",
-                    ERR_get_error(), hSession->sessionId, sdecryptToken.c_str(), token.c_str());
+            WRITE_LOG(LOG_FATAL, "auth failed(%lu) for session %u)",
+                    ERR_get_error(), hSession->sessionId);
             break;
         }
 
-        WRITE_LOG(LOG_FATAL, "verify success(%lu) for session %u", ERR_get_error() , hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "auth success for session %u", hSession->sessionId);
         verifyret = true;
     } while (0);
 
@@ -528,11 +526,6 @@ bool HdcDaemon::AuthVerify(HSession hSession, string encryptToken)
         RSA_free(rsa);
     }
 
-    if (verifyret) {
-        WRITE_LOG(LOG_FATAL, "auth success for session %u", hSession->sessionId);
-    } else {
-        WRITE_LOG(LOG_FATAL, "auth fail for session %u", hSession->sessionId);
-    }
     return verifyret;
 }
 

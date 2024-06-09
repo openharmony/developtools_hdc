@@ -792,10 +792,21 @@ pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remo
         .await;
     }
     match task.forward_type {
-        ForwardType::Tcp | ForwardType::Jdwp | ForwardType::Ark => {
+        ForwardType::Tcp => {
             TcpWriteStreamMap::end(channel_id).await;
             TcpListenerMap::end(channel_id).await;
         }
+        ForwardType::Jdwp | ForwardType::Ark => {
+            TcpWriteStreamMap::end(channel_id).await;
+            let ret = unsafe { libc::close(task.context_forward.fd) };
+            crate::debug!(
+                "close context_forward fd, ret={}, session_id={}, channel_id={}",
+                ret,
+                session_id,
+                channel_id,
+            );
+            TcpListenerMap::end(channel_id).await;
+        }        
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             #[cfg(not(target_os = "windows"))]
             UdsServer::wrap_close(task.context_forward.fd);

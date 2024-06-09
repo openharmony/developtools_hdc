@@ -14,9 +14,6 @@
  */
 #include "daemon_unity.h"
 #include <sys/mount.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/wait.h>
 
 namespace Hdc {
 HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
@@ -173,23 +170,6 @@ bool HdcDaemonUnity::RemountDevice()
     if (!lstat("/data", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
         if (!RemountPartition("/data")) {
             LogMsg(MSG_FAIL, "Mount failed /data");
-            return false;
-        }
-    }
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        WRITE_LOG(LOG_FATAL, "Fork failed");
-        return false;
-    } else if (pid == 0) {
-        execl("/bin/remount", "remount", (char*)NULL);
-        perror("execl failed");
-        _exit(EXIT_FAILURE);
-    } else {
-        int status;
-        waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-            WRITE_LOG(LOG_FATAL, "Remount via binary failed with exit code: %d", WEXITSTATUS(status));
             return false;
         }
     }

@@ -103,22 +103,5 @@ bool RemountDevice()
             return false;
         }
     }
-    
-    pid_t pid = fork();
-    if (pid < 0) {
-        WRITE_LOG(LOG_FATAL, "Fork failed");
-        return false;
-    } else if (pid == 0) {
-        execl("/bin/remount", "remount", (char*)NULL);
-        perror("execl failed");
-        _exit(EXIT_FAILURE);
-    } else {
-        int status;
-        waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-            WRITE_LOG(LOG_FATAL, "Remount via binary failed with exit code: %d", WEXITSTATUS(status));
-            return false;
-        }
-    }
     return true;
 }

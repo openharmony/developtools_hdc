@@ -77,7 +77,11 @@ constexpr uint16_t CMD_REMOTE_SIZE = 8;
 constexpr uint16_t PORT_MAX_LEN = 5;
 constexpr uint16_t START_SERVER_FOR_CLIENT_TIME = 300;
 constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
+#ifdef HDC_HOST
+constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 32;
+#else
 constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 10;
+#endif
 
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
 // |----------------------------------------------------------------|

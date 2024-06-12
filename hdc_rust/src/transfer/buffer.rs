@@ -40,9 +40,6 @@ extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::io::AsyncWriteExt;
 use ylong_runtime::net::{SplitReadHalf, SplitWriteHalf};
 use ylong_runtime::sync::{mpsc, Mutex, RwLock};
-// use std::sync::Condvar;
-// use ylong_runtime::sync::Waiter;
-// use std::collections::VecDeque;
 
 type ConnectTypeMap_ = Arc<RwLock<HashMap<u32, ConnectType>>>;
 
@@ -251,40 +248,34 @@ impl UsbMap {
 
 pub fn usb_start_write() {
     ylong_runtime::spawn(async move {
-        UsbPacketQueue::stop_or_run(true).await;
+        UsbPacketQueue::set_running(true).await;
         loop {
-            // let data = UsbPacketQueue::pop().await;
-            // if let Some((session_id, task_message)) = data {
-            //     let _ = UsbMap::write(session_id, task_message).await;
-            // } else if !UsbPacketQueue::is_running().await {
-            //     crate::info!("usb write thread stop running...");
-            //     UsbPacketQueue::clear().await;
-            //     break;
-            // } else {
-            //     continue;
-            // }
-            crate::info!("usb_start_write loop ...");
             let data = UsbPacketQueue::pop_light().await;
-            crate::info!("pop_light data 1");
             if let Some(data_list) = data {
                 for (session_id, task_message) in data_list {
-                    let _ = UsbMap::write(session_id, task_message).await;
+                    let ret = UsbMap::write(session_id, task_message).await;
+                    if ret.is_err() {
+                        crate::warn!("usb write error, break 1...");
+                        break;
+                    }
                 }
             }
 
             if !UsbPacketQueue::is_running().await {
                 UsbPacketQueue::clear().await;
+                crate::info!("usb running is false, break...");
                 break;
             }
-            crate::info!("usb_start_write loop 222...");
             let data = UsbPacketQueue::pop().await;
-            crate::info!("pop data 2");
             if let Some(data_list) = data {
                 for (session_id, task_message) in data_list {
-                    let _ = UsbMap::write(session_id, task_message).await;
+                    let ret = UsbMap::write(session_id, task_message).await;
+                    if ret.is_err() {
+                        crate::warn!("usb write error, break 2...");
+                        break;
+                    }
                 }
             }
-            crate::info!("usb_start_write loop 333...");
         }
         crate::info!("usb write thread exit...");
     });
@@ -292,7 +283,7 @@ pub fn usb_start_write() {
 
 pub async fn exit_usb_write() {
     crate::info!("exit_usb_write called...");
-    UsbPacketQueue::stop_or_run(false).await;
+    UsbPacketQueue::set_running(false).await;
 }
 
 type UartWriter_ = Arc<Mutex<UartWriter>>;

@@ -12,8 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "daemon_unity.h"
+#include <cstdlib>
 #include <sys/mount.h>
+#include <sys/wait.h>
+
+#include "daemon_unity.h"
 
 namespace Hdc {
 HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
@@ -161,17 +164,23 @@ bool HdcDaemonUnity::RemountDevice()
     }
     struct stat info;
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
-        // has vendor
         if (!RemountPartition("/vendor")) {
-            LogMsg(MSG_FAIL, "Mount failed /vendor");
-            return false;
+            WRITE_LOG(LOG_FATAL, "Mount failed /vendor (via mount)");
         }
     }
-    if (!lstat("/data", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
-        if (!RemountPartition("/data")) {
-            LogMsg(MSG_FAIL, "Mount failed /data");
-            return false;
+    if (!lstat("/system", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
+        if (!RemountPartition("/")) {
+            WRITE_LOG(LOG_FATAL, "Mount failed /system (via mount)");
         }
+    }
+    
+    int exitStatus = system("/bin/remount");
+    if (exitStatus == -1) {
+        LogMsg(MSG_FAIL, "Failed to execute /bin/remount: %s", strerror(errno));
+        return false;
+    } else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus) != 0) {
+        LogMsg(MSG_FAIL, "Remount failed with exit code: %d", WEXITSTATUS(exitStatus));
+        return false;
     }
     LogMsg(MSG_OK, "Mount finish");
     return true;

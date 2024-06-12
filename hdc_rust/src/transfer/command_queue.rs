@@ -57,10 +57,8 @@ impl BlockVecDeque {
         let mut queue;
         if self.is_light_command(cmd) {
             queue = self.light_queue.lock().await;
-            crate::info!("push back light command.");
         } else {
             queue = self.queue.lock().await;
-            crate::info!("push back heavy command.");
         }
         queue.push_back(TaskMessageExt {
             data,
@@ -121,12 +119,14 @@ impl BlockVecDeque {
         };
         let mut result = Vec::new();
         for _i in 0..len {
-            result.push(queue.pop_front().unwrap());
+            if let(message) = queue.pop_front() {
+                result.push(message);
+            }
         }
         Some(result)
     }
 
-    async fn stop_or_run(&self, running: bool) {
+    async fn set_running(&self, running: bool) {
         let mut running_lock = self.running.lock().await;
         *running_lock = running;
         self.waiter.wake_one();
@@ -188,9 +188,9 @@ impl UsbPacketQueue {
         instance.is_running().await
     }
 
-    pub async fn stop_or_run(running: bool) {
+    pub async fn set_running(running: bool) {
         let instance = Self::get_instance();
-        instance.stop_or_run(running).await;
+        instance.set_running(running).await;
     }
 
     pub async fn clear() {

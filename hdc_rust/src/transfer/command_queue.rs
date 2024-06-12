@@ -119,7 +119,7 @@ impl BlockVecDeque {
         };
         let mut result = Vec::new();
         for _i in 0..len {
-            if let(message) = queue.pop_front() {
+            if let Some(message) = queue.pop_front() {
                 result.push(message);
             }
         }

@@ -304,7 +304,7 @@ pub async fn put(session_id: u32, data: TaskMessage) {
             }
         }
         None => {
-            crate::warn!("fail to get connect type for session:{}", session_id);
+            crate::warn!("fail to get connect type for session:{}, command:{:?}", session_id, data.command);
         }
     }
 }

@@ -370,6 +370,7 @@ async fn usb_daemon_start() -> io::Result<()> {
 async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> io::Result<()> {
     let _rd = transfer::usb::UsbReader { fd: bulkin_fd };
     let mut rx = transfer::usb_start_recv(bulkin_fd, 0);
+    transfer::usb_start_write();
     let mut cur_session_id = 0;
     loop {
         match rx.recv().await {
@@ -406,6 +407,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
         cur_session_id,
     )
     .await;
+    transfer::exit_usb_write().await;
     Ok(())
 }
 

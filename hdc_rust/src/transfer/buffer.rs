@@ -265,7 +265,7 @@ pub fn usb_start_write() {
             // }
             crate::info!("usb_start_write loop ...");
             let data = UsbPacketQueue::pop_light().await;
-            crate::info!("pop_light data:{:#?}", data);
+            crate::info!("pop_light data 1");
             if let Some(data_list) = data {
                 for (session_id, task_message) in data_list {
                     let _ = UsbMap::write(session_id, task_message).await;
@@ -278,7 +278,7 @@ pub fn usb_start_write() {
             }
             crate::info!("usb_start_write loop 222...");
             let data = UsbPacketQueue::pop().await;
-            crate::info!("pop data:{:#?}", data);
+            crate::info!("pop data 2");
             if let Some(data_list) = data {
                 for (session_id, task_message) in data_list {
                     let _ = UsbMap::write(session_id, task_message).await;

@@ -12,16 +12,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "log.h"
-#include "mount.h"
-
-#include <sys/mount.h>
-#include <securec.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mount.h>
+#include <securec.h>
 #include <sys/wait.h>
+
+#include "log.h"
+#include "mount.h"
 
 using namespace Hdc;
 
@@ -98,10 +99,23 @@ bool RemountDevice()
     }
     struct stat info;
     if (!lstat("/vendor", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
-        // has vendor
         if (!RemountPartition("/vendor")) {
-            return false;
+            WRITE_LOG(LOG_FATAL, "Mount failed /vendor (via mount)");
         }
+    }
+    if (!lstat("/system", &info) && (info.st_mode & S_IFMT) == S_IFDIR) {
+        if (!RemountPartition("/")) {
+            WRITE_LOG(LOG_FATAL, "Mount failed /system (via mount)");
+        }
+    }
+    
+    int exitStatus = system("/bin/remount");
+    if (exitStatus == -1) {
+        WRITE_LOG(LOG_FATAL, "Failed to execute /bin/remount: %s", strerror(errno));
+        return false;
+    } else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus) != 0) {
+        WRITE_LOG(LOG_FATAL, "Remount failed with exit code: %d", WEXITSTATUS(exitStatus));
+        return false;
     }
     return true;
 }

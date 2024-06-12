@@ -413,7 +413,7 @@ impl PtyMap {
         let pty_map = Self::get_instance();
         {
             let map = pty_map.lock().await;
-            crate::info!("hdc shell stop_task, session_id:{}, task_size: {}", session_id, map.len());
+            hdc::info!("hdc shell stop_task, session_id:{}, task_size: {}", session_id, map.len());
             for _iter in map.iter() {
                 if _iter.0 .0 != session_id {
                     continue;

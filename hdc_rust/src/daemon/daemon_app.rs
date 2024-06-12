@@ -95,7 +95,7 @@ impl AppTaskMap {
     async fn stop_task(session_id: u32) {
         let arc = Self::get_instance();
         let map = arc.lock().await;
-        crate::info!("app stop_task, session_id:{}, task_size: {}", session_id, map.len());
+        hdc::info!("app stop_task, session_id:{}, task_size: {}", session_id, map.len());
         for _iter in map.iter() {
             if _iter.0 .0 != session_id {
                 continue;

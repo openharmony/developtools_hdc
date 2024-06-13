@@ -277,7 +277,7 @@ pub fn usb_start_write() {
                         }
                     }
                 }
-            });
+            }).await;
         }
         crate::info!("usb write thread exit...");
     });

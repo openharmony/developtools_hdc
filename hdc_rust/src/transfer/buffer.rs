@@ -266,7 +266,7 @@ pub fn usb_start_write() {
                 crate::info!("usb running is false, break...");
                 break;
             }
-            ylong_runtime::time::timeout(std::time::Duration::from_millis(500), async move {
+            let _ = ylong_runtime::time::timeout(std::time::Duration::from_millis(500), async move {
                 let data = UsbPacketQueue::pop().await;
                 if let Some(data_list) = data {
                     for (session_id, task_message) in data_list {

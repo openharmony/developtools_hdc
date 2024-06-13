@@ -82,6 +82,9 @@ impl BlockVecDeque {
     async fn clear(&self) {
         let mut queue = self.queue.lock().await;
         queue.clear();
+
+        let mut queue = self.light_queue.lock().await;
+        queue.clear();
     }
 
     async fn pop_front(&self) -> Option<Vec<TaskMessageExt>> {

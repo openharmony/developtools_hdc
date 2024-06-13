@@ -401,10 +401,10 @@ impl PtyMap {
     }
 
     pub async fn stop_task(session_id: u32) {
-        hdc::info!("hdc shell free_task, session_id: {}", session_id);
         let pty_map = Self::get_instance();
         {
             let map = pty_map.lock().await;
+            hdc::info!("hdc shell stop_task, session_id:{}, task_size: {}", session_id, map.len());
             for _iter in map.iter() {
                 if _iter.0 .0 != session_id {
                     continue;

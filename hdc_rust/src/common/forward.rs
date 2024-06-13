@@ -433,6 +433,7 @@ pub async fn free_channel_task(session_id: u32, channel_id: u32) {
 }
 
 pub async fn stop_task(session_id: u32) {
+    crate::info!("forward free task session_id: {}", session_id);
     ForwardTaskMap::clear(session_id).await;
 }
 

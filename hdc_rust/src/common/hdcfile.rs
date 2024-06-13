@@ -99,9 +99,9 @@ impl FileTaskMap {
     }
 
     async fn stop_task(session_id: u32) {
-        crate::info!("hdcfile stop_task, session_id:{}", session_id);
         let arc = Self::get_instance();
         let map = arc.lock().await;
+        crate::info!("hdcfile stop task, session_id:{}, task_size: {}", session_id, map.len());
         for _iter in map.iter() {
             if _iter.0 .0 != session_id {
                 continue;

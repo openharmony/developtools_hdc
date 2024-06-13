@@ -111,7 +111,11 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
     }
 
     if (MatchPackageExtendName(localPath, ".img") || MatchPackageExtendName(localPath, ".bin") ||
+<<<<<<< HEAD
         MatchPackageExtendName(localPath, ".fd") || MatchPackageExtendName(localPath, ".cpio")) {
+=======
+        MatchPackageExtendName(localPath, ".fd")) {
+>>>>>>> dbf9b473bd662769606a41d0b747adae460b1988
         ctxNow.transferConfig.compressType = COMPRESS_NONE;
     } else if (MatchPackageExtendName(localPath, ".zip")) {
         WRITE_LOG(LOG_INFO, "file type is zip");

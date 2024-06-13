@@ -838,9 +838,9 @@ def check_rom(baseline):
     def _try_get_size(message):
         try:
             size = int(message.split('\t')[0])
-        except:
+        except ValueError:
             size = -9999 * 1024 * 1024 # error size
-            print(f"try get size error, from {message}")
+            print(f"try get size value error, from {message}")
         return size
 
     if baseline is None:

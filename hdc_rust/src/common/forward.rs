@@ -771,7 +771,7 @@ pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
     }
 }
 
-pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: bool) {
+pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_remote: bool) {
     let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         return;
     };

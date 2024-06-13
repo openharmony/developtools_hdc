@@ -23,6 +23,8 @@ use ylong_runtime::sync::Mutex;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 
+const MAX_ONCE_WRITE_HEAVY: usize = 10;
+
 struct TaskMessageExt {
     data: TaskMessage,
     session_id: u32,
@@ -30,6 +32,7 @@ struct TaskMessageExt {
 
 struct BlockVecDeque {
     waiter: Waiter,
+    full_waiter: Waiter,
     queue: Mutex<VecDeque<TaskMessageExt>>,
     light_queue: Mutex<VecDeque<TaskMessageExt>>,
     running: Mutex<bool>,
@@ -39,6 +42,7 @@ impl BlockVecDeque {
     fn new() -> Self {
         Self {
             waiter: Waiter::new(),
+            full_waiter: Waiter::new(),
             queue: Mutex::new(VecDeque::new()),
             light_queue: Mutex::new(VecDeque::new()),
             running: Mutex::new(true),
@@ -59,6 +63,11 @@ impl BlockVecDeque {
             queue = self.light_queue.lock().await;
         } else {
             queue = self.queue.lock().await;
+            if queue.len() >= MAX_ONCE_WRITE_HEAVY {
+                drop(queue);
+                self.full_waiter.wait().await;
+                queue = self.queue.lock().await;
+            }
         }
         queue.push_back(TaskMessageExt {
             data,
@@ -80,7 +89,6 @@ impl BlockVecDeque {
         if queue.is_empty() {
             drop(queue);
             self.waiter.wait().await;
-            crate::info!("pop_front wait end.");
             if !self.is_running().await {
                 return None;
             }
@@ -89,15 +97,24 @@ impl BlockVecDeque {
         let mut result = Vec::new();
         loop {
             let message = queue.pop_front();
+            let mut count = 0;
             if let Some(task_message) = message {
                 let command = task_message.data.command;
                 result.push(task_message);
                 if command == HdcCommand::FileData {
-                    break;
+                    count += 1;
+                    if count >= MAX_ONCE_WRITE_HEAVY {
+                        break;
+                    }
                 }
             } else {
                 break;
             }
+        }
+
+        let len = queue.len();
+        if len < MAX_ONCE_WRITE_HEAVY {
+            self.full_waiter.wake_one();        
         }
         Some(result)
     }
@@ -111,7 +128,7 @@ impl BlockVecDeque {
             return None;
         }
         let queue_len = queue.len();
-        const MAX_LIGHT_COUNT_ONCE: usize = 10;
+        const MAX_LIGHT_COUNT_ONCE: usize = 100;
         let len = if queue_len > MAX_LIGHT_COUNT_ONCE {
             MAX_LIGHT_COUNT_ONCE
         } else {
@@ -119,8 +136,8 @@ impl BlockVecDeque {
         };
         let mut result = Vec::new();
         for _i in 0..len {
-            if let Some(message) = queue.pop_front() {
-                result.push(message);
+            if let Some(task_message) = queue.pop_front() {
+                result.push(task_message);
             }
         }
         Some(result)

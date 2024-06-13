@@ -266,16 +266,18 @@ pub fn usb_start_write() {
                 crate::info!("usb running is false, break...");
                 break;
             }
-            let data = UsbPacketQueue::pop().await;
-            if let Some(data_list) = data {
-                for (session_id, task_message) in data_list {
-                    let ret = UsbMap::write(session_id, task_message).await;
-                    if ret.is_err() {
-                        crate::warn!("usb write error, break 2...");
-                        break;
+            ylong_runtime::time::timeout(std::time::Duration::from_millis(500), async move {
+                let data = UsbPacketQueue::pop().await;
+                if let Some(data_list) = data {
+                    for (session_id, task_message) in data_list {
+                        let ret = UsbMap::write(session_id, task_message).await;
+                        if ret.is_err() {
+                            crate::warn!("usb write error, break 2...");
+                            break;
+                        }
                     }
                 }
-            }
+            });
         }
         crate::info!("usb write thread exit...");
     });

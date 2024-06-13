@@ -66,6 +66,9 @@ impl BlockVecDeque {
             if queue.len() >= MAX_ONCE_WRITE_HEAVY {
                 drop(queue);
                 self.full_waiter.wait().await;
+                if !self.is_running().await {
+                    return;
+                }
                 queue = self.queue.lock().await;
             }
         }
@@ -147,6 +150,7 @@ impl BlockVecDeque {
         let mut running_lock = self.running.lock().await;
         *running_lock = running;
         self.waiter.wake_one();
+        self.full_waiter.wake_all();
     }
 
     async fn is_running(&self) -> bool {

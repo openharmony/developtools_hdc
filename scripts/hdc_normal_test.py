@@ -30,6 +30,7 @@ from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_r
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
+from dev_hdc_test import check_rom
 
 
 def test_list_targets():
@@ -204,6 +205,11 @@ def test_shell_cmd_timecost():
         pattern="hdcd",
         duration=None,
         times=10)
+
+
+def test_hdcd_rom():
+    baseline = 2200 * 1024 # 2200KB
+    assert check_rom(baseline)
 
 
 def setup_class():

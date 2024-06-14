@@ -61,6 +61,7 @@ class GP(object):
     changed_testcase = "n"
     testcase_path = "ts_windows.csv"
     loaded_testcase = 0
+    hdcd_rom = "not checked"
 
     @classmethod
     def init(cls):
@@ -230,7 +231,7 @@ class GP(object):
     
     @classmethod
     def get_version(cls):
-        version = f"v1.0.2a"
+        version = f"v1.0.3a"
         return version
 
 
@@ -266,6 +267,7 @@ def pytest_run(args):
     report_file = os.path.join(report_dir, f"{report_time}report.html")
     print(f"Test over, the script version is {GP.get_version()},"
         f" start at {start_time}, end at {end_time} \n"
+        f"=======>The device hdcd ROM size is {GP.hdcd_rom}.\n"
         f"=======>{report_file} is saved. \n"
     )
     input("=======>press [Enter] key to Show logs.")
@@ -829,3 +831,45 @@ def check_cmd_time(cmd, pattern, duration, times):
         duration = 150 * 1.2
     # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
     return timecost < duration
+
+
+def check_rom(baseline):
+
+    def _try_get_size(message):
+        try:
+            size = int(message.split('\t')[0])
+        except ValueError:
+            size = -9999 * 1024 * 1024 # error size
+            print(f"try get size value error, from {message}")
+        return size
+
+    if baseline is None:
+        baseline = 2200 * 1024
+    # 2200KB is the baseline of hdcd and libhdc.dylib.so size all together
+    cmd_hdcd = f"{GP.hdc_head} shell du -b system/bin/hdcd"
+    result_hdcd = subprocess.check_output(cmd_hdcd.split()).decode()
+    hdcd_size = _try_get_size(result_hdcd)
+    cmd_libhdc = f"{GP.hdc_head} shell du -b system/lib/libhdc.dylib.so"
+    result_libhdc = subprocess.check_output(cmd_libhdc.split()).decode()
+    if "directory" in result_libhdc:
+        cmd_libhdc64 = f"{GP.hdc_head} shell du -b system/lib64/libhdc.dylib.so"
+        result_libhdc64 = subprocess.check_output(cmd_libhdc64.split()).decode()
+        if "directory" in result_libhdc64:
+            libhdc_size = 0
+        else:
+            libhdc_size = _try_get_size(result_libhdc64)
+    else:
+        libhdc_size = _try_get_size(result_libhdc)
+    all_size = hdcd_size + libhdc_size
+    GP.hdcd_rom = all_size
+    if all_size < 0:
+        GP.hdcd_rom = "error"
+        return False
+    else:
+        GP.hdcd_rom = f"{all_size} Bytes"
+    if all_size > baseline:
+        print(f"rom size is {all_size}, overlimit baseline {baseline}")
+        return False
+    else:
+        print(f"rom size is {all_size}, underlimit baseline {baseline}")
+        return True

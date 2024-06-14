@@ -29,6 +29,7 @@ private:
     void PackageShell(bool installOrUninstall, const char *options, const string package);
     bool AsyncInstallFinish(bool finish, int64_t exitStatus, const string result);
     void Sideload(const char *pathOTA);
+    string Tar2Dir(const char *path);
 
     AsyncCmd asyncCommand;
     AsyncCmd::CmdResultCallback funcAppModFinish;

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "daemon_app.h"
+#include "decompress.h"
 
 namespace Hdc {
 HdcDaemonApp::HdcDaemonApp(HTaskInfo hTaskInfo)
@@ -167,6 +168,20 @@ void HdcDaemonApp::Sideload(const char *pathOTA)
     unlink(pathOTA);
 }
 
+string HdcDaemonApp::Tar2Dir(const char *path)
+{
+    string dir;
+    string tarpath = path;
+    string::size_type rindex = tarpath.rfind(".tar");
+    if (rindex != string::npos) {
+        dir = tarpath.substr(0, rindex);
+        WRITE_LOG(LOG_DEBUG, "path:%s dir:%s", path, dir.c_str());
+        Decompress dc(tarpath);
+        dc.DecompressToLocal(dir);
+    }
+    return dir;
+}
+
 void HdcDaemonApp::WhenTransferFinish(CtxFile *context)
 {
     if (context->lastErrno > 0) {
@@ -181,7 +196,12 @@ void HdcDaemonApp::WhenTransferFinish(CtxFile *context)
     if (ctxNow.transferConfig.functionName == CMDSTR_APP_SIDELOAD) {
         Sideload(context->localPath.c_str());
     } else if (ctxNow.transferConfig.functionName == CMDSTR_APP_INSTALL) {
-        PackageShell(true, context->transferConfig.options.c_str(), context->localPath.c_str());
+        string dir = Tar2Dir(context->localPath.c_str());
+        if (!dir.empty()) {
+            PackageShell(true, context->transferConfig.options.c_str(), dir.c_str());
+        } else {
+            PackageShell(true, context->transferConfig.options.c_str(), context->localPath.c_str());
+        }
     } else {
     }
 };

@@ -36,18 +36,13 @@ string HdcHostApp::Dir2Tar(const char *dir)
     uv_fs_req_cleanup(&req);
     if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
         string sdir = dir;
-        char sep = Base::GetPathSep();
-        string::size_type rindex = sdir.rfind(sep);
-        if (rindex != string::npos) {
-            string tardir = sdir.substr(0, rindex);
-            WRITE_LOG(LOG_DEBUG, "tardir:%s", tardir.c_str());
-            string tarname = Base::GetRandomString(EXPECTED_LEN) + ".tar";
-            tarpath = tardir + sep + tarname;
-            WRITE_LOG(LOG_DEBUG, "tarpath:%s", tarpath.c_str());
-            Compress c;
-            c.AddPath(sdir);
-            c.SaveToFile(tarpath);
-        }
+        string tarname = Base::GetRandomString(EXPECTED_LEN) + ".tar";
+        tarpath = Base::GetTmpDir() + tarname;
+        WRITE_LOG(LOG_DEBUG, "tarpath:%s", tarpath.c_str());
+        Compress c;
+        c.UpdataPrefix(sdir);
+        c.AddPath(sdir);
+        c.SaveToFile(tarpath);
     }
     return tarpath;
 }

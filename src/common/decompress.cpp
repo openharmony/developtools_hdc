@@ -26,19 +26,19 @@ namespace Hdc {
 bool Decompress::DecompressToLocal(std::string decPath)
 {
     if (!fs::exists(tarPath) || !fs::is_regular_file(tarPath)) {
-        // LOGI("%s not exist, or not file", tarPath.c_str());
+        WRITE_LOG(LOG_FATAL, "%s not exist, or not file", tarPath.c_str());
         return false;
     }
 
     auto fileSize = fs::file_size(tarPath);
     if (fileSize == 0 || fileSize % HEADER_LEN != 0) {
-        // LOGI("file is not tar");
+        LOGI("file is not tar");
         return false;
     }
 
     if (fs::exists(decPath)) {
         if (fs::is_regular_file(decPath)) {
-            // LOGI("path is exist, and path not dir");
+            LOGI("path is exist, and path not dir");
             return false;
         }
     } else {
@@ -52,14 +52,19 @@ bool Decompress::DecompressToLocal(std::string decPath)
     std::optional<Entry> entry = std::nullopt;
     while(1) {
         inFile.read(reinterpret_cast<char*>(buff), HEADER_LEN);
-        if (inFile.fail() || inFile.gcount() != HEADER_LEN) {
-            // LOGI("read file error");
+        auto readcnt = inFile.gcount();
+        if (readcnt == 0) {
+            LOGI("read EOF");
+            break;
+        }
+        if (inFile.fail() || readcnt != HEADER_LEN) {
+            LOGI("read file error");
             break;
         }
         /* LOGI("read data:"); */
         /* memdump(buff, HEADER_LEN); */
         if (!entry.has_value()) {
-            // LOGI("new entry =================>");
+            LOGI("new entry =================>");
             entry = Entry(buff);
             if (entry.value().IsFinish()) {
                 entry.value().SaveToFile(decPath);

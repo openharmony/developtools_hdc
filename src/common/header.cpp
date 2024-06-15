@@ -88,6 +88,7 @@ std::string Header::Name()
 
 bool Header::UpdataName(std::string p_name)
 {
+    // LOGI("name : %s", p_name.c_str());
     auto len = p_name.length();
     if (len >= HEADER_MAX_FILE_LEN) {
         // LOGI("len too long");

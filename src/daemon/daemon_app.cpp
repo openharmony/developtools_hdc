@@ -174,7 +174,7 @@ string HdcDaemonApp::Tar2Dir(const char *path)
     string tarpath = path;
     string::size_type rindex = tarpath.rfind(".tar");
     if (rindex != string::npos) {
-        dir = tarpath.substr(0, rindex);
+        dir = tarpath.substr(0, rindex) + Base::GetPathSep();
         WRITE_LOG(LOG_DEBUG, "path:%s dir:%s", path, dir.c_str());
         Decompress dc(tarpath);
         dc.DecompressToLocal(dir);

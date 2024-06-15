@@ -2,14 +2,17 @@
 #define __ENTRY_H__
 
 #include <vector>
+#include <filesystem>
 
 #include "header.h"
+
+namespace fs = std::filesystem;
 
 namespace Hdc {
 class Entry
 {
 public:
-    Entry(std::string path);
+    Entry(std::string prefix, std::string path);
     Entry(uint8_t data[512]);
     ~Entry() {}
 
@@ -29,9 +32,13 @@ public:
     bool SaveToFile(std::string prefixPath);
     bool WriteToTar(std::ofstream &file);
 
+    std::string GetName();
+    bool UpdataName(std::string name);
+
 private:
     Header header;
     size_t need_size;
+    fs::path prefix;
     std::vector<uint8_t> data;
 };
 

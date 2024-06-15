@@ -3,22 +3,24 @@
 
 #include <cstdint>
 #include <string>
+#include "common.h"
 
-// #define LOGI(fmt,...) printf("[%s@%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define LOGI(fmt,...) WRITE_LOG(LOG_INFO, fmt, ##__VA_ARGS__)
+
 static __attribute__((unused)) void memdump(void *pv, size_t num)
 {
     /*
     for (size_t i = 0; i < num; i += 16) {
         unsigned char *pc = (unsigned char*)pv + i;
+        printf("%06lX: ", i);
         for (size_t j = 0; j < 16 && i + j < num; j++) {
-            // printf("%02X ", pc[j]);
+            printf("%02X ", pc[j]);
         }
         printf("\t");
         for (size_t j = 0; j < 16 && i + j < num; j++) {
-            // printf("%c", isprint(pc[j]) ? pc[j] : '.');
+            printf("%c", isprint(pc[j]) ? pc[j] : '.');
         }
-        // printf("\n");
-
+        printf("\n");
     }
     */
 }

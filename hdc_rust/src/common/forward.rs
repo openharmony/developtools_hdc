@@ -771,14 +771,11 @@ pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32) {
     }
 }
 
-pub async fn free_context(session_id: u32, channel_id: u32, id: u32, notify_remote: bool) {
-    crate::info!("free context id = {id}");
+pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_remote: bool) {
     let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
-        crate::error!(
-            "free_context get task is none session_id={session_id},channel_id={channel_id}"
-        );
         return;
     };
+    crate::info!("free_context session_id:{session_id}, channel_id:{channel_id}");
     let task = &mut task.clone();
     if notify_remote {
         let vec_none = Vec::<u8>::new();

@@ -19,7 +19,6 @@ use super::base::{self, Writer};
 use super::uart::UartWriter;
 use super::usb::{self, UsbReader, UsbWriter};
 use super::{tcp, uart_wrapper};
-use super::command_queue::UsbPacketQueue;
 #[cfg(feature = "emulator")]
 use crate::daemon_lib::bridge::BridgeMap;
 #[cfg(feature = "host")]
@@ -162,6 +161,7 @@ impl TcpMap {
 
 type UsbWriter_ = Arc<Mutex<UsbWriter>>;
 type UsbMap_ = Arc<Mutex<RwLock<HashMap<u32, UsbWriter_>>>>;
+
 pub struct UsbMap {}
 impl UsbMap {
     fn get_instance() -> UsbMap_ {
@@ -173,13 +173,8 @@ impl UsbMap {
         }
     }
 
-    async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
-        UsbPacketQueue::push(session_id, data).await;
-        Ok(())
-    }
-
     #[allow(unused)]
-    async fn write(session_id: u32, data: TaskMessage) -> io::Result<()> {
+    async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
         let instance = Self::get_instance();
         let mut map_lock = instance.lock().await;
         let map = map_lock.read().await;
@@ -199,6 +194,7 @@ impl UsbMap {
                             return Err(Error::new(ErrorKind::Other, "Error writing head"));
                         }
                     }
+
                     match wr.write_all(body) {
                         Ok(ret) => {
                             let child_ret = ret;
@@ -227,7 +223,6 @@ impl UsbMap {
     }
 
     pub async fn start(session_id: u32, wr: UsbWriter) {
-        crate::info!("usbmap start, session_id:{}, fd:{}", session_id, wr.fd);
         let buffer_map = Self::get_instance();
         let map_lock = buffer_map.lock().await;
         let mut map = map_lock.write().await;
@@ -237,55 +232,12 @@ impl UsbMap {
     }
 
     pub async fn end(session_id: u32) {
-        crate::info!("usbmap end, session_id:{}", session_id);
         let buffer_map = Self::get_instance();
         let map_lock = buffer_map.lock().await;
         let mut map = map_lock.write().await;
         let _ = map.remove(&session_id);
         ConnectTypeMap::del(session_id).await;
     }
-}
-
-pub fn usb_start_write() {
-    ylong_runtime::spawn(async move {
-        UsbPacketQueue::set_running(true).await;
-        loop {
-            let data = UsbPacketQueue::pop_light().await;
-            if let Some(data_list) = data {
-                for (session_id, task_message) in data_list {
-                    let ret = UsbMap::write(session_id, task_message).await;
-                    if ret.is_err() {
-                        crate::warn!("usb write error, break 1...");
-                        break;
-                    }
-                }
-            }
-
-            if !UsbPacketQueue::is_running().await {
-                UsbPacketQueue::clear().await;
-                crate::info!("usb running is false, break...");
-                break;
-            }
-            let _ = ylong_runtime::time::timeout(std::time::Duration::from_millis(1500), async move {
-                let data = UsbPacketQueue::pop().await;
-                if let Some(data_list) = data {
-                    for (session_id, task_message) in data_list {
-                        let ret = UsbMap::write(session_id, task_message).await;
-                        if ret.is_err() {
-                            crate::warn!("usb write error, break 2...");
-                            break;
-                        }
-                    }
-                }
-            }).await;
-        }
-        crate::info!("usb write thread exit...");
-    });
-}
-
-pub async fn exit_usb_write() {
-    crate::info!("exit_usb_write called...");
-    UsbPacketQueue::set_running(false).await;
 }
 
 type UartWriter_ = Arc<Mutex<UartWriter>>;

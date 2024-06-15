@@ -549,9 +549,10 @@ impl ShellExecuteMap {
                 }
                 channel_vec.push(_iter.0 .1);
                 hdc::debug!(
-                    "Clear tty task, session_id: {}, channel_id:{}",
+                    "Clear shell_execute_map task, session_id: {}, channel_id:{}, task_size: {}",
                     session_id,
                     _iter.0 .1,
+                    map.len(),
                 );
             }
             for channel_id in channel_vec{
@@ -576,7 +577,6 @@ async fn watch_pipe_states(rx: &mut mpsc::BoundedReceiver<Vec<u8>>, child_in: &m
             if e == Closed {
                 return Err(Error::new(ErrorKind::Other, "pipe closed"));
             }
-            hdc::trace!("rx have get Empty or Err {:?}", e);
             // 执行top指令时，存在短暂无返回值场景，此时返回值为Err(Empty),需要返回Empty
             Ok(())
         },

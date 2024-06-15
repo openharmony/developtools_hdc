@@ -19,7 +19,7 @@
 use super::task_manager;
 use crate::utils::hdc_log::*;
 use hdc::config::TaskMessage;
-use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG, MAX_SIZE_IOBUF};
+use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG};
 use hdc::transfer;
 
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ use std::sync::{Arc, Once};
 
 use ylong_runtime::process::pty_process::{Pty, PtyCommand};
 use ylong_runtime::process::{Child, Command, ChildStdin, ChildStdout, ChildStderr};
-use ylong_runtime::io::{AsyncReadExt, AsyncWriteExt, AsyncBufReadExt, AsyncBufReader};
+use ylong_runtime::io::{AsyncReadExt, AsyncWriteExt, AsyncBufReader};
 use ylong_runtime::sync::{mpsc, Mutex};
 use ylong_runtime::sync::error::TryRecvError::Closed;
 
@@ -549,9 +549,10 @@ impl ShellExecuteMap {
                 }
                 channel_vec.push(_iter.0 .1);
                 hdc::debug!(
-                    "Clear tty task, session_id: {}, channel_id:{}",
+                    "Clear shell_execute_map task, session_id: {}, channel_id:{}, task_size: {}",
                     session_id,
                     _iter.0 .1,
+                    map.len(),
                 );
             }
             for channel_id in channel_vec{
@@ -576,7 +577,6 @@ async fn watch_pipe_states(rx: &mut mpsc::BoundedReceiver<Vec<u8>>, child_in: &m
             if e == Closed {
                 return Err(Error::new(ErrorKind::Other, "pipe closed"));
             }
-            hdc::trace!("rx have get Empty or Err {:?}", e);
             // 执行top指令时，存在短暂无返回值场景，此时返回值为Err(Empty),需要返回Empty
             Ok(())
         },
@@ -588,34 +588,6 @@ async fn watch_pipe_states(rx: &mut mpsc::BoundedReceiver<Vec<u8>>, child_in: &m
     }
 }
 
-async fn transfer_output_from_child(child_out_reader: &mut AsyncBufReader<ChildStdout>, shell_task_id: &ShellTaskID, ret_command: HdcCommand) {
-    let mut line: String = String::new();
-    match child_out_reader.read_line(&mut line).await {
-        Ok(n) => {
-            if n > 0 {
-                hdc::debug!("read {n} bytes");
-                // when read bytes >= 61440 * 2, host server will throw log
-                // FetchIOBuf read io failed, no buffer space available
-                // so we need to limit the read bytes
-                let mut start = 0;
-                while start < n {
-                    let end = std::cmp::min(start + MAX_SIZE_IOBUF/2, n);
-
-                    let message = TaskMessage {
-                        channel_id: shell_task_id.channel_id,
-                        command: ret_command,
-                        payload: line[start..end].to_string().into(),
-                    };
-                    transfer::put(shell_task_id.session_id, message).await;
-                    start = end;
-                }
-            }
-        },
-        Err(e) => {
-            hdc::error!("Command oupput erorr for {:?}", e);
-        }
-    }
-}
 
 async fn read_buf_from_stdout_stderr(child_out_reader: &mut AsyncBufReader<ChildStdout>, child_err_reader: &mut AsyncBufReader<ChildStderr>, shell_task_id: &ShellTaskID,  ret_command: HdcCommand) {
     let mut buffer = Vec::new();
@@ -696,9 +668,26 @@ async fn task_for_shell_execute(
 
         let mut child_out_reader = ylong_runtime::io::AsyncBufReader::new(child_out);
         let mut child_err_reader = ylong_runtime::io::AsyncBufReader::new(child_err);
-
+        let mut buf = [0u8; 30720];
         loop {
-            transfer_output_from_child(&mut child_out_reader, &shell_task_id, ret_command).await;
+            ylong_runtime::select! {
+                read_res = child_out_reader.read(&mut buf) => {
+                    match read_res {
+                        Ok(bytes) => {
+                            let message = TaskMessage {
+                                channel_id: shell_task_id.channel_id,
+                                command: ret_command,
+                                payload: buf[..bytes].to_vec(),
+                            };
+                            transfer::put(shell_task_id.session_id, message).await;
+                        }
+                        Err(e) => {
+                            hdc::warn!("pty read failed: {e:?}");
+                            break;
+                        }
+                    }
+                }
+            }
 
             if (watch_pipe_states(&mut rx, &mut child_in).await).is_err() {
                 ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;

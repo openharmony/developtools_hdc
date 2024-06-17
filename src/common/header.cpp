@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 #include "header.h"
-#include <string.h>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <iomanip>
@@ -22,58 +22,63 @@ namespace Hdc {
 constexpr uint8_t MAGIC[HEADER_MAGIC_LEN] = {'u', 's', 't', 'a', 'r', 0x20};
 constexpr uint8_t VERSION[HEADER_VERSION_LEN] = {0x20, 0x00};
 
-std::string DecimalToOctalString(int decimalNumber, int length) {
+std::string DecimalToOctalString(int decimalNumber, int length)
+{
     std::ostringstream oss;
     oss << std::oct << std::setw(length) << std::setfill('0') << decimalNumber;
     return oss.str();
 }
 
-Header::Header() {
-    memset(name, 0, 100);
-    memset(mode, 0, 8);
-    memset(uid, 0, 8);
-    memset(gid, 0, 8);
-    memset(size, 0, 12);
-    memset(mtime, 0, 12);
-    memset(chksum, 0, 8);
-    memset(typeflage, 0, 1);
-    memset(linkname, 0, 100);
-    memset(magic, 0, 6);
-    memset(version, 0, 2);
-    memset(uname, 0, 32);
-    memset(gname, 0, 32);
-    memset(devmajor, 0, 8);
-    memset(devminor, 0, 8);
-    memset(prefix, 0, 155);
-    memset(pad, 0, 12);
-    memcpy(magic, MAGIC, HEADER_MAGIC_LEN);
-    memcpy(version, VERSION, HEADER_VERSION_LEN);
+Header::Header()
+{
+    (void)memset_s(name, HEADER_NAME_LEN, 0, HEADER_NAME_LEN);
+    (void)memset_s(mode, HEADER_MODE_LEN, 0, HEADER_MODE_LEN);
+    (void)memset_s(uid, HEADER_UID_LEN, 0, HEADER_UID_LEN);
+    (void)memset_s(gid, HEADER_GID_LEN, 0, HEADER_GID_LEN);
+    (void)memset_s(size, HEADER_SIZE_LEN, 0, HEADER_SIZE_LEN);
+    (void)memset_s(mtime, HEADER_MTIME_LEN, 0, HEADER_MTIME_LEN);
+    (void)memset_s(chksum, HEADER_CHKSUM_LEN, 0, HEADER_CHKSUM_LEN);
+    (void)memset_s(typeflage, HEADER_TYPEFLAGE_LEN, 0, HEADER_TYPEFLAGE_LEN);
+    (void)memset_s(linkname, HEADER_LINKNAME_LEN, 0, HEADER_LINKNAME_LEN);
+    (void)memset_s(magic, HEADER_MAGIC_LEN, 0, HEADER_MAGIC_LEN);
+    (void)memset_s(version, HEADER_VERSION_LEN, 0, HEADER_VERSION_LEN);
+    (void)memset_s(uname, HEADER_UNAME_LEN, 0, HEADER_UNAME_LEN);
+    (void)memset_s(gname, HEADER_GNAME_LEN, 0, HEADER_GNAME_LEN);
+    (void)memset_s(devmajor, HEADER_DEVMAJOR_LEN, 0, HEADER_DEVMAJOR_LEN);
+    (void)memset_s(devminor, HEADER_DEVMINOR_LEN, 0, HEADER_DEVMINOR_LEN);
+    (void)memset_s(prefix, HEADER_PREFIX_LEN, 0, HEADER_PREFIX_LEN);
+    (void)memset_s(pad, HEADER_PAD_LEN, 0, HEADER_PAD_LEN);
+    (void)memcpy_s(magic, HEADER_MAGIC_LEN, MAGIC, HEADER_MAGIC_LEN);
+    (void)memcpy_s(version, HEADER_VERSION_LEN, VERSION, HEADER_VERSION_LEN);
 }
 
-Header::Header(uint8_t data[512]) {
+Header::Header(uint8_t data[512])
+{
     int index = 0;
     auto func = [&data, &index](uint8_t target[], int len) {
-        memcpy(target, &data[index], len);
+        if(memcpy_s(target, len, &data[index], len) != EOK) {
+            WRITE_LOG(LOG_WARN, "memcpy_s data failed index:%d len:%d", index, len);
+        }
         index += len;
     };
 
-    func(name, 100);
-    func(mode, 8);
-    func(uid, 8);
-    func(gid, 8);
-    func(size, 12);
-    func(mtime, 12);
-    func(chksum, 8);
-    func(typeflage, 1);
-    func(linkname, 100);
-    func(magic, 6);
-    func(version, 2);
-    func(uname, 32);
-    func(gname, 32);
-    func(devmajor, 8);
-    func(devminor, 8);
-    func(prefix, 155);
-    func(pad, 12);
+    func(name, HEADER_NAME_LEN);
+    func(mode, HEADER_MODE_LEN);
+    func(uid, HEADER_UID_LEN);
+    func(gid, HEADER_GID_LEN);
+    func(size, HEADER_SIZE_LEN);
+    func(mtime, HEADER_MTIME_LEN);
+    func(chksum, HEADER_CHKSUM_LEN);
+    func(typeflage, HEADER_TYPEFLAGE_LEN);
+    func(linkname, HEADER_LINKNAME_LEN);
+    func(magic, HEADER_MAGIC_LEN);
+    func(version, HEADER_VERSION_LEN);
+    func(uname, HEADER_UNAME_LEN);
+    func(gname, HEADER_GNAME_LEN);
+    func(devmajor, HEADER_DEVMAJOR_LEN);
+    func(devminor, HEADER_DEVMINOR_LEN);
+    func(prefix, HEADER_PREFIX_LEN);
+    func(pad, HEADER_PAD_LEN);
 }
 
 std::string Header::Name() 
@@ -91,13 +96,27 @@ bool Header::UpdataName(std::string p_name)
         WRITE_LOG(LOG_WARN, "len too long %u", len);
         return false;
     }
-    if (len < 100) {
-        snprintf(reinterpret_cast<char*>(this->name), HEADER_NAME_LEN, "%s", p_name.c_str());
+    int rc = 0;
+    char *p = nullptr;
+    if (len < HEADER_NAME_LEN) {
+        p = reinterpret_cast<char*>(this->name);
+        rc = snprintf_s(p, HEADER_NAME_LEN, HEADER_NAME_LEN - 1, "%s", p_name.c_str());
+        if (rc < 0) {
+            WRITE_LOG(LOG_WARN, "snprintf_s name failed rc:%d p_name:%s", rc, p_name.c_str());
+        }
     } else {
-        auto prefix = p_name.substr(0, len - (HEADER_NAME_LEN - 1));
-        auto name = p_name.substr(len - (HEADER_NAME_LEN - 1));
-        snprintf(reinterpret_cast<char*>(this->name), HEADER_NAME_LEN, "%s", name.c_str());
-        snprintf(reinterpret_cast<char*>(this->prefix), HEADER_NAME_LEN, "%s", prefix.c_str());
+        auto sprefix = p_name.substr(0, len - (HEADER_NAME_LEN - 1));
+        auto sname = p_name.substr(len - (HEADER_NAME_LEN - 1));
+        p = reinterpret_cast<char*>(this->name);
+        rc = snprintf_s(p, HEADER_NAME_LEN, HEADER_NAME_LEN - 1, "%s", sname.c_str());
+        if (rc < 0) {
+            WRITE_LOG(LOG_WARN, "snprintf_s name failed rc:%d sname:%s", rc, sname.c_str());
+        }
+        p = reinterpret_cast<char*>(this->prefix);
+        rc = snprintf_s(p, HEADER_NAME_LEN, HEADER_NAME_LEN - 1, "%s", sprefix.c_str());
+        if (rc < 0) {
+            WRITE_LOG(LOG_WARN, "snprintf_s prefix failed rc:%d sprefix:%s", rc, sprefix.c_str());
+        }
     }
     return true;
 }
@@ -113,7 +132,11 @@ size_t Header::Size()
 void Header::UpdataSize(size_t size)
 {
     auto size_str = DecimalToOctalString(size, HEADER_SIZE_LEN - 1);
-    snprintf(reinterpret_cast<char*>(this->size), HEADER_SIZE_LEN, "%s", size_str.c_str());
+    char *p = reinterpret_cast<char*>(this->size);
+    int rc = snprintf_s(p, HEADER_SIZE_LEN, HEADER_SIZE_LEN - 1, "%s", size_str.c_str());
+    if (rc < 0) {
+        WRITE_LOG(LOG_FATAL, "snprintf_s size failed rc:%d size_str:%s", rc, size_str.c_str());
+    }
 }
 
 TypeFlage Header::FileType()
@@ -163,10 +186,15 @@ void Header::UpdataCheckSum()
     check_sum(devminor, HEADER_DEVMINOR_LEN);
     check_sum(prefix, HEADER_PREFIX_LEN);
     check_sum(pad, HEADER_PAD_LEN);
-    sum += 256;
+    constexpr uint64_t cnt = 256;
+    sum += cnt;
 
     auto size_str = DecimalToOctalString(sum, HEADER_CHKSUM_LEN - 1);
-    snprintf(reinterpret_cast<char*>(this->chksum), HEADER_CHKSUM_LEN, "%s", size_str.c_str());
+    char *p = reinterpret_cast<char*>(this->chksum);
+    int rc = snprintf_s(p, HEADER_CHKSUM_LEN, HEADER_CHKSUM_LEN - 1, "%s", size_str.c_str());
+    if (rc < 0) {
+        WRITE_LOG(LOG_WARN, "snprintf_s chksum failed rc:%d size_str:%s", rc, size_str.c_str());
+    }
 }
 
 void Header::GetBytes(uint8_t data[512])

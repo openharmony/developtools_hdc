@@ -23,7 +23,8 @@ namespace fs = std::filesystem;
 
 namespace Hdc {
 
-std::optional<std::string> strip_prefix(const std::string& str, const std::string& prefix) {
+std::optional<std::string> strip_prefix(const std::string& str, const std::string& prefix)
+{
     if (str.compare(0, prefix.length(), prefix) == 0) {
         auto p_path = str.substr(prefix.length());
         return p_path;
@@ -129,30 +130,29 @@ bool Entry::SaveToFile(std::string prefixPath)
 bool Entry::WriteToTar(std::ofstream &file)
 {
     switch(header.FileType()) {
-    case TypeFlage::OrdinaryFile: {
-        char buff[HEADER_LEN] = {0};
-        header.GetBytes((uint8_t*)buff);
-        file.write(buff, HEADER_LEN);
-        std::ifstream inFile(GetName(), std::ios::binary);
-        file << inFile.rdbuf();
-        auto pading = HEADER_LEN - (need_size % HEADER_LEN);
-        if (pading < HEADER_LEN) {
-            WRITE_LOG(LOG_INFO, "pading %ld", pading);
-            char buff[512] = {0};
-            file.write(buff, pading);
+        case TypeFlage::OrdinaryFile: {
+            char buff[HEADER_LEN] = {0};
+            header.GetBytes((uint8_t*)buff);
+            file.write(buff, HEADER_LEN);
+            std::ifstream inFile(GetName(), std::ios::binary);
+            file << inFile.rdbuf();
+            auto pading = HEADER_LEN - (need_size % HEADER_LEN);
+            if (pading < HEADER_LEN) {
+                WRITE_LOG(LOG_INFO, "pading %ld", pading);
+                char pad[HEADER_LEN] = {0};
+                file.write(pad, pading);
+            }
+            break;
         }
-        break;
+        case TypeFlage::Directory: {
+            char buff[HEADER_LEN] = {0};
+            header.GetBytes((uint8_t*)buff);
+            file.write(buff, HEADER_LEN);
+            break;
+        }
+        default:
+            return false;
     }
-    case TypeFlage::Directory: {
-        char buff[HEADER_LEN] = {0};
-        header.GetBytes((uint8_t*)buff);
-        file.write(buff, HEADER_LEN);
-        break;
-    }
-    default:
-        return false;
-    }
-
     return true;
 }
 }

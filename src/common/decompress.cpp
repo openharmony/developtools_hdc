@@ -51,7 +51,7 @@ bool Decompress::DecompressToLocal(std::string decPath)
 
     std::optional<std::ofstream> outFile = std::nullopt;
     std::optional<Entry> entry = std::nullopt;
-    while(1) {
+    while (1) {
         inFile.read(reinterpret_cast<char*>(buff), HEADER_LEN);
         auto readcnt = inFile.gcount();
         if (readcnt == 0) {

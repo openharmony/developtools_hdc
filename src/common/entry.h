@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __ENTRY_H__
-#define __ENTRY_H__
+#ifndef HDC_ENTRY_H
+#define HDC_ENTRY_H
 
 #include <vector>
 #include <filesystem>
@@ -23,23 +23,25 @@
 namespace fs = std::filesystem;
 
 namespace Hdc {
-class Entry
-{
+class Entry {
 public:
     Entry(std::string prefix, std::string path);
     Entry(uint8_t data[512]);
     ~Entry() {}
 
-    bool IsFinish() {
+    bool IsFinish()
+    {
         return this->need_size == 0;
     }
 
-    bool IsInvalid() {
+    bool IsInvalid()
+    {
         return this->header.IsInvalid();
     }
 
     void AddData(uint8_t *data, size_t len);
-    size_t Size() {
+    size_t Size()
+    {
         return header.Size();
     }
 

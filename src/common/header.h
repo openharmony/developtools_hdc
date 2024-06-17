@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __HEADER_H__
-#define __HEADER_H__
+#ifndef HDC_HEADER_H
+#define HDC_HEADER_H
 
 #include <cstdint>
 #include <string>
@@ -99,7 +99,7 @@ struct Header {
     uint8_t pad[12];
 
     Header();
-    Header(uint8_t data[512]);
+    explicit Header(uint8_t data[512]);
     std::string Name();
     bool UpdataName(std::string p_name);
     size_t Size();

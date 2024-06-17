@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __COMPRESS_H_
-#define __COMPRESS_H_
+#ifndef HDC_COMPRESS_H
+#define HDC_COMPRESS_H
 
 #include <vector>
 #include <string>
@@ -21,8 +21,7 @@
 #include "entry.h"
 
 namespace Hdc {
-class Compress
-{
+class Compress {
 public:
     Compress() {}
     ~Compress() {}

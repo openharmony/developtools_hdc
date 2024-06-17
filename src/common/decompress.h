@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __DECOMPRESS_H__
-#define __DECOMPRESS_H__
+#ifndef HDC_DECOMPRESS_H
+#define HDC_DECOMPRESS_H
 
 #include <vector>
 #include <string>
@@ -24,15 +24,12 @@ namespace Hdc {
 class Decompress
 {
 public:
-    Decompress(std::string tarPath)
-        : tarPath(tarPath){}
+    explicit Decompress(std::string tarPath) : tarPath(tarPath) {}
     ~Decompress() {}
 
     bool DecompressToLocal(std::string decPath);
 
 private:
-    /* bool ReadData(); */
-
     std::vector<Entry> entrys;
     std::string tarPath;
 };

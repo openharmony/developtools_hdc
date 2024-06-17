@@ -145,7 +145,7 @@ TypeFlage Header::FileType()
         return TypeFlage::INVALID;
     }
 
-    return (TypeFlage)this->typeflage[0];
+    return TypeFlage(this->typeflage[0]);
 }
 
 void Header::UpdataFileType(TypeFlage fileType)

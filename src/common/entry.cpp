@@ -45,7 +45,7 @@ Entry::Entry(std::string prefix, std::string path)
         } else if (fs::is_regular_file(fsPath)) {
             auto fileSize = fs::file_size(fsPath);
             header.UpdataSize(fileSize);
-            need_size = fileSize;
+            needSize = fileSize;
             header.UpdataFileType(TypeFlage::ORDINARYFILE);
         }
     }
@@ -55,25 +55,25 @@ Entry::Entry(std::string prefix, std::string path)
 Entry::Entry(uint8_t data[512])
 {
     header = Header(data);
-    need_size = header.Size();
+    needSize = header.Size();
 }
 
 
 void Entry::AddData(uint8_t *data, size_t len)
 {
-    if (this->need_size == 0) {
+    if (this->needSize == 0) {
         return;
     }
-    if (this->need_size > len) {
+    if (this->needSize > len) {
         for (size_t i = 0; i < len; i++) {
             this->data.push_back(data[i]);
         }
-        this->need_size -= len;
+        this->needSize -= len;
     } else {
-        for (size_t i = 0; i < this->need_size; i++) {
+        for (size_t i = 0; i < this->needSize; i++) {
             this->data.push_back(data[i]);
         }
-        this->need_size = 0;
+        this->needSize = 0;
     }
 }
 
@@ -135,7 +135,7 @@ bool Entry::WriteToTar(std::ofstream &file)
             file.write(buff, HEADER_LEN);
             std::ifstream inFile(GetName(), std::ios::binary);
             file << inFile.rdbuf();
-            auto pading = HEADER_LEN - (need_size % HEADER_LEN);
+            auto pading = HEADER_LEN - (needSize % HEADER_LEN);
             if (pading < HEADER_LEN) {
                 WRITE_LOG(LOG_INFO, "pading %ld", pading);
                 char pad[HEADER_LEN] = {0};

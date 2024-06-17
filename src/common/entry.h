@@ -31,7 +31,7 @@ public:
 
     bool IsFinish()
     {
-        return this->need_size == 0;
+        return this->needSize == 0;
     }
 
     bool IsInvalid()
@@ -53,7 +53,7 @@ public:
 
 private:
     Header header;
-    size_t need_size;
+    size_t needSize;
     fs::path prefix;
     std::vector<uint8_t> data;
 };

@@ -103,6 +103,12 @@ bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const str
 {
     if (mode == APPMOD_INSTALL) {
         unlink(ctxNow.localPath.c_str());
+        string::size_type rindex = ctxNow.localPath.rfind(".tar");
+        if (rindex != string::npos) {
+            string dir = ctxNow.localPath.substr(0, rindex) + Base::GetPathSep();
+            int rc = remove(dir.c_str());
+            WRITE_LOG(LOG_DEBUG, "remove dir:%s rc:%d errno:%d", dir.c_str(), rc, errno);
+        }
     }
     asyncCommand.DoRelease();
     string echo = result;

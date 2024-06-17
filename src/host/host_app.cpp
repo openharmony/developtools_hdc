@@ -159,7 +159,13 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
             break;
     }
     if (ctxNow.taskQueue.size() > 0) {
+        string path = ctxNow.taskQueue.back();
         ctxNow.taskQueue.pop_back();
+        string::size_type pos = path.rfind(".tar");
+        if (mode == APPMOD_INSTALL && pos != string::npos) {
+            unlink(path.c_str());
+            WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
+        }
     }
     LogMsg(MSG_INFO, "%s path:%s, queuesize:%d, msg:%s", modeDesc.c_str(), ctxNow.localPath.c_str(),
            ctxNow.taskQueue.size(), msg + printedMsgLen);

@@ -50,11 +50,11 @@ bool Compress::AddEntry(std::string path)
         return false;
     }
     if (this->prefix.length() > 0 && path == this->prefix) {
-        WRITE_LOG(LOG_WARN, "Ignoring compressed root directory");
+        WRITE_LOG(LOG_DEBUG, "Ignoring compressed root directory");
         return true;
     }
     Entry entry(this->prefix, path);
-    WRITE_LOG(LOG_INFO, "AddEntry %s", path.c_str());
+    WRITE_LOG(LOG_DEBUG, "AddEntry %s", path.c_str());
     entrys.push_back(entry);
     return true;
 }
@@ -73,7 +73,7 @@ bool Compress::SaveToFile(std::string localPath)
     if (!file.is_open()) {
         return false;
     }
-    WRITE_LOG(LOG_INFO, "SaveToFile entrys len : %u", entrys.size());
+    WRITE_LOG(LOG_DEBUG, "SaveToFile entrys len : %u", entrys.size());
     for (auto& entry : entrys) {
         entry.WriteToTar(file);
     }

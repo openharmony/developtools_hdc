@@ -137,7 +137,6 @@ bool Entry::WriteToTar(std::ofstream &file)
             file << inFile.rdbuf();
             auto pading = HEADER_LEN - (needSize % HEADER_LEN);
             if (pading < HEADER_LEN) {
-                WRITE_LOG(LOG_INFO, "pading %ld", pading);
                 char pad[HEADER_LEN] = {0};
                 file.write(pad, pading);
             }

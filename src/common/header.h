@@ -40,25 +40,25 @@ namespace Hdc {
 #define HEADER_PAD_LEN 12
 #define HEADER_MAX_FILE_LEN 255
 
-typedef enum {
+typedef enum : uint8_t {
     /// 无效值
-    Invalid = 0,
+    INVALID = 0,
     /// 0: 普通文件
-    OrdinaryFile = '0',
+    ORDINARYFILE = '0',
     /// 1: 硬链接
-    HardLink = '1',
+    HARDLINK = '1',
     /// 2: 软链接
-    SoftLink = '2',
+    SOFTLINK = '2',
     /// 3: 字符设备
-    CharacterDevice = '3',
+    CHARACTERDEVICE = '3',
     /// 4: 块设备
-    BlockDevice = '4',
+    BLOCKDEVICE = '4',
     /// 5: 文件夹
-    Directory = '5',
+    DIRECTORY = '5',
     /// 6: 命名管道
-    Fifo = '6',
+    FIFO = '6',
     /// 7: 保留字
-    Reserve = '7',
+    RESERVE = '7',
 } TypeFlage;
 
 struct Header {

@@ -56,7 +56,7 @@ Header::Header(uint8_t data[512])
 {
     int index = 0;
     auto func = [&data, &index](uint8_t target[], int len) {
-        if(memcpy_s(target, len, &data[index], len) != EOK) {
+        if (memcpy_s(target, len, &data[index], len) != EOK) {
             WRITE_LOG(LOG_WARN, "memcpy_s data failed index:%d len:%d", index, len);
         }
         index += len;
@@ -81,7 +81,7 @@ Header::Header(uint8_t data[512])
     func(pad, HEADER_PAD_LEN);
 }
 
-std::string Header::Name() 
+std::string Header::Name()
 {
     std::string name(reinterpret_cast<char*>(prefix));
     name.append(reinterpret_cast<char*>(this->name));
@@ -141,8 +141,8 @@ void Header::UpdataSize(size_t size)
 
 TypeFlage Header::FileType()
 {
-    if (this->typeflage[0] < TypeFlage::OrdinaryFile || this->typeflage[0] > TypeFlage::Reserve) {
-        return TypeFlage::Invalid;
+    if (this->typeflage[0] < TypeFlage::ORDINARYFILE || this->typeflage[0] > TypeFlage::RESERVE) {
+        return TypeFlage::INVALID;
     }
 
     return (TypeFlage)this->typeflage[0];
@@ -150,8 +150,8 @@ TypeFlage Header::FileType()
 
 void Header::UpdataFileType(TypeFlage fileType)
 {
-    if (fileType < TypeFlage::OrdinaryFile || fileType > TypeFlage::Reserve) {
-        this->typeflage[0] = TypeFlage::Invalid;
+    if (fileType < TypeFlage::ORDINARYFILE || fileType > TypeFlage::RESERVE) {
+        this->typeflage[0] = TypeFlage::INVALID;
         return;
     }
     this->typeflage[0] = fileType;
@@ -159,33 +159,33 @@ void Header::UpdataFileType(TypeFlage fileType)
 
 bool Header::IsInvalid()
 {
-    return FileType() == TypeFlage::Invalid;
+    return FileType() == TypeFlage::INVALID;
 }
 
 void Header::UpdataCheckSum()
 {
     uint64_t sum = 0;
-    auto check_sum = [&sum] (uint8_t *data, size_t len) {
+    auto checksum = [&sum] (uint8_t *data, size_t len) {
         for (size_t i = 0; i < len; i++) {
             sum += data[i];
         }
     };
-    check_sum(this->name, HEADER_NAME_LEN);
-    check_sum(this->mode, HEADER_MODE_LEN);
-    check_sum(this->uid, HEADER_UID_LEN);
-    check_sum(this->gid, HEADER_GID_LEN);
-    check_sum(this->size, HEADER_SIZE_LEN);
-    check_sum(this->mtime, HEADER_MTIME_LEN);
-    check_sum(typeflage, HEADER_TYPEFLAGE_LEN);
-    check_sum(linkname, HEADER_LINKNAME_LEN);
-    check_sum(magic, HEADER_MAGIC_LEN);
-    check_sum(version, HEADER_VERSION_LEN);
-    check_sum(uname, HEADER_UNAME_LEN);
-    check_sum(gname, HEADER_GNAME_LEN);
-    check_sum(devmajor, HEADER_DEVMAJOR_LEN);
-    check_sum(devminor, HEADER_DEVMINOR_LEN);
-    check_sum(prefix, HEADER_PREFIX_LEN);
-    check_sum(pad, HEADER_PAD_LEN);
+    checksum(this->name, HEADER_NAME_LEN);
+    checksum(this->mode, HEADER_MODE_LEN);
+    checksum(this->uid, HEADER_UID_LEN);
+    checksum(this->gid, HEADER_GID_LEN);
+    checksum(this->size, HEADER_SIZE_LEN);
+    checksum(this->mtime, HEADER_MTIME_LEN);
+    checksum(typeflage, HEADER_TYPEFLAGE_LEN);
+    checksum(linkname, HEADER_LINKNAME_LEN);
+    checksum(magic, HEADER_MAGIC_LEN);
+    checksum(version, HEADER_VERSION_LEN);
+    checksum(uname, HEADER_UNAME_LEN);
+    checksum(gname, HEADER_GNAME_LEN);
+    checksum(devmajor, HEADER_DEVMAJOR_LEN);
+    checksum(devminor, HEADER_DEVMINOR_LEN);
+    checksum(prefix, HEADER_PREFIX_LEN);
+    checksum(pad, HEADER_PAD_LEN);
     constexpr uint64_t cnt = 256;
     sum += cnt;
 
@@ -202,7 +202,7 @@ void Header::GetBytes(uint8_t data[512])
     UpdataCheckSum();
     int index = 0;
     auto func = [&index, &data](uint8_t *src, int len) {
-        memcpy(&data[index], src, len);
+        (void)memcpy_s(&data[index], len, src, len);
         index += len;
     };
     func(name, HEADER_NAME_LEN);

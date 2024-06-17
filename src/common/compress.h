@@ -34,7 +34,7 @@ public:
 private:
     std::vector<Entry> entrys;
     std::string prefix;
-    size_t max_count;
+    size_t maxcount;
 };
 }
 

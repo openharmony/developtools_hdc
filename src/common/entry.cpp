@@ -40,13 +40,13 @@ Entry::Entry(std::string prefix, std::string path)
     this->prefix = prefixPath / "";
     if (fs::exists(fsPath)) {
         if (fs::is_directory(fsPath)) {
-            header.UpdataFileType(TypeFlage::Directory);
+            header.UpdataFileType(TypeFlage::DIRECTORY);
             header.UpdataSize(0);
         } else if (fs::is_regular_file(fsPath)) {
             auto fileSize = fs::file_size(fsPath);
             header.UpdataSize(fileSize);
             need_size = fileSize;
-            header.UpdataFileType(TypeFlage::OrdinaryFile);
+            header.UpdataFileType(TypeFlage::ORDINARYFILE);
         }
     }
     UpdataName(path);
@@ -100,37 +100,36 @@ bool Entry::SaveToFile(std::string prefixPath)
         return false;
     }
 
-    switch(this->header.FileType()) {
-    case TypeFlage::OrdinaryFile: {
-        auto saveFile = prefixPath.append(GetName());
-        std::ofstream file(saveFile, std::ios::out | std::ios::binary);
-        if (!file.is_open()) {
-            WRITE_LOG(LOG_FATAL, "open %s fail", saveFile.c_str());
-            return false;
+    switch (this->header.FileType()) {
+        case TypeFlage::ORDINARYFILE: {
+            auto saveFile = prefixPath.append(GetName());
+            std::ofstream file(saveFile, std::ios::out | std::ios::binary);
+            if (!file.is_open()) {
+                WRITE_LOG(LOG_FATAL, "open %s fail", saveFile.c_str());
+                return false;
+            }
+            WRITE_LOG(LOG_INFO, "saveFile %s, size %ld", saveFile.c_str(), this->data.size());
+            file.write((const char*)this->data.data(), this->data.size());
+            file.close();
+            if (file.fail()) {
+                return false;
+            }
+            break;
         }
-        WRITE_LOG(LOG_INFO, "saveFile %s, size %ld", saveFile.c_str(), this->data.size());
-        file.write((const char*)this->data.data(), this->data.size());
-        file.close();
-        if (file.fail()) {
-            return false;
+        case TypeFlage::DIRECTORY: {
+            auto dirPath = prefixPath.append(GetName());
+            fs::create_directory(dirPath);
         }
-        break;
-    }
-    case TypeFlage::Directory: {
-        auto dirPath = prefixPath.append(GetName());
-        fs::create_directory(dirPath);
-    }
-    default:{
-        return false;
-    }
+        default:
+            return false;
     }
     return true;
 }
 
 bool Entry::WriteToTar(std::ofstream &file)
 {
-    switch(header.FileType()) {
-        case TypeFlage::OrdinaryFile: {
+    switch (header.FileType()) {
+        case TypeFlage::ORDINARYFILE: {
             char buff[HEADER_LEN] = {0};
             header.GetBytes((uint8_t*)buff);
             file.write(buff, HEADER_LEN);
@@ -144,7 +143,7 @@ bool Entry::WriteToTar(std::ofstream &file)
             }
             break;
         }
-        case TypeFlage::Directory: {
+        case TypeFlage::DIRECTORY: {
             char buff[HEADER_LEN] = {0};
             header.GetBytes((uint8_t*)buff);
             file.write(buff, HEADER_LEN);

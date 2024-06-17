@@ -26,7 +26,7 @@ namespace Hdc {
 class Entry {
 public:
     Entry(std::string prefix, std::string path);
-    Entry(uint8_t data[512]);
+    explicit Entry(uint8_t data[512]);
     ~Entry() {}
 
     bool IsFinish()

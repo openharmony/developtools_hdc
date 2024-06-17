@@ -30,13 +30,11 @@ bool Decompress::DecompressToLocal(std::string decPath)
         WRITE_LOG(LOG_FATAL, "%s not exist, or not file", tarPath.c_str());
         return false;
     }
-
     auto fileSize = fs::file_size(tarPath);
     if (fileSize == 0 || fileSize % HEADER_LEN != 0) {
         WRITE_LOG(LOG_FATAL, "file is not tar %s", tarPath.c_str());
         return false;
     }
-
     if (fs::exists(decPath)) {
         if (fs::is_regular_file(decPath)) {
             WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", decPath.c_str());
@@ -45,10 +43,8 @@ bool Decompress::DecompressToLocal(std::string decPath)
     } else {
         fs::create_directories(decPath);
     }
-
     uint8_t buff[HEADER_LEN];
     std::ifstream inFile(tarPath);
-
     std::optional<std::ofstream> outFile = std::nullopt;
     std::optional<Entry> entry = std::nullopt;
     while (1) {

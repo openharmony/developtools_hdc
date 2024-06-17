@@ -45,8 +45,8 @@ bool Compress::AddPath(std::string path)
 
 bool Compress::AddEntry(std::string path)
 {
-    if (this->max_count > 0 && this->entrys.size() > this->max_count) {
-        WRITE_LOG(LOG_FATAL, "Entry.size %zu exceeded maximum %zu", entrys.size(), max_count);
+    if (this->maxcount > 0 && this->entrys.size() > this->maxcount) {
+        WRITE_LOG(LOG_FATAL, "Entry.size %zu exceeded maximum %zu", entrys.size(), maxcount);
         return false;
     }
     if (this->prefix.length() > 0 && path == this->prefix) {
@@ -88,6 +88,6 @@ void Compress::UpdataPrefix(std::string prefix)
 
 void Compress::UpdataMaxCount(size_t maxCount)
 {
-    this->max_count = maxCount;
+    this->maxcount = maxCount;
 }
 }

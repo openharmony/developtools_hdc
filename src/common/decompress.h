@@ -21,8 +21,7 @@
 #include "entry.h"
 
 namespace Hdc {
-class Decompress
-{
+class Decompress {
 public:
     explicit Decompress(std::string tarPath) : tarPath(tarPath) {}
     ~Decompress() {}

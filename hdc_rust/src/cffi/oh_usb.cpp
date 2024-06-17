@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cerrno>
-#include <signal.h>
+#include <csignal>
 
 using namespace Hdc;
 
@@ -142,17 +142,17 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
         restoreSigmask = false;
     }
 
-    while (writen < length ) {
-        ret = write(bulkIn, const_cast<uint8_t *>(data) + writen, length - writen);
+    while (writen < length) {
+        ret = write(bulkIn, const_cast<uint8_t *>(data + writen), length - writen);
         if (ret < 0) {
             WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
-                    bulkIn, length - writen, ret, errno);
+                bulkIn, length - writen, ret, errno);
             break;
         }
         writen += ret;
     }
 
-    if (restoreSigmask && sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0) {
+    if (restoreSigmask && sigprocmask(SIG_SETMASK, &oldmask, nullptr) < 0) {
         WRITE_LOG(LOG_FATAL, "after write usb, restore signal mask failed, err(%d)\n", errno);
     }
 

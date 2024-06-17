@@ -146,6 +146,11 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
     while (writen < length) {
         ret = write(bulkIn, const_cast<uint8_t *>(data + writen), length - writen);
         if (ret < 0) {
+            if (errno == EINTR) {
+                WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes interrupted, will retry\n",
+                    bulkIn, length - writen, ret);
+                continue;
+            }
             WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
                 bulkIn, length - writen, ret, errno);
             break;

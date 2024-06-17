@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "compress.h"
 
 #include <filesystem>
@@ -32,18 +46,16 @@ bool Compress::AddPath(std::string path)
 bool Compress::AddEntry(std::string path)
 {
     if (this->max_count > 0 && this->entrys.size() > this->max_count) {
-        WRITE_LOG(LOG_FATAL, "Exceeded the set maximum value, the maximum value is set to %zu", this->max_count);
+        WRITE_LOG(LOG_FATAL, "Entry.size %zu exceeded maximum %zu", entrys.size(), max_count);
         return false;
     }
     if (this->prefix.length() > 0 && path == this->prefix) {
-        LOGI("Ignoring compressed root directory");
+        WRITE_LOG(LOG_WARN, "Ignoring compressed root directory");
         return true;
     }
     Entry entry(this->prefix, path);
     WRITE_LOG(LOG_INFO, "AddEntry %s", path.c_str());
-    /* memdump(); */
     entrys.push_back(entry);
-
     return true;
 }
 

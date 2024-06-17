@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "header.h"
 #include <string.h>
 #include <sstream>
@@ -42,23 +56,6 @@ Header::Header(uint8_t data[512]) {
         memcpy(target, &data[index], len);
         index += len;
     };
-    /* memcpy(name, &data[index], 100); */
-    /* memcpy(mode, &data[index], 8); */
-    /* memcpy(uid, &data[index], 8); */
-    /* memcpy(gid, &data[index], 8); */
-    /* memcpy(size, &data[index], 12); */
-    /* memcpy(mtime, &data[index], 12); */
-    /* memcpy(chksum, &data[index], 8); */
-    /* memcpy(typeflage, &data[index], 1); */
-    /* memcpy(linkname, &data[index], 100); */
-    /* memcpy(magic, &data[index], 6); */
-    /* memcpy(version, &data[index], 2); */
-    /* memcpy(uname, &data[index], 32); */
-    /* memcpy(gname, &data[index], 32); */
-    /* memcpy(devmajor, &data[index], 8); */
-    /* memcpy(devminor, &data[index], 8); */
-    /* memcpy(prefix, &data[index], 155); */
-    /* memcpy(pad, &data[index], 12); */
 
     func(name, 100);
     func(mode, 8);
@@ -88,10 +85,10 @@ std::string Header::Name()
 
 bool Header::UpdataName(std::string p_name)
 {
-    // LOGI("name : %s", p_name.c_str());
+    WRITE_LOG(LOG_INFO, "name : %s", p_name.c_str());
     auto len = p_name.length();
     if (len >= HEADER_MAX_FILE_LEN) {
-        // LOGI("len too long");
+        WRITE_LOG(LOG_WARN, "len too long %u", len);
         return false;
     }
     if (len < 100) {
@@ -102,22 +99,14 @@ bool Header::UpdataName(std::string p_name)
         snprintf(reinterpret_cast<char*>(this->name), HEADER_NAME_LEN, "%s", name.c_str());
         snprintf(reinterpret_cast<char*>(this->prefix), HEADER_NAME_LEN, "%s", prefix.c_str());
     }
-    /* LOGI("UpdataName name:"); */
-    /* memdump(this->name, HEADER_NAME_LEN); */
-    /* memdump(this->prefix, HEADER_PREFIX_LEN); */
-
-    /* uint8_t buff[512] = {0}; */
-    /* GetBytes(buff); */
     return true;
 }
 
 size_t Header::Size()
 {
-    // LOGI("size dump:");
-    memdump(this->size, HEADER_SIZE_LEN);
     std::string octalStr(reinterpret_cast<char*>(this->size));
     int num = std::stoi(octalStr, nullptr, 8);
-    // LOGI("size num %d", num);
+    WRITE_LOG(LOG_INFO, "size num %d", num);
     return num;
 }
 
@@ -164,7 +153,6 @@ void Header::UpdataCheckSum()
     check_sum(this->gid, HEADER_GID_LEN);
     check_sum(this->size, HEADER_SIZE_LEN);
     check_sum(this->mtime, HEADER_MTIME_LEN);
-    /* check_sum(chksum, HEADER_CHKSUM_LEN); */
     check_sum(typeflage, HEADER_TYPEFLAGE_LEN);
     check_sum(linkname, HEADER_LINKNAME_LEN);
     check_sum(magic, HEADER_MAGIC_LEN);
@@ -206,7 +194,5 @@ void Header::GetBytes(uint8_t data[512])
     func(devminor, HEADER_DEVMINOR_LEN);
     func(prefix, HEADER_PREFIX_LEN);
     func(pad, HEADER_PAD_LEN);
-    /* LOGI("GetBytes buff:"); */
-    /* memdump(data, HEADER_LEN); */
 }
 }

@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "entry.h"
 
 #include <iostream>
@@ -12,10 +26,6 @@ namespace Hdc {
 std::optional<std::string> strip_prefix(const std::string& str, const std::string& prefix) {
     if (str.compare(0, prefix.length(), prefix) == 0) {
         auto p_path = str.substr(prefix.length());
-        /* size_t pos = p_path.find_first_not_of("/."); */
-        /* if (pos != std::string::npos) { */
-        /*     p_path = p_path.substr(pos); */
-        /* } */
         return p_path;
     } else {
         return std::nullopt;
@@ -24,7 +34,6 @@ std::optional<std::string> strip_prefix(const std::string& str, const std::strin
 
 Entry::Entry(std::string prefix, std::string path)
 {
-    // LOGI("Entry::Entry path %s, %p", path.c_str(), this);
     fs::path fsPath = path;
     fs::path prefixPath = prefix;
     this->prefix = prefixPath / "";
@@ -39,11 +48,7 @@ Entry::Entry(std::string prefix, std::string path)
             header.UpdataFileType(TypeFlage::OrdinaryFile);
         }
     }
-
-    /* header.UpdataName(path); */
     UpdataName(path);
-    /* LOGI("name %s", header.Name().c_str()); */
-    // LOGI("name %s", GetName().c_str());
 }
 
 Entry::Entry(uint8_t data[512])
@@ -69,7 +74,6 @@ void Entry::AddData(uint8_t *data, size_t len)
         }
         this->need_size = 0;
     }
-    // LOGI("need_size = %ld", this->need_size);
 }
 
 std::string Entry::GetName()
@@ -80,14 +84,7 @@ std::string Entry::GetName()
 
 bool Entry::UpdataName(std::string name)
 {
-    /* fs::path p_name = name; */
-    /* p_name.lexically_normal(); */
     if (!this->prefix.string().empty()) {
-        /* fs::path p_path = name; */
-        /* if (p_path.starts_with(this->prefix)) { */
-        /*     p_path = p_path.remove_prefix(this->prefix.lexicographical_relative_size()); */
-        /*     return this->header.UpdataName(p_path); */
-        /* } */
         auto p_path = Hdc::strip_prefix(name, this->prefix.string());
         if (p_path.has_value()) {
             return this->header.UpdataName(p_path.value());
@@ -104,14 +101,13 @@ bool Entry::SaveToFile(std::string prefixPath)
 
     switch(this->header.FileType()) {
     case TypeFlage::OrdinaryFile: {
-        /* auto saveFile = prefixPath.append(this->header.Name()); */
         auto saveFile = prefixPath.append(GetName());
         std::ofstream file(saveFile, std::ios::out | std::ios::binary);
         if (!file.is_open()) {
-            // LOGI("open %s fail", saveFile.c_str());
+            WRITE_LOG(LOG_FATAL, "open %s fail", saveFile.c_str());
             return false;
         }
-        // LOGI("saveFile %s, size %ld", saveFile.c_str(), this->data.size());
+        WRITE_LOG(LOG_INFO, "saveFile %s, size %ld", saveFile.c_str(), this->data.size());
         file.write((const char*)this->data.data(), this->data.size());
         file.close();
         if (file.fail()) {
@@ -120,7 +116,6 @@ bool Entry::SaveToFile(std::string prefixPath)
         break;
     }
     case TypeFlage::Directory: {
-        /* auto dirPath = prefixPath.append(this->header.Name()); */
         auto dirPath = prefixPath.append(GetName());
         fs::create_directory(dirPath);
     }
@@ -137,15 +132,12 @@ bool Entry::WriteToTar(std::ofstream &file)
     case TypeFlage::OrdinaryFile: {
         char buff[HEADER_LEN] = {0};
         header.GetBytes((uint8_t*)buff);
-        /* LOGI("WriteToTar buff:"); */
-        /* memdump(buff, HEADER_LEN); */
         file.write(buff, HEADER_LEN);
-        /* std::ifstream inFile(header.Name()); */
         std::ifstream inFile(GetName(), std::ios::binary);
         file << inFile.rdbuf();
         auto pading = HEADER_LEN - (need_size % HEADER_LEN);
         if (pading < HEADER_LEN) {
-            // LOGI("pading %ld", pading);
+            WRITE_LOG(LOG_INFO, "pading %ld", pading);
             char buff[512] = {0};
             file.write(buff, pading);
         }

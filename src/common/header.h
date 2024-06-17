@@ -1,29 +1,23 @@
+/*
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #ifndef __HEADER_H__
 #define __HEADER_H__
 
 #include <cstdint>
 #include <string>
 #include "common.h"
-
-#define LOGI(fmt,...) WRITE_LOG(LOG_INFO, fmt, ##__VA_ARGS__)
-
-static __attribute__((unused)) void memdump(void *pv, size_t num)
-{
-    /*
-    for (size_t i = 0; i < num; i += 16) {
-        unsigned char *pc = (unsigned char*)pv + i;
-        printf("%06lX: ", i);
-        for (size_t j = 0; j < 16 && i + j < num; j++) {
-            printf("%02X ", pc[j]);
-        }
-        printf("\t");
-        for (size_t j = 0; j < 16 && i + j < num; j++) {
-            printf("%c", isprint(pc[j]) ? pc[j] : '.');
-        }
-        printf("\n");
-    }
-    */
-}
 
 namespace Hdc {
 #define HEADER_LEN 512

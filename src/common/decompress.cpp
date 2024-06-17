@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "decompress.h"
 
 #include <filesystem>
@@ -9,19 +23,6 @@
 namespace fs = std::filesystem;
 
 namespace Hdc {
-/* bool Decompress::ReadData() */
-/* { */
-/*     if (!fs::exists(tarPath) || !fs::is_regular_file(tarPath)) { */
-/*         LOGI("path not exist, or path not file"); */
-/*         return false; */
-/*     } */
-
-/*     auto fileSize = fs::file_size(tarPath); */
-/*     if (fileSize == 0 || fileSize % HEADER_LEN != 0) { */
-/*         LOGI("file is not tar"); */
-/*         return false; */
-/*     } */
-/* } */
 
 bool Decompress::DecompressToLocal(std::string decPath)
 {
@@ -32,13 +33,13 @@ bool Decompress::DecompressToLocal(std::string decPath)
 
     auto fileSize = fs::file_size(tarPath);
     if (fileSize == 0 || fileSize % HEADER_LEN != 0) {
-        LOGI("file is not tar");
+        WRITE_LOG(LOG_FATAL, "file is not tar %s", tarPath.c_str());
         return false;
     }
 
     if (fs::exists(decPath)) {
         if (fs::is_regular_file(decPath)) {
-            LOGI("path is exist, and path not dir");
+            WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", decPath.c_str());
             return false;
         }
     } else {
@@ -54,17 +55,15 @@ bool Decompress::DecompressToLocal(std::string decPath)
         inFile.read(reinterpret_cast<char*>(buff), HEADER_LEN);
         auto readcnt = inFile.gcount();
         if (readcnt == 0) {
-            LOGI("read EOF");
+            WRITE_LOG(LOG_INFO, "read EOF");
             break;
         }
         if (inFile.fail() || readcnt != HEADER_LEN) {
-            LOGI("read file error");
+            WRITE_LOG(LOG_FATAL, "read file error");
             break;
         }
-        /* LOGI("read data:"); */
-        /* memdump(buff, HEADER_LEN); */
         if (!entry.has_value()) {
-            LOGI("new entry =================>");
+            WRITE_LOG(LOG_INFO, "new entry =================>");
             entry = Entry(buff);
             if (entry.value().IsFinish()) {
                 entry.value().SaveToFile(decPath);
@@ -77,14 +76,11 @@ bool Decompress::DecompressToLocal(std::string decPath)
             entry.value().SaveToFile(decPath);
             entry = std::nullopt;
         }
-        /* std::string tmp; */
-        /* std::getline(std::cin, tmp); */
     }
     if (outFile.has_value()) {
         outFile.value().close();
     }
     inFile.close();
-
     return true;
 }
 }

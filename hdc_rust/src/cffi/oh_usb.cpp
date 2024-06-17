@@ -134,7 +134,8 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
     int writen = 0;
     bool restoreSigmask = true;
 
-    sigset_t newmask, oldmask;
+    sigset_t newmask;
+    sigset_t oldmask;
     sigemptyset(&newmask);
     sigaddset(&newmask, SIGCHLD);
     if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0) {

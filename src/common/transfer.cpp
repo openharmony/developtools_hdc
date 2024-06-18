@@ -395,7 +395,7 @@ int HdcTransferBase::GetSubFiles(const char *path, string filter, vector<string>
             int subfixIndex = fileName.rfind(s);
             if ((fileName.size() - subfixIndex) != s.size())
                 continue;
-            string fullPath = string(path) + "/";
+            string fullPath = string(path) + Base::GetPathSep();
             fullPath += fileName;
             out->push_back(fullPath);
             ++retNum;

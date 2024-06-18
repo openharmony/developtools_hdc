@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "host_app.h"
+#include "compress.h"
 
 namespace Hdc {
 HdcHostApp::HdcHostApp(HTaskInfo hTaskInfo)
@@ -24,6 +25,26 @@ HdcHostApp::HdcHostApp(HTaskInfo hTaskInfo)
 
 HdcHostApp::~HdcHostApp()
 {
+}
+
+string HdcHostApp::Dir2Tar(const char *dir)
+{
+    WRITE_LOG(LOG_DEBUG, "dir:%s", dir);
+    string tarpath;
+    uv_fs_t req;
+    int r = uv_fs_lstat(nullptr, &req, dir, nullptr);
+    uv_fs_req_cleanup(&req);
+    if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
+        string sdir = dir;
+        string tarname = Base::GetRandomString(EXPECTED_LEN) + ".tar";
+        tarpath = Base::GetTmpDir() + tarname;
+        WRITE_LOG(LOG_DEBUG, "tarpath:%s", tarpath.c_str());
+        Compress c;
+        c.UpdataPrefix(sdir);
+        c.AddPath(sdir);
+        c.SaveToFile(tarpath);
+    }
+    return tarpath;
 }
 
 bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
@@ -53,8 +74,10 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
             if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")) {
                 context->taskQueue.push_back(path);
             } else {
-                GetSubFiles(argv[i], ".hap", &context->taskQueue);
-                GetSubFiles(argv[i], ".hsp", &context->taskQueue);
+                string tarpath = Dir2Tar(path.c_str());
+                if (!tarpath.empty()) {
+                    context->taskQueue.push_back(tarpath);
+                }
             }
         }
     }
@@ -108,6 +131,8 @@ void HdcHostApp::CheckMaster(CtxFile *context)
         context->transferConfig.optionalName += ".hap";
     } else if (context->localPath.find(".hsp") != static_cast<size_t>(-1)) {
         context->transferConfig.optionalName += ".hsp";
+    } else if (context->localPath.find(".tar") != static_cast<size_t>(-1)) {
+        context->transferConfig.optionalName += ".tar";
     } else {
         context->transferConfig.optionalName += ".bundle";
     }
@@ -134,7 +159,13 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
             break;
     }
     if (ctxNow.taskQueue.size() > 0) {
+        string path = ctxNow.taskQueue.back();
         ctxNow.taskQueue.pop_back();
+        string::size_type pos = path.rfind(".tar");
+        if (mode == APPMOD_INSTALL && pos != string::npos) {
+            unlink(path.c_str());
+            WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
+        }
     }
     LogMsg(MSG_INFO, "%s path:%s, queuesize:%d, msg:%s", modeDesc.c_str(), ctxNow.localPath.c_str(),
            ctxNow.taskQueue.size(), msg + printedMsgLen);

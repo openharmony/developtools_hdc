@@ -123,7 +123,7 @@ pub fn check_local_path(
     _local_path: &str,
     _optional_name: &str,
 ) -> Result<bool, Error> {
-    crate::error!(
+    crate::info!(
         "check_local_path, local_path:{}, optional_name:{}",
         _local_path,
         _optional_name

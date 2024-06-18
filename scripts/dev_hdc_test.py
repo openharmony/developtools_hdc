@@ -839,20 +839,20 @@ def check_rom(baseline):
         try:
             size = int(message.split('\t')[0])
         except ValueError:
-            size = -9999 * 1024 * 1024 # error size
+            size = -9999 * 1024 # error size
             print(f"try get size value error, from {message}")
         return size
 
     if baseline is None:
-        baseline = 2200 * 1024
+        baseline = 2200
     # 2200KB is the baseline of hdcd and libhdc.dylib.so size all together
-    cmd_hdcd = f"{GP.hdc_head} shell du -b system/bin/hdcd"
+    cmd_hdcd = f"{GP.hdc_head} shell du system/bin/hdcd"
     result_hdcd = subprocess.check_output(cmd_hdcd.split()).decode()
     hdcd_size = _try_get_size(result_hdcd)
-    cmd_libhdc = f"{GP.hdc_head} shell du -b system/lib/libhdc.dylib.so"
+    cmd_libhdc = f"{GP.hdc_head} shell du system/lib/libhdc.dylib.so"
     result_libhdc = subprocess.check_output(cmd_libhdc.split()).decode()
     if "directory" in result_libhdc:
-        cmd_libhdc64 = f"{GP.hdc_head} shell du -b system/lib64/libhdc.dylib.so"
+        cmd_libhdc64 = f"{GP.hdc_head} shell du system/lib64/libhdc.dylib.so"
         result_libhdc64 = subprocess.check_output(cmd_libhdc64.split()).decode()
         if "directory" in result_libhdc64:
             libhdc_size = 0
@@ -866,7 +866,7 @@ def check_rom(baseline):
         GP.hdcd_rom = "error"
         return False
     else:
-        GP.hdcd_rom = f"{all_size} Bytes"
+        GP.hdcd_rom = f"{all_size} KB"
     if all_size > baseline:
         print(f"rom size is {all_size}, overlimit baseline {baseline}")
         return False

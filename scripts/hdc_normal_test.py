@@ -208,7 +208,7 @@ def test_shell_cmd_timecost():
 
 
 def test_hdcd_rom():
-    baseline = 2200 * 1024 # 2200KB
+    baseline = 2200 # 2200KB
     assert check_rom(baseline)
 
 

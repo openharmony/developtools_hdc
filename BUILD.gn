@@ -387,7 +387,6 @@ ohos_executable("hdc") {
     ldflags += [
       "-Wl,--whole-archive",
       "-lpthread",
-      "-lstdc++fs",
       "-Wl,--no-whole-archive",
     ]
   }
@@ -401,7 +400,6 @@ ohos_executable("hdc") {
       "-latomic",
       "-ldl",
       "-lrt",
-      "-lstdc++fs",
       "-Wl,--no-whole-archive",
     ]
   }

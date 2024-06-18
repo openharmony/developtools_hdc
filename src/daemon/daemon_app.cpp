@@ -105,9 +105,9 @@ bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const str
         unlink(ctxNow.localPath.c_str());
         string::size_type rindex = ctxNow.localPath.rfind(".tar");
         if (rindex != string::npos) {
-            string dir = ctxNow.localPath.substr(0, rindex) + Base::GetPathSep();
-            int rc = remove(dir.c_str());
-            WRITE_LOG(LOG_DEBUG, "remove dir:%s rc:%d errno:%d", dir.c_str(), rc, errno);
+            string dir = ctxNow.localPath.substr(0, rindex);
+            RemovePath(dir);
+            WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s", dir.c_str());
         }
     }
     asyncCommand.DoRelease();
@@ -186,6 +186,62 @@ string HdcDaemonApp::Tar2Dir(const char *path)
         dc.DecompressToLocal(dir);
     }
     return dir;
+}
+
+int HdcDaemonApp::RemoveDir(const string &dir)
+{
+    DIR *pdir = opendir(dir.c_str());
+    if (pdir == nullptr) {
+        WRITE_LOG(LOG_FATAL, "opendir failed dir:%s", dir.c_str());
+        return -1;
+    }
+    struct dirent *ent;
+    struct stat st;
+    while ((ent = readdir(pdir)) != nullptr) {
+        if (ent->d_name[0] == '.') {
+            continue;
+        }
+        std::string subpath = dir + Base::GetPathSep() + ent->d_name;
+        if (lstat(subpath.c_str(), &st) == -1) {
+            WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", subpath.c_str());
+            continue;
+        }
+        if (S_ISDIR(st.st_mode)) {
+            if (RemoveDir(subpath) == -1) {
+                closedir(pdir);
+                return -1;
+            }
+            rmdir(subpath.c_str());
+        } else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
+            unlink(subpath.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o subpath:%s", st.st_mode, subpath.c_str());
+        }
+    }
+    if (rmdir(dir.c_str()) == -1) {
+        closedir(pdir);
+        return -1;
+    }
+    closedir(pdir);
+    return 0;
+}
+
+void HdcDaemonApp::RemovePath(const string &path)
+{
+    struct stat st;
+    if (lstat(path.c_str(), &st) == -1) {
+        WRITE_LOG(LOG_WARN, "lstat failed path:%s", path.c_str());
+        return;
+    }
+    if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
+        unlink(path.c_str());
+    } else if (S_ISDIR(st.st_mode)) {
+        if (path == "." || path == "..") {
+            return;
+        }
+        int rc = RemoveDir(path);
+        WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
+    }
 }
 
 void HdcDaemonApp::WhenTransferFinish(CtxFile *context)

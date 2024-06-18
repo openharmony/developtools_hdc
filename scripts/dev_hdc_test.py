@@ -866,7 +866,7 @@ def check_rom(baseline):
         GP.hdcd_rom = "error"
         return False
     else:
-        GP.hdcd_rom = f"{all_size} Bytes"
+        GP.hdcd_rom = f"{all_size} KB"
     if all_size > baseline:
         print(f"rom size is {all_size}, overlimit baseline {baseline}")
         return False

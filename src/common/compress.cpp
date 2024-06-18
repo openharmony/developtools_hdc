@@ -14,32 +14,43 @@
  */
 #include "compress.h"
 
-#include <filesystem>
 #include <fstream>
-
-namespace fs = std::filesystem;
 
 namespace Hdc {
 bool Compress::AddPath(std::string path)
 {
-    if (!fs::exists(path)) {
+    uv_fs_t req;
+    int rc = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
+    uv_fs_req_cleanup(&req);
+    if (rc != 0) {
         WRITE_LOG(LOG_FATAL, "%s is not exist", path.c_str());
         return false;
     }
-
-    if (fs::is_regular_file(path)) {
+    if (req.statbuf.st_mode & S_IFREG) {
         return AddEntry(path);
     }
-
     if (!AddEntry(path)) {
+        WRITE_LOG(LOG_DEBUG, "AddEntry failed dir:%s", path.c_str());
         return false;
     }
-
-    for (const auto& entry : fs::directory_iterator(path)) {
-        if (!AddPath(entry.path().string())) {
+    rc = uv_fs_scandir(nullptr, &req, path.c_str(), 0, nullptr);
+    if (rc < 0) {
+        WRITE_LOG(LOG_DEBUG, "uv_fs_scandir failed dir:%s", path.c_str());
+        uv_fs_req_cleanup(&req);
+        return false;
+    }
+    uv_dirent_t dent;
+    while (uv_fs_scandir_next(&req, &dent) != UV_EOF) {
+        if (strncmp(dent.name, ".", 1) == 0 || strncmp(dent.name, "..", 2) == 0) {
+            continue;
+        }
+        string subpath = path + Base::GetPathSep() + dent.name;
+        if (!AddPath(subpath)) {
+            uv_fs_req_cleanup(&req);
             return false;
         }
     }
+    uv_fs_req_cleanup(&req);
     return true;
 }
 
@@ -64,8 +75,9 @@ bool Compress::SaveToFile(std::string localPath)
     if (localPath.length() <= 0) {
         localPath = "tmp.tar";
     }
-
-    if (fs::exists(localPath) && fs::is_directory(localPath)) {
+    uv_fs_t req;
+    int rc = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
+    if (rc == 0 && req.statbuf.st_mode & S_IFDIR) {
         return false;
     }
 
@@ -81,9 +93,9 @@ bool Compress::SaveToFile(std::string localPath)
     return true;
 }
 
-void Compress::UpdataPrefix(std::string prefix)
+void Compress::UpdataPrefix(std::string pathPrefix)
 {
-    this->prefix = prefix;
+    this->prefix = pathPrefix;
 }
 
 void Compress::UpdataMaxCount(size_t maxCount)

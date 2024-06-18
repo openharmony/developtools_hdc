@@ -14,44 +14,49 @@
  */
 #include "decompress.h"
 
-#include <filesystem>
 #include <sstream>
 #include <fstream>
 #include <optional>
 #include <iostream>
 
-namespace fs = std::filesystem;
-
 namespace Hdc {
 
 bool Decompress::DecompressToLocal(std::string decPath)
 {
-    if (!fs::exists(tarPath) || !fs::is_regular_file(tarPath)) {
+    uv_fs_t req;
+    int rc = uv_fs_lstat(nullptr, &req, tarPath.c_str(), nullptr);
+    uv_fs_req_cleanup(&req);
+    if (rc != 0 || !(req.statbuf.st_mode & S_IFREG)) {
         WRITE_LOG(LOG_FATAL, "%s not exist, or not file", tarPath.c_str());
         return false;
     }
-    auto fileSize = fs::file_size(tarPath);
+    auto fileSize = req.statbuf.st_size;
     if (fileSize == 0 || fileSize % HEADER_LEN != 0) {
         WRITE_LOG(LOG_FATAL, "file is not tar %s", tarPath.c_str());
         return false;
     }
-    if (fs::exists(decPath)) {
-        if (fs::is_regular_file(decPath)) {
+    rc = uv_fs_lstat(nullptr, &req, decPath.c_str(), nullptr);
+    uv_fs_req_cleanup(&req);
+    if (rc == 0) {
+        if (req.statbuf.st_mode & S_IFREG) {
             WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", decPath.c_str());
             return false;
         }
     } else {
-        fs::create_directories(decPath);
+        std::string estr;
+        bool b = Base::TryCreateDirectory(decPath, estr);
+        if (!b) {
+            WRITE_LOG(LOG_FATAL, "mkdir failed decPath:%s estr:%s", decPath.c_str(), estr.c_str());
+            return false;
+        }
     }
     uint8_t buff[HEADER_LEN];
     std::ifstream inFile(tarPath);
-    std::optional<std::ofstream> outFile = std::nullopt;
     std::optional<Entry> entry = std::nullopt;
     while (1) {
         inFile.read(reinterpret_cast<char*>(buff), HEADER_LEN);
         auto readcnt = inFile.gcount();
         if (readcnt == 0) {
-            WRITE_LOG(LOG_INFO, "read EOF");
             break;
         }
         if (inFile.fail() || readcnt != HEADER_LEN) {
@@ -59,7 +64,6 @@ bool Decompress::DecompressToLocal(std::string decPath)
             break;
         }
         if (!entry.has_value()) {
-            WRITE_LOG(LOG_INFO, "new entry =================>");
             entry = Entry(buff);
             if (entry.value().IsFinish()) {
                 entry.value().SaveToFile(decPath);
@@ -72,9 +76,6 @@ bool Decompress::DecompressToLocal(std::string decPath)
             entry.value().SaveToFile(decPath);
             entry = std::nullopt;
         }
-    }
-    if (outFile.has_value()) {
-        outFile.value().close();
     }
     inFile.close();
     return true;

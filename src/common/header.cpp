@@ -83,14 +83,14 @@ Header::Header(uint8_t data[512])
 
 std::string Header::Name()
 {
-    std::string name(reinterpret_cast<char*>(prefix));
-    name.append(reinterpret_cast<char*>(this->name));
-    return name;
+    std::string fullName(reinterpret_cast<char*>(prefix));
+    fullName.append(reinterpret_cast<char*>(this->name));
+    return fullName;
 }
 
-bool Header::UpdataName(std::string p_name)
+bool Header::UpdataName(std::string fileName)
 {
-    auto len = p_name.length();
+    auto len = fileName.length();
     if (len >= HEADER_MAX_FILE_LEN) {
         WRITE_LOG(LOG_WARN, "len too long %u", len);
         return false;
@@ -99,13 +99,13 @@ bool Header::UpdataName(std::string p_name)
     char *p = nullptr;
     if (len < HEADER_NAME_LEN) {
         p = reinterpret_cast<char*>(this->name);
-        rc = snprintf_s(p, HEADER_NAME_LEN, HEADER_NAME_LEN - 1, "%s", p_name.c_str());
+        rc = snprintf_s(p, HEADER_NAME_LEN, HEADER_NAME_LEN - 1, "%s", fileName.c_str());
         if (rc < 0) {
-            WRITE_LOG(LOG_WARN, "snprintf_s name failed rc:%d p_name:%s", rc, p_name.c_str());
+            WRITE_LOG(LOG_WARN, "snprintf_s name failed rc:%d p_name:%s", rc, fileName.c_str());
         }
     } else {
-        auto sprefix = p_name.substr(0, len - (HEADER_NAME_LEN - 1));
-        auto sname = p_name.substr(len - (HEADER_NAME_LEN - 1));
+        auto sprefix = fileName.substr(0, len - (HEADER_NAME_LEN - 1));
+        auto sname = fileName.substr(len - (HEADER_NAME_LEN - 1));
         p = reinterpret_cast<char*>(this->name);
         rc = snprintf_s(p, HEADER_NAME_LEN, HEADER_NAME_LEN - 1, "%s", sname.c_str());
         if (rc < 0) {
@@ -128,13 +128,13 @@ size_t Header::Size()
     return num;
 }
 
-void Header::UpdataSize(size_t size)
+void Header::UpdataSize(size_t fileLen)
 {
-    auto size_str = DecimalToOctalString(size, HEADER_SIZE_LEN - 1);
+    auto sizeStr = DecimalToOctalString(fileLen, HEADER_SIZE_LEN - 1);
     char *p = reinterpret_cast<char*>(this->size);
-    int rc = snprintf_s(p, HEADER_SIZE_LEN, HEADER_SIZE_LEN - 1, "%s", size_str.c_str());
+    int rc = snprintf_s(p, HEADER_SIZE_LEN, HEADER_SIZE_LEN - 1, "%s", sizeStr.c_str());
     if (rc < 0) {
-        WRITE_LOG(LOG_FATAL, "snprintf_s size failed rc:%d size_str:%s", rc, size_str.c_str());
+        WRITE_LOG(LOG_FATAL, "snprintf_s size failed rc:%d sizeStr:%s", rc, sizeStr.c_str());
     }
 }
 
@@ -188,11 +188,11 @@ void Header::UpdataCheckSum()
     constexpr uint64_t cnt = 256;
     sum += cnt;
 
-    auto size_str = DecimalToOctalString(sum, HEADER_CHKSUM_LEN - 1);
+    auto sizeStr = DecimalToOctalString(sum, HEADER_CHKSUM_LEN - 1);
     char *p = reinterpret_cast<char*>(this->chksum);
-    int rc = snprintf_s(p, HEADER_CHKSUM_LEN, HEADER_CHKSUM_LEN - 1, "%s", size_str.c_str());
+    int rc = snprintf_s(p, HEADER_CHKSUM_LEN, HEADER_CHKSUM_LEN - 1, "%s", sizeStr.c_str());
     if (rc < 0) {
-        WRITE_LOG(LOG_WARN, "snprintf_s chksum failed rc:%d size_str:%s", rc, size_str.c_str());
+        WRITE_LOG(LOG_WARN, "snprintf_s chksum failed rc:%d sizeStr:%s", rc, sizeStr.c_str());
     }
 }
 

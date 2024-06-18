@@ -130,7 +130,7 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
 {
     ++refCount;
     // asynccmd Other processes, no RunningProtect protection
-    chmod(package.c_str(), 0644);  // 0644 : permission
+    chmod(package.c_str(), 0755);
     string doBuf;
     string opts = string(options);
     if (installOrUninstall) { // either -p or -s is always required in install

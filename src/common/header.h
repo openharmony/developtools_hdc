@@ -101,9 +101,9 @@ struct Header {
     Header();
     explicit Header(uint8_t data[512]);
     std::string Name();
-    bool UpdataName(std::string p_name);
+    bool UpdataName(std::string fileName);
     size_t Size();
-    void UpdataSize(size_t size);
+    void UpdataSize(size_t fileLen);
     TypeFlage FileType();
     void UpdataFileType(TypeFlage fileType);
     bool IsInvalid();

@@ -16,11 +16,8 @@
 #define HDC_ENTRY_H
 
 #include <vector>
-#include <filesystem>
 
 #include "header.h"
-
-namespace fs = std::filesystem;
 
 namespace Hdc {
 class Entry {
@@ -54,7 +51,7 @@ public:
 private:
     Header header;
     size_t needSize;
-    fs::path prefix;
+    std::string prefix;
     std::vector<uint8_t> data;
 };
 

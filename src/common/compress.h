@@ -29,7 +29,7 @@ public:
     bool AddPath(std::string path);
     bool AddEntry(std::string path);
     bool SaveToFile(std::string localPath);
-    void UpdataPrefix(std::string prefix);
+    void UpdataPrefix(std::string pathPrefix);
     void UpdataMaxCount(size_t maxCount);
 private:
     std::vector<Entry> entrys;

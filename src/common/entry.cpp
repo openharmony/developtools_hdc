@@ -16,14 +16,11 @@
 
 #include <iostream>
 #include <fstream>
-#include <filesystem>
 #include <optional>
-
-namespace fs = std::filesystem;
 
 namespace Hdc {
 
-std::optional<std::string> strip_prefix(const std::string& str, const std::string& prefix)
+std::optional<std::string> StripPrefix(const std::string& str, const std::string& prefix)
 {
     if (str.compare(0, prefix.length(), prefix) == 0) {
         auto p_path = str.substr(prefix.length());
@@ -35,15 +32,16 @@ std::optional<std::string> strip_prefix(const std::string& str, const std::strin
 
 Entry::Entry(std::string prefix, std::string path)
 {
-    fs::path fsPath = path;
-    fs::path prefixPath = prefix;
-    this->prefix = prefixPath / "";
-    if (fs::exists(fsPath)) {
-        if (fs::is_directory(fsPath)) {
+    this->prefix = prefix + Base::GetPathSep();
+    uv_fs_t req;
+    int rc = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
+    uv_fs_req_cleanup(&req);
+    if (rc == 0) {
+        if (req.statbuf.st_mode & S_IFDIR) {
             header.UpdataFileType(TypeFlage::DIRECTORY);
             header.UpdataSize(0);
-        } else if (fs::is_regular_file(fsPath)) {
-            auto fileSize = fs::file_size(fsPath);
+        } else if (req.statbuf.st_mode & S_IFREG) {
+            auto fileSize = req.statbuf.st_size;
             header.UpdataSize(fileSize);
             needSize = fileSize;
             header.UpdataFileType(TypeFlage::ORDINARYFILE);
@@ -79,14 +77,14 @@ void Entry::AddData(uint8_t *data, size_t len)
 
 std::string Entry::GetName()
 {
-    auto name = this->prefix / this->header.Name();
-    return name.string();
+    auto name = this->prefix + this->header.Name();
+    return name;
 }
 
 bool Entry::UpdataName(std::string name)
 {
-    if (!this->prefix.string().empty()) {
-        auto p_path = Hdc::strip_prefix(name, this->prefix.string());
+    if (!this->prefix.empty()) {
+        auto p_path = Hdc::StripPrefix(name, this->prefix);
         if (p_path.has_value()) {
             return this->header.UpdataName(p_path.value());
         }
@@ -109,7 +107,8 @@ bool Entry::SaveToFile(std::string prefixPath)
                 return false;
             }
             WRITE_LOG(LOG_INFO, "saveFile %s, size %ld", saveFile.c_str(), this->data.size());
-            file.write((const char*)this->data.data(), this->data.size());
+            const char *pData = reinterpret_cast<const char *>(this->data.data());
+            file.write(pData, this->data.size());
             file.close();
             if (file.fail()) {
                 return false;
@@ -118,7 +117,12 @@ bool Entry::SaveToFile(std::string prefixPath)
         }
         case TypeFlage::DIRECTORY: {
             auto dirPath = prefixPath.append(GetName());
-            fs::create_directory(dirPath);
+            std::string estr;
+            bool b = Base::TryCreateDirectory(dirPath, estr);
+            if (!b) {
+                WRITE_LOG(LOG_FATAL, "mkdir failed dirPath:%s estr:%s", dirPath.c_str(), estr.c_str());
+                return false;
+            }
         }
         default:
             return false;
@@ -131,7 +135,7 @@ bool Entry::WriteToTar(std::ofstream &file)
     switch (header.FileType()) {
         case TypeFlage::ORDINARYFILE: {
             char buff[HEADER_LEN] = {0};
-            header.GetBytes((uint8_t*)buff);
+            header.GetBytes(reinterpret_cast<uint8_t *>(buff));
             file.write(buff, HEADER_LEN);
             std::ifstream inFile(GetName(), std::ios::binary);
             file << inFile.rdbuf();
@@ -144,7 +148,7 @@ bool Entry::WriteToTar(std::ofstream &file)
         }
         case TypeFlage::DIRECTORY: {
             char buff[HEADER_LEN] = {0};
-            header.GetBytes((uint8_t*)buff);
+            header.GetBytes(reinterpret_cast<uint8_t *>(buff));
             file.write(buff, HEADER_LEN);
             break;
         }

@@ -322,19 +322,6 @@ fn check_control(command: HdcCommand) -> bool {
 
 pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     let cmd = task_message.command;
-    if (HdcCommand::ShellData != cmd) && (HdcCommand::FileData != cmd) {
-        hdc::info!(
-            "dispatch_task channel_id {}, cmd {:?}",
-            task_message.channel_id,
-            cmd
-        );
-    } else {
-        hdc::debug!(
-            "dispatch_task channel_id {}, cmd {:?}",
-            task_message.channel_id,
-            cmd
-        );
-    }
     let special_cmd =
         (cmd == HdcCommand::KernelHandshake) || (cmd == HdcCommand::KernelChannelClose);
     let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;

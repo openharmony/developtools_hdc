@@ -203,13 +203,7 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
     match set_master_parameters(session_id, channel_id, command, argc, argv).await {
         Ok(_) => (),
         Err(e) => {
-            let message = format!("Transfer failed: {}", e);
-            echo_finish(
-                session_id,
-                channel_id,
-                message.to_string(),
-            )
-            .await;
+            echo_fail(session_id, channel_id, e).await;
             return false;
         }
     }
@@ -457,8 +451,9 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         )
     } else {
         format!(
-            "Transfer failed: {}",
-            io::Error::from_raw_os_error(last_error as i32)
+            "Transfer failed: {}: {}",
+            task.transfer.local_path,
+            io::Error::from_raw_os_error(last_error as i32),
         )
     };
     #[cfg(feature = "host")]
@@ -567,15 +562,7 @@ pub async fn command_dispatch(
                     put_file_begin(session_id, channel_id).await;
                 },
                 Err(e) => {
-                    let message = format!("Transfer failed: {}", e);
-                    hdctransfer::echo_client(
-                        session_id,
-                        channel_id,
-                        message.as_bytes().to_vec(),
-                        MessageLevel::Fail,
-                    )
-                    .await;
-                    task_finish(session_id, channel_id).await;
+                    echo_fail(session_id, channel_id, e).await;
                 }
             }
         }
@@ -635,4 +622,26 @@ pub async fn stop_task(session_id: u32) {
 
 pub async fn dump_task() -> String {
     FileTaskMap::dump_task().await
+}
+
+pub async fn echo_fail(session_id: u32, channel_id: u32, error: Error) {
+    let message = match FileTaskMap::get(session_id, channel_id).await {
+        Some(task) => {
+            let task = task.lock().await;
+            format!("Transfer failed: {}: {}", task.transfer.local_path, error)
+        }
+        None => format!(
+            "Transfer failed: {}: {}",
+            "cannot get file path from FileTaskMap",
+            error
+        )
+    };
+    hdctransfer::echo_client(
+        session_id,
+        channel_id,
+        message.as_bytes().to_vec(),
+        MessageLevel::Fail,
+    )
+    .await;
+    task_finish(session_id, channel_id).await;
 }

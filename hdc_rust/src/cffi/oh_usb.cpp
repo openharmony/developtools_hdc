@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cerrno>
+#include <csignal>
 
 using namespace Hdc;
 
@@ -130,27 +131,38 @@ void CloseEndpoint(int &bulkInFd, int &bulkOutFd, int &controlEp, bool closeCtrl
 int WriteData(int bulkIn, const uint8_t *data, const int length)
 {
     int ret;
-    int offset = 0;
-    int retryTimes = 10;
-    // 10ms
-    int retryInterval = 10000;
+    int writen = 0;
+    bool restoreSigmask = true;
 
-    while (retryTimes > 0) {
-        ret = write(bulkIn, const_cast<uint8_t *>(data) + offset, length - offset);
-        if ((ret < 0) && (errno != EINTR)) {
-            return ret;
-        } else if ((ret < 0) && (errno == EINTR)) {
-            usleep(retryInterval);
-            retryTimes--;
-            continue;
-        }
-        offset += ret;
-        if (offset >= length) {
-            return offset;
-        }
+    sigset_t newmask;
+    sigset_t oldmask;
+    sigemptyset(&newmask);
+    sigaddset(&newmask, SIGCHLD);
+    if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0) {
+        WRITE_LOG(LOG_FATAL, "before write usb, ignor the sigchld failed, err(%d)\n", errno);
+        restoreSigmask = false;
     }
 
-    return -1;
+    while (writen < length) {
+        ret = write(bulkIn, const_cast<uint8_t *>(data + writen), length - writen);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes interrupted, will retry\n",
+                    bulkIn, length - writen, ret);
+                continue;
+            }
+            WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
+                bulkIn, length - writen, ret, errno);
+            break;
+        }
+        writen += ret;
+    }
+
+    if (restoreSigmask && sigprocmask(SIG_SETMASK, &oldmask, nullptr) < 0) {
+        WRITE_LOG(LOG_FATAL, "after write usb, restore signal mask failed, err(%d)\n", errno);
+    }
+
+    return ret < 0 ? ret : writen;
 }
 
 int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)

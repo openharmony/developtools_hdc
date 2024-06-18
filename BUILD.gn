@@ -344,6 +344,11 @@ action("hdc_hash_gen") {
 }
 
 config("hdc_register_config") {
+  include_dirs = [
+    "src/common",
+    "src/daemon",
+  ]
+
   cflags_cc = [
     "-fexceptions",
     "-fno-complete-member-pointers",
@@ -376,8 +381,12 @@ ohos_shared_library("hdc_register") {
     "src/register/hdc_jdwp.cpp",
   ]
 
-  configs = [ ":hdc_register_config" ]
-
+  public_configs = [ ":hdc_register_config" ]
+  innerapi_tags = [ "platformsdk" ]
   subsystem_name = "developtools"
   part_name = "hdc"
+  install_images = [
+    "system",
+    "updater",
+  ]
 }

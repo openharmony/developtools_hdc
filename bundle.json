@@ -39,6 +39,16 @@
         "//developtools/hdc:hdcd_system",
         "//developtools/hdc:hdcd_updater"
       ],
+      "inner_kits": [
+        {
+            "name":"//developtools/hdc:hdc_register",
+            "header":{
+                "header_files":[
+                ],
+                "header_base":"//developtools/hdc/src"
+            }
+        }
+      ],
       "test": [ "//developtools/hdc/test:hdc_fuzztest" ]
     }
   }

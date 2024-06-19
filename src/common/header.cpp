@@ -123,7 +123,11 @@ bool Header::UpdataName(std::string fileName)
 size_t Header::Size()
 {
     std::string octalStr(reinterpret_cast<char*>(this->size));
-    int num = std::stoi(octalStr, nullptr, 8);
+    int num = 0;
+    if (!octalStr.empty()) {
+        const int octal = 8;
+        num = std::stoi(octalStr, nullptr, octal);
+    }
     WRITE_LOG(LOG_INFO, "size num %d", num);
     return num;
 }

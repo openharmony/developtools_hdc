@@ -193,11 +193,18 @@ string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
             if (hj->isDebug) {
                 ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
             }
-        } else {
+        } else if (dr == 2) {
             // releaseApp
             if (!hj->isDebug) {
                 ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
             }
+        } else if (dr == 3) {
+            // allApp with display debug or release
+            string apptype = "release";
+            if (hj->isDebug) {
+                apptype = "debug";
+            }
+            ret += std::to_string(v.first) + " " + hj->pkgName + " " + apptype + "\n";
         }
     }
     uv_rwlock_rdunlock(&lockMapContext);

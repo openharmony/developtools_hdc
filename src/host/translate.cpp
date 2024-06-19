@@ -361,6 +361,8 @@ namespace TranslateCommand {
             outCmd->cmdFlag = CMD_JDWP_TRACK;
             if (strstr(input.c_str(), " -p")) {
                 outCmd->parameters = "p";
+            } else if (strstr(input.c_str(), " -a")) {
+                outCmd->parameters = "a";
             }
         } else if (!strncmp(input.c_str(), CMDSTR_TARGET_REBOOT.c_str(), CMDSTR_TARGET_REBOOT.size())) {
             TargetReboot(input.c_str(), outCmd);

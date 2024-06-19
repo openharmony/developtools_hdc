@@ -245,7 +245,7 @@ template("build_hdc") {
   }
 
   if (image_name == "system") {
-    if (is_emulator || use_clang_coverage) {
+    if (product_name != "ohos-sdk" || is_emulator || use_clang_coverage) {
       ohos_executable("hdcd_${image_name}_exe") {
         deps = [ ":hdcd_${image_name}_source" ]
         output_name = "hdcd_${image_name}"

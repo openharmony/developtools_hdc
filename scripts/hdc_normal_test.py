@@ -30,7 +30,7 @@ from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_r
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
-from dev_hdc_test import check_rom
+from dev_hdc_test import check_rom, check_shell
 
 
 def test_list_targets():
@@ -66,6 +66,35 @@ def test_medium_file():
 def test_large_file():
     assert check_hdc_cmd(f"file send {get_local_path('large')} {get_remote_path('it_large')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_file_error():
+    assert check_hdc_cmd("shell mount -o rw,remount /")
+    assert check_shell(
+        f"file send {get_local_path('small')} system/bin/hdcd",
+        "busy"
+        )
+    assert check_shell(
+        f"file recv",
+        "[Fail]There is no local and remote path"
+    )
+    assert check_shell(
+        f"file send",
+        "[Fail]There is no local and remote path"
+    )
+    assert check_shell(
+        f"file send {get_local_path('large')} {get_remote_path('../../../')}",
+        "space left on device"
+    )
+    assert check_hdc_cmd(f"shell rm -rf {get_remote_path('../../../large')}")
+    assert check_hdc_cmd(f"shell param set persist.hdc.control.file false")
+    assert check_shell(
+        f"file send {get_local_path('small')} {get_remote_path('it_small_false')}",
+        "debugging is not allowed"
+    )
+    assert check_hdc_cmd(f"shell param set persist.hdc.control.file true")
+    assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small_true')}")
 
 
 @pytest.mark.repeat(1)

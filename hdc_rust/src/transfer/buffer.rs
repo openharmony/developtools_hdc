@@ -62,7 +62,7 @@ impl ConnectTypeMap {
         crate::debug!("connect map: add {session_id}, {:?}", conn_type);
     }
 
-    async fn get(session_id: u32) -> Option<ConnectType> {
+    pub async fn get(session_id: u32) -> Option<ConnectType> {
         let arc_map = Self::get_instance();
         let map = arc_map.read().await;
         map.get(&session_id).cloned()
@@ -73,6 +73,16 @@ impl ConnectTypeMap {
         let mut map = arc_map.write().await;
         let item = map.remove(&session_id);
         crate::debug!("connect map: del {session_id}: {:?}", item);
+    }
+
+    pub async fn get_all_session() -> Vec<u32> {
+        let mut sessiones = Vec::new();
+        let arc_map = Self::get_instance();
+        let map = arc_map.read().await;
+        for item in map.iter() {
+            sessiones.push(*item.0);
+        }
+        sessiones
     }
 
     pub async fn dump() -> String {
@@ -92,23 +102,30 @@ pub async fn dump_session() -> String {
 }
 
 type TcpWriter_ = Arc<Mutex<SplitWriteHalf>>;
-type TcpMap_ = Arc<RwLock<HashMap<u32, TcpWriter_>>>;
 
-pub struct TcpMap {}
+pub struct TcpMap {
+    map: Mutex<HashMap<u32, TcpWriter_>>,
+}
 impl TcpMap {
-    fn get_instance() -> TcpMap_ {
-        static mut TCP_MAP: Option<TcpMap_> = None;
+    pub(crate)  fn get_instance() -> &'static TcpMap {
+        static mut TCP_MAP: MaybeUninit<TcpMap> = MaybeUninit::uninit();
+        static ONCE: Once = Once::new();
+
         unsafe {
-            TCP_MAP
-                .get_or_insert_with(|| Arc::new(RwLock::new(HashMap::new())))
-                .clone()
+            ONCE.call_once(|| {
+                let global = TcpMap {
+                    map: Mutex::new(HashMap::new())
+                };
+                TCP_MAP = MaybeUninit::new(global);
+            });
+            &*TCP_MAP.as_ptr()
         }
     }
 
     async fn put(session_id: u32, data: TaskMessage) {
         let send = serializer::concat_pack(data);
         let instance = Self::get_instance();
-        let map = instance.read().await;
+        let map = instance.map.lock().await;
         let Some(arc_wr) = map.get(&session_id) else {
             crate::error!("get tcp is None, session_id={session_id}");
             return;
@@ -131,7 +148,7 @@ impl TcpMap {
         ]
         .concat();
         let instance = Self::get_instance();
-        let map = instance.read().await;
+        let map = instance.map.lock().await;
         if let Some(guard) = map.get(&channel_id) {
             let mut wr = guard.lock().await;
             let _ = wr.write_all(send.as_slice()).await;
@@ -142,7 +159,7 @@ impl TcpMap {
 
     pub async fn start(id: u32, wr: SplitWriteHalf) {
         let instance = Self::get_instance();
-        let mut map = instance.write().await;
+        let mut map = instance.map.lock().await;
         let arc_wr = Arc::new(Mutex::new(wr));
         map.insert(id, arc_wr);
         ConnectTypeMap::put(id, ConnectType::Tcp).await;
@@ -151,7 +168,7 @@ impl TcpMap {
 
     pub async fn end(id: u32) {
         let instance = Self::get_instance();
-        let mut map = instance.write().await;
+        let mut map = instance.map.lock().await;
         if let Some(arc_wr) = map.remove(&id) {
             let mut wr = arc_wr.lock().await;
             let _ = wr.shutdown().await;

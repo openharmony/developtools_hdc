@@ -30,6 +30,7 @@ pub use buffer::EchoLevel;
 pub use buffer::TcpMap;
 pub use buffer::UartMap;
 pub use buffer::UsbMap;
+pub use buffer::ConnectTypeMap;
 pub use uart::uart_close;
 pub use uart_wrapper::start_session;
 pub use uart_wrapper::start_uart;

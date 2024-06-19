@@ -447,48 +447,6 @@ impl PtyMap {
         }
     }
 
-    pub async fn clear(session_id: u32) {
-        hdc::info!("hdc shell stop_task, session_id:{}", session_id);
-        let pty_map = Self::get_instance();
-        let mut channel_list = Vec::new();
-        {
-            let map = pty_map.lock().await;
-            for _iter in map.iter() {
-                if _iter.0 .0 == session_id {
-                    channel_list.push(_iter.0 .1);
-                    if let Some(pty_child) = PtyChildProcessMap::get(session_id, _iter.0 .1).await {
-                        let mut child = pty_child.lock().await;
-                        let kill_result = child.kill().await;
-                        hdc::debug!("do map clear kill child, result:{:?}", kill_result);
-                        match child.wait().await {
-                            Ok(exit_status) => {
-                                hdc::debug!(
-                                    "waiting child exit success, status:{:?}.",
-                                    exit_status
-                                );
-                            }
-                            Err(e) => {
-                                hdc::info!("waiting child exit fail, error:{:?}.", e);
-                            }
-                        }
-                        PtyChildProcessMap::del(session_id, _iter.0 .1).await;
-                    }
-                    hdc::debug!(
-                        "Clear tty task, channel_id:{}, session_id: {}.",
-                        _iter.0 .1,
-                        session_id
-                    );
-                }
-            }
-        }
-        {
-            let mut map = pty_map.lock().await;
-            for channel_id in channel_list {
-                map.remove(&(session_id, channel_id));
-            }
-        }
-    }
-
     pub async fn dump_task() -> String {
         let arc = Self::get_instance();
         let map = arc.lock().await;

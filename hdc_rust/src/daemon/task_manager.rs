@@ -21,27 +21,41 @@ use super::shell;
 use hdc::common::forward;
 #[allow(unused_imports)]
 use hdc::common::hdcfile;
+use crate::utils::hdc_log::*;
 use hdc::config::ConnectType;
 use hdc::transfer::buffer;
 use hdc::transfer::TcpMap;
 use hdc::transfer::UsbMap;
+use hdc::transfer::ConnectTypeMap;
 
-pub async fn free_session(connect_type: ConnectType, session_id: u32) {
-    match connect_type {
-        ConnectType::Bt => {}
-        ConnectType::Tcp => {
+pub async fn free_all_sessiones() {
+    let sessiones = ConnectTypeMap::get_all_session().await;
+    for session_id in sessiones {
+        free_session(session_id).await;
+    }
+}
+
+pub async fn free_session(session_id: u32) {
+    match ConnectTypeMap::get(session_id).await {
+        Some(ConnectType::Bt) => {}
+        Some(ConnectType::Tcp) => {
             TcpMap::end(session_id).await;
         }
-        ConnectType::Uart => {}
-        ConnectType::Usb(_) => {
+        Some(ConnectType::Uart) => {}
+        Some(ConnectType::Usb(_)) => {
             UsbMap::end(session_id).await;
         }
 
-        ConnectType::HostUsb(_) => {
+        Some(ConnectType::HostUsb(_)) => {
             // add to avoid warning
         }
 
-        ConnectType::Bridge => {}
+        Some(ConnectType::Bridge) => {}
+
+        None => {
+            hdc::warn!("free_session cannot find connect type for session_id:{session_id}");
+            return;
+        }
     }
     stop_task(session_id).await;
 }

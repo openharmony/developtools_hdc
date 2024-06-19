@@ -350,8 +350,7 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
             session_id,
             task_message.channel_id,
             format!(
-                "check_permission param false: {}",
-                task_message.command as u32
+                "debugging is not allowed",
             )
             .into_bytes(),
             MessageLevel::Fail,

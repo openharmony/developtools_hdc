@@ -195,7 +195,7 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
         echo_finish(
             session_id,
             channel_id,
-            "Transfer failed, arguments is invalid.".to_string(),
+            "Transfer path split failed.".to_string(),
         )
         .await;
         return false;
@@ -203,7 +203,7 @@ pub async fn begin_transfer(session_id: u32, channel_id: u32, command: &String) 
     match set_master_parameters(session_id, channel_id, command, argc, argv).await {
         Ok(_) => (),
         Err(e) => {
-            echo_fail(session_id, channel_id, e).await;
+            echo_fail(session_id, channel_id, e, false).await;
             return false;
         }
     }
@@ -274,14 +274,14 @@ async fn set_master_parameters(
     }
     if argc == src_argv_index {
         crate::error!("set_master_parameters argc = {:#?} return false", argc);
-        return Err(Error::new(ErrorKind::Other, "Other failed"));
+        return Err(Error::new(ErrorKind::Other, "There is no local and remote path"));
     }
     task.transfer.remote_path = argv.last().unwrap().clone();
     task.transfer.local_path = argv.get(argv.len() - 2).unwrap().clone();
     if task.transfer.server_or_daemon {
         if src_argv_index + 1 == argc {
             crate::error!("src_argv_index = {:#?} return false", src_argv_index);
-            return Err(Error::new(ErrorKind::Other, "Other failed"));
+            return Err(Error::new(ErrorKind::Other, "There is no remote path"));
         }
         let cwd = task.transfer.transfer_config.client_cwd.clone();
         task.transfer.local_path = Base::extract_relative_path(&cwd, &task.transfer.local_path);
@@ -562,7 +562,7 @@ pub async fn command_dispatch(
                     put_file_begin(session_id, channel_id).await;
                 },
                 Err(e) => {
-                    echo_fail(session_id, channel_id, e).await;
+                    echo_fail(session_id, channel_id, e, true).await;
                 }
             }
         }
@@ -624,16 +624,20 @@ pub async fn dump_task() -> String {
     FileTaskMap::dump_task().await
 }
 
-pub async fn echo_fail(session_id: u32, channel_id: u32, error: Error) {
+pub async fn echo_fail(session_id: u32, channel_id: u32, error: Error, is_checked: bool) {
     let message = match FileTaskMap::get(session_id, channel_id).await {
         Some(task) => {
-            let task = task.lock().await;
-            format!("Transfer failed: {}: {}", task.transfer.local_path, error)
+            if is_checked {
+                let task = task.lock().await;
+                format!("Error opening file: {}, path: {}", error, task.transfer.local_path)
+            } else {
+                format!("{}", error)
+            }
         }
         None => format!(
-            "Transfer failed: {}: {}",
+            "Error opening file: {}, path: {}",
+            error,
             "cannot get file path from FileTaskMap",
-            error
         )
     };
     hdctransfer::echo_client(

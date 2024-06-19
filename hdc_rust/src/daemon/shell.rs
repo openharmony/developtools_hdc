@@ -126,6 +126,14 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
         None => {
             hdc::debug!("input cmd is None. channel_id {_channel_id}");
             let mut command = PtyCommand::new(SHELL_PROG);
+
+        unsafe {
+            command.pre_exec(|| {
+                libc::umask(0o22);
+                Ok(())
+            });
+        }
+
             command.spawn(&pts)?
         }
         Some(mut cmd) => {
@@ -630,6 +638,13 @@ async fn task_for_shell_execute(
         .stdout(Stdio::piped())
         .stdin(Stdio::piped())
         .stderr(Stdio::piped());
+
+    unsafe {
+        shell_cmd.pre_exec(|| {
+            libc::umask(0o22);
+            Ok(())
+        });
+    }
 
     if let Ok(mut child) = shell_cmd.spawn() {
 

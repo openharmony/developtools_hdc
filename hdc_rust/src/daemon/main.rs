@@ -477,6 +477,10 @@ fn get_tcp_port() -> u16 {
 }
 
 fn main() {
+    unsafe {
+        libc::umask(0);
+    }
+    
     let args: Vec<String> = std::env::args().collect();
     panic_handler::init();
     if args.len() == 2 && args[1] == "-v" {

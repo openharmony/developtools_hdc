@@ -33,6 +33,6 @@ void CloseEndpoint(int &bulkInFd, int &bulkOutFd, int &controlEp, bool closeCtrl
 
 int WriteData(int bulkIn, const uint8_t *data, const int length);
 
-int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize);
+size_t ReadData(int bulkOut, uint8_t* buf, const size_t size);
 
 #endif

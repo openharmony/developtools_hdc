@@ -349,9 +349,8 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         hdc::common::hdctransfer::echo_client(
             session_id,
             task_message.channel_id,
-            format!(
-                "debugging is not allowed",
-            )
+            "debugging is not allowed"
+            .to_string()
             .into_bytes(),
             MessageLevel::Fail,
         )

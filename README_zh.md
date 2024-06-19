@@ -184,7 +184,7 @@ hdc当前常用命令如下，使用hdc -h或者hdc --help查看使用方法：
 </tr>
 <tr id="row1184551114811"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p1742614354215"><a name="p1742614354215"></a><a name="p1742614354215"></a>tmode port <em id="i1850518591411"><a name="i1850518591411"></a><a name="i1850518591411"></a>port-number</em></p>
 </td>
-<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p124267438425"><a name="p124267438425"></a><a name="p124267438425"></a><span>执行后设备端对应daemon进程重启，并优先使用网络方式连接设备，如果连接设备再选择usb连接</span></p>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p124267438425"><a name="p124267438425"></a><a name="p124267438425"></a><span>执行后设备端对应daemon进程重启，并优先使用网络方式连接设备，如果连接失败再选择usb连接</span></p>
 </td>
 </tr>
 <tr id="row1157737165213"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p442704315428"><a name="p442704315428"></a><a name="p442704315428"></a>file send<em id="i34274438428"><a name="i34274438428"></a><a name="i34274438428"></a> </em><em id="i6958481309"><a name="i6958481309"></a><a name="i6958481309"></a>local remote</em></p>
@@ -222,13 +222,13 @@ hdc当前常用命令如下，使用hdc -h或者hdc --help查看使用方法：
 <p id="p23801376358"><a name="p23801376358"></a><a name="p23801376358"></a>举例： hdc fport rm tcp:1234 tcp:1080</p>
 </td>
 </tr>
-<tr id="row887171025420"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p204287432425"><a name="p204287432425"></a><a name="p204287432425"></a>install<em id="i242704315422"><a name="i242704315422"></a><a name="i242704315422"></a> </em>[-r/-d/-g]<em id="i642814310424"><a name="i642814310424"></a><a name="i642814310424"></a> </em><em id="i103610557016"><a name="i103610557016"></a><a name="i103610557016"></a>package</em></p>
+<tr id="row887171025420"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p204287432425"><a name="p204287432425"></a><a name="p204287432425"></a>install<em id="i242704315422"><a name="i242704315422"></a><a name="i242704315422"></a> </em>[-r/-s/-g]<em id="i642814310424"><a name="i642814310424"></a><a name="i642814310424"></a> </em><em id="i103610557016"><a name="i103610557016"></a><a name="i103610557016"></a>package</em></p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p12428194312421"><a name="p12428194312421"></a><a name="p12428194312421"></a><span>安装</span><span id="text242884314423"><a name="text242884314423"></a><a name="text242884314423"></a>OpenHarmony</span><span> package</span></p>
 <p id="p1419642611411"><a name="p1419642611411"></a><a name="p1419642611411"></a>举例： hdc install E:\***.hap</p>
 </td>
 </tr>
-<tr id="row1973583819549"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p20428943104214"><a name="p20428943104214"></a><a name="p20428943104214"></a>uninstall [-k] <em id="i84129581508"><a name="i84129581508"></a><a name="i84129581508"></a>package</em></p>
+<tr id="row1973583819549"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.1 "><p id="p20428943104214"><a name="p20428943104214"></a><a name="p20428943104214"></a>uninstall [-k/-s] <em id="i84129581508"><a name="i84129581508"></a><a name="i84129581508"></a>package</em></p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.2.3.1.2 "><p id="p0428144314429"><a name="p0428144314429"></a><a name="p0428144314429"></a><span>卸载</span><span id="text442834344220"><a name="text442834344220"></a><a name="text442834344220"></a>OpenHarmony</span><span>应用</span></p>
 </td>

@@ -148,7 +148,7 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
         if (ret < 0) {
             if (errno == EINTR) {
                 WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes interrupted, will retry\n",
-                    bulkIn, length - writen, ret);
+                    bulkIn, length - writen);
                 continue;
             }
             WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
@@ -165,26 +165,25 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
     return ret < 0 ? ret : writen;
 }
 
-int ReadData(int bulkOut, uint8_t* buf, const int readMaxSize)
+size_t ReadData(int bulkOut, uint8_t* buf, const size_t size)
 {
     int ret;
-    int retryTimes = 10;
-    // 10ms
-    int retryInterval = 10000;
+    size_t readed = 0;
 
-    while (retryTimes > 0) {
-        ret = read(bulkOut, buf, readMaxSize);
+    while (readed < size) {
+        ret = read(bulkOut, buf + readed, size - readed);
         if (ret >= 0) {
+            readed += ret;
+        } else if (errno == EINTR) {
+                WRITE_LOG(LOG_FATAL, "read usb fd(%d) (%d) bytes interrupted, will retry\n",
+                    bulkOut, size - readed);
+                continue;
+        } else {
+            WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
+                bulkOut, size - readed, ret, errno);
             break;
         }
-
-        if (errno != EINTR) {
-            break;
-        }
-
-        usleep(retryInterval);
-        retryTimes--;
     }
 
-    return ret;
+    return ret < 0 ? 0 : readed;
 }

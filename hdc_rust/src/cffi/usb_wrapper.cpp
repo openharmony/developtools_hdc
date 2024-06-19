@@ -60,25 +60,13 @@ extern "C" int32_t WriteUsbDevEx(int32_t bulkOut, SerializedBuffer buf)
 uint8_t *g_bufRet = nullptr;
 
 struct PersistBuffer {
-    char *ptr;
+    uint8_t *ptr;
     uint64_t size;
 };
 
-extern "C" PersistBuffer ReadUsbDevEx(int32_t bulkIn)
+extern "C" size_t ReadUsbDevEx(int32_t bulkIn, uint8_t *buf, const size_t size)
 {
-    if (g_bufRet == nullptr) {
-        WRITE_LOG(LOG_WARN, "remalloc g_bufRet\n");
-        g_bufRet = new uint8_t[MAX_SIZE_IOBUF];
-    }
-
-    while (true) {
-        int length = ReadData(bulkIn, g_bufRet, MAX_SIZE_IOBUF);
-        if (length > 0) {
-            return PersistBuffer{reinterpret_cast<char *>(g_bufRet), static_cast<uint64_t>(length)};
-        } else if (length < 0) {
-            return PersistBuffer{reinterpret_cast<char *>(g_bufRet), static_cast<uint64_t>(0)};
-        }
-    }
+    return ReadData(bulkIn, buf, size);
 }
 
 extern "C" char *GetDevPathEx(const char *path)

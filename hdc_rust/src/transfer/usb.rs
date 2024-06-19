@@ -55,7 +55,7 @@ extern "C" {
     #[cfg(not(target_os = "windows"))]
     fn WriteUsbDevEx(bulkOut: i32, buf: SerializedBuffer) -> i32;
     #[cfg(not(target_os = "windows"))]
-    fn ReadUsbDevEx(bulkIn: i32) -> PersistBuffer;
+    fn ReadUsbDevEx(bulkIn: i32, buf: *mut u8, size: usize) -> usize;
     fn GetDevPathEx(path: *const libc::c_char) -> *const libc::c_char;
 
     fn SerializeUsbHead(value: *const UsbHeadPack) -> SerializedBuffer;
@@ -122,20 +122,24 @@ pub struct UsbWriter {
 impl base::Reader for UsbReader {
     // 屏蔽window编译报错
     #[cfg(not(target_os = "windows"))]
-    fn read_frame(&self, expected_size: usize) -> io::Result<Vec<u8>> {
-        let buf = unsafe { ReadUsbDevEx(self.fd) };
-        match buf.size.cmp(&expected_size.try_into().expect("transfer usize to u64")) {
-            std::cmp::Ordering::Equal => Ok(buf_to_vec(buf)),
-            std::cmp::Ordering::Greater => Ok(buf_to_vec(buf).split_at(expected_size).0.to_vec()),
-            std::cmp::Ordering::Less => Err(
-                utils::error_other(
-                    format!(
-                        "usb read error, usb read result size: {:} is not equal to expected_size: {}",
-                        buf.size,
-                        expected_size,
+    fn read_frame(&self, expect: usize) -> io::Result<Vec<u8>> {
+        let mut buf :Vec<u8> = Vec::with_capacity(expect);
+        unsafe {
+            let readed = ReadUsbDevEx(self.fd, buf.as_mut_ptr() as *mut libc::uint8_t, expect);
+            if readed != expect {
+                Err(
+                    utils::error_other(
+                        format!(
+                            "usb read error, usb read failed: expect: {} acture: {}",
+                            expect,
+                            readed,
+                        )
                     )
                 )
-            )
+            } else {
+                buf.set_len(readed);
+                Ok(buf)
+            }
         }
     }
 

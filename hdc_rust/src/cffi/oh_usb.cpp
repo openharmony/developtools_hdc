@@ -148,7 +148,7 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
         if (ret < 0) {
             if (errno == EINTR) {
                 WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes interrupted, will retry\n",
-                    bulkIn, length - writen, ret);
+                    bulkIn, length - writen);
                 continue;
             }
             WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
@@ -176,7 +176,7 @@ size_t ReadData(int bulkOut, uint8_t* buf, const size_t size)
             readed += ret;
         } else if (errno == EINTR) {
                 WRITE_LOG(LOG_FATAL, "read usb fd(%d) (%d) bytes interrupted, will retry\n",
-                    bulkOut, size - readed, ret);
+                    bulkOut, size - readed);
                 continue;
         } else {
             WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",

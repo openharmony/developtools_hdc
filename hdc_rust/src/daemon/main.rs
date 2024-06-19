@@ -32,7 +32,6 @@ use std::time::SystemTime;
 
 use crate::utils::hdc_log::*;
 
-use crate::shell::PtyMap;
 use hdc::common::jdwp;
 use hdc::config;
 use hdc::config::TaskMessage;
@@ -84,7 +83,6 @@ async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Re
             hdc::debug!("clear pty map: {}", session_id);
             if e.kind() == ErrorKind::Other {
                 hdc::warn!("unpack task failed: {}", e.to_string());
-                PtyMap::clear(session_id).await;
                 return Err(e);
             }
         }
@@ -178,14 +176,23 @@ async fn tcp_handle_client(stream: TcpStream) -> io::Result<()> {
         msg.channel_id
     );
     transfer::TcpMap::start(session_id, wr).await;
-    handle_message(Ok(msg), session_id).await?;
+    let ret = handle_message(Ok(msg), session_id).await;
+    if ret.is_err() {
+        transfer::TcpMap::end(session_id).await;
+        return ret;
+    }
 
     loop {
-        handle_message(
+        let result = handle_message(
             transfer::tcp::unpack_task_message(&mut rd).await,
             session_id,
         )
-        .await?;
+        .await;
+        if result.is_err() {
+            hdc::warn!("tcp free_session, session_id:{}, result:{:?}", session_id, result);
+            task_manager::free_session(session_id).await;
+            return result;
+        }
     }
 }
 
@@ -380,11 +387,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
                             hdc::info!("new session(usb) id:{}", session_id_in_msg);
                             let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
                             transfer::UsbMap::start(session_id_in_msg, wr).await;
-                            task_manager::free_session(
-                                config::ConnectType::Usb("some_mount_point".to_string()),
-                                cur_session_id,
-                            )
-                            .await;
+                            task_manager::free_session(cur_session_id).await;
                             hdc::debug!("free session(usb) sucessfully {:?}", cur_session_id);
                             cur_session_id = session_id_in_msg;
                         }
@@ -402,11 +405,7 @@ async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> 
             }
         }
     }
-    task_manager::free_session(
-        config::ConnectType::Usb("some_mount_point".to_string()),
-        cur_session_id,
-    )
-    .await;
+    task_manager::free_session(cur_session_id).await;
     Ok(())
 }
 

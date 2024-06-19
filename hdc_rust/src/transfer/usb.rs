@@ -124,19 +124,23 @@ impl base::Reader for UsbReader {
     #[cfg(not(target_os = "windows"))]
     fn read_frame(&self, expect: usize) -> io::Result<Vec<u8>> {
         let mut buf :Vec<u8> = Vec::with_capacity(expect);
-        let readed = unsafe { ReadUsbDevEx(self.fd, buf.as_mut_ptr() as *mut libc::uint8_t, expect) };
-        if readed != expect {
-            return Err(
-                utils::error_other(
-                    format!(
-                        "usb read error, usb read failed: expect: {} acture: {}",
-                        expect,
-                        readed,
+        unsafe {
+            let readed = ReadUsbDevEx(self.fd, buf.as_mut_ptr() as *mut libc::uint8_t, expect);
+            if readed != expect {
+                Err(
+                    utils::error_other(
+                        format!(
+                            "usb read error, usb read failed: expect: {} acture: {}",
+                            expect,
+                            readed,
+                        )
                     )
                 )
-            );
+            } else {
+                buf.set_len(readed);
+                Ok(buf)
+            }
         }
-        Ok(buf)
     }
 
     // 屏蔽window编译报错

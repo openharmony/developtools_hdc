@@ -171,7 +171,7 @@ size_t ReadData(int bulkOut, uint8_t* buf, const size_t size)
     size_t readed = 0;
 
     while (readed < size) {
-        ret = read(bulkOut, buf, size - readed);
+        ret = read(bulkOut, buf + readed, size - readed);
         if (ret >= 0) {
             readed += ret;
         } else if (errno == EINTR) {

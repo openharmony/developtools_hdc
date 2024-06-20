@@ -245,7 +245,8 @@ inline bool HdcDaemonUnity::TrackJdwpProcess(void *daemonIn, const string& param
         taskInfo->debugRelease = 0;
     } else if (param == "a") {
         // allApp with display debug or release
-        taskInfo->debugRelease = 3;
+        constexpr uint8_t allAppWithDr = 3;
+        taskInfo->debugRelease = allAppWithDr;
     }
     if (!((static_cast<HdcJdwp *>(daemon->clsJdwp))->CreateJdwpTracker(taskInfo))) {
         string result = MESSAGE_FAIL;

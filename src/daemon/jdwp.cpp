@@ -181,6 +181,8 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 #ifdef JS_JDWP_CONNECT
 string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
 {
+    constexpr uint8_t releaseApp = 2;
+    constexpr uint8_t allAppWithDr = 3;
     string ret;
     uv_rwlock_rdlock(&lockMapContext);
     for (auto &&v : mapCtxJdwp) {
@@ -193,12 +195,12 @@ string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
             if (hj->isDebug) {
                 ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
             }
-        } else if (dr == 2) {
+        } else if (dr == releaseApp) {
             // releaseApp
             if (!hj->isDebug) {
                 ret += std::to_string(v.first) + " " + hj->pkgName + "\n";
             }
-        } else if (dr == 3) {
+        } else if (dr == allAppWithDr) {
             // allApp with display debug or release
             string apptype = "release";
             if (hj->isDebug) {

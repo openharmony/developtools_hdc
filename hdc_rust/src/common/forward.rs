@@ -1069,7 +1069,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     param.push(':');
     param.push_str(parameter);
 
-    let ret = jdwp.send_fd_to_target(pid, target_fd, param.as_str()).await;
+    let ret = jdwp.send_fd_to_target(pid, target_fd, local_fd, param.as_str()).await;
     if !ret {
         crate::error!("not found pid:{:?}", pid);
         echo_client(

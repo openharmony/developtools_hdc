@@ -45,6 +45,7 @@ use hdc::transfer::uart::UartReader;
 #[cfg(not(feature = "emulator"))]
 use hdc::transfer::uart_wrapper;
 use hdc::utils;
+use hdc::common::base::Base;
 
 use crate::auth::clear_auth_pub_key_file;
 use crate::sys_para::*;
@@ -476,10 +477,6 @@ fn get_tcp_port() -> u16 {
 }
 
 fn main() {
-    unsafe {
-        libc::umask(0);
-    }
-    
     let args: Vec<String> = std::env::args().collect();
     panic_handler::init();
     if args.len() == 2 && args[1] == "-v" {
@@ -495,6 +492,7 @@ fn main() {
 
     #[cfg(not(feature = "emulator"))]
     need_drop_root_privileges();
+    Base::init_process();
     clear_auth_pub_key_file();
 
     ylong_runtime::block_on(async {

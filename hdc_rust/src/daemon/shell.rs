@@ -18,6 +18,7 @@
 #[allow(unused_imports)]
 use super::task_manager;
 use crate::utils::hdc_log::*;
+use hdc::common::base::Base;
 use hdc::config::TaskMessage;
 use hdc::config::{HdcCommand, MessageLevel, SHELL_PROG};
 use hdc::transfer;
@@ -28,6 +29,7 @@ use std::mem::MaybeUninit;
 use std::os::fd::AsRawFd;
 use std::process::Stdio;
 use std::sync::{Arc, Once};
+use std::env;
 
 use ylong_runtime::process::pty_process::{Pty, PtyCommand};
 use ylong_runtime::process::{Child, Command, ChildStdin, ChildStdout, ChildStderr};
@@ -129,7 +131,14 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
 
         unsafe {
             command.pre_exec(|| {
-                libc::umask(0o22);
+                Base::de_init_process();
+
+                let home_dir = match env::var("HOME") {
+                    Ok(dir) => dir,
+                    Err(_) => String::from("/")
+                };
+                let _ = std::env::set_current_dir(home_dir);
+
                 Ok(())
             });
         }
@@ -599,7 +608,10 @@ async fn task_for_shell_execute(
 
     unsafe {
         shell_cmd.pre_exec(|| {
-            libc::umask(0o22);
+            Base::de_init_process();
+            hdc::syscall!(setsid())?;
+            let pid = libc::getpid();
+            libc::setpgid(pid, pid);
             Ok(())
         });
     }

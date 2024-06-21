@@ -314,6 +314,7 @@ pub const USB_QUEUE_LEN: usize = 64;
 
 pub const TRANSFER_FUNC_NAME: &str = "install";
 pub const INSTALL_TMP_DIR: &str = "/data/local/tmp/";
+pub const INSTALL_TAR_MAX_CNT: usize = 512;
 
 pub const ENV_HDC_MODE: &str = "persist.hdc.mode";
 pub const ENV_HOST_PORT: &str = "persist.hdc.port";

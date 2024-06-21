@@ -23,8 +23,10 @@ use hdc::config::HdcCommand;
 use hdc::config::TaskMessage;
 use hdc::serializer::native_struct::TransferConfig;
 use hdc::serializer::serialize::Serialization;
+use hdc::tar::decompress::Decompress;
 use hdc::transfer;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use ylong_runtime::sync::Mutex;
 
@@ -120,6 +122,24 @@ impl AppTaskMap {
             result.push_str(line.as_str());
         }
         result
+    }
+}
+
+fn tar_to_dir(tar_path: PathBuf) -> Result<String, String> {
+    if !tar_path.exists() {
+        return Err(format!("{} is not exist!", tar_path.display()));
+    }
+
+    match Decompress::file(tar_path.display().to_string().as_str()) {
+        Ok(decompress) => {
+            let tar_string = tar_path.display().to_string();
+            let dir = tar_string.trim_end_matches(".tar");
+            if let Err(err) = decompress.decompress(dir) {
+                return Err(format!("Decompress failed, {err}"));
+            }
+            Ok(dir.to_string())
+        }
+        Err(err) => Err(format!("Decompress failed, {err}")),
     }
 }
 
@@ -285,8 +305,19 @@ async fn do_app_install(session_id: u32, channel_id: u32) {
     };
     let task = arc.lock().await;
     let options = task.transfer.transfer_config.options.clone();
-    let local_path = task.transfer.local_path.clone();
+    let mut local_path = task.transfer.local_path.clone();
     drop(task);
+    if local_path.ends_with(".tar") {
+        match tar_to_dir(PathBuf::from(local_path.clone())) {
+            Ok(dir) => {
+                let _ = remove_file(local_path.clone());
+                local_path = dir
+            }
+            Err(err) => {
+                hdc::error!("{err}");
+            }
+        }
+    }
     let mode = config::AppModeType::Install as u8;
     let cmd = if !options.contains('p') && !options.contains('s') {
         format!("bm install {} -p {}", options, local_path)

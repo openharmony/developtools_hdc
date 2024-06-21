@@ -1044,7 +1044,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             let mut buffer = [0u8; 1024];
             let size = UdsServer::wrap_read(local_fd, &mut buffer);
             if size < 0 {
-                crate::error!("disconnect, error:{:?}", size);
+                crate::error!("disconnect fd:({}, {}), error:{:?}", local_fd, target_fd, size);
                 free_context(session_id, channel_id, 0, true).await;
                 break;
             }

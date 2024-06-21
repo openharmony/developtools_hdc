@@ -284,7 +284,7 @@ impl Jdwp {
                         UdsServer::wrap_close(pnode.fd);
 
                         let pid = pnode.ppid;
-                        let socketpair_map_lock = socketpair_map.lock().await;
+                        let mut socketpair_map_lock = socketpair_map.lock().await;
                         if let Some(vec) = socketpair_map_lock.remove(&pid) {
                             let lock = vec.lock().await;
                             for (fd0, fd1) in lock.iter() {

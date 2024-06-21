@@ -18,6 +18,7 @@
 use crate::utils::hdc_log::*;
 use crate::common::filemanager::FileManager;
 use crate::common::hdctransfer::{self, HdcTransferBase};
+use crate::common::context::ContextMap;
 use crate::config;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
@@ -65,6 +66,7 @@ impl AppTaskMap {
         let map = Self::get_instance();
         let mut map = map.lock().await;
         map.insert((session_id, channel_id), Arc::new(Mutex::new(value)));
+        ContextMap::put(session_id, channel_id, config::ContextType::App).await;
     }
 
     pub async fn exsit(session_id: u32, channel_id: u32) -> bool {

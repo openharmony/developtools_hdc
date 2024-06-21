@@ -33,7 +33,8 @@ const JPID_SOCKET_PATH: &str = "ohjpid-control";
 const PATH_LEN: usize = JPID_SOCKET_PATH.as_bytes().len() + 1;
 
 type NodeMap = Arc<Mutex<HashMap<i32, PollNode>>>;
-type SocketpairMap = Arc<Mutex<HashMap<u32, (i32, i32)>>>;
+type SocketPairVec = Arc<Mutex<Vec<(i32, i32)>>>;
+type SocketpairMap = Arc<Mutex<HashMap<u32, SocketPairVec>>>;
 type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
 
 pub trait JdwpBase: Send + Sync + 'static {}
@@ -77,6 +78,18 @@ impl Jdwp {
 }
 
 impl Jdwp {
+    async fn put_socketpair(&self, target_pid: u32, fd: i32, fd2: i32) {
+        let socketpair_map = self.socketpair_map.clone();
+        let mut socketpair_map_lock = socketpair_map.lock().await;
+        if let Some(vec) = socketpair_map_lock.get(&target_pid) {
+            let mut lock = vec.lock().await;
+            lock.push((fd, fd2));
+        } else {
+            let vec = vec![(fd, fd2)];
+            socketpair_map_lock.insert(target_pid, Arc::new(Mutex::new(vec)));
+        }
+    }
+
     pub async fn send_fd_to_target(&self, target_pid: u32, fd: i32, fd2: i32, parameter: &str) -> bool {
         let map = self.poll_node_map.clone();
         let map = map.lock().await;
@@ -85,9 +98,8 @@ impl Jdwp {
             let v = map.get(k);
             if let Some(node) = v {
                 if node.ppid == target_pid {
-                    let socketpair_map = self.socketpair_map.clone();
-                    let mut socketpair_map_lock = socketpair_map.lock().await;
-                    socketpair_map_lock.insert(target_pid, (fd, fd2));
+                    crate::info!("send_fd_to_target pid:{target_pid}, fd:({fd}, {fd2})");
+                    self.put_socketpair(target_pid, fd, fd2).await;
 
                     let bytes = fd.to_be_bytes();
                     let fd_bytes = bytes.as_slice();
@@ -272,11 +284,14 @@ impl Jdwp {
                         UdsServer::wrap_close(pnode.fd);
 
                         let pid = pnode.ppid;
-                        let mut map_lock = socketpair_map.lock().await;
-                        if let Some((fd0, fd1)) = map_lock.remove(&pid) {
-                            UdsServer::wrap_close(fd0);
-                            UdsServer::wrap_close(fd1);
-                            crate::info!("start_data_looper close pid:{}, socketpair_fd:{}{}", pid, fd0, fd1);
+                        let socketpair_map_lock = socketpair_map.lock().await;
+                        if let Some(vec) = socketpair_map_lock.get(&pid) {
+                            let lock = vec.lock().await;
+                            for (fd0, fd1) in lock.iter() {
+                                UdsServer::wrap_close(*fd0);
+                                UdsServer::wrap_close(*fd1);
+                                crate::info!("start_data_looper close pid:{}, socketpair_fd:({},{})", pid, fd0, fd1);
+                            }
                         }
                     } else if pnode.fd == await_fd && pnode.revents & POLLIN != 0 {
                         UdsServer::wrap_read_fd(await_fd);

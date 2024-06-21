@@ -106,7 +106,6 @@ impl FileTaskMap {
             if _iter.0 .0 != session_id {
                 continue;
             }
-            hdctransfer::transfer_task_finish(_iter.0 .1, session_id).await;
             let mut task = _iter.1.lock().await;
             task.transfer.stop_run = true;
             crate::info!(

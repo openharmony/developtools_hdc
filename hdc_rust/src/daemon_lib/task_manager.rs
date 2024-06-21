@@ -15,18 +15,19 @@
 //! shell
 
 #[allow(unused_imports)]
-use super::daemon_app;
-use super::shell;
+use crate::daemon_lib::daemon_app;
+use crate::daemon_lib::shell;
 #[allow(unused_imports)]
-use hdc::common::forward;
+use crate::common::forward;
 #[allow(unused_imports)]
-use hdc::common::hdcfile;
+use crate::common::hdcfile;
+#[allow(unused_imports)]
 use crate::utils::hdc_log::*;
-use hdc::config::ConnectType;
-use hdc::transfer::buffer;
-use hdc::transfer::TcpMap;
-use hdc::transfer::UsbMap;
-use hdc::transfer::ConnectTypeMap;
+use crate::config::ConnectType;
+use crate::transfer::buffer;
+use crate::transfer::TcpMap;
+use crate::transfer::UsbMap;
+use crate::transfer::ConnectTypeMap;
 
 pub async fn free_all_sessiones() {
     let sessiones = ConnectTypeMap::get_all_session().await;
@@ -53,7 +54,7 @@ pub async fn free_session(session_id: u32) {
         Some(ConnectType::Bridge) => {}
 
         None => {
-            hdc::warn!("free_session cannot find connect type for session_id:{session_id}");
+            crate::warn!("free_session cannot find connect type for session_id:{session_id}");
             return;
         }
     }

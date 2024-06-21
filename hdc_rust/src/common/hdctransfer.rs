@@ -15,10 +15,9 @@
 //! hdctransfer
 #![allow(missing_docs)]
 use std::collections::VecDeque;
-use std::os::unix::fs::PermissionsExt;
-use std::fs::{self, File, OpenOptions, Permissions, create_dir_all, metadata};
+use std::fs::{self, File, OpenOptions, create_dir_all, metadata};
 use std::io::{Read, Seek, Write, Error};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::common::base::Base;
@@ -435,10 +434,6 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
             .open(path.clone());
         match open_result {
             Ok(mut file) => {
-                if let Err(error) = file.set_permissions(Permissions::from_mode(0o644)) {
-                    crate::error!("Setting permissions failed, error: {}", error);
-                    return Err(error);
-                }
                 let _ = file.seek(std::io::SeekFrom::Start(file_index));
                 let write_result = file.write_all(write_buf.as_slice());
                 match write_result {
@@ -452,7 +447,6 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
                 let _ = put_last_error(e, session_id, channel_id).await;
             }
         }
-        Ok(())
     });
 
     tbase.index += buffer.len() as u64;
@@ -463,14 +457,6 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
         tbase.file_size
     );
     if tbase.index >= tbase.file_size {
-        let dir_path = Path::new(&tbase.local_path)
-            .parent()
-            .map_or(Path::new("."), |p| p);
-        let permission = Permissions::from_mode(0o750);
-        if let Err(error) = fs::set_permissions(dir_path, permission) {
-            crate::error!("Setting permissions failed, error: {}", error);
-            return false;
-        }
         return true;
     }
     false

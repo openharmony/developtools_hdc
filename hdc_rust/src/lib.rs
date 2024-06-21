@@ -18,7 +18,6 @@ extern crate libc;
 
 pub mod common;
 pub mod config;
-#[cfg(feature = "emulator")]
 pub mod daemon_lib;
 #[cfg(feature = "host")]
 pub mod host_transfer;

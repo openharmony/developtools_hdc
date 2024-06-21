@@ -112,16 +112,18 @@ fn init_pty_process(cmd: Option<String>, _channel_id: u32) -> io::Result<PtyProc
     let pty = match Pty::new() {
         Ok(pty) => pty,
         Err(e) => {
-            hdc::error!("pty create error: {}", e);
-            return Err(e);
+            let msg = format!("pty create error: {}", e);
+            hdc::error!("{msg}");
+            return Err(io::Error::new(io::ErrorKind::Other, msg));
         }
     };
 
     let pts = match pty.pts() {
         Ok(pts) => pts,
         Err(e) => {
-            hdc::error!("pty pts error: {}", e);
-            return Err(e);
+            let msg = format!("pty pts error: {}", e);
+            hdc::error!("{msg}");
+            return Err(io::Error::new(io::ErrorKind::Other, msg));
         }
     };
     let child = match cmd {

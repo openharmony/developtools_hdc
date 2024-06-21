@@ -198,16 +198,3 @@ pub mod hdc_log {
 
     // pub use crate::{trace, debug, info, warn, error, fatal};
 }
-
-#[cfg(not(target_os = "windows"))]
-#[macro_export]
-macro_rules! syscall {
-    ($fn:ident ( $($arg:expr),* )) => {{
-        let res = libc::$fn($($arg,)*);
-        if res == -1 {
-            Err(io::Error::last_os_error())
-        } else {
-            Ok(res)
-        }
-    }};
-}

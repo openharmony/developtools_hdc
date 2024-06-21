@@ -609,7 +609,7 @@ async fn task_for_shell_execute(
     unsafe {
         shell_cmd.pre_exec(|| {
             Base::de_init_process();
-            hdc::syscall!(setsid())?;
+            libc::setsid();
             let pid = libc::getpid();
             libc::setpgid(pid, pid);
             Ok(())

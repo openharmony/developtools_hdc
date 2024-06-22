@@ -83,6 +83,16 @@ impl AuthStatusMap {
         let mut map = instance.write().await;
         map.insert(session_id, auth_status);
     }
+
+    pub async fn remove(session_id: u32) {
+        hdc::info!(
+            "remove auth status for session {}",
+            session_id
+        );
+        let instance = Self::get_instance();
+        let mut map = instance.write().await;
+        let _ = map.remove(&session_id);
+    }
 }
 
 pub async fn handshake_init(task_message: TaskMessage) -> io::Result<(u32, TaskMessage)> {

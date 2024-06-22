@@ -53,46 +53,48 @@ impl ContextMap {
         map.remove(&(session_id, channel_id));
     }
 
-    pub async fn stop_task(session_id: u32, channel_id: u32) {
-        let context = Self::get_instance();
+    pub async fn channel_close(session_id: u32, channel_id: u32) {
+        let arc_map = Self::get_instance();
+        let context;
         {
-            let mut map = context.lock().await;
-            let context = match map.get(&(session_id, channel_id)) {
-                Some(context) => context.clone(),
-                None => return,
+            let mut map = arc_map.lock().await;
+            context = match map.get(&(session_id, channel_id)) {
+                Some(context_type) => context_type.clone(),
+                None => ContextType::Any,
             };
-            match context {
-                ContextType::App => {
-                    AppTaskMap::remove(session_id, channel_id).await;
-                }
-                ContextType::File => {
-                    FileTaskMap::remove(session_id, channel_id).await;
-                }
-                ContextType::ExecuteShell => {
-                    ShellExecuteMap::del(session_id, channel_id).await;
-                }
-                ContextType::Shell => {
-                    if let Some(pty_task) = PtyMap::get(session_id, channel_id).await {
-                        let _ = &pty_task.tx.send(vec![0x04_u8]).await;
-                        PtyMap::del(session_id, channel_id).await;
-                    } else {
-                        crate::error!("shell task is not exist");
-                    }
-                }
-                ContextType::Forward => {
-                    forward::free_channel_task(session_id, channel_id).await;
-                }
-                _ => {
-                    crate::info!("unknown context is {:?}", context);
+            map.remove(&(session_id, channel_id));
+        }
+        match context {
+            ContextType::App => {
+                AppTaskMap::remove(session_id, channel_id).await;
+            }
+            ContextType::File => {
+                FileTaskMap::remove(session_id, channel_id).await;
+            }
+            ContextType::ExecuteShell => {
+                ShellExecuteMap::del(session_id, channel_id).await;
+            }
+            ContextType::Shell => {
+                if let Some(pty_task) = PtyMap::get(session_id, channel_id).await {
+                    let _ = &pty_task.tx.send(vec![0x04_u8]).await;
+                    PtyMap::del(session_id, channel_id).await;
+                } else {
+                    crate::error!("shell task is not exist");
                 }
             }
-            map.remove(&(session_id, channel_id));
-            crate::debug!(
-                "remove task context_type: {:?}, session_id: {:?}, channel_id: {:?}"
-                ,context,
-                session_id,
-                channel_id
-            );
+            ContextType::Forward => {
+                forward::free_channel_task(session_id, channel_id).await;
+            }
+            _ => {
+                crate::info!("unknown context is {:?}", context);
+            }
         }
+            
+        crate::debug!(
+            "remove task context_type: {:?}, session_id: {:?}, channel_id: {:?}"
+            ,context,
+            session_id,
+            channel_id
+        );
     }
 }

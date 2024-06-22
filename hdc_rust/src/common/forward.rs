@@ -308,6 +308,7 @@ pub struct ContextForward {
     check_order: bool,
     id: u32,
     fd: i32,
+    fd2: i32,
     remote_parameters: String,
     last_error: String,
     forward_type: ForwardType,
@@ -797,9 +798,11 @@ pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_rem
         ForwardType::Jdwp | ForwardType::Ark => {
             TcpWriteStreamMap::end(channel_id).await;
             let ret = unsafe { libc::close(task.context_forward.fd) };
+            let ret2 = unsafe { libc::close(task.context_forward.fd2) };
             crate::debug!(
-                "close context_forward fd, ret={}, session_id={}, channel_id={}",
+                "close context_forward fd, ret={}, ret={}, session_id={}, channel_id={}",
                 ret,
+                ret2,
                 session_id,
                 channel_id,
             );
@@ -1035,6 +1038,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
         crate::info!("pipe, fd0:{}, fd1:{}", fd0, fd1);
         local_fd = fd0;
         task.context_forward.fd = local_fd;
+        task.context_forward.fd2 = fd1;
         ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         target_fd = fd1;
     }

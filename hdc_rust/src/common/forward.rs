@@ -834,11 +834,9 @@ pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_rem
         ForwardType::Jdwp | ForwardType::Ark => {
             TcpWriteStreamMap::end(channel_id).await;
             let ret = unsafe { libc::close(task.context_forward.fd) };
-            let ret2 = unsafe { libc::close(task.context_forward.fd2) };
             crate::debug!(
-                "close context_forward fd, ret={}, ret={}, session_id={}, channel_id={}",
+                "close context_forward fd, ret={}, session_id={}, channel_id={}",
                 ret,
-                ret2,
                 session_id,
                 channel_id,
             );

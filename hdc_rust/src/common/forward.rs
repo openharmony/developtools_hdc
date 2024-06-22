@@ -308,7 +308,7 @@ pub struct ContextForward {
     check_order: bool,
     id: u32,
     fd: i32,
-    fd2: i32,
+    target_fd: i32,
     remote_parameters: String,
     last_error: String,
     forward_type: ForwardType,
@@ -430,7 +430,43 @@ impl ForwardTaskMap {
 }
 
 pub async fn free_channel_task(session_id: u32, channel_id: u32) {
-    free_context(session_id, channel_id, 0, false).await;
+    let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
+        return;
+    };
+    crate::info!("free_context session_id:{session_id}, channel_id:{channel_id}");
+    let task = &mut task.clone();
+    match task.forward_type {
+        ForwardType::Tcp => {
+            TcpWriteStreamMap::end(channel_id).await;
+            TcpListenerMap::end(channel_id).await;
+        }
+        ForwardType::Jdwp | ForwardType::Ark => {
+            TcpWriteStreamMap::end(channel_id).await;
+            let ret = unsafe { libc::close(task.context_forward.fd) };
+            crate::debug!(
+                "close context_forward fd, ret={}, session_id={}, channel_id={}",
+                ret,
+                session_id,
+                channel_id,
+            );
+            let target_fd_ret = unsafe { libc::close(task.context_forward.target_fd) };
+            crate::debug!(
+                "close context_forward target fd, ret={}, session_id={}, channel_id={}",
+                target_fd_ret,
+                session_id,
+                channel_id,
+            );
+            TcpListenerMap::end(channel_id).await;
+        }        
+        ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
+            #[cfg(not(target_os = "windows"))]
+            UdsServer::wrap_close(task.context_forward.fd);
+        }
+        ForwardType::Device => {
+            return;
+        }
+    }
+    ForwardTaskMap::remove(session_id, channel_id).await;
 }
 
 pub async fn stop_task(session_id: u32) {
@@ -806,6 +842,13 @@ pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_rem
                 session_id,
                 channel_id,
             );
+            let target_fd_ret = unsafe { libc::close(task.context_forward.target_fd) };
+            crate::debug!(
+                "close context_forward target fd, ret={}, session_id={}, channel_id={}",
+                target_fd_ret,
+                session_id,
+                channel_id,
+            );
             TcpListenerMap::end(channel_id).await;
         }        
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
@@ -1037,8 +1080,9 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     if let Ok((fd0, fd1)) = result {
         crate::info!("pipe, fd0:{}, fd1:{}", fd0, fd1);
         local_fd = fd0;
+        target_fd = fd1;
         task.context_forward.fd = local_fd;
-        task.context_forward.fd2 = fd1;
+        task.context_forward.target_fd = target_fd;
         ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
         target_fd = fd1;
     }

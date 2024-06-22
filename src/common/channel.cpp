@@ -429,7 +429,7 @@ void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 {
     auto closeChannelHandle = [](uv_handle_t *handle) -> void {
         if (handle->data == nullptr) {
-            WRITE_LOG(LOG_WARN, "FreeChannelContinue handle->data is nullptr");
+            WRITE_LOG(LOG_DEBUG, "FreeChannelContinue handle->data is nullptr");
             return;
         }
         HChannel channel = reinterpret_cast<HChannel>(handle->data);

@@ -29,7 +29,7 @@ use crate::config::{self, ConnectType};
 use crate::serializer;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
-
+use crate::daemon_lib::task_manager;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
@@ -310,6 +310,7 @@ pub async fn put(session_id: u32, data: TaskMessage) {
         Some(ConnectType::Usb(_mount_point)) => {
             if let Err(e) = UsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");
+                task_manager::free_session(session_id).await;
             }
         }
         Some(ConnectType::Uart) => {

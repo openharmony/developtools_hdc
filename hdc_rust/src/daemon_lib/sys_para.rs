@@ -15,7 +15,7 @@
 
 #![allow(missing_docs)]
 
-use hdc::config::*;
+use crate::config::*;
 use std::ffi::CString;
 
 extern "C" {

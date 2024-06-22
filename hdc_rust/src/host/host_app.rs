@@ -16,10 +16,10 @@ use hdc::common::base::Base;
 use hdc::common::filemanager::FileManager;
 use hdc::common::hdcfile;
 use hdc::common::hdctransfer::{self, HdcTransferBase};
-use hdc::config;
 use hdc::config::HdcCommand;
 use hdc::config::TaskMessage;
 use hdc::config::TRANSFER_FUNC_NAME;
+use hdc::config::{self, INSTALL_TAR_MAX_CNT};
 use hdc::serializer::serialize::Serialization;
 use hdc::transfer;
 use hdc::transfer::EchoLevel;
@@ -31,6 +31,7 @@ use std::sync::Arc;
 use ylong_runtime::sync::Mutex;
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
+use hdc::tar::compress::Compress;
 
 pub struct HostAppTask {
     pub transfer: HdcTransferBase,
@@ -151,6 +152,7 @@ async fn do_app_finish(session_id: u32, channel_id: u32, _payload: &[u8]) -> boo
     false
 }
 
+#[allow(unused)]
 pub fn get_sub_app_files_resurively(
     channel_id: u32,
     dir_path: &PathBuf,
@@ -200,6 +202,22 @@ pub fn get_sub_app_files_resurively(
     }
     result.sort();
     Ok(result)
+}
+
+fn dir_to_tar(dir_path: PathBuf) -> Result<String, String> {
+    let mut compress = Compress::new();
+    compress.updata_prefix(dir_path.clone());
+    if let Err(err) = compress.add_path(&dir_path) {
+        return Err(format!("add path fail, {err}"));
+    }
+    compress.updata_max_count(INSTALL_TAR_MAX_CNT);
+
+    let tar_name = utils::get_pseudo_random_u32().to_string() + ".tar";
+    let tar_path = std::env::temp_dir().join(tar_name);
+    match compress.compress(tar_path.clone()) {
+        Ok(_) => Ok(tar_path.display().to_string()),
+        Err(err) => Err(format!("compress {} fial, {}", tar_path.display(), err)),
+    }
 }
 
 async fn task_finish(session_id: u32, channel_id: u32) {
@@ -274,9 +292,16 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
             if path.ends_with(".hap") || path.ends_with(".hsp") {
                 task.transfer.task_queue.push(path.clone());
             } else {
-                let mut queue =
-                    get_sub_app_files_resurively(channel_id, &PathBuf::from(path)).unwrap();
-                task.transfer.task_queue.append(&mut queue);
+                match dir_to_tar(PathBuf::from(path)) {
+                    Ok(tar_file) => {
+                        hdc::info!("dir_to_tar success, path = {}", tar_file);
+                        task.transfer.task_queue.push(tar_file)
+                    }
+                    Err(err) => {
+                        hdc::error!("{}", err);
+                        return false;
+                    }
+                }
             }
         }
         i += 1;

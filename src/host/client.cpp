@@ -361,7 +361,11 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
         return ERR_GENERIC;
     }
     conn->data = this;
+    tcpConnectRetryCount = 0;
+    uv_timer_init(loopMain, &retryTcpConnTimer);
+    retryTcpConnTimer.data = this;
     if (strchr(ip, '.')) {
+        isIpV4 = true;
         std::string s = ip;
         size_t index = s.find(IPV4_MAPPING_PREFIX);
         size_t size = IPV4_MAPPING_PREFIX.size();
@@ -369,12 +373,11 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
             s = s.substr(index + size);
         }
         WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv4 %s:%d", s.c_str(), port);
-        struct sockaddr_in destv4;
         uv_ip4_addr(s.c_str(), port, &destv4);
         uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&destv4, Connect);
     } else {
+        isIpV4 = false;
         WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv6 %s:%d", ip, port);
-        struct sockaddr_in6 dest;
         uv_ip6_addr(ip, port, &dest);
         uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&dest, Connect);
     }
@@ -504,17 +507,55 @@ void HdcClient::BindLocalStd(HChannel hChannel)
 
 void HdcClient::Connect(uv_connect_t *connection, int status)
 {
+    WRITE_LOG(LOG_DEBUG, "Enter Connect, status:%d", status);
     HdcClient *thisClass = (HdcClient *)connection->data;
     delete connection;
     HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
-    if (status < 0 || uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
-        WRITE_LOG(LOG_FATAL, "connect failed status:%d", status);
+    if (uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
+        WRITE_LOG(LOG_DEBUG, "uv_is_closing...");
         thisClass->FreeChannel(hChannel->channelId);
         return;
     }
-    thisClass->BindLocalStd(hChannel);
-    Base::SetTcpOptions((uv_tcp_t *)&hChannel->hWorkTCP);
-    uv_read_start((uv_stream_t *)&hChannel->hWorkTCP, AllocCallback, ReadStream);
+
+    // connect success
+    if (status == 0) {
+        thisClass->BindLocalStd(hChannel);
+        Base::SetTcpOptions((uv_tcp_t *)&hChannel->hWorkTCP);
+        WRITE_LOG(LOG_DEBUG, "uv_read_start");
+        uv_read_start((uv_stream_t *)&hChannel->hWorkTCP, AllocCallback, ReadStream);
+        return;
+    }
+
+    // connect failed, start timer and retry
+    WRITE_LOG(LOG_DEBUG, "retry count:%d", thisClass->tcpConnectRetryCount);
+    if (thisClass->tcpConnectRetryCount >= TCP_CONNECT_MAX_RETRY_COUNT) {
+        WRITE_LOG(LOG_DEBUG, "stop retry for connect");
+        thisClass->FreeChannel(hChannel->channelId);
+        return;
+    }
+    thisClass->tcpConnectRetryCount++;
+    uv_timer_start(&(thisClass->retryTcpConnTimer), thisClass->RetryTcpConnectWorker, TCP_CONNECT_RETRY_TIME_MS, 0);
+}
+
+void HdcClient::RetryTcpConnectWorker(uv_timer_t *handle)
+{
+    HdcClient *thisClass = (HdcClient *)handle->data;
+    HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
+    uv_connect_t *connection = new(std::nothrow) uv_connect_t();
+    if (connection == nullptr) {
+        WRITE_LOG(LOG_FATAL, "RetryTcpConnectWorker new conn failed");
+        thisClass->FreeChannel(hChannel->channelId);
+        return;
+    }
+    connection->data = thisClass;
+    WRITE_LOG(LOG_DEBUG, "RetryTcpConnectWorker start tcp connect");
+    if (thisClass->isIpV4) {
+        uv_tcp_connect(connection, &(thisClass->channel->hWorkTCP),
+            (const struct sockaddr *)&(thisClass->destv4), thisClass->Connect);
+    } else {
+        uv_tcp_connect(connection, &(thisClass->channel->hWorkTCP),
+            (const struct sockaddr *)&(thisClass->dest), thisClass->Connect);
+    }
 }
 
 int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)

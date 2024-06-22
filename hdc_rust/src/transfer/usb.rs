@@ -31,6 +31,8 @@ use crate::utils::hdc_log::*;
 use std::ffi::{CStr, CString};
 use std::io::{self, Error, ErrorKind};
 
+use libc::{fcntl, F_SETFD, FD_CLOEXEC};
+
 #[repr(C)]
 pub struct PersistBuffer {
     pub ptr: *const libc::c_char,
@@ -95,6 +97,13 @@ pub fn usb_init() -> io::Result<(i32, i32, i32)> {
     let bulkout_fd = unsafe { OpenEpPointEx(ep2.as_ptr()) };
     if bulkout_fd < 0 {
         return Err(utils::error_other("cannot open usb ep2".to_string()));
+    }
+
+    unsafe{
+        // cannot open with O_CLOEXEC, must fcntl
+        fcntl(config_fd, F_SETFD, FD_CLOEXEC);
+        fcntl(bulkin_fd, F_SETFD, FD_CLOEXEC);
+        fcntl(bulkout_fd, F_SETFD, FD_CLOEXEC);
     }
 
     crate::info!("usb fd: {config_fd}, {bulkin_fd}, {bulkout_fd}");

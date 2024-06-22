@@ -207,9 +207,9 @@ if (product_name != "ohos-sdk") {
     part_name = "hdc"
   }
 
-  ohos_rust_shared_library("lib") {
+  ohos_rust_static_library("lib") {
     crate_name = "hdc"
-    crate_type = "dylib"
+    crate_type = "rlib"
     crate_root = "hdc_rust/src/lib.rs"
     sources = [ "hdc_rust/src/lib.rs" ]
 
@@ -281,6 +281,7 @@ template("build_hdc") {
         if (is_emulator) {
           features += [ "emulator" ]
         }
+        rust_static_link = true
         subsystem_name = "developtools"
         part_name = "hdc"
       }

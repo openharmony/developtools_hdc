@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Huawei Device Co., Ltd.
+ * Copyright (C) 2024 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,16 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//! hdc rust lib
+//! tar
 
-extern crate libc;
-
-pub mod common;
-pub mod config;
-pub mod daemon_lib;
-#[cfg(feature = "host")]
-pub mod host_transfer;
-pub mod serializer;
-pub mod tar;
-pub mod transfer;
-pub mod utils;
+pub mod compress;
+pub mod decompress;
+pub mod entry;
+pub mod header;

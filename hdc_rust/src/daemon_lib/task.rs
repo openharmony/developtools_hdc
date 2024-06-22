@@ -15,22 +15,22 @@
 //! task
 #![allow(missing_docs)]
 
-use crate::{auth, daemon_unity};
+use crate::daemon_lib::{auth, daemon_unity};
 
-use super::shell::*;
+use crate::daemon_lib::shell::*;
 
-use super::daemon_app::{self, AppTaskMap, DaemonAppTask};
-use super::sys_para::*;
+use crate::daemon_lib::daemon_app::{self, AppTaskMap, DaemonAppTask};
+use crate::daemon_lib::sys_para::*;
 use crate::utils::hdc_log::*;
-use hdc::common::forward::{self, ForwardTaskMap, HdcForward};
-use hdc::common::hdcfile::{self, FileTaskMap, HdcFile};
-use hdc::config::*;
-use hdc::transfer;
+use crate::common::forward::{self, ForwardTaskMap, HdcForward};
+use crate::common::hdcfile::{self, FileTaskMap, HdcFile};
+use crate::config::*;
+use crate::transfer;
 
 use std::io::{self, Error, ErrorKind};
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    hdc::info!("daemon_shell_task channel_id {:?}:{:?}, cmd {:?}",
+    crate::info!("daemon_shell_task channel_id {:?}:{:?}, cmd {:?}",
         session_id,
         task_message.channel_id,
         task_message.command
@@ -58,7 +58,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
                     ShellExecuteMap::put(session_id, task_message.channel_id, shell_execute_task).await;
                 },
                 Err(_) => {
-                    hdc::common::hdctransfer::echo_client(
+                    crate::common::hdctransfer::echo_client(
                         session_id,
                         task_message.channel_id,
                         "only support utf-8 chars".as_bytes().to_vec(),
@@ -105,7 +105,7 @@ async fn remove_task(session_id: u32, channel_id: u32) {
 
 async fn daemon_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     // task stop:
-    hdc::info!(
+    crate::info!(
         "daemon_channel_close session_id {session_id}, channel_id {}",
         task_message.channel_id
     );
@@ -227,7 +227,7 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             return Ok(());
         }
         _ => {
-            hdc::error!(
+            crate::error!(
                 "other tasks, cmd {:?}. session_id {session_id}, channel_id {}",
                 task_message.command,
                 task_message.channel_id
@@ -313,7 +313,7 @@ fn check_control(command: HdcCommand) -> bool {
         }
         _ => {}
     }
-    // (_, run_debug) = hdc::utils::get_dev_item(param);
+    // (_, run_debug) = crate::utils::get_dev_item(param);
     if !control_param.is_empty() && !get_control_permission(control_param) {
         return false;
     }
@@ -327,8 +327,8 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
     let auth_ok = auth::AuthStatusMap::get(session_id).await == auth::AuthStatus::Ok;
 
     if !auth_ok && !special_cmd {
-        hdc::error!("auth status is nok, cannt accept cmd: {}", cmd as u32);
-        hdc::common::hdctransfer::echo_client(
+        crate::error!("auth status is nok, cannt accept cmd: {}", cmd as u32);
+        crate::common::hdctransfer::echo_client(
             session_id,
             task_message.channel_id,
             auth::get_auth_msg(session_id).await.as_bytes().to_vec(),
@@ -346,7 +346,7 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         ));
     }
     if !check_control(task_message.command) {
-        hdc::common::hdctransfer::echo_client(
+        crate::common::hdctransfer::echo_client(
             session_id,
             task_message.channel_id,
             "debugging is not allowed"
@@ -355,8 +355,8 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
             MessageLevel::Fail,
         )
         .await;
-        hdc::common::hdctransfer::transfer_task_finish(task_message.channel_id, session_id).await;
-        hdc::debug!(
+        crate::common::hdctransfer::transfer_task_finish(task_message.channel_id, session_id).await;
+        crate::debug!(
             "check_permission param false: {}",
             task_message.command as u32
         );

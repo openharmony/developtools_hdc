@@ -99,24 +99,22 @@ fn main() {
         });
     } else {
         hdc::debug!(
-            "in client mode, cmd: {:?}",
-            parsed_cmd.command_set
+            "in client mode, cmd: {:#?}, parameter:{:#?}",
+            parsed_cmd.command.unwrap(),
+            parsed_cmd.parameters
         );
         ylong_runtime::block_on(async {
-            for command_set in parsed_cmd.command_set.iter() {
-                if command_set.command.is_none() {
-                    println!("Unknown operation command...");
-                    println!("{}", translate::usage());
-                    return;
-                }
-                hdc::debug!("command_set {command_set:?}");
+            if parsed_cmd.command.is_none() {
+                println!("Unknown operation command...");
+                println!("{}", translate::usage());
+                return;
+            }
 
-                if let Err(e) = client::run_client_mode(&parsed_cmd, command_set).await {
-                    match e.kind() {
-                        ErrorKind::Other => println!("[Fail]{}", e),
-                        _ => {
-                            hdc::trace!("client exit with err: {e:?}");
-                        }
+            if let Err(e) = client::run_client_mode(parsed_cmd).await {
+                match e.kind() {
+                    ErrorKind::Other => println!("[Fail]{}", e),
+                    _ => {
+                        hdc::trace!("client exit with err: {e:?}");
                     }
                 }
             }

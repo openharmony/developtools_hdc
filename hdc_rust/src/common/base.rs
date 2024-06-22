@@ -17,6 +17,7 @@
 
 use crate::config::{TLV_MIN_LEN, TLV_TAG_LEN, TLV_VAL_INVALID_LEN, TLV_VAL_LEN, TLV_VAL_MAXLEN};
 use libc::{c_char, c_int};
+use libc::{SIGPIPE, SIGALRM, SIGTTIN, SIGTTOU, SIG_IGN, SIG_DFL, sighandler_t};
 use std::collections::HashMap;
 use std::{env, ffi::CString};
 
@@ -198,6 +199,7 @@ impl Base {
         tlv.push_str(val);
         tlv
     }
+    
     pub fn tlv_to_stringmap(tlv: &str) -> Option<HashMap<&str, &str>> {
         let mut cur_index = 0;
         let mut tlvmap: HashMap<&str, &str> = HashMap::<&str, &str>::new();
@@ -228,5 +230,27 @@ impl Base {
             tlvmap.insert(tag, val);
         }
         Some(tlvmap)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub fn init_process() {
+        unsafe {
+            libc::umask(0);
+            libc::signal(SIGPIPE, SIG_IGN as sighandler_t);
+            libc::signal(SIGALRM, SIG_IGN as sighandler_t);
+            libc::signal(SIGTTIN, SIG_IGN as sighandler_t);
+            libc::signal(SIGTTOU, SIG_IGN as sighandler_t);
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub fn de_init_process() {
+        unsafe {
+            libc::umask(0o22);
+            libc::signal(SIGPIPE, SIG_DFL as sighandler_t);
+            libc::signal(SIGALRM, SIG_DFL as sighandler_t);
+            libc::signal(SIGTTIN, SIG_DFL as sighandler_t);
+            libc::signal(SIGTTOU, SIG_DFL as sighandler_t);
+        }
     }
 }

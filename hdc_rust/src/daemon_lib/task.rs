@@ -92,17 +92,13 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
     Ok(())
 }
 
-async fn remove_task(session_id: u32, channel_id: u32) {
-    ContextMap::stop_task(session_id, channel_id).await;
-}
-
 async fn daemon_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     // task stop:
     crate::info!(
         "daemon_channel_close session_id {session_id}, channel_id {}",
         task_message.channel_id
     );
-    remove_task(session_id, task_message.channel_id).await;
+    ContextMap::channel_close(session_id, task_message.channel_id).await;
 
     if task_message.payload[0] > 0 {
         let message = TaskMessage {

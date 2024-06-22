@@ -85,7 +85,7 @@ impl AuthStatusMap {
     }
 
     pub async fn remove(session_id: u32) {
-        hdc::info!(
+        crate::info!(
             "remove auth status for session {}",
             session_id
         );

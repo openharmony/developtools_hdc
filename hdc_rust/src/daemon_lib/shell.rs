@@ -19,8 +19,9 @@
 use crate::daemon_lib::task_manager;
 use crate::utils::hdc_log::*;
 use crate::common::base::Base;
+use crate::common::context::ContextMap;
 use crate::config::TaskMessage;
-use crate::config::{HdcCommand, MessageLevel, SHELL_PROG};
+use crate::config::{HdcCommand, MessageLevel, SHELL_PROG, ContextType};
 use crate::transfer;
 
 use std::collections::HashMap;
@@ -409,13 +410,13 @@ impl PtyMap {
         let mut map = pty_map.lock().await;
         let arc_pty_task = Arc::new(pty_task);
         map.insert((session_id, channel_id), arc_pty_task);
+        ContextMap::put(session_id, channel_id, ContextType::Shell).await;
     }
 
     pub async fn del(session_id: u32, channel_id: u32) {
         let pty_map = Self::get_instance();
         let mut map = pty_map.lock().await;
         map.remove(&(session_id, channel_id));
-
         PtyChildProcessMap::del(session_id, channel_id).await;
     }
 
@@ -507,6 +508,7 @@ impl ShellExecuteMap {
         let mut map = shell_execute_map.lock().await;
         let arc_shell_execute_task = Arc::new(shell_execute_task);
         map.insert((session_id, channel_id), arc_shell_execute_task);
+        ContextMap::put(session_id, channel_id, ContextType::ExecuteShell).await;
     }
 
     pub async fn del(session_id: u32, channel_id: u32) {
@@ -537,6 +539,7 @@ impl ShellExecuteMap {
             }
         }
     }
+
 }
 
 pub struct ShellExecuteTask {

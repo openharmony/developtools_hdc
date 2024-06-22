@@ -271,6 +271,18 @@ pub enum MessageLevel {
     Ok,
 }
 
+#[allow(unused)]
+#[derive(Clone, Default, Debug)]
+pub enum ContextType {
+    Any,
+    #[default]
+    App,
+    File,
+    Shell,
+    Forward,
+    ExecuteShell,
+}
+
 pub const PACKET_FLAG: &[u8] = "HW".as_bytes();
 pub const VER_PROTOCOL: u16 = 1;
 pub const ENABLE_IO_CHECK: bool = false;

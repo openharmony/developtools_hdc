@@ -520,15 +520,16 @@ impl ShellExecuteMap {
         {
             let mut map = shell_execute_map.lock().await;
             let mut channel_vec = vec![];
-            for _iter in map.iter() {
-                if _iter.0 .0 != session_id {
+            for iter in map.iter() {
+                if iter.0 .0 != session_id {
                     continue;
                 }
-                channel_vec.push(_iter.0 .1);
+                iter.1.handle.cancel();
+                channel_vec.push(iter.0 .1);
                 crate::debug!(
                     "Clear shell_execute_map task, session_id: {}, channel_id:{}, task_size: {}",
                     session_id,
-                    _iter.0 .1,
+                    iter.0 .1,
                     map.len(),
                 );
             }
@@ -606,7 +607,8 @@ async fn task_for_shell_execute(
     shell_cmd.args(["-c", &cmd])
         .stdout(Stdio::piped())
         .stdin(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
 
     unsafe {
         shell_cmd.pre_exec(|| {
@@ -677,22 +679,19 @@ async fn task_for_shell_execute(
             }
 
             if (watch_pipe_states(&mut rx, &mut child_in).await).is_err() {
-                ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
-                crate::error!("pipe closed shell_task_id:{:?}", shell_task_id);
+                crate::warn!("pipe closed shell_task_id:{:?}", shell_task_id);
                 break;
             }
 
             match child.try_wait() {
                 Ok(Some(status)) => {
-                    crate::error!("child exited with:{status} shell_task_id:{:?}", shell_task_id);
+                    crate::debug!("child exited with:{status} shell_task_id:{:?}", shell_task_id);
                     read_buf_from_stdout_stderr(&mut child_out_reader, &mut child_err_reader, &shell_task_id, ret_command).await;
-                    ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
                     break;
                 },
                 Ok(None) => {},
                 Err(e) => {
-                    crate::error!("child exited with: {:?} shell_task_id:{:?}", e, shell_task_id);
-                    ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
+                    crate::warn!("child exited with: {:?} shell_task_id:{:?}", e, shell_task_id);
                     break;
                 }
             }
@@ -706,6 +705,7 @@ async fn task_for_shell_execute(
         crate::info!("shell spawn failed shell_task_id:{:?}", shell_task_id);
     }
 
+    ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
     shell_channel_close(shell_task_id.channel_id, shell_task_id.session_id).await;
 }
 

@@ -32,7 +32,6 @@ ohos_static_library("serialize_structs") {
     "src/cffi/usb_wrapper.cpp",
     "src/cffi/utils.cpp",
   ]
-  output_extension = "so"
 
   external_deps = [
     "bounds_checking_function:libsec_static",

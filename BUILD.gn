@@ -183,7 +183,6 @@ if (product_name != "ohos-sdk") {
       "hdc_rust/src/cffi/usb_wrapper.cpp",
       "hdc_rust/src/cffi/utils.cpp",
     ]
-    output_extension = "so"
 
     external_deps = [
       "bounds_checking_function:libsec_static",

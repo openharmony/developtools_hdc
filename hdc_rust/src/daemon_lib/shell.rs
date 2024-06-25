@@ -603,7 +603,12 @@ async fn task_for_shell_execute(
     ret_command: HdcCommand,
     mut rx: mpsc::BoundedReceiver<Vec<u8>>,
 ) {
-    crate::info!("Execute cmd:{:?}", cmd_param);
+    crate::info!(
+        "Execute cmd:[{:?}], session_id: {}, channel_id: {}",
+        cmd_param,
+        shell_task_id.session_id,
+        shell_task_id.channel_id,
+    );
     let cmd = trim_quotation_for_cmd(cmd_param);
     let mut shell_cmd = Command::new(SHELL_PROG);
     shell_cmd.args(["-c", &cmd])
@@ -681,20 +686,20 @@ async fn task_for_shell_execute(
 
             if (watch_pipe_states(&mut rx, &mut child_in).await).is_err() {
                 ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
-                crate::error!("pipe closed shell_task_id:{:?}", shell_task_id);
+                crate::warn!("pipe closed shell_task_id:{:?}", shell_task_id);
                 break;
             }
 
             match child.try_wait() {
                 Ok(Some(status)) => {
-                    crate::error!("child exited with:{status} shell_task_id:{:?}", shell_task_id);
+                    crate::debug!("child exited with:{status} shell_task_id:{:?}", shell_task_id);
                     read_buf_from_stdout_stderr(&mut child_out_reader, &mut child_err_reader, &shell_task_id, ret_command).await;
                     ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
                     break;
                 },
                 Ok(None) => {},
                 Err(e) => {
-                    crate::error!("child exited with: {:?} shell_task_id:{:?}", e, shell_task_id);
+                    crate::warn!("child exited with: {:?} shell_task_id:{:?}", e, shell_task_id);
                     ShellExecuteMap::del(shell_task_id.session_id, shell_task_id.channel_id).await;
                     break;
                 }
@@ -704,9 +709,9 @@ async fn task_for_shell_execute(
         let _ = child.kill().await;
         crate::debug!("child kill shell_task_id:{:?}", shell_task_id);
         let _ = child.wait().await;
-        crate::info!("shell execute finish shell_task_id:{:?}", shell_task_id);
+        crate::debug!("shell execute finish shell_task_id:{:?}", shell_task_id);
     } else {
-        crate::info!("shell spawn failed shell_task_id:{:?}", shell_task_id);
+        crate::debug!("shell spawn failed shell_task_id:{:?}", shell_task_id);
     }
 
     shell_channel_close(shell_task_id.channel_id, shell_task_id.session_id).await;

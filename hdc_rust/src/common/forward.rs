@@ -37,7 +37,9 @@ use crate::common::hdctransfer::{self, HdcTransferBase};
 use crate::common::jdwp::Jdwp;
 #[cfg(not(target_os = "windows"))]
 use crate::common::uds::{UdsAddr, UdsClient, UdsServer};
+use crate::common::context::ContextMap;
 use crate::config;
+use crate::config::ContextType;
 use crate::config::HdcCommand;
 use crate::config::MessageLevel;
 use crate::config::TaskMessage;
@@ -330,6 +332,7 @@ impl ForwardTaskMap {
         let map = Self::get_instance();
         let mut map = map.lock().await;
         map.insert((session_id, channel_id), value.clone());
+        ContextMap::put(session_id, channel_id, ContextType::Forward).await;
     }
 
     pub async fn remove(session_id: u32, channel_id: u32) {
@@ -1090,7 +1093,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             let mut buffer = [0u8; 1024];
             let size = UdsServer::wrap_read(local_fd, &mut buffer);
             if size < 0 {
-                crate::error!("disconnect, error:{:?}", size);
+                crate::error!("disconnect fd:({}, {}), error:{:?}", local_fd, target_fd, size);
                 free_context(session_id, channel_id, 0, true).await;
                 break;
             }
@@ -1115,7 +1118,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     param.push(':');
     param.push_str(parameter);
 
-    let ret = jdwp.send_fd_to_target(pid, target_fd, param.as_str()).await;
+    let ret = jdwp.send_fd_to_target(pid, target_fd, local_fd, param.as_str()).await;
     if !ret {
         crate::error!("not found pid:{:?}", pid);
         echo_client(

@@ -17,6 +17,7 @@
 #[allow(unused_imports)]
 use crate::daemon_lib::daemon_app;
 use crate::daemon_lib::shell;
+use crate::daemon_lib::auth;
 #[allow(unused_imports)]
 use crate::common::forward;
 #[allow(unused_imports)]
@@ -37,6 +38,7 @@ pub async fn free_all_sessiones() {
 }
 
 pub async fn free_session(session_id: u32) {
+    auth::AuthStatusMap::remove(session_id).await;
     match ConnectTypeMap::get(session_id).await {
         Some(ConnectType::Bt) => {}
         Some(ConnectType::Tcp) => {

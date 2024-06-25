@@ -20,6 +20,7 @@ use hdc::common::base::Base;
 use hdc::config;
 use hdc::daemon_lib::*;
 use hdc::utils::hdc_log::*;
+use hdc::utils;
 use std::io::Write;
 use std::time::SystemTime;
 #[cfg(feature = "emulator")]
@@ -79,19 +80,19 @@ fn main() {
 
     ylong_runtime::block_on(async {
         #[cfg(not(feature = "emulator"))]
-        let tcp_task = ylong_runtime::spawn(async {
+        let tcp_task = utils::spawn(async {
             if let Err(e) = tcp_daemon_start(get_tcp_port()).await {
                 hdc::error!("[Fail]tcp daemon failed: {}", e);
             }
         });
         #[cfg(not(feature = "emulator"))]
-        let usb_task = ylong_runtime::spawn(async {
+        let usb_task = utils::spawn(async {
             if let Err(e) = usb_daemon_start().await {
                 hdc::error!("[Fail]usb daemon failed: {}", e);
             }
         });
         #[cfg(not(feature = "emulator"))]
-        let uart_task = ylong_runtime::spawn(async {
+        let uart_task = utils::spawn(async {
             if let Err(e) = uart_daemon_start().await {
                 hdc::error!("[Fail]uart daemon failed: {}", e);
             }
@@ -99,13 +100,13 @@ fn main() {
         #[cfg(feature = "emulator")]
         hdc::info!("daemon main emulator, start bridge daemon.");
         #[cfg(feature = "emulator")]
-        let bridge_task = ylong_runtime::spawn(async {
+        let bridge_task = utils::spawn(async {
             if let Err(e) = bridge_daemon_start().await {
                 hdc::error!("[Fail]bridge daemon failed: {}", e);
             }
         });
         let lock_value = Jdwp::get_instance();
-        let jdwp_server_task = ylong_runtime::spawn(async {
+        let jdwp_server_task = utils::spawn(async {
             jdwp_daemon_start(lock_value).await;
         });
         #[cfg(not(feature = "emulator"))]

@@ -15,9 +15,11 @@
 //! hdctransfer
 #![allow(missing_docs)]
 use std::collections::VecDeque;
-use std::fs::{self, File, OpenOptions, create_dir_all, metadata};
+use std::fs::{self, File, OpenOptions, metadata};
 use std::io::{Read, Seek, Write, Error};
 use std::path::PathBuf;
+use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
 use crate::common::base::Base;

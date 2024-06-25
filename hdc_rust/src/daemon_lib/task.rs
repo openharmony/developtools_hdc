@@ -31,11 +31,6 @@ use crate::transfer;
 use std::io::{self, Error, ErrorKind};
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    crate::debug!("daemon_shell_task channel_id {:?}:{:?}, cmd {:?}",
-        session_id,
-        task_message.channel_id,
-        task_message.command
-    );
     match task_message.command {
         HdcCommand::ShellInit => {
             let pty_task = PtyTask::new(

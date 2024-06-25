@@ -365,7 +365,7 @@ pub async fn usb_daemon_start() -> io::Result<()> {
                 transfer::usb::usb_close(config_fd, bulkin_fd, bulkout_fd);
             }
             Err(e) => {
-                crate::error!("usb inut failure and restart hdcd error is {:?}", e);
+                crate::error!("usb init failure and restart hdcd error is {:?}", e);
                 std::process::exit(0);
             }
         }

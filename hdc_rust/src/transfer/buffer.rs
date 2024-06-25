@@ -202,10 +202,10 @@ impl UsbMap {
     #[allow(unused)]
     async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
         let instance = Self::get_instance();
-        let mut map = instance.map.lock().await;
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
         let mut child_ret = 0;
+        let mut map = instance.map.lock().await;
         match map.get(&session_id) {
             Some(_wr) => {
                 {
@@ -257,8 +257,11 @@ impl UsbMap {
 
     pub async fn end(session_id: u32) {
         let buffer_map = Self::get_instance();
-        let mut map = buffer_map.map.lock().await;
-        let _ = map.remove(&session_id);
+        if let Ok(mut map) = buffer_map.map.try_lock() {
+            let _ = map.remove(&session_id);
+        } else {
+            crate::warn!("free_session session_id:{session_id} get lock failed, ignore");
+        }
         ConnectTypeMap::del(session_id).await;
     }
 }

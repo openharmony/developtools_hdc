@@ -179,7 +179,7 @@ size_t ReadData(int bulkOut, uint8_t* buf, const size_t size)
                     bulkOut, size - readed);
                 continue;
         } else {
-            WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
+            WRITE_LOG(LOG_FATAL, "read usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
                 bulkOut, size - readed, ret, errno);
             break;
         }

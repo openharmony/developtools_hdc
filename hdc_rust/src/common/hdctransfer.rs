@@ -113,6 +113,7 @@ impl HdcTransferBase {
         }
     }
 }
+
 fn set_file_permission(path: String, mode: u32) -> std::io::Result<()> {
     let perms = std::fs::Permissions::from_mode(mode);  
     fs::set_permissions(std::path::Path::new(&path), perms)
@@ -132,7 +133,7 @@ fn set_dir_permissions_recursive(dir: &Path, mode: u32) -> std::io::Result<()> {
     Ok(())
 }
 
-fn create_dir_all_with_permission(path: String) -> std::io::Result<()> {
+fn create_dir_all_with_permission(path: String, mode: u32) -> std::io::Result<()> {
     let mut dir_path = std::path::Path::new(&path);
     while let Some(p) = dir_path.parent() {
         if p.exists() {
@@ -141,7 +142,7 @@ fn create_dir_all_with_permission(path: String) -> std::io::Result<()> {
         dir_path = p;
     }
     std::fs::create_dir_all(path.clone())?;
-    set_dir_permissions_recursive(dir_path, 0o750)
+    set_dir_permissions_recursive(dir_path, mode)
 }
 
 pub fn check_local_path(
@@ -202,7 +203,7 @@ pub fn check_local_path(
         transfer.local_path
     );
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        match create_dir_all_with_permission(transfer.local_path.clone()) {
+        match create_dir_all_with_permission(transfer.local_path.clone(), 0o750) {
             Ok(_) => Ok(true),
             Err(error) => {
                 crate::error!("dir create failed, error:{}", &error);
@@ -213,11 +214,11 @@ pub fn check_local_path(
         let last = transfer.local_path.rfind(Base::get_path_sep());
         match last {
             Some(index) => {
-                match create_dir_all_with_permission((transfer.local_path[0..index]).to_string()) {
+                match create_dir_all_with_permission((transfer.local_path[0..index]).to_string(), 0o750) {
                     Ok(_) => {
                         match File::create(transfer.local_path.clone()) {
                             Ok(_) => {
-                                let _ = set_file_permission(transfer.local_path.clone(), 0o644);
+                                set_file_permission(transfer.local_path.clone(), 0o644)?;
                                 Ok(true)
                             },
                             Err(error) => {
@@ -235,7 +236,7 @@ pub fn check_local_path(
             None => {
                 match File::create(transfer.local_path.clone()) {
                     Ok(_) => {
-                        let _ = set_file_permission(transfer.local_path.clone(), 0o644);
+                        set_file_permission(transfer.local_path.clone(), 0o644)?;
                         Ok(true)
                     },
                     Err(error) => {
@@ -247,6 +248,7 @@ pub fn check_local_path(
         }
     }
 }
+
 
 fn spawn_handler(
     _command_data: HdcCommand,

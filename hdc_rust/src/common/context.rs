@@ -54,16 +54,22 @@ impl ContextMap {
     }
 
     pub async fn channel_close(session_id: u32, channel_id: u32) {
-        let arc_map = Self::get_instance();
-        let context;
-        {
+        let context = {
+            let arc_map = Self::get_instance();
             let mut map = arc_map.lock().await;
-            context = match map.get(&(session_id, channel_id)) {
+            let context = match map.get(&(session_id, channel_id)) {
                 Some(context_type) => context_type.clone(),
-                None => ContextType::Any,
+                None => return,
             };
+            crate::debug!(
+                "remove task context_type: {:?}, session_id: {:?}, channel_id: {:?}",
+                context,
+                session_id,
+                channel_id,
+            );
             map.remove(&(session_id, channel_id));
-        }
+            context
+        };
         match context {
             ContextType::App => {
                 AppTaskMap::remove(session_id, channel_id).await;
@@ -86,15 +92,8 @@ impl ContextMap {
                 forward::free_channel_task(session_id, channel_id).await;
             }
             _ => {
-                crate::info!("unknown context is {:?}", context);
+                crate::debug!("unknown context is {:?}", context);
             }
         }
-            
-        crate::debug!(
-            "remove task context_type: {:?}, session_id: {:?}, channel_id: {:?}"
-            ,context,
-            session_id,
-            channel_id
-        );
     }
 }

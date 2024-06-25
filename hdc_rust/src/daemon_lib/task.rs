@@ -31,7 +31,7 @@ use crate::transfer;
 use std::io::{self, Error, ErrorKind};
 
 async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    crate::info!("daemon_shell_task channel_id {:?}:{:?}, cmd {:?}",
+    crate::debug!("daemon_shell_task channel_id {:?}:{:?}, cmd {:?}",
         session_id,
         task_message.channel_id,
         task_message.command
@@ -94,7 +94,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
 
 async fn daemon_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
     // task stop:
-    crate::info!(
+    crate::debug!(
         "daemon_channel_close session_id {session_id}, channel_id {}",
         task_message.channel_id
     );

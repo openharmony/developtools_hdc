@@ -68,8 +68,8 @@ impl FileManager {
                     0
                 }
             };
-            if meta_size == KERNEL_FILE_NODE_SIZE.into() {
-                let node_size = self.buffer_read() as u64;
+            if meta_size == KERNEL_FILE_NODE_SIZE.into() || meta_size == 0 {
+                let node_size = self.buffer_read(meta_size) as u64;
                 return node_size;
             } else {
                 return meta_size;
@@ -78,7 +78,7 @@ impl FileManager {
         0
     }
 
-    pub fn buffer_read(&self) -> usize {
+    pub fn buffer_read(&self, meta_size: u64) -> usize {
         let mut buf = [0u8; KERNEL_FILE_NODE_SIZE as usize];
         let mut read_len = 0usize;
         if let Some(path) = &self.path {
@@ -96,7 +96,7 @@ impl FileManager {
                         }
                     };
                     read_len += single_len;
-                    if single_len == 0 {
+                    if single_len == 0 || meta_size == 0 {
                         break;
                     }
                 }

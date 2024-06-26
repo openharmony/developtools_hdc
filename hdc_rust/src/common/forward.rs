@@ -1090,17 +1090,27 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
 
     ylong_runtime::spawn(async move {
         loop {
-            let mut buffer = [0u8; 1024];
-            let size = UdsServer::wrap_read(local_fd, &mut buffer);
-            if size < 0 {
-                crate::error!("disconnect fd:({}, {}), error:{:?}", local_fd, target_fd, size);
-                free_context(session_id, channel_id, 0, true).await;
-                break;
-            }
-            if size == 0 {
-                ylong_runtime::time::sleep(Duration::from_millis(200)).await;
-                continue;
-            }
+            let result = ylong_runtime::spawn_blocking(move || {
+                let mut buffer = [0u8; 1024];
+                let size = UdsServer::wrap_read(local_fd, &mut buffer);
+                (size, buffer)
+            }).await;
+            let (size, buffer) = match result {
+                Ok((size, _)) if size < 0 => {
+                    crate::error!("disconnect fd:({local_fd}, {target_fd}), error:{:?}", size);
+                    free_context(session_id, channel_id, 0, true).await;
+                    break;
+                },
+                Ok((0, _)) => {
+                    ylong_runtime::time::sleep(Duration::from_millis(200)).await;
+                    continue;
+                },
+                Ok((size, buffer)) => (size, buffer),
+                Err(err) => {
+                    crate::error!("{err}");
+                    break;
+                }
+            };
             send_to_task(
                 session_id,
                 channel_id,

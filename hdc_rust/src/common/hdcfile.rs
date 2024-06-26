@@ -30,6 +30,7 @@ use ylong_runtime::sync::Mutex;
 use crate::common::filemanager::FileManager;
 use crate::common::hdctransfer::*;
 use crate::config::CompressType;
+#[cfg(not(feature = "host"))]
 use crate::config::ContextType;
 use crate::config::HdcCommand;
 use crate::config::MessageLevel;
@@ -38,6 +39,7 @@ use crate::config::MAX_SIZE_IOBUF;
 use crate::serializer::serialize::Serialization;
 
 use super::base::Base;
+#[cfg(not(feature = "host"))]
 use super::context::ContextMap;
 use super::hdctransfer;
 use crate::serializer::native_struct::TransferConfig;
@@ -78,6 +80,7 @@ impl FileTaskMap {
         let map = Self::get_instance();
         let mut map = map.lock().await;
         map.insert((session_id, channel_id), Arc::new(Mutex::new(value)));
+        #[cfg(not(feature = "host"))]
         ContextMap::put(session_id, channel_id, ContextType::File).await;
     }
 

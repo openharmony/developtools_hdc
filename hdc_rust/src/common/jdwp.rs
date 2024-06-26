@@ -35,7 +35,7 @@ const PATH_LEN: usize = JPID_SOCKET_PATH.as_bytes().len() + 1;
 type NodeMap = Arc<Mutex<HashMap<i32, PollNode>>>;
 type SocketPairVec = Arc<Mutex<Vec<(i32, i32)>>>;
 type SocketpairMap = Arc<Mutex<HashMap<u32, SocketPairVec>>>;
-type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
+type Trackers = Arc<Mutex<Vec<(u32, u32, u8)>>>;
 
 pub trait JdwpBase: Send + Sync + 'static {}
 pub struct Jdwp {
@@ -117,8 +117,8 @@ impl Jdwp {
 
     async fn send_process_list(trackers: Trackers, node_map: NodeMap) {
         let trackers = trackers.lock().await;
-        for (channel_id2, session_id2, is_debug) in trackers.iter() {
-            let message = Self::get_process_list_with_pkg_name(node_map.clone(), *is_debug).await;
+        for (channel_id2, session_id2, display) in trackers.iter() {
+            let message = Self::get_process_list_with_pkg_name(node_map.clone(), *display).await;
             let len = message.as_bytes().len();
             let len_str = format!("{:04x}\n", len);
             let mut header = len_str.as_bytes().to_vec();
@@ -135,9 +135,9 @@ impl Jdwp {
         }
     }
 
-    pub async fn add_tracker(&self, channel_id: u32, session_id: u32, debug_or_release: bool) {
+    pub async fn add_tracker(&self, channel_id: u32, session_id: u32, display: u8) {
         let mut trackers_lock = self.trackers.lock().await;
-        trackers_lock.push((channel_id, session_id, debug_or_release));
+        trackers_lock.push((channel_id, session_id, display));
         drop(trackers_lock);
 
         let node_map = self.poll_node_map.clone();
@@ -158,16 +158,28 @@ impl Jdwp {
         result
     }
 
-    pub async fn get_process_list_with_pkg_name(map: NodeMap, debug_or_release: bool) -> String {
+    pub async fn get_process_list_with_pkg_name(map: NodeMap, display: u8) -> String {
         let mut result = String::from("");
         let map = map.lock().await;
         let keys = map.keys();
         for key in keys {
             let value = map.get(key);
             if let Some(v) = value {
-                if !debug_or_release || debug_or_release == v.debug_or_release {
-                    result
-                        .push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
+                if display == 0 {
+                    result.push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
+                } else if display == 1 {
+                    if v.debug_or_release {
+                        result.push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
+                    }
+                } else if display == 3 {
+                    let mut apptype = String::from("release");
+                    if v.debug_or_release {
+                        apptype = String::from("debug");
+                    }
+                    result.push_str((
+                        v.ppid.to_string() + " "
+                        + v.pkg_name.as_str() + " "
+                        + apptype.as_str() + "\n").as_str());
                 }
             }
         }

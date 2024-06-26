@@ -223,12 +223,15 @@ async fn do_jdwp_list(session_id: u32, channel_id: u32) {
 }
 
 async fn do_jdwp_track(session_id: u32, channel_id: u32, payload: &[u8]) {
-    let mut debug_or_release = true;
+    // 0:all_app 1:debug_app 2:release_app 3:all_app_with_type
+    let mut display = 1;
     if !payload.is_empty() && payload[0] == b'p' {
-        debug_or_release = false;
+        display = 0;
+    } else if !payload.is_empty() && payload[0] == b'a' {
+        display = 3;
     }
     let jdwp = Jdwp::get_instance().clone();
-    jdwp.add_tracker(channel_id, session_id, debug_or_release)
+    jdwp.add_tracker(channel_id, session_id, display)
         .await;
 }
 

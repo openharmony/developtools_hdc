@@ -117,20 +117,20 @@ impl HdcTransferBase {
 }
 
 fn set_file_permission(path: String, mode: u32) -> std::io::Result<()> {
-    let perms = std::fs::Permissions::from_mode(mode);  
+    let perms = std::fs::Permissions::from_mode(mode);
     fs::set_permissions(std::path::Path::new(&path), perms)
 }
 
 fn set_dir_permissions_recursive(dir: &Path, mode: u32) -> std::io::Result<()> {
-    let perms = std::fs::Permissions::from_mode(mode);  
+    let perms = std::fs::Permissions::from_mode(mode);
     fs::set_permissions(dir, perms)?;
 
-    for entry in fs::read_dir(dir)? {  
-        let entry = entry?;  
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
         let entry_path = dir.join(entry.file_name());  
-        if entry_path.is_dir() {  
+        if entry_path.is_dir() {
             set_dir_permissions_recursive(&entry_path, mode)?;  
-        }  
+        }
     }
     Ok(())
 }
@@ -250,7 +250,6 @@ pub fn check_local_path(
         }
     }
 }
-
 
 fn spawn_handler(
     _command_data: HdcCommand,

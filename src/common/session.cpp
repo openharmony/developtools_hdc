@@ -724,15 +724,19 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
 
 void HdcSessionBase::AddDeletedSessionId(uint32_t sessionId)
 {
-    WRITE_LOG(LOG_INFO, "AddDeletedSessionId:%u", sessionId);
     std::unique_lock<std::shared_mutex> lock(deletedSessionIdRecordMutex);
+    if (deletedSessionIdSet.find(sessionId) != deletedSessionIdSet.end()) {
+        WRITE_LOG(LOG_INFO, "SessionId:%u is already in the cache", sessionId);
+        return;
+    }
+    WRITE_LOG(LOG_INFO, "AddDeletedSessionId:%u", sessionId);
     deletedSessionIdSet.insert(sessionId);
     deletedSessionIdQueue.push(sessionId);
 
     // Delete old records and only save MAX_DELETED_SESSION_ID_RECORD_COUNT records
     if (deletedSessionIdQueue.size() > MAX_DELETED_SESSION_ID_RECORD_COUNT) {
         uint32_t id = deletedSessionIdQueue.front();
-        WRITE_LOG(LOG_INFO, "deletedSessionIdQueue size:%u, deletedSessionIdSet size:%u, pop one session id:%u",
+        WRITE_LOG(LOG_INFO, "deletedSessionIdQueue size:%u, deletedSessionIdSet size:%u, pop session id:%u",
             deletedSessionIdQueue.size(), deletedSessionIdSet.size(), id);
         deletedSessionIdQueue.pop();
         deletedSessionIdSet.erase(id);

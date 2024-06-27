@@ -68,7 +68,7 @@ fn is_target_status_equal(value: TargetStatus) -> bool {
 }
 
 pub async fn run_server_mode(addr_str: String) -> io::Result<()> {
-    ylong_runtime::spawn(start_usb_server());
+    utils::spawn(start_usb_server());
     start_client_listen(addr_str).await
 }
 
@@ -107,7 +107,7 @@ async fn start_client_listen(addr_str: String) -> io::Result<()> {
     loop {
         let (stream, addr) = listener.accept().await?;
         hdc::info!("accepted client {addr}");
-        ylong_runtime::spawn(handle_client(stream));
+        utils::spawn(handle_client(stream));
     }
 }
 

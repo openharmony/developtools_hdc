@@ -17,6 +17,7 @@
 
 use crate::config::{SHELL_PROG, WIN_CMD_PROG};
 
+use std::future::Future;
 use std::io::{self, Error, ErrorKind};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -73,6 +74,16 @@ pub fn bytes_to_string(message: Vec<u8>) -> String {
         Ok(str) => str,
         Err(_e) => "".to_string(),
     }
+}
+
+#[allow(missing_docs)]
+pub fn spawn<T>(fun : T) -> ylong_runtime::task::JoinHandle<()>
+where
+    T : Future<Output = ()>,
+    T : Send + 'static,
+    T : Sync
+{
+    ylong_runtime::spawn(Box::into_pin(Box::new(fun) as Box<dyn Future<Output = ()> + Send + Sync>))
 }
 
 pub mod hdc_log {

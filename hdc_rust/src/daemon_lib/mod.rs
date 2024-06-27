@@ -30,7 +30,7 @@ pub mod bridge;
 use std::io::{self, ErrorKind};
 use std::sync::Arc;
 use std::ffi::c_int;
-use crate::utils::hdc_log::*;
+use crate::utils::{self, hdc_log::*};
 
 use crate::common::jdwp::Jdwp;
 use crate::config;
@@ -72,7 +72,7 @@ pub fn need_drop_root_privileges() {
 pub async fn handle_message(res: io::Result<TaskMessage>, session_id: u32) -> io::Result<()> {
     match res {
         Ok(msg) => {
-            ylong_runtime::spawn(async move {
+            utils::spawn(async move {
                 if let Err(e) = task::dispatch_task(msg, session_id).await {
                     crate::error!("dispatch tcp task failed: {}", e.to_string());
                 }
@@ -119,7 +119,7 @@ pub async fn bridge_daemon_start() -> io::Result<()> {
             crate::error!("bridge_daemon_start init client fd fail...");
             break;
         }
-        ylong_runtime::spawn(bridge_handle_client(
+        utils::spawn(bridge_handle_client(
             ptr,
             client_fd,
             client_fd_for_hdc_server,
@@ -212,7 +212,7 @@ pub async fn tcp_daemon_start(port: u16) -> io::Result<()> {
     loop {
         let (stream, addr) = listener.accept().await?;
         crate::info!("accepted client {addr}");
-        ylong_runtime::spawn(async {
+        utils::spawn(async {
             if let Err(e) = tcp_handle_client(stream).await {
                 crate::error!("tcp_handle_client {e:?}");
             }
@@ -273,7 +273,7 @@ pub async fn uart_handle_client(fd: i32) -> io::Result<()> {
     let mut rd = transfer::uart::UartReader { fd, head: None };
     let (packet_size, package_index) = rd.check_protocol_head()?;
     let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
-    ylong_runtime::spawn(async move {
+    utils::spawn(async move {
         let mut rd = transfer::uart::UartReader { fd, head: None };
         if let Err(e) =
             transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
@@ -316,7 +316,7 @@ pub async fn uart_handle_client(fd: i32) -> io::Result<()> {
         }
 
         let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
-        ylong_runtime::spawn(async move {
+        utils::spawn(async move {
             let mut rd = transfer::uart::UartReader { fd, head: None };
             if let Err(e) =
                 transfer::base::unpack_task_message_lock(&mut rd, packet_size, tx.clone()).await
@@ -339,7 +339,7 @@ pub async fn uart_handle_client(fd: i32) -> io::Result<()> {
                         continue;
                     }
                     let command = message.command;
-                    ylong_runtime::spawn(async move {
+                    utils::spawn(async move {
                         if let Err(e) = task::dispatch_task(message, real_session_id).await {
                             log::error!("dispatch task({:?}) fail: {:?}", command, e);
                         }
@@ -392,7 +392,7 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
                         }
                     }
                 }
-                ylong_runtime::spawn(async move {
+                utils::spawn(async move {
                     if let Err(e) = task::dispatch_task(msg, cur_session_id).await {
                         crate::error!("dispatch task failed: {}", e.to_string());
                     }

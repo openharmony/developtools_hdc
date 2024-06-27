@@ -18,7 +18,7 @@ use crate::common::uds::{PollNode, UdsAddr, UdsServer};
 use crate::config::ErrCode;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
-use crate::transfer;
+use crate::{transfer, utils};
 use crate::utils::hdc_log::*;
 use libc::{POLLERR, POLLHUP, POLLIN, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
@@ -242,7 +242,7 @@ impl Jdwp {
                     }
                     let map = node_map.clone();
                     let w = waiter.clone();
-                    ylong_runtime::spawn(Self::handle_client(client_fd, w, map));
+                    utils::spawn(Self::handle_client(client_fd, w, map));
                 }
             });
             true
@@ -257,7 +257,7 @@ impl Jdwp {
         let socketpair_map = self.socketpair_map.clone();
         let trackers = self.trackers.clone();
         let await_fd = self.await_fd;
-        ylong_runtime::spawn(async move {
+        utils::spawn(async move {
             loop {
                 let mut poll_nodes = Vec::<PollNode>::new();
                 let mut fd_node = PollNode::new(await_fd, 0, "".to_string(), false);

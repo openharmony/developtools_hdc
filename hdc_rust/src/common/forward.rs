@@ -38,7 +38,7 @@ use crate::common::jdwp::Jdwp;
 #[cfg(not(target_os = "windows"))]
 use crate::common::uds::{UdsAddr, UdsClient, UdsServer};
 use crate::common::context::ContextMap;
-use crate::config;
+use crate::{config, utils};
 use crate::config::ContextType;
 use crate::config::HdcCommand;
 use crate::config::MessageLevel;
@@ -690,7 +690,7 @@ pub async fn forward_tcp_accept(
     match result {
         Ok(listener) => {
             crate::info!("forward_tcp_accept bind ok");
-            let join_handle = ylong_runtime::spawn(async move {
+            let join_handle = utils::spawn(async move {
                 loop {
                     let client = listener.accept().await;
                     if client.is_err() {
@@ -699,7 +699,7 @@ pub async fn forward_tcp_accept(
                     let (stream, _addr) = client.unwrap();
                     let (rd, wr) = stream.into_split();
                     TcpWriteStreamMap::put(channel_id, wr).await;
-                    ylong_runtime::spawn(on_accept(session_id, channel_id, value.clone(), cid));
+                    utils::spawn(on_accept(session_id, channel_id, value.clone(), cid));
                     recv_tcp_msg(session_id, channel_id, rd, cid).await;
                 }
             });
@@ -885,7 +885,7 @@ pub async fn setup_tcp_point(session_id: u32, channel_id: u32) -> bool {
         return result.is_ok();
     } else {
         crate::info!("setup_tcp_point slaver");
-        ylong_runtime::spawn(
+        utils::spawn(
             async move { daemon_connect_tcp(session_id, channel_id, port, cid).await },
         );
     }
@@ -943,13 +943,13 @@ async fn server_socket_bind_listen(
             crate::error!("listen fail");
             return false;
         }
-        ylong_runtime::spawn(async move {
+        utils::spawn(async move {
             loop {
                 let client_fd = UdsServer::wrap_accept(fd);
                 if client_fd == -1 {
                     break;
                 }
-                ylong_runtime::spawn(on_accept(session_id, channel_id, parameters.clone(), cid));
+                utils::spawn(on_accept(session_id, channel_id, parameters.clone(), cid));
             }
         });
     }
@@ -996,7 +996,7 @@ pub async fn setup_device_point(session_id: u32, channel_id: u32) -> bool {
         return false;
     }
 
-    ylong_runtime::spawn(async move {
+    utils::spawn(async move {
         loop {
             let path = thread_path_ref.lock().await;
             let Ok(mut file) = File::open(&*path) else {
@@ -1088,7 +1088,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
         target_fd = fd1;
     }
 
-    ylong_runtime::spawn(async move {
+    utils::spawn(async move {
         loop {
             let mut buffer = [0u8; 1024];
             let size = UdsServer::wrap_read(local_fd, &mut buffer);
@@ -1499,14 +1499,14 @@ pub async fn read_data_to_forward(session_id: u32, channel_id: u32) -> bool {
     let cid = task.context_forward.id;
     match task.forward_type {
         ForwardType::Tcp | ForwardType::Jdwp | ForwardType::Ark => {
-            ylong_runtime::spawn(async move {
+            utils::spawn(async move {
                 TcpReadStreamMap::read(session_id, channel_id, cid).await
             });
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             let _fd = task.context_forward.fd;
             #[cfg(not(target_os = "windows"))]
-            ylong_runtime::spawn(async move {
+            utils::spawn(async move {
                 deamon_read_socket_msg(session_id, channel_id, _fd).await
             });
         }

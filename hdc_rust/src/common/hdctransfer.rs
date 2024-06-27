@@ -15,9 +15,11 @@
 //! hdctransfer
 #![allow(missing_docs)]
 use std::collections::VecDeque;
-use std::fs::{self, File, OpenOptions, create_dir_all, metadata};
+use std::fs::{self, File, OpenOptions, metadata};
 use std::io::{Read, Seek, Write, Error};
 use std::path::PathBuf;
+use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
 use crate::common::base::Base;
@@ -113,6 +115,43 @@ impl HdcTransferBase {
         }
     }
 }
+
+fn set_file_permission(path: String, mode: u32) -> std::io::Result<()> {
+    let perms = std::fs::Permissions::from_mode(mode);
+    fs::set_permissions(std::path::Path::new(&path), perms)
+}
+
+fn set_dir_permissions_recursive(dir: &Path, mode: u32) -> std::io::Result<()> {
+    let perms = std::fs::Permissions::from_mode(mode);
+    fs::set_permissions(dir, perms)?;
+
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let entry_path = dir.join(entry.file_name());  
+        if entry_path.is_dir() {
+            set_dir_permissions_recursive(&entry_path, mode)?;  
+        }
+    }
+    Ok(())
+}
+
+fn create_dir_all_with_permission(path: String, mode: u32) -> std::io::Result<()> {
+    let mut dir_path = std::path::Path::new(&path);
+    while let Some(p) = dir_path.parent() {
+        if p.exists() {
+            break;
+        }
+        dir_path = p;
+    }
+    let exsit = dir_path.exists();
+    std::fs::create_dir_all(path.clone())?;
+    if !exsit {
+        set_dir_permissions_recursive(dir_path, mode)
+    } else {
+        Ok(())
+    }
+}
+
 pub fn check_local_path(
     transfer: &mut HdcTransferBase,
     _local_path: &str,
@@ -171,7 +210,7 @@ pub fn check_local_path(
         transfer.local_path
     );
     if transfer.local_path.ends_with(Base::get_path_sep()) {
-        match create_dir_all(transfer.local_path.clone()) {
+        match create_dir_all_with_permission(transfer.local_path.clone(), 0o750) {
             Ok(_) => Ok(true),
             Err(error) => {
                 crate::error!("dir create failed, error:{}", &error);
@@ -182,10 +221,13 @@ pub fn check_local_path(
         let last = transfer.local_path.rfind(Base::get_path_sep());
         match last {
             Some(index) => {
-                match create_dir_all(&transfer.local_path[0..index]) {
+                match create_dir_all_with_permission((transfer.local_path[0..index]).to_string(), 0o750) {
                     Ok(_) => {
                         match File::create(transfer.local_path.clone()) {
-                            Ok(_) => Ok(true),
+                            Ok(_) => {
+                                set_file_permission(transfer.local_path.clone(), 0o644)?;
+                                Ok(true)
+                            },
                             Err(error) => {
                                 crate::error!("file create failed, error:{}", &error);
                                 Err(error)
@@ -200,7 +242,10 @@ pub fn check_local_path(
             }
             None => {
                 match File::create(transfer.local_path.clone()) {
-                    Ok(_) => Ok(true),
+                    Ok(_) => {
+                        set_file_permission(transfer.local_path.clone(), 0o644)?;
+                        Ok(true)
+                    },
                     Err(error) => {
                         crate::error!("file create failed, error:{}", &error);
                         Err(error)

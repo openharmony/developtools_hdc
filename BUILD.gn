@@ -257,7 +257,7 @@ template("build_hdc") {
       ohos_rust_executable("hdcd_${image_name}_exe") {
         sources = [ "hdc_rust/src/daemon/main.rs" ]
         if (use_clang_coverage) {
-          rustflag = [
+          rustflags = [
             "-C",
             "instrument-coverage",
             "-Clink-arg=--coverage",

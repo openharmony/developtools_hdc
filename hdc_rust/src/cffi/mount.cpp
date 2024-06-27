@@ -84,7 +84,7 @@ bool RemountPartition(const char *dir)
     ioctl(fd, BLKROSET, &off);
     close(fd);
 
-    ret = mount(dev, dir, "none", MS_REMOUNT, nullptr); 
+    ret = mount(dev, dir, "none", MS_REMOUNT, nullptr);
     if (ret < 0) {
         WRITE_LOG(LOG_FATAL, "mount %s failed, reason is %s", dev, strerror(errno));
         return false;

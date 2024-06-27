@@ -24,7 +24,7 @@ use crate::common::base::Base;
 use crate::common::hdcfile::FileTaskMap;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
-use crate::config::*;
+use crate::{config::*, utils};
 use crate::serializer::native_struct::TransferConfig;
 use crate::serializer::native_struct::TransferPayload;
 use crate::serializer::serialize::Serialization;
@@ -428,7 +428,7 @@ pub fn recv_and_write_file(tbase: &mut HdcTransferBase, _data: &[u8]) -> bool {
     let write_buf = buffer.clone();
     let session_id = tbase.session_id.to_owned();
     let channel_id = tbase.channel_id.to_owned();
-    ylong_runtime::spawn(async move {
+    utils::spawn(async move {
         let open_result = OpenOptions::new()
             .write(true)
             .create(true)

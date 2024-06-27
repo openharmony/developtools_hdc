@@ -20,6 +20,7 @@ use crate::config::{self, TaskMessage};
 use crate::serializer::native_struct::UartHead;
 use crate::serializer::serialize::Serialization;
 use crate::serializer::{self, UART_HEAD_SIZE};
+use crate::utils;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 use std::collections::HashMap;
@@ -406,7 +407,7 @@ pub async fn start_session(session_id: u32) {
 
     WaiterManager::start_session(session_id).await;
 
-    let handle = ylong_runtime::spawn(QueueManager::session_loop(session_id));
+    let handle = utils::spawn(QueueManager::session_loop(session_id));
     thread_map.insert(session_id, handle);
 
     let stop_flag_map = &mut mtx.stop_flag_map;

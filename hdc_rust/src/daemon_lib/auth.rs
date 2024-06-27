@@ -20,7 +20,7 @@ use crate::common::hdctransfer::echo_client;
 use crate::config::{self, *};
 use crate::serializer::native_struct;
 use crate::serializer::serialize::Serialization;
-use crate::transfer;
+use crate::{transfer, utils};
 
 use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
@@ -455,7 +455,7 @@ pub async fn handshake_deal_pubkey(
         AuthStatus::Pubk(token.clone(), pubkey.clone(), confirmmsg.to_string()),
     )
     .await;
-    ylong_runtime::spawn(async move {
+    utils::spawn(async move {
         echo_client(
             session_id,
             channel_id,

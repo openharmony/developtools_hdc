@@ -219,8 +219,9 @@ if (product_name != "ohos-sdk") {
       "//third_party/rust/crates/log:lib",
       "//third_party/rust/crates/rust-openssl/openssl:lib",
     ]
+    features = [ "daemon" ]
     if (is_emulator && product_name != "ohos-sdk") {
-      features = [ "emulator" ]
+      features += [ "emulator" ]
     }
     external_deps = [
       "hilog:hilog_rust",
@@ -244,7 +245,7 @@ template("build_hdc") {
   }
 
   if (image_name == "system") {
-    if (is_emulator || use_clang_coverage) {
+    if (is_emulator) {
       ohos_executable("hdcd_${image_name}_exe") {
         deps = [ ":hdcd_${image_name}_source" ]
         output_name = "hdcd_${image_name}"
@@ -255,6 +256,13 @@ template("build_hdc") {
     } else {
       ohos_rust_executable("hdcd_${image_name}_exe") {
         sources = [ "hdc_rust/src/daemon/main.rs" ]
+        if (use_clang_coverage) {
+          rustflags = [
+            "-C",
+            "instrument-coverage",
+            "-Clink-arg=--coverage",
+          ]
+        }
         deps = [
           ":lib",
           ":serialize_structs",

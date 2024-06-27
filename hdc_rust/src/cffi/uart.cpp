@@ -356,9 +356,12 @@ int OpenSerialPort(std::string portName) {
     fcntl(uartHandle, F_SETFD, FD_CLOEXEC);
     int flag = fcntl(uartHandle, F_GETFL);
     if (flag < 0) {
+        WRITE_LOG(LOG_WARN, "fcntl failed: error=%d\n", errno);
         return -1;
     }
-    flag &= ~O_NONBLOCK;
+    uint32_t ret = static_cast<uint32_t>(flag);
+    ret &= ~O_NONBLOCK;
+    flag &= static_cast<int>(ret);
     fcntl(uartHandle, F_SETFL, flag);
 
     return uartHandle;
@@ -497,7 +500,7 @@ ssize_t ReadUartDev(int handle, std::vector<uint8_t> &readBuf, size_t expectedSi
             return -1; // wait failed.
         } else {
             // select > 0
-            size_t maxReadSize = expectedSize - totalBytesRead;
+            size_t maxReadSize = expectedSize - static_cast<size_t>(totalBytesRead);
             if (maxReadSize > MAX_UART_SIZE_IOBUF) {
                 maxReadSize = MAX_UART_SIZE_IOBUF;
             }

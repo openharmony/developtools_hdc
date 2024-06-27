@@ -34,7 +34,7 @@ void HdcdConnection::OnAbilityConnectDone(const AppExecFwk::ElementName &element
     const int paramNum = 3;
     string bundleName = "com.ohos.settings";
     string abilityName = "USBDebugDialog";
-    string parameters = "{\"ability.want.params.uiExtensionType\":\"sysDialog/common\",\"sysDialogZOrder\":2}";
+    string parameters = "{\"ability.want.params.uiExtensionType\":\"sysDialog/common\",\"sysDialogZOrder\":1}";
 
     AUTH_LOGE("connect success");
 

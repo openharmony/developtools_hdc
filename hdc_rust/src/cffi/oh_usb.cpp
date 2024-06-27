@@ -175,13 +175,13 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
 
 size_t ReadData(int bulkOut, uint8_t* buf, const size_t size)
 {
-    int ret;
+    int ret = -1;
     size_t readed = 0;
 
     while (readed < size) {
         ret = read(bulkOut, buf + readed, size - readed);
         if (ret >= 0) {
-            readed += ret;
+            readed += static_cast<size_t>(ret);
         } else if (errno == EINTR) {
 #ifndef HDC_HOST
                 WRITE_LOG(LOG_FATAL, "read usb fd(%d) (%d) bytes interrupted, will retry\n",

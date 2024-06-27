@@ -139,7 +139,9 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
     sigemptyset(&newmask);
     sigaddset(&newmask, SIGCHLD);
     if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0) {
+#ifndef HDC_HOST
         WRITE_LOG(LOG_FATAL, "before write usb, ignor the sigchld failed, err(%d)\n", errno);
+#endif
         restoreSigmask = false;
     }
 
@@ -147,19 +149,25 @@ int WriteData(int bulkIn, const uint8_t *data, const int length)
         ret = write(bulkIn, const_cast<uint8_t *>(data + writen), length - writen);
         if (ret < 0) {
             if (errno == EINTR) {
+#ifndef HDC_HOST
                 WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes interrupted, will retry\n",
                     bulkIn, length - writen);
+#endif
                 continue;
             }
+#ifndef HDC_HOST
             WRITE_LOG(LOG_FATAL, "write usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
                 bulkIn, length - writen, ret, errno);
+#endif
             break;
         }
         writen += ret;
     }
 
     if (restoreSigmask && sigprocmask(SIG_SETMASK, &oldmask, nullptr) < 0) {
+#ifndef HDC_HOST
         WRITE_LOG(LOG_FATAL, "after write usb, restore signal mask failed, err(%d)\n", errno);
+#endif
     }
 
     return ret < 0 ? ret : writen;
@@ -175,12 +183,16 @@ size_t ReadData(int bulkOut, uint8_t* buf, const size_t size)
         if (ret >= 0) {
             readed += static_cast<size_t>(ret);
         } else if (errno == EINTR) {
+#ifndef HDC_HOST
                 WRITE_LOG(LOG_FATAL, "read usb fd(%d) (%d) bytes interrupted, will retry\n",
                     bulkOut, size - readed);
+#endif
                 continue;
         } else {
+#ifndef HDC_HOST
             WRITE_LOG(LOG_FATAL, "read usb fd(%d) (%d) bytes failed(%d), err(%d)\n",
                 bulkOut, size - readed, ret, errno);
+#endif
             break;
         }
     }

@@ -33,7 +33,8 @@ use crate::serializer::serialize::Serialization;
 use crate::transfer;
 #[cfg(not(feature = "host"))]
 use crate::utils::hdc_log::*;
-
+#[cfg(feature = "host")]
+extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::Mutex;
 use ylong_runtime::task::JoinHandle;
 

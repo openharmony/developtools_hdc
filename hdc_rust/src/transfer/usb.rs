@@ -30,7 +30,7 @@ use crate::utils::hdc_log::*;
 #[cfg(not(target_os = "windows"))]
 use std::ffi::{CStr, CString};
 use std::io::{self, Error, ErrorKind};
-
+#[cfg(not(feature = "host"))]
 use libc::{fcntl, F_SETFD, FD_CLOEXEC};
 
 #[repr(C)]
@@ -98,7 +98,7 @@ pub fn usb_init() -> io::Result<(i32, i32, i32)> {
     if bulkout_fd < 0 {
         return Err(utils::error_other("cannot open usb ep2".to_string()));
     }
-
+    #[cfg(not(feature = "host"))]
     unsafe{
         // cannot open with O_CLOEXEC, must fcntl
         fcntl(config_fd, F_SETFD, FD_CLOEXEC);

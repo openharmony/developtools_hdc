@@ -14,6 +14,7 @@
  */
 use crate::daemon_lib::mount;
 use crate::daemon_lib::task_manager;
+use crate::common::jdwp::DisplayType;
 use crate::common::jdwp::Jdwp;
 use crate::daemon_lib::sys_para::*;
 use crate::utils::hdc_log::*;
@@ -223,12 +224,15 @@ async fn do_jdwp_list(session_id: u32, channel_id: u32) {
 }
 
 async fn do_jdwp_track(session_id: u32, channel_id: u32, payload: &[u8]) {
-    let mut debug_or_release = true;
+    // 0:AllApp 1:DebugApp 2:ReleaseApp 3:AllAppWithType
+    let mut display = DisplayType::DebugApp;
     if !payload.is_empty() && payload[0] == b'p' {
-        debug_or_release = false;
+        display = DisplayType::AllApp;
+    } else if !payload.is_empty() && payload[0] == b'a' {
+        display = DisplayType::AllAppWithType;
     }
     let jdwp = Jdwp::get_instance().clone();
-    jdwp.add_tracker(channel_id, session_id, debug_or_release)
+    jdwp.add_tracker(channel_id, session_id, display)
         .await;
 }
 

@@ -32,10 +32,19 @@ use ylong_runtime::sync::Mutex;
 const JPID_SOCKET_PATH: &str = "ohjpid-control";
 const PATH_LEN: usize = JPID_SOCKET_PATH.as_bytes().len() + 1;
 
+#[allow(unused)]
+#[derive(Clone, Debug, PartialEq)]
+pub enum DisplayType {
+    AllApp = 0,
+    DebugApp = 1,
+    ReleaseApp = 2,
+    AllAppWithType = 3,
+}
+
 type NodeMap = Arc<Mutex<HashMap<i32, PollNode>>>;
 type SocketPairVec = Arc<Mutex<Vec<(i32, i32)>>>;
 type SocketpairMap = Arc<Mutex<HashMap<u32, SocketPairVec>>>;
-type Trackers = Arc<Mutex<Vec<(u32, u32, bool)>>>;
+type Trackers = Arc<Mutex<Vec<(u32, u32, DisplayType)>>>;
 
 pub trait JdwpBase: Send + Sync + 'static {}
 pub struct Jdwp {
@@ -117,8 +126,8 @@ impl Jdwp {
 
     async fn send_process_list(trackers: Trackers, node_map: NodeMap) {
         let trackers = trackers.lock().await;
-        for (channel_id2, session_id2, is_debug) in trackers.iter() {
-            let message = Self::get_process_list_with_pkg_name(node_map.clone(), *is_debug).await;
+        for (channel_id2, session_id2, display) in trackers.iter() {
+            let message = Self::get_process_list_with_pkg_name(node_map.clone(), display.clone()).await;
             let len = message.as_bytes().len();
             let len_str = format!("{:04x}\n", len);
             let mut header = len_str.as_bytes().to_vec();
@@ -135,9 +144,9 @@ impl Jdwp {
         }
     }
 
-    pub async fn add_tracker(&self, channel_id: u32, session_id: u32, debug_or_release: bool) {
+    pub async fn add_tracker(&self, channel_id: u32, session_id: u32, display: DisplayType) {
         let mut trackers_lock = self.trackers.lock().await;
-        trackers_lock.push((channel_id, session_id, debug_or_release));
+        trackers_lock.push((channel_id, session_id, display));
         drop(trackers_lock);
 
         let node_map = self.poll_node_map.clone();
@@ -158,16 +167,28 @@ impl Jdwp {
         result
     }
 
-    pub async fn get_process_list_with_pkg_name(map: NodeMap, debug_or_release: bool) -> String {
+    pub async fn get_process_list_with_pkg_name(map: NodeMap, display: DisplayType) -> String {
         let mut result = String::from("");
         let map = map.lock().await;
         let keys = map.keys();
         for key in keys {
             let value = map.get(key);
             if let Some(v) = value {
-                if !debug_or_release || debug_or_release == v.debug_or_release {
-                    result
-                        .push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
+                if display == DisplayType::AllApp {
+                    result.push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
+                } else if display == DisplayType::DebugApp {
+                    if v.is_debug {
+                        result.push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
+                    }
+                } else if display == DisplayType::AllAppWithType {
+                    let mut apptype = String::from("release");
+                    if v.is_debug {
+                        apptype = String::from("debug");
+                    }
+                    result.push_str((
+                        v.ppid.to_string() + " "
+                        + v.pkg_name.as_str() + " "
+                        + apptype.as_str() + "\n").as_str());
                 }
             }
         }
@@ -185,15 +206,15 @@ impl Jdwp {
             let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
             let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
             crate::info!("pid:{}", pid);
-            let debug_or_release =
+            let is_debug =
                 u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
-            crate::info!("debug:{}", debug_or_release);
+            crate::info!("debug:{}", is_debug);
             let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
             crate::info!("pkg name:{}", pkg_name);
 
             let node_map = node_map.clone();
             let mut map = node_map.lock().await;
-            let node = PollNode::new(fd, pid, pkg_name.clone(), debug_or_release);
+            let node = PollNode::new(fd, pid, pkg_name.clone(), is_debug);
             let mut key_ = -1;
             for (key, value) in map.iter() {
                 if value.pkg_name == pkg_name {

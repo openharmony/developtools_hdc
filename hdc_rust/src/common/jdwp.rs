@@ -177,12 +177,12 @@ impl Jdwp {
                 if display == DisplayType::AllApp {
                     result.push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
                 } else if display == DisplayType::DebugApp {
-                    if v.debug_or_release {
+                    if v.is_debug {
                         result.push_str((v.ppid.to_string() + " " + v.pkg_name.as_str() + "\n").as_str());
                     }
                 } else if display == DisplayType::AllAppWithType {
                     let mut apptype = String::from("release");
-                    if v.debug_or_release {
+                    if v.is_debug {
                         apptype = String::from("debug");
                     }
                     result.push_str((
@@ -206,15 +206,15 @@ impl Jdwp {
             let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
             let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
             crate::info!("pid:{}", pid);
-            let debug_or_release =
+            let is_debug =
                 u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
-            crate::info!("debug:{}", debug_or_release);
+            crate::info!("debug:{}", is_debug);
             let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
             crate::info!("pkg name:{}", pkg_name);
 
             let node_map = node_map.clone();
             let mut map = node_map.lock().await;
-            let node = PollNode::new(fd, pid, pkg_name.clone(), debug_or_release);
+            let node = PollNode::new(fd, pid, pkg_name.clone(), is_debug);
             let mut key_ = -1;
             for (key, value) in map.iter() {
                 if value.pkg_name == pkg_name {

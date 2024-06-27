@@ -38,18 +38,18 @@ pub struct PollNode {
     pub revents: i16,
     pub ppid: u32,
     pub pkg_name: String,
-    pub debug_or_release: bool,
+    pub is_debug: bool,
 }
 
 impl PollNode {
-    pub fn new(fd: i32, ppid: u32, pkg_name: String, debug_or_release: bool) -> Self {
+    pub fn new(fd: i32, ppid: u32, pkg_name: String, is_debug: bool) -> Self {
         Self {
             fd,
             events: POLLNVAL | POLLRDHUP | POLLHUP | POLLERR,
             revents: 0,
             ppid,
             pkg_name,
-            debug_or_release,
+            is_debug,
         }
     }
 }

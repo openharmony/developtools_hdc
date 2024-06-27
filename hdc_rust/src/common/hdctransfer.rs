@@ -143,8 +143,13 @@ fn create_dir_all_with_permission(path: String, mode: u32) -> std::io::Result<()
         }
         dir_path = p;
     }
+    let exsit = dir_path.exists();
     std::fs::create_dir_all(path.clone())?;
-    set_dir_permissions_recursive(dir_path, mode)
+    if !exsit {
+        set_dir_permissions_recursive(dir_path, mode)
+    } else {
+        Ok(())
+    }
 }
 
 pub fn check_local_path(

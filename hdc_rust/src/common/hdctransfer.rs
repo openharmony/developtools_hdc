@@ -363,6 +363,28 @@ fn spawn_handler(
     })
 }
 
+fn is_dir_link(path: String) -> bool {
+    let file = metadata(path.clone());
+    if let Ok(f) = file {
+        if !f.is_symlink() {
+            crate::debug!("file is not a link, path:{}", path);
+            return false;
+        }
+        let ret = std::fs::read_link(path);
+        match ret {
+            Ok(p) => {
+                crate::debug!("link to file:{}", p.display().to_string());
+                return p.exists() && p.is_dir();
+            }
+            Err(e) => {
+                crate::error!("read_link fail:{:#?}", e);
+                return false;
+            }
+        }
+    }
+    false
+}
+
 fn is_file_access(path: String) -> bool {
     let file = metadata(path.clone());
     match file {
@@ -565,7 +587,9 @@ pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {
         let path = path.path();
         if path.is_file() {
             result.push(path.display().to_string());
-        } else {
+        } else if is_dir_link(path.clone().display().to_string()) {
+            continue;
+        }  else {
             let p = path.display().to_string();
             let mut sub_list = get_sub_files_resurively(&p);
             result.append(&mut sub_list);

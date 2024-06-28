@@ -55,35 +55,9 @@ ohos_static_library("serialize_structs") {
   part_name = "hdc"
 }
 
-ohos_rust_shared_library("lib") {
-  crate_name = "hdc"
-  crate_type = "dylib"
-  crate_root = "src/lib.rs"
-  sources = [ "src/lib.rs" ]
-
-  if (is_emulator && product_name != "ohos-sdk") {
-    features = [ "emulator" ]
-  }
-
-  deps = [
-    ":serialize_structs",
-    "//third_party/rust/crates/humantime:lib",
-    "//third_party/rust/crates/libc:lib",
-    "//third_party/rust/crates/log:lib",
-    "//third_party/rust/crates/rust-openssl/openssl:lib",
-  ]
-  external_deps = [
-    "hilog:hilog_rust",
-    "ylong_runtime:ylong_runtime",
-  ]
-  subsystem_name = "developtools"
-  part_name = "hdc"
-}
-
 ohos_rust_executable("hdcd") {
   sources = [ "src/daemon/main.rs" ]
   deps = [
-    ":lib",
     ":serialize_structs",
     "//third_party/rust/crates/env_logger:lib",
     "//third_party/rust/crates/humantime:lib",

@@ -18,7 +18,9 @@ use std::collections::VecDeque;
 use std::fs::{self, File, OpenOptions, metadata};
 use std::io::{Read, Seek, Write, Error};
 use std::path::PathBuf;
+#[cfg(not(target_os = "windows"))]
 use std::path::Path;
+#[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
@@ -117,11 +119,13 @@ impl HdcTransferBase {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 fn set_file_permission(path: String, mode: u32) -> std::io::Result<()> {
     let perms = std::fs::Permissions::from_mode(mode);
     fs::set_permissions(std::path::Path::new(&path), perms)
 }
 
+#[cfg(not(target_os = "windows"))]
 fn set_dir_permissions_recursive(dir: &Path, mode: u32) -> std::io::Result<()> {
     let perms = std::fs::Permissions::from_mode(mode);
     fs::set_permissions(dir, perms)?;
@@ -136,6 +140,7 @@ fn set_dir_permissions_recursive(dir: &Path, mode: u32) -> std::io::Result<()> {
     Ok(())
 }
 
+#[allow(unused)]
 fn create_dir_all_with_permission(path: String, mode: u32) -> std::io::Result<()> {
     let mut dir_path = std::path::Path::new(&path);
     while let Some(p) = dir_path.parent() {
@@ -144,13 +149,17 @@ fn create_dir_all_with_permission(path: String, mode: u32) -> std::io::Result<()
         }
         dir_path = p;
     }
+    #[cfg(not(target_os = "windows"))]
     let exsit = dir_path.exists();
     std::fs::create_dir_all(path.clone())?;
+    #[cfg(not(target_os = "windows"))]
     if !exsit {
         set_dir_permissions_recursive(dir_path, mode)
     } else {
         Ok(())
     }
+    #[cfg(target_os = "windows")]
+    Ok(())
 }
 
 pub fn check_local_path(
@@ -226,6 +235,7 @@ pub fn check_local_path(
                     Ok(_) => {
                         match File::create(transfer.local_path.clone()) {
                             Ok(_) => {
+                                #[cfg(not(target_os = "windows"))]
                                 set_file_permission(transfer.local_path.clone(), 0o644)?;
                                 Ok(true)
                             },
@@ -244,6 +254,7 @@ pub fn check_local_path(
             None => {
                 match File::create(transfer.local_path.clone()) {
                     Ok(_) => {
+                        #[cfg(not(target_os = "windows"))]
                         set_file_permission(transfer.local_path.clone(), 0o644)?;
                         Ok(true)
                     },

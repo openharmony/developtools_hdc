@@ -71,6 +71,7 @@ fn main() {
     let _ = ylong_runtime::builder::RuntimeBuilder::new_multi_thread()
         .worker_stack_size(16 * 1024 * 1024)
         .worker_num(20)
+        .max_blocking_pool_size(64)
         .build_global();
 
     #[cfg(not(feature = "emulator"))]

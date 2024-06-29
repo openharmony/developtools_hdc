@@ -70,7 +70,7 @@ pub async fn stop_task(session_id: u32) {
     shell::stop_task(session_id).await;
     daemon_app::stop_task(session_id).await;
     forward::stop_task(session_id).await;
-    jdwp::stop_task(session_id).await;
+    jdwp::stop_session_task(session_id).await;
 }
 
 pub async fn dump_running_task_info() -> String {

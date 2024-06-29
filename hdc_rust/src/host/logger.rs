@@ -19,14 +19,26 @@ use std::time::SystemTime;
 
 use hdc::config;
 
-#[derive(Default)]
+// #[derive(Default)]
 
 pub struct LoggerMeta {
     stdout_require: bool,
     run_in_server: bool, // scrolling dump only by server
     current_size: usize,
     log_file: std::path::PathBuf,
-    level_char: char,
+    log_level: log::LevelFilter,
+}
+
+impl Default for LoggerMeta {
+    fn default() -> Self {
+        Self {
+            stdout_require: Default::default(),
+            run_in_server: Default::default(),
+            current_size: Default::default(),
+            log_file: Default::default(),
+            log_level: log::LevelFilter::Debug,
+        }
+    }
 }
 
 type LoggerMeta_ = Arc<Mutex<LoggerMeta>>;
@@ -44,8 +56,11 @@ impl HostLoggerMeta {
 
     fn init(run_in_server: bool, spawned_server: bool, log_level: log::LevelFilter) {
         let instance = Self::get_instance();
-        let mut meta = instance.lock().unwrap();
-        meta.level_char = log_level.to_string()[..1].chars().next().unwrap();
+        let Ok(mut meta) = instance.lock() else {
+            println!("init lock error");
+            return;
+        };
+        meta.log_level = log_level;
         if run_in_server && !spawned_server {
             meta.stdout_require = true;
         }
@@ -53,8 +68,10 @@ impl HostLoggerMeta {
         meta.log_file = Path::new(&std::env::temp_dir())
             .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
         if run_in_server {
-            Self::dump_log_file(config::LOG_BAK_NAME, meta.level_char);
-            std::fs::File::create(&meta.log_file).unwrap();
+            Self::dump_log_file(config::LOG_BAK_NAME, meta.log_level);
+            if let Err(err) = std::fs::File::create(&meta.log_file) {
+                println!("File::create failed, {}, {err}", meta.log_file.display());
+            }
         }
     }
 
@@ -63,7 +80,7 @@ impl HostLoggerMeta {
         let mut meta = instance.lock().unwrap();
         if meta.run_in_server && meta.current_size > config::LOG_FILE_SIZE {
             meta.current_size = 0;
-            Self::dump_log_file(config::LOG_CACHE_NAME, meta.level_char);
+            Self::dump_log_file(config::LOG_CACHE_NAME, meta.log_level);
             std::fs::File::create(&meta.log_file).unwrap();
         }
         meta.current_size += content.len();
@@ -75,26 +92,30 @@ impl HostLoggerMeta {
         }
     }
 
-    fn dump_log_file(file_type: &str, level_char: char) {
+    fn dump_log_file(file_type: &str, log_level: log::LevelFilter) {
         let file_path = Path::new(&std::env::temp_dir())
             .join(config::LOG_FILE_NAME.to_string() + config::LOG_TAIL_NAME);
         let ts = humantime::format_rfc3339_millis(SystemTime::now())
             .to_string()
             .replace(':', "");
-        let file_cache_path = if level_char == 'T' {
+        let file_cache_path = if log_level == log::LevelFilter::Trace {
             Path::new(&std::env::temp_dir())
                 .join(file_type.to_string() + &ts[..19] + config::LOG_TAIL_NAME)
         } else {
             Path::new(&std::env::temp_dir()).join(file_type.to_string() + config::LOG_TAIL_NAME)
         };
         if file_path.exists() {
-            std::fs::rename(&file_path, file_cache_path).unwrap();
+            if let Err(err) = std::fs::rename(&file_path, file_cache_path) {
+                hdc::error!("rename failed, {err}");
+            }
         }
     }
 
     fn get_running_mode() -> String {
         let instance = Self::get_instance();
-        let meta = instance.lock().unwrap();
+        let Ok(meta) = instance.lock() else {
+            return "".to_string();
+        };
         if meta.run_in_server {
             "server".to_string()
         } else {
@@ -112,7 +133,10 @@ impl log::Log for SimpleHostLogger {
         if self.enabled(record.metadata()) {
             let ts = humantime::format_rfc3339_millis(SystemTime::now()).to_string();
             let level = &record.level().to_string()[..1];
-            let file = record.file().unwrap();
+            let Some(file) = record.file() else {
+                println!("Get record file failed");
+                return;
+            };
             // cargo编译下的文件目录可能存在\\的目录，需要通过编译宏隔离
             #[cfg(target_os = "windows")]
             let file = file.replace('\\', "/");
@@ -123,8 +147,8 @@ impl log::Log for SimpleHostLogger {
                 &ts[11..23],
                 level,
                 running_mode,
-                file.split_once('/').unwrap().1,
-                record.line().unwrap(),
+                file.split_once('/').unwrap_or(("", "")).1,
+                record.line().unwrap_or_default(),
                 record.args()
             );
             HostLoggerMeta::write_log(content);
@@ -137,6 +161,9 @@ static LOGGER: SimpleHostLogger = SimpleHostLogger;
 
 pub fn logger_init(log_level: log::LevelFilter, run_in_server: bool, spawned_server: bool) {
     HostLoggerMeta::init(run_in_server, spawned_server, log_level);
-    log::set_logger(&LOGGER).unwrap();
+    if let Err(err) = log::set_logger(&LOGGER) {
+        println!("log::set_logger failed, {err}");
+        return;
+    }
     log::set_max_level(log_level);
 }

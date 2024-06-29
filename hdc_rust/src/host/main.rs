@@ -98,11 +98,7 @@ fn main() {
             let _ = server::run_server_mode(parsed_cmd.server_addr).await;
         });
     } else {
-        hdc::debug!(
-            "in client mode, cmd: {:#?}, parameter:{:#?}",
-            parsed_cmd.command.unwrap(),
-            parsed_cmd.parameters
-        );
+        hdc::debug!("in client mode, cmd: {:#?}, parameter:{:#?}", parsed_cmd.command, parsed_cmd.parameters);
         ylong_runtime::block_on(async {
             if parsed_cmd.command.is_none() {
                 println!("Unknown operation command...");

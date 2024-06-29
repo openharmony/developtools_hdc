@@ -99,7 +99,7 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
                         && *command != HdcCommand::ForwardRportList
                         && *command != HdcCommand::ForwardRportRemove)
                 {
-                    break;  
+                    break;
                 }
                 cmd_index = st;
                 cmd_opt = Some(command.to_owned());
@@ -248,7 +248,12 @@ fn check_port(port_str: String) -> io::Result<u16> {
 
 fn parse_server_listen_string(arg: String) -> io::Result<String> {
     let segments: Vec<&str> = arg.split(':').collect();
-    let port_str = segments.last().unwrap().to_string();
+    let port_str = match segments.last() {
+        Some(str) => str.to_string(),
+        None => {
+            return Err(Error::new(ErrorKind::Other, "-s content ip incorrect"));
+        }
+    };
     let port_len = port_str.len();
     let port = check_port(port_str)?;
 

@@ -251,7 +251,7 @@ impl Header {
 
     /// Get file type
     pub fn file_type(&self) -> TypeFlage {
-        TypeFlage::try_from(self.typeflage[0]).unwrap()
+        TypeFlage::try_from(self.typeflage[0]).unwrap_or(TypeFlage::Invalid)
     }
 
     /// Update file type

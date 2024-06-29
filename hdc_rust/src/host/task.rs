@@ -250,7 +250,7 @@ async fn channel_jdwp_task(task_info: TaskInfo) -> io::Result<()> {
             payload,
         },
     )
-    .await;
+        .await;
     Ok(())
 }
 
@@ -295,17 +295,23 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
     let payload = task_info.params.join(" ").into_bytes();
     match task_info.command {
         HdcCommand::AppInit | HdcCommand::AppUninstall => {
-            if !HostAppTaskMap::exist(session_id, task_info.channel_id)
-                .await
-                .unwrap()
-            {
-                HostAppTaskMap::put(
-                    session_id,
-                    task_info.channel_id,
-                    HostAppTask::new(session_id, task_info.channel_id),
-                )
-                .await;
-            };
+            match HostAppTaskMap::exist(session_id, task_info.channel_id).await {
+                Ok(true) => {}
+                Ok(false) => {
+                    HostAppTaskMap::put(
+                        session_id,
+                        task_info.channel_id,
+                        HostAppTask::new(session_id, task_info.channel_id),
+                    )
+                    .await;
+                }
+                Err(err) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("call HostAppTaskMap::exist failed, {err:?}"),
+                    ));
+                }
+            }
             let _ = host_app::command_dispatch(
                 session_id,
                 task_info.channel_id,
@@ -518,7 +524,7 @@ async fn start_tcp_daemon_session(connect_key: String, task_info: &TaskInfo) -> 
                 transfer::EchoLevel::INFO,
                 "Connect OK".to_string(),
             )
-            .await?;
+                .await?;
             transfer::TcpMap::end(task_info.channel_id).await;
             Ok(())
         }

@@ -101,8 +101,8 @@ pub mod hdc_log {
 
     #[cfg(not(feature = "host"))]
     #[inline(never)]
-    pub fn get_file_name(path : &str) -> &str {
-        path.split('/').last().unwrap()
+    pub fn get_file_name(path: &str) -> &str {
+        path.split('/').last().unwrap_or(path)
     }
 
     #[cfg(not(feature = "host"))]

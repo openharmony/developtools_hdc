@@ -53,8 +53,8 @@ impl Decompress {
         let mut entry = None;
         loop {
             match f.read(&mut buff)? {
-                512 => {
-                    if entry.is_none() {
+                512 => match entry {
+                    None => {
                         if let Ok(p_entry) = Entry::create_from_raw_data(&buff) {
                             if p_entry.is_finish() {
                                 decompress.entrys.push(p_entry);
@@ -64,19 +64,20 @@ impl Decompress {
                         }
                         continue;
                     }
-                    let p_entry = entry.as_mut().unwrap();
-                    p_entry.add_data(&buff);
-                    if p_entry.is_finish() {
-                        decompress.entrys.push(entry.unwrap());
-                        entry = None;
+                    Some(ref mut p_entry) => {
+                        p_entry.add_data(&buff);
+                        if p_entry.is_finish() {
+                            decompress.entrys.push(entry.unwrap());
+                            entry = None;
+                        }
                     }
-                }
+                },
                 0 => break,
                 n => {
                     crate::error!("read error n {n}");
                     break;
                 }
-            };
+            }
         }
 
         Ok(decompress)

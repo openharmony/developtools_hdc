@@ -347,3 +347,9 @@ impl Jdwp {
         ErrCode::Success
     }
 }
+
+pub async fn stop_task(session_id: u32) {
+    let jdwp = Jdwp::get_instance();
+    let mut trackers = jdwp.trackers.lock().await;
+    trackers.retain(|x| x.1 != session_id);
+}

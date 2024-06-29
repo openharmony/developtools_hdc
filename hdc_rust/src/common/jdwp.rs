@@ -348,8 +348,14 @@ impl Jdwp {
     }
 }
 
-pub async fn stop_task(session_id: u32) {
+pub async fn stop_session_task(session_id: u32) {
     let jdwp = Jdwp::get_instance();
     let mut trackers = jdwp.trackers.lock().await;
     trackers.retain(|x| x.1 != session_id);
+}
+
+pub async fn stop_task(session_id: u32, channel_id: u32) {
+    let jdwp = Jdwp::get_instance();
+    let mut trackers = jdwp.trackers.lock().await;
+    trackers.retain(|x| x.1 != session_id || x.0 != channel_id);
 }

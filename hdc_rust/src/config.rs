@@ -281,6 +281,7 @@ pub enum ContextType {
     Shell,
     Forward,
     ExecuteShell,
+    JdwpTrack,
 }
 
 pub const PACKET_FLAG: &[u8] = "HW".as_bytes();

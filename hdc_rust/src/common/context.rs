@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use crate::utils::hdc_log::*;
 use crate::common::forward;
+use crate::common::jdwp;
 use crate::common::hdcfile::FileTaskMap;
 use crate::daemon_lib::daemon_app::AppTaskMap;
 use crate::daemon_lib::shell::{ ShellExecuteMap, PtyMap };
@@ -90,6 +91,9 @@ impl ContextMap {
             }
             ContextType::Forward => {
                 forward::free_channel_task(session_id, channel_id).await;
+            }
+            ContextType::JdwpTrack => {
+                jdwp::stop_task(session_id, channel_id).await;
             }
             _ => {
                 crate::debug!("unknown context is {:?}", context);

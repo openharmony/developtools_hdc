@@ -307,8 +307,11 @@ async fn set_master_parameters(
 
             if !task.transfer.task_queue.is_empty() {
                 task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
-                task.transfer.local_name =
-                    task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
+                task.transfer.local_name = if task.transfer.server_or_daemon {
+                    task.transfer.local_path[task.transfer.base_local_path.len()..].to_string()
+                } else {
+                    task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string()
+                };
             } else {
                 crate::error!("task transfer task_queue is empty");
                 return Err(Error::new(ErrorKind::Other, "because the source folder is empty"));
@@ -422,8 +425,11 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
         return false;
     };
     task.transfer.local_path = local_path;
-    task.transfer.local_name =
-        task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
+    task.transfer.local_name = if task.transfer.server_or_daemon {
+        task.transfer.local_path[task.transfer.base_local_path.len()..].to_string()
+    } else {
+        task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string()
+    };
     drop(task);
     check_local_path(session_id, channel_id).await
 }

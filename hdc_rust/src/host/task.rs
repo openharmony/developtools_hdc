@@ -242,7 +242,7 @@ async fn channel_jdwp_task(task_info: TaskInfo) -> io::Result<()> {
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
     let mut payload = Vec::<u8>::new();
-    if task_info.params.len() >= 2 && task_info.params[1].starts_with("-") && task_info.params[1].len() >= 2 {
+    if task_info.params.len() >= 2 && task_info.params[1].starts_with('-') && task_info.params[1].len() >= 2 {
         payload = task_info.params[1][1..].as_bytes().to_vec();
     }
     transfer::put(

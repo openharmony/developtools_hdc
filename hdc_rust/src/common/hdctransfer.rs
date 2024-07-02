@@ -631,34 +631,28 @@ pub async fn close_channel(channel_id: u32) {
     transfer::TcpMap::end(channel_id).await;
 }
 
-async fn echo_client_raw(session_id: u32, channel_id: u32, payload: Vec<u8>, level: MessageLevel) {
-    let mut data = Vec::<u8>::new();
-    data.push(level as u8);
-    data.append(&mut payload.clone());
-    let echo_message = TaskMessage {
-        channel_id,
-        command: HdcCommand::KernelEcho,
-        payload: data,
-    };
-    transfer::put(session_id, echo_message).await;
-}
-
-pub async fn echo_client(_session_id: u32, channel_id: u32, message: &str, _level: MessageLevel) {
+pub async fn echo_client(_session_id: u32, channel_id: u32, message: &str, level: MessageLevel) {
     #[cfg(feature = "host")]
     {
-        let level = match _level {
+        let echo_level = match level {
             MessageLevel::Ok => transfer::EchoLevel::OK,
             MessageLevel::Fail => transfer::EchoLevel::FAIL,
             MessageLevel::Info => transfer::EchoLevel::INFO,
         };
         let _ =
-            transfer::send_channel_msg(channel_id, level, message.to_string())
+            transfer::send_channel_msg(channel_id, echo_level, message.to_string())
                 .await;
-        return;
     }
-    #[allow(unreachable_code)]
+    #[cfg(not(feature = "host"))]
     {
-        echo_client_raw(_session_id, channel_id, message.as_bytes().to_vec(), _level)
-            .await;
+        let mut data = Vec::<u8>::new();
+        data.push(level as u8);
+        data.append(&mut message.as_bytes().to_vec());
+        let echo_message = TaskMessage {
+            channel_id,
+            command: HdcCommand::KernelEcho,
+            payload: data,
+        };
+        transfer::put(_session_id, echo_message).await;
     }
 }

@@ -249,6 +249,9 @@ async fn set_master_parameters(
     let mut task = task.lock().await;
     let mut i: usize = 0;
     let mut src_argv_index = 0u32;
+    if task.transfer.server_or_daemon {
+        src_argv_index += 2;
+    }
     while i < argc as usize {
         match &argv[i] as &str {
             "-z" => {
@@ -318,8 +321,9 @@ async fn set_master_parameters(
             }
         },
         Err(error) => {
-            crate::error!("error :{}", error);
-            return Err(error);
+            let err_msg = format!("Error opening file: {}, path: {}", error, task.transfer.local_path);
+            crate::error!("{}", err_msg);
+            return Err(Error::new(ErrorKind::Other, err_msg));
         },
     }
     Ok(true)
@@ -383,7 +387,7 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     }
     if task.transfer.transfer_config.update_if_new {
         crate::error!("task.transfer.transfer_config.update_if_new is true");
-        return Err(Error::new(ErrorKind::Other, "Other failede"));
+        return Err(Error::new(ErrorKind::Other, "Other failed"));
     }
     if task.dir_begin_time == 0 {
         task.dir_begin_time = utils::get_current_time();

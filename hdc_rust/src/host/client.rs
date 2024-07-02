@@ -55,23 +55,21 @@ pub struct Client {
 }
 
 pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
-    match parsed_cmd.command.unwrap() {
-        HdcCommand::KernelServerStart => {
-
+    match parsed_cmd.command {
+        Some(HdcCommand::KernelServerStart) => {
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
                 server::server_kill().await;
             }
             server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             return Ok(());
         }
-        HdcCommand::KernelServerKill => {
+        Some(HdcCommand::KernelServerKill) => {
             server::server_kill().await;
             if parsed_cmd.parameters.contains(&"-r".to_string()) {
                 server::server_fork(parsed_cmd.server_addr.clone(), parsed_cmd.log_level).await;
             }
             return Ok(());
         }
-
         _ => {}
     };
 
@@ -92,7 +90,9 @@ pub async fn run_client_mode(parsed_cmd: ParsedCommand) -> io::Result<()> {
 
 impl Client {
     pub async fn new(parsed_cmd: ParsedCommand) -> io::Result<Self> {
-        let command = parsed_cmd.command.unwrap();
+        let Some(command) = parsed_cmd.command else {
+            return Err(Error::new(ErrorKind::Other, "command is None"));
+        };
         let connect_key = auto_connect_key(parsed_cmd.connect_key, command);
 
         let stream = match TcpStream::connect(parsed_cmd.server_addr).await {
@@ -151,7 +151,12 @@ impl Client {
 
     pub async fn handshake(&mut self) -> io::Result<()> {
         let recv = self.recv().await?;
-        let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]).unwrap();
+        let msg = match std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]) {
+            Ok(msg) => msg,
+            Err(err) => {
+                return Err(Error::new(ErrorKind::Other, format!("handshake from_utf8 error : {err}")));
+            }
+        };
         if msg != config::HANDSHAKE_MESSAGE {
             return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
         }
@@ -223,7 +228,7 @@ impl Client {
                 }
             }
         });
-        
+
         loop {
             let c = unsafe { getch() };
 
@@ -256,7 +261,7 @@ impl Client {
 
         self.send(cmd.as_bytes()).await;
 
-        let termios = setup_raw_terminal().unwrap();
+        let termios = setup_raw_terminal()?;
         let termios_clone = termios;
 
         let _handle = ylong_runtime::spawn(async move {
@@ -342,7 +347,7 @@ impl Client {
         let mut params = self.params.clone();
         if self.command == HdcCommand::FileInit || self.command == HdcCommand::FileRecvInit {
             let command_field_count = 2;
-            let current_dir = env::current_dir().unwrap();
+            let current_dir = env::current_dir()?;
             let mut s = current_dir.display().to_string();
             s.push(Base::get_path_sep());
             params.insert(command_field_count, "-cwd".to_string());
@@ -365,7 +370,10 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    print!("{}", String::from_utf8(recv).unwrap());
+                    match String::from_utf8(recv) {
+                        Ok(msg) => print!("{msg}"),
+                        Err(err) => return Err(Error::new(ErrorKind::Other, format!("recv data to str failed, {err}"))),
+                    }
                 }
                 Err(e) => {
                     return Err(e);
@@ -411,7 +419,7 @@ impl Client {
     async fn app_install_task(&mut self) -> io::Result<()> {
         let mut params = self.params.clone();
         let command_field_count = 1;
-        let current_dir = env::current_dir().unwrap();
+        let current_dir = env::current_dir()?;
         let mut s = current_dir.display().to_string();
         s.push(Base::get_path_sep());
         params.insert(command_field_count, "-cwd".to_string());
@@ -430,7 +438,10 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    print!("{}", String::from_utf8(recv).unwrap());
+                    match String::from_utf8(recv) {
+                        Ok(msg) => print!("{}", msg),
+                        Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!("{e}"))),
+                    }
                 }
                 Err(e) => {
                     return Err(e);
@@ -454,7 +465,12 @@ impl Client {
                             .collect::<Vec<_>>()
                             .join(" ")
                     );
-                    println!("{}", String::from_utf8(recv).unwrap());
+                    match String::from_utf8(recv) {
+                        Ok(msg) => println!("{msg}"),
+                        Err(e) => {
+                            return Err(io::Error::new(io::ErrorKind::Other, format!("{e}")));
+                        }
+                    }
                 }
                 Err(e) => {
                     return Err(e);
@@ -484,17 +500,19 @@ impl Client {
                 }
 
                 let (cmd_slice, version_slice) = recv.split_at(CMD_U8_LEN);
-                let cmd =
-                    HdcCommand::try_from(u16::from_le_bytes(cmd_slice.try_into().unwrap()) as u32)
-                        .unwrap();
+                let Ok(cmd) = HdcCommand::try_from(u16::from_le_bytes(cmd_slice.try_into().unwrap_or_default()) as u32)
+                else {
+                    return Err(Error::new(io::ErrorKind::Other, "HdcCommand::try_from failed"));
+                };
                 if HdcCommand::KernelCheckServer != cmd {
                     return Err(Error::new(io::ErrorKind::Other, "recv cmd error"));
                 }
-                println!(
-                    "Client version:{}, server version:{}",
-                    config::get_version(),
-                    String::from_utf8(version_slice.to_vec()).unwrap()
-                );
+                match String::from_utf8(version_slice.to_vec()) {
+                    Ok(s_ver) => println!("Client version:{}, server version:{}", config::get_version(), s_ver),
+                    Err(err) => {
+                        return Err(Error::new(io::ErrorKind::Other, format!("from_utf8 failed, {err}")));
+                    }
+                }
                 Ok(())
             }
             Err(e) => Err(e),

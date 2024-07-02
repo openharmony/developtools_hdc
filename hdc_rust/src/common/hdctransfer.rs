@@ -132,9 +132,9 @@ fn set_dir_permissions_recursive(dir: &Path, mode: u32) -> std::io::Result<()> {
 
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
-        let entry_path = dir.join(entry.file_name());  
+        let entry_path = dir.join(entry.file_name());
         if entry_path.is_dir() {
-            set_dir_permissions_recursive(&entry_path, mode)?;  
+            set_dir_permissions_recursive(&entry_path, mode)?;
         }
     }
     Ok(())
@@ -203,7 +203,7 @@ pub fn check_local_path(
 
         if let Some(false) = transfer.is_local_dir_exsit {
             if op.contains(Base::get_path_sep()) {
-                let first_sep_index = op.find(Base::get_path_sep()).unwrap();
+                let first_sep_index = op.find(Base::get_path_sep()).unwrap_or_default();
                 op = op.as_str()[first_sep_index..].to_string();
                 crate::debug!(
                     "check_local_path, combine 2 local_dir:{}, op:{}",
@@ -234,33 +234,33 @@ pub fn check_local_path(
                 match create_dir_all_with_permission((transfer.local_path[0..index]).to_string(), 0o750) {
                     Ok(_) => {
                         match File::create(transfer.local_path.clone()) {
-                            Ok(_) => {
-                                #[cfg(not(target_os = "windows"))]
-                                set_file_permission(transfer.local_path.clone(), 0o644)?;
-                                Ok(true)
+                    Ok(_) => {
+                        #[cfg(not(target_os = "windows"))]
+                        set_file_permission(transfer.local_path.clone(), 0o644)?;
+                        Ok(true)
                             },
-                            Err(error) => {
-                                crate::error!("file create failed, error:{}", &error);
-                                Err(error)
+                    Err(error) => {
+                        crate::error!("file create failed, error:{}", &error);
+                        Err(error)
                             },
                         }
                     }
-                    Err(error) => {
-                        crate::error!("dir create failed, error:{}", &error);
-                        Err(error)
+                Err(error) => {
+                    crate::error!("dir create failed, error:{}", &error);
+                    Err(error)
                     },
                 }
             }
             None => {
                 match File::create(transfer.local_path.clone()) {
-                    Ok(_) => {
-                        #[cfg(not(target_os = "windows"))]
-                        set_file_permission(transfer.local_path.clone(), 0o644)?;
-                        Ok(true)
+                Ok(_) => {
+                    #[cfg(not(target_os = "windows"))]
+                    set_file_permission(transfer.local_path.clone(), 0o644)?;
+                    Ok(true)
                     },
-                    Err(error) => {
-                        crate::error!("file create failed, error:{}", &error);
-                        Err(error)
+                Err(error) => {
+                    crate::error!("file create failed, error:{}", &error);
+                    Err(error)
                     },
                 }
             }

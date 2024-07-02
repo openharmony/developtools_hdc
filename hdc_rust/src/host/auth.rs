@@ -19,7 +19,7 @@ use crate::config::*;
 
 use hdc::config;
 use hdc::config::TaskMessage;
-use hdc::serializer::native_struct::{SessionHandShake};
+use hdc::serializer::native_struct::SessionHandShake;
 use hdc::serializer::serialize::Serialization;
 use hdc::transfer;
 
@@ -30,14 +30,11 @@ use openssl::base64;
 use openssl::rsa::{Padding, Rsa};
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
-use hdc::common::base::Base;
 use crate::task::{ConnectMap, ConnectStatus, DaemonInfo};
+use hdc::common::base::Base;
 
 pub async fn start_handshake_with_daemon(
-    connect_key: String,
-    session_id: u32,
-    channel_id: u32,
-    conn_type: ConnectType,
+    connect_key: String, session_id: u32, channel_id: u32, conn_type: ConnectType,
 ) {
     let handshake = SessionHandShake {
         banner: HANDSHAKE_MESSAGE.to_string(),
@@ -61,7 +58,8 @@ pub async fn start_handshake_with_daemon(
             emg_msg: "".to_string(),
             daemon_auth_status: DAEOMN_UNAUTHORIZED.to_string(),
         },
-    ).await;
+    )
+    .await;
 }
 
 async fn handshake_deal_daemon_auth_result(daemon: SessionHandShake, connect_key: String) -> io::Result<()> {
@@ -76,7 +74,9 @@ async fn handshake_deal_daemon_auth_result(daemon: SessionHandShake, connect_key
     } else {
         let auth_info = match Base::tlv_to_stringmap(daemon.buf.as_str()) {
             Some(tlv_map) => tlv_map,
-            _ => { return Err(Error::new(ErrorKind::Other, "parse tlv failed")); },
+            _ => {
+                return Err(Error::new(ErrorKind::Other, "parse tlv failed"));
+            }
         };
         devname = match auth_info.get(TAG_DEVNAME) {
             Some(devname) => devname.to_string(),
@@ -92,9 +92,14 @@ async fn handshake_deal_daemon_auth_result(daemon: SessionHandShake, connect_key
         };
     }
 
-    hdc::info!("daemon auth result[{}] key[{}] ver[{}] devname[{}] emgmsg[{}]",
-            auth_result.clone(), connect_key.clone(), daemon.version.clone(),
-            devname.clone(), emg_msg.clone());
+    hdc::info!(
+        "daemon auth result[{}] key[{}] ver[{}] devname[{}] emgmsg[{}]",
+        auth_result.clone(),
+        connect_key.clone(),
+        daemon.version.clone(),
+        devname.clone(),
+        emg_msg.clone()
+    );
 
     if ConnectMap::update(
         connect_key.clone(),
@@ -102,8 +107,10 @@ async fn handshake_deal_daemon_auth_result(daemon: SessionHandShake, connect_key
         daemon.version.to_string(),
         devname.to_string(),
         emg_msg.to_string(),
-        auth_result.to_string()
-    ).await {
+        auth_result.to_string(),
+    )
+    .await
+    {
         Ok(())
     } else {
         hdc::error!("update connect status for {} failed", connect_key);
@@ -164,9 +171,7 @@ pub async fn handshake_task(msg: TaskMessage, session_id: u32, connect_key: Stri
 }
 
 fn load_or_create_prikey() -> io::Result<Rsa<openssl::pkey::Private>> {
-    let file = Path::new(&get_home_dir())
-        .join(config::RSA_PRIKEY_PATH)
-        .join(config::RSA_PRIKEY_NAME);
+    let file = Path::new(&get_home_dir()).join(config::RSA_PRIKEY_PATH).join(config::RSA_PRIKEY_NAME);
 
     if let Ok(pem) = std::fs::read(&file) {
         if let Ok(prikey) = Rsa::private_key_from_pem(&pem) {
@@ -202,16 +207,10 @@ fn get_pubkey_pem(rsa: &Rsa<openssl::pkey::Private>) -> io::Result<String> {
         if let Ok(buf) = String::from_utf8(pubkey) {
             Ok(buf)
         } else {
-            Err(Error::new(
-                ErrorKind::Other,
-                "convert public key to pem string failed",
-            ))
+            Err(Error::new(ErrorKind::Other, "convert public key to pem string failed"))
         }
     } else {
-        Err(Error::new(
-            ErrorKind::Other,
-            "convert public key to pem string failed",
-        ))
+        Err(Error::new(ErrorKind::Other, "convert public key to pem string failed"))
     }
 }
 
@@ -227,11 +226,7 @@ async fn send_handshake_to_daemon(handshake: &SessionHandShake, channel_id: u32)
     hdc::info!("send handshake: {:#?}", handshake.clone());
     transfer::put(
         handshake.session_id,
-        TaskMessage {
-            channel_id,
-            command: config::HdcCommand::KernelHandshake,
-            payload: handshake.serialize(),
-        },
+        TaskMessage { channel_id, command: config::HdcCommand::KernelHandshake, payload: handshake.serialize() },
     )
     .await;
 }
@@ -240,9 +235,7 @@ fn get_home_dir() -> String {
     use std::process::Command;
 
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(["/c", "echo %USERPROFILE%"])
-            .output()
+        Command::new("cmd").args(["/c", "echo %USERPROFILE%"]).output()
     } else {
         Command::new("sh").args(["-c", "echo ~"]).output()
     };

@@ -463,7 +463,7 @@ pub async fn free_channel_task(session_id: u32, channel_id: u32) {
                 channel_id,
             );
             TcpListenerMap::end(channel_id).await;
-        }        
+        }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             #[cfg(not(target_os = "windows"))]
             UdsServer::wrap_close(task.context_forward.fd);
@@ -565,17 +565,16 @@ pub async fn on_forward_success(task_message: TaskMessage, session_id: u32) -> i
     let channel_id = task_message.channel_id;
     let payload = task_message.payload;
     let forward_direction = payload[0] == b'1';
-    let task_string = String::from_utf8(payload);
     let connect_key = "unknow key".to_string();
-    if task_string.is_ok() {
-        let info = HdcForwardInfo::new(
-            session_id,
-            channel_id,
-            forward_direction,
-            task_string.unwrap(),
-            connect_key,
-        );
-        HdcForwardInfoMap::put(info).await;
+    let task_string = String::from_utf8(payload);
+    match task_string {
+        Ok(task_string) => {
+            let info = HdcForwardInfo::new(session_id, channel_id, forward_direction, task_string, connect_key);
+            HdcForwardInfoMap::put(info).await;
+        }
+        Err(err) => {
+            crate::error!("payload to String failed. {err}");
+        }
     }
     transfer::TcpMap::end(task_message.channel_id).await;
     Ok(())
@@ -608,8 +607,8 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
             .iter()
             .enumerate()
             .for_each(|(i, e)| {
-                command_string[i] = *e;
-            });
+            command_string[i] = *e;
+        });
         let forward_success_message = TaskMessage {
             channel_id,
             command: HdcCommand::ForwardSuccess,
@@ -695,11 +694,13 @@ pub async fn forward_tcp_accept(
             crate::info!("forward_tcp_accept bind ok");
             let join_handle = utils::spawn(async move {
                 loop {
-                    let client = listener.accept().await;
-                    if client.is_err() {
-                        continue;
-                    }
-                    let (stream, _addr) = client.unwrap();
+                    let (stream, _addr) = match listener.accept().await {
+                        Ok((stream, _addr)) => (stream, _addr),
+                        Err(err) => {
+                            crate::error!("listener.accept failed, {err}");
+                            continue;
+                        }
+                    };
                     let (rd, wr) = stream.into_split();
                     TcpWriteStreamMap::put(channel_id, wr).await;
                     utils::spawn(on_accept(session_id, channel_id, value.clone(), cid));
@@ -735,7 +736,7 @@ pub async fn recv_tcp_msg(session_id: u32, channel_id: u32, mut rd: SplitReadHal
                     recv_size,
                     cid,
                 )
-                .await
+                    .await
                 {
                     crate::info!("send task success");
                 }
@@ -830,7 +831,7 @@ pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_rem
             0,
             task.context_forward.id,
         )
-        .await;
+            .await;
     }
     match task.forward_type {
         ForwardType::Tcp => {
@@ -854,7 +855,7 @@ pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_rem
                 channel_id,
             );
             TcpListenerMap::end(channel_id).await;
-        }        
+        }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             #[cfg(not(target_os = "windows"))]
             UdsServer::wrap_close(task.context_forward.fd);
@@ -1110,7 +1111,8 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
                 },
                 Ok((size, buffer)) => (size, buffer),
                 Err(err) => {
-                    crate::error!("{err}");
+                    crate::error!("spawn_blocking failed. disconnect fd:({local_fd}, {target_fd}), error:{err}");
+                    free_context(session_id, channel_id, 0, true).await;
                     break;
                 }
             };
@@ -1140,7 +1142,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
             format!("fport fail:pid not found:{}", pid).as_str(),
             MessageLevel::Fail,
         )
-        .await;
+            .await;
         task_finish(session_id, channel_id).await;
         return false;
     }

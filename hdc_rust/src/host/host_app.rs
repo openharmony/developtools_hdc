@@ -83,11 +83,13 @@ impl HostAppTaskMap {
         map.remove(&(session_id, channel_id))
     }
 
-    pub async fn get(session_id: u32, channel_id: u32) -> HostAppTask_ {
+    pub async fn get(session_id: u32, channel_id: u32) -> Option<HostAppTask_> {
         let arc_map = Self::get_instance();
         let map = arc_map.lock().await;
-        let arc_task = map.get(&(session_id, channel_id)).unwrap();
-        arc_task.clone()
+        let Some(arc_task) = map.get(&(session_id, channel_id)) else {
+            return None;
+        };
+        Some(arc_task.clone())
     }
 }
 
@@ -110,7 +112,10 @@ async fn check_install_continue(
         config::AppModeType::Install => _mode_desc = String::from("App install"),
         config::AppModeType::UnInstall => _mode_desc = String::from("App uninstall"),
     }
-    let arc_task = HostAppTaskMap::get(session_id, channel_id).await;
+    let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
+        hdc::error!("Get host app task failed");
+        return false;
+    };
     let mut task = arc_task.lock().await;
     let msg = str[task.printed_msg_len..].to_owned();
     let message = format!(
@@ -146,62 +151,16 @@ async fn do_app_uninstall(session_id: u32, channel_id: u32, _payload: &[u8]) {
 async fn do_app_finish(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
     let mode = config::AppModeType::try_from(_payload[0]);
     if let Ok(mode_type) = mode {
-        let str = String::from_utf8(_payload[2..].to_vec()).unwrap();
+        let str = match String::from_utf8(_payload[2..].to_vec()) {
+            Ok(str) => str,
+            Err(err) => {
+                hdc::error!("do_app_finish from_utf8 error, {err}");
+                return false;
+            }
+        };
         return check_install_continue(session_id, channel_id, mode_type, str).await;
     }
     false
-}
-
-#[allow(unused)]
-pub fn get_sub_app_files_resurively(
-    channel_id: u32,
-    dir_path: &PathBuf,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut result = Vec::new();
-    let dir = match std::fs::read_dir(dir_path) {
-        Ok(dir) => dir,
-        Err(e) => {
-            let message = format!("App install path:{}, msg:{}", dir_path.display(), e);
-            ylong_runtime::block_on(async {
-                let _ = send_to_client(channel_id, EchoLevel::FAIL, message).await;
-            });
-            return Ok(result);
-        }
-    };
-    for entry in dir {
-        let path = match entry {
-            Ok(entry) => entry.path(),
-            Err(e) => {
-                let message = format!("App install path:{}, msg:{}", dir_path.display(), e);
-                ylong_runtime::block_on(async {
-                    let _ = send_to_client(channel_id, EchoLevel::FAIL, message).await;
-                });
-                continue;
-            }
-        };
-
-        let metadata = match std::fs::metadata(path.clone()) {
-            Ok(metadata) => metadata,
-            Err(_) => {
-                continue;
-            }
-        };
-
-        if metadata.is_file() {
-            let p = path.display().to_string();
-            if p.ends_with(".hap") || p.ends_with(".hsp") {
-                result.push(p.clone());
-            }
-            continue;
-        }
-
-        if metadata.is_dir() {
-            let mut sub_list = get_sub_app_files_resurively(channel_id, &path).unwrap();
-            result.append(&mut sub_list);
-        }
-    }
-    result.sort();
-    Ok(result)
 }
 
 fn dir_to_tar(dir_path: PathBuf) -> Result<String, String> {
@@ -225,7 +184,10 @@ async fn task_finish(session_id: u32, channel_id: u32) {
 }
 
 async fn put_app_check(session_id: u32, channel_id: u32) {
-    let arc_task = HostAppTaskMap::get(session_id, channel_id).await;
+    let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
+        hdc::error!("Get host app task failed");
+        return;
+    };
     let task = arc_task.lock().await;
     let file_check_message = TaskMessage {
         channel_id,
@@ -236,9 +198,19 @@ async fn put_app_check(session_id: u32, channel_id: u32) {
 }
 
 async fn install_single(session_id: u32, channel_id: u32) {
-    let arc_task = HostAppTaskMap::get(session_id, channel_id).await;
+    let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
+        hdc::error!("Get host app task failed");
+        return;
+    };
     let mut task = arc_task.lock().await;
-    task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
+    match task.transfer.task_queue.pop() {
+        Some(loc_path) => task.transfer.local_path = loc_path,
+        None => {
+            hdc::error!("Get local path is None");
+            task_finish(session_id, channel_id).await;
+            return;
+        }
+    }
     let local_path = task.transfer.local_path.clone();
     let mut file_manager = FileManager::new(local_path.clone());
     let (open_result, error_msg) = file_manager.open();
@@ -268,7 +240,10 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
         return false;
     }
 
-    let arc_task = HostAppTaskMap::get(session_id, channel_id).await;
+    let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
+        hdc::error!("Get host app task failed");
+        return false;
+    };
     let mut task = arc_task.lock().await;
     let mut i = 1usize;
     let mut options = String::from("");
@@ -348,7 +323,10 @@ pub async fn command_dispatch(
             }
         }
         HdcCommand::AppBegin => {
-            let arc_task = HostAppTaskMap::get(session_id, channel_id).await;
+            let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
+                hdc::error!("Get host app task failed");
+                return Ok(false);
+            };
             let task = arc_task.lock().await;
             hdctransfer::transfer_begin(&task.transfer, HdcCommand::AppData).await;
         }

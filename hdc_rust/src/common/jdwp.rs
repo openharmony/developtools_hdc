@@ -200,16 +200,17 @@ impl Jdwp {
         let mut buffer: [u8; 1024] = [0; 1024];
         let size = UdsServer::wrap_recv(fd, &mut buffer);
         let u32_size = std::mem::size_of::<u32>();
-        if size == u32_size.try_into().unwrap() {
-            let _pid = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
-        } else if size > u32_size.try_into().unwrap() {
-            let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap());
-            let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap());
+        if size > u32_size as isize {
+            let len = u32::from_le_bytes(buffer[0..u32_size].try_into().unwrap_or_default());
+            let pid = u32::from_le_bytes(buffer[u32_size..2 * u32_size].try_into().unwrap_or_default());
+            if pid == 0 || len == 0 {
+                crate::warn!("Data parsing exception. pid {pid}, len {len}");
+                return;
+            }
             crate::info!("pid:{}", pid);
-            let is_debug =
-                u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap()) == 1;
+            let is_debug = u32::from_le_bytes(buffer[u32_size * 2..3 * u32_size].try_into().unwrap_or_default()) == 1;
             crate::info!("debug:{}", is_debug);
-            let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap();
+            let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap_or_default();
             crate::info!("pkg name:{}", pkg_name);
 
             let node_map = node_map.clone();
@@ -230,8 +231,8 @@ impl Jdwp {
             drop(map);
 
             waiter.wake_one();
-        } else if size <= 0 {
-            crate::info!("size <= 0");
+        } else if size <= u32_size as isize {
+            crate::info!("The data length is too short, size = {size}");
         }
     }
 
@@ -296,7 +297,7 @@ impl Jdwp {
                 let size = poll_nodes.len();
 
                 drop(node_map_value);
-                UdsServer::wrap_poll(poll_nodes.as_mut_slice(), size.try_into().unwrap(), -1);
+                UdsServer::wrap_poll(poll_nodes.as_mut_slice(), size.try_into().unwrap_or_default(), -1);
                 let mut node_map_value = node_map.lock().await;
                 for pnode in &poll_nodes {
                     if pnode.revents & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR) != 0 {

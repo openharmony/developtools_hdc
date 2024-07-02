@@ -122,8 +122,16 @@ pub async fn get_process_pids() -> Vec<u32> {
         let mut get_pid = false;
         for token in output_str.split_whitespace() {
             if get_pid {
-                pids.push(u32::from_str(token).unwrap());
-                get_pid = false;
+                match u32::from_str(token) {
+                    Ok(pid) => {
+                        pids.push(pid);
+                        get_pid = false;
+                    },
+                    Err(err) => {
+                        hdc::error!("'{token}' to u32 failed, {err}");
+                        continue;
+                    },
+                }
             }
             if token.contains("exe") {
                 get_pid = true;
@@ -137,8 +145,12 @@ pub async fn get_process_pids() -> Vec<u32> {
             Err(e) => e.to_string().into_bytes(),
         };
         let output_str = String::from_utf8_lossy(&output_vec);
-        for pid in output_str.split_whitespace() {
-            pids.push(u32::from_str(pid).unwrap());
+        for pid_str in output_str.split_whitespace() {
+            let Ok(pid) = u32::from_str(pid_str) else {
+                hdc::error!("'{pid_str}' to u32 error");
+                continue;
+            };
+            pids.push(pid);
         }
     }
     pids
@@ -147,16 +159,28 @@ pub async fn get_process_pids() -> Vec<u32> {
 // 跨平台命令
 #[cfg(target_os = "windows")]
 pub async fn server_fork(addr_str: String, log_level: usize) {
-    let current_exe = std::env::current_exe().unwrap();
-    let run_path = CString::new(current_exe.display().to_string()).unwrap();
-    let listen_string = CString::new(addr_str).unwrap();
+    let current_exe = match std::env::current_exe() {
+        Ok(current_exe) => current_exe,
+        Err(err) => {
+            hdc::error!("server_fork, {err}");
+            return;
+        }
+    };
+    let Ok(run_path) = CString::new(current_exe.display().to_string()) else {
+        hdc::error!("server_fork CString::new fail");
+        return;
+    };
+    let Ok(listen_string) = CString::new(addr_str) else {
+        hdc::error!("server_fork CString::new fail");
+        return;
+    };
     if unsafe {
         LaunchServerWin32(
             run_path.as_ptr(),
             listen_string.as_ptr(),
             log_level as c_int,
         )
-    } {
+             } {
         ylong_runtime::time::sleep(Duration::from_millis(1000)).await
     } else {
         hdc::info!("server fork failed")
@@ -165,7 +189,13 @@ pub async fn server_fork(addr_str: String, log_level: usize) {
 
 #[cfg(not(target_os = "windows"))]
 pub async fn server_fork(addr_str: String, log_level: usize) {
-    let current_exe = std::env::current_exe().unwrap().display().to_string();
+    let current_exe = match std::env::current_exe() {
+        Ok(current_exe) => current_exe.display().to_string(),
+        Err(err) => {
+            hdc::error!("server_fork, {err}");
+            return;
+        }
+    };
     let result = process::Command::new(&current_exe)
         .args([
             "-b",
@@ -237,18 +267,14 @@ async fn handle_client(stream: TcpStream) -> io::Result<()> {
         } else if !target_list.is_empty() {
             set_target_status(TargetStatus::Ready);
         }
-        let recv_opt = transfer::tcp::recv_channel_message(&mut rd).await;
-        if recv_opt.is_err() {
-            return Ok(());
-        }
-        let recv = recv_opt.unwrap();
-        hdc::debug!(
-            "recv hex: {}",
-            recv.iter()
-                .map(|c| format!("{c:02x}"))
-                .collect::<Vec<_>>()
-                .join(" ")
-        );
+        let recv = match transfer::tcp::recv_channel_message(&mut rd).await {
+            Ok(recv) => recv,
+            Err(err) => {
+                hdc::error!("recv_channel_message failed, {err}");
+                return Ok(());
+            }
+        };
+        hdc::debug!("recv hex: {}", recv.iter().map(|c| format!("{c:02x}")).collect::<Vec<_>>().join(" "));
 
         let recv_str = String::from_utf8_lossy(&recv.clone()).into_owned();
         hdc::debug!("recv str: {}", recv_str.clone());
@@ -313,11 +339,9 @@ async fn handshake_with_client(
 }
 
 fn unpack_channel_handshake(recv: Vec<u8>) -> io::Result<String> {
-    let msg = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]);
-    if msg.is_err() {
+    let Ok(msg) = std::str::from_utf8(&recv[..config::HANDSHAKE_MESSAGE.len()]) else {
         return Err(Error::new(ErrorKind::Other, "not utf-8 chars."));
-    }
-    let msg = msg.unwrap();
+    };
     if msg != config::HANDSHAKE_MESSAGE {
         return Err(Error::new(ErrorKind::Other, "Recv server-hello failed"));
     }

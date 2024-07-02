@@ -902,7 +902,7 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
     ClearOwnTasks(hSession, channelId);
     uint8_t count = 0;
     Send(hSession->sessionId, hChannel->channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u", hChannel->channelId);
+    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u, sid:%u", hChannel->channelId, hSession->sessionId);
     if (uv_is_closing((const uv_handle_t *)&hChannel->hChildWorkTCP)) {
         Base::DoNextLoop(&hSession->childLoop, hChannel, [](const uint8_t flag, string &msg, const void *data) {
             HChannel hChannel = (HChannel)data;

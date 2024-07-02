@@ -112,8 +112,8 @@ impl base::Reader for BridgeReader {
         Ok(buf_to_vec(buf))
     }
 
-    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
-        Ok((0, 0))
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32, u32)> {
+        Ok((0, 0, 0))
     }
 }
 

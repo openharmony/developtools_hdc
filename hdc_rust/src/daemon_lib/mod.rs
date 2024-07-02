@@ -271,7 +271,7 @@ pub async fn uart_handshake(
 #[cfg(not(feature = "emulator"))]
 pub async fn uart_handle_client(fd: i32) -> io::Result<()> {
     let mut rd = transfer::uart::UartReader { fd, head: None };
-    let (packet_size, package_index) = rd.check_protocol_head()?;
+    let (packet_size, package_index, _session_id) = rd.check_protocol_head()?;
     let (tx, mut rx) = mpsc::bounded_channel::<TaskMessage>(config::USB_QUEUE_LEN);
     utils::spawn(async move {
         let mut rd = transfer::uart::UartReader { fd, head: None };
@@ -300,7 +300,7 @@ pub async fn uart_handle_client(fd: i32) -> io::Result<()> {
     uart_wrapper::stop_other_session(session_id).await;
     let mut real_session_id = session_id;
     loop {
-        let (packet_size, _package_index) = rd.check_protocol_head()?;
+        let (packet_size, _package_index, _session_id) = rd.check_protocol_head()?;
         let Some(head) = rd.head.clone() else {
             return Err(std::io::Error::new(ErrorKind::Other, "rd head clone file"));
         };
@@ -379,7 +379,7 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
     let mut cur_session_id = 0;
     loop {
         match rx.recv().await {
-            Ok((msg, _index)) => {
+            Ok((msg, _index, _session_id)) => {
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(session_id_in_msg) = auth::get_session_id_from_msg(&msg).await {
                         if session_id_in_msg != cur_session_id {
@@ -391,6 +391,11 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
                             cur_session_id = session_id_in_msg;
                         }
                     }
+                }
+                if _session_id != cur_session_id  && u32::to_be(_session_id) != cur_session_id {
+                    crate::error!("session_id is not the same, command:{:?}, this session:{_session_id},
+                        current session:{cur_session_id}", msg.command);
+                    continue;
                 }
                 utils::spawn(async move {
                     if let Err(e) = task::dispatch_task(msg, cur_session_id).await {

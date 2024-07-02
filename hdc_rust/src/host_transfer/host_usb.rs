@@ -159,7 +159,7 @@ impl base::Reader for HostUsbReader {
         Ok(buf_to_vec(buf))
     }
 
-    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32, u32)> {
         let buf = self.read_frame(serializer::USB_HEAD_SIZE)?;
         if buf[..config::USB_PACKET_FLAG.len()] != config::USB_PACKET_FLAG[..] {
             return Err(Error::new(
@@ -173,7 +173,7 @@ impl base::Reader for HostUsbReader {
             crate::warn!("parse usb head error: {}", e.to_string());
             return Err(e);
         }
-        Ok((u32::from_be(head.data_size), 0))
+        Ok((u32::from_be(head.data_size), 0, head.session_id))
     }
 }
 
@@ -212,7 +212,7 @@ async fn unpack_task_message(
     rd: &mut dyn Reader,
     tx: BoundedSender<(TaskMessage, u32)>,
 ) -> io::Result<()> {
-    let (pack_size, package_index) = rd.check_protocol_head()?;
+    let (pack_size, package_index, session_id) = rd.check_protocol_head()?;
     if pack_size == 0 {
         return Ok(());
     }

@@ -212,7 +212,7 @@ async fn unpack_task_message(
     rd: &mut dyn Reader,
     tx: BoundedSender<(TaskMessage, u32)>,
 ) -> io::Result<()> {
-    let (pack_size, package_index, session_id) = rd.check_protocol_head()?;
+    let (pack_size, package_index, _session_id) = rd.check_protocol_head()?;
     if pack_size == 0 {
         return Ok(());
     }

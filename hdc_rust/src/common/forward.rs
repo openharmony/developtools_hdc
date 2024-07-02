@@ -588,7 +588,7 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
     };
     let task = &mut task.clone();
     if !_payload.is_empty() {
-        echo_client(
+        hdctransfer::echo_client(
             session_id,
             channel_id,
             "Forwardport result:OK",
@@ -624,7 +624,7 @@ pub async fn check_command(session_id: u32, channel_id: u32, _payload: &[u8]) ->
             transfer::put(session_id, forward_success_message).await;
         }
     } else {
-        echo_client(
+        hdctransfer::echo_client(
             session_id,
             channel_id,
             "Forwardport result: Failed",
@@ -924,7 +924,7 @@ async fn server_socket_bind_listen(
     if let Ok(addr_obj) = &addr {
         let ret = UdsServer::wrap_bind(fd, addr_obj);
         if ret.is_err() {
-            echo_client(
+            hdctransfer::echo_client(
                 session_id,
                 channel_id,
                 "Unix pipe bind failed",
@@ -936,7 +936,7 @@ async fn server_socket_bind_listen(
         }
         let ret = UdsServer::wrap_listen(fd);
         if ret < 0 {
-            echo_client(
+            hdctransfer::echo_client(
                 session_id,
                 channel_id,
                 "Unix pipe listen failed",
@@ -1134,7 +1134,7 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     let ret = jdwp.send_fd_to_target(pid, target_fd, local_fd, param.as_str()).await;
     if !ret {
         crate::error!("not found pid:{:?}", pid);
-        echo_client(
+        hdctransfer::echo_client(
             session_id,
             channel_id,
             format!("fport fail:pid not found:{}", pid).as_str(),
@@ -1159,26 +1159,6 @@ pub async fn setup_jdwp_point(session_id: u32, channel_id: u32) -> bool {
     true
 }
 
-async fn echo_client(_session_id: u32, channel_id: u32, message: &str, _level: MessageLevel) {
-    #[cfg(feature = "host")]
-    {
-        let level = match _level {
-            MessageLevel::Ok => transfer::EchoLevel::OK,
-            MessageLevel::Fail => transfer::EchoLevel::FAIL,
-            MessageLevel::Info => transfer::EchoLevel::INFO,
-        };
-        let _ =
-            transfer::send_channel_msg(channel_id, level, message.to_string())
-                .await;
-        return;
-    }
-    #[allow(unreachable_code)]
-    {
-        hdctransfer::echo_client(_session_id, channel_id, message.as_bytes().to_vec(), _level)
-            .await;
-    }
-}
-
 async fn task_finish(session_id: u32, channel_id: u32) {
     transfer_task_finish(channel_id, session_id).await;
 }
@@ -1195,7 +1175,7 @@ pub async fn daemon_connect_pipe(session_id: u32, channel_id: u32, fd: i32, path
     if let Ok(addr_obj) = &addr {
         let ret: Result<(), Error> = UdsClient::wrap_connect(fd, addr_obj);
         if ret.is_err() {
-            echo_client(
+            hdctransfer::echo_client(
                 session_id,
                 channel_id,
                 "localabstract connect fail",
@@ -1608,7 +1588,7 @@ async fn get_last_error(session_id: u32, channel_id: u32) -> io::Result<String> 
 
 async fn print_error_info(session_id: u32, channel_id: u32) {
     if let Ok(error) = get_last_error(session_id, channel_id).await {
-        echo_client(
+        hdctransfer::echo_client(
             session_id,
             channel_id,
             error.as_str(),

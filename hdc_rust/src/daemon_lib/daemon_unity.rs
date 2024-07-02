@@ -34,7 +34,7 @@ async fn hdc_restart() {
 }
 
 async fn echo_client(session_id: u32, channel_id: u32, message: &str, level: MessageLevel) {
-    hdctransfer::echo_client(session_id, channel_id, message.as_bytes().to_vec(), level).await;
+    hdctransfer::echo_client(session_id, channel_id, message, level).await;
 }
 
 async fn echo_device_mode_result(session_id: u32, channel_id: u32, result: bool, message: &str) {

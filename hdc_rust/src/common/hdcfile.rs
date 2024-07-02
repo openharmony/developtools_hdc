@@ -175,7 +175,7 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
         hdctransfer::echo_client(
             session_id,
             channel_id,
-            err_msg.as_bytes().to_vec(),
+            err_msg.as_str(),
             MessageLevel::Fail,
         )
         .await;
@@ -187,7 +187,7 @@ async fn echo_finish(session_id: u32, channel_id: u32, msg: String) {
     hdctransfer::echo_client(
         session_id,
         channel_id,
-        msg.as_bytes().to_vec(),
+        msg.as_str(),
         MessageLevel::Ok,
     )
     .await;
@@ -314,7 +314,7 @@ async fn set_master_parameters(
                 };
             } else {
                 crate::error!("task transfer task_queue is empty");
-                return Err(Error::new(ErrorKind::Other, "because the source folder is empty"));
+                return Err(Error::new(ErrorKind::Other, "Operation failed, because the source folder is empty."));
             }
         },
         Err(error) => {
@@ -490,7 +490,7 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         hdctransfer::echo_client(
             task.transfer.session_id,
             task.transfer.channel_id,
-            message.as_bytes().to_vec(),
+            message.as_str(),
             level,
         )
         .await;
@@ -654,7 +654,7 @@ pub async fn echo_fail(session_id: u32, channel_id: u32, error: Error, is_checke
     hdctransfer::echo_client(
         session_id,
         channel_id,
-        message.as_bytes().to_vec(),
+        message.as_str(),
         MessageLevel::Fail,
     )
     .await;

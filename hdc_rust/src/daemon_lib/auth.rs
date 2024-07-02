@@ -281,7 +281,7 @@ async fn make_reject_message(
 async fn send_reject_message(session_id: u32, channel_id: u32, host_ver: &str) {
     crate::info!("send_reject_message for session {}", session_id);
     let msg = "[E000001]:The sdk hdc.exe version is too low, please upgrade to the latest version.";
-    echo_client(session_id, channel_id, msg.into(), MessageLevel::Fail).await;
+    echo_client(session_id, channel_id, msg, MessageLevel::Fail).await;
     transfer::put(
         session_id,
         make_reject_message(session_id, channel_id, host_ver, msg).await,
@@ -459,7 +459,7 @@ pub async fn handshake_deal_pubkey(
         echo_client(
             session_id,
             channel_id,
-            confirmmsg.into(),
+            confirmmsg,
             MessageLevel::Fail,
         )
         .await;
@@ -517,7 +517,7 @@ pub async fn handshake_deal_pubkey(
                 "then check for a confirmation dialog on your device."
             );
             AuthStatusMap::put(session_id, AuthStatus::Reject(denymsg.to_string())).await;
-            echo_client(session_id, channel_id, denymsg.into(), MessageLevel::Fail).await;
+            echo_client(session_id, channel_id, denymsg, MessageLevel::Fail).await;
             transfer::put(
                 session_id,
                 make_emg_message(session_id, channel_id, denymsg).await,

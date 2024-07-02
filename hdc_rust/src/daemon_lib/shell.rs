@@ -175,7 +175,7 @@ async fn subprocess_task(
             crate::common::hdctransfer::echo_client(
                 session_id,
                 channel_id,
-                "execute cmd fail".as_bytes().to_vec(),
+                "execute cmd fail",
                 MessageLevel::Fail,
             )
             .await;

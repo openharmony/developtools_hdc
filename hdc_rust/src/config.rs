@@ -308,7 +308,7 @@ pub const LOG_TAIL_NAME: &str = ".log";
 pub const LOG_CACHE_NAME: &str = ".hdc.cache";
 pub const LOG_FILE_SIZE: usize = 1024 * 1024 * 100; // 100MB
 
-pub const DAEMON_PORT: u16 = 60000;
+pub const DAEMON_PORT: u16 = 0;
 pub const SERVER_DEFAULT_PORT: u16 = 9710;
 pub const MAX_PORT_NUM: u32 = 65535;
 pub const MAX_PORT_LEN: usize = 5;

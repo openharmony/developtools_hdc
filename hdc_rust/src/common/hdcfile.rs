@@ -250,8 +250,8 @@ async fn set_master_parameters(
     let mut i: usize = 0;
     let mut src_argv_index = 0u32;
     if task.transfer.server_or_daemon {
-        src_argv_index += 2;
-    }
+        src_argv_index += 2; // 2: represent the host parameters: "file" "send".
+    } // else: src_argv_index += 0: the host parameters "file" "recv" will be filtered.
     while i < argc as usize {
         match &argv[i] as &str {
             "-z" => {
@@ -310,11 +310,11 @@ async fn set_master_parameters(
 
             if !task.transfer.task_queue.is_empty() {
                 task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
-                task.transfer.local_name = if task.transfer.server_or_daemon {
-                    task.transfer.local_path[task.transfer.base_local_path.len()..].to_string()
-                } else {
-                    task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string()
-                };
+                task.transfer.local_name =
+                    match Base::get_relative_path(&task.transfer.base_local_path, &task.transfer.local_path) {
+                        Some(relative_path) => relative_path,
+                        None => task.transfer.local_path.clone()
+                    };
             } else {
                 crate::error!("task transfer task_queue is empty");
                 return Err(Error::new(ErrorKind::Other, "Operation failed, because the source folder is empty."));
@@ -429,11 +429,11 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
         return false;
     };
     task.transfer.local_path = local_path;
-    task.transfer.local_name = if task.transfer.server_or_daemon {
-        task.transfer.local_path[task.transfer.base_local_path.len()..].to_string()
-    } else {
-        task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string()
-    };
+    task.transfer.local_name =
+        match Base::get_relative_path(&task.transfer.base_local_path, &task.transfer.local_path) {
+            Some(relative_path) => relative_path,
+            None => task.transfer.local_path.clone()
+        };
     drop(task);
     check_local_path(session_id, channel_id).await
 }

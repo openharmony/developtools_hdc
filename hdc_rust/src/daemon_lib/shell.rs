@@ -665,16 +665,35 @@ async fn task_for_shell_execute(
 
         let mut child_out_reader = ylong_runtime::io::AsyncBufReader::new(child_out);
         let mut child_err_reader = ylong_runtime::io::AsyncBufReader::new(child_err);
-        let mut buf = [0u8; 30720];
+        let mut buf_out = [0u8; 30720];
+        let mut buf_err = [0u8; 30720];
+
         loop {
             ylong_runtime::select! {
-                read_res = child_out_reader.read(&mut buf) => {
+                read_res = child_out_reader.read(&mut buf_out) => {
                     match read_res {
                         Ok(bytes) => {
                             let message = TaskMessage {
                                 channel_id: shell_task_id.channel_id,
                                 command: ret_command,
-                                payload: buf[..bytes].to_vec(),
+                                payload: buf_out[..bytes].to_vec(),
+                            };
+                            transfer::put(shell_task_id.session_id, message).await;
+                        }
+                        Err(e) => {
+                            crate::warn!("pty read failed: {e:?}");
+                            break;
+                        }
+                    }
+                },
+
+                read_res = child_err_reader.read(&mut buf_err) => {
+                    match read_res {
+                        Ok(bytes) => {
+                            let message = TaskMessage {
+                                channel_id: shell_task_id.channel_id,
+                                command: ret_command,
+                                payload: buf_err[..bytes].to_vec(),
                             };
                             transfer::put(shell_task_id.session_id, message).await;
                         }

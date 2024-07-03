@@ -18,12 +18,13 @@ use crate::common::uds::{PollNode, UdsAddr, UdsServer};
 use crate::config::ErrCode;
 use crate::config::HdcCommand;
 use crate::config::TaskMessage;
+use crate::daemon_lib::sys_para::set_dev_item;
 use crate::{transfer, utils};
 use crate::utils::hdc_log::*;
 use libc::{POLLERR, POLLHUP, POLLIN, POLLNVAL, POLLRDHUP, SOCK_STREAM};
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::waiter::Waiter;
@@ -195,6 +196,15 @@ impl Jdwp {
         result
     }
 
+    fn chang_item_once() {
+        static ONCE: Once = Once::new();
+        ONCE.call_once(|| {
+                let result = set_dev_item("persist.hdc.jdwp", "0");
+                crate::info!("set persist.hdc.jdwp to 0 result: {}", result);
+            }
+        );
+    }
+
     pub async fn handle_client(fd: i32, waiter: Arc<Waiter>, node_map: NodeMap) {
         crate::info!("handle_client start...");
         let mut buffer: [u8; 1024] = [0; 1024];
@@ -212,6 +222,7 @@ impl Jdwp {
             crate::info!("debug:{}", is_debug);
             let pkg_name = String::from_utf8(buffer[u32_size * 3..len as usize].to_vec()).unwrap_or_default();
             crate::info!("pkg name:{}", pkg_name);
+            Self::chang_item_once();
 
             let node_map = node_map.clone();
             let mut map = node_map.lock().await;
@@ -343,7 +354,9 @@ impl Jdwp {
         }
 
         self.start_data_looper();
-
+        set_dev_item("persist.hdc.jdwp", "0");
+        let result = set_dev_item("persist.hdc.jdwp", "1");
+        crate::info!("init set persist.hdc.jdwp to 1 result: {}", result);
         self.create_fd_event_poll().await;
         ErrCode::Success
     }

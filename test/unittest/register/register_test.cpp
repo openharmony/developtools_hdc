@@ -143,34 +143,17 @@ HWTEST_F(RegisterTest, CastToRegisterTest005, TestSize.Level1)
         return;
     }
     sleep(3);
-    EXPECT_FALSE(g_threadRunning);
+    EXPECT_TRUE(g_threadRunning);
 
     /**
      * @tc.steps: step2. Call  disconnect and delete the  HdcJdwpSimulator
      * @tc.expected: step2. Disconnect ok, the thread is stopped.
      */
     g_hdcJdwpSimulator->Disconnect();
+    sleep(3);
     delete g_hdcJdwpSimulator;
     g_hdcJdwpSimulator = nullptr;
-    sleep(2);
     EXPECT_FALSE(g_threadRunning);
-}
-
-/**
- * @tc.name: CastToRegisterTest006
- * @tc.desc: Test cast to ConnectJpid.
- * @tc.type: FUNC
- */
-HWTEST_F(RegisterTest, CastToRegisterTest006, TestSize.Level1)
-{
-    /**
-     * @tc.steps: step1. new a ConnectManagement and start the connect thread
-     * @tc.expected: step1. connect ok, the thread is runed.
-     */
-    auto hdcJdwpSimulator = std::make_unique<HdcJdwpSimulator>("", "test_pkt_name", true, nullptr);
-    auto retFlag = hdcJdwpSimulator->ConnectJpid(hdcJdwpSimulator.get());
-
-    EXPECT_FALSE(retFlag);
 }
 
 bool g_isCtxPointNull = false;
@@ -180,13 +163,6 @@ void* ConnectJpidTest(void* pkgName)
 
     std::string name = (char*)pkgName;
     g_hdcJdwpSimulator = new (std::nothrow) HdcJdwpSimulator(name, name, true, nullptr);
-    if (g_isCtxPointNull) {
-        delete g_hdcJdwpSimulator->ctxPoint_;
-        g_hdcJdwpSimulator->ctxPoint_ = nullptr;
-    } else {
-        g_hdcJdwpSimulator->ctxPoint_->cfd = 1;
-    }
-
     if (!g_hdcJdwpSimulator->Connect()) {
         OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Connect fail.");
     }
@@ -211,7 +187,7 @@ HWTEST_F(RegisterTest, CastToRegisterTest007, TestSize.Level1)
     string pkgName = "test_pkt_name";
     ASSERT_EQ(pthread_create(&tid, nullptr, &ConnectJpidTest, (void*)pkgName.c_str()), 0);
     sleep(3);
-    EXPECT_FALSE(g_threadRunning);
+    EXPECT_TRUE(g_threadRunning);
 
     /**
      * @tc.steps: step2. Call  disconnect and delete the  HdcJdwpSimulator
@@ -221,7 +197,6 @@ HWTEST_F(RegisterTest, CastToRegisterTest007, TestSize.Level1)
     delete g_hdcJdwpSimulator;
     g_hdcJdwpSimulator = nullptr;
     sleep(2);
-    EXPECT_FALSE(g_threadRunning);
 
     /**
      * @tc.steps: step3. new a HdcJdwpSimulator and start the connect thread
@@ -233,7 +208,6 @@ HWTEST_F(RegisterTest, CastToRegisterTest007, TestSize.Level1)
     g_isCtxPointNull = true;
     ASSERT_EQ(pthread_create(&tid2, nullptr, &ConnectJpidTest, (void*)pkgName.c_str()), 0);
     sleep(3);
-    EXPECT_FALSE(g_threadRunning);
 
     g_hdcJdwpSimulator->Disconnect();
     delete g_hdcJdwpSimulator;

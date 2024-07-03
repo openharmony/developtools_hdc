@@ -481,6 +481,8 @@ ohos_shared_library("hdc_register") {
     "bounds_checking_function:libsec_shared",
     "c_utils:utils",
     "hilog:libhilog",
+    "init:libbeget_proxy",
+    "init:libbegetutil",
     "libuv:uv",
   ]
 

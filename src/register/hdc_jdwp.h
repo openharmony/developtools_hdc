@@ -20,6 +20,7 @@
 #include "define_register.h"
 
 namespace Hdc {
+const char PERSIST_HDC_JDWP[] = "persist.hdc.jdwp";
 class HdcJdwpSimulator;
 
 class HdcJdwpSimulator {
@@ -29,35 +30,30 @@ public:
     bool Connect();
     void Disconnect();
 
-protected:
-    struct ContextJdwpSimulator {
-        int cfd;
-        HdcJdwpSimulator *thisClass;
-    };
-    using HCtxJdwpSimulator = struct ContextJdwpSimulator *;
-
 private:
     struct JsMsgHeader {
         uint32_t msgLen;
         uint32_t pid;
         uint8_t isDebug; // 1:debug 0:release
     };
-    void *MallocContext();
-    static bool ConnectJpid(HdcJdwpSimulator *param);
-    static bool SendToJpid(int fd, const uint8_t *buf, const int bufLen);
-    HCtxJdwpSimulator ctxPoint_;
+
     std::string processName_;
     std::string pkgName_;
     bool isDebug_;
     Callback cb_;
     int cfd_;
     std::atomic<bool> disconnectFlag_;
-    std::atomic<bool> startOnce_;
-    std::thread readThread_;
-    static void ReadWork(HdcJdwpSimulator *param);
-    void Read();
-    void ReadStart();
-    void Reconnect();
+    std::atomic<bool> notified_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+
+    void AddWatchHdcdJdwp();
+    void DelWatchHdcdJdwp();
+    void WaitForJdwp();
+    bool SendBuf(const uint8_t *buf, const int bufLen);
+    bool Connect2Jdwp();
+    bool Send2Jdwp();
+    void ReadFromJdwp();
 };
 } // namespace Hdc
 #endif  // REGISTER_HDC_JDWP_H

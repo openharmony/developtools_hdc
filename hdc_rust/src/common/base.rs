@@ -21,6 +21,7 @@ use libc::{c_char, c_int};
 use libc::{SIGPIPE, SIGALRM, SIGTTIN, SIGTTOU, SIG_IGN, SIG_DFL, sighandler_t};
 use std::collections::HashMap;
 use std::{env, ffi::CString};
+use std::path::{PathBuf, Path};
 
 extern "C" {
     fn ProgramMutex(procname: *const c_char, checkOrNew: bool, tmpDir: *const c_char) -> c_int;
@@ -251,6 +252,23 @@ impl Base {
             libc::signal(SIGALRM, SIG_DFL as sighandler_t);
             libc::signal(SIGTTIN, SIG_DFL as sighandler_t);
             libc::signal(SIGTTOU, SIG_DFL as sighandler_t);
+        }
+    }
+
+    pub fn normalized_path(path: PathBuf) -> PathBuf {
+        let mut normalized_path = PathBuf::new();
+        for component in path.components() {
+            normalized_path.push(component);
+        }
+        normalized_path
+    }
+
+    pub fn get_relative_path(base_path: &String , local_path: &String) -> Option<String> {
+        let base = Path::new(base_path);
+        let local = Path::new(local_path);
+        match local.strip_prefix(base) {
+            Ok(relative_path) => Some(PathBuf::from(relative_path).display().to_string()),
+            Err(_) => None,
         }
     }
 }

@@ -580,7 +580,7 @@ pub fn get_sub_files_resurively(_path: &String) -> Vec<String> {
         if is_dir_link(path.clone().display().to_string()) {
             continue;
         } else if path.is_file() {
-            result.push(path.display().to_string());
+            result.push(Base::normalized_path(path).display().to_string());
         } else {
             let p = path.display().to_string();
             let mut sub_list = get_sub_files_resurively(&p);

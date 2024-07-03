@@ -175,7 +175,7 @@ async fn check_local_path(session_id: u32, channel_id: u32) -> bool {
         hdctransfer::echo_client(
             session_id,
             channel_id,
-            err_msg.as_bytes().to_vec(),
+            err_msg.as_str(),
             MessageLevel::Fail,
         )
         .await;
@@ -187,7 +187,7 @@ async fn echo_finish(session_id: u32, channel_id: u32, msg: String) {
     hdctransfer::echo_client(
         session_id,
         channel_id,
-        msg.as_bytes().to_vec(),
+        msg.as_str(),
         MessageLevel::Ok,
     )
     .await;
@@ -249,6 +249,9 @@ async fn set_master_parameters(
     let mut task = task.lock().await;
     let mut i: usize = 0;
     let mut src_argv_index = 0u32;
+    if task.transfer.server_or_daemon {
+        src_argv_index += 2;
+    }
     while i < argc as usize {
         match &argv[i] as &str {
             "-z" => {
@@ -307,16 +310,20 @@ async fn set_master_parameters(
 
             if !task.transfer.task_queue.is_empty() {
                 task.transfer.local_path = task.transfer.task_queue.pop().unwrap();
-                task.transfer.local_name =
-                    task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
+                task.transfer.local_name = if task.transfer.server_or_daemon {
+                    task.transfer.local_path[task.transfer.base_local_path.len()..].to_string()
+                } else {
+                    task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string()
+                };
             } else {
                 crate::error!("task transfer task_queue is empty");
-                return Err(Error::new(ErrorKind::Other, "because the source folder is empty"));
+                return Err(Error::new(ErrorKind::Other, "Operation failed, because the source folder is empty."));
             }
         },
         Err(error) => {
-            crate::error!("error :{}", error);
-            return Err(error);
+            let err_msg = format!("Error opening file: {}, path: {}", error, task.transfer.local_path);
+            crate::error!("{}", err_msg);
+            return Err(Error::new(ErrorKind::Other, err_msg));
         },
     }
     Ok(true)
@@ -380,7 +387,7 @@ pub async fn check_slaver(session_id: u32, channel_id: u32, _payload: &[u8]) -> 
     }
     if task.transfer.transfer_config.update_if_new {
         crate::error!("task.transfer.transfer_config.update_if_new is true");
-        return Err(Error::new(ErrorKind::Other, "Other failede"));
+        return Err(Error::new(ErrorKind::Other, "Other failed"));
     }
     if task.dir_begin_time == 0 {
         task.dir_begin_time = utils::get_current_time();
@@ -422,8 +429,11 @@ async fn transfer_next(session_id: u32, channel_id: u32) -> bool {
         return false;
     };
     task.transfer.local_path = local_path;
-    task.transfer.local_name =
-        task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string();
+    task.transfer.local_name = if task.transfer.server_or_daemon {
+        task.transfer.local_path[task.transfer.base_local_path.len()..].to_string()
+    } else {
+        task.transfer.local_path[task.transfer.base_local_path.len() + 1..].to_string()
+    };
     drop(task);
     check_local_path(session_id, channel_id).await
 }
@@ -484,7 +494,7 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
         hdctransfer::echo_client(
             task.transfer.session_id,
             task.transfer.channel_id,
-            message.as_bytes().to_vec(),
+            message.as_str(),
             level,
         )
         .await;
@@ -648,7 +658,7 @@ pub async fn echo_fail(session_id: u32, channel_id: u32, error: Error, is_checke
     hdctransfer::echo_client(
         session_id,
         channel_id,
-        message.as_bytes().to_vec(),
+        message.as_str(),
         MessageLevel::Fail,
     )
     .await;

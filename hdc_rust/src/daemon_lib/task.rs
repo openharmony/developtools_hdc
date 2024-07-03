@@ -57,7 +57,7 @@ async fn daemon_shell_task(task_message: TaskMessage, session_id: u32) -> io::Re
                     crate::common::hdctransfer::echo_client(
                         session_id,
                         task_message.channel_id,
-                        "only support utf-8 chars".as_bytes().to_vec(),
+                        "only support utf-8 chars",
                         MessageLevel::Fail,
                     )
                     .await;
@@ -315,7 +315,7 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         crate::common::hdctransfer::echo_client(
             session_id,
             task_message.channel_id,
-            auth::get_auth_msg(session_id).await.as_bytes().to_vec(),
+            auth::get_auth_msg(session_id).await.as_str(),
             MessageLevel::Fail,
         )
         .await;
@@ -333,9 +333,7 @@ pub async fn dispatch_task(task_message: TaskMessage, session_id: u32) -> io::Re
         crate::common::hdctransfer::echo_client(
             session_id,
             task_message.channel_id,
-            "debugging is not allowed"
-            .to_string()
-            .into_bytes(),
+            "debugging is not allowed",
             MessageLevel::Fail,
         )
         .await;

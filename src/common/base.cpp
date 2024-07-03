@@ -502,7 +502,7 @@ namespace Base {
                 }
                 auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
                 uv_walk(ptrLoop, clearLoopTask, nullptr);
-#ifdef HDC_HOST
+#if defined(HDC_HOST) && !defined(HOST_LINUX)
                 // If all processing ends, Then return0,this call will block
                 if (!ptrLoop->active_handles) {
                     ret = true;

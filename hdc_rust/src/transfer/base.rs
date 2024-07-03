@@ -62,7 +62,7 @@ pub trait Writer {
 
 pub trait Reader: Send + Sync + 'static {
     fn read_frame(&self, expected_size: usize) -> io::Result<Vec<u8>>;
-    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32, u32)> {
         Err(utils::error_other("not implemeted".to_string()))
     }
     fn process_head(&self) {}
@@ -120,7 +120,7 @@ pub async fn unpack_task_message_lock(
             while remaining > 0 {
                 let head_result = rd.check_protocol_head();
                 match head_result {
-                    Ok((packet_size, _pkg_index)) => {
+                    Ok((packet_size, _pkg_index, _session_id)) => {
                         rd.process_head();
                         if packet_size == 0 {
                             continue;
@@ -163,9 +163,9 @@ pub async fn unpack_task_message_lock(
 
 pub fn unpack_task_message(
     rd: &mut dyn Reader,
-    tx: BoundedSender<(TaskMessage, u32)>,
+    tx: BoundedSender<(TaskMessage, u32, u32)>,
 ) -> io::Result<()> {
-    let (pack_size, package_index) = rd.check_protocol_head()?;
+    let (pack_size, package_index, session_id) = rd.check_protocol_head()?;
     if pack_size == 0 {
         return Ok(());
     }
@@ -212,6 +212,7 @@ pub fn unpack_task_message(
                             payload: payload.to_vec(),
                         },
                         package_index,
+                        session_id,
                     ))
                     .await;
                 Ok(())

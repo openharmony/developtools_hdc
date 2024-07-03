@@ -119,7 +119,7 @@ impl base::Reader for UartReader {
         Ok(data)
     }
 
-    fn check_protocol_head(&mut self) -> io::Result<(u32, u32)> {
+    fn check_protocol_head(&mut self) -> io::Result<(u32, u32, u32)> {
         let buf = self.read_frame(serializer::UART_HEAD_SIZE)?;
         if buf[..config::PACKET_FLAG.len()] != config::PACKET_FLAG[..] {
             return Err(Error::new(
@@ -136,7 +136,7 @@ impl base::Reader for UartReader {
 
         self.head = Some(head.clone());
 
-        Ok((head.data_size, head.package_index))
+        Ok((head.data_size, head.package_index, head.session_id))
     }
 
     #[allow(unused)]

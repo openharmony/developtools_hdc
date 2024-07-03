@@ -376,7 +376,7 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
     let mut cur_session_id = 0;
     loop {
         match rx.recv().await {
-            Ok((msg, _index, _session_id)) => {
+            Ok((msg, _index, this_session_id)) => {
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(session_id_in_msg) = auth::get_session_id_from_msg(&msg).await {
                         if session_id_in_msg != cur_session_id {
@@ -389,8 +389,8 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
                         }
                     }
                 }
-                if ConnectTypeMap::get(_session_id).await.is_none() {
-                    crate::error!("session is not connected, command:{:?}, this session:{_session_id},
+                if ConnectTypeMap::get(this_session_id).await.is_none() {
+                    crate::error!("session is not connected, command:{:?}, this session:{this_session_id},
                         current session:{cur_session_id}", msg.command);
                     continue;
                 }

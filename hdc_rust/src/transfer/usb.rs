@@ -172,7 +172,7 @@ impl base::Reader for UsbReader {
             crate::warn!("parse usb head error: {}", e.to_string());
             return Err(e);
         }
-        Ok((u32::from_be(head.data_size), 0, head.session_id))
+        Ok((u32::from_be(head.data_size), 0, u32::to_be(head.session_id)))
     }
 }
 

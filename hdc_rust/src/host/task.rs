@@ -315,14 +315,7 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
                     ));
                 }
             }
-            let _ = host_app::command_dispatch(
-                session_id,
-                task_info.channel_id,
-                task_info.command,
-                &payload,
-                payload.len() as u16,
-            )
-            .await;
+            let _ = host_app::command_dispatch(session_id, task_info.channel_id, task_info.command, &payload) .await;
         }
 
         HdcCommand::FileCheck | HdcCommand::FileInit => {
@@ -690,7 +683,6 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
                 task_message.channel_id,
                 task_message.command,
                 &task_message.payload,
-                task_message.payload.len() as u16,
             )
             .await;
             return Ok(());
@@ -771,7 +763,6 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
 }
 
 pub async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
-    HostAppTaskMap::remove(session_id, task_message.channel_id).await;
     if task_message.payload[0] > 0 {
         let message = TaskMessage {
             channel_id: task_message.channel_id,

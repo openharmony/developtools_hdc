@@ -25,7 +25,6 @@ use hdc::transfer;
 use hdc::transfer::EchoLevel;
 use hdc::utils;
 use std::collections::HashMap;
-use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 use ylong_runtime::sync::Mutex;
@@ -93,65 +92,58 @@ impl HostAppTaskMap {
     }
 }
 
-pub async fn send_to_client(channel_id: u32, level: EchoLevel, message: String) -> io::Result<()> {
-    transfer::send_channel_msg(channel_id, level, message).await
-}
-
-pub async fn echo_client(channel_id: u32, message: String) -> io::Result<()> {
-    send_to_client(channel_id, EchoLevel::INFO, message).await
-}
-
 async fn check_install_continue(
     session_id: u32,
     channel_id: u32,
     mode_type: config::AppModeType,
     str: String,
 ) -> bool {
-    let mut _mode_desc = String::from("");
-    match mode_type {
-        config::AppModeType::Install => _mode_desc = String::from("App install"),
-        config::AppModeType::UnInstall => _mode_desc = String::from("App uninstall"),
-    }
+    let mode_desc = match mode_type {
+        config::AppModeType::Install => String::from("App install"),
+        config::AppModeType::UnInstall => String::from("App uninstall"),
+    };
     let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
         hdc::error!("Get host app task failed");
         return false;
     };
     let mut task = arc_task.lock().await;
     let msg = str[task.printed_msg_len..].to_owned();
-    let message = format!(
-        "{} path:{}, queuesize:{}, msg:{}",
-        _mode_desc,
-        task.transfer.local_path.clone(),
-        task.transfer.task_queue.len(),
-        msg
-    );
+    let local_path = if !task.transfer.local_tar_raw_path.is_empty() {
+        &task.transfer.local_tar_raw_path
+    } else {
+        &task.transfer.local_path
+    };
+    let message =
+        format!("{} path:{}, queuesize:{}, msg:{}", mode_desc, local_path, task.transfer.task_queue.len(), msg);
+    hdc::info!("{message}");
     task.printed_msg_len = str.len();
-    let _ = echo_client(channel_id, message).await;
+    let _ = transfer::send_channel_msg(channel_id, EchoLevel::INFO, message).await;
     if task.transfer.task_queue.is_empty() {
-        let _ = echo_client(channel_id, String::from("AppMod finish")).await;
+        let _ = transfer::send_channel_msg(channel_id, EchoLevel::INFO, String::from("AppMod finish")).await;
         task_finish(session_id, channel_id).await;
         hdctransfer::close_channel(channel_id).await;
         return false;
     }
     drop(task);
-    install_single(session_id, channel_id).await;
+    if let Err(err_msg) = install_single(session_id, channel_id).await {
+        let _ = transfer::send_channel_msg(channel_id, EchoLevel::FAIL, err_msg).await;
+        task_finish(session_id, channel_id).await;
+        return false;
+    }
     put_app_check(session_id, channel_id).await;
     true
 }
 
-async fn do_app_uninstall(session_id: u32, channel_id: u32, _payload: &[u8]) {
-    let app_uninstall_message = TaskMessage {
-        channel_id,
-        command: HdcCommand::AppUninstall,
-        payload: _payload.to_vec(),
-    };
+async fn do_app_uninstall(session_id: u32, channel_id: u32, payload: Vec<u8>) {
+    hdc::info!("send HdcCommand::AppUninstall");
+    let app_uninstall_message = TaskMessage { channel_id, command: HdcCommand::AppUninstall, payload };
     transfer::put(session_id, app_uninstall_message).await;
 }
 
-async fn do_app_finish(session_id: u32, channel_id: u32, _payload: &[u8]) -> bool {
-    let mode = config::AppModeType::try_from(_payload[0]);
+async fn do_app_finish(session_id: u32, channel_id: u32, payload: &[u8]) -> bool {
+    let mode = config::AppModeType::try_from(payload[0]);
     if let Ok(mode_type) = mode {
-        let str = match String::from_utf8(_payload[2..].to_vec()) {
+        let str = match String::from_utf8(payload[2..].to_vec()) {
             Ok(str) => str,
             Err(err) => {
                 hdc::error!("do_app_finish from_utf8 error, {err}");
@@ -167,7 +159,7 @@ fn dir_to_tar(dir_path: PathBuf) -> Result<String, String> {
     let mut compress = Compress::new();
     compress.updata_prefix(dir_path.clone());
     if let Err(err) = compress.add_path(&dir_path) {
-        return Err(format!("add path fail, {err}"));
+        return Err(format!("Package as tar and add path error, {err}"));
     }
     compress.updata_max_count(INSTALL_TAR_MAX_CNT);
 
@@ -180,6 +172,7 @@ fn dir_to_tar(dir_path: PathBuf) -> Result<String, String> {
 }
 
 async fn task_finish(session_id: u32, channel_id: u32) {
+    HostAppTaskMap::remove(session_id, channel_id).await;
     hdctransfer::transfer_task_finish(channel_id, session_id).await
 }
 
@@ -189,6 +182,7 @@ async fn put_app_check(session_id: u32, channel_id: u32) {
         return;
     };
     let task = arc_task.lock().await;
+    hdc::info!("send HdcCommand::AppCheck");
     let file_check_message = TaskMessage {
         channel_id,
         command: HdcCommand::AppCheck,
@@ -197,18 +191,37 @@ async fn put_app_check(session_id: u32, channel_id: u32) {
     transfer::put(session_id, file_check_message).await
 }
 
-async fn install_single(session_id: u32, channel_id: u32) {
+async fn install_single(session_id: u32, channel_id: u32) -> Result<(), String> {
     let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
         hdc::error!("Get host app task failed");
-        return;
+        return Err("Internal error, Pls try again".to_owned());
     };
     let mut task = arc_task.lock().await;
     match task.transfer.task_queue.pop() {
-        Some(loc_path) => task.transfer.local_path = loc_path,
+        Some(loc_path) => {
+            let loc_pathbuff = PathBuf::from(loc_path.clone());
+            if loc_pathbuff.is_file() {
+                task.transfer.local_path = loc_path;
+                task.transfer.local_tar_raw_path = String::new();
+            } else if loc_pathbuff.is_dir() {
+                match dir_to_tar(loc_pathbuff) {
+                    Ok(tar_file) => {
+                        hdc::info!("dir_to_tar success, path = {}", tar_file);
+                        task.transfer.local_path = tar_file;
+                        task.transfer.local_tar_raw_path = loc_path;
+                    }
+                    Err(err) => {
+                        hdc::error!("{}", err);
+                        return Err("Folder packaging failed".to_owned());
+                    }
+                }
+            } else {
+                return Err(format!("Error opening file: no such file or directory, path:{loc_path}"));
+            }
+        }
         None => {
-            hdc::error!("Get local path is None");
-            task_finish(session_id, channel_id).await;
-            return;
+            hdc::info!("task_queue is empty, not need install");
+            return Err("Not any installation package was found".to_owned());
         }
     }
     let local_path = task.transfer.local_path.clone();
@@ -226,23 +239,24 @@ async fn install_single(session_id: u32, channel_id: u32) {
                 .optional_name
                 .push_str(&str[index..]);
         }
-        // if config.hold_timestamp {}
         task.transfer.transfer_config.path = task.transfer.remote_path.clone();
+        Ok(())
     } else {
-        println!("other command {:#?}", error_msg);
-        task_finish(session_id, channel_id).await;
+        hdc::error!("file_manager.open {error_msg}");
+        Err(error_msg)
     }
 }
 
-async fn init_install(session_id: u32, channel_id: u32, command: &String) -> bool {
+async fn init_install(session_id: u32, channel_id: u32, command: &String) -> Result<(), String> {
     let (argv, argc) = Base::split_command_to_args(command);
     if argc < 1 {
-        return false;
+        hdc::error!("argc {argc}, {command}");
+        return Err("Invalid parameter".to_owned());
     }
 
     let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
         hdc::error!("Get host app task failed");
-        return false;
+        return Err("Internal error, Pls try again".to_owned());
     };
     let mut task = arc_task.lock().await;
     let mut i = 1usize;
@@ -265,17 +279,11 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
                 path.as_str(),
             );
             if path.ends_with(".hap") || path.ends_with(".hsp") {
-                task.transfer.task_queue.push(path.clone());
+                task.transfer.task_queue.push(path);
             } else {
-                match dir_to_tar(PathBuf::from(path)) {
-                    Ok(tar_file) => {
-                        hdc::info!("dir_to_tar success, path = {}", tar_file);
-                        task.transfer.task_queue.push(tar_file)
-                    }
-                    Err(err) => {
-                        hdc::error!("{}", err);
-                        return false;
-                    }
+                let pathbuff = PathBuf::from(path.clone());
+                if pathbuff.is_dir() {
+                    task.transfer.task_queue.push(path);
                 }
             }
         }
@@ -283,72 +291,97 @@ async fn init_install(session_id: u32, channel_id: u32, command: &String) -> boo
     }
 
     if task.transfer.task_queue.is_empty() {
-        return false;
+        return Err("Not any installation package was found".to_owned());
     }
 
     task.transfer.transfer_config.options = options.clone();
     task.transfer.transfer_config.function_name = TRANSFER_FUNC_NAME.to_string();
     task.transfer.is_master = true;
     drop(task);
-    install_single(session_id, channel_id).await;
+    install_single(session_id, channel_id).await
+}
 
-    true
+async fn task_app_install(session_id: u32, channel_id: u32, payload: &[u8]) -> Result<(), String> {
+    match String::from_utf8(payload.to_vec()) {
+        Ok(str) => {
+            hdc::info!("cmd : {str}");
+            init_install(session_id, channel_id, &str).await?;
+            hdcfile::wake_up_slaver(session_id, channel_id).await;
+            put_app_check(session_id, channel_id).await
+        }
+        Err(e) => {
+            hdc::error!("error {}", e);
+            let err_msg = "Internal error, Pls try again".to_owned();
+            return Err(err_msg);
+        }
+    }
+    Ok(())
+}
+
+async fn task_app_uninstall(session_id: u32, channel_id: u32, payload: &[u8]) -> Result<(), String> {
+    match String::from_utf8(payload.to_vec()) {
+        Ok(str) => {
+            hdc::info!("cmd {str}");
+            let (argv, argc) = Base::split_command_to_args(&str);
+            if argc < 1 {
+                hdc::error!("argc {argc}");
+                let err_msg = String::from("Invalid input parameters");
+                return Err(err_msg);
+            }
+            let (_opt, pack): (Vec<&String>, Vec<&String>) = argv.iter().partition(|arg| arg.starts_with('-'));
+            if pack.len() <= 1 {
+                let err_msg = String::from("Invalid input parameters");
+                return Err(err_msg);
+            }
+            let options = argv[1..].join(" ");
+            let payload = options.as_bytes().to_vec();
+            do_app_uninstall(session_id, channel_id, payload).await;
+        }
+        Err(e) => {
+            println!("error {}", e);
+            let err_msg = "Internal error, Pls try again".to_owned();
+            return Err(err_msg);
+        }
+    }
+    Ok(())
 }
 
 pub async fn command_dispatch(
-    session_id: u32,
-    channel_id: u32,
-    _command: HdcCommand,
-    _payload: &[u8],
-    _payload_size: u16,
+    session_id: u32, channel_id: u32, command: HdcCommand, payload: &[u8],
 ) -> Result<bool, &str> {
-    match _command {
+    match command {
         HdcCommand::AppInit => {
-            let s = String::from_utf8(_payload.to_vec());
-            match s {
-                Ok(str) => {
-                    if !init_install(session_id, channel_id, &str).await {
-                        let message = "Not any installation package was found";
-                        let _ =
-                            send_to_client(channel_id, EchoLevel::FAIL, message.to_owned()).await;
-                        transfer::TcpMap::end(channel_id).await;
-                        return Ok(false);
-                    }
-                    hdcfile::wake_up_slaver(session_id, channel_id).await;
-                    put_app_check(session_id, channel_id).await
-                }
-                Err(e) => {
-                    println!("error {}", e);
-                }
+            if let Err(err_msg) = task_app_install(session_id, channel_id, payload).await {
+                let _ = transfer::send_channel_msg(channel_id, EchoLevel::FAIL, err_msg).await;
+                transfer::TcpMap::end(channel_id).await;
+                task_finish(session_id, channel_id).await;
+                return Ok(false);
             }
         }
         HdcCommand::AppBegin => {
             let Some(arc_task) = HostAppTaskMap::get(session_id, channel_id).await else {
                 hdc::error!("Get host app task failed");
+                let err_msg = "Internal error, Pls try again".to_owned();
+                let _ = transfer::send_channel_msg(channel_id, EchoLevel::FAIL, err_msg).await;
+                transfer::TcpMap::end(channel_id).await;
+                task_finish(session_id, channel_id).await;
                 return Ok(false);
             };
             let task = arc_task.lock().await;
+            hdc::info!("recv HdcCommand::AppBegin");
             hdctransfer::transfer_begin(&task.transfer, HdcCommand::AppData).await;
         }
         HdcCommand::AppUninstall => {
-            let s = String::from_utf8(_payload.to_vec());
-            let mut options = String::from("");
-            match s {
-                Ok(str) => {
-                    let (argv, argc) = Base::split_command_to_args(&str);
-                    if argc < 1 {
-                        return Ok(false);
-                    }
-                    options = argv[1..].join(" ");
-                }
-                Err(e) => {
-                    println!("error {}", e);
-                }
+            if let Err(err_msg) = task_app_uninstall(session_id, channel_id, payload).await {
+                let _ = transfer::send_channel_msg(channel_id, EchoLevel::FAIL, err_msg).await;
+                transfer::TcpMap::end(channel_id).await;
+                task_finish(session_id, channel_id).await;
+                return Ok(false);
             }
-            do_app_uninstall(session_id, channel_id, options.as_bytes()).await;
-        }
+        },
         HdcCommand::AppFinish => {
-            do_app_finish(session_id, channel_id, _payload).await;
+            hdc::info!("recv HdcCommand::AppFinish");
+            do_app_finish(session_id, channel_id, payload).await;
         }
         _ => {
             println!("other command");

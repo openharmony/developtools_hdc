@@ -382,6 +382,8 @@ ohos_unittest("hdc_register_unittest") {
   external_deps = [
     "c_utils:utils",
     "hilog:libhilog",
+    "init:libbeget_proxy",
+    "init:libbegetutil",
   ]
 
   subsystem_name = "developtools"

@@ -124,7 +124,9 @@ pub async fn unpack_task_message_lock(
                 let head_result = rd.check_protocol_head();
                 match head_result {
                     Ok((packet_size, _pkg_index, _session_id)) => {
-                        rd.process_head();
+                        if let Some(join_handle) = rd.process_head() {
+                            let _ = join_handle.await;
+                        }
                         if packet_size == 0 {
                             continue;
                         }

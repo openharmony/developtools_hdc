@@ -18,6 +18,10 @@
 #include "server.h"
 #include "server_for_client.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifndef HARMONY_PROJECT
 #include "ut_command.h"
 using namespace HdcTest;
@@ -431,6 +435,9 @@ void RunExternalClient(string &str, string &connectKey, string &containerInOut)
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])
 {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
     string options;
     string commands;
     Hdc::SplitOptionAndCommand(argc, argv, options, commands);

@@ -857,7 +857,7 @@ pub async fn free_context(session_id: u32, channel_id: u32, _id: u32, notify_rem
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             #[cfg(not(target_os = "windows"))]
             UdsServer::wrap_close(task.context_forward.fd);
-            task.context_forward.id = -1;
+            task.context_forward.fd = -1;
         }
         ForwardType::Device => {
             return;

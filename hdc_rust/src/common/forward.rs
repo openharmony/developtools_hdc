@@ -1573,7 +1573,6 @@ pub async fn forward_command_dispatch(
             ret = false;
         }
     }
-    ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
     ret
 }
 

@@ -719,8 +719,7 @@ pub async fn recv_tcp_msg(session_id: u32, channel_id: u32, mut rd: SplitReadHal
             Ok(recv_size) => {
                 if recv_size == 0 {
                     free_context(session_id, channel_id, 0, true).await;
-                    drop(rd);
-                    crate::info!("recv_size is 0, tcp close shutdown");
+                    crate::info!("recv_size is 0, tcp temporarily closed");
                     return;
                 }
                 send_to_task(

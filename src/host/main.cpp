@@ -147,16 +147,12 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
         }
         if (foundCommand) {
             outCommand += outCommand.size() ? " " : "";
-            string rawCmd = argv[i];
-            string packageCmd = Base::StringFormat("\"%s\"", argv[i]);
-            outCommand += rawCmd.find(" ") == string::npos ? rawCmd : packageCmd;
+            string rawCmd = Base::UnicodeToUtf8(argv[i]);
+            outCommand += rawCmd.find(" ") == string::npos ? rawCmd : Base::StringFormat("\"%s\"", rawCmd.c_str());
         } else {
             outOption += outOption.size() ? " " : "";
-            if (i == 0) {
-                outOption += Base::StringFormat("\"%s\"", argv[i]);
-            } else {
-                outOption += argv[i];
-            }
+            string rawOption = Base::UnicodeToUtf8(argv[i]);
+            outOption += (i == 0) ? Base::StringFormat("\"%s\"", rawOption.c_str()) : rawOption;
         }
     }
     return 0;
@@ -431,6 +427,7 @@ void RunExternalClient(string &str, string &connectKey, string &containerInOut)
 }
 
 #ifndef UNIT_TEST
+
 // hdc -l4 -m -s ip:port|hdc -l4 -m
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])

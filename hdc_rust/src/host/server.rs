@@ -139,7 +139,7 @@ pub async fn get_process_pids() -> Vec<u32> {
         }
     } else {
         let output_vec = match utils::execute_cmd(
-            "ps -ef | grep hdc | grep -v grep | awk '{{print $2}}'".to_owned(),
+            "pgrep -x hdc".to_owned(),
         ) {
             Ok(output) => [output.stdout, output.stderr].concat(),
             Err(e) => e.to_string().into_bytes(),

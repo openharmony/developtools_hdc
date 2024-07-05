@@ -18,6 +18,7 @@
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
 use ylong_runtime::sync::mpsc::BoundedSender;
+use ylong_runtime::task::JoinHandle;
 
 use crate::config::TaskMessage;
 use crate::config::*;
@@ -65,7 +66,9 @@ pub trait Reader: Send + Sync + 'static {
     fn check_protocol_head(&mut self) -> io::Result<(u32, u32, u32)> {
         Err(utils::error_other("not implemeted".to_string()))
     }
-    fn process_head(&self) {}
+    fn process_head(&self) -> Option<JoinHandle<()>> {
+        None
+    }
 }
 
 pub async fn unpack_task_message_lock(
@@ -121,7 +124,9 @@ pub async fn unpack_task_message_lock(
                 let head_result = rd.check_protocol_head();
                 match head_result {
                     Ok((packet_size, _pkg_index, _session_id)) => {
-                        rd.process_head();
+                        if let Some(join_handle) = rd.process_head() {
+                            let _ = join_handle.await;
+                        }
                         if packet_size == 0 {
                             continue;
                         }

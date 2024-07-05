@@ -34,6 +34,7 @@ use std::io::{self, Error, ErrorKind};
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
+use ylong_runtime::task::JoinHandle;
 
 #[allow(unused)]
 extern "C" {
@@ -140,12 +141,15 @@ impl base::Reader for UartReader {
     }
 
     #[allow(unused)]
-    fn process_head(&self) {
+    fn process_head(&self) -> Option<JoinHandle<()>> {
         let head = self.head.clone();
         if let Some(head) = head {
-            ylong_runtime::block_on(async move {
+            let join_handle = utils::spawn(async move {
                 uart_wrapper::on_read_head(head).await;
             });
+            Some(join_handle)
+        } else {
+            None
         }
     }
 }

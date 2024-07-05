@@ -144,7 +144,7 @@ impl base::Reader for UartReader {
     fn process_head(&self) -> Option<JoinHandle<()>> {
         let head = self.head.clone();
         if let Some(head) = head {
-            let join_handle = ylong_runtime::spawn(async move {
+            let join_handle = utils::spawn(async move {
                 uart_wrapper::on_read_head(head).await;
             });
             Some(join_handle)

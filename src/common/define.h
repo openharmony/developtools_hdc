@@ -91,8 +91,8 @@ constexpr uint16_t TCP_CONNECT_RETRY_TIME_MS = 500;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000200 is 3.0.0d
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30000300;
+// 0x30000400 is 3.0.0e
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30000400;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;

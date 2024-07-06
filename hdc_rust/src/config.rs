@@ -383,8 +383,8 @@ pub const LOG_LEVEL_ORDER: [LevelFilter; 7] = [
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30000200 is 3.0.0d
-const HDC_VERSION_NUMBER: u32 = 0x30000300;
+// 0x30000400 is 3.0.0e
+const HDC_VERSION_NUMBER: u32 = 0x30000400;
 pub const AUTH_BASE_VERSDION: &str = "Ver: 3.0.0b";
 pub fn get_version() -> String {
     let major = (HDC_VERSION_NUMBER >> 28) & 0xff;

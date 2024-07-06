@@ -320,7 +320,7 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
 
         HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_info.channel_id).await {
-                let mut task = HdcFile::new(session_id, task_info.channel_id);
+                let mut task = HdcFile::new(session_id, task_info.channel_id, true);
                 task.transfer.server_or_daemon = true;
                 FileTaskMap::put(session_id, task_info.channel_id, task).await;
             }

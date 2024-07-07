@@ -92,12 +92,6 @@ fn main() {
                 hdc::error!("[Fail]usb daemon failed: {}", e);
             }
         });
-        #[cfg(not(feature = "emulator"))]
-        let uart_task = utils::spawn(async {
-            if let Err(e) = uart_daemon_start().await {
-                hdc::error!("[Fail]uart daemon failed: {}", e);
-            }
-        });
         #[cfg(feature = "emulator")]
         hdc::info!("daemon main emulator, start bridge daemon.");
         #[cfg(feature = "emulator")]
@@ -114,8 +108,6 @@ fn main() {
         let _ = tcp_task.await;
         #[cfg(not(feature = "emulator"))]
         let _ = usb_task.await;
-        #[cfg(not(feature = "emulator"))]
-        let _ = uart_task.await;
         #[cfg(feature = "emulator")]
         let _ = bridge_task.await;
         let _ = jdwp_server_task.await;

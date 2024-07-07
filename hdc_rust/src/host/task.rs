@@ -190,7 +190,7 @@ async fn channel_forward_remove(task_info: TaskInfo, forward_or_reverse: bool) -
     }
     let forward_channel_id = forward::ForwardTaskMap::get_channel_id(session_id, task_string.clone()).await;
     if let Some(_channel_id) = forward_channel_id {
-        forward::free_context(session_id, _channel_id, 0, true).await;
+        forward::free_channel_task(session_id, _channel_id, 0, true).await;
     }
     let message_str = format!("Remove forward ruler success, ruler:{}", task_string);
     send_channel_data(

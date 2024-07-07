@@ -145,7 +145,7 @@ async fn channel_forward_task(task_info: TaskInfo) -> io::Result<()> {
     let payload = task_info.params[1..].join(" ").into_bytes();
     match task_info.command {
         HdcCommand::ForwardInit => {
-            let mut task = HdcForward::new(session_id, task_info.channel_id);
+            let mut task = HdcForward::new(session_id, task_info.channel_id, true);
             task.transfer.server_or_daemon = true;
             ForwardTaskMap::update(session_id, task_info.channel_id, task).await;
             forward::command_dispatch(
@@ -320,7 +320,7 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
 
         HdcCommand::FileCheck | HdcCommand::FileInit => {
             if !FileTaskMap::exsit(session_id, task_info.channel_id).await {
-                let mut task = HdcFile::new(session_id, task_info.channel_id, true);
+                let mut task = HdcFile::new(session_id, task_info.channel_id);
                 task.transfer.server_or_daemon = true;
                 FileTaskMap::put(session_id, task_info.channel_id, task).await;
             }
@@ -644,7 +644,7 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32, conne
         | HdcCommand::ForwardCheckResult
         | HdcCommand::ForwardData => {
             if HdcCommand::ForwardCheck == task_message.command {
-                let mut task = HdcForward::new(session_id, task_message.channel_id);
+                let mut task = HdcForward::new(session_id, task_message.channel_id, true);
                 task.transfer.server_or_daemon = true;
                 ForwardTaskMap::update(session_id, task_message.channel_id, task).await;
             }

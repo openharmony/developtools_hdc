@@ -226,11 +226,6 @@ impl TcpReadStreamMap {
         loop {
             match rd.read(&mut data).await {
                 Ok(recv_size) => {
-                    if recv_size == 0 {
-                        free_context(cid, true).await;
-                        crate::info!("tcp close shutdown, channel_id = {:#?}", channel_id);
-                        return;
-                    }
                     send_to_task(
                         session_id,
                         channel_id,
@@ -253,7 +248,6 @@ impl TcpReadStreamMap {
         let mut map = instance.write().await;
         if let Some(arc_rd) = map.remove(&id) {
             let mut rd = arc_rd.lock().await;
-            // let _ = rd.shutdown().await;
             drop(rd);
         }
     }
@@ -288,7 +282,10 @@ impl TcpWriteStreamMap {
             return false;
         };
         let mut wr = arc_wr.lock().await;
-        let _ = wr.write_all(data.as_slice()).await;
+        let write_result = wr.write_all(data.as_slice()).await;
+        if write_result.is_err() {
+            crate::error!("TcpWriteStreamMap write_all error. id = {:#?}", id);
+        }
         true
     }
 
@@ -354,7 +351,6 @@ impl ForwardContextMap {
     pub async fn update(cid: u32, value: ContextForward) {
         let map = Self::get_instance();
         let mut map = map.lock().await;
-        // let _ = map.remove(&cid);
         map.insert(cid, value.clone());
     }
 
@@ -577,13 +573,6 @@ impl HdcForward {
     }
 }
 
-pub fn get_id(_payload: &[u8]) -> u32 {
-    let mut id_bytes = [0u8; 4];
-    id_bytes.copy_from_slice(&_payload[0..4]);
-    let id: u32 = u32::from_be_bytes(id_bytes);
-    id
-}
-
 pub async fn check_node_info(value: &String, arg: &mut Vec<String>) -> bool {
     crate::info!("check cmd args value is: {:#?}", value);
     if !value.contains(':') {
@@ -751,9 +740,8 @@ pub async fn forward_tcp_accept(
                     };
                     let (rd, wr) = stream.into_split();
                     TcpWriteStreamMap::put(cid, wr).await;
-                    TcpReadStreamMap::put(cid, rd).await;
-                    utils::spawn(on_accept(cid));
-                    TcpReadStreamMap::read(session_tmp, channel_tmp, cid).await;
+                    on_accept(cid).await;
+                    recv_tcp_msg(session_tmp, channel_tmp, rd, cid).await;
                 }
             });
             TcpListenerMap::put(channel_tmp, join_handle).await;
@@ -808,12 +796,37 @@ pub async fn daemon_connect_tcp(cid: u32, port: u32) {
         Ok(addr) => addr,
     };
     send_active_master(ctx).await;
-
-    crate::error!("daemon_ connect_tcp come in cid={:#?}", ctx.id);
     let (rd, wr) = stream.into_split();
     TcpWriteStreamMap::put(ctx.id, wr).await;
-    TcpReadStreamMap::put(ctx.id, rd).await;
-    TcpReadStreamMap::read(ctx.session_id, ctx.channel_id, ctx.id).await
+    recv_tcp_msg(ctx.session_id, ctx.channel_id, rd, ctx.id).await;
+}
+
+pub async fn recv_tcp_msg(session_id: u32, channel_id: u32, mut rd: SplitReadHalf, cid: u32) {
+    let mut data = vec![0_u8; SOCKET_BUFFER_SIZE];
+    loop {
+        match rd.read(&mut data).await {
+            Ok(recv_size) => {
+                if recv_size == 0 {
+                    crate::info!("recv_size is 0, tcp temporarily closed");
+                    free_context(cid, true).await;
+                    return;
+                }
+                send_to_task(
+                    session_id,
+                    channel_id,
+                    HdcCommand::ForwardData,
+                    &data[0..recv_size],
+                    recv_size,
+                    cid,
+                ).await;
+            }
+            Err(_e) => {
+                crate::error!(
+                    "recv tcp msg read failed session_id={session_id},channel_id={channel_id}"
+                );
+            }
+        }
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -825,7 +838,7 @@ pub async fn deamon_read_socket_msg(session_id: u32, channel_id: u32, fd: i32, c
             (recv_size, buffer)
         }).await;
         let (recv_size, buffer) = match result {
-            Ok((recv_size, _)) if recv_size <= 0 => {
+            Ok((recv_size, _)) if recv_size < 0 => {
                 crate::error!("local abstract close shutdown fd = {fd}");
                 free_context(cid, true).await;
                 return;
@@ -909,7 +922,6 @@ pub async fn setup_tcp_point(ctx: &mut ContextForward) -> bool {
     let cid = ctx.id;
     if ctx.is_master {
         let result = forward_tcp_accept(ctx, port).await;
-        crate::info!("setup tcp point result:{:?}", result);
         ctx.last_error = format!("TCP Port listen failed at {}", port);
         return result.is_ok();
     } else {
@@ -1167,7 +1179,6 @@ async fn task_finish(session_id: u32, channel_id: u32) {
 #[cfg(not(target_os = "windows"))]
 pub async fn daemon_connect_pipe(ctx: &mut ContextForward) {
     let name: Vec<u8> = ctx.local_args[1].clone().as_bytes().to_vec();
-
     let mut socket_name = vec![0_u8; name.len() + 1];
     socket_name[0] = b'\0';
     name.iter().enumerate().for_each(|(i, e)| {
@@ -1335,7 +1346,6 @@ pub async fn begin_forward(session_id: u32, channel_id: u32, _payload: &[u8]) ->
         crate::error!("cmd argv  is not int utf8");
         return false;
     };
-    crate::info!("begin forward, command: {:?}", command);
     let mut context_forward = malloc_context(session_id, channel_id, true).await;
     context_forward.task_command = command.clone();
     let result = Base::split_command_to_args(&command);
@@ -1407,6 +1417,7 @@ pub async fn slave_connect(
             return false;
         }
         context_forward.id = id;
+        ForwardContextMap::update(id, context_forward.clone()).await;
     }
     if !check_order {
         if !setup_point( &mut context_forward).await {

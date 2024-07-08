@@ -36,6 +36,7 @@ use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 use std::sync::Once;
 use std::mem::MaybeUninit;
+use std::time::Duration;
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
@@ -179,10 +180,8 @@ impl TcpMap {
     }
 }
 
-type UsbWriter_ = Arc<Mutex<UsbWriter>>;
-
 pub struct UsbMap {
-    map: Mutex<HashMap<u32, UsbWriter_>>,
+    map: std::sync::Mutex<HashMap<u32, UsbWriter>>,
 }
 impl UsbMap {
     pub(crate)  fn get_instance() -> &'static UsbMap {
@@ -192,7 +191,7 @@ impl UsbMap {
         unsafe {
             ONCE.call_once(|| {
                 let global = UsbMap {
-                    map: Mutex::new(HashMap::new())
+                    map: std::sync::Mutex::new(HashMap::new())
                 };
                 USB_MAP = MaybeUninit::new(global);
             });
@@ -206,62 +205,82 @@ impl UsbMap {
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
         let mut child_ret = 0;
-        let mut map = instance.map.lock().await;
-        match map.get(&session_id) {
-            Some(_wr) => {
-                {
-                    let Some(arc_wr) = map.get(&session_id) else {
-                        return Err(Error::new(ErrorKind::NotFound, "session not found"));
-                    };
-                    let mut wr = arc_wr.lock().await;
-                    match wr.write_all(head) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            return Err(Error::new(ErrorKind::Other, "Error writing head"));
-                        }
-                    }
+        let mut map = instance.map.lock().unwrap();
+        let Some(wr) = map.get(&session_id) else {
+            return Err(Error::new(ErrorKind::NotFound, "session not found"));
+        };
+        match wr.write_all(head) {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(Error::new(ErrorKind::Other, "Error writing head"));
+            }
+        }
 
-                    match wr.write_all(body) {
-                        Ok(ret) => {
-                            child_ret = ret;
-                        }
-                        Err(e) => {
-                            return Err(Error::new(ErrorKind::Other, "Error writing body"));
-                        }
-                    }
+        match wr.write_all(body) {
+            Ok(ret) => {
+                child_ret = ret;
+            }
+            Err(e) => {
+                return Err(Error::new(ErrorKind::Other, "Error writing body"));
+            }
+        }
 
-                    if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0) && (child_ret > 0) {
-                        let tail = usb::build_header(session_id, 0, 0);
-                        // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
-                        // so, we send dummy packet to prevent zero packet generate
-                        match wr.write_all(tail) {
-                            Ok(_) => {}
-                            Err(e) => {
-                                return Err(Error::new(ErrorKind::Other, "Error writing tail"));
-                            }
-                        }
-                    }
+        if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0) && (child_ret > 0) {
+            let tail = usb::build_header(session_id, 0, 0);
+            // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
+            // so, we send dummy packet to prevent zero packet generate
+            match wr.write_all(tail) {
+                Ok(_) => {}
+                Err(e) => {
+                    return Err(Error::new(ErrorKind::Other, "Error writing tail"));
                 }
             }
-            None => return Err(Error::new(ErrorKind::NotFound, "session not found")),
         }
         Ok(())
     }
 
     pub async fn start(session_id: u32, wr: UsbWriter) {
         let buffer_map = Self::get_instance();
-        let mut map = buffer_map.map.lock().await;
-        let arc_wr = Arc::new(Mutex::new(wr));
-        map.insert(session_id, arc_wr);
+        let mut try_times = 0;
+        let max_try_time = 10;
+        let wait_one_seconds = 1000;
+        loop {
+            try_times += 1;
+            if let Ok(mut map) = buffer_map.map.try_lock() {
+                map.insert(session_id, wr);
+                crate::error!("start usb session_id:{session_id} get lock success after try {try_times} times");
+                break;
+            } else {
+                if try_times > max_try_time {
+                    crate::error!("start usb session_id:{session_id} get lock failed will restart hdcd");
+                    std::process::exit(0);
+                }
+                crate::error!("start usb session_id:{session_id} try lock failed {try_times} times");
+                std::thread::sleep(Duration::from_millis(wait_one_seconds));
+            }
+        }
         ConnectTypeMap::put(session_id, ConnectType::Usb("some_mount_point".to_string())).await;
     }
 
     pub async fn end(session_id: u32) {
         let buffer_map = Self::get_instance();
-        if let Ok(mut map) = buffer_map.map.try_lock() {
-            let _ = map.remove(&session_id);
-        } else {
-            crate::warn!("free_session session_id:{session_id} get lock failed, ignore");
+        let mut try_times = 0;
+        let max_try_time = 10;
+        let wait_ten_ms = 10;
+        loop {
+            try_times += 1;
+            if let Ok(mut map) = buffer_map.map.try_lock() {
+                let _ = map.remove(&session_id);
+                crate::error!("end usb session_id:{session_id} get lock success after try {try_times} times");
+                break;
+            } else {
+                if try_times > max_try_time {
+                    crate::error!("end usb session_id:{session_id} get lock failed will force break");
+                    break;
+                }
+                crate::warn!("end usb session_id:{session_id} get lock failed {try_times} times");
+                std::thread::sleep(Duration::from_millis(wait_ten_ms));
+            }
         }
         ConnectTypeMap::del(session_id).await;
     }

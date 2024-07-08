@@ -41,6 +41,7 @@ pub async fn free_all_sessiones() {
 
 pub async fn free_session(session_id: u32) {
     auth::AuthStatusMap::remove(session_id).await;
+    stop_task(session_id).await;
     match ConnectTypeMap::get(session_id).await {
         Some(ConnectType::Bt) => {}
         Some(ConnectType::Tcp) => {
@@ -59,10 +60,8 @@ pub async fn free_session(session_id: u32) {
 
         None => {
             crate::warn!("free_session cannot find connect type for session_id:{session_id}");
-            return;
         }
     }
-    stop_task(session_id).await;
 }
 
 pub async fn stop_task(session_id: u32) {

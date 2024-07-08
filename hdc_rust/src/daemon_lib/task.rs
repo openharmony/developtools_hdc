@@ -152,7 +152,7 @@ async fn daemon_file_task(task_message: TaskMessage, session_id: u32) -> io::Res
             return Ok(());
         }
         HdcCommand::ForwardInit | HdcCommand::ForwardCheck => {
-            let mut task = HdcForward::new(session_id, task_message.channel_id);
+            let mut task = HdcForward::new(session_id, task_message.channel_id, false);
             task.transfer.server_or_daemon = false;
             ForwardTaskMap::update(session_id, task_message.channel_id, task).await;
             forward::command_dispatch(

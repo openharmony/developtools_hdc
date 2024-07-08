@@ -145,7 +145,7 @@ async fn channel_forward_task(task_info: TaskInfo) -> io::Result<()> {
     let payload = task_info.params[1..].join(" ").into_bytes();
     match task_info.command {
         HdcCommand::ForwardInit => {
-            let mut task = HdcForward::new(session_id, task_info.channel_id);
+            let mut task = HdcForward::new(session_id, task_info.channel_id, true);
             task.transfer.server_or_daemon = true;
             ForwardTaskMap::update(session_id, task_info.channel_id, task).await;
             forward::command_dispatch(
@@ -190,7 +190,7 @@ async fn channel_forward_remove(task_info: TaskInfo, forward_or_reverse: bool) -
     }
     let forward_channel_id = forward::ForwardTaskMap::get_channel_id(session_id, task_string.clone()).await;
     if let Some(_channel_id) = forward_channel_id {
-        forward::free_context(session_id, _channel_id, 0, true).await;
+        forward::free_channel_task(session_id, _channel_id).await;
     }
     let message_str = format!("Remove forward ruler success, ruler:{}", task_string);
     send_channel_data(
@@ -644,7 +644,7 @@ async fn session_task_dispatch(task_message: TaskMessage, session_id: u32, conne
         | HdcCommand::ForwardCheckResult
         | HdcCommand::ForwardData => {
             if HdcCommand::ForwardCheck == task_message.command {
-                let mut task = HdcForward::new(session_id, task_message.channel_id);
+                let mut task = HdcForward::new(session_id, task_message.channel_id, true);
                 task.transfer.server_or_daemon = true;
                 ForwardTaskMap::update(session_id, task_message.channel_id, task).await;
             }

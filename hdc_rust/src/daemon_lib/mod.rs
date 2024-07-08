@@ -381,11 +381,10 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(session_id_in_msg) = auth::get_session_id_from_msg(&msg).await {
                         if session_id_in_msg != cur_session_id {
-                            crate::info!("new session(usb) id:{}", session_id_in_msg);
+                            task_manager::free_session(cur_session_id).await;
+                            crate::info!("free session(usb) over {:?} and new session is {}", cur_session_id, session_id_in_msg);
                             let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
                             transfer::UsbMap::start(session_id_in_msg, wr).await;
-                            task_manager::free_session(cur_session_id).await;
-                            crate::info!("free session(usb) sucessfully {:?}", cur_session_id);
                             cur_session_id = session_id_in_msg;
                         }
                     }

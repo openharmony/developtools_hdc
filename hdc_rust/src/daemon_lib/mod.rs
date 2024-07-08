@@ -217,6 +217,7 @@ pub async fn tcp_daemon_start(port: u16) -> io::Result<()> {
     }
 }
 
+#[allow(unused)]
 #[cfg(not(feature = "emulator"))]
 pub async fn uart_daemon_start() -> io::Result<()> {
     loop {

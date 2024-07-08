@@ -172,17 +172,17 @@ async fn subprocess_task(
 ) {
     let mut pty_process = match init_pty_process(cmd.clone(), channel_id) {
         Err(e) => {
+            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
+            crate::error!("{}", msg);
             crate::common::hdctransfer::echo_client(
                 session_id,
                 channel_id,
-                "execute cmd fail",
+                &msg,
                 MessageLevel::Fail,
             )
             .await;
             shell_channel_close(channel_id, session_id).await;
-            let msg = format!("execute cmd [{cmd:?}] fail: {e:?}");
-            crate::error!("{}", msg);
-            panic!("{}", msg);
+            return;
         }
         Ok(pty) => pty,
     };

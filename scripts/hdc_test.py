@@ -124,6 +124,7 @@ TEST_FILES = {
     }
 }
 
+
 def command_judge(cmd):
     ret = False
     cmd_parts = cmd.split()

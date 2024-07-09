@@ -43,11 +43,12 @@
         "//developtools/hdc:hdcd_system",
         "//developtools/hdc/hdcd_user_permit:hdcd_user_permit",
         "//developtools/hdc:hdc_register",
-        "//developtools/hdc:hdcd_updater"
+        "//developtools/hdc:hdcd_updater",
+        "//developtools/hdc:hdc_updater"
       ],
       "inner_kits": [
         {
-            "name":"//developtools/hdc:hdc_register",
+            "name":"//developtools/hdc:hdc_updater",
             "header":{
                 "header_files":[
                 ],

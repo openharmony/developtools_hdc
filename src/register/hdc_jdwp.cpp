@@ -161,7 +161,7 @@ void HdcJdwpSimulator::ReadFromJdwp()
         return;
     }
     ev.data.fd = cfd_;
-    ev.events = EPOLLIN | EPOLLET;
+    ev.events = EPOLLIN ;
     int rc = epoll_ctl(efd, EPOLL_CTL_ADD, cfd_, &ev);
     if (rc == -1) {
         OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "Read epoll_ctl add cfd:%{public}d error:%{public}d",

@@ -18,56 +18,60 @@ import sys
 import argparse
 import hashlib
 
-algorithm = None
-hdc_file = ""
-input_dir = ""
-output_dir = ""
+ALGORITHM = None
+HDC_FILE = ""
+INPUT_DIR = ""
+OUTPUT_DIR = ""
 struct_vals = []
-cfg_file_name = r"scripts/file_path.cfg"
-output_file_name = r"all.txt"
+CFG_FILE_NAME = r"scripts/file_path.cfg"
+OUTPUT_FILE_NAME = r"all.txt"
+
 
 def calc_file_hash():
-    if output_dir == "":
+    if OUTPUT_DIR == "":
         return
-    global algorithm
-    algorithm = hashlib.sha256()
-    size = os.path.getsize("{}{}".format(output_dir, output_file_name))
-    with open("{}{}".format(output_dir, output_file_name), 'rb') as fd:
+    global ALGORITHM
+    ALGORITHM = hashlib.sha256()
+    size = os.path.getsize("{}{}".format(OUTPUT_DIR, OUTPUT_FILE_NAME))
+    with open("{}{}".format(OUTPUT_DIR, OUTPUT_FILE_NAME), 'rb') as fd:
         while size >= 1024 * 1024:
-            algorithm.update(fd.read(1024 * 1024))
+            ALGORITHM.update(fd.read(1024 * 1024))
             size -= 1024 * 1024
-        algorithm.update(fd.read())
+        ALGORITHM.update(fd.read())
+
 
 def write_output_file():
-    if output_dir == "":
+    if OUTPUT_DIR == "":
         return
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-    with open("{}{}".format(output_dir, output_file_name), 'w') as fd_struct:
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open("{}{}".format(OUTPUT_DIR, OUTPUT_FILE_NAME), 'w') as fd_struct:
         for i in struct_vals:
             fd_struct.write(i)
             fd_struct.write('\n')
 
+
 def write_hdc_file():
-    if hdc_file == "":
+    if HDC_FILE == "":
         return
-    with open("{}{}".format(output_dir, hdc_file), 'w') as fd_hdc:
+    with open("{}{}".format(OUTPUT_DIR, HDC_FILE), 'w') as fd_hdc:
         fd_hdc.write("#ifndef HDC_HASH_GEN_H\n")
         fd_hdc.write("#define HDC_HASH_GEN_H\n")
         fd_hdc.write('\n')
         fd_hdc.write("#include <stdio.h>\n")
-        context = "{}{}{}".format("#define HDC_MSG_HASH \"", str(algorithm.hexdigest())[0:16], "\"")
+        context = "{}{}{}".format("#define HDC_MSG_HASH \"", str(ALGORITHM.hexdigest())[0:16], "\"")
         fd_hdc.write(context)
         fd_hdc.write("\n\n")
         fd_hdc.write("#endif\n")
 
+
 def read_struct():
-    if input_dir == "":
+    if INPUT_DIR == "":
         return
-    with open("{}/{}".format(input_dir, cfg_file_name), mode='r', encoding='utf-8') as fd_path:
+    with open("{}/{}".format(INPUT_DIR, CFG_FILE_NAME), mode='r', encoding='utf-8') as fd_path:
         for line in fd_path.readlines():
             file_name = line.strip()
-            with open("{}{}".format(input_dir, file_name), mode='r', encoding='utf-8') as fd_file:
+            with open("{}{}".format(INPUT_DIR, file_name), mode='r', encoding='utf-8') as fd_file:
                 is_find = False
                 is_end = False
                 begin_count = 0
@@ -91,26 +95,28 @@ def read_struct():
                         if context.find("{") != -1:
                             begin_count = begin_count + 1
 
+
 def main():
     parser = argparse.ArgumentParser(
         description='Hdc proto code generator.')
-    parser.add_argument('-f', dest='hdc_file', required=True, type=str,
+    parser.add_argument('-f', dest='HDC_FILE', required=True, type=str,
                         help='output file name')
-    parser.add_argument('-i', dest='input_dir', required=True, type=str,
+    parser.add_argument('-i', dest='INPUT_DIR', required=True, type=str,
                         help='input directory')
-    parser.add_argument('-o', dest='output_dir', required=True, type=str,
+    parser.add_argument('-o', dest='OUTPUT_DIR', required=True, type=str,
                         help='output directory')
 
     args = parser.parse_args(sys.argv[1:])
-    global hdc_file
-    hdc_file = args.hdc_file
-    print("hdc_file:", hdc_file)
-    global input_dir
-    input_dir = args.input_dir
-    print("input_dir:", input_dir)
-    global output_dir
-    output_dir = args.output_dir
-    print("output_dir:", output_dir)
+    global HDC_FILE
+    HDC_FILE = args.HDC_FILE
+    print("HDC_FILE:", HDC_FILE)
+    global INPUT_DIR
+    INPUT_DIR = args.INPUT_DIR
+    print("INPUT_DIR:", INPUT_DIR)
+    global OUTPUT_DIR
+    OUTPUT_DIR = args.OUTPUT_DIR
+    print("OUTPUT_DIR:", OUTPUT_DIR)
+
 
 if __name__ == '__main__':
     print("~~~~~~~~~~~~~~~~ hdc_hash begin ~~~~~~~~~~~~~~~~~~")

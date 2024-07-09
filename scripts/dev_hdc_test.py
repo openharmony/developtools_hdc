@@ -247,7 +247,7 @@ def pytest_run(args):
             print("Please unzip package.zip to resource directory, please rerun after operation.")
             input("[ENTER]")
             return
-    start_time = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+    start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     if args.count is not None:
         for i in range(args.count):
             print(f"------------The {i}/{args.count} Test-------------")
@@ -261,8 +261,8 @@ def pytest_run(args):
                 '--desc='f"{args.verbose}:{args.desc}"
             ]
             pytest.main(pytest_args)
-    end_time = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
-    report_time = time.strftime('%Y-%m-%d_%H_%M_%S',time.localtime(time.time()))
+    end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+    report_time = time.strftime('%Y-%m-%d_%H_%M_%S', time.localtime(time.time()))
     report_dir = os.path.join(os.getcwd(), "reports")
     report_file = os.path.join(report_dir, f"{report_time}report.html")
     print(f"Test over, the script version is {GP.get_version()},"
@@ -357,12 +357,19 @@ def _check_dir(local, remote):
             result *= 0
 
     return (result == 1)
-        
+
 
 def _check_file(local, remote):
-    cmd = f"shell md5sum {remote}"
-    local_md5 = _get_local_md5(local)
-    return check_shell(cmd, local_md5)
+    if remote.startswith("/proc"):
+        local_size = os.path.getsize(local)
+        if local_size > 0:
+            return true
+        else:
+            return false
+    else:
+        cmd = f"shell md5sum {remote}"
+        local_md5 = _get_local_md5(local)
+        return check_shell(cmd, local_md5)
 
 
 def _check_app_installed(bundle, is_shared=False):
@@ -573,8 +580,8 @@ def prepare_source():
     for i in range(fuzz_count):
         create_file_with_size(
             os.path.join(
-                dir_path, f"file_{i*data_unit+data_extra}.dat"
-                ), i*data_unit+data_extra
+                dir_path, f"file_{i * data_unit+data_extra}.dat"
+                ), i * data_unit + data_extra
             )
 
     print("generating empty dir ...")

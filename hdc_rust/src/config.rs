@@ -297,6 +297,7 @@ pub const FILE_PACKAGE_PAYLOAD_SIZE: usize = 49152;
 pub const KERNEL_FILE_NODE_SIZE: u16 = 1024 * 4; // kernel file node 4K buffer
 pub const MAX_PACKET_SIZE_HISPEED: i32 = 512;
 pub const MAX_SIZE_IOBUF: usize = 61440;
+pub const MAX_DIED_SESSION_NUM: usize = 10;
 
 pub const WIN_CMD_PROG: &str = "cmd.exe";
 pub const SHELL_PROG: &str = "sh";

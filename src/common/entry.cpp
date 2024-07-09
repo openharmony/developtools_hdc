@@ -123,6 +123,7 @@ bool Entry::SaveToFile(std::string prefixPath)
                 WRITE_LOG(LOG_FATAL, "mkdir failed dirPath:%s estr:%s", dirPath.c_str(), estr.c_str());
                 return false;
             }
+            break;
         }
         default:
             return false;

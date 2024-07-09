@@ -31,12 +31,13 @@ use crate::serializer;
 use crate::utils::hdc_log::*;
 #[cfg(not(feature = "host"))]
 use crate::daemon_lib::task_manager;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 use std::sync::Once;
 use std::mem::MaybeUninit;
 use crate::transfer::usb::usb_write_all;
+use std::time::Duration;
 
 #[cfg(feature = "host")]
 extern crate ylong_runtime_static as ylong_runtime;
@@ -74,6 +75,7 @@ impl ConnectTypeMap {
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
         let item = map.remove(&session_id);
+        DiedSession::add(session_id).await;
         crate::debug!("connect map: del {session_id}: {:?}", item);
     }
 
@@ -180,11 +182,9 @@ impl TcpMap {
     }
 }
 
-type UsbWriter_ = Arc<Mutex<UsbWriter>>;
-
 pub struct UsbMap {
-    map: Mutex<HashMap<u32, UsbWriter_>>,
-    lock: Mutex<i32>,
+    map: std::sync::Mutex<HashMap<u32, UsbWriter>>,
+    lock: std::sync::Mutex<i32>,
 }
 impl UsbMap {
     pub(crate)  fn get_instance() -> &'static UsbMap {
@@ -194,8 +194,8 @@ impl UsbMap {
         unsafe {
             ONCE.call_once(|| {
                 let global = UsbMap {
-                    map: Mutex::new(HashMap::new()),
-                    lock: Mutex::new(0)
+                    map: std::sync::Mutex::new(HashMap::new()),
+                    lock: std::sync::Mutex::new(0)
                 };
                 USB_MAP = MaybeUninit::new(global);
             });
@@ -205,47 +205,47 @@ impl UsbMap {
 
     #[allow(unused)]
     async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
+        if DiedSession::get(session_id).await {
+            return Err(Error::new(ErrorKind::NotFound, "session already died"));;
+        }
         let mut fd = 0;
         {
             let instance = Self::get_instance();
-            let mut map = instance.map.lock().await;
+            let mut map = instance.map.lock().unwrap();
             let Some(arc_wr) = map.get(&session_id) else {
                 return Err(Error::new(ErrorKind::NotFound, "session not found"));
             };
-            let mut wr = arc_wr.lock().await;
-            fd = wr.fd;
+            fd =arc_wr.fd;
         }
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
+        let instance = Self::get_instance();
+        let _guard = instance.lock.lock().unwrap();
         let mut child_ret = 0;
-        {
-            let instance = Self::get_instance();
-            let _guard = instance.lock.lock().await;
-            match usb_write_all(fd, head) {
+        match usb_write_all(fd, head) {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(Error::new(ErrorKind::Other, "Error writing head"));
+            }
+        }
+
+        match usb_write_all(fd, body) {
+            Ok(ret) => {
+                child_ret = ret;
+            }
+            Err(e) => {
+                return Err(Error::new(ErrorKind::Other, "Error writing body"));
+            }
+        }
+
+        if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0) && (child_ret > 0) {
+            let tail = usb::build_header(session_id, 0, 0);
+            // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
+            // so, we send dummy packet to prevent zero packet generate
+            match usb_write_all(fd, tail) {
                 Ok(_) => {}
                 Err(e) => {
-                    return Err(Error::new(ErrorKind::Other, "Error writing head"));
-                }
-            }
-
-            match usb_write_all(fd, body) {
-                Ok(ret) => {
-                    child_ret = ret;
-                }
-                Err(e) => {
-                    return Err(Error::new(ErrorKind::Other, "Error writing body"));
-                }
-            }
-
-            if ((child_ret % config::MAX_PACKET_SIZE_HISPEED) == 0) && (child_ret > 0) {
-                let tail = usb::build_header(session_id, 0, 0);
-                // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
-                // so, we send dummy packet to prevent zero packet generate
-                match usb_write_all(fd, tail) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        return Err(Error::new(ErrorKind::Other, "Error writing tail"));
-                    }
+                    return Err(Error::new(ErrorKind::Other, "Error writing tail"));
                 }
             }
         }
@@ -254,16 +254,47 @@ impl UsbMap {
 
     pub async fn start(session_id: u32, wr: UsbWriter) {
         let buffer_map = Self::get_instance();
-        let mut map = buffer_map.map.lock().await;
-        let arc_wr = Arc::new(Mutex::new(wr));
-        map.insert(session_id, arc_wr);
+        let mut try_times = 0;
+        let max_try_time = 10;
+        let wait_one_seconds = 1000;
+        loop {
+            try_times += 1;
+            if let Ok(mut map) = buffer_map.map.try_lock() {
+                map.insert(session_id, wr);
+                crate::error!("start usb session_id:{session_id} get lock success after try {try_times} times");
+                break;
+            } else {
+                if try_times > max_try_time {
+                    crate::error!("start usb session_id:{session_id} get lock failed will restart hdcd");
+                    std::process::exit(0);
+                }
+                crate::error!("start usb session_id:{session_id} try lock failed {try_times} times");
+                std::thread::sleep(Duration::from_millis(wait_one_seconds));
+            }
+        }
         ConnectTypeMap::put(session_id, ConnectType::Usb("some_mount_point".to_string())).await;
     }
 
     pub async fn end(session_id: u32) {
         let buffer_map = Self::get_instance();
-        let mut map = buffer_map.map.lock().await;
-        let _ = map.remove(&session_id);
+        let mut try_times = 0;
+        let max_try_time = 10;
+        let wait_ten_ms = 10;
+        loop {
+            try_times += 1;
+            if let Ok(mut map) = buffer_map.map.try_lock() {
+                let _ = map.remove(&session_id);
+                crate::error!("end usb session_id:{session_id} get lock success after try {try_times} times");
+                break;
+            } else {
+                if try_times > max_try_time {
+                    crate::error!("end usb session_id:{session_id} get lock failed will force break");
+                    break;
+                }
+                crate::warn!("end usb session_id:{session_id} get lock failed {try_times} times");
+                std::thread::sleep(Duration::from_millis(wait_ten_ms));
+            }
+        }
         ConnectTypeMap::del(session_id).await;
     }
 }
@@ -416,4 +447,47 @@ pub fn usb_start_recv(fd: i32, _session_id: u32) -> mpsc::BoundedReceiver<(TaskM
         }
     });
     rx
+}
+
+pub struct DiedSession {
+    set: Arc<RwLock<HashSet<u32>>>,
+    queue: Arc<RwLock<VecDeque<u32>>>,
+}
+impl DiedSession {
+    pub(crate)  fn get_instance() -> &'static DiedSession {
+        static mut DIED_SESSION: MaybeUninit<DiedSession> = MaybeUninit::uninit();
+        static ONCE: Once = Once::new();
+
+        unsafe {
+            ONCE.call_once(|| {
+                let global = DiedSession {
+                    set: Arc::new(RwLock::new(HashSet::with_capacity(config::MAX_DIED_SESSION_NUM))),
+                    queue: Arc::new(RwLock::new(VecDeque::with_capacity(config::MAX_DIED_SESSION_NUM)))
+                };
+                DIED_SESSION = MaybeUninit::new(global);
+            });
+            &*DIED_SESSION.as_ptr()
+        }
+    }
+
+    pub async fn add(session_id: u32) {
+        let instance = Self::get_instance();
+        let mut set = instance.set.write().await;
+        let mut queue = instance.queue.write().await;
+        if queue.len() >= config::MAX_DIED_SESSION_NUM {
+            if let Some(front_session) = queue.pop_front(){
+                set.remove(&front_session);
+            }
+        }
+        if !set.contains(&session_id) {
+            set.insert(session_id);
+            queue.push_back(session_id)
+        }
+    }
+
+    pub async fn get(session_id: u32) -> bool {
+        let instance = Self::get_instance();
+        let set = instance.set.read().await;
+        set.contains(&session_id)
+    }
 }

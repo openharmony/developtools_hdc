@@ -903,8 +903,8 @@ pub async fn free_context(cid: u32, notify_remote: bool) {
             TcpListenerMap::end(ctx.id).await;
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
-            #[cfg(not(target_os = "windows"))]
             crate::error!("Abstract begin to free forward close fd = {:#?}", ctx.fd);
+            #[cfg(not(target_os = "windows"))]
             UdsServer::wrap_close(ctx.fd);
             ctx.fd = -1;
         }
@@ -1204,7 +1204,7 @@ pub async fn daemon_connect_pipe(ctx: &mut ContextForward) {
 }
 
 #[cfg(target_os = "windows")]
-pub async fn setup_file_point(ctx: &mut ContextForward) -> bool {
+pub async fn setup_file_point(_ctx: &mut ContextForward) -> bool {
     false
 }
 
@@ -1444,11 +1444,13 @@ pub async fn read_data_to_forward(ctx: &mut ContextForward) -> bool {
             });
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
-            let fd_temp = ctx.fd;
             #[cfg(not(target_os = "windows"))]
-            utils::spawn(async move {
-                deamon_read_socket_msg(session, channel, fd_temp, cid).await
-            });
+            {
+                let fd_temp = ctx.fd;
+                utils::spawn(async move {
+                    deamon_read_socket_msg(session, channel, fd_temp, cid).await
+                });
+            }
         }
         ForwardType::Device =>
         {

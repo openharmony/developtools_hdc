@@ -31,7 +31,7 @@ use crate::serializer;
 use crate::utils::hdc_log::*;
 #[cfg(not(feature = "host"))]
 use crate::daemon_lib::task_manager;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 use std::sync::Once;
@@ -74,6 +74,7 @@ impl ConnectTypeMap {
         let arc_map = Self::get_instance();
         let mut map = arc_map.write().await;
         let item = map.remove(&session_id);
+        DiedSession::add(session_id).await;
         crate::debug!("connect map: del {session_id}: {:?}", item);
     }
 
@@ -201,6 +202,9 @@ impl UsbMap {
 
     #[allow(unused)]
     async fn put(session_id: u32, data: TaskMessage) -> io::Result<()> {
+        if DiedSession::get(session_id).await {
+            return Err(Error::new(ErrorKind::NotFound, "session already died"));;
+        }
         let instance = Self::get_instance();
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
@@ -434,4 +438,47 @@ pub fn usb_start_recv(fd: i32, _session_id: u32) -> mpsc::BoundedReceiver<(TaskM
         }
     });
     rx
+}
+
+pub struct DiedSession {
+    set: Arc<RwLock<HashSet<u32>>>,
+    queue: Arc<RwLock<VecDeque<u32>>>,
+}
+impl DiedSession {
+    pub(crate)  fn get_instance() -> &'static DiedSession {
+        static mut DIED_SESSION: MaybeUninit<DiedSession> = MaybeUninit::uninit();
+        static ONCE: Once = Once::new();
+
+        unsafe {
+            ONCE.call_once(|| {
+                let global = DiedSession {
+                    set: Arc::new(RwLock::new(HashSet::with_capacity(config::MAX_DIED_SESSION_NUM))),
+                    queue: Arc::new(RwLock::new(VecDeque::with_capacity(config::MAX_DIED_SESSION_NUM)))
+                };
+                DIED_SESSION = MaybeUninit::new(global);
+            });
+            &*DIED_SESSION.as_ptr()
+        }
+    }
+
+    pub async fn add(session_id: u32) {
+        let instance = Self::get_instance();
+        let mut set = instance.set.write().await;
+        let mut queue = instance.queue.write().await;
+        if queue.len() >= config::MAX_DIED_SESSION_NUM {
+            if let Some(front_session) = queue.pop_front(){
+                set.remove(&front_session);
+            }
+        }
+        if !set.contains(&session_id) {
+            set.insert(session_id);
+            queue.push_back(session_id)
+        }
+    }
+
+    pub async fn get(session_id: u32) -> bool {
+        let instance = Self::get_instance();
+        let set = instance.set.read().await;
+        set.contains(&session_id)
+    }
 }

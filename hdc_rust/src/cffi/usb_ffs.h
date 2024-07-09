@@ -214,7 +214,10 @@ static struct usb_os_desc_header g_wosHead = {
     .bcdVersion = LONG_LE(1),
     .wIndex = LONG_LE(4),
     {
-        { LONG_LE(1), LONG_LE(0) }
+        {
+            .bCount = LONG_LE(1),
+            .Reserved = LONG_LE(0),
+        }
     },
 };
 

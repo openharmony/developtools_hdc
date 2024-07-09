@@ -44,7 +44,7 @@ use crate::transfer::base::Reader;
 use crate::transfer::uart::UartReader;
 #[cfg(not(feature = "emulator"))]
 use crate::transfer::uart_wrapper;
-use crate::transfer::ConnectTypeMap;
+use crate::transfer::buffer::DiedSession;
 
 use crate::daemon_lib::sys_para::*;
 use std::ffi::CString;
@@ -389,7 +389,7 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
                         }
                     }
                 }
-                if ConnectTypeMap::get(this_session_id).await.is_none() {
+                if DiedSession::get(this_session_id).await {
                     crate::error!("session is not connected, command:{:?}, this session:{this_session_id},
                         current session:{cur_session_id}", msg.command);
                     continue;

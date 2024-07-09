@@ -36,3 +36,6 @@ persist.hdc.replace = root:root:0770
 
 #for atcmd HDCAUTHPASS
 persist.hdc.auth_bypass = root:shell:0666
+
+# for hdcd jdwp
+persist.hdc.jdwp = root:shell:0664

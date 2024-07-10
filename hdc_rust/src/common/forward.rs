@@ -762,13 +762,6 @@ pub async fn update_context_to_task(session_id: u32, channel_id:u32, ctx: &mut C
         );
         return;
     };
-
-    crate::error!(
-        "update context to task ----> session_id={:#?},channel_id={:#?}",
-        session_id,
-        channel_id
-    );
-
     let task = &mut task.clone(); 
     task.context_forward = ctx.clone();
     ForwardTaskMap::update(session_id, channel_id, task.clone()).await;

@@ -502,20 +502,27 @@ async fn on_all_transfer_finish(session_id: u32, channel_id: u32) {
     }
 }
 
+async fn is_task_queue_empty(session_id: u32, channel_id: u32) -> bool {
+    let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
+        crate::error!(
+            "do_file_finish get task is none session_id={session_id:?},channel_id={channel_id:?}"
+        );
+        return false;
+    };
+    let task = task.lock().await;
+    task.transfer.task_queue.is_empty()
+}
+
 async fn do_file_finish(session_id: u32, channel_id: u32, _payload: &[u8]) {
     if _payload[0] == 1 {
-        let Some(task) = FileTaskMap::get(session_id, channel_id).await else {
-            crate::error!(
-                "do_file_finish get task is none session_id={session_id:?},channel_id={channel_id:?}"
-            );
-            return;
-        };
-        let task = task.lock().await;
-        let empty = task.transfer.task_queue.is_empty();
-        drop(task);
-        if !empty && transfer_next(session_id, channel_id).await {
-            put_file_check(session_id, channel_id).await;
-        } else {
+        while !is_task_queue_empty(session_id, channel_id).await {
+            if transfer_next(session_id, channel_id).await {
+                put_file_check(session_id, channel_id).await;
+                return;
+            }
+        }
+
+        if is_task_queue_empty(session_id, channel_id).await {
             let _finish_message = TaskMessage {
                 channel_id,
                 command: HdcCommand::FileFinish,

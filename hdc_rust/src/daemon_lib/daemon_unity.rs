@@ -20,8 +20,6 @@ use crate::daemon_lib::sys_para::*;
 use crate::utils::hdc_log::*;
 use crate::common::hdctransfer;
 use crate::config::{self, HdcCommand, MessageLevel};
-use crate::common::context::ContextMap;
-use crate::config::ContextType;
 use libc::sync;
 
 extern "C" {
@@ -236,7 +234,6 @@ async fn do_jdwp_track(session_id: u32, channel_id: u32, payload: &[u8]) {
     let jdwp = Jdwp::get_instance().clone();
     jdwp.add_tracker(channel_id, session_id, display)
         .await;
-    ContextMap::put(session_id, channel_id, ContextType::JdwpTrack).await;
 }
 
 pub async fn command_dispatch(

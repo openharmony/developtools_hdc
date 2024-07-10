@@ -26,5 +26,3 @@ pub mod taskbase;
 #[cfg(not(target_os = "windows"))]
 pub mod uds;
 pub mod unittest;
-#[cfg(not(feature = "host"))]
-pub mod context;

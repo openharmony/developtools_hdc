@@ -383,7 +383,7 @@ using HUART = struct HdcUART *;
 struct HdcSession {
     bool serverOrDaemon;  // instance of daemon or server
     bool handshakeOK;     // Is an expected peer side
-    bool isDead;
+    std::atomic<bool> isDead;
     bool voteReset;
     bool isCheck = false;
     std::string connectKey;
@@ -497,7 +497,7 @@ struct HdcChannel {
     uv_thread_t hWorkThread;
     uint8_t uvHandleRef = 0;  // libuv handle ref -- just main thread now
     bool handshakeOK;
-    bool isDead;
+    std::atomic<bool> isDead = false;
     bool serverOrClient;  // client's channel/ server's channel
     bool childCleared;
     bool interactiveShellMode;  // Is shell interactive mode

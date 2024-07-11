@@ -860,7 +860,6 @@ pub async fn free_context(cid: u32, notify_remote: bool) {
                 target_fd_ret,
                 ctx.id,
             );
-            TcpListenerMap::end(ctx.channel_id).await;
         }
         ForwardType::Abstract | ForwardType::FileSystem | ForwardType::Reserved => {
             crate::error!("Abstract begin to free forward close fd = {:#?}", ctx.fd);
@@ -1063,7 +1062,7 @@ pub async fn setup_jdwp_point(ctx: &mut ContextForward) -> bool {
     utils::spawn(async move {
         loop {
             let result = ylong_runtime::spawn_blocking(move || {
-                let mut buffer = [0u8; 1024];
+                let mut buffer = [0u8; SOCKET_BUFFER_SIZE];
                 let size = UdsServer::wrap_read(local_fd, &mut buffer);
                 (size, buffer)
             })

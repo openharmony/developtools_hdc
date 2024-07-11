@@ -848,7 +848,6 @@ pub async fn free_context(cid: u32, notify_remote: bool) {
     match ctx.forward_type {
         ForwardType::Tcp => {
             TcpWriteStreamMap::end(ctx.id).await;
-            TcpListenerMap::end(ctx.channel_id).await;
         }
         ForwardType::Jdwp | ForwardType::Ark => {
             TcpWriteStreamMap::end(ctx.id).await;

@@ -1344,7 +1344,7 @@ namespace Base {
         } else {
             if (!((mode & S_IFMT) == S_IFDIR)) {
                 WRITE_LOG(LOG_WARN, "%s exist, not directory", path.c_str());
-                err = "Not a directoty, path:";
+                err = "File exists, path:";
                 err += path.c_str();
                 return false;
             }

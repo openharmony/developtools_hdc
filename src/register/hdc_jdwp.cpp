@@ -41,7 +41,6 @@ void HdcJdwpSimulator::Disconnect()
         close(cfd_);
         cfd_ = -1;
     }
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Disconnect disconnectFlag_:%{public}d", disconnectFlag_.load());
 }
 
 HdcJdwpSimulator::~HdcJdwpSimulator()
@@ -90,8 +89,6 @@ bool HdcJdwpSimulator::Connect2Jdwp()
             OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "connect success cfd:%{public}d", cfd_);
             break;
         }
-        OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL,
-            "connect cfd_:%{public}d retry:%{public}d errno:%{public}d", cfd_, retry, errno);
         constexpr int to = 3;
         sleep(to);
     }
@@ -243,7 +240,7 @@ bool HdcJdwpSimulator::Connect()
     while (!disconnectFlag_) {
         bool b = Connect2Jdwp();
         if (!b) {
-            OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "Connect2Jdwp failed cfd:%{public}d", cfd_);
+            OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "Connect2Jdwp failed cfd:%{public}d", cfd_);
             WaitForJdwp();
             continue;
         }
@@ -259,13 +256,11 @@ bool HdcJdwpSimulator::Connect()
 
 void HdcJdwpSimulator::WaitForJdwp()
 {
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "WaitForJdwp begin notified_:%{public}d", notified_.load());
     {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this]() -> bool { return this->notified_ || this->disconnectFlag_; });
     }
     notified_ = false;
-    OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "WaitForJdwp end notified_:%{public}d", notified_.load());
 }
 
 void HdcJdwpSimulator::AddWatchHdcdJdwp()
@@ -273,14 +268,11 @@ void HdcJdwpSimulator::AddWatchHdcdJdwp()
     auto eventCallback = [](const char *key, const char *value, void *context) {
         auto that = reinterpret_cast<HdcJdwpSimulator *>(context);
         if (strncmp(key, PERSIST_HDC_JDWP, strlen(PERSIST_HDC_JDWP)) != 0) {
-            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "callback event mismatch");
             return;
         }
         if (strncmp(value, "1", strlen("1")) != 0) {
-            OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "callback event value is not 1");
             return;
         }
-        OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "callback notify value is 1");
         that->notified_ = true;
         that->cv_.notify_one();
     };

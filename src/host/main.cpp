@@ -124,8 +124,7 @@ void AppendCwdWhenTransfer(string &outCommand)
     outCommand += outCommand.size() ? " " : "";
     outCommand += CMDSTR_REMOTE_PARAMETER;
     outCommand += outCommand.size() ? " -cwd " : "-cwd ";
-    string utf8Path = Base::UnicodeToUtf8(path, true);
-    outCommand += Base::StringFormat("\"%s\"", utf8Path.c_str());
+    outCommand += Base::StringFormat("\"%s\"", path);
 }
 
 int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string &outCommand)

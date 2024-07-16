@@ -263,6 +263,7 @@ template("build_hdc") {
             "-Clink-arg=--coverage",
           ]
         }
+        rustflags = [ "-Cforce-frame-pointers=yes" ]
         deps = [
           ":lib",
           ":serialize_structs",

@@ -34,7 +34,8 @@
         "selinux",
         "openssl",
         "libusb",
-        "libuv"
+        "libuv",
+        "hicollie"
       ],
       "third_party": []
     },

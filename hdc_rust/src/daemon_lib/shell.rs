@@ -36,6 +36,7 @@ use ylong_runtime::process::{Child, Command, ChildStdin, ChildStdout, ChildStder
 use ylong_runtime::io::{AsyncReadExt, AsyncWriteExt, AsyncBufReader};
 use ylong_runtime::sync::{mpsc, Mutex};
 use ylong_runtime::sync::error::TryRecvError::Closed;
+use libc::c_int;
 
 
 // -----inner common functions-----
@@ -484,6 +485,43 @@ impl PtyMap {
 }
 
 // -----noninteractive shell implementation-----
+type ShellExecuteChildMap_ = std::sync::Mutex<HashMap<(u32, u32), i32>>;
+pub struct ShellExecuteChildMap {}
+impl ShellExecuteChildMap {
+    fn get_instance() -> &'static ShellExecuteChildMap_ {
+        static mut SHELLEXECUTECHILD_MAP: MaybeUninit<ShellExecuteChildMap_> = MaybeUninit::uninit();
+        static ONCE: Once = Once::new();
+
+        unsafe {
+            ONCE.call_once(|| {
+                SHELLEXECUTECHILD_MAP = MaybeUninit::new(std::sync::Mutex::new(HashMap::new()));
+                }
+            );
+            &*SHELLEXECUTECHILD_MAP.as_ptr()
+        }
+    }
+
+    pub async fn put(session_id: u32, channel_id: u32, childpid: i32) {
+        let shell_execute_child_map = Self::get_instance();
+        let mut map = shell_execute_child_map.lock().unwrap();
+        map.insert((session_id, channel_id), childpid);
+    }
+
+    pub async fn del(session_id: u32, channel_id: u32) {
+        let shell_execute_child_map = Self::get_instance();
+        let mut map = shell_execute_child_map.lock().unwrap();
+        if let Some(childpid) = map.get(&(session_id, channel_id)) {
+            crate::debug!("kill childpid:{:?}", childpid);
+            let childpid_tmp = *childpid;
+            unsafe {
+                libc::kill(childpid_tmp,libc::SIGTERM);
+                let mut status: c_int = 0;
+                libc::waitpid(childpid_tmp, &mut status, 0);
+            };
+        }
+        map.remove(&(session_id, channel_id));
+    }
+}
 
 type ShellExecuteMap_ = Mutex<HashMap<(u32, u32), Arc<ShellExecuteTask>>>;
 pub struct ShellExecuteMap {}
@@ -523,7 +561,6 @@ impl ShellExecuteMap {
                 if iter.0 .0 != session_id {
                     continue;
                 }
-                iter.1.handle.cancel();
                 channel_vec.push(iter.0 .1);
                 crate::debug!(
                     "Clear shell_execute_map task, session_id: {}, channel_id:{}, task_size: {}",
@@ -534,6 +571,7 @@ impl ShellExecuteMap {
             }
             for channel_id in channel_vec{
                 map.remove(&(session_id, channel_id));
+                ShellExecuteChildMap::del(session_id, channel_id).await;
             }
         }
     }
@@ -612,8 +650,7 @@ async fn task_for_shell_execute(
     shell_cmd.args(["-c", &cmd])
         .stdout(Stdio::piped())
         .stdin(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
+        .stderr(Stdio::piped());
 
     unsafe {
         shell_cmd.pre_exec(|| {
@@ -626,6 +663,13 @@ async fn task_for_shell_execute(
     }
 
     if let Ok(mut child) = shell_cmd.spawn() {
+        if let Some(childpid) = child.id() {
+            crate::error!("connection[session:{:?}, channel:{:?}] pid is {:?}", shell_task_id.session_id, shell_task_id.channel_id, childpid);
+            ShellExecuteChildMap::put(shell_task_id.session_id, shell_task_id.channel_id, childpid as i32).await;
+        } else {
+            crate::error!("get child pid error");
+        }
+
 
         let mut child_in = match child.take_stdin() {
             Some(child_in_inner) => {

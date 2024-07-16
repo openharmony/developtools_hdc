@@ -53,6 +53,9 @@ use ylong_runtime::net::{TcpListener, TcpStream};
 #[cfg(not(feature = "emulator"))]
 use ylong_runtime::sync::mpsc;
 
+use libc::c_void;
+type XCollieCallbackRust = extern "C" fn(arg: *mut libc::c_void);
+
 extern "C" {
     #[cfg(not(feature = "emulator"))]
     fn NeedDropRootPrivileges() -> c_int;
@@ -370,6 +373,11 @@ pub async fn usb_daemon_start() -> io::Result<()> {
     }
 }
 
+/// # Safety
+pub unsafe extern "C" fn new_session_callback(_ptr: *mut c_void) {
+    crate::error!("new session proc timeout, will restart hdcd");
+}
+
 #[cfg(not(feature = "emulator"))]
 pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32) -> io::Result<()> {
     let _rd = transfer::usb::UsbReader { fd: bulkin_fd };
@@ -381,11 +389,16 @@ pub async fn usb_handle_client(_config_fd: i32, bulkin_fd: i32, bulkout_fd: i32)
                 if msg.command == config::HdcCommand::KernelHandshake {
                     if let Ok(session_id_in_msg) = auth::get_session_id_from_msg(&msg).await {
                         if session_id_in_msg != cur_session_id {
+                            let new_session_func: XCollieCallbackRust = unsafe {
+                                std::mem::transmute::<*const (), XCollieCallbackRust>(new_session_callback as *const ())
+                            };
+                            let timer = unsafe { hicollie_rust::set_timer("new session".as_ptr(), 10 /* second */, new_session_func, std::ptr::null_mut() as *mut c_void, 3) };
                             task_manager::free_session(cur_session_id).await;
                             crate::info!("free session(usb) over {:?} and new session is {}", cur_session_id, session_id_in_msg);
                             let wr = transfer::usb::UsbWriter { fd: bulkout_fd };
                             transfer::UsbMap::start(session_id_in_msg, wr).await;
                             cur_session_id = session_id_in_msg;
+                            hicollie_rust::cancel_timer(timer);
                         }
                     }
                 }

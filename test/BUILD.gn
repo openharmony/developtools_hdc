@@ -351,9 +351,14 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   deps = [ "//third_party/libuv:uv" ]
   sources = [
     "${hdc_path}/src/daemon/jdwp.cpp",
+    "${hdc_path}/src/daemon/system_depend.cpp",
     "fuzztest/jdwpreadstream_fuzzer/JdwpReadStream_fuzzer.cpp",
   ]
   deps += [ ":hdc_common" ]
+  external_deps = [
+    "init:libbeget_proxy",
+    "init:libbegetutil",
+  ]
 }
 
 group("hdc_fuzztest") {

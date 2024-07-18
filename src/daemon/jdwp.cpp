@@ -15,6 +15,7 @@
 #include "jdwp.h"
 #include <sys/eventfd.h>
 #include <thread>
+#include "system_depend.h"
 
 namespace Hdc {
 HdcJdwp::HdcJdwp(uv_loop_t *loopIn)
@@ -110,6 +111,9 @@ void HdcJdwp::RemoveFdFromPollList(uint32_t pid)
 
 void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 {
+    static std::once_flag firstLog;
+    std::call_once(firstLog, [&]() { SystemDepend::SetDevItem("persist.hdc.jdwp", "0"); });
+    
     bool ret = true;
     if (nread == UV_ENOBUFS) {  // It is definite enough, usually only 4 bytes
         ret = false;
@@ -706,6 +710,8 @@ int HdcJdwp::Initial()
         WRITE_LOG(LOG_FATAL, "JdwpListen failed");
         return ERR_MODULE_JDWP_FAILED;
     }
+    SystemDepend::SetDevItem("persist.hdc.jdwp", "0");
+    SystemDepend::SetDevItem("persist.hdc.jdwp", "1");
     if (CreateFdEventPoll() < 0) {
         return ERR_MODULE_JDWP_FAILED;
     }

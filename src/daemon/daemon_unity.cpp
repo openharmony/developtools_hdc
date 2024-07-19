@@ -194,22 +194,19 @@ bool HdcDaemonUnity::RebootDevice(const string &cmd)
 
 bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
 {
-    HdcDaemon *daemon = (HdcDaemon *)daemonIn;
     WRITE_LOG(LOG_DEBUG, "Set run mode:%s", cmd);
     if (!strcmp(CMDSTR_TMODE_USB.c_str(), cmd)) {
-        SystemDepend::SetDevItem("persist.hdc.mode", CMDSTR_TMODE_USB.c_str());
     } else if (!strncmp("port", cmd, strlen("port"))) {
-        SystemDepend::SetDevItem("persist.hdc.mode", CMDSTR_TMODE_TCP.c_str());
         if (!strncmp("port ", cmd, strlen("port "))) {
             const char *port = cmd + 5;
             SystemDepend::SetDevItem("persist.hdc.port", port);
+            // shutdown
+            daemon->PostStopInstanceMessage(true);
         }
     } else {
         LogMsg(MSG_FAIL, "Unknown command");
         return false;
     }
-    // shutdown
-    daemon->PostStopInstanceMessage(true);
     LogMsg(MSG_OK, "Set device run mode successful.");
     return true;
 }

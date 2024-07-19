@@ -169,15 +169,19 @@ static void SetSelinuxLabel()
     setcon("u:r:sh:s0");
 #else
     string debugMode = "";
-    string rootMode = "";
-    string flashdMode = "";
     SystemDepend::GetDevItem("const.debuggable", debugMode);
-    SystemDepend::GetDevItem("persist.hdc.root", rootMode);
-    SystemDepend::GetDevItem("updater.flashd.configfs", flashdMode);
-    if ((debugMode == "1" && rootMode == "1") || (debugMode == "1" && flashdMode == "1")) {
-        setcon("u:r:su:s0");
-    } else {
+    if (debugMode != "1") {
         setcon("u:r:sh:s0");
+    } else {
+        string rootMode = "";
+        string flashdMode = "";
+        SystemDepend::GetDevItem("persist.hdc.root", rootMode);
+        SystemDepend::GetDevItem("updater.flashd.configfs", flashdMode);
+        if ((debugMode == "1" && rootMode == "1") || (debugMode == "1" && flashdMode == "1")) {
+            setcon("u:r:su:s0");
+        } else {
+            setcon("u:r:sh:s0");
+        }
     }
 #endif
     freecon(con);

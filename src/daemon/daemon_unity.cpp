@@ -297,7 +297,6 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         }
         case CMD_UNITY_ROOTRUN: {
             ret = false;
-#ifndef HDC_BUILD_VARIANT_USER
             string debugMode;
             // hdcd restart in old pid
             bool restart = true;
@@ -315,7 +314,6 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
                 return false;
             }
             daemon->PostStopInstanceMessage(restart);
-#endif
             break;
         }
         case CMD_UNITY_TERMINATE: {

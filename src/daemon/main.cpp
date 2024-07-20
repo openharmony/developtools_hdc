@@ -330,12 +330,10 @@ int main(int argc, const char *argv[])
     string debugMode;
     SystemDepend::GetDevItem("const.debuggable", debugMode);
     if (debugMode == "1") {
-#ifndef HDC_BUILD_VARIANT_USER
         if (!NeedDropRootPrivileges()) {
             Base::PrintMessage("DropRootPrivileges fail, EXITING...\n");
             return -1;
         }
-#endif
         WRITE_LOG(LOG_INFO, "HdcDaemon run as root mode.");
     } else {
         WRITE_LOG(LOG_INFO, "HdcDaemon run as user mode.");

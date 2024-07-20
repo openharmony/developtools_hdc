@@ -86,7 +86,6 @@ static bool DropRootPrivileges()
 
 extern "C"  bool NeedDropRootPrivileges()
 {
-#ifndef HDC_BUILD_VARIANT_USER
     string rootMode;
     string debugMode;
     GetDevItem("const.debuggable", debugMode);
@@ -99,7 +98,6 @@ extern "C"  bool NeedDropRootPrivileges()
     if (rootMode == "0") {
         return DropRootPrivileges();
     }
-#endif
     WRITE_LOG(LOG_WARN, "will keep current privilege", rootMode.c_str());
     return true;
 }

@@ -39,12 +39,13 @@ public:
             oss << " banner:" << banner;
             oss << " sessionId:" << sessionId;
             oss << " authType:" << unsigned(authType);
-            oss << " connectKey:" << connectKey;
+            oss << " connectKey:" << Hdc::MaskString(connectKey);
             oss << " version:" << version;
             oss << "]";
             return oss.str();
         }
     };
+
     struct CtrlStruct {
         InnerCtrlCommand command;
         uint32_t channelId;

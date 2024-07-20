@@ -570,7 +570,8 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
     uint32_t unOld = hChannel->channelId;
     hChannel->channelId = ntohl(hShake->channelId);
     AdminChannel(OP_UPDATE, unOld, hChannel);
-    WRITE_LOG(LOG_DEBUG, "Client channel handshake finished, use connectkey:%s", connectKey.c_str());
+    WRITE_LOG(LOG_DEBUG, "Client channel handshake finished, use connectkey:%s",
+              Hdc::MaskString(connectKey).c_str());
     // send config
     // channel handshake step2
     if (memset_s(hShake->connectKey, sizeof(hShake->connectKey), 0, sizeof(hShake->connectKey)) != EOK

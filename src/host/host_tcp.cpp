@@ -127,14 +127,14 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
     char ip[BUF_SIZE_TINY] = "";
     uint16_t port = 0;
     if (Base::ConnectKey2IPPort(connectKey.c_str(), ip, &port) < 0) {
-        WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort error connectKey:%s", connectKey.c_str());
+        WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort error connectKey:%s", Hdc::MaskString(connectKey).c_str());
         return nullptr;
     }
 
     HdcSessionBase *ptrConnect = (HdcSessionBase *)clsMainBase;
     HSession hSession = ptrConnect->MallocSession(true, CONN_TCP, this);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "hSession nullptr connectKey:%s", connectKey.c_str());
+        WRITE_LOG(LOG_FATAL, "hSession nullptr connectKey:%s", Hdc::MaskString(connectKey).c_str());
         return nullptr;
     }
     hSession->isCheck = isCheck;

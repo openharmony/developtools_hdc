@@ -826,7 +826,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
     } else {
         hSession = MallocSession(true, CONN_USB, clsUSBClt);
         if (!hSession) {
-            WRITE_LOG(LOG_FATAL, "CreateConnect malloc usb session failed %s", connectKey.c_str());
+            WRITE_LOG(LOG_FATAL, "CreateConnect malloc usb session failed %s", Hdc::MaskString(connectKey).c_str());
             return ERR_BUF_ALLOC;
         }
         hSession->connectKey = connectKey;

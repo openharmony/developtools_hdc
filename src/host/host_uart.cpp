@@ -333,7 +333,7 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
     }
 
     if (!GetPortFromKey(connectKey, portName, baudRate)) {
-        WRITE_LOG(LOG_ALL, "%s unknown format %s", __FUNCTION__, connectKey.c_str());
+        WRITE_LOG(LOG_ALL, "%s unknown format %s", __FUNCTION__, Hdc::MaskString(connectKey).c_str());
         return -1;
     }
     do {
@@ -573,7 +573,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
 
     HSession hSession = server.MallocSession(true, CONN_SERIAL, this);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "malloc serial session failed for %s", connectKey.c_str());
+        WRITE_LOG(LOG_FATAL, "malloc serial session failed for %s", Hdc::MaskString(connectKey).c_str());
         return false;
     }
     hSession->connectKey = connectKey;
@@ -585,7 +585,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
 
     hSession->isCheck = isCheck;
     hSession->hUART->serialPort = hUART->serialPort;
-    WRITE_LOG(LOG_DEBUG, "%s connectkey:%s,port:%s", __FUNCTION__, hSession->connectKey.c_str(),
+    WRITE_LOG(LOG_DEBUG, "%s connectkey:%s,port:%s", __FUNCTION__, Hdc::MaskString(hSession->connectKey).c_str(),
               hUART->serialPort.c_str());
     uv_timer_t *waitTimeDoCmd = new(std::nothrow) uv_timer_t;
     if (waitTimeDoCmd == nullptr) {
@@ -597,7 +597,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
     waitTimeDoCmd->data = hSession;
     if (externInterface.UvTimerStart(waitTimeDoCmd, server.UartPreConnect, UV_TIMEOUT, UV_REPEAT) !=
         RET_SUCCESS) {
-        WRITE_LOG(LOG_DEBUG, "%s for %s:%s fail.", __FUNCTION__, hSession->connectKey.c_str(),
+        WRITE_LOG(LOG_DEBUG, "%s for %s:%s fail.", __FUNCTION__, Hdc::MaskString(hSession->connectKey).c_str(),
                   hUART->serialPort.c_str());
         server.FreeSession(hSession->sessionId);
         return false;

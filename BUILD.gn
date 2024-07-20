@@ -267,8 +267,6 @@ template("build_hdc") {
         }
         rustflags = [ "-Cforce-frame-pointers=yes" ]
         deps = [
-          ":lib",
-          ":serialize_structs",
           "//third_party/rust/crates/env_logger:lib",
           "//third_party/rust/crates/humantime:lib",
           "//third_party/rust/crates/libc:lib",
@@ -276,6 +274,12 @@ template("build_hdc") {
           "//third_party/rust/crates/nix:lib",
           "//third_party/rust/crates/rust-openssl/openssl:lib",
         ]
+        if (product_name != "ohos-sdk") {
+          deps += [
+            ":lib",
+            ":serialize_structs",
+          ]
+        }
         external_deps = [
           "hicollie:hicollie_rust",
           "hilog:hilog_rust",

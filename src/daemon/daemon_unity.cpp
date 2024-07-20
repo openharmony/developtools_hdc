@@ -201,6 +201,7 @@ bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
             const char *port = cmd + 5;
             SystemDepend::SetDevItem("persist.hdc.port", port);
             // shutdown
+            HdcDaemon *daemon = (HdcDaemon *)daemonIn;
             daemon->PostStopInstanceMessage(true);
         }
     } else {

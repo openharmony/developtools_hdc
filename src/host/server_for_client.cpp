@@ -308,7 +308,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
 bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck)
 {
 #ifdef HDC_DEBUG
-    WRITE_LOG(LOG_ALL, "%s %s", __FUNCTION__, connectKey.c_str());
+    WRITE_LOG(LOG_ALL, "%s %s", __FUNCTION__, Hdc::MaskString(connectKey).c_str());
 #endif
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;

@@ -154,13 +154,13 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     hUSB->devHandle = nullptr;
 
     WRITE_LOG(LOG_INFO, "Needed device found, busid:%d devid:%d connectkey:%s", hUSB->busId, hUSB->devId,
-              hUSB->serialNumber.c_str());
+              Hdc::MaskString(hUSB->serialNumber).c_str());
     // USB device is automatically connected after recognition, auto connect USB
     UpdateUSBDaemonInfo(hUSB, nullptr, STATUS_READY);
     HdcServer *hdcServer = (HdcServer *)clsMainBase;
     HSession hSession = hdcServer->MallocSession(true, CONN_USB, this);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "malloc usb session failed sn:%s", sn.c_str());
+        WRITE_LOG(LOG_FATAL, "malloc usb session failed sn:%s", Hdc::MaskString(sn).c_str());
         return false;
     }
     hSession->connectKey = hUSB->serialNumber;
@@ -190,7 +190,8 @@ void HdcHostUSB::KickoutZombie(HSession hSession)
     if (LIBUSB_ERROR_NO_DEVICE != libusb_kernel_driver_active(hUSB->devHandle, hUSB->interfaceNumber)) {
         return;
     }
-    WRITE_LOG(LOG_WARN, "KickoutZombie LIBUSB_ERROR_NO_DEVICE serialNumber:%s", hUSB->serialNumber.c_str());
+    WRITE_LOG(LOG_WARN, "KickoutZombie LIBUSB_ERROR_NO_DEVICE serialNumber:%s",
+              Hdc::MaskString(hUSB->serialNumber).c_str());
     ptrConnect->FreeSession(hSession->sessionId);
 }
 
@@ -314,7 +315,8 @@ int HdcHostUSB::CheckDescriptor(HUSB hUSB, libusb_device_descriptor& desc)
     } else {
         hUSB->serialNumber = serialNum;
     }
-    WRITE_LOG(LOG_DEBUG, "CheckDescriptor busId-devId:%d-%d serialNum:%s", curBus, curDev, serialNum);
+    WRITE_LOG(LOG_DEBUG, "CheckDescriptor busId-devId:%d-%d serialNum:%s", curBus, curDev,
+              Hdc::MaskString(serialNum).c_str());
     return 0;
 }
 

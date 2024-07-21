@@ -29,8 +29,7 @@ static string MaskString(const string &str)
         return str;
     }
     size_t len = str.length();
-    if (len <= 6) {
-        // 6: 当字符串长度小于等于6时，只保留首尾各一个字符, 掩码的个数为字符的长度
+    if (len <= 6) {  // 6: 当字符串长度小于等于6时，只保留首尾各一个字符, 掩码的个数为字符的长度
         return std::string(1, str.front()) + std::string(len, '*') + std::string(1, str.back());
     } else {
         // 3, 6: 对于较长的字符串，保留首尾各三个字符，掩码的个数为6

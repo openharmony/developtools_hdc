@@ -278,8 +278,11 @@ template("build_hdc") {
           "hicollie:hicollie_rust",
           "hilog:hilog_rust",
         ]
-
         if (product_name != "ohos_sdk") {
+          deps += [
+            ":lib",
+            ":serialize_structs"
+          ]
           external_deps += [ "ylong_runtime:ylong_runtime" ]
         }
         if (!defined(ohos_lite)) {

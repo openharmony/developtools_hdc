@@ -282,7 +282,7 @@ template("build_hdc") {
         if (product_name != "ohos_sdk") {
           deps += [
             ":lib",
-            ":serialize_structs"
+            ":serialize_structs",
           ]
           external_deps += [ "ylong_runtime:ylong_runtime" ]
         }

@@ -137,15 +137,11 @@ static void SetSelinuxLabel(bool isRoot)
         freecon(con);
         return;
     }
-#ifdef HDC_BUILD_VARIANT_USER
-    setcon("u:r:sh:s0");
-#else
     if (isRoot) {
         setcon("u:r:su:s0");
     } else {
         setcon("u:r:sh:s0");
     }
-#endif
     freecon(con);
 #endif
 }

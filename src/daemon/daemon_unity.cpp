@@ -173,7 +173,7 @@ bool HdcDaemonUnity::RemountDevice()
             WRITE_LOG(LOG_FATAL, "Mount failed /system (via mount)");
         }
     }
-    
+
     int exitStatus = system("/bin/remount");
     if (exitStatus == -1) {
         LogMsg(MSG_FAIL, "Failed to execute /bin/remount: %s", strerror(errno));
@@ -297,7 +297,6 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         }
         case CMD_UNITY_ROOTRUN: {
             ret = false;
-#ifndef HDC_BUILD_VARIANT_USER
             string debugMode;
             // hdcd restart in old pid
             bool restart = true;
@@ -310,9 +309,11 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
                     restart = false;
                     SystemDepend::SetDevItem("persist.hdc.root", "1");
                 }
+            } else {
+                LogMsg(MSG_FAIL, "Cannot set root run mode in undebuggable version.");
+                return false;
             }
             daemon->PostStopInstanceMessage(restart);
-#endif
             break;
         }
         case CMD_UNITY_TERMINATE: {

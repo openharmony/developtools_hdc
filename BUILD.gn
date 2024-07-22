@@ -278,6 +278,7 @@ template("build_hdc") {
           "hicollie:hicollie_rust",
           "hilog:hilog_rust",
         ]
+
         if (product_name != "ohos_sdk") {
           deps += [
             ":lib",

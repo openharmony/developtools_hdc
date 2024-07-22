@@ -290,7 +290,7 @@ void HdcDaemonUART::DeamonWriteThread()
 int HdcDaemonUART::LoopUARTRead()
 {
     try {
-        std::thread deamonReadThread(std::bind(&HdcDaemonUART::DeamonReadThread, this));
+        std::thread deamonReadThread([this]() { this->DeamonReadThread(); });
         deamonReadThread.detach();
         return 0;
     } catch (...) {
@@ -302,7 +302,7 @@ int HdcDaemonUART::LoopUARTRead()
 int HdcDaemonUART::LoopUARTWrite()
 {
     try {
-        std::thread deamonWriteThread(std::bind(&HdcDaemonUART::DeamonWriteThread, this));
+        std::thread deamonWriteThread([this]() { this->DeamonWriteThread(); });
         deamonWriteThread.detach();
         return 0;
     } catch (...) {

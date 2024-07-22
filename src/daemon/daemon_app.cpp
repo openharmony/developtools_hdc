@@ -155,8 +155,9 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
         }
     }
 
-    funcAppModFinish = std::bind(&HdcDaemonApp::AsyncInstallFinish, this, std::placeholders::_1, std::placeholders::_2,
-                                 std::placeholders::_3);
+    funcAppModFinish = [this](bool finish, int64_t exitStatus, const string result) -> bool {
+        return this->AsyncInstallFinish(finish, exitStatus, result);
+    };
     if (installOrUninstall) {
         mode = APPMOD_INSTALL;
     } else {

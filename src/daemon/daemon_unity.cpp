@@ -196,6 +196,8 @@ bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
 {
     WRITE_LOG(LOG_DEBUG, "Set run mode:%s", cmd);
     if (!strcmp(CMDSTR_TMODE_USB.c_str(), cmd)) {
+        LogMsg(MSG_OK, "Set device run mode successful.");
+        return true;
     } else if (!strncmp("port", cmd, strlen("port"))) {
         if (!strncmp("port ", cmd, strlen("port "))) {
             const char *port = cmd + 5;

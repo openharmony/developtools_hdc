@@ -607,7 +607,7 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
         }
     } else
 #endif // HDC_SUPPORT_UART
-    if (clsUSBServ != nullptr) {
+    if (clsUSBServ != nullptr && hSession->connType == CONN_USB) {
         (reinterpret_cast<HdcDaemonUSB *>(clsUSBServ))->OnNewHandshakeOK(hSession->sessionId);
     }
 

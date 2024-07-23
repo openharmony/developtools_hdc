@@ -48,9 +48,7 @@ bool ForkChildCheck(int argc, const char *argv[])
     // hdcd -b     #service start backgroundRun
     // hdcd -fork  #fork
     Base::PrintMessage("Background mode, persist.hdc.mode");
-    string workMode;
-    SystemDepend::GetDevItem("persist.hdc.mode", workMode);
-    workMode = Base::Trim(workMode);
+    string workMode = string("all");
     if (workMode == CMDSTR_TMODE_TCP) {
         WRITE_LOG(LOG_DEBUG, "Property enable TCP");
         g_enableTcp = true;

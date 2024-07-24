@@ -31,7 +31,7 @@ void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
     StartTraceScope("HdcUSBBase::ReadUSB");
     HSession hSession = (HSession)stream->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
-    if (HdcSessionBase::IsSessionDeleted(hSession->sessionId)) {
+    if (hSessionBase->IsSessionDeleted(hSession->sessionId)) {
         hSession->availTailIndex = 0;
         WRITE_LOG(LOG_INFO, "ReadUSB sessionId:%u is Deleted", hSession->sessionId);
         return;
@@ -88,10 +88,6 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
     int childRet = 0;
     int ret = ERR_IO_FAIL;
     StartTraceScope("HdcUSBBase::SendUSBBlock");
-    if (HdcSessionBase::IsSessionDeleted(hSession->sessionId)) {
-        WRITE_LOG(LOG_INFO, "SendUSBBlock sessionId:%u is Deleted", hSession->sessionId);
-        return ret;
-    }
     std::lock_guard<std::mutex> lock(hSession->hUSB->lockSendUsbBlock);
     auto header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
     do {

@@ -181,7 +181,7 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     if (status < 0) {
         WRITE_LOG(LOG_WARN, "WriteCallback TryCloseHandle channelId:%u isDead:%d ref:%d",
-            hChannel->channelId, hChannel->isDead.load(), int32_t(hChannel->ref));
+            hChannel->channelId, hChannel->isDead, int32_t(hChannel->ref));
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hChannel->isDead && !hChannel->ref) {
             thisClass->FreeChannel(hChannel->channelId);
@@ -440,7 +440,6 @@ void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
     if (hChannel->ioBuf) {
         delete[] hChannel->ioBuf;
         hChannel->ioBuf = nullptr;
-        hChannel->bufSize = 0;
     }
     if (!hChannel->serverOrClient) {
         Base::TryCloseHandle((uv_handle_t *)&hChannel->stdinTty, closeChannelHandle);
@@ -467,9 +466,9 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
         auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
-            if ((!hChannel->childCleared) && (!HdcSessionBase::IsSessionDeleted(hChannel->targetSessionId))) {
-                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
-                    hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
+            if (!hChannel->childCleared) {
+                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u",
+                    hChannel->childCleared, hChannel->channelId);
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);

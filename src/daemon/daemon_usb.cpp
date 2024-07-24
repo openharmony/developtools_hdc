@@ -322,7 +322,7 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
         ret = length;
     } else {
         WRITE_LOG(LOG_FATAL, "BulkinWrite write failed, nsize:%d really:%d modRunning:%d isAlive:%d SessionDead:%d",
-                  length, offset, modRunning, isAlive, hSession->isDead.load());
+                  length, offset, modRunning, isAlive, hSession->isDead);
     }
     return ret;
 }
@@ -333,7 +333,7 @@ int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     HdcDaemon *daemon = (HdcDaemon *)hSession->classInstance;
     uint32_t sessionId = hSession->sessionId;
     std::unique_lock<std::mutex> lock(mutexUsbFfs);
-    if (HdcSessionBase::IsSessionDeleted(sessionId)) {
+    if (daemon->IsSessionDeleted(sessionId)) {
         WRITE_LOG(LOG_DEBUG, "SendUSBRaw session %u is deleted", sessionId);
         return ERR_SESSION_DEAD;
     }
@@ -390,8 +390,9 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
             WRITE_LOG(LOG_FATAL, "hSessionInfo is null");
             return;
         }
-        if (HdcSessionBase::IsSessionDeleted(hSessionInfo->sessionId)) {
-            WRITE_LOG(LOG_INFO, "funcNewSessionUp session is deleted, sid:%u", hSessionInfo->sessionId);
+        HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(hSessionInfo->classInstance);
+        if (daemon->IsSessionDeleted(hSessionInfo->sessionId)) {
+            WRITE_LOG(LOG_INFO, "funcNewSessionUp session is deleted");
             delete hSessionInfo;
             handle->data = nullptr;
             Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
@@ -402,10 +403,9 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
             return;
         }
         if (!hChildSession->isDead) {
-            HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(hSessionInfo->classInstance);
             auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
             Base::SendToPollFd(hChildSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
-            WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish sid:%u", hSessionInfo->sessionId);
+            WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
         }
         delete hSessionInfo;
         handle->data = nullptr;
@@ -518,7 +518,7 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
     }
 
     if (hChildSession->childCleared || hChildSession->isDead) {
-        WRITE_LOG(LOG_WARN, "session clr:%d dead:%d", hChildSession->childCleared, hChildSession->isDead.load());
+        WRITE_LOG(LOG_WARN, "session dead clr:%d - %d", hChildSession->childCleared, hChildSession->isDead);
         return ERR_SESSION_DEAD;
     }
     uv_stream_t *stream = reinterpret_cast<uv_stream_t *>(&hChildSession->dataPipe[STREAM_MAIN]);

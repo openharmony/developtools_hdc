@@ -276,7 +276,7 @@ template("build_hdc") {
           "hilog:hilog_rust",
         ]
 
-        if (product_name != "ohos_sdk") {
+        if (product_name != "ohos-sdk") {
           deps += [
             ":lib",
             ":serialize_structs",

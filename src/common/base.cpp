@@ -401,15 +401,11 @@ namespace Base {
 
     void ReallocBuf(uint8_t **origBuf, int *nOrigSize, size_t sizeWanted)
     {
-        if ((*nOrigSize > 0) && (*origBuf != nullptr)) {
+        if (*nOrigSize > 0)
             return;
-        }
         if (sizeWanted <= 0 || sizeWanted >= HDC_BUF_MAX_BYTES) {
             WRITE_LOG(LOG_WARN, "ReallocBuf failed, sizeWanted:%d", sizeWanted);
             return;
-        }
-        if (*origBuf != nullptr) {
-            WRITE_LOG(LOG_WARN, "ReallocBuf *origBuf != nullptr *nOrigSize:%d", *nOrigSize);
         }
         *origBuf = new uint8_t[sizeWanted];
         if (!*origBuf) {

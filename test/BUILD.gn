@@ -382,8 +382,8 @@ ohos_fuzztest("DaemonUsbReadFuzzTest") {
 group("hdc_fuzztest") {
   testonly = true
   deps = [
-    ":JdwpReadStreamFuzzTest",
     ":DaemonUsbReadFuzzTest",
+    ":JdwpReadStreamFuzzTest",
   ]
 }
 

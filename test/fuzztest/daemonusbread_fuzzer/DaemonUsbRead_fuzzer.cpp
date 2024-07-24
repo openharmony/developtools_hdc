@@ -42,19 +42,12 @@ bool FuzzDaemonUsbRead(const uint8_t *data, size_t size)
     ctxRecv.thisClass = &daemonusb;
     ctxRecv.data = &hUSB;
     ctxRecv.bufSizeMax = Base::GetUsbffsBulkSize();
-    // ctxRecv.buf = new uint8_t[ctxRecv.bufSizeMax]();
-    // if (!ctxRecv.buf) {
-    //     WRITE_LOG(LOG_FATAL, "Init alloc memory failed");
-    //     return false;
-    // }
-    // memcpy_s(ctxRecv.buf, size, data, size);
     ctxRecv.buf = const_cast<uint8_t *>(data);
     ctxRecv.req = {};
     uv_fs_t *req = &ctxRecv.req;
     req->result = size;
     req->data = &ctxRecv;
     daemonusb->OnUSBRead(req);
-    // delete ctxRecv.buf;
     return true;
 }
 } // namespace Hdc

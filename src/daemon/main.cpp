@@ -68,11 +68,15 @@ bool ForkChildCheck(int argc, const char *argv[])
 #else
     } else if (workMode == "all") {
 #endif
+#ifdef HDC_EMULATOR
+        g_enableBridge = true;
+#else
         WRITE_LOG(LOG_DEBUG, "Property enable USB and TCP");
         g_enableUsb = true;
         g_enableTcp = true;
 #ifdef HDC_SUPPORT_UART
         g_enableUart = true;
+#endif
 #endif
     } else {
         WRITE_LOG(LOG_DEBUG, "Default USB mode");

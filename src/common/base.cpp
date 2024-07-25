@@ -401,8 +401,9 @@ namespace Base {
 
     void ReallocBuf(uint8_t **origBuf, int *nOrigSize, size_t sizeWanted)
     {
-        if (*nOrigSize > 0)
+        if (*nOrigSize > 0) {
             return;
+        }
         if (sizeWanted <= 0 || sizeWanted >= HDC_BUF_MAX_BYTES) {
             WRITE_LOG(LOG_WARN, "ReallocBuf failed, sizeWanted:%d", sizeWanted);
             return;

@@ -32,6 +32,8 @@ public:
 bool FuzzForwardReadStream(const uint8_t *data, size_t size)
 {
     HTaskInfo hTaskInfo = new TaskInformation();
+    HdcSessionBase HdcSessionTest(false);
+    hTaskInfo->ownerSessionClass = &HdcSessionTest;
     auto forward = HdcForwardFuzzer::Instance(hTaskInfo);
     if (forward == nullptr) {
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream forward is null");

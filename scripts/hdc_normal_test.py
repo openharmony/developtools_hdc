@@ -242,6 +242,18 @@ def test_hdcd_rom():
     assert check_rom(baseline)
 
 
+def test_smode_r():
+    assert check_hdc_cmd(f'smode -r')
+    time.sleep(5)
+    assert check_shell(f"shell ls", "Permission denied")
+
+
+def test_smode():
+    assert check_hdc_cmd(f'smode')
+    time.sleep(5)
+    assert check_shell(f"shell ls", "data")
+
+
 def setup_class():
     print("setting up env ...")
     check_hdc_cmd("shell rm -rf data/local/tmp/it_*")

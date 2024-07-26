@@ -49,6 +49,12 @@ def test_empty_dir():
     assert check_hdc_cmd("shell mkdir data/local/tmp/empty_dir_recv")
     assert check_empty_dir(f"file recv {get_remote_path('empty_dir_recv')} {get_local_path('empty_dir_recv')}")
 
+@pytest.mark.repeat(5)
+def test_file_switch():
+    assert check_hdc_cmd("shell param set persist.hdc.control.file false")
+    assert not check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
+    assert check_hdc_cmd("shell param set persist.hdc.control.file true")
+    assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
 
 @pytest.mark.repeat(5)
 def test_small_file():
@@ -174,7 +180,7 @@ def test_server_kill():
 
 
 def test_target_cmd():
-    assert check_hdc_targets()    
+    assert check_hdc_targets()
     time.sleep(3)
     check_hdc_cmd("target boot")
     time.sleep(60) # reboot needs at least 60 seconds
@@ -203,7 +209,7 @@ def test_fport_cmd():
         fport_list.append(fport)
         rport_list.append(rport)
         fport_list.append(localabs)
-    
+
     for fport in fport_list:
         assert check_hdc_cmd(f"fport {fport}", "Forwardport result:OK")
         assert check_hdc_cmd(f"fport {fport}", "TCP Port listen failed at")
@@ -232,7 +238,7 @@ def test_fport_cmd():
     assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
     assert check_hdc_cmd(f"rport rm {task_str2}", "success")
     assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
-    assert check_hdc_cmd(f"rport rm {task_str2}", "success")    
+    assert check_hdc_cmd(f"rport rm {task_str2}", "success")
 
 
 def test_shell_cmd_timecost():

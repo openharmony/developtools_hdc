@@ -437,10 +437,12 @@ def check_app_uninstall_multi(tables, args=""):
 
     return True
 
+
 def check_empty_dir(cmd):
     if not check_shell(cmd, "the source folder is empty"):
         return False
     return True
+
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):

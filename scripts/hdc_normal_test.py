@@ -43,6 +43,7 @@ def test_empty_file():
     assert check_hdc_cmd(f"file send {get_local_path('empty')} {get_remote_path('it_empty')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_empty')} {get_local_path('empty_recv')}")
 
+
 @pytest.mark.repeat(5)
 def test_empty_dir():
     assert check_empty_dir(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}")

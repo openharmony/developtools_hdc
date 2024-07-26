@@ -813,7 +813,7 @@ def check_cmd_time(cmd, pattern, duration, times):
     res = []
     for i in range(times):
         start_in = time.time() * 1000
-        check_shell(cmd, pattern, fetch = fetchable)
+        check_shell(cmd, pattern, fetch=fetchable)
         start_out = time.time() * 1000
         res.append(start_out - start_in)
 

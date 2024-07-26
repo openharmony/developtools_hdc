@@ -227,6 +227,23 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             WRITE_LOG(LOG_DEBUG, "read file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
                       context->fileSize);
 #endif // HDC_DEBUG
+
+            if (!req->result && context->fileSize > 0) {
+                WRITE_LOG(LOG_DEBUG, "OnFileIO read size 0, isDir:%d, master:%d",
+                    context->isDir, context->master);
+                thisClass->LogMsg(MSG_FAIL, "Error reading file: read nothing, path:%s",
+                          context->localPath.c_str());    
+                if (context->isDir && context->master) {
+                    uint8_t payload = 1;
+                    thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
+                } else if (context->isDir && !context->master) {
+                    uint8_t payload = 1;
+                    thisClass->SendToAnother(CMD_FILE_FINISH, &payload, 1);
+                } else {
+                    thisClass->TaskFinish();
+                }
+                return;
+            }
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
                 context->ioFinish = true;
                 break;

@@ -38,7 +38,6 @@
         "openssl",
         "libusb",
         "libuv",
-        "hicollie",
         "os_account",
         "user_auth_framework",
         "pin_auth"

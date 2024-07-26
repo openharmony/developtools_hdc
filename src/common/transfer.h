@@ -130,6 +130,7 @@ private:
     };
     static const uint8_t payloadPrefixReserve = 64;
     static void OnFileIO(uv_fs_t *req);
+    static void Next(HdcTransferBase *thisClass, CtxFile *context);
     int SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes);
     bool SendIOPayload(CtxFile *context, uint64_t index, uint8_t *data, int dataSize);
     bool RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize);

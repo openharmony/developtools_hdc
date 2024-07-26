@@ -114,7 +114,7 @@ def test_hap_install():
 
 
 @pytest.mark.repeat(5)
-def test_app_cmd():
+def test_install_hap():
     package_hap = "entry-default-signed-debug.hap"
     app_name_default = "com.hmos.diagnosis"
 
@@ -131,12 +131,21 @@ def test_app_cmd():
     assert check_app_uninstall(app_name_default, "-k")
 
     # -s
-    package_hap = "analyticshsp-default-signed.hsp"
-    app_name_default = "com.huawei.hms.hsp.analyticshsp"
-
     assert check_app_install(package_hap, app_name_default, "-s")
-    assert check_app_uninstall(app_name_default, "-s")
 
+
+@pytest.mark.repeat(5)
+def test_install_hsp():
+    package_hsp = "libA_v10001.hsp"
+    hsp_name_default = "com.example.liba"
+
+    assert check_app_install(package_hsp, hsp_name_default, "-s")
+    assert check_app_uninstall(hsp_name_default, "-s")
+    assert check_app_install(package_hsp, hsp_name_default)
+
+
+@pytest.mark.repeat(5)
+def test_install_multi_hap():
     # default multi hap
     tables = {
         "entry-default-signed-debug.hap" : "com.hmos.diagnosis",
@@ -144,6 +153,7 @@ def test_app_cmd():
     }
     assert check_app_install_multi(tables)
     assert check_app_uninstall_multi(tables)
+    assert check_app_install_multi(tables, "-s")
 
     # default multi hap -r -k
     tables = {
@@ -153,6 +163,9 @@ def test_app_cmd():
     assert check_app_install_multi(tables, "-r")
     assert check_app_uninstall_multi(tables, "-k")
 
+
+@pytest.mark.repeat(5)
+def test_install_multi_hsp():
     # default multi hsp -s
     tables = {
         "libA_v10001.hsp" : "com.example.liba",
@@ -160,6 +173,18 @@ def test_app_cmd():
     }
     assert check_app_install_multi(tables, "-s")
     assert check_app_uninstall_multi(tables, "-s")
+    assert check_app_install_multi(tables)
+
+
+@pytest.mark.repeat(5)
+def test_install_hsp_and_hap():
+    #default multi hsp and hsp
+    tables = {
+        "libA_v10001.hsp" : "com.example.liba",
+        "entry-default-signed-debug.hap" : "com.hmos.diagnosis",
+    }
+    assert check_app_install_multi(tables)
+    assert check_app_install_multi(tables, "-s")
 
 
 def test_server_kill():

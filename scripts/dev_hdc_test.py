@@ -437,6 +437,10 @@ def check_app_uninstall_multi(tables, args=""):
 
     return True
 
+def check_empty_dir(cmd):
+    if not check_shell(cmd, "the source folder is empty"):
+        return False
+    return True
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):
@@ -446,8 +450,10 @@ def check_hdc_cmd(cmd, pattern=None, **args):
             local, remote = cmd.split()[-2:]
         else:
             remote, local = cmd.split()[-2:]
-        return _check_file(local, remote)
-
+        if os.path.isfile(local):
+            return _check_file(local, remote)
+        else:
+            return _check_dir(local, remote)
     elif cmd.startswith("install"):
         bundle = args.get("bundle", "invalid")
         opt = " ".join(cmd.split()[1:-1])

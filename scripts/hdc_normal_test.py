@@ -26,7 +26,7 @@ import pytest
 
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
-from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
+from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, check_empty_dir
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
@@ -42,6 +42,12 @@ def test_list_targets():
 def test_empty_file():
     assert check_hdc_cmd(f"file send {get_local_path('empty')} {get_remote_path('it_empty')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_empty')} {get_local_path('empty_recv')}")
+
+@pytest.mark.repeat(5)
+def test_empty_dir():
+    assert check_empty_dir(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}")
+    assert check_hdc_cmd("shell mkdir data/local/tmp/empty_dir_recv")
+    assert check_empty_dir(f"file recv {get_remote_path('empty_dir_recv')} {get_local_path('empty_dir_recv')}")
 
 
 @pytest.mark.repeat(5)

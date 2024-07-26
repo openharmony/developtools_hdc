@@ -33,7 +33,9 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     isInteractive = interactiveShell;
     callerContext = callerContextIn;
     if (isInteractive) {
-        std::thread(IOWriteThread, this).detach();
+        std::thread([this]() {
+            HdcFileDescriptor::IOWriteThread(this);
+        }).detach();
     }
 }
 
@@ -220,7 +222,9 @@ int HdcFileDescriptor::LoopReadOnThread()
     contextIO->bufIO = buf;
     contextIO->thisClass = this;
     ++refIO;
-    std::thread(FileIOOnThread, contextIO, readMax).detach();
+    std::thread([contextIO, readMax]() {
+        HdcFileDescriptor::FileIOOnThread(contextIO, readMax);
+    }).detach();
     return 0;
 }
 

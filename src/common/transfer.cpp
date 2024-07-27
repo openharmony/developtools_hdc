@@ -625,7 +625,6 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         pld.uncompressSize <= 0 || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "RecvIOPayload recv data size is illegal. pld.compressSize = %d", pld.compressSize);
     }
-
     switch (pld.compressType) {
 #ifdef HARMONY_PROJECT
         case COMPRESS_LZ4: {
@@ -645,7 +644,6 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
             break;
         }
     }
-
     while (true) {
         if (static_cast<uint32_t>(clearSize) != pld.uncompressSize || dataSize - payloadPrefixReserve < clearSize) {
             WRITE_LOG(LOG_WARN, "invalid data size for fileIO: %d", clearSize);

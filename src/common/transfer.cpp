@@ -625,23 +625,25 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         pld.uncompressSize <= 0 || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "RecvIOPayload recv data size is illegal. pld.compressSize = %d", pld.compressSize);
     }
-    switch (pld.compressType) {
+    if (pld.compressSize > 0) {
+        switch (pld.compressType) {
 #ifdef HARMONY_PROJECT
-        case COMPRESS_LZ4: {
-            clearBuf = new uint8_t[pld.uncompressSize]();
-            if (!clearBuf) {
-                WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
-                return false;
+            case COMPRESS_LZ4: {
+                clearBuf = new uint8_t[pld.uncompressSize]();
+                if (!clearBuf) {
+                    WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
+                    return false;
+                }
+                clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
+                                                pld.compressSize, pld.uncompressSize);
+                break;
             }
-            clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
-                                            pld.compressSize, pld.uncompressSize);
-            break;
-        }
 #endif
-        default: {  // COMPRESS_NONE
-            clearBuf = data + payloadPrefixReserve;
-            clearSize = pld.compressSize;
-            break;
+            default: {  // COMPRESS_NONE
+                clearBuf = data + payloadPrefixReserve;
+                clearSize = pld.compressSize;
+                break;
+            }
         }
     }
     while (true) {

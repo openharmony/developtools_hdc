@@ -191,7 +191,7 @@ bool GenerateKey(const char *file)
         EVP_PKEY_set1_RSA(publicKey, rsa);
         old_mask = umask(077);  // 077:permission
 
-        fKey = fopen(file, "w");
+        fKey = Base::Fopen(file, "w");
         if (!fKey) {
             WRITE_LOG(LOG_DEBUG, "Failed to open '%s'\n", file);
             umask(old_mask);
@@ -264,8 +264,10 @@ int GetUserKeyPath(string &path)
         uv_fs_t req;
         uv_fs_mkdir(nullptr, &req, path.c_str(), 0750, nullptr);  // 0750:permission
         uv_fs_req_cleanup(&req);
+        uv_fs_stat(nullptr, &req, path.c_str(), nullptr);
+        uv_fs_req_cleanup(&req);
         if (req.result < 0) {
-            WRITE_LOG(LOG_DEBUG, "Cannot mkdir '%s'", path.c_str());
+            WRITE_LOG(LOG_FATAL, "Cannot mkdir '%s'", path.c_str());
             return false;
         }
     }
@@ -375,7 +377,7 @@ void ReadDaemonKeys(const char *file, list<void *> *listPublicKey)
     char buf[BUF_SIZE_DEFAULT2] = { 0 };
     char *sep = nullptr;
     int ret;
-    FILE *f = fopen(file, "re");
+    FILE *f = Base::Fopen(file, "re");
     if (!f) {
         WRITE_LOG(LOG_DEBUG, "Can't open '%s'", file);
         return;
@@ -554,7 +556,7 @@ bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filenam
             break;
         }
 
-        file_prikey = fopen(prikey_filename.c_str(), "w");
+        file_prikey = Base::Fopen(prikey_filename.c_str(), "w");
         if (!file_prikey) {
             WRITE_LOG(LOG_FATAL, "open %s failed", prikey_filename.c_str());
             break;
@@ -563,7 +565,7 @@ bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filenam
             WRITE_LOG(LOG_FATAL, "write private key failed");
             break;
         }
-        file_pubkey = fopen(pubkey_filename.c_str(), "w");
+        file_pubkey = Base::Fopen(pubkey_filename.c_str(), "w");
         if (!file_pubkey) {
             WRITE_LOG(LOG_FATAL, "open %s failed", pubkey_filename.c_str());
             break;
@@ -596,7 +598,7 @@ bool LoadPublicKey(const string& pubkey_filename, string &pubkey)
     FILE *file_pubkey = nullptr;
 
     do {
-        file_pubkey = fopen(pubkey_filename.c_str(), "r");
+        file_pubkey = Base::Fopen(pubkey_filename.c_str(), "r");
         if (!file_pubkey) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", pubkey_filename.c_str());
             break;
@@ -713,7 +715,7 @@ RSA *LoadPrivateKey(const string& prikey_filename)
     FILE *file_prikey = nullptr;
 
     do {
-        file_prikey = fopen(prikey_filename.c_str(), "r");
+        file_prikey = Base::Fopen(prikey_filename.c_str(), "r");
         if (!file_prikey) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", prikey_filename.c_str());
             break;

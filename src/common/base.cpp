@@ -30,6 +30,11 @@
 #ifdef HDC_HILOG
 #include "hilog/log.h"
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#include <codecvt>
+#include <wchar.h>
+#endif
 using namespace std::chrono;
 
 namespace Hdc {
@@ -1931,5 +1936,20 @@ namespace Base {
         return true;
     }
 
+    // NOTE: This function relies on the caller to guarantee that
+    // the input parameter is not null and to check the opened handle state.
+    FILE *Fopen(const char *fileName, const char *mode)
+    {
+#ifdef _WIN32
+        // windows platform open file with wide char
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+        std::wstring wideFileName = converter.from_bytes(fileName);
+        std::wstring wideMode = converter.from_bytes(mode);
+        return _wfopen(wideFileName.c_str(), wideMode.c_str());
+#else
+        // unix paltform open file with default char
+        return fopen(fileName, mode);
+#endif
+    }
 }
 }  // namespace Hdc

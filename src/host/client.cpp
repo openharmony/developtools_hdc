@@ -165,7 +165,7 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
         }
     }
     if (isNoTargetCommand) {
-        if (strncmp(this->command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size() != 0)) {
+        if (strncmp(this->command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size()) != 0) {
             key = "";
         }
     } else {

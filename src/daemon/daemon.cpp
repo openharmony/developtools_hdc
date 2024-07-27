@@ -856,7 +856,9 @@ void HdcDaemon::InitSessionAuthInfo(uint32_t sessionid, string token)
 {
     HdcDaemonAuthInfo info = {
         AUTH_NONE,
-        token
+        token,
+        "",
+        ""
     };
     mapAuthStatusMutex.lock();
     mapAuthStatus[sessionid] = info;

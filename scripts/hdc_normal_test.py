@@ -47,8 +47,8 @@ def test_empty_file():
 @pytest.mark.repeat(5)
 def test_empty_dir():
     assert check_empty_dir(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}")
-    assert check_hdc_cmd("shell mkdir data/local/tmp/empty_dir_recv")
-    assert check_empty_dir(f"file recv {get_remote_path('empty_dir_recv')} {get_local_path('empty_dir_recv')}")
+    assert check_hdc_cmd("shell mkdir data/local/tmp/it_empty_dir_recv")
+    assert check_empty_dir(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}")
 
 
 @pytest.mark.repeat(5)

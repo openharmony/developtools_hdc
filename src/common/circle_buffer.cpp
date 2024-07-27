@@ -127,7 +127,7 @@ void CircleBuffer::TimerStart()
 #ifndef HDC_HOST
     if (!run_) {
         run_ = true;
-        thread_ = std::thread(Timer, this);
+        thread_ = std::thread([this]() { Timer(this); });
     }
 #endif
 }

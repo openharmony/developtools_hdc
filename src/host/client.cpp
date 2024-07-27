@@ -245,7 +245,9 @@ void HdcClient::RunCommandWin32(const string& cmd)
         WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
         return;
     }
-    auto thread = std::thread(ReadFileThreadFunc, &hParentRead);
+    auto thread = std::thread([&hParentRead]() {
+        ReadFileThreadFunc(&hParentRead);
+    });
     WaitForSingleObject(pi.hProcess, INFINITE);
     CloseHandle(hSubWrite);
     CloseHandle(pi.hProcess);

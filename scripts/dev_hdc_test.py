@@ -437,10 +437,6 @@ def check_app_uninstall_multi(tables, args=""):
 
     return True
 
-def check_empty_dir(cmd):
-    if not check_shell(cmd, "the source folder is empty"):
-        return False
-    return True
 
 def check_hdc_cmd(cmd, pattern=None, **args):
     if cmd.startswith("file"):
@@ -819,7 +815,7 @@ def check_cmd_time(cmd, pattern, duration, times):
     res = []
     for i in range(times):
         start_in = time.time() * 1000
-        check_shell(cmd, pattern, fetch = fetchable)
+        check_shell(cmd, pattern, fetch=fetchable)
         start_out = time.time() * 1000
         res.append(start_out - start_in)
 

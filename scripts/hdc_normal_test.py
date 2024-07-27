@@ -26,7 +26,7 @@ import pytest
 
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
-from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, check_empty_dir
+from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
@@ -43,11 +43,12 @@ def test_empty_file():
     assert check_hdc_cmd(f"file send {get_local_path('empty')} {get_remote_path('it_empty')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_empty')} {get_local_path('empty_recv')}")
 
+
 @pytest.mark.repeat(5)
 def test_empty_dir():
-    assert check_empty_dir(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}")
-    assert check_hdc_cmd("shell mkdir data/local/tmp/empty_dir_recv")
-    assert check_empty_dir(f"file recv {get_remote_path('empty_dir_recv')} {get_local_path('empty_dir_recv')}")
+    assert check_shell(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}", "the source folder is empty")
+    assert check_hdc_cmd("shell mkdir data/local/tmp/it_empty_dir_recv")
+    assert check_shell(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}", "the source folder is empty")
 
 @pytest.mark.repeat(5)
 def test_file_switch():
@@ -257,6 +258,18 @@ def test_shell_cmd_timecost():
 def test_hdcd_rom():
     baseline = 2200 # 2200KB
     assert check_rom(baseline)
+
+
+def test_smode_r():
+    assert check_hdc_cmd(f'smode -r')
+    time.sleep(5)
+    assert check_shell(f"shell ls", "Permission denied")
+
+
+def test_smode():
+    assert check_hdc_cmd(f'smode')
+    time.sleep(5)
+    assert check_shell(f"shell ls", "data")
 
 
 def setup_class():

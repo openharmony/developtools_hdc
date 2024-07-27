@@ -439,8 +439,9 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
                              "This server's public key is not set.\n"\
                              "Please check for a confirmation dialog on your device.\n"\
                              "Otherwise try 'hdc kill' if that seems wrong.";
-        std::thread notifymsg(&HdcDaemon::EchoHandshakeMsg, this,
-                    std::ref(handshake), channelId, hSession->sessionId, confirmmsg);
+        std::thread notifymsg([this, &handshake, channelId, sessionId = hSession->sessionId, &confirmmsg]() {
+            this->EchoHandshakeMsg(handshake, channelId, sessionId, confirmmsg);
+        });
         notifymsg.detach();
 
         UserPermit permit = PostUIConfirm(hostname);
@@ -855,7 +856,9 @@ void HdcDaemon::InitSessionAuthInfo(uint32_t sessionid, string token)
 {
     HdcDaemonAuthInfo info = {
         AUTH_NONE,
-        token
+        token,
+        "",
+        ""
     };
     mapAuthStatusMutex.lock();
     mapAuthStatus[sessionid] = info;

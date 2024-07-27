@@ -184,7 +184,7 @@ void HdcHostUSB::KickoutZombie(HSession hSession)
     HdcServer *ptrConnect = (HdcServer *)hSession->classInstance;
     HUSB hUSB = hSession->hUSB;
     if (!hUSB->devHandle) {
-        WRITE_LOG(LOG_WARN, "KickoutZombie devHandle:%p isDead:%d", hUSB->devHandle, hSession->isDead.load());
+        WRITE_LOG(LOG_WARN, "KickoutZombie devHandle:%p isDead:%d", hUSB->devHandle, hSession->isDead);
         return;
     }
     if (LIBUSB_ERROR_NO_DEVICE != libusb_kernel_driver_active(hUSB->devHandle, hUSB->interfaceNumber)) {
@@ -560,14 +560,12 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
         childRet = libusb_submit_transfer(ep->transfer);
         hUSB->lockDeviceHandle.unlock();
         if (childRet < 0) {
-            WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, sid:%u ret:%d",
-                hSession->sessionId, childRet);
+            WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, ret:%d", childRet);
             break;
         }
         ep->cv.wait(lock, [ep]() { return ep->isComplete; });
         if (ep->transfer->status != 0) {
-            WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, sid:%u, status:%d",
-                hSession->sessionId, ep->transfer->status);
+            WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, status:%d", ep->transfer->status);
             break;
         }
         ret = ep->transfer->actual_length;
@@ -592,13 +590,13 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
                                        hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
             if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "Read usb failed, sid:%u, ret:%d", hSession->sessionId, childRet);
+                WRITE_LOG(LOG_FATAL, "Read usb failed, ret:%d", childRet);
                 break;
             }
             childRet = SendToHdcStream(hSession, reinterpret_cast<uv_stream_t *>(&hSession->dataPipe[STREAM_MAIN]),
                                        hUSB->hostBulkIn.buf, childRet);
             if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "SendToHdcStream failed, sid:%u, ret:%d", hSession->sessionId, childRet);
+                WRITE_LOG(LOG_FATAL, "SendToHdcStream failed, ret:%d", childRet);
                 break;
             }
         }
@@ -607,7 +605,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         hUSB->hostBulkIn.isShutdown = true;
         server->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
-        WRITE_LOG(LOG_DEBUG, "Usb loop read finish, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "Usb loop read finish");
     }).detach();
 }
 
@@ -647,15 +645,11 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
 int HdcHostUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
 {
     int ret = ERR_GENERIC;
-    if (HdcSessionBase::IsSessionDeleted(hSession->sessionId)) {
-        WRITE_LOG(LOG_INFO, "SendUSBRaw sessionId:%u is Deleted", hSession->sessionId);
-        return ret;
-    }
     HdcSessionBase *server = reinterpret_cast<HdcSessionBase *>(hSession->classInstance);
     ++hSession->ref;
     ret = SubmitUsbBio(hSession, true, data, length);
     if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "Send usb failed, sid:%u, ret:%d", hSession->sessionId, ret);
+        WRITE_LOG(LOG_FATAL, "Send usb failed, ret:%d", ret);
         CancelUsbIo(hSession);
         hSession->hUSB->hostBulkOut.isShutdown = true;
         server->FreeSession(hSession->sessionId);

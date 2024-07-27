@@ -22,7 +22,7 @@ void CTimer::Start(unsigned int imsec, bool immediatelyRun)
     exit.store(false);
     msec = imsec;
     this->immediatelyRun.store(immediatelyRun);
-    thread = std::thread(std::bind(&CTimer::Run, this));
+    thread = std::thread([this]() { this->Run(); });
 }
  
 void CTimer::Stop()

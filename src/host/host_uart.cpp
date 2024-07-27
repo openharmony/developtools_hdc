@@ -449,7 +449,7 @@ bool HdcHostUART::StartUartReadThread(HSession hSession)
 {
     try {
         HUART hUART = hSession->hUART;
-        hUART->readThread = std::thread(&HdcHostUART::UartReadThread, this, hSession);
+        hUART->readThread = std::thread([this, hSession]() { this->UartReadThread(hSession); });
     } catch (...) {
         server.FreeSession(hSession->sessionId);
         UpdateUARTDaemonInfo(hSession->connectKey, hSession, STATUS_UNKNOW);
@@ -465,7 +465,7 @@ bool HdcHostUART::StartUartSendThread()
 {
     WRITE_LOG(LOG_DEBUG, "%s.", __FUNCTION__);
     try {
-        sendThread = std::thread(&HdcHostUART::UartWriteThread, this);
+        sendThread = std::thread([this]() { this->UartWriteThread(); });
     } catch (...) {
         WRITE_LOG(LOG_WARN, "%s sendThread create failed", __FUNCTION__);
         return false;

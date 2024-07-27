@@ -121,6 +121,7 @@ namespace Hdc {
         int ret = ioctl(bridgeFd, IOC_BIND, (unsigned long)bridgeListenPort);
         if (ret < 0) {
             WRITE_LOG(LOG_FATAL, "SetBridgeListen IOC_BIND failed");
+            close(bridgeFd);
             return ERR_API_FAIL;
         }
 

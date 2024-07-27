@@ -26,7 +26,7 @@ import pytest
 
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
-from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
+from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, run_command_with_timeout
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
@@ -276,14 +276,14 @@ def test_hdcd_rom():
 
 def test_smode_r():
     assert check_hdc_cmd(f'smode -r')
-    time.sleep(5)
-    assert check_shell(f"shell ls", "Permission denied")
+    run_command_with_timeout("hdc wait", 5)
+    assert check_shell(f"shell id", "context=u:r:sh:s0")
 
 
 def test_smode():
     assert check_hdc_cmd(f'smode')
-    time.sleep(5)
-    assert check_shell(f"shell ls", "data")
+    run_command_with_timeout("hdc wait", 5)
+    assert check_shell(f"shell id", "context=u:r:su:s0")
 
 
 def setup_class():

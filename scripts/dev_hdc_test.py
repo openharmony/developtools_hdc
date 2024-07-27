@@ -890,3 +890,13 @@ def check_rom(baseline):
     else:
         print(f"rom size is {all_size}, underlimit baseline {baseline}")
         return True
+
+
+def run_command_with_timeout(command, timeout):
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        return result.stdout.decode(), result.stderr.decode()
+    except subprocess.TimeoutExpired:
+        return None, "Command timed out"
+    except subprocess.CalledProcessError as e:
+        return None, e.stderr.decode()

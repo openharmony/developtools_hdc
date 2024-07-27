@@ -604,7 +604,7 @@ inline bool HdcForwardBase::FilterCommand(uint8_t *bufCmdIn, uint32_t *idOut, ui
 bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, const int bufSize, bool bCheckPoint, string &sError)
 {
     if (bufSize <= DWORD_SERIALIZE_SIZE + forwardParameterBufSize) {
-        WRITE_LOG(LOG_FATAL, "PayloadSize is shorter than header size");
+        WRITE_LOG(LOG_FATAL, "Illegal payloadSize, shorter than forward header");
         return false;
     }
     bool ret = false;
@@ -791,7 +791,7 @@ bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload
 bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     if (payloadSize <= DWORD_SERIALIZE_SIZE) {
-        WRITE_LOG(LOG_FATAL, "PayloadSize is shorter than header size");
+        WRITE_LOG(LOG_FATAL, "Illegal payloadSize, shorter than forward command header");
         return false;
     }
     bool ret = true;

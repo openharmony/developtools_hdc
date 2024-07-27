@@ -45,6 +45,13 @@ def test_empty_file():
 
 
 @pytest.mark.repeat(5)
+def test_empty_dir():
+    assert check_shell(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}", "the source folder is empty")
+    assert check_hdc_cmd("shell mkdir data/local/tmp/it_empty_dir_recv")
+    assert check_shell(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}", "the source folder is empty")
+
+
+@pytest.mark.repeat(5)
 def test_small_file():
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")

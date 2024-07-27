@@ -446,8 +446,10 @@ def check_hdc_cmd(cmd, pattern=None, **args):
             local, remote = cmd.split()[-2:]
         else:
             remote, local = cmd.split()[-2:]
-        return _check_file(local, remote)
-
+        if os.path.isfile(local):
+            return _check_file(local, remote)
+        else:
+            return _check_dir(local, remote)
     elif cmd.startswith("install"):
         bundle = args.get("bundle", "invalid")
         opt = " ".join(cmd.split()[1:-1])

@@ -624,6 +624,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     if (pld.compressSize <= 0 || pld.compressSize > MAX_SIZE_IOBUF ||
         pld.uncompressSize <= 0 || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "RecvIOPayload recv data size is illegal. pld.compressSize = %d", pld.compressSize);
+        return false;
     }
     if (pld.compressSize > 0) {
         switch (pld.compressType) {

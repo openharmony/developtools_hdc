@@ -117,6 +117,7 @@ const string EMPTY_ECHO = "[Empty]";
 const string MESSAGE_INFO = "[Info]";
 const string MESSAGE_FAIL = "[Fail]";
 const string MESSAGE_SUCCESS = "[Success]";
+const string WAIT_DEVICE_TAG = "WT";
 // input command
 const string CMDSTR_SOFTWARE_VERSION = "version";
 const string CMDSTR_SOFTWARE_HELP = "help";

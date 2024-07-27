@@ -33,7 +33,7 @@ void SudoIInputer::OnGetData(int32_t authSubType, std::vector<uint8_t> challenge
     inputerData->OnSetData(authSubType, passwd_);
 }
 
-void SudoIInputer::SetPasswd(char *passwd, int len)
+void SudoIInputer::SetPasswd(char *pwd, int len)
 {
     passwd_.resize(len);
     for (int i = 0; i < len; i++) {

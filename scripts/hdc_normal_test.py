@@ -53,12 +53,12 @@ def test_empty_dir():
 @pytest.mark.repeat(5)
 def test_file_switch():
     assert check_hdc_cmd("shell param set persist.hdc.control.file false")
-    assert not check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
+    assert check_shell(f"file send {get_local_path('small')} {get_remote_path('it_small')}", "check_permission param false")
     assert check_hdc_cmd("shell param set persist.hdc.control.file true")
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
 
     assert check_hdc_cmd("shell param set persist.hdc.control.file false")
-    assert not check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
+    assert check_shell(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}", "check_permission param false")
     assert check_hdc_cmd("shell param set persist.hdc.control.file true")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
 

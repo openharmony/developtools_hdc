@@ -425,7 +425,7 @@ bool HdcServerForClient::WaitForAny(HChannel hChannel)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HDaemonInfo hdi = nullptr;
-    if (hChannel->connectKey.size() > 0) {
+    if (!hChannel->connectKey.empty()) {
         ptrServer->AdminDaemonMap(OP_WAIT_FOR_ANY, hChannel->connectKey, hdi);
     } else {
         ptrServer->AdminDaemonMap(OP_WAIT_FOR_ANY, STRING_EMPTY, hdi);

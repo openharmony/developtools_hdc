@@ -26,7 +26,7 @@ import pytest
 
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
-from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path
+from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, run_command_with_timeout
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
@@ -42,6 +42,13 @@ def test_list_targets():
 def test_empty_file():
     assert check_hdc_cmd(f"file send {get_local_path('empty')} {get_remote_path('it_empty')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_empty')} {get_local_path('empty_recv')}")
+
+
+@pytest.mark.repeat(5)
+def test_empty_dir():
+    assert check_shell(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}", "the source folder is empty")
+    assert check_hdc_cmd("shell mkdir data/local/tmp/it_empty_dir_recv")
+    assert check_shell(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}", "the source folder is empty")
 
 
 @pytest.mark.repeat(5)
@@ -114,7 +121,7 @@ def test_hap_install():
 
 
 @pytest.mark.repeat(5)
-def test_app_cmd():
+def test_install_hap():
     package_hap = "entry-default-signed-debug.hap"
     app_name_default = "com.hmos.diagnosis"
 
@@ -131,12 +138,21 @@ def test_app_cmd():
     assert check_app_uninstall(app_name_default, "-k")
 
     # -s
-    package_hap = "analyticshsp-default-signed.hsp"
-    app_name_default = "com.huawei.hms.hsp.analyticshsp"
-
     assert check_app_install(package_hap, app_name_default, "-s")
-    assert check_app_uninstall(app_name_default, "-s")
 
+
+@pytest.mark.repeat(5)
+def test_install_hsp():
+    package_hsp = "libA_v10001.hsp"
+    hsp_name_default = "com.example.liba"
+
+    assert check_app_install(package_hsp, hsp_name_default, "-s")
+    assert check_app_uninstall(hsp_name_default, "-s")
+    assert check_app_install(package_hsp, hsp_name_default)
+
+
+@pytest.mark.repeat(5)
+def test_install_multi_hap():
     # default multi hap
     tables = {
         "entry-default-signed-debug.hap" : "com.hmos.diagnosis",
@@ -144,6 +160,7 @@ def test_app_cmd():
     }
     assert check_app_install_multi(tables)
     assert check_app_uninstall_multi(tables)
+    assert check_app_install_multi(tables, "-s")
 
     # default multi hap -r -k
     tables = {
@@ -153,6 +170,9 @@ def test_app_cmd():
     assert check_app_install_multi(tables, "-r")
     assert check_app_uninstall_multi(tables, "-k")
 
+
+@pytest.mark.repeat(5)
+def test_install_multi_hsp():
     # default multi hsp -s
     tables = {
         "libA_v10001.hsp" : "com.example.liba",
@@ -160,6 +180,18 @@ def test_app_cmd():
     }
     assert check_app_install_multi(tables, "-s")
     assert check_app_uninstall_multi(tables, "-s")
+    assert check_app_install_multi(tables)
+
+
+@pytest.mark.repeat(5)
+def test_install_hsp_and_hap():
+    #default multi hsp and hsp
+    tables = {
+        "libA_v10001.hsp" : "com.example.liba",
+        "entry-default-signed-debug.hap" : "com.hmos.diagnosis",
+    }
+    assert check_app_install_multi(tables)
+    assert check_app_install_multi(tables, "-s")
 
 
 def test_server_kill():
@@ -240,6 +272,18 @@ def test_shell_cmd_timecost():
 def test_hdcd_rom():
     baseline = 2200 # 2200KB
     assert check_rom(baseline)
+
+
+def test_smode_r():
+    assert check_hdc_cmd(f'smode -r')
+    run_command_with_timeout("hdc wait", 5)
+    assert check_shell(f"shell id", "context=u:r:sh:s0")
+
+
+def test_smode():
+    assert check_hdc_cmd(f'smode')
+    run_command_with_timeout("hdc wait", 5)
+    assert check_shell(f"shell id", "context=u:r:su:s0")
 
 
 def setup_class():

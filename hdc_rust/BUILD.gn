@@ -35,7 +35,6 @@ ohos_static_library("serialize_structs") {
 
   external_deps = [
     "bounds_checking_function:libsec_static",
-    "hicollie:hicollie_rust",
     "hilog:libhilog",
     "init:libbegetutil",
     "lz4:liblz4_static",
@@ -68,7 +67,6 @@ ohos_rust_executable("hdcd") {
     "//third_party/rust/crates/rust-openssl/openssl:lib",
   ]
   external_deps = [
-    "hicollie:hicollie_rust",
     "hilog:hilog_rust",
     "ylong_runtime:ylong_runtime",
   ]

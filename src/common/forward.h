@@ -81,7 +81,7 @@ private:
 
     bool SetupPoint(HCtxForward ctxPoint);
     void *MallocContext(bool masterSlave);
-    bool SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sError);
+    bool SlaveConnect(uint8_t *bufCmd, const int bufSize, bool bCheckPoint, string &sError);
     bool SendToTask(const uint32_t cid, const uint16_t command, uint8_t *bufPtr, const int bufSize);
     bool FilterCommand(uint8_t *bufCmdIn, uint32_t *idOut, uint8_t **pContentBuf);
     void *AdminContext(const uint8_t op, const uint32_t id, HCtxForward hInput);

@@ -601,8 +601,12 @@ inline bool HdcForwardBase::FilterCommand(uint8_t *bufCmdIn, uint32_t *idOut, ui
     return true;
 }
 
-bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, bool bCheckPoint, string &sError)
+bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, const int bufSize, bool bCheckPoint, string &sError)
 {
+    if (bufSize <= DWORD_SERIALIZE_SIZE + forwardParameterBufSize) {
+        WRITE_LOG(LOG_FATAL, "Illegal payloadSize, shorter than forward header");
+        return false;
+    }
     bool ret = false;
     char *content = nullptr;
     uint32_t idSlaveOld = 0;
@@ -786,6 +790,10 @@ bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload
 
 bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
+    if (payloadSize <= DWORD_SERIALIZE_SIZE) {
+        WRITE_LOG(LOG_FATAL, "Illegal payloadSize, shorter than forward command header");
+        return false;
+    }
     bool ret = true;
     uint8_t *pContent = nullptr;
     int sizeContent = 0;
@@ -851,14 +859,14 @@ bool HdcForwardBase::CommandDispatch(const uint16_t command, uint8_t *payload, c
         return true;
     } else if (command == CMD_FORWARD_CHECK) {
         // Detect remote if it's reachable
-        if (!SlaveConnect(payload, true, sError)) {
+        if (!SlaveConnect(payload, payloadSize, true, sError)) {
             ret = false;
             goto Finish;
         }
         return true;
     } else if (command == CMD_FORWARD_ACTIVE_SLAVE) {
         // slave connect target port when activating
-        if (!SlaveConnect(payload, false, sError)) {
+        if (!SlaveConnect(payload, payloadSize, false, sError)) {
             ret = false;
             goto Finish;
         }

@@ -321,7 +321,7 @@ def check_shell(cmd, pattern=None, fetch=False):
 
 def _check_dir(local, remote):
     def _get_md5sum(remote):
-        cmd = f"{GP.hdc_head} shell md5sum {remote}/*"
+        cmd = f'{GP.hdc_head} shell find {remote} md5sum -type f -exec md5sum {{}} \;'
         result = subprocess.check_output(cmd.split()).decode()
         return result
     
@@ -342,10 +342,10 @@ def _check_dir(local, remote):
 
     result = 1
     for line in output.splitlines():
-        if len(line) < 32: # length of MD5
+        if len(line) < 32 or line.startswith("find"): # length of MD5
             continue
         expected_md5, file_name = line.split()[:2]
-        file_name = file_name.replace(f"{remote}/", "")
+        file_name = file_name.split("/")[-1]
         file_path = os.path.join(os.getcwd(), local, file_name)  # 构建完整的文件路径
         print(file_path)
         actual_md5 = _calculate_md5(file_path)

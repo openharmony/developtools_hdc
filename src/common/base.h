@@ -201,6 +201,7 @@ namespace Base {
     void TrimSubString(string &str, string substr);
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);
+    FILE *Fopen(const char *fileName, const char *mode);
 }  // namespace base
 }  // namespace Hdc
 

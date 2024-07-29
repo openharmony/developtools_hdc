@@ -101,7 +101,7 @@ void HdcHostUSB::InitLogging(void *ctxUSB)
     std::string debugEnv = "LIBUSB_DEBUG";
     libusb_log_level debugLevel;
 
-    switch (static_cast<Hdc::LogLevel>(Base::GetLogLevel())) {
+    switch (static_cast<Hdc::HdcLogLevel>(Base::GetLogLevel())) {
         case LOG_WARN:
             debugLevel = LIBUSB_LOG_LEVEL_ERROR;
             break;

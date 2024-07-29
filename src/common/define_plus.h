@@ -38,7 +38,7 @@ static string MaskString(const string &str)
 }
 
 // ############################# enum define ###################################
-enum LogLevel {
+enum HdcLogLevel {
     LOG_OFF,
     LOG_FATAL,
     LOG_WARN,

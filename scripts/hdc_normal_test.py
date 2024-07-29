@@ -93,7 +93,7 @@ def test_file_error():
     assert check_shell(
         f"file send {get_local_path('small')} system/bin/hdcd",
         "busy"
-    )
+        )
     assert check_shell(
         f"file recv",
         "[Fail]There is no local and remote path"
@@ -128,7 +128,7 @@ def test_recv_dir():
 @pytest.mark.repeat(5)
 def test_hap_install():
     assert check_hdc_cmd(f"install -r {get_local_path('entry-default-signed-debug.hap')}",
-                         bundle="com.hmos.diagnosis")
+                            bundle="com.hmos.diagnosis")
 
 
 @pytest.mark.repeat(5)

@@ -368,9 +368,31 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
   deps = [ "//third_party/libuv:uv" ]
-  sources = [ "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp" ]
-  deps += [ ":hdc_common" ]
- }
+  deps += [ ":hdc_common_fuzz_test" ]
+}
+
+ohos_source_set("hdc_common_fuzz_test") {
+  use_exceptions = true
+  testonly = true
+  defines = [
+    "TEST_HASH",
+    "HDC_MSG_HASH=\"TEST\"",
+    "FUZZ_TEST",
+  ]
+  sources = hdc_common_sources
+  sources += [
+    "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp",
+  ]
+  if (hdc_support_uart) {
+    sources += [ "${hdc_path}/src/common/uart.cpp" ]
+  }
+  public_external_deps = common_external_deps
+  external_deps = [ "init:libbegetutil" ]
+  public_configs = [
+    ":hdc_common_config",
+    ":hdc_ut_config",
+  ]
+}
   
 ohos_fuzztest("DaemonUsbReadFuzzTest") {
   module_out_path = FUZZ_OUTPUT_PATH
@@ -395,8 +417,8 @@ group("hdc_fuzztest") {
   deps = [
     ":DaemonUsbReadFuzzTest",
     ":JdwpReadStreamFuzzTest",
+    ":ForwardReadStreamFuzzTest",
   ]
-  deps += [ ":ForwardReadStreamFuzzTest" ]
 }
 
 ohos_unittest("hdc_register_unittest") {

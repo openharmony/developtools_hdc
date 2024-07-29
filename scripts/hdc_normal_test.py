@@ -62,6 +62,7 @@ def test_file_switch():
     assert check_hdc_cmd("shell param set persist.hdc.control.file true")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
 
+
 @pytest.mark.repeat(5)
 def test_small_file():
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")

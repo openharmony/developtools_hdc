@@ -32,8 +32,8 @@ public:
 bool FuzzForwardReadStream(const uint8_t *data, size_t size)
 {
     HTaskInfo hTaskInfo = new TaskInformation();
-    HdcSessionBase HdcSessionTest(false);
-    hTaskInfo->ownerSessionClass = &HdcSessionTest;
+    HdcSessionBase *daemon = new HdcSessionBase(false);
+    hTaskInfo->ownerSessionClass = daemon;
     auto forward = HdcForwardFuzzer::Instance(hTaskInfo);
     if (forward == nullptr) {
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream forward is null");
@@ -50,6 +50,8 @@ bool FuzzForwardReadStream(const uint8_t *data, size_t size)
     uv_buf_t rbf = uv_buf_init(reinterpret_cast<char *>(const_cast<uint8_t *>(data)), size);
     forward->ReadForwardBuf(stream, (ssize_t)size, &rbf);
     delete ctx;
+    delete hTaskInfo;
+    delete daemon;
     return true;
 }
 } // namespace Hdc

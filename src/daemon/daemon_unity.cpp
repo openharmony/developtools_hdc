@@ -175,7 +175,7 @@ bool HdcDaemonUnity::RemountDevice()
         }
     }
 
-    int exitStatus = system("/bin/remount");
+    int exitStatus = ExecuteShell("remount");
     if (exitStatus == -1) {
         LogMsg(MSG_FAIL, "Failed to execute /bin/remount: %s", strerror(errno));
         return false;

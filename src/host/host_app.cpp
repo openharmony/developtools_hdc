@@ -74,6 +74,7 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
             if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")) {
                 context->taskQueue.push_back(path);
             } else {
+                context->appInstallDir = path;
                 string tarpath = Dir2Tar(path.c_str());
                 if (!tarpath.empty()) {
                     context->taskQueue.push_back(tarpath);
@@ -167,7 +168,11 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
             WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
         }
     }
-    LogMsg(MSG_INFO, "%s path:%s, queuesize:%d, msg:%s", modeDesc.c_str(), ctxNow.localPath.c_str(),
+    string path = ctxNow.localPath;
+    if (!ctxNow.appInstallDir.empty()) {
+        path = ctxNow.appInstallDir;
+    }
+    LogMsg(MSG_INFO, "%s path:%s, queuesize:%d, msg:%s", modeDesc.c_str(), path.c_str(),
            ctxNow.taskQueue.size(), msg + printedMsgLen);
     printedMsgLen = strlen(msg);
     if (singalStop || !ctxNow.taskQueue.size()) {

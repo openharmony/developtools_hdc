@@ -23,7 +23,6 @@ declare_args() {
   js_jdwp_connect = true
   hdc_version_check = false
   support_hdcd_user_permit = false
-  hdc_feature_support_sudo = false
 
   if (defined(global_parts_info)) {
     if (defined(global_parts_info.ability_ability_base)) {

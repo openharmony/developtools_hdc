@@ -12,9 +12,6 @@
   "component": {
     "name": "hdc",
     "subsystem": "developtools",
-    "features": [
-      "hdc_feature_support_sudo"
-    ],
     "adapted_system_type": [
       "standard"
     ],
@@ -37,10 +34,7 @@
         "selinux",
         "openssl",
         "libusb",
-        "libuv",
-        "os_account",
-        "user_auth_framework",
-        "pin_auth"
+        "libuv"
       ],
       "third_party": []
     },
@@ -50,8 +44,7 @@
         "//developtools/hdc/hdcd_user_permit:hdcd_user_permit",
         "//developtools/hdc:hdc_register",
         "//developtools/hdc:hdcd_updater",
-        "//developtools/hdc:hdc_updater",
-        "//developtools/hdc/sudo:sudo"
+        "//developtools/hdc:hdc_updater"
       ],
       "inner_kits": [
         {

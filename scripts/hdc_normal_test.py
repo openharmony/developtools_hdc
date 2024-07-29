@@ -50,6 +50,7 @@ def test_empty_dir():
     assert check_hdc_cmd("shell mkdir data/local/tmp/it_empty_dir_recv")
     assert check_shell(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}", "the source folder is empty")
 
+
 @pytest.mark.repeat(5)
 def test_file_switch():
     assert check_hdc_cmd("shell param set persist.hdc.control.file false")

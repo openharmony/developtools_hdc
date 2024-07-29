@@ -259,6 +259,8 @@ int GetUserKeyPath(string &path)
     path = Base::CanonicalizeSpecPath(dir);
     if (path.empty()) {
         path = dir;
+    } else {
+        path += Base::GetPathSep(); // bugfix for unix platform create key file not in dir.
     }
     if (stat(path.c_str(), &status)) {
         uv_fs_t req;

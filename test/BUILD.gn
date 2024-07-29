@@ -393,6 +393,8 @@ ohos_source_set("hdc_common_fuzz_test") {
     ":hdc_common_config",
     ":hdc_ut_config",
   ]
+  subsystem_name = "developtools"
+  part_name = "hdc"
 }
 
 ohos_fuzztest("DaemonUsbReadFuzzTest") {

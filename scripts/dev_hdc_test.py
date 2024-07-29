@@ -401,7 +401,10 @@ def check_file_recv(remote, local):
 def check_app_install(app, bundle, args=""):
     app = os.path.join(GP.local_path, app)
     install_cmd = f"install {args} {app}"
-    return check_shell(install_cmd, "successfully") and _check_app_installed(bundle, "s" in args)
+    if (args == "-s" and app.endswith(".hap")) or (args == "" and app.endswith(".hsp")):
+        return check_shell(install_cmd, "failed to install bundle")
+    else:
+        return check_shell(install_cmd, "successfully") and _check_app_installed(bundle, "s" in args)
 
 
 def check_app_uninstall(bundle, args=""):
@@ -420,12 +423,17 @@ def check_app_install_multi(tables, args=""):
     apps_str = " ".join(apps)
     install_cmd = f"install {args} {apps_str}"
 
-    if not check_shell(install_cmd, "successfully"):
-        return False
-
-    for bundle in bundles:
-        if not _check_app_installed(bundle, "s" in args):
+    if ((args == "-s" and re.search(".hap", apps_str)) or (re.search(".hsp", apps_str) and re.search(".hap", apps_str))
+        or (args == "" and 0 == apps_str.count(".hap"))):
+        if not check_shell(install_cmd, "failed to install bundle"):
             return False
+    else:
+        if not check_shell(install_cmd, "successfully"):
+            return False
+
+        for bundle in bundles:
+            if not _check_app_installed(bundle, "s" in args):
+                return False
 
     return True
 
@@ -882,3 +890,13 @@ def check_rom(baseline):
     else:
         print(f"rom size is {all_size}, underlimit baseline {baseline}")
         return True
+
+
+def run_command_with_timeout(command, timeout):
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        return result.stdout.decode(), result.stderr.decode()
+    except subprocess.TimeoutExpired:
+        return None, "Command timed out"
+    except subprocess.CalledProcessError as e:
+        return None, e.stderr.decode()

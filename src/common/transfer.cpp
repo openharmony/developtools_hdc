@@ -625,7 +625,6 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
-
     if (pld.compressSize > 0) {
         switch (pld.compressType) {
 #ifdef HARMONY_PROJECT

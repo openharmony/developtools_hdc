@@ -267,7 +267,7 @@ void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv
     }
     ctx->thisClass->SendToTask(ctx->id, CMD_FORWARD_DATA, (uint8_t *)buf->base, nread);
     // clear
-        delete[] buf->base;
+    delete[] buf->base;
 }
 
 void HdcForwardBase::ConnectTarget(uv_connect_t *connection, int status)

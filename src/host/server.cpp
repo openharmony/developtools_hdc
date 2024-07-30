@@ -413,12 +413,37 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
     }
 }
 
+void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake)
+{
+    /*
+     * check if daemon support RSA_3072_SHA512 for auth
+     * it the value is not RSA_3072_SHA512, we use old auth algorithm
+     * Notice, If deamon is old version 'handshake.buf' will be 'hSession->tokenRSA',
+     * the length of hSession->tokenRSA less than min len(TLV_MIN_LEN), so there no
+     * problem
+    */
+    std::map<string, string> tlvmap;
+    hSession->verifyType = AuthVerifyType::RSA_ENCRYPT;
+    if (!Base::TlvToStringMap(handshake.buf, tlvmap)) {
+        WRITE_LOG(LOG_INFO, "the deamon maybe old version for %u session, so use rsa encrypt", hSession->sessionId);
+        return;
+    }
+    if (tlvmap.find(TAG_AUTH_TYPE) == tlvmap.end() ||
+        tlvmap[TAG_AUTH_TYPE] != std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
+        WRITE_LOG(LOG_FATAL, "the buf is invalid for %u session, so use rsa encrypt", hSession->sessionId);
+        return;
+    }
+    hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
+    WRITE_LOG(LOG_INFO, "daemon auth type is rsa_3072_sha512 for %u session", hSession->sessionId);
+}
+
 bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
 {
     string bufString;
     switch (handshake.authType) {
         case AUTH_PUBLICKEY: {
             WRITE_LOG(LOG_INFO, "recive get publickey cmd");
+            GetDaemonAuthType(hSession, handshake);
             if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
                 WRITE_LOG(LOG_FATAL, "load public key failed");
                 return false;
@@ -433,7 +458,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
         }
         case AUTH_SIGNATURE: {
             WRITE_LOG(LOG_INFO, "recive auth signture cmd");
-            if (!HdcAuth::RsaSignAndBase64(handshake.buf)) {
+            if (!HdcAuth::RsaSignAndBase64(handshake.buf, hSession->verifyType)) {
                 WRITE_LOG(LOG_FATAL, "sign failed");
                 return false;
             }

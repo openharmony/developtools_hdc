@@ -1074,6 +1074,20 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
     delete[] buf;
 }
 
+void HdcSessionBase::WorkThreadInitSession(HSession hSession, SessionHandShake &handshake)
+{
+    handshake.banner = HANDSHAKE_MESSAGE;
+    handshake.sessionId = hSession->sessionId;
+    handshake.connectKey = hSession->connectKey;
+    if (!hSession->isCheck) {
+        handshake.version = Base::GetVersion() + HDC_MSG_HASH;
+        WRITE_LOG(LOG_INFO, "set version = %s", handshake.version.c_str());
+    }
+    handshake.authType = AUTH_NONE;
+    // told daemon, we support RSA_3072_SHA512 auth
+    Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
+}
+
 bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
 {
     bool regOK = false;
@@ -1110,14 +1124,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
     if (regOK && hSession->serverOrDaemon) {
         // session handshake step1
         SessionHandShake handshake = {};
-        handshake.banner = HANDSHAKE_MESSAGE;
-        handshake.sessionId = hSession->sessionId;
-        handshake.connectKey = hSession->connectKey;
-        if (!hSession->isCheck) {
-            handshake.version = Base::GetVersion() + HDC_MSG_HASH;
-            WRITE_LOG(LOG_INFO, "set version = %s", handshake.version.c_str());
-        }
-        handshake.authType = AUTH_NONE;
+        WorkThreadInitSession(hSession, handshake);
         string hs = SerialStruct::SerializeToString(handshake);
 #ifdef HDC_SUPPORT_UART
         WRITE_LOG(LOG_DEBUG, "WorkThreadStartSession session %u auth %u send handshake hs: %s",

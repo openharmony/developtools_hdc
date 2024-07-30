@@ -109,6 +109,8 @@ enum UartSetSerialNStop {
 enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
 const string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
 
+enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, UNKNOWN = 100 };
+
 enum OperateID {
     OP_ADD,
     OP_REMOVE,
@@ -440,6 +442,7 @@ struct HdcSession {
     uv_thread_t hWorkThread;
     uv_thread_t hWorkChildThread;
     std::mutex mapTaskMutex;
+    AuthVerifyType verifyType;
     std::string ToDebugString()
     {
         std::ostringstream oss;
@@ -482,6 +485,7 @@ struct HdcSession {
 #ifdef HDC_SUPPORT_UART
         hUART = nullptr;
 #endif
+        verifyType = AuthVerifyType::RSA_3072_SHA512;
     }
 
     ~HdcSession()

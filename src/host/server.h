@@ -56,6 +56,7 @@ private:
     bool RemoveInstanceTask(const uint8_t op, HTaskInfo hTask) override;
     void BuildForwardVisableLine(HDaemonInfo hdi, char *out, int sizeOutBuf);
     bool HandServerAuth(HSession hSession, SessionHandShake &handshake);
+    void GetDaemonAuthType(HSession hSession, SessionHandShake &handshake);
     string GetDaemonMapList(uint8_t opType);
     void UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey);
     bool ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize);

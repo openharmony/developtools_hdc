@@ -198,6 +198,7 @@ namespace Base {
     #define TAG_EMGMSG "emgmsg"
     #define TAG_TOKEN "token"
     #define TAG_DAEOMN_AUTHSTATUS "daemonauthstatus"
+    #define TAG_AUTH_TYPE "authtype"
     void TrimSubString(string &str, string substr);
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);

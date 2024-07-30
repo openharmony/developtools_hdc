@@ -569,8 +569,8 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         return ERR_BUF_CHECK;
     }
     if (!strncmp(this->command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size()) && !connectKey.empty()) {
-        if (memcpy_s(hShake->banner + HANDSHAKE_MESSAGE.size(), sizeof(hShake->banner) - HANDSHAKE_MESSAGE.size(),
-                     WAIT_DEVICE_TAG.c_str(), WAIT_DEVICE_TAG.size()) != EOK) {
+        if (strcpy_s(hShake->banner + WAIT_TAG_OFFSET, sizeof(hShake->banner) - WAIT_TAG_OFFSET,
+                     WAIT_DEVICE_TAG.c_str()) != EOK) {
             WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
             return ERR_BUF_COPY;
         }

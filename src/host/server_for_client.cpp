@@ -806,7 +806,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     WRITE_LOG(LOG_DEBUG, "ServerForClient channel handshake finished");
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
-    if (!strncmp(handShake->banner + HANDSHAKE_MESSAGE.size(), WAIT_DEVICE_TAG.c_str(), WAIT_DEVICE_TAG.size()) ||
+    if (!strncmp(handShake->banner + WAIT_TAG_OFFSET, WAIT_DEVICE_TAG.c_str(), WAIT_DEVICE_TAG.size()) ||
         !CheckAutoFillTarget(hChannel)) {
         WRITE_LOG(LOG_WARN, "No target channelId:%u", hChannel->channelId);
         return 0;

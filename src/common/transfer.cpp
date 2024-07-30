@@ -621,8 +621,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     SerialStruct::ParseFromString(pld, serialString);
     int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
-    if (pld.compressSize <= 0 || pld.compressSize > dataSize ||
-        pld.uncompressSize <= 0 || pld.uncompressSize > dataSize) {
+    if (pld.compressSize > dataSize || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }

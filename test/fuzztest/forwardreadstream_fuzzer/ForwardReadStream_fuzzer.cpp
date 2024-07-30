@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Huawei Device Co., Ltd.
+ * Copyright (c) 2023 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -50,6 +50,9 @@ bool FuzzForwardReadStream(const uint8_t *data, size_t size)
     uv_buf_t *rbf = (uv_buf_t*)malloc(sizeof(uv_buf_t));
     if (rbf == nullptr) {
         return false;
+    }
+    if (size <= 0) {
+        return true;
     }
     rbf->base = new char[size];
     (void)memcpy_s(rbf->base, size, reinterpret_cast<char *>(const_cast<uint8_t *>(data)), size);

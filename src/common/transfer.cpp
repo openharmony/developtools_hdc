@@ -199,6 +199,23 @@ out:
     return ret;
 }
 
+void HdcTransferBase::Next(HdcTransferBase *thisClass, CtxFile *context)
+{
+    if (!req->result && context->fileSize > 0) {
+        if (context->isDir && context->master) {
+            uint8_t payload = 1;
+            thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
+        } else if (context->isDir && !context->master) {
+            uint8_t payload = 1;
+            thisClass->SendToAnother(CMD_FILE_FINISH, &payload, 1);
+        } else {
+            thisClass->TransferSummary(context);
+            thisClass->TaskFinish();
+        }
+        return;
+    }
+}
+
 void HdcTransferBase::OnFileIO(uv_fs_t *req)
 {
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
@@ -229,9 +246,8 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
 #endif // HDC_DEBUG
 
             if (req->result == 0 && context->fileSize > 0) {
-                context->ioFinish = true;
-                context->closeReqSubmitted = true;
-                break;
+                Next(thisClass, context);
+                return;
             }
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
                 context->ioFinish = true;

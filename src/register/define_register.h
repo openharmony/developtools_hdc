@@ -44,7 +44,6 @@
 #endif // HDC_HILOG
 
 namespace Hdc {
-static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
 // str one of ark:pid@com.xxx.xxxx, ark:pid@Debugger, ark:pid@tid@Debugger
 using Callback = std::function<void(int fd, std::string str)>;
 }

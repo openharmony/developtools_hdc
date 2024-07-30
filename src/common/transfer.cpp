@@ -619,12 +619,13 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     Base::ZeroStruct(pld);
     bool ret = false;
     SerialStruct::ParseFromString(pld, serialString);
+    int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
     if (pld.compressSize > dataSize || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
-    int clearSize = 0;
+
     if (pld.compressSize > 0) {
         switch (pld.compressType) {
 #ifdef HARMONY_PROJECT

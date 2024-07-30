@@ -410,7 +410,16 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
 {
     hSession->tokenRSA = Base::GetRandomString(SHA_DIGEST_LENGTH);
     handshake.authType = AUTH_PUBLICKEY;
-    handshake.buf = hSession->tokenRSA;
+    /*
+     * If we know client support RSA_3072_SHA512 in AUTH_NONE phase
+     * Then told client that the server also support RSA_3072_SHA512 auth
+     * Notice, before here is "handshake.buf = hSession->tokenRSA", but the server not use it
+    */
+    if (hSession->verifyType == AuthVerifyType::RSA_3072_SHA512) {
+        handshake.buf.clear();
+        Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
+        WRITE_LOG(LOG_INFO, "client support RSA_3072_SHA512 auth for %u session", hSession->sessionId);
+    }
     string bufString = SerialStruct::SerializeToString(handshake);
     Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE,
             reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())),
@@ -470,22 +479,95 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
     return true;
 }
 
-bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey)
+/*
+ * tokenSignBase64 is Base64 encode of the signing from server
+ * token is the source data same of server for signing
+ */
+bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string &tokenSignBase64, const string &token)
 {
-    const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
-    const unsigned char *tokenp = reinterpret_cast<const unsigned char *>(encryptToken.c_str());
-    unsigned char tokenDecode[1024] = { 0 };
-    unsigned char decryptToken[BUF_SIZE_DEFAULT2] = { 0 };
-    BIO *bio = nullptr;
-    RSA *rsa = nullptr;
-    bool verifyret = false;
+    unsigned char tokenSha512[SHA512_DIGEST_LENGTH];
+    try {
+        std::unique_ptr<unsigned char[]> tokenRsaSign = std::make_unique<unsigned char[]>(tokenSignBase64.length());
+        // Get the real token sign
+        int tokenRsaSignLen = EVP_DecodeBlock(tokenRsaSign.get(),
+            reinterpret_cast<const unsigned char *>(tokenSignBase64.c_str()), tokenSignBase64.length());
+        if (tokenRsaSignLen <= 0) {
+            WRITE_LOG(LOG_FATAL, "base64 decode token sign failed for session %u", hSession->sessionId);
+            return false;
+        }
+        SHA512(reinterpret_cast<const unsigned char *>(token.c_str()), token.size(), tokenSha512);
+        if (EVP_PKEY_verify(ctx, tokenRsaSign.get(), tokenRsaSignLen, tokenSha512, sizeof(tokenSha512)) < 0) {
+            WRITE_LOG(LOG_FATAL, "verify failed for session %u", hSession->sessionId);
+            return false;
+        }
+    } catch (std::exception &e) {
+        WRITE_LOG(LOG_FATAL, "sign verify failed for session %u with exception %s", hSession->sessionId, e.what());
+        return false;
+    }
 
+    WRITE_LOG(LOG_FATAL, "sign verify success for session %u", hSession->sessionId);
+    return true;
+}
+
+bool HdcDaemon::AuthVerifyRsaSign(HSession hSession, const string &tokenSign, const string &token, RSA *rsa)
+{
+    EVP_PKEY *signKey = nullptr;
+    EVP_PKEY_CTX *ctx = nullptr;
+    bool signRet = false;
+
+    signKey = EVP_PKEY_new();
+    if (signKey == nullptr) {
+        WRITE_LOG(LOG_FATAL, "EVP_PKEY_new failed");
+        return false;
+    }
     do {
-        int tbytes = EVP_DecodeBlock(tokenDecode, tokenp, encryptToken.length());
-        if (tbytes <= 0) {
-            WRITE_LOG(LOG_FATAL, "base64 decode pubkey failed");
+        if (EVP_PKEY_set1_RSA(signKey, rsa) <= 0) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_new failed");
             break;
         }
+        // the length of vaild sign result for BASE64 can't bigger than  EVP_PKEY_size(signKey) * 2
+        if (tokenSign.size() > (EVP_PKEY_size(signKey) * (unsigned long)2)) {
+            WRITE_LOG(LOG_FATAL, "invalid base64 sign size %zd for session %u", tokenSign.size(), hSession->sessionId);
+            break;
+        }
+        ctx = EVP_PKEY_CTX_new(signKey, nullptr);
+        if (ctx == nullptr) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_CTX_new failed");
+            break;
+        }
+        if (EVP_PKEY_verify_init(ctx) <= 0) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_CTX_new failed");
+            break;
+        }
+        if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
+            EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, RSA_PSS_SALTLEN_AUTO) <= 0) {
+            WRITE_LOG(LOG_FATAL, "set saltlen or padding failed");
+            break;
+        }
+        if (EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha512()) <= 0) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_CTX_set_signature_md failed");
+            break;
+        }
+        signRet = RsaSignVerify(hSession, ctx, tokenSign, token);
+    } while (0);
+
+    if (ctx != nullptr) {
+        EVP_PKEY_CTX_free(ctx);
+    }
+    if (signKey != nullptr) {
+        EVP_PKEY_free(signKey);
+    }
+    return signRet;
+}
+
+bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey)
+{
+    BIO *bio = nullptr;
+    RSA *rsa = nullptr;
+    const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
+    bool verifyResult = false;
+
+    do {
         bio = BIO_new(BIO_s_mem());
         if (bio == nullptr) {
             WRITE_LOG(LOG_FATAL, "bio failed for session %u", hSession->sessionId);
@@ -501,17 +583,11 @@ bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const 
             WRITE_LOG(LOG_FATAL, "rsa failed for session %u", hSession->sessionId);
             break;
         }
-        int bytes = RSA_public_decrypt(tbytes, tokenDecode, decryptToken, rsa, RSA_PKCS1_PADDING);
-        if (bytes < 0) {
-            WRITE_LOG(LOG_FATAL, "decrypt failed(%lu) for session %u", ERR_get_error(), hSession->sessionId);
-            break;
+        if (hSession->verifyType == AuthVerifyType::RSA_3072_SHA512) {
+            verifyResult = AuthVerifyRsaSign(hSession, encryptToken, token, rsa);
+        } else {
+            verifyResult = AuthVerifyRsa(hSession, encryptToken, token, rsa);
         }
-        string sdecryptToken(reinterpret_cast<const char *>(decryptToken), bytes);
-        if (sdecryptToken != token) {
-            WRITE_LOG(LOG_FATAL, "auth failed(%lu) for session %u)", ERR_get_error(), hSession->sessionId);
-            break;
-        }
-        verifyret = true;
     } while (0);
 
     if (bio) {
@@ -521,7 +597,36 @@ bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const 
         RSA_free(rsa);
     }
 
-    return verifyret;
+    return verifyResult;
+}
+
+bool HdcDaemon::AuthVerifyRsa(HSession hSession, const string &encryptToken, const string &token, RSA *rsa)
+{
+    const unsigned char *tokenp = reinterpret_cast<const unsigned char *>(encryptToken.c_str());
+    unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
+    unsigned char decryptToken[BUF_SIZE_DEFAULT] = { 0 };
+
+    // for rsa encrypt, the length of encryptToken can't bigger than BUF_SIZE_DEFAULT
+    if (encryptToken.length() > BUF_SIZE_DEFAULT2) {
+        WRITE_LOG(LOG_FATAL, "invalid encryptToken, length is %zd", encryptToken.length());
+        return false;
+    }
+    int tbytes = EVP_DecodeBlock(tokenDecode, tokenp, encryptToken.length());
+    if (tbytes <= 0) {
+        WRITE_LOG(LOG_FATAL, "base64 decode pubkey failed");
+        return false;
+    }
+    int bytes = RSA_public_decrypt(tbytes, tokenDecode, decryptToken, rsa, RSA_PKCS1_PADDING);
+    if (bytes < 0) {
+        WRITE_LOG(LOG_FATAL, "decrypt failed(%lu) for session %u", ERR_get_error(), hSession->sessionId);
+        return false;
+    }
+    string sdecryptToken(reinterpret_cast<const char *>(decryptToken), bytes);
+    if (sdecryptToken != token) {
+        WRITE_LOG(LOG_FATAL, "auth failed for session %u)", hSession->sessionId);
+        return false;
+    }
+    return true;
 }
 
 bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
@@ -591,6 +696,28 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
     }
 }
 
+/*
+ * For daemon, if server add new capability, we can parse it here
+ */
+void HdcDaemon::GetServerCapability(HSession &hSession, SessionHandShake &handshake)
+{
+    /*
+     * Check if server support RSA_3072_SHA512 for auth
+     * if the value not contain RSA_3072_SHA512, We treat it not support
+    */
+    std::map<string, string> tlvMap;
+    hSession->verifyType = AuthVerifyType::RSA_ENCRYPT;
+    if (!Base::TlvToStringMap(handshake.buf, tlvMap)) {
+        WRITE_LOG(LOG_INFO, "maybe old version client for %u session", hSession->sessionId);
+        return;
+    }
+    if (tlvMap.find(TAG_AUTH_TYPE) != tlvMap.end() &&
+        tlvMap[TAG_AUTH_TYPE] == std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
+        hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
+    }
+    WRITE_LOG(LOG_INFO, "client auth type is %u for %u session", hSession->verifyType, hSession->sessionId);
+}
+
 void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake &handshake)
 {
     // daemon handshake 1st packet
@@ -614,6 +741,8 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
 
     handshake.sessionId = 0;
     handshake.connectKey = "";
+    // Get server capability
+    GetServerCapability(hSession, handshake);
 }
 
 bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize)

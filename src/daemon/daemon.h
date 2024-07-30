@@ -15,6 +15,7 @@
 #ifndef HDC_DAEMON_H
 #define HDC_DAEMON_H
 #include "daemon_common.h"
+#include "openssl/pem.h"
 
 namespace Hdc {
 enum UserPermit {
@@ -75,6 +76,7 @@ private:
     void UpdateKnownHosts(const string& key);
     void ClearInstanceResource() override;
     void DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake &handshake);
+    void GetServerCapability(HSession &hSession, SessionHandShake &handshake);
     bool DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);
     void TryStopInstance();
     UserPermit PostUIConfirm(string hostname);
@@ -97,6 +99,9 @@ private:
     void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);
     void EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
     bool AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey);
+    bool AuthVerifyRsaSign(HSession hSession, const string &tokenSignBase64, const string &token, RSA *rsa);
+    bool RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string &tokenSignBase64, const string &token);
+    bool AuthVerifyRsa(HSession hSession, const string &encryptToken, const string &token, RSA *rsa);
     void InitSessionAuthInfo(uint32_t sessionid, string token);
     void UpdateSessionAuthOk(uint32_t sessionid);
     void UpdateSessionAuthmsg(uint32_t sessionid, string authmsg);

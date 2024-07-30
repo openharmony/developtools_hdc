@@ -18,6 +18,7 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#include <openssl/err.h>
 
 using namespace Hdc;
 #define BIGNUMTOBIT 32
@@ -710,87 +711,162 @@ bool GetPublicKeyinfo(string &pubkey_info)
     return true;
 }
 
-RSA *LoadPrivateKey(const string& prikey_filename)
+static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **evp)
 {
-    RSA *rsa = nullptr;
-    EVP_PKEY *evp = nullptr;
     FILE *file_prikey = nullptr;
+    bool ret = false;
 
+    *rsa = nullptr;
+    *evp = nullptr;
     do {
         file_prikey = Base::Fopen(prikey_filename.c_str(), "r");
         if (!file_prikey) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", prikey_filename.c_str());
             break;
         }
-        evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, NULL);
-        if (!evp) {
+        *evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, NULL);
+        if (*evp == nullptr) {
             WRITE_LOG(LOG_FATAL, "read prikey from %s failed", prikey_filename.c_str());
             break;
         }
-        rsa = EVP_PKEY_get1_RSA(evp);
+        *rsa = EVP_PKEY_get1_RSA(*evp);
+        ret = true;
         WRITE_LOG(LOG_FATAL, "load prikey success");
     } while (0);
 
-    if (evp) {
-        EVP_PKEY_free(evp);
-        evp = nullptr;
-    }
     if (file_prikey) {
         fclose(file_prikey);
         file_prikey = nullptr;
     }
-
-    return rsa;
+    return ret;
 }
 
-bool RsaSignAndBase64(string &buf)
+static bool MakeRsaSign(EVP_PKEY_CTX *ctx, string &result, unsigned char *digest, int digestLen)
 {
-    RSA *rsa = nullptr;
-    string prikey_filename;
-    int sign_ori_size;
-    int sign_out_size;
-    unsigned char sign_ori[BUF_SIZE_DEFAULT2] = { 0 };
-    unsigned char *sign_out = nullptr;
-    int in_size = buf.size();
+    size_t signResultLen = 0;
+    int signOutLen = 0;
+
+    // Determine the buffer length
+    if (EVP_PKEY_sign(ctx, nullptr, &signResultLen, digest, digestLen) <= 0) {
+        WRITE_LOG(LOG_FATAL, "get sign result length failed");
+        return false;
+    }
+    try {
+        std::unique_ptr<unsigned char[]> signResult = std::make_unique<unsigned char[]>(signResultLen);
+        std::unique_ptr<unsigned char[]> signOut = std::make_unique<unsigned char[]>(signResultLen * 2);
+        if (EVP_PKEY_sign(ctx, signResult.get(), &signResultLen, digest, digestLen) <=0) {
+            WRITE_LOG(LOG_FATAL, "sign failed");
+            return false;
+        }
+        signOutLen = EVP_EncodeBlock(signOut.get(), signResult.get(), signResultLen);
+        result = string(reinterpret_cast<char *>(signOut.get()), signOutLen);
+    } catch (std::exception &e) {
+        WRITE_LOG(LOG_FATAL, "sign failed for exception %s", e.what());
+        return false;
+    }
+
+    WRITE_LOG(LOG_INFO, "sign success, and EVP_EncodeBlock is %s", result.c_str());
+    return true;
+}
+
+static bool RsaSign(string &buf, EVP_PKEY *signKey)
+{
+    unsigned char sha512Hash[SHA512_DIGEST_LENGTH];
+    EVP_PKEY_CTX *ctx = nullptr;
+    bool signRet = false;
+
+    do {
+        ctx = EVP_PKEY_CTX_new(signKey, nullptr);
+        if (ctx == nullptr) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_CTX_new failed");
+            break;
+        }
+        if (EVP_PKEY_sign_init(ctx) <= 0) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_CTX_new failed");
+            break;
+        }
+        if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
+            EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, RSA_PSS_SALTLEN_DIGEST) <= 0) {
+            WRITE_LOG(LOG_FATAL, "set saltlen or padding failed");
+            break;
+        }
+        if (EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha512()) <= 0) {
+            WRITE_LOG(LOG_FATAL, "EVP_PKEY_CTX_set_signature_md failed");
+            break;
+        }
+        SHA512(reinterpret_cast<const unsigned char *>(buf.c_str()), buf.size(), sha512Hash);
+        signRet = MakeRsaSign(ctx, buf, sha512Hash, sizeof(sha512Hash));
+    } while (0);
+
+    if (ctx != nullptr) {
+        EVP_PKEY_CTX_free(ctx);
+    }
+    return signRet;
+}
+
+static bool RsaEncrypt(string &buf, RSA *rsa)
+{
+    int signOriSize;
+    int signOutSize;
+    unsigned char signOri[BUF_SIZE_DEFAULT2] = { 0 };
+    unsigned char *signOut = nullptr;
+    int inSize = buf.size();
     const unsigned char *in = reinterpret_cast<const unsigned char *>(buf.c_str());
 
-    WRITE_LOG(LOG_INFO, "plain(%s)", buf.c_str());
-    if (!GetUserKeyPath(prikey_filename)) {
-        WRITE_LOG(LOG_FATAL, "get key path failed");
-        return false;
-    }
-
-    rsa = LoadPrivateKey(prikey_filename);
-    if (!rsa) {
-        WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikey_filename.c_str());
-        return false;
-    }
-    sign_ori_size = RSA_private_encrypt(in_size, in, sign_ori, rsa, RSA_PKCS1_PADDING);
-    if (sign_ori_size <= 0) {
+    signOriSize = RSA_private_encrypt(inSize, in, signOri, rsa, RSA_PKCS1_PADDING);
+    if (signOriSize <= 0) {
         WRITE_LOG(LOG_FATAL, "encrypt failed");
         return false;
     }
-    sign_out = new unsigned char[sign_ori_size * 2];
-    if (!sign_out) {
+    signOut = new(std::nothrow) unsigned char[signOriSize * 2];
+    if (signOut == nullptr) {
         WRITE_LOG(LOG_FATAL, "alloc mem failed");
         return false;
     }
-    sign_out_size = EVP_EncodeBlock(sign_out, sign_ori, sign_ori_size);
-    if (sign_out_size <= 0) {
+    signOutSize = EVP_EncodeBlock(signOut, signOri, signOriSize);
+    if (signOutSize <= 0) {
         WRITE_LOG(LOG_FATAL, "encode buf failed");
-        delete[] sign_out;
-        sign_out = nullptr;
+        delete[] signOut;
+        signOut = nullptr;
         return false;
     }
 
-    buf = string(reinterpret_cast<char *>(sign_out), sign_out_size);
-
+    buf = string(reinterpret_cast<char *>(signOut), signOutSize);
     WRITE_LOG(LOG_INFO, "sign success");
-
-    delete[] sign_out;
-    sign_out = nullptr;
+    delete[] signOut;
+    signOut = nullptr;
 
     return true;
+}
+
+bool RsaSignAndBase64(string &buf, AuthVerifyType type)
+{
+    RSA *rsa = nullptr;
+    EVP_PKEY *evp = nullptr;
+    string prikeyFileName;
+    bool signResult = false;
+
+    if (!GetUserKeyPath(prikeyFileName)) {
+        WRITE_LOG(LOG_FATAL, "get key path failed");
+        return false;
+    }
+    if (!LoadPrivateKey(prikeyFileName, &rsa, &evp)) {
+        WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikeyFileName.c_str());
+        return false;
+    }
+    if (type == AuthVerifyType::RSA_3072_SHA512) {
+        signResult = RsaSign(buf, evp);
+    } else {
+        signResult = RsaEncrypt(buf, rsa);
+    }
+    if (rsa != nullptr) {
+        RSA_free(rsa);
+    }
+    if (evp != nullptr) {
+        EVP_PKEY_free(evp);
+    }
+    
+    return signResult;
 }
 #endif
 }

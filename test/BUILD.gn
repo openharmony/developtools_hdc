@@ -368,31 +368,10 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
   deps = [ "//third_party/libuv:uv" ]
-  deps += [ ":hdc_common_fuzz_test" ]
-  subsystem_name = "developtools"
-  part_name = "hdc"
-}
-
-ohos_source_set("hdc_common_fuzz_test") {
-  use_exceptions = true
-  testonly = true
-  defines = [
-    "TEST_HASH",
-    "HDC_MSG_HASH=\"TEST\"",
-    "FUZZ_TEST",
+  sources = [
+    "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp",
   ]
-  sources = hdc_common_sources
-  sources +=
-      [ "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp" ]
-  if (hdc_support_uart) {
-    sources += [ "${hdc_path}/src/common/uart.cpp" ]
-  }
-  public_external_deps = common_external_deps
-  external_deps = [ "init:libbegetutil" ]
-  public_configs = [
-    ":hdc_common_config",
-    ":hdc_ut_config",
-  ]
+  deps += [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"
 }

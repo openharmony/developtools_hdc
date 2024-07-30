@@ -607,6 +607,31 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     return false;
 }
 
+int HdcTransferBase::GetDecompressSize(uint8_t **clearBuf, uint8_t *data, TransferPayload pld)
+{
+    int clearSize = 0;
+    switch (pld.compressType) {
+#ifdef HARMONY_PROJECT
+        case COMPRESS_LZ4: {
+            *clearBuf = new uint8_t[pld.uncompressSize]();
+            if (!*clearBuf) {
+                WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
+                return false;
+            }
+            clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)(*clearBuf),
+                                            pld.compressSize, pld.uncompressSize);
+            break;
+        }
+#endif
+        default: {  // COMPRESS_NONE
+            *clearBuf = data + payloadPrefixReserve;
+            clearSize = pld.compressSize;
+            break;
+        }
+    }
+    return clearSize;
+}
+
 bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize)
 {
     if (dataSize < static_cast<int>(payloadPrefixReserve)) {
@@ -619,34 +644,13 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     Base::ZeroStruct(pld);
     bool ret = false;
     SerialStruct::ParseFromString(pld, serialString);
-    int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
     if (pld.compressSize <= 0 || pld.compressSize > dataSize ||
         pld.uncompressSize <= 0 || pld.uncompressSize > dataSize) {
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
-    if (pld.compressSize > 0) {
-        switch (pld.compressType) {
-#ifdef HARMONY_PROJECT
-            case COMPRESS_LZ4: {
-                clearBuf = new uint8_t[pld.uncompressSize]();
-                if (!clearBuf) {
-                    WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
-                    return false;
-                }
-                clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
-                                                pld.compressSize, pld.uncompressSize);
-                break;
-            }
-#endif
-            default: {  // COMPRESS_NONE
-                clearBuf = data + payloadPrefixReserve;
-                clearSize = pld.compressSize;
-                break;
-            }
-        }
-    }
+    int clearSize = GetDecompressSize(&clearBuf, data, pld);
     while (true) {
         if (static_cast<uint32_t>(clearSize) != pld.uncompressSize || dataSize - payloadPrefixReserve < clearSize) {
             WRITE_LOG(LOG_WARN, "invalid data size for fileIO: %d", clearSize);

@@ -568,12 +568,8 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
         return ERR_BUF_CHECK;
     }
-    if (!strncmp(this->command.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size()) && !connectKey.empty()) {
-        if (strcpy_s(hShake->banner + WAIT_TAG_OFFSET, sizeof(hShake->banner) - WAIT_TAG_OFFSET,
-                     WAIT_DEVICE_TAG.c_str()) != EOK) {
-            WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
-            return ERR_BUF_COPY;
-        }
+    if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {
+        hShake->banner[WAIT_TAG_OFFSET] = WAIT_DEVICE_TAG;
     }
     // sync remote session id to local
     uint32_t unOld = hChannel->channelId;

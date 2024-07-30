@@ -228,7 +228,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                       context->fileSize);
 #endif // HDC_DEBUG
 
-            if (!req->result) {
+            if (req->result == 0 && context->fileSize > 0) {
                 context->ioFinish = true;
                 context->closeReqSubmitted = true;
                 break;

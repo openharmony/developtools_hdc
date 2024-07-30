@@ -368,9 +368,7 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
   deps = [ "//third_party/libuv:uv" ]
-  sources = [
-    "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp",
-  ]
+  sources = [ "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp" ]
   deps += [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"

@@ -201,12 +201,9 @@ out:
 
 void HdcTransferBase::Next(HdcTransferBase *thisClass, CtxFile *context)
 {
-    if (context->isDir && context->master) {
+    if (context->isDir) {
         uint8_t payload = 1;
         thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
-    } else if (context->isDir && !context->master) {
-        uint8_t payload = 1;
-        thisClass->SendToAnother(CMD_FILE_FINISH, &payload, 1);
     } else {
         thisClass->TransferSummary(context);
         thisClass->TaskFinish();

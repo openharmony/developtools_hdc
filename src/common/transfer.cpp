@@ -620,7 +620,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     bool ret = false;
     SerialStruct::ParseFromString(pld, serialString);
     StartTraceScope("HdcTransferBase::RecvIOPayload");
-    if (pld.compressSize > dataSize || pld.uncompressSize > dataSize) {
+    if (pld.compressSize > dataSize || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
@@ -634,7 +634,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
                     WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
                     return false;
                 }
-                clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)(clearBuf),
+                clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
                                                 pld.compressSize, pld.uncompressSize);
                 break;
             }

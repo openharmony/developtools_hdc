@@ -649,7 +649,10 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
-    int clearSize = GetDecompressSize(&clearBuf, data, pld);
+    int clearSize = 0;
+    if (pld.compressSize > 0) {
+        clearSize = GetDecompressSize(&clearBuf, data, pld);
+    }
     while (true) {
         if (static_cast<uint32_t>(clearSize) != pld.uncompressSize || dataSize - payloadPrefixReserve < clearSize) {
             WRITE_LOG(LOG_WARN, "invalid data size for fileIO: %d", clearSize);

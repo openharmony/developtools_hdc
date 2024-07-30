@@ -257,23 +257,17 @@ void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv
     if (nread < 0) {
         WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:%zd id:%u", nread, ctx->id);
         ctx->thisClass->FreeContext(ctx, 0, true);
-#ifndef FUZZ_TEST
         delete[] buf->base;
-#endif
         return;
     }
     if (nread == 0) {
         WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:0 id:%u", ctx->id);
-#ifndef FUZZ_TEST
         delete[] buf->base;
-#endif
         return;
     }
     ctx->thisClass->SendToTask(ctx->id, CMD_FORWARD_DATA, (uint8_t *)buf->base, nread);
     // clear
-#ifndef FUZZ_TEST
         delete[] buf->base;
-#endif
 }
 
 void HdcForwardBase::ConnectTarget(uv_connect_t *connection, int status)

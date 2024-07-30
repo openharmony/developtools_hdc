@@ -230,8 +230,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
 
             if (!req->result) {
                 context->ioFinish = true;
-                context->closeNotify = true;
-                context->lastErrno = 0;
+                context->closeReqSubmitted = true;
                 break;
             }
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {

@@ -584,6 +584,20 @@ def prepare_source():
         os.mkdir(deep_path)
     gen_file(os.path.join(deep_path, "deep"), 102400)
 
+    deep_path = os.path.join(GP.local_path, "deep_test_dir")
+    print("generating deep test dir ...")
+    absolute_path = os.path.abspath(__file__)
+    deepth = (255 - 9 - len(absolute_path)) % 14
+    os.mkdir(deep_path)
+    for deep in range(deepth):
+        deep_path = os.path.join(deep_path, f"deep_test_dir{deep}")
+        os.mkdir(deep_path)
+    gen_file(os.path.join(deep_path, "deep_test"), 102400)
+
+    recv_dir = os.path.join(GP.local_path, "recv_test_dir")
+    print("generating recv test dir ...")
+    os.mkdir(recv_dir)
+
     print("generating dir with file ...")
     dir_path = os.path.join(GP.local_path, "problem_dir")
     rmdir(dir_path)

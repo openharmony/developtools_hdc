@@ -203,7 +203,7 @@ void HdcTransferBase::Next(HdcTransferBase *thisClass, CtxFile *context)
 {
     if (context->isDir) {
         uint8_t payload = 1;
-        uint16_t cmdFinish = (cmdBegin == CMD_FILE_BEGIN ? CMD_FILE_FINISH : CMD_APP_FINISH);
+        uint16_t cmdFinish = (thisClass->cmdBegin == CMD_FILE_BEGIN ? CMD_FILE_FINISH : CMD_APP_FINISH);
         thisClass->CommandDispatch(cmdFinish, &payload, 1);
     } else {
         thisClass->TransferSummary(context);

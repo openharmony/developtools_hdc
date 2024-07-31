@@ -166,6 +166,14 @@ namespace Base {
     {
         return MAX_USBFFS_BULK;
     }
+    inline int GetMaxBufSizeStable()
+    {
+        return MAX_SIZE_IOBUF_STABLE;
+    }
+    inline int GetUsbffsBulkSizeStable()
+    {
+        return MAX_USBFFS_BULK_STABLE;
+    }
 
     int CloseFd(int &fd);
     void InitProcess(void);

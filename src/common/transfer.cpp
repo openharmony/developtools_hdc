@@ -31,6 +31,7 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
     ResetCtx(&ctxNow, true);
     commandBegin = 0;
     commandData = 0;
+    isStableBuf = false;
 }
 
 HdcTransferBase::~HdcTransferBase()
@@ -77,7 +78,9 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     }
     bool ret = false;
     while (true) {
-        size_t bufMaxSize = static_cast<size_t>(Base::GetUsbffsBulkSize() - payloadPrefixReserve);
+        size_t bufMaxSize = context->isStableBufSize ?
+            static_cast<size_t>(Base::GetUsbffsBulkSizeStable() - payloadPrefixReserve) :
+            static_cast<size_t>(Base::GetUsbffsBulkSize() - payloadPrefixReserve);
         if (bytes < 0 || static_cast<size_t>(bytes) > bufMaxSize) {
             WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
@@ -232,8 +235,9 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                 break;
             }
             if (context->indexIO < context->fileSize) {
-                thisClass->SimpleFileIO(context, context->indexIO, nullptr,
-                                        Base::GetMaxBufSize() * thisClass->maxTransferBufFactor);
+                thisClass->SimpleFileIO(context, context->indexIO, nullptr, context->isStableBufSize ?
+                    (Base::GetMaxBufSizeStable() * thisClass->maxTransferBufFactor) :
+                    (Base::GetMaxBufSize() * thisClass->maxTransferBufFactor));
             } else {
                 context->ioFinish = true;
             }
@@ -349,7 +353,13 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
             }
 #endif
         }
-        thisClass->SendToAnother(thisClass->commandBegin, nullptr, 0);
+        union FeatureFlagsUnion f{};
+        if (!thisClass->AddFeatures(f)) {
+            WRITE_LOG(LOG_FATAL, "AddFeatureFlag failed");
+            thisClass->SendToAnother(thisClass->commandBegin, nullptr, 0);
+        } else {
+            thisClass->SendToAnother(thisClass->commandBegin, f.raw, sizeof(f));
+        }
     }
 }
 
@@ -670,7 +680,14 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
     while (true) {
         if (command == commandBegin) {
             CtxFile *context = &ctxNow;
-            int ioRet = SimpleFileIO(context, context->indexIO, nullptr, Base::GetMaxBufSize() * maxTransferBufFactor);
+            if (!CheckFeatures(context, payload, payloadSize)) {
+                WRITE_LOG(LOG_FATAL, "CommandDispatch CheckFeatures command:%u", command);
+                ret = false;
+                break;
+            }
+            int ioRet = SimpleFileIO(context, context->indexIO, nullptr, (context->isStableBufSize) ?
+                Base::GetMaxBufSizeStable() * maxTransferBufFactor :
+                Base::GetMaxBufSize() * maxTransferBufFactor);
             if (ioRet < 0) {
                 WRITE_LOG(LOG_FATAL, "CommandDispatch SimpleFileIO ioRet:%d", ioRet);
                 ret = false;
@@ -703,6 +720,33 @@ void HdcTransferBase::ExtractRelativePath(string &cwd, string &path)
     bool absPath = Base::IsAbsolutePath(path);
     if (!absPath) {
         path = cwd + path;
+    }
+}
+
+bool HdcTransferBase::AddFeatures(FeatureFlagsUnion &feature)
+{
+    feature.bits.hugeBuf = !isStableBuf;
+    return true;
+}
+
+bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize)
+{
+    if (payloadSize == FEATURE_FLAG_MAX_SIZE) {
+        union FeatureFlagsUnion feature{};
+        if (memcpy_s(&feature, sizeof(feature), payload, payloadSize)) {
+            WRITE_LOG(LOG_FATAL, "CheckFeatures memcpy_s failed");
+            return false;
+        }
+        WRITE_LOG(LOG_DEBUG, "isStableBuf:%d, hugeBuf:%d", isStableBuf, feature.bits.hugeBuf);
+        context->isStableBufSize = isStableBuf ? true : (!feature.bits.hugeBuf);
+        return true;
+    } else if (payloadSize == 0) {
+        WRITE_LOG(LOG_DEBUG, "FileBegin CheckFeatures payloadSize:%d, use default feature.", payloadSize);
+        context->isStableBufSize = true;
+        return true;
+    } else {
+        WRITE_LOG(LOG_FATAL, "CheckFeatures payloadSize:%d", payloadSize);
+        return false;
     }
 }
 }  // namespace Hdc

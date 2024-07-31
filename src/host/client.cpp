@@ -568,6 +568,8 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
         return ERR_BUF_CHECK;
     }
+    hChannel->isStableBuf = (hShake->banner[BANNER_FEATURE_TAG_OFFSET] != HUGE_BUF_TAG);
+    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d", hChannel->isStableBuf);
     // sync remote session id to local
     uint32_t unOld = hChannel->channelId;
     hChannel->channelId = ntohl(hShake->channelId);
@@ -770,6 +772,7 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     hTaskInfo->serverOrDaemon = true;
     hTaskInfo->channelTask = true;
     hTaskInfo->channelClass = this;
+    hTaskInfo->isStableBuf = hChannel->isStableBuf;
     return hTaskInfo;
 };
 }  // namespace Hdc

@@ -605,6 +605,7 @@ def prepare_source():
     rmdir(dir_path)
     os.mkdir(dir_path)
 
+
 def add_prepare_source():
     deep_path = os.path.join(GP.local_path, "deep_test_dir")
     print("generating deep test dir ...")
@@ -637,6 +638,7 @@ def update_source():
     if not os.path.exists(recv_dir):
         print("generating recv test dir ...")
         os.mkdir(recv_dir)
+
 
 def setup_tester():
     while True:

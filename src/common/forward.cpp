@@ -790,7 +790,8 @@ bool HdcForwardBase::CommandForwardCheckResult(HCtxForward ctx, uint8_t *payload
 
 bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
-    if (payloadSize <= DWORD_SERIALIZE_SIZE) {
+    if (payloadSize <= DWORD_SERIALIZE_SIZE && command != CMD_FORWARD_FREE_CONTEXT
+        && command != CMD_FORWARD_ACTIVE_MASTER) {
         WRITE_LOG(LOG_FATAL, "Illegal payloadSize, shorter than forward command header");
         return false;
     }

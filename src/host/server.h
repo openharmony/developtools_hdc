@@ -24,6 +24,7 @@ public:
     bool FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                       const int payloadSize) override;
     virtual string AdminDaemonMap(uint8_t opType, const string &connectKey, HDaemonInfo &hDaemonInfoInOut);
+    void AdminDaemonMapForWait(const string &connectKey, HDaemonInfo &hDaemonInfoInOut);
     string AdminForwardMap(uint8_t opType, const string &taskString, HForwardInfo &hForwardInfoInOut);
     void CleanForwardMap(uint32_t sessionId);
     int CreateConnect(const string &connectKey, bool isCheck);

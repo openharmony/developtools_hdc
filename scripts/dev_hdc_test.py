@@ -320,6 +320,12 @@ def check_shell(cmd, pattern=None, fetch=False):
         return subprocess.check_call(cmd.split()) == 0
 
 
+def get_shell_result(cmd, pattern=None, fetch=False):
+    cmd = f"{GP.hdc_head} {cmd}"
+    print(f"\nexecuting command: {cmd}")
+    return subprocess.check_output(cmd.split()).decode()
+
+
 def _check_dir(local, remote):
     def _get_md5sum(remote):
         cmd = f'{GP.hdc_head} shell find {remote} -type f -exec md5sum {{}} \;'

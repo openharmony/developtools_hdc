@@ -103,8 +103,8 @@ bool HdcJdwpSimulator::Connect2Jdwp()
 
 bool HdcJdwpSimulator::Send2Jdwp()
 {
-    uint32_t pidCurr = static_cast<uint32_t>(getprocpid());
 #ifdef JS_JDWP_CONNECT
+    uint32_t pidCurr = static_cast<uint32_t>(getprocpid());
     std::string processName = processName_;
     std::string pkgName = pkgName_;
     bool isDebug = isDebug_;

@@ -165,7 +165,9 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
         }
     }
     if (isNoTargetCommand) {
-        key = "";
+        if (this->command != CMDSTR_WAIT_FOR) {
+            key = "";
+        }
     } else {
         if (!preConnectKey.size()) {
             key = CMDSTR_CONNECT_ANY;
@@ -567,6 +569,9 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         hChannel->availTailIndex = 0;
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
         return ERR_BUF_CHECK;
+    }
+    if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {
+        hShake->banner[WAIT_TAG_OFFSET] = WAIT_DEVICE_TAG;
     }
     // sync remote session id to local
     uint32_t unOld = hChannel->channelId;

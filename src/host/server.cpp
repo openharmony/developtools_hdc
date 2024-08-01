@@ -355,6 +355,9 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
             for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
                 HDaemonInfo di = iter->second;
                 if (di->connStatus == STATUS_CONNECTED) {
+                    if (!connectKey.empty() && connectKey != di->connectKey) {
+                        continue;
+                    }
                     hDaemonInfoInOut = di;
                     break;
                 }

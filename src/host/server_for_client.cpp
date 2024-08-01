@@ -425,7 +425,11 @@ bool HdcServerForClient::WaitForAny(HChannel hChannel)
 {
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HDaemonInfo hdi = nullptr;
-    ptrServer->AdminDaemonMap(OP_WAIT_FOR_ANY, STRING_EMPTY, hdi);
+    if (!hChannel->connectKey.empty()) {
+        ptrServer->AdminDaemonMap(OP_WAIT_FOR_ANY, hChannel->connectKey, hdi);
+    } else {
+        ptrServer->AdminDaemonMap(OP_WAIT_FOR_ANY, STRING_EMPTY, hdi);
+    }
     if (!hdi) {
         EchoClient(hChannel, MSG_FAIL, "No any connected target");
         return false;
@@ -802,7 +806,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     WRITE_LOG(LOG_DEBUG, "ServerForClient channel handshake finished");
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
-    if (!CheckAutoFillTarget(hChannel)) {
+    if (handShake->banner[WAIT_TAG_OFFSET] == WAIT_DEVICE_TAG || !CheckAutoFillTarget(hChannel)) {
         WRITE_LOG(LOG_WARN, "No target channelId:%u", hChannel->channelId);
         return 0;
     }

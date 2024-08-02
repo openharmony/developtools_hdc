@@ -66,7 +66,7 @@ def test_small_file():
 
 @pytest.mark.repeat(1)
 def test_node_file():
-    #assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")
+    assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/firmware/fdt')} {get_local_path('fdt')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('../../../proc/cpuinfo')} {get_local_path('cpuinfo')}")
 

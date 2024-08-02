@@ -231,7 +231,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                 context->closeNotify = true;
                 context->ioFinish = true;
                 WRITE_LOG(LOG_INFO, "path:%s fd:%d eof",
-                    context->fsOpenReq.result, req->result);
+                    context->localPath.c_str(), context->fsOpenReq.result);
                 break;
             }
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {

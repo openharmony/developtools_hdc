@@ -227,6 +227,13 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             WRITE_LOG(LOG_DEBUG, "read file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
                       context->fileSize);
 #endif // HDC_DEBUG
+            if (req->result == 0) {
+                context->closeNotify = true;
+                context->ioFinish = true;
+                WRITE_LOG(LOG_INFO, "path:%s fd:%d eof",
+                    context->fsOpenReq.result, req->result);
+                break;
+            }
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
                 context->ioFinish = true;
                 break;

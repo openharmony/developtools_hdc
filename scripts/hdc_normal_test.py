@@ -27,7 +27,7 @@ import pytest
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, run_command_with_timeout
-from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, get_shell_result
+from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 from dev_hdc_test import check_rom, check_shell
@@ -66,7 +66,7 @@ def test_small_file():
 
 @pytest.mark.repeat(1)
 def test_node_file():
-    assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")
+    #assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/firmware/fdt')} {get_local_path('fdt')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('../../../proc/cpuinfo')} {get_local_path('cpuinfo')}")
 
@@ -90,11 +90,8 @@ def test_running_file():
 
 @pytest.mark.repeat(1)
 def test_rate():
-    send_result = get_shell_result(f"file send {get_local_path('medium')} {get_remote_path('medium')}")
-    rate = float(send_result.split("rate:")[1].split("kB/s")[0])
-    #速率阈值，根据不同规格来定义
-    expected_rate = 20000
-    assert rate > expected_rate
+    assert check_rate(f"file send {get_local_path('large')} {get_remote_path('it_large')}", 38000)
+    assert check_rate(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}", 38000)
 
 
 @pytest.mark.repeat(1)

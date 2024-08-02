@@ -326,6 +326,12 @@ def get_shell_result(cmd, pattern=None, fetch=False):
     return subprocess.check_output(cmd.split()).decode()
 
 
+def check_rate(cmd, expected_rate):
+    send_result = get_shell_result(cmd)
+    rate = float(send_result.split("rate:")[1].split("kB/s")[0])
+    return rate > expected_rate
+
+
 def _check_dir(local, remote):
     def _get_md5sum(remote):
         cmd = f'{GP.hdc_head} shell find {remote} -type f -exec md5sum {{}} \;'

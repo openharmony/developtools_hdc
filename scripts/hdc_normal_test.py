@@ -231,13 +231,17 @@ def test_target_cmd():
 @pytest.mark.repeat(1)
 def test_file_switch_off():
     assert check_hdc_cmd("shell param set persist.hdc.control.file false")
-    assert check_shell(f"file send {get_local_path('small')} {get_remote_path('it_small')}", "debugging is not allowed")
-    assert check_shell(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}", "debugging is not allowed")
+    assert check_shell(f"shell param get persist.hdc.control.file", "false")
+    assert check_shell(f"file send {get_local_path('small')} {get_remote_path('it_small')}",
+                       "debugging is not allowed")
+    assert check_shell(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}",
+                       "debugging is not allowed")
 
 
 @pytest.mark.repeat(1)
 def test_file_switch_on():
     assert check_hdc_cmd("shell param set persist.hdc.control.file true")
+    assert check_shell(f"shell param get persist.hdc.control.file", "true")
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
 

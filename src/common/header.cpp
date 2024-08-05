@@ -22,7 +22,7 @@ namespace Hdc {
 constexpr uint8_t MAGIC[HEADER_MAGIC_LEN] = {'u', 's', 't', 'a', 'r', 0x20};
 constexpr uint8_t VERSION[HEADER_VERSION_LEN] = {0x20, 0x00};
 
-std::string DecimalToOctalString(int decimalNumber, int length)
+std::string DecimalToOctalString(size_t decimalNumber, int length)
 {
     std::ostringstream oss;
     oss << std::oct << std::setw(length) << std::setfill('0') << decimalNumber;
@@ -123,18 +123,19 @@ bool Header::UpdataName(std::string fileName)
 size_t Header::Size()
 {
     std::string octalStr(reinterpret_cast<char*>(this->size));
-    int num = 0;
+    long num = 0;
     if (!octalStr.empty()) {
         const int octal = 8;
-        num = std::stoi(octalStr, nullptr, octal);
+        num = std::stol(octalStr, nullptr, octal);
     }
-    WRITE_LOG(LOG_INFO, "size num %d", num);
+    WRITE_LOG(LOG_DEBUG, "header size num %ld", num);
     return num;
 }
 
 void Header::UpdataSize(size_t fileLen)
 {
     auto sizeStr = DecimalToOctalString(fileLen, HEADER_SIZE_LEN - 1);
+    WRITE_LOG(LOG_DEBUG, "UpdataSize sizeStr %s", sizeStr.c_str());
     char *p = reinterpret_cast<char*>(this->size);
     int rc = snprintf_s(p, HEADER_SIZE_LEN, HEADER_SIZE_LEN - 1, "%s", sizeStr.c_str());
     if (rc < 0) {

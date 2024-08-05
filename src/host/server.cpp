@@ -296,6 +296,22 @@ void HdcServer::GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut)
     uv_rwlock_rdunlock(&daemonAdmin);
 }
 
+void HdcServer::AdminDaemonMapForWait(const string &connectKey, HDaemonInfo &hDaemonInfoInOut)
+{
+    map<string, HDaemonInfo>::iterator iter;
+    for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
+        HDaemonInfo di = iter->second;
+        if (di->connStatus == STATUS_CONNECTED) {
+            if (!connectKey.empty() && connectKey != di->connectKey) {
+                continue;
+            }
+            hDaemonInfoInOut = di;
+            return;
+        }
+    }
+    return;
+}
+
 string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaemonInfo &hDaemonInfoInOut)
 {
     string sRet;
@@ -351,14 +367,7 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
         }
         case OP_WAIT_FOR_ANY: {
             uv_rwlock_rdlock(&daemonAdmin);
-            map<string, HDaemonInfo>::iterator iter;
-            for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
-                HDaemonInfo di = iter->second;
-                if (di->connStatus == STATUS_CONNECTED) {
-                    hDaemonInfoInOut = di;
-                    break;
-                }
-            }
+            AdminDaemonMapForWait(connectKey, hDaemonInfoInOut);
             uv_rwlock_rdunlock(&daemonAdmin);
             break;
         }

@@ -52,6 +52,7 @@ class GP(object):
     hdc_exe = "hdc"
     local_path = "resource"
     remote_path = "data/local/tmp"
+    remote_dir_path = "data/local/tmp/it_send_dir"
     remote_ip = "auto"
     remote_port = 8710
     hdc_head = "hdc"
@@ -319,9 +320,21 @@ def check_shell(cmd, pattern=None, fetch=False):
         return subprocess.check_call(cmd.split()) == 0
 
 
+def get_shell_result(cmd, pattern=None, fetch=False):
+    cmd = f"{GP.hdc_head} {cmd}"
+    print(f"\nexecuting command: {cmd}")
+    return subprocess.check_output(cmd.split()).decode()
+
+
+def check_rate(cmd, expected_rate):
+    send_result = get_shell_result(cmd)
+    rate = float(send_result.split("rate:")[1].split("kB/s")[0])
+    return rate > expected_rate
+
+
 def _check_dir(local, remote):
     def _get_md5sum(remote):
-        cmd = f'{GP.hdc_head} shell find {remote} md5sum -type f -exec md5sum {{}} \;'
+        cmd = f'{GP.hdc_head} shell find {remote} -type f -exec md5sum {{}} \;'
         result = subprocess.check_output(cmd.split()).decode()
         return result
     
@@ -342,11 +355,14 @@ def _check_dir(local, remote):
 
     result = 1
     for line in output.splitlines():
-        if len(line) < 32 or line.startswith("find"): # length of MD5
+        if len(line) < 32: # length of MD5
             continue
         expected_md5, file_name = line.split()[:2]
-        file_name = file_name.split("/")[-1]
-        file_path = os.path.join(os.getcwd(), local, file_name)  # 构建完整的文件路径
+        if GP.remote_path in remote:
+            file_name = file_name.split(GP.remote_dir_path)[1].replace("/", "\\")
+        else:
+            file_name = file_name.split(remote)[1].replace("/", "\\")
+        file_path = os.path.join(os.getcwd(), GP.local_path) + file_name  # 构建完整的文件路径
         print(file_path)
         actual_md5 = _calculate_md5(file_path)
         print(f"Expected: {expected_md5}")
@@ -529,22 +545,24 @@ def select_cmd():
             return opt
 
 
+def gen_file(path, size):
+    index = 0
+    path = os.path.abspath(path)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+
+    while index < size:
+        os.write(fd, os.urandom(1024))
+        index += 1024
+    os.close(fd)
+
+
+def create_file_with_size(path, size):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+    os.write(fd, b'\0' * size)
+    os.close(fd)
+
+
 def prepare_source():
-
-    def gen_file(path, size):
-        index = 0
-        path = os.path.abspath(path)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
-
-        while index < size:
-            os.write(fd, os.urandom(1024))
-            index += 1024
-        os.close(fd)
-
-    def create_file_with_size(path, size):
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
-        os.write(fd, b'\0' * size)
-        os.close(fd)
 
     print(f"in prepare {GP.local_path},wait for 2 mins.")
     current_path = os.getcwd()
@@ -598,6 +616,40 @@ def prepare_source():
     dir_path = os.path.join(GP.local_path, "empty_dir")
     rmdir(dir_path)
     os.mkdir(dir_path)
+
+
+def add_prepare_source():
+    deep_path = os.path.join(GP.local_path, "deep_test_dir")
+    print("generating deep test dir ...")
+    absolute_path = os.path.abspath(__file__)
+    deepth = (255 - 9 - len(absolute_path)) % 14
+    os.mkdir(deep_path)
+    for deep in range(deepth):
+        deep_path = os.path.join(deep_path, f"deep_test_dir{deep}")
+        os.mkdir(deep_path)
+    gen_file(os.path.join(deep_path, "deep_test"), 102400)
+
+    recv_dir = os.path.join(GP.local_path, "recv_test_dir")
+    print("generating recv test dir ...")
+    os.mkdir(recv_dir)
+
+
+def update_source():
+    deep_path = os.path.join(GP.local_path, "deep_test_dir")
+    if not os.path.exists(deep_path):
+        print("generating deep test dir ...")
+        absolute_path = os.path.abspath(__file__)
+        deepth = (255 - 9 - len(absolute_path)) % 14
+        os.mkdir(deep_path)
+        for deep in range(deepth):
+            deep_path = os.path.join(deep_path, f"deep_test_dir{deep}")
+            os.mkdir(deep_path)
+        gen_file(os.path.join(deep_path, "deep_test"), 102400)
+
+    recv_dir = os.path.join(GP.local_path, "recv_test_dir")
+    if not os.path.exists(recv_dir):
+        print("generating recv test dir ...")
+        os.mkdir(recv_dir)
 
 
 def setup_tester():

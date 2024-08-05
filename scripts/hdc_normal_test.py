@@ -27,7 +27,7 @@ import pytest
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, run_command_with_timeout
-from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run
+from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 from dev_hdc_test import check_rom, check_shell
@@ -36,6 +36,7 @@ from dev_hdc_test import check_rom, check_shell
 def test_list_targets():
     assert check_hdc_targets()
     assert check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
+    assert check_hdc_cmd("shell mkdir data/local/tmp/it_send_dir")
 
 
 @pytest.mark.repeat(5)
@@ -52,16 +53,9 @@ def test_empty_dir():
 
 
 @pytest.mark.repeat(5)
-def test_file_switch():
-    assert check_hdc_cmd("shell param set persist.hdc.control.file false")
-    assert check_shell(f"file send {get_local_path('small')} {get_remote_path('it_small')}", "check_permission param false")
-    assert check_hdc_cmd("shell param set persist.hdc.control.file true")
-    assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
-
-    assert check_hdc_cmd("shell param set persist.hdc.control.file false")
-    assert check_shell(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}", "check_permission param false")
-    assert check_hdc_cmd("shell param set persist.hdc.control.file true")
-    assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
+def test_long_path():
+    assert check_hdc_cmd(f"file send {get_local_path('deep_test_dir')} {get_remote_path('it_send_dir')}")
+    assert check_hdc_cmd(f"file recv {get_remote_path('it_send_dir/deep_test_dir')} {get_local_path('recv_test_dir')}")
 
 
 @pytest.mark.repeat(5)
@@ -87,6 +81,17 @@ def test_medium_file():
 def test_large_file():
     assert check_hdc_cmd(f"file send {get_local_path('large')} {get_remote_path('it_large')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_running_file():
+    assert check_hdc_cmd(f"file recv /system/bin/hdcd {get_local_path('running_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_rate():
+    assert check_rate(f"file send {get_local_path('large')} {get_remote_path('it_large')}", 38000)
+    assert check_rate(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}", 38000)
 
 
 @pytest.mark.repeat(1)
@@ -216,11 +221,33 @@ def test_target_cmd():
     assert check_hdc_targets()
     time.sleep(3)
     check_hdc_cmd("target boot")
-    time.sleep(60) # reboot needs at least 60 seconds
+    start_time = time.time()
+    run_command_with_timeout("hdc wait", 60) # reboot takes up to 60 seconds
+    end_time = time.time()
+    print(f"command exec time {end_time - start_time}")
+    assert (end_time - start_time) > 5 # Reboot takes at least 5 seconds
     assert (check_hdc_cmd("target mount", "Mount finish") or
             check_hdc_cmd("target mount", "[Fail]Operate need running as root") or
             check_hdc_cmd("target mount", "Remount successful.")
             )
+
+
+@pytest.mark.repeat(1)
+def test_file_switch_off():
+    assert check_hdc_cmd("shell param set persist.hdc.control.file false")
+    assert check_shell(f"shell param get persist.hdc.control.file", "false")
+    assert check_shell(f"file send {get_local_path('small')} {get_remote_path('it_small')}",
+                       "debugging is not allowed")
+    assert check_shell(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}",
+                       "debugging is not allowed")
+
+
+@pytest.mark.repeat(1)
+def test_file_switch_on():
+    assert check_hdc_cmd("shell param set persist.hdc.control.file true")
+    assert check_shell(f"shell param get persist.hdc.control.file", "true")
+    assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
+    assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
 
 
 def test_version_cmd():
@@ -323,6 +350,8 @@ def run_main():
 
     if not os.path.exists(GP.local_path):
         prepare_source()
+    else:
+        update_source()
 
     choice_default = ""
     parser = argparse.ArgumentParser()

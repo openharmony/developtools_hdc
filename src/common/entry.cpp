@@ -50,9 +50,9 @@ Entry::Entry(std::string prefix, std::string path)
     UpdataName(path);
 }
 
-Entry::Entry(uint8_t data[512])
+Entry::Entry(uint8_t data[512], int dataLen)
 {
-    header = Header(data);
+    header = Header(data, dataLen);
     needSize = header.Size();
 }
 
@@ -136,7 +136,7 @@ bool Entry::WriteToTar(std::ofstream &file)
     switch (header.FileType()) {
         case TypeFlage::ORDINARYFILE: {
             char buff[HEADER_LEN] = {0};
-            header.GetBytes(reinterpret_cast<uint8_t *>(buff));
+            header.GetBytes(reinterpret_cast<uint8_t *>(buff), HEADER_LEN);
             file.write(buff, HEADER_LEN);
             std::ifstream inFile(GetName(), std::ios::binary);
             file << inFile.rdbuf();
@@ -149,7 +149,7 @@ bool Entry::WriteToTar(std::ofstream &file)
         }
         case TypeFlage::DIRECTORY: {
             char buff[HEADER_LEN] = {0};
-            header.GetBytes(reinterpret_cast<uint8_t *>(buff));
+            header.GetBytes(reinterpret_cast<uint8_t *>(buff), HEADER_LEN);
             file.write(buff, HEADER_LEN);
             break;
         }

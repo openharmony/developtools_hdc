@@ -273,7 +273,7 @@ bool HdcDaemon::ShowPermitDialog()
             Base::CloseFd(fds[1]);
             waitpid(pid, nullptr, 0);
             char buf[1024] = { 0 };
-            int nbytes = read(fds[0], buf, sizeof(buf));
+            int nbytes = read(fds[0], buf, sizeof(buf) - 1);
             WRITE_LOG(LOG_FATAL, "user_permit put %d bytes: %s", nbytes, buf);
             close(fds[0]);
     }

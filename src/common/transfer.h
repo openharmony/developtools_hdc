@@ -50,6 +50,19 @@ public:
         uint32_t compressSize;
         uint32_t uncompressSize;
     };
+    union FeatureFlagsUnion {
+        struct {
+            uint8_t hugeBuf : 1; // bit 1: enable huge buffer 512K
+            uint8_t compressLz4 : 1; // bit 2: enable compress default is lz4
+            uint8_t reserveBits1 : 6; // bit 3-8: reserved
+            uint8_t reserveBits2 : 8; // bit 9-16: reserved
+            uint16_t reserveBits3 : 16; // bit 17-32: reserved
+            uint32_t reserveBits4 : 32; // bit 33-64: reserved
+        } bits;
+        uint8_t raw[FEATURE_FLAG_MAX_SIZE];
+    };
+    // FEATURE_FLAG_MAX_SIZE * 8 bits = 8 * 8 bits = 64 bits
+    // is used for HdcTransferBase. just base class use, not public
     HdcTransferBase(HTaskInfo hTaskInfo);
     virtual ~HdcTransferBase();
     virtual void StopTask()
@@ -77,6 +90,7 @@ protected:
         bool closeNotify;
         bool ioFinish;
         bool closeReqSubmitted;
+        bool isStableBufSize; // USB IO buffer size set stable value, false: 512K, true: 61K
         void *thisClass;
         uint32_t lastErrno;
         uv_loop_t *loop;
@@ -114,10 +128,13 @@ protected:
     bool CheckFilename(string &localPath, string &optName, string &errStr);
     void SetFileTime(CtxFile *context);
     void ExtractRelativePath(string &cwd, string &path);
+    bool AddFeatures(FeatureFlagsUnion &feature);
+    bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
 
     CtxFile ctxNow;
     uint16_t commandBegin;
     uint16_t commandData;
+    bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
     CircleBuffer cirbuf;
 

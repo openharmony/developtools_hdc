@@ -21,6 +21,7 @@ HdcFile::HdcFile(HTaskInfo hTaskInfo)
 {
     commandBegin = CMD_FILE_BEGIN;
     commandData = CMD_FILE_DATA;
+    isStableBuf = hTaskInfo->isStableBuf;
 }
 
 HdcFile::~HdcFile()

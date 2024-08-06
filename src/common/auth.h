@@ -25,7 +25,7 @@ bool KeylistIncrement(list<void *> *listKey, uint8_t &authKeyIndex, void **out);
 void FreeKey(bool publicOrPrivate, list<void *> *listKey);
 
 #ifdef HDC_HOST
-bool RsaSignAndBase64(string &buf);
+bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type);
 bool GetPublicKeyinfo(string &pubkey_info);
 #endif
 

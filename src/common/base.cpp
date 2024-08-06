@@ -295,7 +295,7 @@ namespace Base {
     }
 #endif
 
-    void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
+void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
     {
         if (logLevel > g_logLevel) {
             return;
@@ -313,24 +313,23 @@ namespace Base {
 #ifdef  HDC_HILOG
         string tmpPath = functionName;
         string filePath = GetFileNameAny(tmpPath);
-        static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
         switch (static_cast<int>(logLevel)) {
             case static_cast<int>(LOG_DEBUG):
                 // Info level log can be printed default in hilog, debug can't
-                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                             filePath.c_str(), line, buf);
+                HDC_INFO("[%{public}s:%{public}d] %{public}s",
+                          filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_INFO):
-                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                             filePath.c_str(), line, buf);
+                HDC_INFO("[%{public}s:%{public}d] %{public}s",
+                         filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_WARN):
-                OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                             filePath.c_str(), line, buf);
+                HDC_WARN("[%{public}s:%{public}d] %{public}s",
+                         filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_FATAL):
-                OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                              filePath.c_str(), line, buf);
+                HDC_FATAL("[%{public}s:%{public}d] %{public}s",
+                          filePath.c_str(), line, buf);
                 break;
             default:
                 break;

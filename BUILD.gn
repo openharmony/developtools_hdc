@@ -251,6 +251,7 @@ template("build_hdc") {
           debug = false
         }
         deps = [ ":hdcd_${image_name}_source" ]
+        external_deps = [ "hilog:libhilog" ]
         output_name = "hdcd_${image_name}"
         install_enable = false
         subsystem_name = "developtools"
@@ -308,6 +309,7 @@ template("build_hdc") {
         debug = false
       }
       deps = [ ":hdcd_${image_name}_source" ]
+      external_deps = [ "hilog:libhilog" ]
       output_name = "hdcd_${image_name}"
       install_enable = false
       subsystem_name = "developtools"

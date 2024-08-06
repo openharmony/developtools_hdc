@@ -441,7 +441,7 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     uv_loop_init(&hSession->childLoop);
     hSession->uvHandleRef = 0;
     // pullup child
-    WRITE_LOG(LOG_DEBUG, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",
+    WRITE_LOG(LOG_INFO, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",
               hSession->sessionId, hSession->connType);
     ++hSession->uvHandleRef;
     Base::CreateSocketPair(hSession->ctrlFd);
@@ -543,7 +543,7 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     HSession hSession = (HSession)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->uvHandleRef > 0) {
-        WRITE_LOG(LOG_DEBUG, "FreeSessionFinally uvHandleRef:%d sessionId:%u",
+        WRITE_LOG(LOG_INFO, "FreeSessionFinally uvHandleRef:%d sessionId:%u",
             hSession->uvHandleRef, hSession->sessionId);
         return;
     }
@@ -551,7 +551,7 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     thisClass->NotifyInstanceSessionFree(hSession, true);
     // all hsession uv handle has been clear
     thisClass->AdminSession(OP_REMOVE, hSession->sessionId, nullptr);
-    WRITE_LOG(LOG_DEBUG, "!!!FreeSessionFinally sessionId:%u finish", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%u finish", hSession->sessionId);
     HdcAuth::FreeKey(!hSession->serverOrDaemon, hSession->listKey);
     delete hSession;
     hSession = nullptr;  // fix CodeMars SetNullAfterFree issue
@@ -594,10 +594,10 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     HSession hSession = (HSession)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->ref > 0) {
-        WRITE_LOG(LOG_WARN, "FreeSessionOpeate ref:%u > 0", uint32_t(hSession->ref));
+        WRITE_LOG(LOG_WARN, "FreeSessionOpeate sid:%u ref:%u > 0", hSession->sessionId, uint32_t(hSession->ref));
         return;
     }
-    WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate ref:%u", uint32_t(hSession->ref));
+    WRITE_LOG(LOG_INFO, "FreeSessionOpeate sid:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
 #ifdef HDC_HOST
     if (hSession->hUSB != nullptr
         && (!hSession->hUSB->hostBulkIn.isShutdown || !hSession->hUSB->hostBulkOut.isShutdown)) {
@@ -610,12 +610,12 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
     if (hSession->pollHandle[STREAM_WORK]->loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
         Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
-        WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
             HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
             if (!hSession->childCleared) {
-                WRITE_LOG(LOG_DEBUG, "FreeSessionOpeate childCleared:%d sessionId:%u",
+                WRITE_LOG(LOG_INFO, "FreeSessionOpeate childCleared:%d sessionId:%u",
                     hSession->childCleared, hSession->sessionId);
                 return;
             }
@@ -638,7 +638,7 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
         return;
     }
     HSession hSession = AdminSession(OP_QUERY, sessionId, nullptr);
-    WRITE_LOG(LOG_DEBUG, "Begin to free session, sessionid:%u", sessionId);
+    WRITE_LOG(LOG_INFO, "Begin to free session, sessionid:%u", sessionId);
     do {
         if (!hSession || hSession->isDead) {
             WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%u", sessionId);
@@ -647,7 +647,7 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
         hSession->isDead = true;
         Base::TimerUvTask(&loopMain, hSession, FreeSessionOpeate);
         NotifyInstanceSessionFree(hSession, false);
-        WRITE_LOG(LOG_DEBUG, "FreeSession sessionId:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
+        WRITE_LOG(LOG_INFO, "FreeSession sessionId:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
     } while (false);
 }
 

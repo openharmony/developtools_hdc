@@ -202,19 +202,6 @@ out:
     return ret;
 }
 
-void HdcTransferBase::Next(HdcTransferBase *thisClass, CtxFile *context)
-{
-    if (context->isDir) {
-        uint8_t payload = 1;
-        uint16_t cmdFinish = (thisClass->commandBegin == CMD_FILE_BEGIN ? CMD_FILE_FINISH : CMD_APP_FINISH);
-        thisClass->CommandDispatch(cmdFinish, &payload, 1);
-    } else {
-        thisClass->TransferSummary(context);
-        thisClass->TaskFinish();
-    }
-    return;
-}
-
 void HdcTransferBase::OnFileIO(uv_fs_t *req)
 {
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
@@ -243,11 +230,6 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             WRITE_LOG(LOG_DEBUG, "read file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
                       context->fileSize);
 #endif // HDC_DEBUG
-
-            if (req->result == 0 && context->fileSize > 0) {
-                Next(thisClass, context);
-                return;
-            }
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
                 context->ioFinish = true;
                 break;

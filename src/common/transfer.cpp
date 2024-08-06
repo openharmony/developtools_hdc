@@ -248,7 +248,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             WRITE_LOG(LOG_DEBUG, "write file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
                       context->fileSize);
 #endif // HDC_DEBUG
-            if (context->indexIO >= context->fileSize) {
+            if (context->indexIO >= context->fileSize || req->result == 0) {
                 // The active end must first read it first, but you can't make Finish first, because Slave may not
                 // end.Only slave receives complete talents Finish
                 context->closeNotify = true;

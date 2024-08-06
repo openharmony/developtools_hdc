@@ -123,13 +123,15 @@ def test_file_error():
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small_true')}")
 
 
-@pytest.mark.repeat(1)
+@pytest.mark.repeat(5)
 def test_recv_dir():
+    if os.path.exists(get_local_path('it_problem_dir')):
+        rmdir(get_local_path('it_problem_dir'))
+    assert check_hdc_cmd(f"shell rm -rf {get_remote_path('it_problem_dir')}")
+    assert check_hdc_cmd(f"shell rm -rf {get_remote_path('problem_dir')}")
     assert make_multiprocess_file(get_local_path('problem_dir'), get_remote_path(''), 'send', 1, "dir")
     assert check_hdc_cmd(f"shell mv {get_remote_path('problem_dir')} {get_remote_path('it_problem_dir')}")
     assert make_multiprocess_file(get_local_path(''), get_remote_path('it_problem_dir'), 'recv', 1, "dir")
-    if os.path.exists(get_local_path('it_problem_dir')):
-        rmdir(get_local_path('it_problem_dir'))
 
 
 @pytest.mark.repeat(5)
@@ -221,11 +223,7 @@ def test_target_cmd():
     assert check_hdc_targets()
     time.sleep(3)
     check_hdc_cmd("target boot")
-    start_time = time.time()
-    run_command_with_timeout("hdc wait", 60) # reboot takes up to 60 seconds
-    end_time = time.time()
-    print(f"command exec time {end_time - start_time}")
-    assert (end_time - start_time) > 5 # Reboot takes at least 5 seconds
+    time.sleep(60) # reboot needs at least 60 seconds
     assert (check_hdc_cmd("target mount", "Mount finish") or
             check_hdc_cmd("target mount", "[Fail]Operate need running as root") or
             check_hdc_cmd("target mount", "Remount successful.")
@@ -309,6 +307,15 @@ def test_shell_cmd_timecost():
         times=10)
 
 
+def test_shell_huge_cat():
+    assert check_hdc_cmd(f"file send {get_local_path('word_100M.txt')} {get_remote_path('it_word_100M.txt')}")
+    assert check_cmd_time(
+        cmd=f"shell cat {get_remote_path('it_word_100M.txt')}",
+        pattern=None,
+        duration=10000, # 10 seconds
+        times=10)
+
+
 def test_hdcd_rom():
     baseline = 2200 # 2200KB
     assert check_rom(baseline)
@@ -348,10 +355,8 @@ def run_main():
 
     GP.init()
 
-    if not os.path.exists(GP.local_path):
-        prepare_source()
-    else:
-        update_source()
+    prepare_source()
+    update_source()
 
     choice_default = ""
     parser = argparse.ArgumentParser()

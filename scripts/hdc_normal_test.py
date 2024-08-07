@@ -223,7 +223,11 @@ def test_target_cmd():
     assert check_hdc_targets()
     time.sleep(3)
     check_hdc_cmd("target boot")
-    time.sleep(60) # reboot needs at least 60 seconds
+    start_time = time.time()
+    run_command_with_timeout("hdc wait", 60) # reboot takes up to 60 seconds
+    end_time = time.time()
+    print(f"command exec time {end_time - start_time}")
+    assert (end_time - start_time) > 5 # Reboot takes at least 5 seconds
     assert (check_hdc_cmd("target mount", "Mount finish") or
             check_hdc_cmd("target mount", "[Fail]Operate need running as root") or
             check_hdc_cmd("target mount", "Remount successful.")

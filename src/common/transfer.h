@@ -72,7 +72,6 @@ protected:
         string localPath;
         string remotePath;
         string localDirName;
-        string appInstallDir;
         bool fileModeSync;
         bool master;  // Document transmission initiative
         bool closeNotify;

@@ -219,24 +219,28 @@ ohos_unittest("hdc_jdwp_unittest") {
   }
   public_deps = [ ":hdc_daemon_platform" ]
 
-  deps = [ "//third_party/googletest:gmock_main" ]
-
   sources = [ "unittest/common/HdcJdwpTest.cpp" ]
-  deps += [ ":hdc_common" ]
+  deps = [ ":hdc_common" ]
 
   include_dirs = [
     "${hdc_path}/test/unittest/common/include",
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/common",
-    "//third_party/bounds_checking_function/include",
-    "//third_party/libuv",
   ]
+  external_deps = [
+    "googletest:gmock_main",
+  ]
+
 
   if (is_linux) {
     static_link = false
   }
   subsystem_name = "developtools"
   defines += [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
+  ]
 }
 
 ohos_unittest("hdc_uart_unittest") {
@@ -251,9 +255,11 @@ ohos_unittest("hdc_uart_unittest") {
   configs = [ ":hdc_common_config" ]
   configs += [ ":hdc_ut_code_flag" ]
   deps = [ ":hdc_daemon" ]
-
-  deps += [ "//third_party/googletest:gmock_main" ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+
+  external_deps = [
+    "googletest:gmock_main",
+  ]
 }
 
 ohos_unittest("hdc_host_uart_unittest") {
@@ -273,8 +279,11 @@ ohos_unittest("hdc_host_uart_unittest") {
 
   deps = [ ":hdc_host" ]
 
-  deps += [ "//third_party/googletest:gmock_main" ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+
+  external_deps = [
+    "googletest:gmock_main",
+  ]
 }
 
 group("HdcJdwpTest") {
@@ -315,8 +324,6 @@ config("hdc_test_config") {
     "${hdc_path}/test/fuzztest/forwardreadstream_fuzzer",
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/common",
-    "//third_party/bounds_checking_function/include",
-    "//third_party/libuv/include",
   ]
 }
 
@@ -349,16 +356,20 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   fuzz_config_file = "${hdc_path}/test/fuzztest/jdwpreadstream_fuzzer"
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
-  deps = [ "//third_party/libuv:uv" ]
   sources = [
     "${hdc_path}/src/daemon/jdwp.cpp",
     "${hdc_path}/src/daemon/system_depend.cpp",
     "fuzztest/jdwpreadstream_fuzzer/JdwpReadStream_fuzzer.cpp",
   ]
-  deps += [ ":hdc_common" ]
+  deps = [ ":hdc_common" ]
   external_deps = [
     "init:libbeget_proxy",
     "init:libbegetutil",
+    "libuv:uv",
+  ]
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
   ]
 }
 
@@ -367,11 +378,17 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   fuzz_config_file = "${hdc_path}/test/fuzztest/forwardreadstream_fuzzer"
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
-  deps = [ "//third_party/libuv:uv" ]
   sources = [ "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp" ]
-  deps += [ ":hdc_common" ]
+  deps = [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"
+  external_deps = [
+    "libuv:uv",
+  ]
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
+  ]
 }
 
 ohos_fuzztest("DaemonUsbReadFuzzTest") {
@@ -379,16 +396,20 @@ ohos_fuzztest("DaemonUsbReadFuzzTest") {
   fuzz_config_file = "${hdc_path}/test/fuzztest/daemonusbread_fuzzer"
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
-  deps = [ "//third_party/libuv:uv" ]
   sources = [
     "${hdc_path}/src/daemon/daemon_usb.cpp",
     "${hdc_path}/src/daemon/system_depend.cpp",
     "fuzztest/daemonusbread_fuzzer/DaemonUsbRead_fuzzer.cpp",
   ]
-  deps += [ ":hdc_common" ]
+  deps = [ ":hdc_common" ]
   external_deps = [
     "init:libbeget_proxy",
     "init:libbegetutil",
+    "libuv:uv",
+  ]
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
   ]
 }
 
@@ -415,15 +436,13 @@ ohos_unittest("hdc_register_unittest") {
 
   configs = [ ":hdc_register_config" ]
 
-  deps = [
-    "//third_party/googletest:gmock_main",
-    "//third_party/libuv:uv",
-  ]
   external_deps = [
     "c_utils:utils",
     "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
+    "libuv:uv",
+    "googletest:gmock_main",
   ]
 
   subsystem_name = "developtools"

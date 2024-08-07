@@ -593,6 +593,11 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
                 WRITE_LOG(LOG_FATAL, "Read usb failed, ret:%d", childRet);
                 break;
             }
+            if (childRet == 0) {
+                WRITE_LOG(LOG_WARN, "Read usb return 0, continue read, sid:%u", hSession->sessionId);
+                childRet = nextReadSize;
+                continue;
+            }
             childRet = SendToHdcStream(hSession, reinterpret_cast<uv_stream_t *>(&hSession->dataPipe[STREAM_MAIN]),
                                        hUSB->hostBulkIn.buf, childRet);
             if (childRet < 0) {

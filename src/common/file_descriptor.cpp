@@ -205,7 +205,7 @@ int HdcFileDescriptor::LoopReadOnThread()
     mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
     mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
 #endif
-    int readMax = Base::GetMaxBufSize() * 1.2;
+    int readMax = Base::GetMaxBufSizeStable() * 1.2; // 120% of max buf size, use stable size to avoid no buf.
     auto contextIO = new(std::nothrow) CtxFileIO();
     auto buf = new(std::nothrow) uint8_t[readMax]();
     if (!contextIO || !buf) {

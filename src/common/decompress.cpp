@@ -64,7 +64,7 @@ bool Decompress::DecompressToLocal(std::string decPath)
             break;
         }
         if (!entry.has_value()) {
-            entry = Entry(buff);
+            entry = Entry(buff, HEADER_LEN);
             if (entry.value().IsFinish()) {
                 entry.value().SaveToFile(decPath);
                 entry = std::nullopt;

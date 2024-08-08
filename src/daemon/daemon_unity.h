@@ -30,6 +30,7 @@ private:
     int ExecuteShell(const char *shellCommand);
     bool FindMountDeviceByPath(const char *toQuery, char *dev);
     bool RemountPartition(const char *dir);
+    bool CallRemount();
     bool RemountDevice();
     bool RebootDevice(const string &cmd);
     bool SetDeviceRunMode(void *daemonIn, const char *cmd);

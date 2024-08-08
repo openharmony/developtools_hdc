@@ -75,10 +75,10 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
             if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")) {
                 context->taskQueue.push_back(path);
             } else {
-                originLocalDir = path;
                 string tarpath = Dir2Tar(path.c_str());
                 if (!tarpath.empty()) {
                     context->taskQueue.push_back(tarpath);
+                    originLocalDir = path;
                 }
             }
         }

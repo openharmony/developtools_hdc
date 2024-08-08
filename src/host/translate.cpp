@@ -230,7 +230,8 @@ namespace TranslateCommand {
         const char *pExtra = input + 6;  // CMDSTR_FORWARD_FPORT CMDSTR_FORWARD_RPORT + " " size
         if (!strncmp(input, CMDSTR_FORWARD_FPORT.c_str(), CMDSTR_FORWARD_FPORT.size()) && !strcmp(pExtra, "ls")) {
             outCmd->cmdFlag = CMD_FORWARD_LIST;
-        } else if (!strncmp(pExtra, "rm", 2)) { // 2: "rm" size
+        } else if (!strncmp(input, CMDSTR_FORWARD_FPORT.c_str(), CMDSTR_FORWARD_FPORT.size()) &&
+            !strncmp(pExtra, "rm", 2)) { // 2: "rm" size
             outCmd->cmdFlag = CMD_FORWARD_REMOVE;
             if (strcmp(pExtra, "rm")) {
                 outCmd->parameters = input + FORWORD_PORT_RM_BUF_SIZE;

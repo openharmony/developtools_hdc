@@ -227,10 +227,7 @@ ohos_unittest("hdc_jdwp_unittest") {
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/common",
   ]
-  external_deps = [
-    "googletest:gmock_main",
-  ]
-
+  external_deps = [ "googletest:gmock_main" ]
 
   if (is_linux) {
     static_link = false
@@ -257,9 +254,7 @@ ohos_unittest("hdc_uart_unittest") {
   deps = [ ":hdc_daemon" ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 
-  external_deps = [
-    "googletest:gmock_main",
-  ]
+  external_deps = [ "googletest:gmock_main" ]
 }
 
 ohos_unittest("hdc_host_uart_unittest") {
@@ -281,9 +276,7 @@ ohos_unittest("hdc_host_uart_unittest") {
 
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
 
-  external_deps = [
-    "googletest:gmock_main",
-  ]
+  external_deps = [ "googletest:gmock_main" ]
 }
 
 group("HdcJdwpTest") {
@@ -382,9 +375,7 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   deps = [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"
-  external_deps = [
-    "libuv:uv",
-  ]
+  external_deps = [ "libuv:uv" ]
   public_external_deps = [
     "bounds_checking_function:libsec_static",
     "libuv:uv",
@@ -438,11 +429,11 @@ ohos_unittest("hdc_register_unittest") {
 
   external_deps = [
     "c_utils:utils",
+    "googletest:gmock_main",
     "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
     "libuv:uv",
-    "googletest:gmock_main",
   ]
 
   subsystem_name = "developtools"

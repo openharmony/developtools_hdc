@@ -32,12 +32,9 @@ HdcDaemonTCP::HdcDaemonTCP(const bool serverOrDaemonIn, void *ptrMainBase)
     SystemDepend::GetDevItem("persist.hdc.port", strTCPPort);
     tcpListenPort = atoi(strTCPPort.c_str());
     if (tcpListenPort <= 0) {
+        WRITE_LOG(LOG_WARN, "persist.hdc.port is invalid, set default to 0");
         tcpListenPort = 0;
     }
-#ifdef HDC_DEBUG
-    const uint16_t DEBUG_TCP_PORT = 10178;
-    tcpListenPort = DEBUG_TCP_PORT;
-#endif
 }
 
 HdcDaemonTCP::~HdcDaemonTCP()

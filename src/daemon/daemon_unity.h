@@ -33,7 +33,7 @@ private:
     bool CallRemount();
     bool RemountDevice();
     bool RebootDevice(const string &cmd);
-    bool SetDeviceRunMode(void *daemonIn, const char *cmd);
+    bool SetDeviceRunMode(const char *cmd);
     bool GetHiLog(const char *cmd);
     bool ListJdwpProcess(void *daemonIn);
     bool AsyncCmdOut(bool finish, int64_t exitStatus, const string result);

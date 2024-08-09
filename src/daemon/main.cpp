@@ -42,42 +42,50 @@ bool RestartDaemon(bool forkchild)
     return true;
 }
 
+void GetTCPChannelMode(void)
+{
+    string modeValue;
+    if (SystemDepend::GetDevItem("persist.hdc.mode.tcp", modeValue)) {
+        g_enableTcp = (modeValue == "enable");
+        WRITE_LOG(LOG_INFO, "Property %s TCP", modeValue.c_str());
+    }
+    modeValue.clear();
+    if (SystemDepend::GetDevItem("persist.hdc.mode.usb", modeValue)) {
+        g_enableUsb = (modeValue == "enable");
+        WRITE_LOG(LOG_INFO, "Property %s USB", modeValue.c_str());
+    }
+    return;
+}
+
 bool ForkChildCheck(int argc, const char *argv[])
 {
     // hdcd        #service start foreground
     // hdcd -b     #service start backgroundRun
     // hdcd -fork  #fork
     Base::PrintMessage("Background mode, persist.hdc.mode");
-    string workMode = string("all");
-    if (workMode == CMDSTR_TMODE_TCP) {
-        WRITE_LOG(LOG_DEBUG, "Property enable TCP");
-        g_enableTcp = true;
-#ifdef HDC_EMULATOR
-    } else if (workMode == CMDSTR_TMODE_BRIDGE || workMode.empty()) {
-        WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
-        g_enableBridge = true;
-#endif
-    } else if (workMode == CMDSTR_TMODE_USB) {
-        WRITE_LOG(LOG_DEBUG, "Property enable USB");
-        g_enableUsb = true;
-#ifdef HDC_SUPPORT_UART
-    } else if (workMode == CMDSTR_TMODE_UART) {
-        WRITE_LOG(LOG_DEBUG, "Property enable UART");
-        g_enableUart = true;
-    } else if (workMode == "all") {
-#else
-    } else if (workMode == "all") {
-#endif
-#ifdef HDC_EMULATOR
-        g_enableBridge = true;
-#else
+    string workMode;
+    SystemDepend::GetDevItem("persist.hdc.mode", workMode);
+    workMode = Base::Trim(workMode);
+    if (workMode == "all") {
         WRITE_LOG(LOG_DEBUG, "Property enable USB and TCP");
         g_enableUsb = true;
         g_enableTcp = true;
 #ifdef HDC_SUPPORT_UART
         g_enableUart = true;
 #endif
+#ifdef HDC_SUPPORT_UART
+    } else if (workMode == CMDSTR_TMODE_UART) {
+        WRITE_LOG(LOG_DEBUG, "Property enable UART");
+        g_enableUart = true;
 #endif
+#ifdef HDC_EMULATOR
+    } else if (workMode == CMDSTR_TMODE_BRIDGE || workMode.empty()) {
+        WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
+        g_enableBridge = true;
+#endif
+    } else if (workMode == CMDSTR_TMODE_USB || workMode == CMDSTR_TMODE_TCP) {
+        // for tcp and usb, we use persist.hdc.mode.tcp and persist.hdc.mode.usb to control
+        GetTCPChannelMode();
     } else {
         WRITE_LOG(LOG_DEBUG, "Default USB mode");
         g_enableUsb = true;

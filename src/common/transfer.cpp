@@ -751,7 +751,7 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
 {
     if (payloadSize == FEATURE_FLAG_MAX_SIZE) {
         union FeatureFlagsUnion feature{};
-        if (memcpy_s(&feature, sizeof(feature), payload, payloadSize)) {
+        if (memcpy_s(&feature, sizeof(feature), payload, payloadSize) != EOK) {
             WRITE_LOG(LOG_FATAL, "CheckFeatures memcpy_s failed");
             return false;
         }

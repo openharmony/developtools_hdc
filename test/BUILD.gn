@@ -358,7 +358,6 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   external_deps = [
     "init:libbeget_proxy",
     "init:libbegetutil",
-    "libuv:uv",
   ]
   public_external_deps = [
     "bounds_checking_function:libsec_static",
@@ -396,7 +395,6 @@ ohos_fuzztest("DaemonUsbReadFuzzTest") {
   external_deps = [
     "init:libbeget_proxy",
     "init:libbegetutil",
-    "libuv:uv",
   ]
   public_external_deps = [
     "bounds_checking_function:libsec_static",

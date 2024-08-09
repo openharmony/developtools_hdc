@@ -423,7 +423,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
     // As an uv_alloc_cb it must keep the same as prototype
     void AllocBufferCallback(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf)
     {
-        const int size = GetMaxBufSize();
+        const int size = GetMaxBufSizeStable();
         buf->base = (char *)new uint8_t[size]();
         if (buf->base) {
             buf->len = size - 1;
@@ -1469,9 +1469,9 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 
     const string StringFormat(const char * const formater, va_list &vaArgs)
     {
-        std::vector<char> args(GetMaxBufSize());
+        std::vector<char> args(GetMaxBufSizeStable());
         const int retSize = vsnprintf_s(
-            args.data(), GetMaxBufSize(), (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
+            args.data(), GetMaxBufSizeStable(), (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
         if (retSize < 0) {
             return std::string("");
         } else {

@@ -218,7 +218,7 @@ bool HdcForwardBase::SendToTask(const uint32_t cid, const uint16_t command, uint
     StartTraceScope("HdcForwardBase::SendToTask");
     bool ret = false;
     // usually MAX_SIZE_IOBUF*2 from HdcFileDescriptor maxIO
-    if (bufSize > Base::GetMaxBufSize() * BUF_MULTIPLE) {
+    if (bufSize > Base::GetMaxBufSizeStable() * BUF_MULTIPLE) {
         WRITE_LOG(LOG_FATAL, "SendToTask bufSize:%d", bufSize);
         return false;
     }

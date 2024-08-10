@@ -1952,14 +1952,8 @@ namespace Base {
         }
         return _wfopen(resolvedPath, wideMode.c_str());
 #else
-        char resolvedPath[PATH_MAX] = { 0 };
-        std::string filePath(fileName);
-        if (!realpath(filePath.c_str(), resolvedPath)) {
-            WRITE_LOG(LOG_FATAL, "realpath %s failed", filePath.c_str());
-            return nullptr;
-        }
         // unix paltform open file with default char
-        return fopen(resolvedPath, mode);
+        return fopen(fileName, mode);
 #endif
     }
 }

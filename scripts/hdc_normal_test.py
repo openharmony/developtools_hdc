@@ -96,7 +96,7 @@ def test_rate():
 
 @pytest.mark.repeat(1)
 def test_file_error():
-    assert check_hdc_cmd("shell mount -o rw,remount /")
+    assert check_hdc_cmd("target mount")
     assert check_shell(
         f"file send {get_local_path('small')} system/bin/hdcd",
         "busy"
@@ -228,10 +228,6 @@ def test_target_cmd():
     end_time = time.time()
     print(f"command exec time {end_time - start_time}")
     assert (end_time - start_time) > 5 # Reboot takes at least 5 seconds
-    assert (check_hdc_cmd("target mount", "Mount finish") or
-            check_hdc_cmd("target mount", "[Fail]Operate need running as root") or
-            check_hdc_cmd("target mount", "Remount successful.")
-            )
 
 
 @pytest.mark.repeat(1)
@@ -253,9 +249,14 @@ def test_file_switch_on():
 
 
 def test_target_mount():
-    check_shell(f"target mount")
-    mount_after = get_shell_result(f'shell "mount |grep /vendor |head -1"')
-    assert "rw" in mount_after
+    assert (check_hdc_cmd("target mount", "Mount finish" or "[Fail]Operate need running as root"))
+    remount_vendor = get_shell_result(f'shell "mount |grep /vendor |head -1"')
+    print(remount_vendor)
+    assert "rw" in remount_vendor
+    remount_system = get_shell_result(f'shell "cat proc/mounts | grep /system |head -1"')
+    print(remount_system)
+    assert "rw" in remount_system
+
 
 
 def test_target_key():

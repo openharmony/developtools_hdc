@@ -101,6 +101,7 @@ namespace Base {
     string Base64Decode(const uint8_t *input, const int length);
     string UnicodeToUtf8(const char *src, bool reverse = false);
     void ReverseBytes(void *start, int size);
+    string Convert2HexStr(uint8_t arr[], int length);
     string CanonicalizeSpecPath(string &src);
     bool TryCreateDirectory(const string &path, string &err);
     // Just zero a POD type, such as a structure or union

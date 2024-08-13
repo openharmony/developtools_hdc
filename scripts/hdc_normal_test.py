@@ -27,7 +27,7 @@ import pytest
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, run_command_with_timeout
-from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate
+from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate, get_shell_result
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 from dev_hdc_test import check_rom, check_shell
@@ -223,7 +223,11 @@ def test_target_cmd():
     assert check_hdc_targets()
     time.sleep(3)
     check_hdc_cmd("target boot")
-    time.sleep(60) # reboot needs at least 60 seconds
+    start_time = time.time()
+    run_command_with_timeout("hdc wait", 60) # reboot takes up to 60 seconds
+    end_time = time.time()
+    print(f"command exec time {end_time - start_time}")
+    assert (end_time - start_time) > 5 # Reboot takes at least 5 seconds
     assert (check_hdc_cmd("target mount", "Mount finish") or
             check_hdc_cmd("target mount", "[Fail]Operate need running as root") or
             check_hdc_cmd("target mount", "Remount successful.")
@@ -246,6 +250,18 @@ def test_file_switch_on():
     assert check_shell(f"shell param get persist.hdc.control.file", "true")
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
+
+
+def test_target_mount():
+    check_shell(f"target mount")
+    mount_after = get_shell_result(f'shell "mount |grep /vendor |head -1"')
+    assert "rw" in mount_after
+
+
+def test_target_key():
+    device_key = get_shell_result(f"list targets").split("\r\n")[0]
+    hdcd_pid = get_shell_result(f"-t {device_key} shell pgrep -x hdcd").split("\r\n")[0]
+    assert hdcd_pid.isdigit()
 
 
 def test_version_cmd():

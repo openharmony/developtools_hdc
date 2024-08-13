@@ -31,6 +31,7 @@ private:
     bool BeginSideload(CtxFile *context, const char *localPath);
     string Dir2Tar(const char *dir);
     size_t printedMsgLen = 0;
+    string originLocalDir = "";
 };
 }
 #endif

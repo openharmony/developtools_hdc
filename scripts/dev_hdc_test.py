@@ -248,6 +248,7 @@ def pytest_run(args):
             print("Please unzip package.zip to resource directory, please rerun after operation.")
             input("[ENTER]")
             return
+    gen_package_dir()
     start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     if args.count is not None:
         for i in range(args.count):
@@ -519,6 +520,16 @@ def switch_usb():
     return res
 
 
+def copy_file(src, dst):
+    try:
+        shutil.copy2(src, dst)
+        print(f"File copied successfully from {src} to {dst}")
+    except IOError as e:
+        print(f"Unable to copy file. {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+
 def switch_tcp():
     if not GP.remote_ip: # skip tcp check
         print("!!! remote_ip is none, skip tcp check !!!")
@@ -638,6 +649,19 @@ def gen_file_set():
 
     print("generating version file ...")
     gen_file(os.path.join(GP.local_path, GP.get_version()), 0)
+
+
+def gen_package_dir():
+    print("generating app dir ...")
+    dir_path = os.path.join(GP.local_path, "app_dir")
+    rmdir(dir_path)
+    os.mkdir(dir_path)
+    app = os.path.join(GP.local_path, "entry-default-signed-debug.hap")
+    dst_dir = os.path.join(GP.local_path, "app_dir")
+    if not os.path.exists(app):
+        print(f"Source file {app} does not exist.")
+    else:
+        copy_file(app, dst_dir)
 
 
 def prepare_source():

@@ -214,6 +214,14 @@ def test_install_hsp_and_hap():
     assert check_app_install_multi(tables, "-s")
 
 
+@pytest.mark.repeat(5)
+def test_install_dir():
+    package_haps_dir = "app_dir"
+    app_name_default = "com.hmos.diagnosis"
+    assert check_app_install(package_haps_dir, app_name_default)
+    assert check_app_uninstall(app_name_default)
+
+
 def test_server_kill():
     assert check_hdc_cmd("kill", "Kill server finish")
     assert check_hdc_cmd("start server", "")

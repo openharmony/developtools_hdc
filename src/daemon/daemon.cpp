@@ -295,8 +295,11 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname, string pubkey)
         return REFUSE;
     }
 
-    uint8_t sha256Result[SHA256_DIGEST_LENGTH] = {};
-    SHA256(reinterpret_cast<const uint8_t *>(pubkey.c_str()), pubkey.length(), sha256Result);
+    uint8_t sha256Result[SHA256_DIGEST_LENGTH] = { 0 };
+    if (SHA256(reinterpret_cast<const uint8_t *>(pubkey.c_str()), pubkey.length(), sha256Result) == nullptr) {
+        WRITE_LOG(LOG_FATAL, "sha256 pubkey failed");
+        return REFUSE;
+    }
 
     string hex = Base::Convert2HexStr(sha256Result, SHA256_DIGEST_LENGTH);
     if (!SystemDepend::SetDevItem("persist.hdc.client.pubkey_sha256", hex.c_str())) {

@@ -234,7 +234,7 @@ ohos_unittest("hdc_jdwp_unittest") {
   }
   subsystem_name = "developtools"
   defines += [ "OPENSSL_SUPPRESS_DEPRECATED" ]
-  public_external_deps = [
+  external_deps += [
     "bounds_checking_function:libsec_static",
     "libuv:uv",
   ]

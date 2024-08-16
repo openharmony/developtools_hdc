@@ -316,19 +316,19 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         switch (static_cast<int>(logLevel)) {
             case static_cast<int>(LOG_DEBUG):
                 // Info level log can be printed default in hilog, debug can't
-                HDC_INFO("[%{public}s:%{public}d] %{public}s",
+                HDC_LOG_INFO("[%{public}s:%{public}d] %{public}s",
                           filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_INFO):
-                HDC_INFO("[%{public}s:%{public}d] %{public}s",
+                HDC_LOG_INFO("[%{public}s:%{public}d] %{public}s",
                          filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_WARN):
-                HDC_WARN("[%{public}s:%{public}d] %{public}s",
+                HDC_LOG_WARN("[%{public}s:%{public}d] %{public}s",
                          filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_FATAL):
-                HDC_FATAL("[%{public}s:%{public}d] %{public}s",
+                HDC_LOG_FATAL("[%{public}s:%{public}d] %{public}s",
                           filePath.c_str(), line, buf);
                 break;
             default:

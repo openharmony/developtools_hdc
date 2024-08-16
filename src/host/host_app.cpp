@@ -22,6 +22,7 @@ HdcHostApp::HdcHostApp(HTaskInfo hTaskInfo)
     commandBegin = CMD_APP_BEGIN;
     commandData = CMD_APP_DATA;
     originLocalDir = "";
+    isStableBuf = hTaskInfo->isStableBuf;
 }
 
 HdcHostApp::~HdcHostApp()

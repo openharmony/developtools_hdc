@@ -1050,7 +1050,7 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
 {
     HSession hSession = (HSession)poll->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
-    const int size = Base::GetMaxBufSize();
+    const int size = Base::GetMaxBufSizeStable();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
     ssize_t nread = Base::ReadFromFd(hSession->ctrlFd[STREAM_MAIN], buf, size);
     while (true) {
@@ -1216,7 +1216,7 @@ void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;
-    const int size = Base::GetMaxBufSize();
+    const int size = Base::GetMaxBufSizeStable();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
     ssize_t nread = Base::ReadFromFd(hSession->ctrlFd[STREAM_WORK], buf, size);
     while (true) {

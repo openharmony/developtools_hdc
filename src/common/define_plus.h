@@ -302,6 +302,7 @@ struct TaskInformation {
     bool channelTask;
     void *channelClass;
     uint8_t debugRelease; // 0:allApp 1:debugApp 2:releaseApp
+    bool isStableBuf;
 };
 using HTaskInfo = TaskInformation *;
 
@@ -309,7 +310,7 @@ using HTaskInfo = TaskInformation *;
 
 #ifdef HDC_HOST
 struct HostUSBEndpoint {
-    HostUSBEndpoint(uint16_t epBufSize)
+    HostUSBEndpoint(uint32_t epBufSize)
     {
         endpoint = 0;
         sizeEpBuf = epBufSize;  // MAX_USBFFS_BULK
@@ -330,7 +331,7 @@ struct HostUSBEndpoint {
     bool isComplete;
     bool isShutdown;
     bool bulkInOut;  // true is bulkIn
-    uint16_t sizeEpBuf;
+    uint32_t sizeEpBuf;
     std::mutex mutexIo;
     std::mutex mutexCb;
     condition_variable cv;
@@ -351,7 +352,8 @@ struct HdcUSB {
     std::string usbMountPoint;
     HostUSBEndpoint hostBulkIn;
     HostUSBEndpoint hostBulkOut;
-    HdcUSB() : hostBulkIn(63488), hostBulkOut(62464) {} // 62464 MAX_USBFFS_BULK + 1024 = 63488 
+    HdcUSB() : hostBulkIn(513 * 1024), hostBulkOut(512 * 1024) {} // 513: 512 + 1, 1024: 1KB
+    // 512 * 1024 + 1024 = 513 * 1024, MAX_USBFFS_BULK: 512 * 1024
 
 #else
     // usb accessory FunctionFS
@@ -535,6 +537,7 @@ struct HdcChannel {
     RemoteType remote = RemoteType::REMOTE_NONE;
     bool fromClient = false;
     bool connectLocalDevice = false;
+    bool isStableBuf = false;
 };
 using HChannel = struct HdcChannel *;
 

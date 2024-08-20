@@ -21,6 +21,7 @@ HdcHostApp::HdcHostApp(HTaskInfo hTaskInfo)
 {
     commandBegin = CMD_APP_BEGIN;
     commandData = CMD_APP_DATA;
+    isStableBuf = hTaskInfo->isStableBuf;
 }
 
 HdcHostApp::~HdcHostApp()

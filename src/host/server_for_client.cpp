@@ -66,7 +66,7 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     uv_recv_buffer_size((uv_handle_t *)&hChannel->hWorkTCP, &bufMaxSize);
     auto funcChannelHeaderAlloc = [](uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf) -> void {
         HChannel context = (HChannel)handle->data;
-        Base::ReallocBuf(&context->ioBuf, &context->bufSize, sizeWanted);  // sizeWanted default 6k
+        Base::ReallocBuf(&context->ioBuf, &context->bufSize, Base::GetMaxBufSize() * BUF_EXTEND_SIZE);
         buf->base = (char *)context->ioBuf + context->availTailIndex;
 #ifdef HDC_VERSION_CHECK
         buf->len = sizeof(struct ChannelHandShake) + DWORD_SERIALIZE_SIZE;  // only recv static size
@@ -79,6 +79,7 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     // channel handshake step1
     struct ChannelHandShake handShake = {};
     if (EOK == strcpy_s(handShake.banner, sizeof(handShake.banner), HANDSHAKE_MESSAGE.c_str())) {
+        handShake.banner[BANNER_FEATURE_TAG_OFFSET] = HUGE_BUF_TAG; // set feature tag for huge buf size
         handShake.channelId = htonl(hChannel->channelId);
         string ver = Base::GetVersion() + HDC_MSG_HASH;
         WRITE_LOG(LOG_DEBUG, "Server ver:%s", ver.c_str());

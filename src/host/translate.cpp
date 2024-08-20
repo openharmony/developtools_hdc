@@ -268,7 +268,12 @@ namespace TranslateCommand {
             stringError = "Error tmode command";
             outCmd->bJumpDo = true;
         } else if (!strncmp(outCmd->parameters.c_str(), "port ", portSpaceLength)) {
-            int port = atoi(input + strlen("tmode port "));
+            const char *tmp = input + strlen("tmode port ");
+            // command is tmode port close
+            if (strcmp(tmp, "close") == 0) {
+                return stringError;
+            }
+            int port = atoi(tmp);
             if (port > MAX_IP_PORT || port <= 0) {
                 stringError = "Incorrect port range";
                 outCmd->bJumpDo = true;

@@ -39,3 +39,7 @@ persist.hdc.auth_bypass = root:shell:0666
 
 # for hdcd jdwp
 persist.hdc.jdwp = root:shell:0664
+
+persist.hdc.mode.usb = root:shell:0660
+persist.hdc.mode.tcp = root:shell:0660
+persist.hdc.mode.uart = root:shell:0660

@@ -228,25 +228,56 @@ bool HdcDaemonUnity::RebootDevice(const string &cmd)
     return SystemDepend::RebootDevice(cmd);
 }
 
-bool HdcDaemonUnity::SetDeviceRunMode(void *daemonIn, const char *cmd)
+bool HdcDaemonUnity::SetDeviceRunMode(const char *cmd)
 {
-    WRITE_LOG(LOG_DEBUG, "Set run mode:%s", cmd);
-    if (!strcmp(CMDSTR_TMODE_USB.c_str(), cmd)) {
-        LogMsg(MSG_OK, "Set device run mode successful.");
+    WRITE_LOG(LOG_INFO, "Set run mode:%s", cmd);
+    string tmp(cmd);
+    char *ptr = tmp.data();
+    char *token = nullptr;
+
+#ifdef HDC_EMULATOR
+    LogMsg(MSG_FAIL, "[E001300]Not support tmode for Emulator");
+    return true;
+#endif
+
+    // hdc tmode usb, do nothing
+    if (strcmp(CMDSTR_TMODE_USB.c_str(), cmd) == 0) {
+        LogMsg(MSG_FAIL, "[E001000]For USB debugging, please set it on the device's Settings UI");
         return true;
-    } else if (!strncmp("port", cmd, strlen("port"))) {
-        if (!strncmp("port ", cmd, strlen("port "))) {
-            const char *port = cmd + 5;
-            SystemDepend::SetDevItem("persist.hdc.port", port);
-            // shutdown
-            HdcDaemon *daemon = (HdcDaemon *)daemonIn;
-            daemon->PostStopInstanceMessage(true);
-        }
-    } else {
-        LogMsg(MSG_FAIL, "Unknown command");
+    }
+    // not usb and not tcp
+    if (strncmp("port", cmd, strlen("port")) != 0) {
+        LogMsg(MSG_FAIL, "[E001001]Unknown command");
         return false;
     }
-    LogMsg(MSG_OK, "Set device run mode successful.");
+
+    // bypass port
+    token = strtok_r(ptr, " ", &ptr);
+    // get next token
+    token = strtok_r(ptr, " ", &ptr);
+    // hdc tmode port
+    if (token == nullptr) {
+        LogMsg(MSG_OK, "Set device run mode successful.");
+        SystemDepend::SetDevItem("persist.hdc.mode.tcp", "enable");
+    } else {
+        /*
+        * hdc tmode port xxxxxx
+        * hdc tmode port close
+        */
+        if (strcmp(token, "close") == 0) {
+            SystemDepend::SetDevItem("persist.hdc.port", "0");
+            SystemDepend::SetDevItem("persist.hdc.mode.tcp", "disable");
+        } else {
+            string tmp(token);
+            if (tmp.find_first_not_of("0123456789") != string::npos) {
+                LogMsg(MSG_FAIL, "[E001100]Invalid port");
+                return false;
+            }
+            LogMsg(MSG_OK, "Set device run mode successful.");
+            SystemDepend::SetDevItem("persist.hdc.port", token);
+            SystemDepend::SetDevItem("persist.hdc.mode.tcp", "enable");
+        }
+    }
     return true;
 }
 
@@ -324,7 +355,7 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         }
         case CMD_UNITY_RUNMODE: {
             ret = false;
-            SetDeviceRunMode(daemon, strPayload.c_str());
+            SetDeviceRunMode(strPayload.c_str());
             break;
         }
         case CMD_UNITY_HILOG: {

@@ -196,6 +196,7 @@ void *AsyncCmd::Popen(void *arg)
 #endif
     auto param = reinterpret_cast<AsyncParams *>(arg);
     if (param == nullptr) {
+        WRITE_LOG(LOG_FATAL, "get param is nullptr.");
         return reinterpret_cast<void *>(ERR_PARAM_NULLPTR);
     }
     AsyncParams params = *param;

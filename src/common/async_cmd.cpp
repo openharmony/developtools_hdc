@@ -194,7 +194,11 @@ void *AsyncCmd::Popen(void *arg)
         WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
     }
 #endif
-    AsyncParams params = *reinterpret_cast<AsyncParams *>(arg);
+    auto param = reinterpret_cast<AsyncParams *>(arg);
+    if (param == nullptr) {
+        return reinterpret_cast<void *>(ERR_PARAM_NULLPTR);
+    }
+    AsyncParams params = *param;
     string command = params.commandParam;
     bool readWrite = params.readWriteParam;
     int &cpid = params.cpidParam;

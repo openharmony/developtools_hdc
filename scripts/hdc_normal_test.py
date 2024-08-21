@@ -261,10 +261,19 @@ def test_target_mount():
     remount_vendor = get_shell_result(f'shell "mount |grep /vendor |head -1"')
     print(remount_vendor)
     assert "rw" in remount_vendor
-    remount_system = get_shell_result(f'shell "cat proc/mounts | grep /system |head -1"')
+    remount_system = get_shell_result(f'shell "cat /proc/mounts | grep /system |head -1"')
     print(remount_system)
     assert "rw" in remount_system
 
+
+def test_tmode_port():
+    assert (check_hdc_cmd("tmode port", "Set device run mode successful"))
+    assert (check_hdc_cmd("tmode port 12345"))
+    time.sleep(1)
+    netstat_port = get_shell_result(f'shell "netstat -anp | grep 12345"')
+    print(netstat_port)
+    assert "LISTEN" in netstat_port
+    assert "hdcd" in netstat_port
 
 
 def test_target_key():

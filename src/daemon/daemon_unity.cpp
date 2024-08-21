@@ -258,6 +258,7 @@ bool HdcDaemonUnity::SetDeviceRunMode(const char *cmd)
     // hdc tmode port
     if (token == nullptr) {
         LogMsg(MSG_OK, "Set device run mode successful.");
+        SystemDepend::SetDevItem("persist.hdc.mode", "tcp");
         SystemDepend::SetDevItem("persist.hdc.mode.tcp", "enable");
     } else {
         /*
@@ -274,6 +275,7 @@ bool HdcDaemonUnity::SetDeviceRunMode(const char *cmd)
                 return false;
             }
             LogMsg(MSG_OK, "Set device run mode successful.");
+            SystemDepend::SetDevItem("persist.hdc.mode", "tcp");
             SystemDepend::SetDevItem("persist.hdc.port", token);
             SystemDepend::SetDevItem("persist.hdc.mode.tcp", "enable");
         }

@@ -61,8 +61,6 @@ typedef enum : uint8_t {
     RESERVE = '7',
 } TypeFlage;
 
-#pragma pack(push)
-#pragma pack(1)
 struct Header {
     /// 存储文件路径。tar只有100位，不够的使用prefix进行拼接
     uint8_t name[100];
@@ -112,6 +110,6 @@ struct Header {
     void UpdataCheckSum();
     void GetBytes(uint8_t data[512], int dataLen);
 };
-#pragma pack(pop)
+
 }
 #endif

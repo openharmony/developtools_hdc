@@ -20,6 +20,7 @@
 
 namespace Hdc {
 
+constexpr uint64_t ENTRY_MAX_FILE_SIZE = static_cast<uint64_t>(4) * 1024 * 1024 * 1024; // 4GB
 std::optional<std::string> StripPrefix(const std::string& str, const std::string& prefix)
 {
     if (str.compare(0, prefix.length(), prefix) == 0) {
@@ -42,9 +43,19 @@ Entry::Entry(std::string prefix, std::string path)
             header.UpdataSize(0);
         } else if (req.statbuf.st_mode & S_IFREG) {
             auto fileSize = req.statbuf.st_size;
-            header.UpdataSize(fileSize);
-            needSize = fileSize;
-            header.UpdataFileType(TypeFlage::ORDINARYFILE);
+            if (fileSize < ENTRY_MAX_FILE_SIZE) { // max package size is 4GB
+                header.UpdataSize(fileSize);
+                needSize = fileSize;
+                header.UpdataFileType(TypeFlage::ORDINARYFILE);
+            } else {
+#ifdef HDC_HOST
+                Base::PrintMessage("[Warning]File: %s, size: %lldB, over the 4GB limit, ignored.",
+                    path.c_str(), fileSize);
+#else
+                WRITE_LOG(LOG_WARN, "File: %s, size: %lldB, over the 4GB limit, ignored.",
+                    path.c_str(), fileSize);
+#endif
+            }
         }
     }
     UpdataName(path);
@@ -138,7 +149,11 @@ bool Entry::WriteToTar(std::ofstream &file)
             char buff[HEADER_LEN] = {0};
             header.GetBytes(reinterpret_cast<uint8_t *>(buff), HEADER_LEN);
             file.write(buff, HEADER_LEN);
-            std::ifstream inFile(GetName(), std::ios::binary);
+            std::string name = Base::UnicodeToUtf8(GetName().c_str(), true);
+            std::ifstream inFile(name, std::ios::binary);
+            if (!inFile) {
+                WRITE_LOG(LOG_FATAL, "open %s fail", name.c_str());
+            }
             file << inFile.rdbuf();
             auto pading = HEADER_LEN - (needSize % HEADER_LEN);
             if (pading < HEADER_LEN) {

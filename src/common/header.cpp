@@ -150,9 +150,9 @@ void Header::UpdataCheckSum()
 void Header::GetBytes(uint8_t data[512], int dataLen)
 {
     UpdataCheckSum();
-    if (memcpy_s(this, sizeof(struct Header), data, dataLen) != EOK) {
-        string tmp(reinterpret_cast<char*>(data), dataLen);
-        WRITE_LOG(LOG_FATAL, "memcpy_s failed for %s", tmp.c_str());
+    errno_t ret = memcpy_s(data, dataLen, this, sizeof(struct Header));
+    if (ret != EOK) {
+        WRITE_LOG(LOG_FATAL, "memcpy_s failed, errno:%d", ret);
     }
 }
 

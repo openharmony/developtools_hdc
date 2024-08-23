@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
+#include <iomanip>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
@@ -1455,6 +1456,22 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         uint8_t *istart = (uint8_t *)start;
         uint8_t *iend = istart + size;
         std::reverse(istart, iend);
+    }
+
+    string Convert2HexStr(uint8_t arr[], int length)
+    {
+        std::stringstream ss;
+        const int byteHexStrLen = 2;
+        for (int i = 0; i < length; i++) {
+            ss << std::hex << std::setw(byteHexStrLen) << std::setfill('0')
+                << static_cast<int>(arr[i]);
+            if (i < length - 1) {
+                ss << ":";
+            }
+        }
+        string result = ss.str();
+        transform(result.begin(), result.end(), result.begin(), ::toupper);
+        return result;
     }
 
     // clang-format off

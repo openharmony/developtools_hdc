@@ -83,15 +83,16 @@ bool Header::UpdataName(std::string fileName)
     return true;
 }
 
-size_t Header::Size()
+uint64_t Header::Size()
 {
     std::string octalStr(reinterpret_cast<char*>(this->size));
-    long num = 0;
+    uint64_t num = 0;
+    WRITE_LOG(LOG_DEBUG, "header size octalStr %s", octalStr.c_str());
     if (!octalStr.empty()) {
         const int octal = 8;
-        num = std::stol(octalStr, nullptr, octal);
+        num = stoull(octalStr, nullptr, octal);
     }
-    WRITE_LOG(LOG_DEBUG, "header size num %ld", num);
+    WRITE_LOG(LOG_DEBUG, "header size num %llu", num);
     return num;
 }
 

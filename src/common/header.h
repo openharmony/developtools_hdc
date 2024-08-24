@@ -102,7 +102,7 @@ struct Header {
     explicit Header(uint8_t data[512], int dataLen);
     std::string Name();
     bool UpdataName(std::string fileName);
-    size_t Size();
+    uint64_t Size();
     void UpdataSize(size_t fileLen);
     TypeFlage FileType();
     void UpdataFileType(TypeFlage fileType);

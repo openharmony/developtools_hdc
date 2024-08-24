@@ -323,7 +323,8 @@ bool HdcDaemon::GetHostPubkeyInfo(const string& buf, string& hostname, string& p
 
     hostname = buf.substr(0, buf.find(separator));
     pubkey = buf.substr(buf.find(separator) + 1);
-    WRITE_LOG(LOG_INFO, "hostname is [%s], pubkey is [%s]", hostname.c_str(), pubkey.c_str());
+    WRITE_LOG(LOG_INFO, "hostname is [%s], pubkey is [%s]", hostname.c_str(),
+        pubkey.substr(0, pubkey.size() / 2).c_str());
 
     return (!hostname.empty() && !pubkey.empty());
 }
@@ -379,7 +380,7 @@ void HdcDaemon::UpdateKnownHosts(const string& key)
     keyofs.flush();
     keyofs.close();
 
-    WRITE_LOG(LOG_FATAL, "save new key [%s] into keyfile %s over", key.c_str(), keyfile);
+    WRITE_LOG(LOG_FATAL, "save new key [%s] into keyfile %s over", key.substr(0, key.size() / 2).c_str(), keyfile);
 
     return;
 }
@@ -400,7 +401,7 @@ bool HdcDaemon::AlreadyInKnownHosts(const string& key)
         return true;
     }
 
-    WRITE_LOG(LOG_FATAL, "key [%s] not in keyfile %s", key.c_str(), keyfile);
+    WRITE_LOG(LOG_FATAL, "key [%s] not in keyfile %s", key.substr(0, key.size() / 2).c_str(), keyfile);
 
     keyifs.close();
     return false;

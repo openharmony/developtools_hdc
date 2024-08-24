@@ -207,6 +207,7 @@ private:
     int MallocSessionByConnectType(HSession hSession);
     void FreeSessionByConnectType(HSession hSession);
     bool WorkThreadStartSession(HSession hSession);
+    void WorkThreadInitSession(HSession hSession, SessionHandShake &handshake);
     uint32_t GetSessionPseudoUid();
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);

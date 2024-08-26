@@ -734,7 +734,7 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
     if (!FindDeviceByID(hUSB, hUSB->usbMountPoint.c_str(), hUSB->ctxUSB)) {
         pServer->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
-        WRITE_LOG(LOG_DEBUG, "FindDeviceByID fail");
+        WRITE_LOG(LOG_WARN, "FindDeviceByID fail");
         return nullptr;
     }
     UpdateUSBDaemonInfo(hUSB, hSession, STATUS_CONNECTED);

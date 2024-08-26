@@ -112,8 +112,10 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     }
     if (!ret) {
         if (ioContext != nullptr) {
+            WRITE_LOG(LOG_DEBUG, "SimpleFileIO ioContext start to delete.");
             delete ioContext;
             ioContext = nullptr;
+            WRITE_LOG(LOG_DEBUG, "SimpleFileIO ioContext delete end.");
         }
         cirbuf.Free(buf);
         return -1;
@@ -212,6 +214,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     uv_fs_req_cleanup(req);
     while (true) {
         if (context->ioFinish) {
+            WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
             break;
         }
         if (req->result < 0) {
@@ -279,11 +282,13 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         } else {
             thisClass->WhenTransferFinish(context);
             --thisClass->refCount;
+            WRITE_LOG(LOG_DEBUG, "OnFileIO WhenTransferFinish end.");
         }
     }
     thisClass->cirbuf.Free(bufIO - payloadPrefixReserve);
     --thisClass->refCount;
     delete contextIO;  // Req is part of the Contextio structure, no free release
+    WRITE_LOG(LOG_DEBUG, "OnFileIO end to delete");
 }
 
 void HdcTransferBase::OnFileOpen(uv_fs_t *req)
@@ -475,6 +480,7 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         out->push_back(currentDirname + Base::GetPathSep() + fileName);
     }
     uv_fs_req_cleanup(&req);
+    WRITE_LOG(LOG_DEBUG, "GetSubFiles end.");
     return retNum;
 }
 

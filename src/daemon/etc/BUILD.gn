@@ -37,12 +37,16 @@ ohos_prebuilt_etc("hdcd.cfg") {
 }
 
 ohos_prebuilt_etc("hdc.para") {
-  source = "hdc.para"
+  source = "hdc.root.para"
+  if (build_variant == "user") {
+    source = "hdc.para"
+  }
   relative_install_dir = "param"
   install_images = [
     "system",
     "updater",
   ]
+  output = "hdc.para"
   part_name = "hdc"
   subsystem_name = "developtools"
 }

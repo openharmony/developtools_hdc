@@ -12,6 +12,6 @@
 # limitations under the License.
 
 const.hdc.version = "Ver: 3.0.0b"
-persist.hdc.mode.usb = "disable"
+persist.hdc.mode.usb = "enable"
 persist.hdc.mode.tcp = "disable"
 persist.hdc.mode.uart = "disable"

@@ -52,10 +52,6 @@ hash_sources = [
   "src/common/transfer.h",
 ]
 
-if (build_variant == "user") {
-  cflags = [ "-DIS_RELEASE_VERSION" ]
-}
-
 if (hdc_support_uart) {
   hdc_common_sources += [ "src/common/uart.cpp" ]
 }
@@ -116,6 +112,9 @@ template("hdcd_source_set") {
     }
     if (is_emulator) {
       defines += [ "HDC_EMULATOR" ]
+    }
+    if (build_variant == "user") {
+      defines += [ "IS_RELEASE_VERSION" ]
     }
     configs = [ ":hdc_config" ]
 

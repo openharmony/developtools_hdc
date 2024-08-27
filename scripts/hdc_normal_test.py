@@ -268,8 +268,9 @@ def test_target_mount():
 
 def test_tmode_port():
     assert (check_hdc_cmd("tmode port", "Set device run mode successful"))
+    time.sleep(5)
     assert (check_hdc_cmd("tmode port 12345"))
-    time.sleep(1)
+    time.sleep(5)
     netstat_port = get_shell_result(f'shell "netstat -anp | grep 12345"')
     print(netstat_port)
     assert "LISTEN" in netstat_port
@@ -317,7 +318,7 @@ def test_fport_cmd():
         assert check_hdc_cmd("rport ls", rport) or check_hdc_cmd("fport ls", rport)
 
     for rport in rport_list:
-        assert check_hdc_cmd(f"rport rm {rport}", "success")
+        assert check_hdc_cmd(f"fport rm {rport}", "success")
         assert not check_hdc_cmd("rport ls", fport) and not check_hdc_cmd("fport ls", fport)
 
     task_str1 = "tcp:33333 tcp:33333"
@@ -328,9 +329,9 @@ def test_fport_cmd():
 
     task_str2 = "tcp:44444 tcp:44444"
     assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
-    assert check_hdc_cmd(f"rport rm {task_str2}", "success")
+    assert check_hdc_cmd(f"fport rm {task_str2}", "success")
     assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
-    assert check_hdc_cmd(f"rport rm {task_str2}", "success")
+    assert check_hdc_cmd(f"fport rm {task_str2}", "success")
 
 
 def test_shell_cmd_timecost():

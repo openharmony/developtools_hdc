@@ -49,12 +49,6 @@ enum HdcLogLevel {
     LOG_LAST = LOG_VERBOSE,  // tail, not use
 };
 
-#ifdef IS_RELEASE_VERSION
-#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FUNCTION__, __LINE__, level, fmt, ##__VA_ARGS__)
-#else
-#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
-#endif
-
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(exp) ({         \
     __typeof__(exp) _rc;                   \

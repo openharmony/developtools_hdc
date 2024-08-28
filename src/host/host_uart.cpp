@@ -346,10 +346,14 @@ int HdcHostUART::OpenSerialPort(const std::string &connectKey)
         // review change to wstring ?
         TCHAR apiBuf[PORT_NAME_LEN * numTmp];
 #ifdef UNICODE
-        _stprintf_s(apiBuf, MAX_PATH, _T("\\\\.\\%S"), port.c_str());
+        int cnt = _stprintf_s(apiBuf, sizeof(apiBuf), _T("\\\\.\\%S"), port.c_str());
 #else
-        _stprintf_s(apiBuf, MAX_PATH, _T("\\\\.\\%s"), portName.c_str());
+        int cnt = _stprintf_s(apiBuf, sizeof(apiBuf), _T("\\\\.\\%s"), portName.c_str());
 #endif
+        if (cnt < 0) {
+            ret = ERR_GENERIC;
+            break;
+        }
         DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED;
         uart.devUartHandle = CreateFile(apiBuf, GENERIC_READ | GENERIC_WRITE, 0, NULL,
                                         OPEN_EXISTING, dwFlagsAndAttributes, NULL);

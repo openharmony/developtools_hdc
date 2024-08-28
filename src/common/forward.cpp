@@ -119,7 +119,7 @@ void *HdcForwardBase::MallocContext(bool masterSlave)
     if ((ctx = new ContextForward()) == nullptr) {
         return nullptr;
     }
-    ctx->id = Base::GetRuntimeMSec();
+    ctx->id = Base::GetRandomU32();
     ctx->masterSlave = masterSlave;
     ctx->thisClass = this;
     ctx->fdClass = nullptr;

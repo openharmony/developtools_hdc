@@ -138,10 +138,9 @@ HWTEST_F(RegisterTest, CastToRegisterTest005, TestSize.Level1)
     pthread_t tid;
     g_connectManagement = std::make_unique<ConnectManagement>();
     g_connectManagement->SetPkgName("test_pkt_name");
-    if (pthread_create(&tid, nullptr, &HdcConnectRunTest, static_cast<void*>(g_connectManagement.get())) != 0) {
-        HILOG_FATAL(LOG_CORE, "pthread_create fail!");
-        return;
-    }
+    ASSERT_EQ(
+        pthread_create(&tid, nullptr, &HdcConnectRunTest, static_cast<void*>(g_connectManagement.get())),
+        0) << "pthread_create fail!";
     sleep(3);
     EXPECT_TRUE(g_threadRunning);
 

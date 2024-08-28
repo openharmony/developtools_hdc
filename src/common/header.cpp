@@ -85,7 +85,7 @@ bool Header::UpdataName(std::string fileName)
 
 uint64_t Header::Size()
 {
-    std::string octalStr(reinterpret_cast<char*>(this->size));
+    std::string octalStr(reinterpret_cast<char*>(this->size), (HEADER_SIZE_LEN - 1));
     uint64_t num = 0;
     WRITE_LOG(LOG_DEBUG, "header size octalStr %s", octalStr.c_str());
     if (!octalStr.empty()) {

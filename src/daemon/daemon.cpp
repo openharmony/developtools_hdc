@@ -540,7 +540,7 @@ bool HdcDaemon::AuthVerifyRsaSign(HSession hSession, const string &tokenSign, co
             break;
         }
         // the length of vaild sign result for BASE64 can't bigger than  EVP_PKEY_size(signKey) * 2
-        if (tokenSign.size() > (EVP_PKEY_size(signKey) * (unsigned long)2)) {
+        if (tokenSign.size() > ((size_t)EVP_PKEY_size(signKey) * (size_t)2)) {
             WRITE_LOG(LOG_FATAL, "invalid base64 sign size %zd for session %u", tokenSign.size(), hSession->sessionId);
             break;
         }

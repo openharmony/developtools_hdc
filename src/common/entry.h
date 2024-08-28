@@ -37,12 +37,16 @@ public:
     }
 
     void AddData(uint8_t *data, size_t len);
-    size_t Size()
+    uint64_t Size()
     {
         return header.Size();
     }
 
-    bool SaveToFile(std::string prefixPath);
+    bool CopyPayload(std::string prefixPath, std::ifstream &inFile);
+    bool PayloadToFile(std::string prefixPath, std::ifstream &inFile);
+    bool PayloadToDir(std::string prefixPath, std::ifstream &inFile);
+    bool ReadAndWriteData(std::ifstream &inFile, std::ofstream &outFile, uint8_t *buffAppend,
+        int readSize, int writeSize);
     bool WriteToTar(std::ofstream &file);
 
     std::string GetName();
@@ -50,7 +54,7 @@ public:
 
 private:
     Header header;
-    size_t needSize;
+    uint64_t needSize;
     std::string prefix;
     std::vector<uint8_t> data;
 };

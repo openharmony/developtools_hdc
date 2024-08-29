@@ -408,7 +408,7 @@ bool HdcDaemon::AlreadyInKnownHosts(const string& key)
 
 bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
-    hSession->tokenRSA = Base::GetRandomString(SHA_DIGEST_LENGTH);
+    hSession->tokenRSA = Base::GetSecureRandomString(SHA_DIGEST_LENGTH);
     handshake.authType = AUTH_PUBLICKEY;
     /*
      * If we know client support RSA_3072_SHA512 in AUTH_NONE phase

@@ -104,18 +104,9 @@ bool ForkChildCheck(int argc, const char *argv[])
     return true;
 }
 
-size_t CheckUvThreadConfig()
+static size_t CheckUvThreadConfig()
 {
-    string nThreadsString;
-    bool ret = SystemDepend::GetDevItem("persist.hdc.uv.threads", nThreadsString);
-    if (!ret) {
-        return SIZE_THREAD_POOL;
-    }
-    size_t nThreads = atoi(nThreadsString.c_str());
-    if (nThreads <= 0) {
-        nThreads = SIZE_THREAD_POOL;
-    }
-    return nThreads;
+    return SystemDepend::GetDevUint("persist.hdc.uv.threads", SIZE_THREAD_POOL);
 }
 
 int BackgroundRun()

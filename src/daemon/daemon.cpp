@@ -344,7 +344,7 @@ bool HdcDaemon::GetHostPubkeyInfo(const string& buf, string& hostname, string& p
 
 void HdcDaemon::ClearKnownHosts()
 {
-    char const *keyfile = "/data/service/el0/hdc/hdc_keys";
+    char const *keyfile = "/data/service/el1/public/hdc/hdc_keys";
 
     if (!enableSecure || HandDaemonAuthBypass()) {
         WRITE_LOG(LOG_INFO, "not enable secure, noneed clear keyfile");
@@ -380,7 +380,7 @@ void HdcDaemon::ClearKnownHosts()
 
 void HdcDaemon::UpdateKnownHosts(const string& key)
 {
-    char const *keyfile = "/data/service/el0/hdc/hdc_keys";
+    char const *keyfile = "/data/service/el1/public/hdc/hdc_keys";
 
     std::ofstream keyofs(keyfile, std::ios::app);
     if (!keyofs.is_open()) {
@@ -400,7 +400,7 @@ void HdcDaemon::UpdateKnownHosts(const string& key)
 
 bool HdcDaemon::AlreadyInKnownHosts(const string& key)
 {
-    char const *keyfile = "/data/service/el0/hdc/hdc_keys";
+    char const *keyfile = "/data/service/el1/public/hdc/hdc_keys";
 
     std::ifstream keyifs(keyfile);
     if (!keyifs.is_open()) {

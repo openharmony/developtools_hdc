@@ -59,6 +59,9 @@ namespace Base {
     void AllocBufferCallback(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf);
     uint64_t GetRuntimeMSec();
     string GetRandomString(const uint16_t expectedLen);
+#ifndef HDC_HOST
+    string GetSecureRandomString(const uint16_t expectedLen);
+#endif
     int GetRandomNum(const int min, const int max);
     uint64_t GetRandom(const uint64_t min = 0, const uint64_t max = UINT64_MAX);
     int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort);

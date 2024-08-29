@@ -493,6 +493,12 @@ ohos_shared_library("hdc_register") {
     "init:libbeget_proxy",
     "init:libbegetutil",
     "libuv:uv",
+    "openssl:libcrypto_shared",
+  ]
+
+  include_dirs = [
+    "src/common",
+    "src/daemon",
   ]
 
   sources = [

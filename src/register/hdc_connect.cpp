@@ -15,6 +15,7 @@
 
 #include "hdc_connect.h"
 #include "hdc_jdwp.h"
+#include "system_depend.h"
 
 namespace Hdc {
 
@@ -61,6 +62,17 @@ Callback ConnectManagement::GetCallback() const
     return cb_;
 }
 
+bool IsDeveloperMode()
+{
+    bool flag = false;
+    std::string developerMode;
+    SystemDepend::GetDevItem("const.security.developermode.state", developerMode);
+    if (developerMode == "true") {
+        flag = true;
+    }
+    return flag;
+}
+
 void FreeInstance()
 {
     if (g_clsHdcJdwpSimulator == nullptr) {
@@ -79,6 +91,11 @@ void Stop(int signo)
 
 void StopConnect()
 {
+    bool flag = IsDeveloperMode();
+    if (flag == false) {
+        HILOG_FATAL(LOG_CORE, "non developer mode not to stop connect");
+        return;
+    }
 #ifdef JS_JDWP_CONNECT
     FreeInstance();
 #endif // JS_JDWP_CONNECT
@@ -107,6 +124,11 @@ void* HdcConnectRun(void* pkgContent)
 
 void StartConnect(const std::string& processName, const std::string& pkgName, bool isDebug, Callback cb)
 {
+    bool flag = IsDeveloperMode();
+    if (flag == false) {
+        HILOG_FATAL(LOG_CORE, "non developer mode not to start connect");
+        return;
+    }
     if (g_clsHdcJdwpSimulator != nullptr) {
         return;
     }

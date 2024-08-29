@@ -502,6 +502,8 @@ ohos_shared_library("hdc_register") {
   ]
 
   sources = [
+    "src/common/base.cpp",
+    "src/daemon/system_depend.cpp",
     "src/register/hdc_connect.cpp",
     "src/register/hdc_jdwp.cpp",
   ]

@@ -157,6 +157,45 @@ bool HdcDaemonUnity::RemountPartition(const char *dir)
     return true;
 }
 
+bool HdcDaemonUnity::CallRemount()
+{
+    int pipefd[2];
+    pid_t pid;
+    int exitStatus;
+
+    if (pipe(pipefd) == -1) {
+        WRITE_LOG(LOG_FATAL, "Failed to create pipe: %s", strerror(errno));
+        return false;
+    }
+    pid = fork();
+    if (pid < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to fork: %s", strerror(errno));
+        return false;
+    }
+    if (pid == 0) {
+        close(pipefd[0]);
+        signal(SIGCHLD, SIG_DFL);
+        exitStatus = system("remount");
+        write(pipefd[1], &exitStatus, sizeof(int));
+        close(pipefd[1]);
+        _exit(0);
+    } else {
+        close(pipefd[1]);
+        read(pipefd[0], &exitStatus, sizeof(int));
+        close(pipefd[0]);
+        waitpid(pid, nullptr, 0);
+        if (exitStatus == -1) {
+            WRITE_LOG(LOG_FATAL, "Failed to execute /bin/remount: %s", strerror(errno));
+            return false;
+        } else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus) != 0) {
+            WRITE_LOG(LOG_FATAL, "Remount failed with exit code: %d", WEXITSTATUS(exitStatus));
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool HdcDaemonUnity::RemountDevice()
 {
     if (getuid() != 0) {
@@ -175,16 +214,13 @@ bool HdcDaemonUnity::RemountDevice()
         }
     }
 
-    int exitStatus = ExecuteShell("remount");
-    if (exitStatus == -1) {
-        LogMsg(MSG_FAIL, "Failed to execute /bin/remount: %s", strerror(errno));
-        return false;
-    } else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus) != 0) {
-        LogMsg(MSG_FAIL, "Remount failed with exit code: %d", WEXITSTATUS(exitStatus));
+    if (CallRemount()) {
+        LogMsg(MSG_OK, "Mount finish");
+        return true;
+    } else {
+        LogMsg(MSG_FAIL, "Mount failed");
         return false;
     }
-    LogMsg(MSG_OK, "Mount finish");
-    return true;
 }
 
 bool HdcDaemonUnity::RebootDevice(const string &cmd)

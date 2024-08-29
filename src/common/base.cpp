@@ -1941,12 +1941,12 @@ namespace Base {
     FILE *Fopen(const char *fileName, const char *mode)
     {
 #ifdef _WIN32
-        wchar_t resolvedPath[PATH_MAX] = { 0 };
+        wchar_t resolvedPath[PATH_MAX + 1] = { 0 };
         // windows platform open file with wide char
         std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
         std::wstring wideFileName = converter.from_bytes(fileName);
         std::wstring wideMode = converter.from_bytes(mode);
-        if (!_wfullpath(resolvedPath, wideFileName.c_str(), PATH_MAX)) {
+        if (!_wfullpath(resolvedPath, wideFileName.c_str(), PATH_MAX + 1)) {
             WRITE_LOG(LOG_FATAL, "_wfullpath %s failed", wideFileName.c_str());
             return nullptr;
         }

@@ -631,7 +631,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     SerialStruct::ParseFromString(pld, serialString);
     int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
-    if (static_cast<int>(pld.compressSize) > dataSize || pld.uncompressSize > MAX_SIZE_IOBUF) {
+    if (pld.compressSize > static_cast<uint32_t>(dataSize) || pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
@@ -733,7 +733,7 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
 {
     if (payloadSize == FEATURE_FLAG_MAX_SIZE) {
         union FeatureFlagsUnion feature{};
-        if (memcpy_s(&feature, sizeof(feature), payload, payloadSize)) {
+        if (memcpy_s(&feature, sizeof(feature), payload, payloadSize) != EOK) {
             WRITE_LOG(LOG_FATAL, "CheckFeatures memcpy_s failed");
             return false;
         }

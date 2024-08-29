@@ -60,7 +60,7 @@ void HdcDaemonUSB::Stop()
     modRunning = false;
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB Stop free main session");
     Base::TryCloseHandle((uv_handle_t *)&checkEP);
-    CloseEndpoint(&usbHandle);   
+    CloseEndpoint(&usbHandle);
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB Stop free main session finish");
 }
 

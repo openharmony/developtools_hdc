@@ -715,7 +715,11 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             // Note, I will trigger FileIO after multiple times.
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
-                WRITE_LOG(LOG_FATAL, "CommandDispatch RecvIOPayload command:%u", command);
+                WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
+                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result);
+                uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+                HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+                thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);
                 ret = false;
                 break;
             }

@@ -397,7 +397,7 @@ uint32_t HdcSessionBase::GetSessionPseudoUid()
 {
     uint32_t uid = 0;
     do {
-        uid = static_cast<uint32_t>(Base::GetRandom());
+        uid = Base::GetSecureRandom();
     } while (AdminSession(OP_QUERY, uid, nullptr) != nullptr);
     return uid;
 }

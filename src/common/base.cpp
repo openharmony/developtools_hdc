@@ -35,6 +35,7 @@
 #include <windows.h>
 #include <codecvt>
 #include <wchar.h>
+#include <wincrypt.h>
 #endif
 #include <fstream>
 using namespace std::chrono;
@@ -664,6 +665,46 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         ret = dis(gen);
 #endif
         return ret;
+    }
+
+    uint32_t GetSecureRandom(void)
+    {
+        uint32_t result = static_cast<uint32_t>(GetRandom());
+#ifdef _WIN32
+        const int randomByteCount = 4;
+        HCRYPTPROV hCryptProv;
+        BYTE pbData[randomByteCount];
+        do {
+            if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, 0)) {
+                if (GetLastError() != NTE_BAD_KEYSET) {
+                    WRITE_LOG(LOG_FATAL, "CryptAcquireContext first failed %x", GetLastError());
+                    break;
+                }
+                if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET)) {
+                    WRITE_LOG(LOG_FATAL, "CryptAcquireContext second failed %x", GetLastError());
+                    break;
+                }
+            }
+            if (!CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
+                WRITE_LOG(LOG_FATAL, "CryptGenRandom failed %x", GetLastError());
+            }
+            if (hCryptProv) {
+                CryptReleaseContext(hCryptProv, 0);
+            }
+            result = *(reinterpret_cast<uint32_t*>(pbData));
+        } while (0);
+#else
+        std::ifstream randomFile("/dev/random", std::ios::binary);
+        do {
+            if (!randomFile.is_open()) {
+                WRITE_LOG(LOG_FATAL, "open /dev/random failed");
+                break;
+            }
+            randomFile.read(reinterpret_cast<char*>(&result), sizeof(result));
+        } while (0);
+        randomFile.close();
+#endif
+        return result;
     }
 
     string GetRandomString(const uint16_t expectedLen)

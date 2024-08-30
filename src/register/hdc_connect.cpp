@@ -15,9 +15,7 @@
 
 #include "hdc_connect.h"
 #include "hdc_jdwp.h"
-#if defined(HARMONY_PROJECT)
 #include "parameter.h"
-#endif
 
 namespace Hdc {
 
@@ -66,7 +64,6 @@ Callback ConnectManagement::GetCallback() const
 
 static void GetDevItem(const char *key, std::string &out, const char *preDefine = nullptr)
 {
-#ifdef HARMONY_PROJECT
     constexpr int len = 512;
     char buf[len] = "";
     auto res = GetParameter(key, preDefine, buf, len);
@@ -74,7 +71,6 @@ static void GetDevItem(const char *key, std::string &out, const char *preDefine 
         return;
     }
     out = buf;
-#endif
 }
 
 static bool IsDeveloperMode()

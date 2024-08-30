@@ -64,13 +64,9 @@ Callback ConnectManagement::GetCallback() const
 
 bool IsDeveloperMode()
 {
-    bool flag = false;
     std::string developerMode;
     SystemDepend::GetDevItem("const.security.developermode.state", developerMode);
-    if (developerMode == "true") {
-        flag = true;
-    }
-    return flag;
+    return developerMode == "true";
 }
 
 void FreeInstance()
@@ -91,8 +87,7 @@ void Stop(int signo)
 
 void StopConnect()
 {
-    bool flag = IsDeveloperMode();
-    if (flag == false) {
+    if (!IsDeveloperMode()) {
         HILOG_FATAL(LOG_CORE, "non developer mode not to stop connect");
         return;
     }
@@ -124,8 +119,7 @@ void* HdcConnectRun(void* pkgContent)
 
 void StartConnect(const std::string& processName, const std::string& pkgName, bool isDebug, Callback cb)
 {
-    bool flag = IsDeveloperMode();
-    if (flag == false) {
+    if (!IsDeveloperMode()) {
         HILOG_FATAL(LOG_CORE, "non developer mode not to start connect");
         return;
     }

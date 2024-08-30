@@ -66,6 +66,10 @@ static void GetDevItem(const char *key, std::string &out, const char *preDefine 
 {
     constexpr int len = 512;
     char buf[len] = "";
+    if (memset_s(buf, len, 0, len) != EOK) {
+        HILOG_WARN(LOG_CORE, "memset_s failed");
+        return;
+    }
     auto res = GetParameter(key, preDefine, buf, len);
     if (res <= 0) {
         return;

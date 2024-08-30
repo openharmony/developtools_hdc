@@ -80,7 +80,6 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
     }
     ctx->finish = true;
     WRITE_LOG(LOG_INFO, "FreeContext for targetPID :%d", ctx->pid);
-    Base::TryCloseHandle((const uv_handle_t *)&ctx->pipe);
     if (!stop) {
         AdminContext(OP_REMOVE, ctx->pid, nullptr);
     }
@@ -88,12 +87,16 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
         --ctxIn->thisClass->refCount;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
+
+        Base::TryCloseHandle((const uv_handle_t *)&ctxIn->pipe, [](uv_handle_t *handle) {
+            HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
 #ifndef HDC_EMULATOR
-        if (ctxIn != nullptr) {
-            delete ctxIn;
-            ctxIn = nullptr;
-        }
+            if (ctxIn != nullptr) {
+                delete ctxIn;
+                ctxIn = nullptr;
+            }
 #endif
+        });
     };
     Base::IdleUvTask(loop, ctx, funcReqClose);
 }

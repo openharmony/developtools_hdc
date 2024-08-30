@@ -14,7 +14,7 @@
  */
 #ifndef HDC_SYSTEM_DEPEND_H
 #define HDC_SYSTEM_DEPEND_H
-#include <string>
+#include "daemon_common.h"
 
 namespace Hdc {
 namespace SystemDepend {
@@ -29,10 +29,10 @@ namespace SystemDepend {
         return false;
     };
 #else
-    bool GetDevItem(const char *key, std::string &out, const char *preDefine = nullptr);
+    bool GetDevItem(const char *key, string &out, const char *preDefine = nullptr);
     bool SetDevItem(const char *key, const char *value);
 #endif
-    bool RebootDevice(const std::string &cmd);
+    bool RebootDevice(const string &cmd);
 }  // namespace SystemDepend
 }  // namespace Hdc
 

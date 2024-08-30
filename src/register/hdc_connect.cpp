@@ -15,7 +15,11 @@
 
 #include "hdc_connect.h"
 #include "hdc_jdwp.h"
-#include "system_depend.h"
+#if defined(HARMONY_PROJECT)
+extern "C" {
+#include "parameter.h"
+}
+#endif
 
 namespace Hdc {
 
@@ -62,10 +66,23 @@ Callback ConnectManagement::GetCallback() const
     return cb_;
 }
 
-bool IsDeveloperMode()
+static void GetDevItem(const char *key, std::string &out, const char *preDefine = nullptr)
+{
+#ifdef HARMONY_PROJECT
+    constexpr int len = 512;
+    char buf[len] = "";
+    auto res = GetParameter(key, preDefine, buf, len);
+    if (res <= 0) {
+        return;
+    }
+    out = buf;
+#endif
+}
+
+static bool IsDeveloperMode()
 {
     std::string developerMode;
-    SystemDepend::GetDevItem("const.security.developermode.state", developerMode);
+    GetDevItem("const.security.developermode.state", developerMode);
     return developerMode == "true";
 }
 

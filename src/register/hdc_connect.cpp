@@ -16,9 +16,7 @@
 #include "hdc_connect.h"
 #include "hdc_jdwp.h"
 #if defined(HARMONY_PROJECT)
-extern "C" {
 #include "parameter.h"
-}
 #endif
 
 namespace Hdc {
@@ -105,7 +103,7 @@ void Stop(int signo)
 void StopConnect()
 {
     if (!IsDeveloperMode()) {
-        HILOG_FATAL(LOG_CORE, "non developer mode not to stop connect");
+        HILOG_INFO(LOG_CORE, "non developer mode not to stop connect");
         return;
     }
 #ifdef JS_JDWP_CONNECT
@@ -137,7 +135,7 @@ void* HdcConnectRun(void* pkgContent)
 void StartConnect(const std::string& processName, const std::string& pkgName, bool isDebug, Callback cb)
 {
     if (!IsDeveloperMode()) {
-        HILOG_FATAL(LOG_CORE, "non developer mode not to start connect");
+        HILOG_INFO(LOG_CORE, "non developer mode not to start connect");
         return;
     }
     if (g_clsHdcJdwpSimulator != nullptr) {

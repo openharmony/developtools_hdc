@@ -83,7 +83,6 @@ void CircleBuffer::Free(const uint8_t *buf)
     if (data != nullptr) {
         data->used = false;
         data->begin = std::chrono::steady_clock::now();
-        WRITE_LOG(LOG_DEBUG, "Free data ok.");
     } else {
         WRITE_LOG(LOG_FATAL, "Free data is nullptr.");
     }

@@ -50,8 +50,6 @@ bool AsyncCmd::ReadyForRelease()
         delete childShell;
         childShell = nullptr;
     }
-    WRITE_LOG(LOG_INFO, "ReadyForRelease close fd:%d pid:%d", fd, pid);
-    Base::CloseFd(fd);
     return true;
 }
 
@@ -60,6 +58,7 @@ void AsyncCmd::DoRelease()
     if (childShell != nullptr) {
         childShell->StopWorkOnThread(false, nullptr);
     }
+    WRITE_LOG(LOG_INFO, "DoRelease close fd:%d pid:%d", fd, pid);
     Base::CloseFd(fd);
     if (pid > 0) {
         uv_kill(pid, SIGTERM);

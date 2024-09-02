@@ -682,7 +682,7 @@ namespace Base {
         return static_cast<int>(GetRandom(min, max));
     }
 
-    int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort)
+    int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort, size_t outSize)
     {
         char bufString[BUF_SIZE_TINY] = "";
         if (strncpy_s(bufString, sizeof(bufString), connectKey, strlen(connectKey))) {
@@ -697,7 +697,7 @@ namespace Base {
             return ERR_PARM_SIZE;
         }
         uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));
-        if (EOK != strcpy_s(outIP, BUF_SIZE_TINY, bufString)) {
+        if (EOK != strcpy_s(outIP, outSize, bufString)) {
             return ERR_BUF_COPY;
         }
         *outPort = wPort;

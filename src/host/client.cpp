@@ -311,7 +311,7 @@ int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
     uint16_t port = 0;
-    int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port);
+    int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort %s failed with %d",
                   channelHostPort.c_str(), ret);

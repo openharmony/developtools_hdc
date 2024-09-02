@@ -20,8 +20,37 @@
 #include <iostream>
 
 namespace Hdc {
-
 bool Decompress::DecompressToLocal(std::string decPath)
+{
+    if (!CheckPath(decPath)) {
+        return false;
+    }
+    uint8_t buff[HEADER_LEN];
+    std::ifstream inFile(tarPath);
+    std::optional<Entry> entry = std::nullopt;
+    while (true) {
+        inFile.read(reinterpret_cast<char*>(buff), HEADER_LEN);
+        auto readcnt = inFile.gcount();
+        if (readcnt == 0) {
+            break;
+        }
+        if (inFile.fail() || readcnt != HEADER_LEN) {
+            WRITE_LOG(LOG_FATAL, "read file error");
+            break;
+        }
+        entry = Entry(buff, HEADER_LEN);
+        if (!entry.value().CopyPayload(decPath, inFile)) {
+            entry = std::nullopt;
+            break;
+        }
+        entry = std::nullopt;
+        continue;
+    }
+    inFile.close();
+    return true;
+}
+
+bool Decompress::CheckPath(std::string decPath)
 {
     uv_fs_t req;
     int rc = uv_fs_lstat(nullptr, &req, tarPath.c_str(), nullptr);
@@ -50,35 +79,6 @@ bool Decompress::DecompressToLocal(std::string decPath)
             return false;
         }
     }
-    uint8_t buff[HEADER_LEN];
-    std::ifstream inFile(tarPath);
-    std::optional<Entry> entry = std::nullopt;
-    while (1) {
-        inFile.read(reinterpret_cast<char*>(buff), HEADER_LEN);
-        auto readcnt = inFile.gcount();
-        if (readcnt == 0) {
-            break;
-        }
-        if (inFile.fail() || readcnt != HEADER_LEN) {
-            WRITE_LOG(LOG_FATAL, "read file error");
-            break;
-        }
-        if (!entry.has_value()) {
-            entry = Entry(buff);
-            if (entry.value().IsFinish()) {
-                entry.value().SaveToFile(decPath);
-                entry = std::nullopt;
-            }
-            continue;
-        }
-        entry.value().AddData(buff, HEADER_LEN);
-        if (entry.value().IsFinish()) {
-            entry.value().SaveToFile(decPath);
-            entry = std::nullopt;
-        }
-    }
-    inFile.close();
     return true;
 }
 }
-

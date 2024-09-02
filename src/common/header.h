@@ -99,16 +99,16 @@ struct Header {
     uint8_t pad[12];
 
     Header();
-    explicit Header(uint8_t data[512]);
+    explicit Header(uint8_t data[512], int dataLen);
     std::string Name();
     bool UpdataName(std::string fileName);
-    size_t Size();
+    uint64_t Size();
     void UpdataSize(size_t fileLen);
     TypeFlage FileType();
     void UpdataFileType(TypeFlage fileType);
     bool IsInvalid();
     void UpdataCheckSum();
-    void GetBytes(uint8_t data[512]);
+    void GetBytes(uint8_t data[512], int dataLen);
 };
 
 }

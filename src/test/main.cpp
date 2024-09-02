@@ -23,7 +23,7 @@ TEST(HdcBaseFunction, HandleNoneZeroInput)
     int argc = 0;
     GTEST_ASSERT_LE(1, Base::GetRuntimeMSec());
     GTEST_ASSERT_LE(10, Base::GetRandomNum(10, 12));
-    GTEST_ASSERT_EQ(0, Base::ConnectKey2IPPort("127.0.0.1:8080", bufString, &num));
+    GTEST_ASSERT_EQ(0, Base::ConnectKey2IPPort("127.0.0.1:8080", bufString, &num, sizeof(bufString)));
 
     Base::SplitCommandToArgs("xx p1 p2 p3", &argc);
     GTEST_ASSERT_EQ(4, argc);

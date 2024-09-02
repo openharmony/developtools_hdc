@@ -17,7 +17,6 @@
 
 use crate::config::{TLV_MIN_LEN, TLV_TAG_LEN, TLV_VAL_INVALID_LEN, TLV_VAL_LEN, TLV_VAL_MAXLEN};
 use libc::{c_char, c_int};
-#[cfg(not(feature = "host"))]
 use libc::{SIGPIPE, SIGALRM, SIGTTIN, SIGTTOU, SIG_IGN, SIG_DFL, sighandler_t};
 use std::collections::HashMap;
 use std::{env, ffi::CString};
@@ -233,7 +232,8 @@ impl Base {
         }
         Some(tlvmap)
     }
-    #[cfg(not(feature = "host"))]
+
+    #[cfg(not(target_os = "windows"))]
     pub fn init_process() {
         unsafe {
             libc::umask(0);
@@ -244,7 +244,7 @@ impl Base {
         }
     }
 
-    #[cfg(not(feature = "host"))]
+    #[cfg(not(target_os = "windows"))]
     pub fn de_init_process() {
         unsafe {
             libc::umask(0o22);

@@ -448,6 +448,7 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
         if (uvData == nullptr) {
             WRITE_LOG(LOG_FATAL, "UsbToStream new uvData failed size:%d", size);
             cirbuf.Free(buf);
+            delete reqWrite;
             return ERR_BUF_ALLOC;
         }
         uvData->daemonUsb = this;

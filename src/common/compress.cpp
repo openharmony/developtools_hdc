@@ -83,6 +83,7 @@ bool Compress::SaveToFile(std::string localPath)
 
     std::ofstream file(localPath.c_str(), std::ios::out | std::ios::binary);
     if (!file.is_open()) {
+        WRITE_LOG(LOG_FATAL, "SaveToFile open file %s failed", localPath.c_str());
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "SaveToFile entrys len : %u", entrys.size());

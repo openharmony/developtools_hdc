@@ -65,14 +65,22 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 {
     StartTraceScope("HdcTransferBase::SimpleFileIO");
     // The first 8 bytes file offset
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     uint8_t *buf = cirbuf.Malloc();
+#else
+    uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
+#endif
     if (buf == nullptr) {
         WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr");
         return -1;
     }
     CtxFileIO *ioContext = new(std::nothrow) CtxFileIO();
     if (ioContext == nullptr) {
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
+#else
+        delete[] buf;
+#endif
         WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr");
         return -1;
     }
@@ -115,7 +123,11 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             delete ioContext;
             ioContext = nullptr;
         }
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
+#else
+        delete[] buf
+#endif
         return -1;
     }
     return bytes;
@@ -282,7 +294,11 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             --thisClass->refCount;
         }
     }
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     thisClass->cirbuf.Free(bufIO - payloadPrefixReserve);
+#else
+    delete [] (bufIO - payloadPrefixReserve);
+#endif
     --thisClass->refCount;
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }

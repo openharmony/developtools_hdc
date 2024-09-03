@@ -128,7 +128,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
 #else
-        delete[] buf
+        delete[] buf;
 #endif
         return -1;
     }

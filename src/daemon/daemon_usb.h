@@ -66,7 +66,7 @@ private:
     int controlEp = 0;  // EP0
     CtxUvFileCommonIo ctxRecv = {};
     int saveNextReadSize = 0;
-#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
 #endif
 };

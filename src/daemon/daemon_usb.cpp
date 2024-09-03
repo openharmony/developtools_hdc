@@ -516,7 +516,7 @@ int HdcDaemonUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int
         cirbuf.Free(data);
 #else
         delete[] data;
-#endif;
+#endif
         return ERR_BUF_COPY;
     }
     return UsbToStream(stream, data, dataSize);

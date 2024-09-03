@@ -136,7 +136,9 @@ protected:
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
+#endif
 
 private:
     // dynamic IO context

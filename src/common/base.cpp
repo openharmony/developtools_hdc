@@ -35,6 +35,7 @@
 #include <codecvt>
 #include <wchar.h>
 #endif
+#include <fstream>
 using namespace std::chrono;
 
 namespace Hdc {
@@ -676,6 +677,30 @@ namespace Base {
         ret = val.str();
         return ret;
     }
+
+#ifndef HDC_HOST
+    string GetSecureRandomString(const uint16_t expectedLen)
+    {
+        string ret = string(expectedLen, '0');
+        std::ifstream randomFile("/dev/random", std::ios::binary);
+        do {
+            if (!randomFile.is_open()) {
+                WRITE_LOG(LOG_FATAL, "open /dev/random failed");
+                break;
+            }
+            std::stringstream val;
+            unsigned char tmpByte;
+            for (auto i = 0; i < expectedLen; ++i) {
+                randomFile.read(reinterpret_cast<char*>(&tmpByte), 1);
+                val << std::hex << (tmpByte % BUF_SIZE_MICRO);
+            }
+            ret = val.str();
+        } while (0);
+        randomFile.close();
+
+        return ret;
+    }
+#endif
 
     int GetRandomNum(const int min, const int max)
     {

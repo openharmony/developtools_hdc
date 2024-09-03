@@ -42,9 +42,7 @@ use crate::transfer;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
 use crate::{config, utils};
-use std::mem::MaybeUninit;
 use std::sync::Arc;
-use std::sync::Once;
 #[cfg(not(feature = "host"))]
 use std::time::Duration;
 use ylong_runtime::io::AsyncReadExt;
@@ -268,16 +266,19 @@ impl TcpListenerMap {
 type MapContextForward_ = Arc<Mutex<HashMap<u32, ContextForward>>>;
 pub struct ForwardContextMap {}
 impl ForwardContextMap {
-    fn get_instance() -> &'static MapContextForward_ {
-        static mut CONTEXT_MAP: MaybeUninit<MapContextForward_> = MaybeUninit::uninit();
-        static ONCE: Once = Once::new();
+    fn get_instance() -> MapContextForward_ {
+        static mut FORWARD_MAP: Option<MapContextForward_> = None;
         unsafe {
-            ONCE.call_once(|| {
-                    CONTEXT_MAP = MaybeUninit::new(Arc::new(Mutex::new(HashMap::new())));
-                }
-            );
-            &*CONTEXT_MAP.as_ptr()
+            FORWARD_MAP
+                .get_or_insert_with(|| Arc::new(Mutex::new(HashMap::new())))
+                .clone()
         }
+    }
+
+    pub async fn add(cid: u32, value: ContextForward) {
+        let map = Self::get_instance();
+        let mut map = map.lock().await;
+        map.insert(cid, value.clone());
     }
 
     pub async fn update(cid: u32, value: ContextForward) {
@@ -426,10 +427,9 @@ pub async fn free_channel_task(session_id: u32, channel_id: u32) {
     let Some(task) = ForwardTaskMap::get(session_id, channel_id).await else {
         return;
     };
+    crate::info!("free channel context session_id:{session_id}, channel_id:{channel_id}");
     let task = &mut task.clone();
     let cid = task.context_forward.id;
-    crate::info!("free channel context session_id:{session_id}, channel_id:{channel_id}, cid:{cid}");
-
     match task.forward_type {
         ForwardType::Tcp => {
             TcpWriteStreamMap::end(cid).await;
@@ -608,7 +608,7 @@ pub async fn check_command(
             MessageLevel::Fail,
         )
         .await;
-        free_context(ctx.id, false).await;
+        free_context(ctx.id, true).await;
         return false;
     }
     true
@@ -652,15 +652,18 @@ pub async fn detech_forward_type(ctx_point: &mut ContextForward) -> bool {
 
 pub async fn forward_tcp_accept(ctx: &mut ContextForward, port: u32) -> io::Result<()> {
     let saddr = format!("127.0.0.1:{}", port);
+    let cid = ctx.id;
     let session_tmp = ctx.session_id;
     let channel_tmp = ctx.channel_id;
-    let remote_parameters = ctx.remote_parameters.clone();
-    let ctx_type = ctx.forward_type.clone();
-
+    crate::info!(
+        "forward_ tcp_accept bind addr:{:#?}, cid = {:#?}",
+        saddr,
+        cid
+    );
     let result = TcpListener::bind(saddr.clone()).await;
     match result {
         Ok(listener) => {
-            crate::info!("forward tcp accept bind ok, addr:{:#?}", saddr);
+            crate::info!("forward_ tcp_accept bind ok");
             let join_handle = utils::spawn(async move {
                 loop {
                     let (stream, _addr) = match listener.accept().await {
@@ -671,16 +674,9 @@ pub async fn forward_tcp_accept(ctx: &mut ContextForward, port: u32) -> io::Resu
                         }
                     };
                     let (rd, wr) = stream.into_split();
-                    let mut client_context = malloc_context(session_tmp, channel_tmp, true).await;
-                    client_context.remote_parameters = remote_parameters.clone();
-                    client_context.forward_type = ctx_type.clone();
-                    ForwardContextMap::update(client_context.id, client_context.clone()).await;
-                    crate::info!("malloc client_context id = {:#?}", client_context.id);
-                    TcpWriteStreamMap::put(client_context.id, wr).await;
-                    on_accept(client_context.id).await;
-                    utils::spawn(async move {
-                        recv_tcp_msg(session_tmp, channel_tmp, rd, client_context.id).await;
-                    });
+                    TcpWriteStreamMap::put(cid, wr).await;
+                    on_accept(cid).await;
+                    recv_tcp_msg(session_tmp, channel_tmp, rd, cid).await;
                 }
             });
             TcpListenerMap::put(channel_tmp, join_handle).await;
@@ -688,7 +684,6 @@ pub async fn forward_tcp_accept(ctx: &mut ContextForward, port: u32) -> io::Resu
         }
         Err(e) => {
             crate::error!("forward_ tcp_accept fail:{:#?}", e);
-            ctx.last_error = format!("TCP Port listen failed at {}", port);
             Err(e)
         }
     }
@@ -720,7 +715,7 @@ pub async fn on_accept(cid: u32) {
 
 pub async fn daemon_connect_tcp(cid: u32, port: u32) {
     let Some(context_forward) = ForwardContextMap::get(cid).await else {
-        crate::error!("daemon connect tcp get context is none cid={cid}");
+        crate::error!("daemon_connect _tcp2 get context is none cid={cid}");
         return;
     };
     let ctx = &mut context_forward.clone();
@@ -729,7 +724,7 @@ pub async fn daemon_connect_tcp(cid: u32, port: u32) {
     let stream = match TcpStream::connect(saddr).await {
         Err(err) => {
             crate::error!("TcpStream::stream failed {:?}", err);
-            free_context(cid, true).await;
+            free_context(cid, false).await;
             return;
         }
         Ok(addr) => addr,
@@ -738,27 +733,7 @@ pub async fn daemon_connect_tcp(cid: u32, port: u32) {
     let (rd, wr) = stream.into_split();
     TcpWriteStreamMap::put(ctx.id, wr).await;
     ForwardContextMap::update(ctx.id, ctx.clone()).await;
-
-    let session_tmp = ctx.session_id;
-    let channel_tmp = ctx.channel_id;
-    update_context_to_task(session_tmp, channel_tmp, ctx).await;
-    utils::spawn(async move {
-        recv_tcp_msg(session_tmp, channel_tmp, rd, cid).await;
-    });
-}
-
-pub async fn update_context_to_task(session_id: u32, channel_id:u32, ctx: &mut ContextForward) {
-    let Some(task) = ForwardTaskMap::get(ctx.session_id, ctx.channel_id).await else {
-        crate::error!(
-            "update context to task is none session_id={:#?},channel_id={:#?}",
-            session_id,
-            channel_id
-        );
-        return;
-    };
-    let task = &mut task.clone(); 
-    task.context_forward = ctx.clone();
-    ForwardTaskMap::update(session_id, channel_id, task.clone()).await;
+    recv_tcp_msg(ctx.session_id, ctx.channel_id, rd, ctx.id).await;
 }
 
 pub async fn recv_tcp_msg(session_id: u32, channel_id: u32, mut rd: SplitReadHalf, cid: u32) {
@@ -782,7 +757,6 @@ pub async fn recv_tcp_msg(session_id: u32, channel_id: u32, mut rd: SplitReadHal
                 .await;
             }
             Err(_e) => {
-                free_context(cid, true).await;
                 crate::error!(
                     "recv tcp msg read failed session_id={session_id},channel_id={channel_id}"
                 );
@@ -879,6 +853,7 @@ pub async fn setup_tcp_point(ctx: &mut ContextForward) -> bool {
     let cid = ctx.id;
     if ctx.is_master {
         let result = forward_tcp_accept(ctx, port).await;
+        ctx.last_error = format!("TCP Port listen failed at {}", port);
         return result.is_ok();
     } else {
         ForwardContextMap::update(ctx.id, ctx.clone()).await;
@@ -1231,7 +1206,6 @@ pub async fn setup_point(ctx: &mut ContextForward) -> bool {
         }
     };
     ForwardContextMap::update(ctx.id, ctx.clone()).await;
-    update_context_to_task(ctx.session_id, ctx.channel_id, ctx).await;
     ret
 }
 
@@ -1506,8 +1480,7 @@ pub async fn malloc_context(
     ctx.session_id = session_id;
     ctx.channel_id = channel_id;
     ctx.is_master = master_slave;
-    crate::info!("malloc_context success id = {:#?}", ctx.id);
-    ForwardContextMap::update(ctx.id, ctx.clone()).await;
+    ForwardContextMap::add(ctx.id, ctx.clone());
     ctx
 }
 

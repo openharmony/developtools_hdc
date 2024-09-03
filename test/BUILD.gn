@@ -161,7 +161,7 @@ ohos_source_set("hdc_host") {
     sources += [ "${hdc_path}/src/host/host_uart.cpp" ]
   }
   public_external_deps = common_external_deps
-  public_external_deps += [ "libusb:libusb" ]
+  public_deps = [ "//third_party/libusb:libusb" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_host_common_config",
@@ -312,7 +312,6 @@ config("hdc_test_config") {
   }
   include_dirs = [
     "${hdc_path}/test/fuzztest/jdwpreadstream_fuzzer",
-    "${hdc_path}/test/fuzztest/forwardreadstream_fuzzer",
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/common",
     "//third_party/bounds_checking_function/include",
@@ -362,43 +361,9 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   ]
 }
 
-ohos_fuzztest("ForwardReadStreamFuzzTest") {
-  module_out_path = FUZZ_OUTPUT_PATH
-  fuzz_config_file = "${hdc_path}/test/fuzztest/forwardreadstream_fuzzer"
-  configs = [ ":hdc_test_config" ]
-  cflags = fuzz_cflags
-  deps = [ "//third_party/libuv:uv" ]
-  sources = [ "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp" ]
-  deps += [ ":hdc_common" ]
-  subsystem_name = "developtools"
-  part_name = "hdc"
-}
-
-ohos_fuzztest("DaemonUsbReadFuzzTest") {
-  module_out_path = FUZZ_OUTPUT_PATH
-  fuzz_config_file = "${hdc_path}/test/fuzztest/daemonusbread_fuzzer"
-  configs = [ ":hdc_test_config" ]
-  cflags = fuzz_cflags
-  deps = [ "//third_party/libuv:uv" ]
-  sources = [
-    "${hdc_path}/src/daemon/daemon_usb.cpp",
-    "${hdc_path}/src/daemon/system_depend.cpp",
-    "fuzztest/daemonusbread_fuzzer/DaemonUsbRead_fuzzer.cpp",
-  ]
-  deps += [ ":hdc_common" ]
-  external_deps = [
-    "init:libbeget_proxy",
-    "init:libbegetutil",
-  ]
-}
-
 group("hdc_fuzztest") {
   testonly = true
-  deps = [
-    ":DaemonUsbReadFuzzTest",
-    ":ForwardReadStreamFuzzTest",
-    ":JdwpReadStreamFuzzTest",
-  ]
+  deps = [ ":JdwpReadStreamFuzzTest" ]
 }
 
 ohos_unittest("hdc_register_unittest") {

@@ -193,7 +193,7 @@ async fn subprocess_task(
                 match read_res {
                     Ok(bytes) => {
                         let message = TaskMessage {
-                            channel_id,
+                        channel_id,
                             command: ret_command,
                             payload: buf[..bytes].to_vec(),
                         };

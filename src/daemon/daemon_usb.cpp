@@ -619,10 +619,6 @@ int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
     StartTraceScope("HdcDaemonUSB::LoopUSBRead");
     int ret = ERR_GENERIC;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
-    if (daemon == nullptr) {
-        WRITE_LOG(LOG_FATAL, "daemon is nullptr in LoopUSBRead");
-        return ret;
-    }
     uv_buf_t iov;
     ctxRecv.data = hUSB;
     ctxRecv.bufSize = readMaxWanted;

@@ -99,7 +99,7 @@ pub fn split_opt_and_cmd(input: Vec<String>) -> Parsed {
                         && *command != HdcCommand::ForwardRportList
                         && *command != HdcCommand::ForwardRportRemove)
                 {
-                    break;
+                    break;  
                 }
                 cmd_index = st;
                 cmd_opt = Some(command.to_owned());

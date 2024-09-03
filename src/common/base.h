@@ -63,6 +63,7 @@ namespace Base {
     string GetSecureRandomString(const uint16_t expectedLen);
 #endif
     int GetRandomNum(const int min, const int max);
+    uint32_t GetRandomU32();
     uint64_t GetRandom(const uint64_t min = 0, const uint64_t max = UINT64_MAX);
     uint32_t GetSecureRandom(void);
     int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort, size_t outSize);

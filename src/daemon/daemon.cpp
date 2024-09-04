@@ -281,7 +281,7 @@ bool HdcDaemon::ShowPermitDialog()
     return true;
 }
 
-UserPermit HdcDaemon::PostUIConfirm(string hostname)
+UserPermit HdcDaemon::PostUIConfirm(string hostname, string pubkey)
 {
     // clear result first
     if (!SystemDepend::SetDevItem("persist.hdc.daemon.auth_result", "auth_result_none")) {
@@ -294,6 +294,19 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname)
         WRITE_LOG(LOG_FATAL, "set param(%s) failed", hostname.c_str());
         return REFUSE;
     }
+
+    uint8_t sha256Result[SHA256_DIGEST_LENGTH] = { 0 };
+    if (SHA256(reinterpret_cast<const uint8_t *>(pubkey.c_str()), pubkey.length(), sha256Result) == nullptr) {
+        WRITE_LOG(LOG_FATAL, "sha256 pubkey failed");
+        return REFUSE;
+    }
+
+    string hex = Base::Convert2HexStr(sha256Result, SHA256_DIGEST_LENGTH);
+    if (!SystemDepend::SetDevItem("persist.hdc.client.pubkey_sha256", hex.c_str())) {
+        WRITE_LOG(LOG_DEBUG, "Failed to set pubkey prop.");
+        return REFUSE;
+    }
+
     if (!ShowPermitDialog()) {
         WRITE_LOG(LOG_FATAL, "show dialog failed, so refuse this connect.");
         return REFUSE;
@@ -454,7 +467,7 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
         });
         notifymsg.detach();
 
-        UserPermit permit = PostUIConfirm(hostname);
+        UserPermit permit = PostUIConfirm(hostname, pubkey);
         if (permit == ALLOWONCE) {
             WRITE_LOG(LOG_FATAL, "user allow onece for %u", hSession->sessionId);
             ret = true;

@@ -131,6 +131,7 @@ enum RetErrCode {
     RET_SUCCESS = 0,
     ERR_GENERIC = -1,
     ERR_NO_SUPPORT = -2,
+    ERR_PARAM_NULLPTR = -5,
     ERR_LIBUSB_OPEN = -100,
     ERR_BUF_SIZE = -10000,
     ERR_BUF_ALLOC,

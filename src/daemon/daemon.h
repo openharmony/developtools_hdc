@@ -79,7 +79,7 @@ private:
     void GetServerCapability(HSession &hSession, SessionHandShake &handshake);
     bool DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);
     void TryStopInstance();
-    UserPermit PostUIConfirm(string hostname);
+    UserPermit PostUIConfirm(string hostname, string pubkey);
     bool ShowPermitDialog();
     bool HandDaemonAuthInit(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);

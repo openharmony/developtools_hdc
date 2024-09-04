@@ -1074,7 +1074,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         if (checkOrNew) {
             // CheckOrNew is true means to confirm whether the service is running
             uv_fs_close(nullptr, &req, fd, nullptr);
-            HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, buf);
+            HANDLE hMutex = OpenMutex(SYNCHRONIZE, FALSE, buf);
             if (hMutex != nullptr) {
                 CloseHandle(hMutex);
                 WRITE_LOG(LOG_DEBUG, "Mutex \"%s\" locked. Server already exist.", procname);

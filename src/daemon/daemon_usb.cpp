@@ -426,7 +426,7 @@ void HdcDaemonUSB::UvWriteCallback(uv_write_t *req, int status)
     }
     UvData *uvData = reinterpret_cast<UvData *>(req->data);
     if (uvData) {
-#ifndef CONFIG_USE_JEMALLOC_DFX_INI
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         uvData->daemonUsb->cirbuf.Free(uvData->buf);
 #else
         delete[] uvData->buf;

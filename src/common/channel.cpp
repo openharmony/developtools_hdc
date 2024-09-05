@@ -367,7 +367,7 @@ uint32_t HdcChannelBase::GetChannelPseudoUid()
 {
     uint32_t uid = 0;
     do {
-        uid = static_cast<uint32_t>(Base::GetRandom());
+        uid = Base::GetSecureRandom();
     } while (AdminChannel(OP_QUERY, uid, nullptr) != nullptr);
     return uid;
 }

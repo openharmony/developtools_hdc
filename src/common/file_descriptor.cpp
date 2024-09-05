@@ -124,12 +124,11 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             WRITE_LOG(LOG_WARN, "FileIOOnThread select rc = 0, timeout.");
             continue;
         }
-#ifndef HDC_HOST
-        int fd = events[0].data.fd;
-        uint32_t event = events[0].events;
         nBytes = 0;
-        if (event & EPOLLIN) {
-            nBytes = read(fd, buf, bufSize);
+#ifndef HDC_HOST
+        uint32_t event = events[0].events;
+        if ((event & EPOLLIN) && (thisClass->fdIO > 0)) {
+            nBytes = read(thisClass->fdIO, buf, bufSize);
         }
         if ((event & EPOLLERR) || (event & EPOLLHUP) || (event & EPOLLRDHUP)) {
             bFinish = true;
@@ -158,7 +157,9 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             break;
         }
 #else
-        nBytes = read(thisClass->fdIO, buf, bufSize);
+        if (thisClass->fdIO > 0) {
+            nBytes = read(thisClass->fdIO, buf, bufSize);
+        }
         if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
             WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
             continue;
@@ -180,7 +181,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
 #endif
     }
 #ifndef HDC_HOST
-    if (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1) {
+    if ((thisClass->fdIO > 0) && (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1)) {
         WRITE_LOG(LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epfd:%d errno:%d",
             thisClass->fdIO, epfd, errno);
     }

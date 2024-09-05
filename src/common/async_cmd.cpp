@@ -30,6 +30,9 @@ AsyncCmd::AsyncCmd()
 
 AsyncCmd::~AsyncCmd()
 {
+    if (Base::CloseFd(fd) != 0) {
+        WRITE_LOG(LOG_INFO, "AsyncCmd Release, close fd:%d", fd);
+    }
     if (childShell != nullptr) {
         delete childShell;
         childShell = nullptr;
@@ -58,10 +61,9 @@ void AsyncCmd::DoRelease()
     if (childShell != nullptr) {
         childShell->StopWorkOnThread(false, nullptr);
     }
-    WRITE_LOG(LOG_INFO, "DoRelease close fd:%d pid:%d", fd, pid);
-    Base::CloseFd(fd);
     if (pid > 0) {
         uv_kill(pid, SIGTERM);
+        WRITE_LOG(LOG_INFO, "DoRelease pid:%d", pid);
     }
 }
 

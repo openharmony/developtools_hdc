@@ -204,7 +204,7 @@ namespace TranslateCommand {
         if (pos != std::string::npos) {
             // tcp mode
             string ip = outCmd->parameters.substr(0, pos);
-            if (!Base::IsValidIpV4(ip)) {
+            if (!Base::IsValidIpv4(ip)) {
                 stringError = "IP address incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;

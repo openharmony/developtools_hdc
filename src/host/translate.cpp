@@ -204,15 +204,13 @@ namespace TranslateCommand {
         if (pos != std::string::npos) {
             // tcp mode
             string ip = outCmd->parameters.substr(0, pos);
-            size_t portPos = outCmd->parameters.rfind(" ");
-            if (portPos != std::string::npos && portPos < outCmd->parameters.length() &&
-                portPos > pos) {
-                stringError = "Too many parameters";
+            if (!Base::IsValidIpV4(ip)) {
+                stringError = "IP address incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;
             }
             string sport = outCmd->parameters.substr(pos + 1);
-            if (sport.empty()) {
+            if (sport.empty() || !Base::IsDigitString(sport)) {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;

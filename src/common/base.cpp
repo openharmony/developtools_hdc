@@ -1966,7 +1966,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         const int maxValue = 255;
   
         // 分解字符串为四部分
-        while (std::getline(ss, segment, '.')) { 
+        while (std::getline(ss, segment, '.')) {
             if (segments.size() >= ipCount) {
                 return false;
             }

@@ -166,7 +166,7 @@ namespace Base {
 
     inline bool IsDigitString(const std::string& str)
     {
-        return std::all_of(str.begin(), str.end(), ::isdigit);  
+        return std::all_of(str.begin(), str.end(), ::isdigit);
     }
 
     bool IsValidIpv4(const std::string& ip);

@@ -284,6 +284,14 @@ int main(int argc, const char *argv[])
     mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
     mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
 #endif
+#ifndef UPDATER_MODE
+    string developerMode;
+    SystemDepend::GetDevItem("const.security.developermode.state", developerMode);
+    if (developerMode != "true") {
+        WRITE_LOG(LOG_FATAL, "non developer mode, hdcd does not start");
+        return -1;
+    }
+#endif
     // check property
     if (argc == CMD_ARG1_COUNT && !strcmp(argv[1], "-h")) {
         string usage = DaemonUsage();

@@ -654,16 +654,11 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 
     uint32_t GetRandomU32()
     {
-#ifdef HARMONY_PROJECT
-        uint32_t ret;
-        uv_random(nullptr, nullptr, &ret, sizeof(ret), 0, nullptr);
-#else
         uint32_t ret;
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<uint32_t> dis(0, UINT32_MAX);
         ret = dis(gen);
-#endif
         return ret;
     }
 

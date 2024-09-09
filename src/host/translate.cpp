@@ -205,7 +205,7 @@ namespace TranslateCommand {
             // tcp mode
             string ip = outCmd->parameters.substr(0, pos);
             if (!Base::IsValidIpv4(ip)) {
-                stringError = "[E000004]:IP address incorrect";
+                stringError = "[E001104]:IP address incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;
             }

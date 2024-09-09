@@ -36,10 +36,17 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 
 HdcTransferBase::~HdcTransferBase()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u result:%d ioFinish:%d",
-        taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
-    if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
-        uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+    if (ctxNow.isFdOpen) {
+        WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u result:%d ioFinish:%d",
+            taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
+        
+        if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
+            uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+            ctxNow.isFdOpen = false;
+        }
+    } else {
+        WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u ioFinish:%d",
+            taskInfo->channelId, ctxNow.lastErrno, ctxNow.ioFinish);
     }
 };
 
@@ -289,6 +296,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             context->closeReqSubmitted = true;
             WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
             uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
+            context->isFdOpen = false;
         } else {
             thisClass->WhenTransferFinish(context);
             --thisClass->refCount;
@@ -350,7 +358,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.uId = fs.statbuf.st_uid;
         context->fileMode.gId = fs.statbuf.st_gid;
-
+        context->isFdOpen = true;
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
         getfilecon(context->localPath.c_str(), &con);
@@ -733,6 +741,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
                     taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result);
                 uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+                ctxNow.isFdOpen = false;
                 HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
                 thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);
                 ret = false;

@@ -1952,6 +1952,35 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 #endif
     }
 
+    bool IsValidIpv4(const std::string& ip)
+    {
+        std::vector<int> segments;
+        std::stringstream ss(ip);
+        std::string segment;
+        const int ipCount = 4;
+        const int maxValue = 255;
+ 
+        // 分解字符串为四部分
+        while (std::getline(ss, segment, '.')) {
+            if (segments.size() >= ipCount) {
+                return false;
+            }
+            if (!IsDigitString(segment)) {
+                return false;
+            }
+            int num = std::stoi(segment);
+            if (num < 0 || num > maxValue) {
+                return false;
+            }
+            if (segment.size() > 1 && segment[0] == '0' && segment != "0") {
+                return false;
+            }
+            segments.push_back(num);
+        }
+        // 必须正好有四部分
+        return segments.size() == ipCount;
+    }
+
     // Trim from both sides and paired
     string &ShellCmdTrim(string &cmd)
     {

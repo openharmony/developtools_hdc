@@ -164,6 +164,13 @@ namespace Base {
         return LeftTrim(RightTrim(s, w), w);
     }
 
+    inline bool IsDigitString(const std::string& str)
+    {
+        return std::all_of(str.begin(), str.end(), ::isdigit);
+    }
+
+    bool IsValidIpv4(const std::string& ip);
+
     // Trim from both sides and paired
     string &ShellCmdTrim(string &cmd);
 

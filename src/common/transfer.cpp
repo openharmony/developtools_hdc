@@ -339,7 +339,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         return;
     }
     thisClass->ResetCtx(context);
-    if (context->master) {
+    context->isFdOpen = true;
+    if (context->master) { // master just read, and slave just write.
         // init master
         uv_fs_t fs = {};
         uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
@@ -358,7 +359,6 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.uId = fs.statbuf.st_uid;
         context->fileMode.gId = fs.statbuf.st_gid;
-        context->isFdOpen = true;
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
         getfilecon(context->localPath.c_str(), &con);

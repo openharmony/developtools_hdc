@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <assert.h>
 #include <atomic>
+#include <cctype>
 #include <cinttypes>
 #include <cstdarg>
 #include <ctime>

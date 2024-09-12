@@ -91,6 +91,7 @@ protected:
         bool ioFinish;
         bool closeReqSubmitted;
         bool isStableBufSize; // USB IO buffer size set stable value, false: 512K, true: 61K
+        bool isFdOpen;
         void *thisClass;
         uint32_t lastErrno;
         uv_loop_t *loop;
@@ -136,7 +137,9 @@ protected:
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
+#endif
 
 private:
     // dynamic IO context

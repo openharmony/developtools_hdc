@@ -112,7 +112,7 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 #else
     int fd = reinterpret_cast<int>(uvfd);
 #endif
-    constexpr int intrmax = 1000;
+    constexpr int intrmax = 60000;
     int intrcnt = 0;
     while (cnt > 0) {
 #ifdef HDC_EMULATOR
@@ -132,6 +132,7 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
                     WRITE_LOG(LOG_WARN, "WriteUvTcpFd fd:%d send interrupt err:%d", fd, err);
                     intrcnt = 0;
                 }
+                std::this_thread::yield();
                 continue;
             } else {
                 WRITE_LOG(LOG_FATAL, "WriteUvTcpFd fd:%d send rc:%d err:%d", fd, rc, err);

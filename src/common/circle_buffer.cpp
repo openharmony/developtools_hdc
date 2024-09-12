@@ -80,8 +80,12 @@ void CircleBuffer::Free(const uint8_t *buf)
     std::unique_lock<std::mutex> lock(mutex_);
     uint64_t key = reinterpret_cast<uint64_t>(buf);
     Data *data = buffers_[key];
-    data->used = false;
-    data->begin = std::chrono::steady_clock::now();
+    if (data != nullptr) {
+        data->used = false;
+        data->begin = std::chrono::steady_clock::now();
+    } else {
+        WRITE_LOG(LOG_FATAL, "Free data is nullptr.");
+    }
 }
 
 void CircleBuffer::FreeMemory()

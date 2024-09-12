@@ -545,7 +545,7 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     }
     if (handshake.authType != AUTH_OK) {
         if (!HandServerAuth(hSession, handshake)) {
-            WRITE_LOG(LOG_DEBUG, "Auth failed");
+            WRITE_LOG(LOG_WARN, "Auth failed");
             return false;
         }
         return true;
@@ -574,7 +574,7 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         if (command == CMD_KERNEL_CHANNEL_CLOSE) {
             // Daemon close channel and want to notify server close channel also, but it may has been
             // closed by herself
-            WRITE_LOG(LOG_DEBUG, "Die channelId :%lu recv CMD_KERNEL_CHANNEL_CLOSE", channelId);
+            WRITE_LOG(LOG_WARN, "Die channelId :%lu recv CMD_KERNEL_CHANNEL_CLOSE", channelId);
         } else {
             // Client may be ctrl+c and Server remove channel. notify server async
             WRITE_LOG(LOG_DEBUG, "channelId :%lu die", channelId);
@@ -905,7 +905,7 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_err_name_r(ret, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "Hdcserver AttachChannel uv_tcp_open failed %s, channelid:%d fdChildWorkTCP:%d",
+        WRITE_LOG(LOG_WARN, "Hdcserver AttachChannel uv_tcp_open failed %s, channelid:%d fdChildWorkTCP:%d",
                   buf, hChannel->channelId, hChannel->fdChildWorkTCP);
         Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);
         --hChannel->ref;

@@ -69,6 +69,11 @@ namespace SystemDepend {
         return ret;
     }
 
+    uint32_t GetDevUint(const char *key, uint32_t defaultValue)
+    {
+        return GetUintParameter(key, defaultValue);
+    }
+
     bool CallDoReboot(const char *reason)
     {
         string rebootCtrl = "ohos.startup.powerctrl";

@@ -36,10 +36,17 @@ HdcTransferBase::HdcTransferBase(HTaskInfo hTaskInfo)
 
 HdcTransferBase::~HdcTransferBase()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u result:%d ioFinish:%d",
-        taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
-    if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
-        uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+    if (ctxNow.isFdOpen) {
+        WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u result:%d ioFinish:%d",
+            taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
+        
+        if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
+            uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+            ctxNow.isFdOpen = false;
+        }
+    } else {
+        WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u ioFinish:%d",
+            taskInfo->channelId, ctxNow.lastErrno, ctxNow.ioFinish);
     }
 };
 
@@ -65,14 +72,22 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 {
     StartTraceScope("HdcTransferBase::SimpleFileIO");
     // The first 8 bytes file offset
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     uint8_t *buf = cirbuf.Malloc();
+#else
+    uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
+#endif
     if (buf == nullptr) {
         WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr");
         return -1;
     }
     CtxFileIO *ioContext = new(std::nothrow) CtxFileIO();
     if (ioContext == nullptr) {
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
+#else
+        delete[] buf;
+#endif
         WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr");
         return -1;
     }
@@ -115,7 +130,11 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             delete ioContext;
             ioContext = nullptr;
         }
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
+#else
+        delete[] buf;
+#endif
         return -1;
     }
     return bytes;
@@ -212,6 +231,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     uv_fs_req_cleanup(req);
     while (true) {
         if (context->ioFinish) {
+            WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
             break;
         }
         if (req->result < 0) {
@@ -276,12 +296,17 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             context->closeReqSubmitted = true;
             WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
             uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
+            context->isFdOpen = false;
         } else {
             thisClass->WhenTransferFinish(context);
             --thisClass->refCount;
         }
     }
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     thisClass->cirbuf.Free(bufIO - payloadPrefixReserve);
+#else
+    delete [] (bufIO - payloadPrefixReserve);
+#endif
     --thisClass->refCount;
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }
@@ -314,7 +339,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         return;
     }
     thisClass->ResetCtx(context);
-    if (context->master) {
+    context->isFdOpen = true;
+    if (context->master) { // master just read, and slave just write.
         // init master
         uv_fs_t fs = {};
         uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
@@ -333,7 +359,6 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileMode.perm = fs.statbuf.st_mode;
         context->fileMode.uId = fs.statbuf.st_uid;
         context->fileMode.gId = fs.statbuf.st_gid;
-
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
         getfilecon(context->localPath.c_str(), &con);
@@ -475,6 +500,7 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         out->push_back(currentDirname + Base::GetPathSep() + fileName);
     }
     uv_fs_req_cleanup(&req);
+    WRITE_LOG(LOG_DEBUG, "GetSubFiles end.");
     return retNum;
 }
 
@@ -618,7 +644,10 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
-        localPath = Base::StringFormat("%s%c%s", localPath.c_str(), Base::GetPathSep(), optName);
+        localPath = localPath + Base::GetPathSep() + optName;
+    }
+    if (r != 0 && (localPath.back() == Base::GetPathSep())) { // not exist and is dir
+        localPath = localPath + optName;
     }
     return false;
 }
@@ -709,7 +738,12 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             // Note, I will trigger FileIO after multiple times.
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
-                WRITE_LOG(LOG_FATAL, "CommandDispatch RecvIOPayload command:%u", command);
+                WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
+                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result);
+                uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+                ctxNow.isFdOpen = false;
+                HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+                thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);
                 ret = false;
                 break;
             }

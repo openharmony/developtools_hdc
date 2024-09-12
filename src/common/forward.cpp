@@ -119,7 +119,7 @@ void *HdcForwardBase::MallocContext(bool masterSlave)
     if ((ctx = new ContextForward()) == nullptr) {
         return nullptr;
     }
-    ctx->id = Base::GetRuntimeMSec();
+    ctx->id = Base::GetRandomU32();
     ctx->masterSlave = masterSlave;
     ctx->thisClass = this;
     ctx->fdClass = nullptr;
@@ -171,7 +171,6 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
 
 void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNotifyRemote)
 {
-    WRITE_LOG(LOG_DEBUG, "FreeContext id:%u, bNotifyRemote:%d", id, bNotifyRemote);
     std::lock_guard<std::mutex> lock(ctxFreeMutex);
     HCtxForward ctx = nullptr;
     if (!ctxIn) {
@@ -182,6 +181,8 @@ void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNot
     } else {
         ctx = ctxIn;
     }
+    WRITE_LOG(LOG_DEBUG, "FreeContext id:%u, bNotifyRemote:%d, finish:%d",
+        ctx->id, bNotifyRemote, ctx->finish);
     if (ctx->finish) {
         return;
     }
@@ -736,15 +737,16 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
 {
     int nRet = 0;
     if (size > static_cast<int>(HDC_BUF_MAX_BYTES - 1)) {
-        WRITE_LOG(LOG_WARN, "SendForwardBuf size:%d > HDC_BUF_MAX_BYTES", size);
+        WRITE_LOG(LOG_WARN, "SendForwardBuf size:%d > HDC_BUF_MAX_BYTES, ctxId:%u", size, ctx->id);
         return -1;
     }
     if (size <= 0) {
-        WRITE_LOG(LOG_WARN, "SendForwardBuf failed size:%d", size);
+        WRITE_LOG(LOG_WARN, "SendForwardBuf failed size:%d, ctxId:%u", size, ctx->id);
         return -1;
     }
     auto pDynBuf = new(std::nothrow) uint8_t[size];
     if (!pDynBuf) {
+        WRITE_LOG(LOG_WARN, "SendForwardBuf new DynBuf failed size:%d, ctxId:%u", size, ctx->id);
         return -1;
     }
     (void)memcpy_s(pDynBuf, size, bufPtr, size);
@@ -753,6 +755,7 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
     } else {
         auto ctxIO = new ContextForwardIO();
         if (!ctxIO) {
+            WRITE_LOG(LOG_WARN, "SendForwardBuf new ContextForwardIO failed, ctxId:%u", ctx->id);
             delete[] pDynBuf;
             return -1;
         }
@@ -765,6 +768,10 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
             // FORWARD_ABSTRACT, FORWARD_RESERVED, FORWARD_FILESYSTEM,
             nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, pDynBuf, size, nullptr,
                                         (void *)SendCallbackForwardBuf, (void *)ctxIO);
+        }
+        if (nRet < 0) {
+            WRITE_LOG(LOG_WARN, "SendForwardBuf SendToStreamEx ret:%d, size:%d ctxId:%u type:%d",
+                nRet, size, ctx->id, ctx->type);
         }
     }
     return nRet;
@@ -820,6 +827,7 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
                 break;
             }
             if (SendForwardBuf(ctx, pContent, sizeContent) < 0) {
+                WRITE_LOG(LOG_WARN, "ForwardCommandDispatch SendForwardBuf rc < 0, ctxid:%u", ctx->id);
                 FreeContext(ctx, 0, true);
             }
             break;
@@ -846,7 +854,7 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
 bool HdcForwardBase::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     if (command != CMD_FORWARD_DATA) {
-        WRITE_LOG(LOG_DEBUG, "CommandDispatch command:%d payloadSize:%d", command, payloadSize);
+        WRITE_LOG(LOG_WARN, "CommandDispatch command:%d payloadSize:%d", command, payloadSize);
     }
     bool ret = true;
     string sError;

@@ -126,7 +126,7 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
 {
     char ip[BUF_SIZE_TINY] = "";
     uint16_t port = 0;
-    if (Base::ConnectKey2IPPort(connectKey.c_str(), ip, &port) < 0) {
+    if (Base::ConnectKey2IPPort(connectKey.c_str(), ip, &port, sizeof(ip)) < 0) {
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort error connectKey:%s", Hdc::MaskString(connectKey).c_str());
         return nullptr;
     }

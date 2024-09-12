@@ -59,9 +59,14 @@ namespace Base {
     void AllocBufferCallback(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf);
     uint64_t GetRuntimeMSec();
     string GetRandomString(const uint16_t expectedLen);
+#ifndef HDC_HOST
+    string GetSecureRandomString(const uint16_t expectedLen);
+#endif
     int GetRandomNum(const int min, const int max);
+    uint32_t GetRandomU32();
     uint64_t GetRandom(const uint64_t min = 0, const uint64_t max = UINT64_MAX);
-    int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort);
+    uint32_t GetSecureRandom(void);
+    int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort, size_t outSize);
     // As an uv_work_cb it must keep the same as prototype
     int StartWorkThread(uv_loop_t *loop, uv_work_cb pFuncWorkThread, uv_after_work_cb pFuncAfterThread,
                         void *pThreadData);
@@ -158,6 +163,13 @@ namespace Base {
     {
         return LeftTrim(RightTrim(s, w), w);
     }
+
+    inline bool IsDigitString(const std::string& str)
+    {
+        return std::all_of(str.begin(), str.end(), ::isdigit);
+    }
+
+    bool IsValidIpv4(const std::string& ip);
 
     // Trim from both sides and paired
     string &ShellCmdTrim(string &cmd);

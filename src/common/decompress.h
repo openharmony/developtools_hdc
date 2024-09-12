@@ -27,6 +27,7 @@ public:
     ~Decompress() {}
 
     bool DecompressToLocal(std::string decPath);
+    bool CheckPath(std::string decPath);
 
 private:
     std::vector<Entry> entrys;

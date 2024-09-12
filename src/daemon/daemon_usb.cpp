@@ -435,7 +435,11 @@ void HdcDaemonUSB::UvWriteCallback(uv_write_t *req, int status)
     }
     UvData *uvData = reinterpret_cast<UvData *>(req->data);
     if (uvData) {
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         uvData->daemonUsb->cirbuf.Free(uvData->buf);
+#else
+        delete[] uvData->buf;
+#endif
         delete uvData;
     }
     delete req;
@@ -448,7 +452,11 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
     uv_write_t *reqWrite = new uv_write_t();
     if (!reqWrite) {
         WRITE_LOG(LOG_WARN, "UsbToStream new write_t failed size:%d", size);
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
+#else
+        delete[] buf;
+#endif
         return ERR_BUF_ALLOC;
     }
     uv_buf_t bfr;
@@ -456,7 +464,12 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
         UvData *uvData = new(std::nothrow) UvData();
         if (uvData == nullptr) {
             WRITE_LOG(LOG_FATAL, "UsbToStream new uvData failed size:%d", size);
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
             cirbuf.Free(buf);
+#else
+            delete[] buf;
+#endif
+            delete reqWrite;
             return ERR_BUF_ALLOC;
         }
         uvData->daemonUsb = this;
@@ -467,7 +480,11 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
         if (!uv_is_writable(stream)) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_is_writable false size:%d", size);
             delete reqWrite;
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
             cirbuf.Free(buf);
+#else
+            delete[] buf;
+#endif
             delete uvData;
             break;
         }
@@ -475,7 +492,11 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
         if (ret < 0) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_write false ret:%d", ret);
             delete reqWrite;
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
             cirbuf.Free(buf);
+#else
+            delete[] buf;
+#endif
             delete uvData;
             ret = ERR_IO_FAIL;
             break;
@@ -489,14 +510,22 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
 int HdcDaemonUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize)
 {
     StartTraceScope("HdcDaemonUSB::UsbToHdcProtocol");
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     uint8_t *data = cirbuf.Malloc();
+#else
+    uint8_t *data = new uint8_t[dataSize];
+#endif
     if (data == nullptr) {
         WRITE_LOG(LOG_WARN, "UsbToHdcProtocol data nullptr");
         return -1;
     }
     if (memcpy_s(data, dataSize, appendData, dataSize)) {
         WRITE_LOG(LOG_WARN, "UsbToHdcProtocol memory copy failed dataSize:%d", dataSize);
+#ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(data);
+#else
+        delete[] data;
+#endif
         return ERR_BUF_COPY;
     }
     return UsbToStream(stream, data, dataSize);

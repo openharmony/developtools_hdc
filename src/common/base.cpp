@@ -35,7 +35,9 @@
 #include <windows.h>
 #include <codecvt>
 #include <wchar.h>
+#include <wincrypt.h>
 #endif
+#include <fstream>
 using namespace std::chrono;
 
 namespace Hdc {
@@ -650,6 +652,16 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         return time;
     }
 
+    uint32_t GetRandomU32()
+    {
+        uint32_t ret;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<uint32_t> dis(0, UINT32_MAX);
+        ret = dis(gen);
+        return ret;
+    }
+
     uint64_t GetRandom(const uint64_t min, const uint64_t max)
     {
 #ifdef HARMONY_PROJECT
@@ -665,6 +677,46 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         return ret;
     }
 
+    uint32_t GetSecureRandom(void)
+    {
+        uint32_t result = static_cast<uint32_t>(GetRandom());
+#ifdef _WIN32
+        const int randomByteCount = 4;
+        HCRYPTPROV hCryptProv;
+        BYTE pbData[randomByteCount];
+        do {
+            if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, 0)) {
+                if (GetLastError() != NTE_BAD_KEYSET) {
+                    WRITE_LOG(LOG_FATAL, "CryptAcquireContext first failed %x", GetLastError());
+                    break;
+                }
+                if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET)) {
+                    WRITE_LOG(LOG_FATAL, "CryptAcquireContext second failed %x", GetLastError());
+                    break;
+                }
+            }
+            if (!CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
+                WRITE_LOG(LOG_FATAL, "CryptGenRandom failed %x", GetLastError());
+            }
+            if (hCryptProv) {
+                CryptReleaseContext(hCryptProv, 0);
+            }
+            result = *(reinterpret_cast<uint32_t*>(pbData));
+        } while (0);
+#else
+        std::ifstream randomFile("/dev/random", std::ios::binary);
+        do {
+            if (!randomFile.is_open()) {
+                WRITE_LOG(LOG_FATAL, "open /dev/random failed");
+                break;
+            }
+            randomFile.read(reinterpret_cast<char*>(&result), sizeof(result));
+        } while (0);
+        randomFile.close();
+#endif
+        return result;
+    }
+
     string GetRandomString(const uint16_t expectedLen)
     {
         srand(static_cast<unsigned int>(GetRandom()));
@@ -677,12 +729,36 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         return ret;
     }
 
+#ifndef HDC_HOST
+    string GetSecureRandomString(const uint16_t expectedLen)
+    {
+        string ret = string(expectedLen, '0');
+        std::ifstream randomFile("/dev/random", std::ios::binary);
+        do {
+            if (!randomFile.is_open()) {
+                WRITE_LOG(LOG_FATAL, "open /dev/random failed");
+                break;
+            }
+            std::stringstream val;
+            unsigned char tmpByte;
+            for (auto i = 0; i < expectedLen; ++i) {
+                randomFile.read(reinterpret_cast<char*>(&tmpByte), 1);
+                val << std::hex << (tmpByte % BUF_SIZE_MICRO);
+            }
+            ret = val.str();
+        } while (0);
+        randomFile.close();
+
+        return ret;
+    }
+#endif
+
     int GetRandomNum(const int min, const int max)
     {
         return static_cast<int>(GetRandom(min, max));
     }
 
-    int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort)
+    int ConnectKey2IPPort(const char *connectKey, char *outIP, uint16_t *outPort, size_t outSize)
     {
         char bufString[BUF_SIZE_TINY] = "";
         if (strncpy_s(bufString, sizeof(bufString), connectKey, strlen(connectKey))) {
@@ -697,7 +773,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
             return ERR_PARM_SIZE;
         }
         uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));
-        if (EOK != strcpy_s(outIP, BUF_SIZE_TINY, bufString)) {
+        if (EOK != strcpy_s(outIP, outSize, bufString)) {
             return ERR_BUF_COPY;
         }
         *outPort = wPort;
@@ -993,7 +1069,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         if (checkOrNew) {
             // CheckOrNew is true means to confirm whether the service is running
             uv_fs_close(nullptr, &req, fd, nullptr);
-            HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, buf);
+            HANDLE hMutex = OpenMutex(SYNCHRONIZE, FALSE, buf);
             if (hMutex != nullptr) {
                 CloseHandle(hMutex);
                 WRITE_LOG(LOG_DEBUG, "Mutex \"%s\" locked. Server already exist.", procname);
@@ -1874,6 +1950,35 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 #else
         return TEMP_FAILURE_RETRY(write(fd, buf, count));
 #endif
+    }
+
+    bool IsValidIpv4(const std::string& ip)
+    {
+        std::vector<int> segments;
+        std::stringstream ss(ip);
+        std::string segment;
+        const int ipCount = 4;
+        const int maxValue = 255;
+ 
+        // 分解字符串为四部分
+        while (std::getline(ss, segment, '.')) {
+            if (segments.size() >= ipCount) {
+                return false;
+            }
+            if (!IsDigitString(segment)) {
+                return false;
+            }
+            int num = std::stoi(segment);
+            if (num < 0 || num > maxValue) {
+                return false;
+            }
+            if (segment.size() > 1 && segment[0] == '0' && segment != "0") {
+                return false;
+            }
+            segments.push_back(num);
+        }
+        // 必须正好有四部分
+        return segments.size() == ipCount;
     }
 
     // Trim from both sides and paired

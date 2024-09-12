@@ -15,6 +15,7 @@
 
 #include "hdc_connect.h"
 #include "hdc_jdwp.h"
+#include "parameter.h"
 
 namespace Hdc {
 
@@ -61,6 +62,28 @@ Callback ConnectManagement::GetCallback() const
     return cb_;
 }
 
+static void GetDevItem(const char *key, std::string &out, const char *preDefine = nullptr)
+{
+    constexpr int len = 512;
+    char buf[len] = "";
+    if (memset_s(buf, len, 0, len) != EOK) {
+        HILOG_WARN(LOG_CORE, "memset_s failed");
+        return;
+    }
+    auto res = GetParameter(key, preDefine, buf, len);
+    if (res <= 0) {
+        return;
+    }
+    out = buf;
+}
+
+static bool IsDeveloperMode()
+{
+    std::string developerMode;
+    GetDevItem("const.security.developermode.state", developerMode);
+    return developerMode == "true";
+}
+
 void FreeInstance()
 {
     if (g_clsHdcJdwpSimulator == nullptr) {
@@ -79,6 +102,10 @@ void Stop(int signo)
 
 void StopConnect()
 {
+    if (!IsDeveloperMode()) {
+        HILOG_INFO(LOG_CORE, "non developer mode not to stop connect");
+        return;
+    }
 #ifdef JS_JDWP_CONNECT
     FreeInstance();
 #endif // JS_JDWP_CONNECT
@@ -107,6 +134,10 @@ void* HdcConnectRun(void* pkgContent)
 
 void StartConnect(const std::string& processName, const std::string& pkgName, bool isDebug, Callback cb)
 {
+    if (!IsDeveloperMode()) {
+        HILOG_INFO(LOG_CORE, "non developer mode not to start connect");
+        return;
+    }
     if (g_clsHdcJdwpSimulator != nullptr) {
         return;
     }

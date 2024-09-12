@@ -74,18 +74,19 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
 {
     bool isNowRunning = Base::ProgramMutex(SERVER_NAME.c_str(), true) != 0;
     const int signNum = 9;
+    const string errMsg= "[E002101]Terminal hdc process failed, "
+        "please terminal the hdc process in the task manager first.";
     uint32_t pid = GetLastPID();
-    if (!pid) {
-        WRITE_LOG(LOG_FATAL, "StartKillServer pid is 0");
-        return false;
-    }
     if (startOrKill) {
         if (isNowRunning) {
             // already running
             if (!strstr(cmd, " -r")) {
                 return true;
             }
-            if (pid) {
+            if (pid == 0) {
+                Base::PrintMessage(errMsg.c_str());
+                return false;
+            } else {
                 int rc = uv_kill(pid, signNum);
                 WRITE_LOG(LOG_DEBUG, "uv_kill rc:%d", rc);
             }
@@ -103,7 +104,10 @@ bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
                 Base::PrintMessage("Kill server failed %s", buf);
             }
         }
-        // already running
+        if (isNowRunning && (pid == 0)) {
+            Base::PrintMessage(errMsg.c_str());
+            return false;
+        }
         if (!strstr(cmd, " -r")) {
             return true;
         }
@@ -311,7 +315,7 @@ int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
     uint16_t port = 0;
-    int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port);
+    int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort %s failed with %d",
                   channelHostPort.c_str(), ret);

@@ -104,18 +104,9 @@ bool ForkChildCheck(int argc, const char *argv[])
     return true;
 }
 
-size_t CheckUvThreadConfig()
+static size_t CheckUvThreadConfig()
 {
-    string nThreadsString;
-    bool ret = SystemDepend::GetDevItem("persist.hdc.uv.threads", nThreadsString);
-    if (!ret) {
-        return SIZE_THREAD_POOL;
-    }
-    size_t nThreads = atoi(nThreadsString.c_str());
-    if (nThreads <= 0) {
-        nThreads = SIZE_THREAD_POOL;
-    }
-    return nThreads;
+    return SystemDepend::GetDevUint("persist.hdc.uv.threads", SIZE_THREAD_POOL);
 }
 
 int BackgroundRun()
@@ -292,6 +283,14 @@ int main(int argc, const char *argv[])
 #ifdef CONFIG_USE_JEMALLOC_DFX_INIF
     mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
     mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
+#ifndef UPDATER_MODE
+    string developerMode;
+    SystemDepend::GetDevItem("const.security.developermode.state", developerMode);
+    if (developerMode != "true") {
+        WRITE_LOG(LOG_FATAL, "non developer mode, hdcd does not start");
+        return -1;
+    }
 #endif
     // check property
     if (argc == CMD_ARG1_COUNT && !strcmp(argv[1], "-h")) {

@@ -37,6 +37,7 @@ protected:
     int SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t *appendData, int dataSize);
     int GetSafeUsbBlockSize(uint16_t wMaxPacketSizeSend);
     bool IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes);
+    vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize);
 
     void *clsMainBase;
     bool modRunning;
@@ -45,7 +46,6 @@ protected:
 
 private:
     static void ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
-    vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize);
     int CheckPacketOption(HSession hSession, uint8_t *appendData, int dataSize);
     void PreSendUsbSoftReset(HSession hSession, uint32_t sessionIdOld);
 };

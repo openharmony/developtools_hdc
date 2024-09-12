@@ -720,6 +720,14 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }
+    if (!hdi->hSession->handshakeOK) {
+        WRITE_LOG(LOG_WARN, "hSession handShake is false sid:%u cid:%u",
+            hdi->hSession->sessionId, hChannel->channelId);
+        const string errMsg = "[E000004]:The communication channel is being established.\r\n"\
+            "Please wait for several seconds and try again.";
+        EchoClient(hChannel, MSG_FAIL, errMsg.c_str());
+        return nullptr;
+    }
     hSession = reinterpret_cast<HSession>(hdi->hSession);
     return hSession;
 }

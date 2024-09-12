@@ -36,6 +36,8 @@
 #include <codecvt>
 #include <wchar.h>
 #include <wincrypt.h>
+#else
+#include <sys/wait.h>
 #endif
 #include <fstream>
 using namespace std::chrono;
@@ -51,6 +53,7 @@ namespace Base {
         return g_logLevel;
     }
 #ifndef  HDC_HILOG
+    uint16_t g_logAmountLimit = MAX_LOG_FILE_COUNT;
     std::atomic<bool> g_logCache = true;
 #endif
     uint8_t g_logLevel = LOG_DEBUG;  // tmp set,now debugmode.LOG_OFF when release;;
@@ -202,13 +205,196 @@ namespace Base {
         return strcmp(a.c_str(), b.c_str()) < 0;
     }
 
-    void RemoveOlderLogFiles()
+    bool CreateLogDir()
+    {
+        string errMsg;
+        if (!TryCreateDirectory(GetLogDirName(), errMsg)) {
+            // Warning: no log dir, so the log here can not save into the log file.
+            WRITE_LOG(LOG_WARN, "create log dir failed, %s", errMsg.c_str());
+            return false;
+        }
+        return true;
+    }
+
+    string GetCompressLogFileName(string &fileName)
+    {
+        // example: hdc_logs_20230228-123456789.log.tgz
+        return fileName + LOG_FILE_COMPRESS_SUFFIX;
+    }
+
+    uint64_t GetLogDirSize()
+    {
+        vector<string> files = GetDirFileName();
+        if (files.size() == 0) {
+            return 0;
+        }
+        uint64_t totalSize = 0;
+        int value = -1;
+        for (auto name : files) {
+            uv_fs_t req;
+            string last = GetLogDirName() + name;
+            value = uv_fs_stat(nullptr, &req, last.c_str(), nullptr);
+            uv_fs_req_cleanup(&req);
+            if (value != 0) {
+                constexpr int bufSize = 1024;
+                char buf[bufSize] = { 0 };
+                uv_strerror_r(value, buf, bufSize);
+                uv_fs_req_cleanup(&req);
+                PrintMessage("GetLogDirSize error file %s not exist %s", last.c_str(), buf);
+                return UINT64_MAX;
+            }
+
+            if (req.result == 0) {
+                totalSize += req.statbuf.st_size;
+            }
+            
+        }
+        WRITE_LOG(LOG_DEBUG, "log dir size %llu", totalSize);
+        return totalSize;
+    }
+
+#ifdef _WIN32
+    bool CompressLogFileWin32(string &fileName)
+    {
+        bool retVal = false;
+        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        chdir(GetLogDirName().c_str());
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);  
+        ZeroMemory(&pi, sizeof(pi));
+        string prefix = GetTarToolName() + " ";
+        string param = GetTarParams() + " " + GetCompressLogFileName(fileName) + " " + fileName;
+        string cmd = prefix + param;
+        if (!CreateProcess(GetTarBinFile().c_str(), const_cast<char *>(cmd.c_str()),
+            NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+            DWORD errorCode = GetLastError();
+            LPVOID messageBuffer;
+            FormatMessage(
+                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                NULL,
+                errorCode,
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPTSTR)&messageBuffer,
+                0,
+                NULL
+            );
+            WRITE_LOG(LOG_FATAL, "compress log file failed, cmd: %s, error: %s", cmd.c_str(), (LPCTSTR)messageBuffer);
+            LocalFree(messageBuffer);
+        } else {
+            DWORD wait_result = WaitForSingleObject(pi.hProcess, INFINITE);
+            if (wait_result == WAIT_OBJECT_0) {
+                 retVal = true;
+            } else if (wait_result == WAIT_TIMEOUT) {
+                TerminateProcess(pi.hProcess, 0);
+                retVal = false;
+            } else {
+                retVal = false;
+            }
+        }
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return retVal;
+    }
+#else
+
+    bool CompressLogFileUnix(string &fileName)
+    {
+        bool retVal = false;
+        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        pid_t pc = fork();  // create process
+        chdir(GetLogDirName().c_str());
+        if (pc < 0) {
+            WRITE_LOG(LOG_WARN, "fork subprocess failed.");
+        } else if (!pc) {
+            if ( (execlp(GetTarToolName().c_str(), GetTarToolName().c_str(), GetTarParams().c_str() ,
+                GetCompressLogFileName(fileName).c_str(), fileName.c_str(), nullptr)) == -1) {
+                exit(EXIT_FAILURE);
+            } else {
+                exit(0);
+            }
+        } else {
+            int status;
+            waitpid(pc, &status, 0);
+            if (WIFEXITED(status)) {
+                // 子进程正常退出，可以获取退出状态码
+                int exit_code = WEXITSTATUS(status);
+                WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exit_code);
+                retVal = true;
+            } else {
+                // 子进程异常退出
+                WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
+                    fileName.c_str(), strerror(errno));
+    }
+        }
+        return retVal;
+    }
+#endif
+
+    bool CompressLogFile(string &fileName)
+    {
+#ifdef _WIN32
+        return CompressLogFileWin32(fileName);
+#else
+        return CompressLogFileUnix(fileName);
+#endif
+    }
+
+    void CompressLogFiles()
+    {
+        vector<string> files = GetDirFileName();
+        WRITE_LOG(LOG_DEBUG, "search log dir files, get files count: %d", files.size());
+        if (files.size() == 0) {
+            return;
+        }
+        for (auto name : files) {
+            if (name.find(LOG_FILE_NAME) != string::npos) {
+                continue;
+            }
+            if (name.find(LOG_FILE_COMPRESS_SUFFIX) != string::npos) {
+                continue;
+            }
+            if ((name.find(LOG_FILE_SUFFIX) != string::npos && CompressLogFile(name))) {
+                unlink(name.c_str());
+            }
+        }
+    }
+
+    uint16_t GetLogAmountLimit()
+    {
+        return g_logAmountLimit;
+    }
+
+    void SetLogAmountLimit(const uint16_t logAmountLimit)
+    {
+        g_logAmountLimit = logAmountLimit;
+    }
+
+    uint16_t GetLogLimitByEnv()
+    {
+        char *env = getenv(ENV_SERVER_LOG_LIMIT.c_str());
+        size_t maxLen = 5;
+        if (!env || strlen(env) > maxLen) {
+            return GetLogAmountLimit();
+        }
+        int limitCount = atoi(env);
+        WRITE_LOG(LOG_DEBUG, "get log limit count from env: %d", limitCount);
+        if (limitCount <= 0) {
+            WRITE_LOG(LOG_WARN, "invalid log limit count: %d", limitCount);
+            return GetLogAmountLimit();
+        } else {
+            return static_cast<uint16_t>(limitCount);
+        }
+    }
+
+    vector<string> GetDirFileName() 
     {
         vector<string> files;
-        DIR* dir = opendir(GetTmpDir().c_str());
+        DIR* dir = opendir(GetLogDirName().c_str());
         if (dir == nullptr) {
             WRITE_LOG(LOG_WARN, "open log dir failed");
-            return;
+            return files;
         }
 
         struct dirent* entry;
@@ -219,22 +405,48 @@ namespace Base {
             }
         }
         closedir(dir);
+        return files;
+    }
 
-        if (files.size() <= MAX_LOG_FILE_COUNT) {
+    string GetLogDirName()
+    {
+        // example: C:\\User\name***\AppData\Local\Temp + '\' + hdc_logs
+        return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
+    }
+
+    string GetLogNameWithTime()
+    {
+        string timeStr;
+        GetTimeString(timeStr);
+        // example: hdc-20230228-123456789.log
+        return LOG_FILE_NAME_PREFIX + timeStr + LOG_FILE_SUFFIX;
+    }
+
+    void RemoveOlderLogFiles()
+    {
+        vector<string> files = GetDirFileName();
+        if (files.size() <= GetLogLimitByEnv()) {
+            return;
+        }
+
+        if (GetLogDirSize() <= (static_cast<uint64_t>(GetLogLimitByEnv() + 1) * MAX_LOG_FILE_SIZE)) {
+            // +1: for max size boundary conditions.
+            return;
+        } else if (GetLogDirSize() == UINT64_MAX) {
             return;
         }
 
         // Sort file names by time, with earlier ones coming first
         sort(files.begin(), files.end(), CompareLogFileName);
 
-        uint16_t deleteCount = files.size() - MAX_LOG_FILE_COUNT;
+        uint16_t deleteCount = files.size() - GetLogLimitByEnv();
         WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
         uint16_t count = 0;
         for (auto name : files) {
             if (count >= deleteCount) {
                 break;
             }
-            string deleteFile = GetTmpDir() + name;
+            string deleteFile = GetLogDirName() + name;
             WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
             unlink(deleteFile.c_str());
             count++;
@@ -243,19 +455,20 @@ namespace Base {
 
     void LogToFile(const char *str)
     {
-        string path = GetTmpDir() + LOG_FILE_NAME;
+        string path = GetLogDirName() + LOG_FILE_NAME;
         RollLogFile(path.c_str());
         LogToPath(path.c_str(), str);
     }
 
     void LogToCache(const char *str)
     {
-        string path = GetTmpDir() + LOG_CACHE_NAME;
+        string path = GetLogDirName() + LOG_CACHE_NAME;
         LogToPath(path.c_str(), str);
     }
 
     void RollLogFile(const char *path)
     {
+        // Here cannot use WRITE_LOG, because it will call RollLogFile again.
         int value = -1;
         uv_fs_t fs;
         value = uv_fs_stat(nullptr, &fs, path, nullptr);
@@ -267,34 +480,36 @@ namespace Base {
             return;
         }
         uint64_t size = fs.statbuf.st_size;
-        if (size < LOG_FILE_MAX_SIZE) {
+        if (size < MAX_LOG_FILE_SIZE) {
             return;
         }
-        string timeStr;
-        GetTimeString(timeStr);
-        string last = GetTmpDir() + LOG_FILE_NAME_PREFIX + timeStr + ".log";
+        string last = GetLogDirName() + GetLogNameWithTime();
         value = uv_fs_rename(nullptr, &fs, path, last.c_str(), nullptr);
+        PrintMessage("rename %s to %s", path, last.c_str());
         if (value != 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(value, buf, bufSize);
+            uv_fs_req_cleanup(&fs);
             PrintMessage("RollLogFile error rename %s to %s %s", path, last.c_str(), buf);
             return;
         }
+        uv_fs_req_cleanup(&fs);   
+        CompressLogFiles();
         RemoveOlderLogFiles();
     }
 
     void ChmodLogFile()
     {
-        string path = GetTmpDir() + LOG_FILE_NAME;
+        string path = GetLogDirName() + LOG_FILE_NAME;
         uv_fs_t req = {};
-        uv_fs_req_cleanup(&req);
         int rc = uv_fs_chmod(nullptr, &req, path.c_str(), 0664, nullptr);
         if (rc < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
             WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", path.c_str(), buffer);
         }
+        uv_fs_req_cleanup(&req);
     }
 #endif
 
@@ -1407,8 +1622,8 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         mode_t mode = req.statbuf.st_mode;
         uv_fs_req_cleanup(&req);
         if (r < 0) {
-            WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", path.c_str());
             r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
+            WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", path.c_str());
             uv_fs_req_cleanup(&req);
             if (r < 0) {
                 constexpr int bufSize = 1024;
@@ -1824,13 +2039,16 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
     void RemoveLogFile()
     {
         if (g_logCache) {
-            string path = GetTmpDir() + LOG_FILE_NAME;
-            string timeStr;
-            GetTimeString(timeStr);
-            string bakPath = GetTmpDir() + LOG_FILE_NAME_PREFIX + timeStr + ".log";
-            string cachePath = GetTmpDir() + LOG_CACHE_NAME;
+            string path = GetLogDirName() + LOG_FILE_NAME;
+            string bakName = GetLogNameWithTime();
+            string bakPath = GetLogDirName() + bakName;
+            string cachePath = GetLogDirName() + LOG_CACHE_NAME;
             rename(path.c_str(), bakPath.c_str());
             rename(cachePath.c_str(), path.c_str());
+            // 判断文件存在
+            if ((access(bakPath.c_str(), F_OK) == 0) && CompressLogFile(bakName)) {
+                unlink(bakPath.c_str());
+            }
             g_logCache = false;
             RemoveOlderLogFiles();
         }
@@ -1838,7 +2056,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 
     void RemoveLogCache()
     {
-        string cachePath = GetTmpDir() + LOG_CACHE_NAME;
+        string cachePath = GetLogDirName() + LOG_CACHE_NAME;
         unlink(cachePath.c_str());
     }
 #endif

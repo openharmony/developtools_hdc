@@ -26,12 +26,15 @@ constexpr size_t SIZE_THREAD_POOL_MAX = 256;
 constexpr uint8_t GLOBAL_TIMEOUT = 30;
 constexpr uint16_t DEFAULT_PORT = 8710;
 constexpr uint16_t MAX_LOG_FILE_COUNT = 30;
+constexpr uint64_t MAX_LOG_FILE_SIZE = static_cast<uint64_t>(100) * 1024 * 1024; // 100MB
+constexpr uint64_t MAX_LOG_DIR_SIZE = static_cast<uint64_t>(3) * 1024 * 1024 * 1024; // 3GB
 constexpr bool ENABLE_IO_CHECKSUM = false;
 const string IPV4_MAPPING_PREFIX = "::ffff:";
 const string DEFAULT_SERVER_ADDR_IP = "::ffff:127.0.0.1";
 const string DEFAULT_SERVER_ADDR = "::ffff:127.0.0.1:8710";
 const string ENV_SERVER_PORT = "OHOS_HDC_SERVER_PORT";
 const string ENV_SERVER_LOG = "OHOS_HDC_LOG_LEVEL";
+const string ENV_SERVER_LOG_LIMIT = "OHOS_HDC_LOG_LIMIT";
 
 // ################################ macro define ###################################
 constexpr uint8_t MINOR_TIMEOUT = 5;
@@ -109,8 +112,12 @@ const string WHITE_SPACES = " \t\n\r";
 const string UT_TMP_PATH = "/tmp/hdc-ut";
 const string LOG_FILE_NAME = "hdc.log";
 const string LOG_FILE_NAME_PREFIX = "hdc-";
+const string LOG_FILE_SUFFIX = ".log";
+const string LOG_FILE_COMPRESS_SUFFIX = ".tgz";
+const string LOG_COMPRESS_TOOL_NAME = "tar";
 const string LOG_CACHE_NAME = ".hdc.cache.log";
-constexpr uint64_t LOG_FILE_MAX_SIZE = 104857600;
+const string LOG_DIR_NAME = "hdc_logs";
+const string LOG_COMPRESS_TOOL_PARAMS = "czfp";
 const string SERVER_NAME = "HDCServer";
 const string STRING_EMPTY = "";
 const string HANDSHAKE_MESSAGE = "OHOS HDC";  // sep not char '-', not more than 11 bytes
@@ -150,6 +157,9 @@ const string CMDSTR_TMODE_USB = "usb";
 #ifdef _WIN32
 const string HILOG_NAME = "hilog.exe";
 const string SPLIT = "\\";
+const string LOG_COMPRESS_TOOL_BIN_WIN32 = "C:\\Windows\\System32\\tar.exe";
+#else
+const string LOG_COMPRESS_TOOL_BIN_UNIX = "tar";
 #endif
 #ifdef HDC_SUPPORT_UART
 const string CMDSTR_TMODE_UART = "uart";

@@ -40,6 +40,9 @@ namespace Hdc {
 namespace Base {
     uint8_t GetLogLevel();
     extern uint8_t g_logLevel;
+#ifndef HDC_HILOG
+    extern uint16_t g_logAmountLimit;
+#endif
     void SetLogLevel(const uint8_t logLevel);
     uint8_t GetLogLevelByEnv();
     void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...);
@@ -185,6 +188,37 @@ namespace Base {
     void RemoveLogCache();
     void RollLogFile(const char *path);
     void ChmodLogFile();
+    bool CreateLogDir();
+#ifdef _WIN32
+    bool CompressLogFileWin32(string &fileName);
+#else
+    bool CompressLogFileUnix(string &fileName);
+#endif
+    bool CompressLogFile(string &fileName);
+    void CompressLogFiles();
+    void RemoveOlderLogFiles();
+    vector<string> GetDirFileName();
+    string GetCompressLogFileName(string &fileName);
+    uint64_t GetLogDirSize();
+    string GetLogDirName();
+    string GetLogNameWithTime();
+    inline string GetTarToolName()
+    {
+        return LOG_COMPRESS_TOOL_NAME;
+    }
+    inline string GetTarBinFile()
+    {
+#ifdef _WIN32
+        return LOG_COMPRESS_TOOL_BIN_WIN32;
+#else
+        return LOG_COMPRESS_TOOL_BIN_UNIX;
+#endif
+    }
+
+    inline string GetTarParams()
+    {
+        return LOG_COMPRESS_TOOL_PARAMS;
+    }
 #endif
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
     bool IsRoot();

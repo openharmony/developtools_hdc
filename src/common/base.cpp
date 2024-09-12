@@ -243,7 +243,7 @@ namespace Base {
             WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
             count++;
         }
-    }     
+    }
 #endif
 
     void RemoveOlderLogFiles()

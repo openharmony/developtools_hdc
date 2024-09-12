@@ -215,7 +215,7 @@ namespace Base {
 
         do {
             if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
-                SetErrorMode(SEM_FAILCRITICALERORS);
+                SetErrorMode(SEM_FAILCRITICALERRORS);
                 if (strncmp(findData.cFileName, LOG_FILE_NAME_PREFIX.c_str(), LOG_FILE_NAME_PREFIX.size()) == 0) {
                     files.push_back(findData.cFileName);
                 }
@@ -250,7 +250,8 @@ namespace Base {
     {
 #if defined(_WIN32) && defined(HDC_HOST)
         RemoveOlderLogFilesOnWindows();
-#else
+        return;
+#end
         vector<string> files;
         DIR* dir = opendir(GetTmpDir().c_str());
         if (dir == nullptr) {
@@ -286,7 +287,6 @@ namespace Base {
             unlink(deleteFile.c_str());
             count++;
         }
-#endif
     }
 
     void LogToFile(const char *str)

@@ -202,7 +202,7 @@ namespace Base {
         return strcmp(a.c_str(), b.c_str()) < 0;
     }
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(HDC_HOST)
     void RemoveOlderLogFilesOnWindows()
     {
         vector<string> files;
@@ -248,7 +248,7 @@ namespace Base {
 
     void RemoveOlderLogFiles()
     {
-#ifdef _WIN32
+#if defined(_WIN32) && defined(HDC_HOST)
         RemoveOlderLogFilesOnWindows();
         return;
 #end

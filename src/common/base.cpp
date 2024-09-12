@@ -251,7 +251,7 @@ namespace Base {
 #if defined(_WIN32) && defined(HDC_HOST)
         RemoveOlderLogFilesOnWindows();
         return;
-#end
+#endif
         vector<string> files;
         DIR* dir = opendir(GetTmpDir().c_str());
         if (dir == nullptr) {

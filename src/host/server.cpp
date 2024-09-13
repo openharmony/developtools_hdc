@@ -175,6 +175,7 @@ bool HdcServer::PullupServer(const char *listenString)
         WRITE_LOG(LOG_WARN, "uvexepath ret:%d error:%s", ret, buf);
         return false;
     }
+    Base::CreateLogDir();
 
 #ifdef _WIN32
     if (!PullupServerWin32(path, listenString)) {

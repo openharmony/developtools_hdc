@@ -53,7 +53,6 @@ namespace Base {
         return g_logLevel;
     }
 #ifndef  HDC_HILOG
-    uint16_t g_logAmountLimit = MAX_LOG_FILE_COUNT;
     std::atomic<bool> g_logCache = true;
 #endif
     uint8_t g_logLevel = LOG_DEBUG;  // tmp set,now debugmode.LOG_OFF when release;;
@@ -210,7 +209,7 @@ namespace Base {
         string errMsg;
         if (!TryCreateDirectory(GetLogDirName(), errMsg)) {
             // Warning: no log dir, so the log here can not save into the log file.
-            WRITE_LOG(LOG_WARN, "create log dir failed, %s", errMsg.c_str());
+            WRITE_LOG(LOG_WARN, "[E002102]Create hdc_logs directory failed, the logs could not be saved into files.");
             return false;
         }
         return true;
@@ -218,7 +217,7 @@ namespace Base {
 
     string GetCompressLogFileName(string &fileName)
     {
-        // example: hdc_logs_20230228-123456789.log.tgz
+        // example: hdc-20230228-123456789.log.tgz
         return fileName + LOG_FILE_COMPRESS_SUFFIX;
     }
 
@@ -233,15 +232,15 @@ namespace Base {
         for (auto name : files) {
             uv_fs_t req;
             string last = GetLogDirName() + name;
-            value = uv_fs_stat(nullptr, &req, last.c_str(), nullptr);
+            string utfName = UnicodeToUtf8(last.c_str(), false);
+            value = uv_fs_stat(nullptr, &req, utfName.c_str(), nullptr);
             uv_fs_req_cleanup(&req);
             if (value != 0) {
                 constexpr int bufSize = 1024;
                 char buf[bufSize] = { 0 };
                 uv_strerror_r(value, buf, bufSize);
                 uv_fs_req_cleanup(&req);
-                PrintMessage("GetLogDirSize error file %s not exist %s", last.c_str(), buf);
-                return UINT64_MAX;
+                WRITE_LOG(LOG_FATAL, "GetLogDirSize error file %s not exist %s", utfName.c_str(), buf);
             }
 
             if (req.result == 0) {
@@ -249,38 +248,54 @@ namespace Base {
             }
             
         }
-        WRITE_LOG(LOG_DEBUG, "log dir size %llu", totalSize);
+        WRITE_LOG(LOG_INFO, "log dir size %llu", totalSize);
         return totalSize;
     }
 
-#ifdef _WIN32
-    bool CompressLogFileWin32(string &fileName)
+    bool ThreadCompressLog(string &fileName)
+    {
+        string full = GetLogDirName() + fileName;
+        CompressLogFile(fileName);
+        WRITE_LOG(LOG_INFO, "delete file %s", full.c_str());
+        if (access(full.c_str(), F_OK) == 0)
+        {
+            unlink(full.c_str());
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    bool CompressLogFile(string &fileName)
     {
         bool retVal = false;
+        string full = GetLogDirName() + fileName;
+        if (access(full.c_str(), F_OK) != 0)
+        {
+            WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
+            return retVal;
+        }
         WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        char current_dir[1024];
+        getcwd(current_dir, sizeof(current_dir));
+#ifdef _WIN32
+        char buf[BUF_SIZE_SMALL] = "";
+        if (sprintf_s(buf, sizeof(buf), "tar czfp %s %s", GetCompressLogFileName(fileName).c_str(),
+            fileName.c_str()) < 0) {
+            return retVal;
+        }
         chdir(GetLogDirName().c_str());
         STARTUPINFO si;
         PROCESS_INFORMATION pi;
         ZeroMemory(&si, sizeof(si));
         si.cb = sizeof(si);  
         ZeroMemory(&pi, sizeof(pi));
-        string prefix = GetTarToolName() + " ";
-        string param = GetTarParams() + " " + GetCompressLogFileName(fileName) + " " + fileName;
-        string cmd = prefix + param;
-        if (!CreateProcess(GetTarBinFile().c_str(), const_cast<char *>(cmd.c_str()),
-            NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        if (!CreateProcess(GetTarBinFile().c_str(), buf, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
             DWORD errorCode = GetLastError();
             LPVOID messageBuffer;
-            FormatMessage(
-                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL,
-                errorCode,
-                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                (LPTSTR)&messageBuffer,
-                0,
-                NULL
-            );
-            WRITE_LOG(LOG_FATAL, "compress log file failed, cmd: %s, error: %s", cmd.c_str(), (LPCTSTR)messageBuffer);
+            FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&messageBuffer, 0, NULL);
+            WRITE_LOG(LOG_FATAL, "compress log file failed, cmd: %s, error: %s", buf, (LPCTSTR)messageBuffer);
             LocalFree(messageBuffer);
         } else {
             DWORD wait_result = WaitForSingleObject(pi.hProcess, INFINITE);
@@ -288,21 +303,12 @@ namespace Base {
                  retVal = true;
             } else if (wait_result == WAIT_TIMEOUT) {
                 TerminateProcess(pi.hProcess, 0);
-                retVal = false;
-            } else {
-                retVal = false;
+                retVal = true;
             }
         }
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        return retVal;
-    }
 #else
-
-    bool CompressLogFileUnix(string &fileName)
-    {
-        bool retVal = false;
-        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
         pid_t pc = fork();  // create process
         chdir(GetLogDirName().c_str());
         if (pc < 0) {
@@ -326,19 +332,11 @@ namespace Base {
                 // 子进程异常退出
                 WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
                     fileName.c_str(), strerror(errno));
-    }
+            }
         }
+#endif
+        chdir(current_dir);
         return retVal;
-    }
-#endif
-
-    bool CompressLogFile(string &fileName)
-    {
-#ifdef _WIN32
-        return CompressLogFileWin32(fileName);
-#else
-        return CompressLogFileUnix(fileName);
-#endif
     }
 
     void CompressLogFiles()
@@ -361,34 +359,24 @@ namespace Base {
         }
     }
 
-    uint16_t GetLogAmountLimit()
-    {
-        return g_logAmountLimit;
-    }
-
-    void SetLogAmountLimit(const uint16_t logAmountLimit)
-    {
-        g_logAmountLimit = logAmountLimit;
-    }
-
     uint16_t GetLogLimitByEnv()
     {
         char *env = getenv(ENV_SERVER_LOG_LIMIT.c_str());
         size_t maxLen = 5;
         if (!env || strlen(env) > maxLen) {
-            return GetLogAmountLimit();
+            return MAX_LOG_FILE_COUNT;
         }
         int limitCount = atoi(env);
         WRITE_LOG(LOG_DEBUG, "get log limit count from env: %d", limitCount);
         if (limitCount <= 0) {
             WRITE_LOG(LOG_WARN, "invalid log limit count: %d", limitCount);
-            return GetLogAmountLimit();
+            return MAX_LOG_FILE_COUNT;
         } else {
             return static_cast<uint16_t>(limitCount);
         }
     }
 
-    vector<string> GetDirFileName() 
+
 #ifdef _WIN32
     void RemoveOlderLogFilesOnWindows()
     {
@@ -433,13 +421,27 @@ namespace Base {
     }
 #endif
 
-    void RemoveOlderLogFiles()
+    vector<string> GetDirFileName() 
     {
-#ifdef _WIN32
-        RemoveOlderLogFilesOnWindows();
-        return;
-#endif
         vector<string> files;
+#ifdef _WIN32
+        WIN32_FIND_DATA findData;
+        HANDLE hFind = FindFirstFile((GetTmpDir() + "/*").c_str(), &findData);
+        if (hFind == INVALID_HANDLE_VALUE) {
+            WRITE_LOG(LOG_WARN, "Failed to open TEMP dir");
+            return;
+        }
+
+        do {
+            if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+                SetErrorMode(SEM_FAILCRITICALERRORS);
+                if (strncmp(findData.cFileName, LOG_FILE_NAME_PREFIX.c_str(), LOG_FILE_NAME_PREFIX.size()) == 0) {
+                    files.push_back(findData.cFileName);
+                }
+            }
+        } while (FindNextFile(hFind, &findData));
+        FindClose(hFind);
+#else
         DIR* dir = opendir(GetLogDirName().c_str());
         if (dir == nullptr) {
             WRITE_LOG(LOG_WARN, "open log dir failed");
@@ -454,12 +456,13 @@ namespace Base {
             }
         }
         closedir(dir);
+#endif
         return files;
     }
 
     string GetLogDirName()
     {
-        // example: C:\\User\name***\AppData\Local\Temp + '\' + hdc_logs
+        // example: C:\\User\name\AppData\Local\Temp + '\' + hdc_logs
         return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
     }
 
@@ -474,21 +477,20 @@ namespace Base {
     void RemoveOlderLogFiles()
     {
         vector<string> files = GetDirFileName();
-        if (files.size() <= GetLogLimitByEnv()) {
+        uint16_t logLimitSize = GetLogLimitByEnv();
+        if (files.size() <= logLimitSize) {
             return;
         }
 
-        if (GetLogDirSize() <= (static_cast<uint64_t>(GetLogLimitByEnv() + 1) * MAX_LOG_FILE_SIZE)) {
-            // +1: for max size boundary conditions.
+        if (GetLogDirSize() <= MAX_LOG_DIR_SIZE) {
             return;
         } else if (GetLogDirSize() == UINT64_MAX) {
             return;
         }
-
         // Sort file names by time, with earlier ones coming first
         sort(files.begin(), files.end(), CompareLogFileName);
-
-        uint16_t deleteCount = files.size() - GetLogLimitByEnv();
+        WRITE_LOG(LOG_INFO, "log file count: %u, logLimit: %u", files.size(), logLimitSize);
+        uint16_t deleteCount = files.size() - logLimitSize;
         WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
         uint16_t count = 0;
         for (auto name : files) {
@@ -517,7 +519,7 @@ namespace Base {
 
     void RollLogFile(const char *path)
     {
-        // Here cannot use WRITE_LOG, because it will call RollLogFile again.
+        // Here cannot use WRITE_LOG, because WRITE_LOG will call RollLogFile again.
         int value = -1;
         uv_fs_t fs;
         value = uv_fs_stat(nullptr, &fs, path, nullptr);
@@ -543,8 +545,10 @@ namespace Base {
             PrintMessage("RollLogFile error rename %s to %s %s", path, last.c_str(), buf);
             return;
         }
-        uv_fs_req_cleanup(&fs);   
-        CompressLogFiles();
+        uv_fs_req_cleanup(&fs);
+        // creat thread
+        std::thread compress_thread(CompressLogFiles);
+        compress_thread.detach();
         RemoveOlderLogFiles();
     }
 
@@ -2094,10 +2098,8 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
             string cachePath = GetLogDirName() + LOG_CACHE_NAME;
             rename(path.c_str(), bakPath.c_str());
             rename(cachePath.c_str(), path.c_str());
-            // 判断文件存在
-            if ((access(bakPath.c_str(), F_OK) == 0) && CompressLogFile(bakName)) {
-                unlink(bakPath.c_str());
-            }
+            std::thread compress_thread(ThreadCompressLog, std::ref(bakName));
+            compress_thread.detach();
             g_logCache = false;
             RemoveOlderLogFiles();
         }

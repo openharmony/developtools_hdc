@@ -189,11 +189,6 @@ namespace Base {
     void RollLogFile(const char *path);
     void ChmodLogFile();
     bool CreateLogDir();
-#ifdef _WIN32
-    bool CompressLogFileWin32(string &fileName);
-#else
-    bool CompressLogFileUnix(string &fileName);
-#endif
     bool CompressLogFile(string &fileName);
     void CompressLogFiles();
     void RemoveOlderLogFiles();

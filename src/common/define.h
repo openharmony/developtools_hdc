@@ -87,6 +87,7 @@ constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 10;
 #endif
 constexpr uint16_t TCP_CONNECT_MAX_RETRY_COUNT = 6;
 constexpr uint16_t TCP_CONNECT_RETRY_TIME_MS = 500;
+constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MS = 1000;
 
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
 // |----------------------------------------------------------------|
@@ -94,8 +95,8 @@ constexpr uint16_t TCP_CONNECT_RETRY_TIME_MS = 500;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30100000 is 3.1.0a
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30100000;
+// 0x30100100 is 3.1.0b
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30100100;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;

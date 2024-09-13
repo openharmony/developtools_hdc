@@ -58,7 +58,6 @@ bool FuzzForwardReadStream(const uint8_t *data, size_t size)
     (void)memcpy_s(rbf->base, size, reinterpret_cast<char *>(const_cast<uint8_t *>(data)), size);
     forward->ReadForwardBuf(stream, (ssize_t)size, rbf);
     delete ctx;
-    delete hTaskInfo;
     delete daemon;
     return true;
 }

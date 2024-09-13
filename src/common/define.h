@@ -90,6 +90,7 @@ constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 10;
 #endif
 constexpr uint16_t TCP_CONNECT_MAX_RETRY_COUNT = 6;
 constexpr uint16_t TCP_CONNECT_RETRY_TIME_MS = 500;
+constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MS = 1000;
 
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
 // |----------------------------------------------------------------|

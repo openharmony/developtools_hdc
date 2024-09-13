@@ -20,6 +20,7 @@
 #ifdef HDC_TRACE
 #include "hitrace_meter.h"
 #endif
+#include "define_enum.h"
 
 namespace Hdc {
     
@@ -36,18 +37,6 @@ static string MaskString(const string &str)
         return str.substr(0, 3) + std::string(6, '*') + str.substr(len - 3)  + "(L:" + std::to_string(len) + ")";
     }
 }
-
-// ############################# enum define ###################################
-enum HdcLogLevel {
-    LOG_OFF,
-    LOG_FATAL,
-    LOG_WARN,
-    LOG_INFO,  // default
-    LOG_DEBUG,
-    LOG_ALL,
-    LOG_VERBOSE,
-    LOG_LAST = LOG_VERBOSE,  // tail, not use
-};
 
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(exp) ({         \
@@ -70,203 +59,6 @@ enum HdcLogLevel {
 #define StartTraceScope(value)
 #endif
 
-enum MessageLevel {
-    MSG_FAIL,
-    MSG_INFO,
-    MSG_OK,
-};
-
-enum ConnType { CONN_USB = 0, CONN_TCP, CONN_SERIAL, CONN_BT, CONN_UNKNOWN };
-const string conTypeDetail[] = { "USB", "TCP", "UART", "BT", "UNKNOWN" };
-
-#ifdef HDC_SUPPORT_UART
-enum UartTimeConst {
-    UV_TIMEOUT = 10,
-    UV_REPEAT = 100,
-    TIMEOUTS_R_INTERALTIMEOUT = 1000,
-    TIMEOUTS_R_TOALTIMEOUTMULTIPLIER = 500,
-    TIMEOUTS_R_TIMEOUTCONSTANT = 5000
-};
-enum UartSetSerialNBits {
-    UART_BIT1 = 7,
-    UART_BIT2 = 8
-};
-enum UartSetSerialNSpeed {
-    UART_SPEED2400 = 2400,
-    UART_SPEED4800 = 4800,
-    UART_SPEED9600 = 9600,
-    UART_SPEED115200 = 115200,
-    UART_SPEED921600 = 921600,
-    UART_SPEED1500000 = 1500000
-};
-enum UartSetSerialNStop {
-    UART_STOP1 = 1,
-    UART_STOP2 = 2
-};
-#endif
-enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
-const string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
-
-enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, UNKNOWN = 100 };
-
-enum OperateID {
-    OP_ADD,
-    OP_REMOVE,
-    OP_QUERY,
-    OP_QUERY_REF,  // crossthread query, manually reduce ref
-    OP_GET_STRLIST,
-    OP_GET_STRLIST_FULL,
-    OP_GET_ANY,
-    OP_UPDATE,
-    OP_CLEAR,
-    OP_INIT,
-    OP_GET_ONLY,
-    OP_VOTE_RESET,
-    OP_WAIT_FOR_ANY
-};
-
-enum RetErrCode {
-    RET_SUCCESS = 0,
-    ERR_GENERIC = -1,
-    ERR_NO_SUPPORT = -2,
-    ERR_PARAM_NULLPTR = -5,
-    ERR_LIBUSB_OPEN = -100,
-    ERR_BUF_SIZE = -10000,
-    ERR_BUF_ALLOC,
-    ERR_BUF_OVERFLOW,
-    ERR_BUF_CHECK,
-    ERR_BUF_RESET,
-    ERR_BUF_COPY,
-    ERR_CHECK_VERSION,
-    ERR_FILE_OPEN = -11000,
-    ERR_FILE_READ,
-    ERR_FILE_WRITE,
-    ERR_FILE_STAT,
-    ERR_FILE_PATH_CHECK,
-    ERR_PARM_FORMAT = -12000,
-    ERR_PARM_SIZE,
-    ERR_PARM_FAIL,
-    ERR_API_FAIL = -13000,
-    ERR_IO_FAIL = -14000,
-    ERR_IO_TIMEOUT,
-    ERR_IO_SOFT_RESET,
-    ERR_SESSION_NOFOUND = -15000,
-    ERR_SESSION_OFFLINE,
-    ERR_SESSION_DEAD,
-    ERR_HANDSHAKE_NOTMATCH = -16000,
-    ERR_HANDSHAKE_CONNECTKEY_FAILED,
-    ERR_HANDSHAKE_HANGUP_CHILD,
-    ERR_SOCKET_FAIL = -17000,
-    ERR_SOCKET_DUPLICATE,
-    ERR_MODULE_JDWP_FAILED = -18000,
-    ERR_UT_MODULE_NOTREADY = -19000,
-    ERR_UT_MODULE_WAITMAX,
-    ERR_THREAD_MUTEX_FAIL = -20000,
-    ERR_PROCESS_SUB_FAIL = -21000,
-    ERR_PRIVELEGE_NEED = -22000,
-};
-
-// Flags shared by multiple modules
-enum AsyncEvent {
-    ASYNC_STOP_MAINLOOP = 0,
-    ASYNC_FREE_SESSION,
-    ASYNC_FREE_CHANNEL,
-};
-enum InnerCtrlCommand {
-    SP_START_SESSION = 0,
-    SP_STOP_SESSION,
-    SP_ATTACH_CHANNEL,
-    SP_DEATCH_CHANNEL,
-    SP_JDWP_NEWFD,
-    SP_ARK_NEWFD,
-};
-
-enum HdcCommand {
-    // core commands types
-    CMD_KERNEL_HELP = 0,
-    CMD_KERNEL_HANDSHAKE,
-    CMD_KERNEL_CHANNEL_CLOSE,
-    CMD_KERNEL_SERVER_KILL,
-    CMD_KERNEL_TARGET_DISCOVER,
-    CMD_KERNEL_TARGET_LIST,
-    CMD_KERNEL_TARGET_ANY,
-    CMD_KERNEL_TARGET_CONNECT,
-    CMD_KERNEL_TARGET_DISCONNECT,
-    CMD_KERNEL_ECHO,
-    CMD_KERNEL_ECHO_RAW,
-    CMD_KERNEL_ENABLE_KEEPALIVE,
-    CMD_KERNEL_WAKEUP_SLAVETASK,
-    CMD_CHECK_SERVER,
-    CMD_CHECK_DEVICE,
-    CMD_WAIT_FOR,
-    // One-pass simple commands
-    CMD_UNITY_COMMAND_HEAD = 1000,  // not use
-    CMD_UNITY_EXECUTE,
-    CMD_UNITY_REMOUNT,
-    CMD_UNITY_REBOOT,
-    CMD_UNITY_RUNMODE,
-    CMD_UNITY_HILOG,
-    CMD_UNITY_TERMINATE,
-    CMD_UNITY_ROOTRUN,
-    CMD_JDWP_LIST,
-    CMD_JDWP_TRACK,
-    CMD_UNITY_COMMAND_TAIL,  // not use
-    // It will be separated from unity in the near future
-    CMD_UNITY_BUGREPORT_INIT,
-    CMD_UNITY_BUGREPORT_DATA,
-    // Shell commands types
-    CMD_SHELL_INIT = 2000,
-    CMD_SHELL_DATA,
-    // Forward commands types
-    CMD_FORWARD_INIT = 2500,
-    CMD_FORWARD_CHECK,
-    CMD_FORWARD_CHECK_RESULT,
-    CMD_FORWARD_ACTIVE_SLAVE,
-    CMD_FORWARD_ACTIVE_MASTER,
-    CMD_FORWARD_DATA,
-    CMD_FORWARD_FREE_CONTEXT,
-    CMD_FORWARD_LIST,
-    CMD_FORWARD_REMOVE,
-    CMD_FORWARD_SUCCESS,
-    // File commands
-    CMD_FILE_INIT = 3000,
-    CMD_FILE_CHECK,
-    CMD_FILE_BEGIN,
-    CMD_FILE_DATA,
-    CMD_FILE_FINISH,
-    CMD_APP_SIDELOAD,
-    CMD_FILE_MODE,
-    CMD_DIR_MODE,
-    // App commands
-    CMD_APP_INIT = 3500,
-    CMD_APP_CHECK,
-    CMD_APP_BEGIN,
-    CMD_APP_DATA,
-    CMD_APP_FINISH,
-    CMD_APP_UNINSTALL,
-
-    // deprecated, remove later
-    CMD_UNITY_JPID = CMD_JDWP_LIST,
-
-    // Flashd commands
-    CMD_FLASHD_UPDATE_INIT = 4000,
-    CMD_FLASHD_FLASH_INIT,
-    CMD_FLASHD_CHECK,
-    CMD_FLASHD_BEGIN,
-    CMD_FLASHD_DATA,
-    CMD_FLASHD_FINISH,
-    CMD_FLASHD_ERASE,
-    CMD_FLASHD_FORMAT,
-    CMD_FLASHD_PROGRESS,
-};
-
-enum UsbProtocolOption {
-    USB_OPTION_HEADER = 1,
-    USB_OPTION_RESET = 2,
-    USB_OPTION_RESERVE4 = 4,
-    USB_OPTION_RESERVE8 = 8,
-    USB_OPTION_RESERVE16 = 16,
-};
 // ################################### struct define ###################################
 #pragma pack(push)
 #pragma pack(1)
@@ -444,6 +236,9 @@ struct HdcSession {
     uv_thread_t hWorkChildThread;
     std::mutex mapTaskMutex;
     AuthVerifyType verifyType;
+    std::atomic<bool> isNeedDropData; // host: Whether to discard the USB data after it is read
+    bool isSoftReset; // for daemon, Used to record whether a reset command has been received
+
     std::string ToDebugString()
     {
         std::ostringstream oss;
@@ -487,6 +282,8 @@ struct HdcSession {
         hUART = nullptr;
 #endif
         verifyType = AuthVerifyType::RSA_3072_SHA512;
+        isNeedDropData = true;
+        isSoftReset = false;
     }
 
     ~HdcSession()

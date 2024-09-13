@@ -389,7 +389,56 @@ namespace Base {
     }
 
     vector<string> GetDirFileName() 
+#ifdef _WIN32
+    void RemoveOlderLogFilesOnWindows()
     {
+        vector<string> files;
+        WIN32_FIND_DATA findData;
+        HANDLE hFind = FindFirstFile((GetTmpDir() + "/*").c_str(), &findData);
+        if (hFind == INVALID_HANDLE_VALUE) {
+            WRITE_LOG(LOG_WARN, "Failed to open TEMP dir");
+            return;
+        }
+
+        do {
+            if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+                SetErrorMode(SEM_FAILCRITICALERRORS);
+                if (strncmp(findData.cFileName, LOG_FILE_NAME_PREFIX.c_str(), LOG_FILE_NAME_PREFIX.size()) == 0) {
+                    files.push_back(findData.cFileName);
+                }
+            }
+        } while (FindNextFile(hFind, &findData));
+        FindClose(hFind);
+
+        if (files.size() <= MAX_LOG_FILE_COUNT) {
+            return;
+        }
+
+        // Sort file names by time, with earlier ones coming first
+        sort(files.begin(), files.end(), CompareLogFileName);
+
+        uint16_t deleteCount = files.size() - MAX_LOG_FILE_COUNT;
+        WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
+        uint16_t count = 0;
+        for (auto name : files) {
+            if (count >= deleteCount) {
+                break;
+            }
+            string deleteFile = GetTmpDir() + name;
+            LPCTSTR lpFileName = TEXT(deleteFile.c_str());
+            BOOL ret = DeleteFile(lpFileName);
+            WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
+            count++;
+        }
+    }
+#endif
+
+    void RemoveOlderLogFiles()
+    {
+#ifdef _WIN32
+        RemoveOlderLogFilesOnWindows();
+        return;
+#endif
         vector<string> files;
         DIR* dir = opendir(GetLogDirName().c_str());
         if (dir == nullptr) {

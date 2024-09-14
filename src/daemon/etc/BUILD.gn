@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import("//build/ohos.gni")
+import("//developtools/hdc/hdc.gni")
 
 group("daemon_etc") {
   deps = [
@@ -25,6 +26,9 @@ ohos_prebuilt_etc("hdcd.cfg") {
   source = "hdcd.root.cfg"
   if (build_variant == "user") {
     source = "hdcd.cfg"
+  }
+  if (hdc_feature_support_sudo) {
+    source = "hdcd_sudo.cfg"
   }
   relative_install_dir = "init"
   install_images = [

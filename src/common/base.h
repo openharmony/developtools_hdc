@@ -40,9 +40,6 @@ namespace Hdc {
 namespace Base {
     uint8_t GetLogLevel();
     extern uint8_t g_logLevel;
-#ifndef HDC_HILOG
-    extern uint16_t g_logAmountLimit;
-#endif
     void SetLogLevel(const uint8_t logLevel);
     uint8_t GetLogLevelByEnv();
     void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...);
@@ -189,12 +186,12 @@ namespace Base {
     void RollLogFile(const char *path);
     void ChmodLogFile();
     bool CreateLogDir();
-    bool CompressLogFile(string &fileName);
+    bool CompressLogFile(string fileName);
     void CompressLogFiles();
     void RemoveOlderLogFiles();
     vector<string> GetDirFileName();
-    string GetCompressLogFileName(string &fileName);
-    uint64_t GetLogDirSize();
+    string GetCompressLogFileName(string fileName);
+    uint64_t GetLogDirSize(vector<string> files);
     string GetLogDirName();
     string GetLogNameWithTime();
     inline string GetTarToolName()

@@ -215,15 +215,15 @@ namespace Base {
         return true;
     }
 
-    string GetCompressLogFileName(string &fileName)
+    string GetCompressLogFileName(string fileName)
     {
         // example: hdc-20230228-123456789.log.tgz
         return fileName + LOG_FILE_COMPRESS_SUFFIX;
     }
 
-    uint64_t GetLogDirSize()
+    uint64_t GetLogDirSize(vector<string> files)
     {
-        vector<string> files = GetDirFileName();
+        WRITE_LOG(LOG_DEBUG, "GetLogDirSize, file size: %d", files.size());
         if (files.size() == 0) {
             return 0;
         }
@@ -252,21 +252,23 @@ namespace Base {
         return totalSize;
     }
 
-    bool ThreadCompressLog(string &fileName)
+    static void ThreadCompressLog(string bakName)
     {
-        string full = GetLogDirName() + fileName;
-        CompressLogFile(fileName);
-        WRITE_LOG(LOG_INFO, "delete file %s", full.c_str());
-        if (access(full.c_str(), F_OK) == 0)
-        {
-            unlink(full.c_str());
-        } else {
-            return false;
+        string bakPath = GetLogDirName() + bakName;
+        if (bakName.empty()) {
+            WRITE_LOG(LOG_FATAL, "ThreadCompressLog file name empty");
+            return;
         }
-        return true;
+        if ( (access(bakPath.c_str(), F_OK) != 0) || !CompressLogFile(bakName))
+        {
+            WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", bakPath.c_str());
+            return;
+        }
+        WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
+        unlink(bakPath.c_str());
     }
 
-    bool CompressLogFile(string &fileName)
+    bool CompressLogFile(string fileName)
     {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
@@ -382,7 +384,7 @@ namespace Base {
     {
         vector<string> files;
         WIN32_FIND_DATA findData;
-        HANDLE hFind = FindFirstFile((GetTmpDir() + "/*").c_str(), &findData);
+        HANDLE hFind = FindFirstFile((GetLogDirName() + "/*").c_str(), &findData);
         if (hFind == INVALID_HANDLE_VALUE) {
             WRITE_LOG(LOG_WARN, "Failed to open TEMP dir");
             return;
@@ -412,7 +414,7 @@ namespace Base {
             if (count >= deleteCount) {
                 break;
             }
-            string deleteFile = GetTmpDir() + name;
+            string deleteFile = GetLogDirName() + name;
             LPCTSTR lpFileName = TEXT(deleteFile.c_str());
             BOOL ret = DeleteFile(lpFileName);
             WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
@@ -426,9 +428,9 @@ namespace Base {
         vector<string> files;
 #ifdef _WIN32
         WIN32_FIND_DATA findData;
-        HANDLE hFind = FindFirstFile((GetTmpDir() + "/*").c_str(), &findData);
+        HANDLE hFind = FindFirstFile((GetLogDirName() + "/*").c_str(), &findData);
         if (hFind == INVALID_HANDLE_VALUE) {
-            WRITE_LOG(LOG_WARN, "Failed to open TEMP dir");
+            WRITE_LOG(LOG_WARN, "Failed to open log dir");
             return;
         }
 
@@ -460,9 +462,11 @@ namespace Base {
         return files;
     }
 
-    string GetLogDirName()
+    inline string GetLogDirName()
     {
-        // example: C:\\User\name\AppData\Local\Temp + '\' + hdc_logs
+        // example: C:\\User\name\AppData\Local\Temp\ + hdc_logs + '\' 
+        // string fullPath = GetTmpDir() + LOG_DIR_NAME + GetPathSep();
+        // return UnicodeToUtf8(fullPath.c_str());
         return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
     }
 
@@ -481,10 +485,10 @@ namespace Base {
         if (files.size() <= logLimitSize) {
             return;
         }
-
-        if (GetLogDirSize() <= MAX_LOG_DIR_SIZE) {
+        uint64_t dirSize = GetLogDirSize(files);
+        if (dirSize <= MAX_LOG_DIR_SIZE) {
             return;
-        } else if (GetLogDirSize() == UINT64_MAX) {
+        } else if (dirSize == UINT64_MAX) {
             return;
         }
         // Sort file names by time, with earlier ones coming first
@@ -547,8 +551,8 @@ namespace Base {
         }
         uv_fs_req_cleanup(&fs);
         // creat thread
-        std::thread compress_thread(CompressLogFiles);
-        compress_thread.detach();
+        std::thread compressDirThread(CompressLogFiles);
+        compressDirThread.detach();
         RemoveOlderLogFiles();
     }
 
@@ -2091,17 +2095,18 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 
     void RemoveLogFile()
     {
+        string path = GetLogDirName() + LOG_FILE_NAME;
+        string bakName = GetLogNameWithTime();
+        string bakPath = GetLogDirName() + bakName;
+        string cachePath = GetLogDirName() + LOG_CACHE_NAME;
+        rename(path.c_str(), bakPath.c_str());
+        rename(cachePath.c_str(), path.c_str());     
         if (g_logCache) {
-            string path = GetLogDirName() + LOG_FILE_NAME;
-            string bakName = GetLogNameWithTime();
-            string bakPath = GetLogDirName() + bakName;
-            string cachePath = GetLogDirName() + LOG_CACHE_NAME;
-            rename(path.c_str(), bakPath.c_str());
-            rename(cachePath.c_str(), path.c_str());
-            std::thread compress_thread(ThreadCompressLog, std::ref(bakName));
-            compress_thread.detach();
+            std::thread compressThread(ThreadCompressLog, bakName);
+            compressThread.detach();
             g_logCache = false;
-            RemoveOlderLogFiles();
+            std::thread removeThread(RemoveOlderLogFiles);
+            removeThread.detach();
         }
     }
 

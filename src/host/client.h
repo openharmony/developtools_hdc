@@ -44,7 +44,8 @@ private:
     int PreHandshake(HChannel hChannel, const uint8_t *buf);
     string AutoConnectKey(string &doCommand, const string &preConnectKey) const;
     uint32_t GetLastPID();
-    bool StartKillServer(const char *cmd, bool startOrKill);
+    bool StartServer(const string &cmd);
+    bool KillServer(const string &cmd);
     void BindLocalStd();
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);

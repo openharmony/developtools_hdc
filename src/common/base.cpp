@@ -242,11 +242,9 @@ namespace Base {
                 uv_fs_req_cleanup(&req);
                 WRITE_LOG(LOG_FATAL, "GetLogDirSize error file %s not exist %s", utfName.c_str(), buf);
             }
-
             if (req.result == 0) {
                 totalSize += req.statbuf.st_size;
             }
-            
         }
         WRITE_LOG(LOG_INFO, "log dir size %llu", totalSize);
         return totalSize;
@@ -259,8 +257,7 @@ namespace Base {
             WRITE_LOG(LOG_FATAL, "ThreadCompressLog file name empty");
             return;
         }
-        if ( (access(bakPath.c_str(), F_OK) != 0) || !CompressLogFile(bakName))
-        {
+        if ((access(bakPath.c_str(), F_OK) != 0) || !CompressLogFile(bakName)) {
             WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", bakPath.c_str());
             return;
         }
@@ -268,19 +265,19 @@ namespace Base {
         unlink(bakPath.c_str());
     }
 
+#ifdef _WIN32
     bool CompressLogFile(string fileName)
     {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
-        if (access(full.c_str(), F_OK) != 0)
-        {
+        if (access(full.c_str(), F_OK) != 0) {
             WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
             return retVal;
         }
         WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
-        char current_dir[1024];
-        getcwd(current_dir, sizeof(current_dir));
-#ifdef _WIN32
+        char currentDir[1024];
+        getcwd(currentDir, sizeof(currentDir));
+
         char buf[BUF_SIZE_SMALL] = "";
         if (sprintf_s(buf, sizeof(buf), "tar czfp %s %s", GetCompressLogFileName(fileName).c_str(),
             fileName.c_str()) < 0) {
@@ -290,7 +287,7 @@ namespace Base {
         STARTUPINFO si;
         PROCESS_INFORMATION pi;
         ZeroMemory(&si, sizeof(si));
-        si.cb = sizeof(si);  
+        si.cb = sizeof(si);
         ZeroMemory(&pi, sizeof(pi));
         if (!CreateProcess(GetTarBinFile().c_str(), buf, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
             DWORD errorCode = GetLastError();
@@ -300,23 +297,38 @@ namespace Base {
             WRITE_LOG(LOG_FATAL, "compress log file failed, cmd: %s, error: %s", buf, (LPCTSTR)messageBuffer);
             LocalFree(messageBuffer);
         } else {
-            DWORD wait_result = WaitForSingleObject(pi.hProcess, INFINITE);
-            if (wait_result == WAIT_OBJECT_0) {
-                 retVal = true;
-            } else if (wait_result == WAIT_TIMEOUT) {
+            DWORD waitResult = WaitForSingleObject(pi.hProcess, INFINITE);
+            if (waitResult == WAIT_OBJECT_0) {
+                retVal = true;
+            } else if (waitResult == WAIT_TIMEOUT) {
                 TerminateProcess(pi.hProcess, 0);
                 retVal = true;
             }
         }
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
+        chdir(currentDir);
+        return retVal;
+    }
+
 #else
+    bool CompressLogFile(string fileName)
+    {
+        bool retVal = false;
+        string full = GetLogDirName() + fileName;
+        if (access(full.c_str(), F_OK) != 0) {
+            WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
+            return retVal;
+        }
+        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        char currentDir[1024];
+        getcwd(currentDir, sizeof(currentDir));
         pid_t pc = fork();  // create process
         chdir(GetLogDirName().c_str());
         if (pc < 0) {
             WRITE_LOG(LOG_WARN, "fork subprocess failed.");
         } else if (!pc) {
-            if ( (execlp(GetTarToolName().c_str(), GetTarToolName().c_str(), GetTarParams().c_str() ,
+            if ((execlp(GetTarToolName().c_str(), GetTarToolName().c_str(), GetTarParams().c_str(),
                 GetCompressLogFileName(fileName).c_str(), fileName.c_str(), nullptr)) == -1) {
                 exit(EXIT_FAILURE);
             } else {
@@ -326,20 +338,18 @@ namespace Base {
             int status;
             waitpid(pc, &status, 0);
             if (WIFEXITED(status)) {
-                // 子进程正常退出，可以获取退出状态码
-                int exit_code = WEXITSTATUS(status);
-                WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exit_code);
+                int exitCode = WEXITSTATUS(status);
+                WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exitCode);
                 retVal = true;
             } else {
-                // 子进程异常退出
                 WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
                     fileName.c_str(), strerror(errno));
             }
         }
-#endif
-        chdir(current_dir);
+        chdir(currentDir);
         return retVal;
     }
+#endif
 
     void CompressLogFiles()
     {
@@ -423,7 +433,7 @@ namespace Base {
     }
 #endif
 
-    vector<string> GetDirFileName() 
+    vector<string> GetDirFileName()
     {
         vector<string> files;
 #ifdef _WIN32
@@ -464,9 +474,6 @@ namespace Base {
 
     inline string GetLogDirName()
     {
-        // example: C:\\User\name\AppData\Local\Temp\ + hdc_logs + '\' 
-        // string fullPath = GetTmpDir() + LOG_DIR_NAME + GetPathSep();
-        // return UnicodeToUtf8(fullPath.c_str());
         return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
     }
 
@@ -486,7 +493,8 @@ namespace Base {
             return;
         }
         uint64_t dirSize = GetLogDirSize(files);
-        if (dirSize <= MAX_LOG_DIR_SIZE) {
+        uint64_t limitDirSize = (g_logLevel < LOG_DEBUG) ? NORMAL_LOG_DIR_SIZE : MAX_LOG_DIR_SIZE;
+        if (dirSize <= limitDirSize) {
             return;
         } else if (dirSize == UINT64_MAX) {
             return;
@@ -2095,13 +2103,17 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 
     void RemoveLogFile()
     {
-        string path = GetLogDirName() + LOG_FILE_NAME;
-        string bakName = GetLogNameWithTime();
-        string bakPath = GetLogDirName() + bakName;
-        string cachePath = GetLogDirName() + LOG_CACHE_NAME;
-        rename(path.c_str(), bakPath.c_str());
-        rename(cachePath.c_str(), path.c_str());     
         if (g_logCache) {
+            string path = GetLogDirName() + LOG_FILE_NAME;
+            string bakName = GetLogNameWithTime();
+            string bakPath = GetLogDirName() + bakName;
+            string cachePath = GetLogDirName() + LOG_CACHE_NAME;
+            if (rename(path.c_str(), bakPath.c_str()) != 0) {
+                WRITE_LOG(LOG_FATAL, "rename log file failed.");
+            }
+            if (rename(cachePath.c_str(), path.c_str()) != 0) {
+                WRITE_LOG(LOG_FATAL, "rename log cache file failed.");
+            }
             std::thread compressThread(ThreadCompressLog, bakName);
             compressThread.detach();
             g_logCache = false;
@@ -2175,7 +2187,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         sigemptyset(&g_blockList);
         constexpr int crashSignal = 35;
         sigaddset(&g_blockList, crashSignal);
-        sigprocmask(SIG_BLOCK, &g_blockList, NULL);
+        sigprocmask(SIG_BLOCK, &g_blockList, nullptr);
 #endif
     }
 

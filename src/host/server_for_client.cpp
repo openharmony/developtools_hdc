@@ -521,12 +521,6 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             CommandRemoveSession(hChannel, formatCommand->parameters.c_str());
             break;
         }
-        case CMD_KERNEL_SERVER_KILL: {
-            WRITE_LOG(LOG_DEBUG, "Recv server kill command");
-            uv_stop(loopMain);
-            ret = true;
-            break;
-        }
         // task will be global task，Therefore, it can only be controlled in the global session.
         case CMD_FORWARD_LIST: {
             HForwardInfo hfi = nullptr;  // dummy
@@ -646,7 +640,6 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         case CMD_SHELL_INIT:
         case CMD_SHELL_DATA:
         case CMD_UNITY_EXECUTE:
-        case CMD_UNITY_TERMINATE:
         case CMD_UNITY_REMOUNT:
         case CMD_UNITY_REBOOT:
         case CMD_UNITY_RUNMODE:

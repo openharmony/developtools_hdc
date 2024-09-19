@@ -221,13 +221,14 @@ namespace Base {
         return fileName + LOG_FILE_COMPRESS_SUFFIX;
     }
 
-    uint64_t GetLogDirSize(vector<string> files)
+    uint16_t GetLogOverCount(vector<string> files, uint64_t limitDirSize)
     {
         WRITE_LOG(LOG_DEBUG, "GetLogDirSize, file size: %d", files.size());
         if (files.size() == 0) {
             return 0;
         }
         uint64_t totalSize = 0;
+        uint16_t overCount = 0;
         int value = -1;
         for (auto name : files) {
             uv_fs_t req;
@@ -245,9 +246,12 @@ namespace Base {
             if (req.result == 0) {
                 totalSize += req.statbuf.st_size;
             }
+            if (totalSize > limitDirSize) {
+                overCount++;
+            }
         }
-        WRITE_LOG(LOG_INFO, "log dir size %llu", totalSize);
-        return totalSize;
+        WRITE_LOG(LOG_INFO, "overCount: %u", overCount);
+        return overCount;
     }
 
     static void ThreadCompressLog(string bakName)
@@ -492,27 +496,23 @@ namespace Base {
         if (files.size() <= logLimitSize) {
             return;
         }
-        uint64_t dirSize = GetLogDirSize(files);
-        uint64_t limitDirSize = (g_logLevel < LOG_DEBUG) ? NORMAL_LOG_DIR_SIZE : MAX_LOG_DIR_SIZE;
-        if (dirSize <= limitDirSize) {
-            return;
-        } else if (dirSize == UINT64_MAX) {
-            return;
-        }
-        // Sort file names by time, with earlier ones coming first
+        // Sort file names by time, with newer ones coming first
         sort(files.begin(), files.end(), CompareLogFileName);
+        uint64_t limitDirSize = (g_logLevel < LOG_DEBUG) ? NORMAL_LOG_DIR_SIZE : MAX_LOG_DIR_SIZE;
+        uint16_t deleteCount = GetLogOverCount(files, limitDirSize);
         WRITE_LOG(LOG_INFO, "log file count: %u, logLimit: %u", files.size(), logLimitSize);
-        uint16_t deleteCount = files.size() - logLimitSize;
+        if (deleteCount == 0) {}
         WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
         uint16_t count = 0;
+        uint16_t beginCount = files.size() - deleteCount;
         for (auto name : files) {
-            if (count >= deleteCount) {
-                break;
+            count++;
+            if (count < beginCount) {
+                continue;
             }
             string deleteFile = GetLogDirName() + name;
             WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
             unlink(deleteFile.c_str());
-            count++;
         }
     }
 

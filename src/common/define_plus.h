@@ -338,6 +338,7 @@ struct HdcChannel {
     bool fromClient = false;
     bool connectLocalDevice = false;
     bool isStableBuf = false;
+    std::atomic<uint32_t> writeFailedTimes;
 };
 using HChannel = struct HdcChannel *;
 

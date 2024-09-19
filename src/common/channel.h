@@ -78,6 +78,9 @@ private:
     uv_rwlock_t lockMapChannel;  // protect mapChannel
     map<uint32_t, HChannel> mapChannel;
     uv_thread_t threadChanneMain;
+
+private:
+    void DispMntnInfo(HChannel hOutChannel);
 };
 }  // namespace Hdc
 

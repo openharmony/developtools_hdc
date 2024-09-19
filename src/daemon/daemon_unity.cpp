@@ -385,10 +385,6 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
             daemon->PostStopInstanceMessage(restart);
             break;
         }
-        case CMD_UNITY_TERMINATE: {
-            daemon->PostStopInstanceMessage(!strcmp(const_cast<char *>(strPayload.c_str()), "1"));
-            break;
-        }
         case CMD_UNITY_BUGREPORT_INIT: {
             currentDataCommand = CMD_UNITY_BUGREPORT_DATA;
             ExecuteShell("hidumper");

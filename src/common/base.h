@@ -191,7 +191,7 @@ namespace Base {
     void RemoveOlderLogFiles();
     vector<string> GetDirFileName();
     string GetCompressLogFileName(string fileName);
-    uint16_t GetLogOverCount(vector<string> files, uint64_t limitDirSize);
+    uint32_t GetLogOverCount(vector<string> files, uint64_t limitDirSize);
     string GetLogDirName();
     string GetLogNameWithTime();
     inline string GetTarToolName()

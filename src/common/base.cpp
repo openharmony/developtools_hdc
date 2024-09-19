@@ -201,7 +201,7 @@ namespace Base {
 
     bool CompareLogFileName(const string &a, const string &b)
     {
-        return strcmp(a.c_str(), b.c_str()) < 0;
+        return strcmp(a.c_str(), b.c_str()) > 0;
     }
 
     bool CreateLogDir()
@@ -221,14 +221,14 @@ namespace Base {
         return fileName + LOG_FILE_COMPRESS_SUFFIX;
     }
 
-    uint16_t GetLogOverCount(vector<string> files, uint64_t limitDirSize)
+    uint32_t GetLogOverCount(vector<string> files, uint64_t limitDirSize)
     {
         WRITE_LOG(LOG_DEBUG, "GetLogDirSize, file size: %d", files.size());
         if (files.size() == 0) {
             return 0;
         }
         uint64_t totalSize = 0;
-        uint16_t overCount = 0;
+        uint32_t overCount = 0;
         int value = -1;
         for (auto name : files) {
             uv_fs_t req;
@@ -237,7 +237,7 @@ namespace Base {
             value = uv_fs_stat(nullptr, &req, utfName.c_str(), nullptr);
             uv_fs_req_cleanup(&req);
             if (value != 0) {
-                constexpr int bufSize = 1024;
+                constexpr int bufSize = BUF_SIZE_DEFAULT;
                 char buf[bufSize] = { 0 };
                 uv_strerror_r(value, buf, bufSize);
                 uv_fs_req_cleanup(&req);
@@ -279,7 +279,7 @@ namespace Base {
             return retVal;
         }
         WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
-        char currentDir[1024];
+        char currentDir[BUF_SIZE_DEFAULT];
         getcwd(currentDir, sizeof(currentDir));
 
         char buf[BUF_SIZE_SMALL] = "";
@@ -308,9 +308,9 @@ namespace Base {
                 TerminateProcess(pi.hProcess, 0);
                 retVal = true;
             }
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
         }
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
         chdir(currentDir);
         return retVal;
     }
@@ -325,7 +325,7 @@ namespace Base {
             return retVal;
         }
         WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
-        char currentDir[1024];
+        char currentDir[BUF_SIZE_DEFAULT];
         getcwd(currentDir, sizeof(currentDir));
         pid_t pc = fork();  // create process
         chdir(GetLogDirName().c_str());
@@ -499,12 +499,14 @@ namespace Base {
         // Sort file names by time, with newer ones coming first
         sort(files.begin(), files.end(), CompareLogFileName);
         uint64_t limitDirSize = (g_logLevel < LOG_DEBUG) ? NORMAL_LOG_DIR_SIZE : MAX_LOG_DIR_SIZE;
-        uint16_t deleteCount = GetLogOverCount(files, limitDirSize);
+        uint32_t deleteCount = GetLogOverCount(files, limitDirSize);
         WRITE_LOG(LOG_INFO, "log file count: %u, logLimit: %u", files.size(), logLimitSize);
-        if (deleteCount == 0) {}
+        if (deleteCount == 0 || files.size() < deleteCount) {
+            return;
+        }
         WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
-        uint16_t count = 0;
-        uint16_t beginCount = files.size() - deleteCount;
+        uint32_t count = 0;
+        uint32_t beginCount = files.size() - deleteCount;
         for (auto name : files) {
             count++;
             if (count < beginCount) {

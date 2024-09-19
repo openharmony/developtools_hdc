@@ -924,6 +924,7 @@ bool HdcDaemon::RemoveInstanceTask(const uint8_t op, HTaskInfo hTask)
     bool ret = true;
 
     if (!hTask->taskClass) {
+        WRITE_LOG(LOG_FATAL, "RemoveInstanceTask taskClass is null channelId:%u", hTask->channelId);
         return ret;
     }
 

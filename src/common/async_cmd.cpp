@@ -63,8 +63,8 @@ void AsyncCmd::DoRelease()
     }
     if (pid > 0) {
         uv_kill(pid, SIGTERM);
-        WRITE_LOG(LOG_INFO, "DoRelease pid:%d", pid);
     }
+    WRITE_LOG(LOG_INFO, "DoRelease pid:%d", pid);
 }
 
 bool AsyncCmd::Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint32_t optionsIn)

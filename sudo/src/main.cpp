@@ -249,26 +249,17 @@ static void WaitForAuth(void)
 
 static bool VerifyAccount(int32_t userId)
 {
-    OHOS::ErrCode err;
     std::vector<uint8_t> challenge;
     AuthOptions authOptions;
     bool verifyResult = false;
 
     AccountIAMClient &sudoIAMClient = AccountIAMClient::GetInstance();
-    err = sudoIAMClient.OpenSession(userId, challenge);
-    if (err != 0) {
-        WriteStdErr("open session failed\n");
-        return false;
-    }
-
     std::shared_ptr<IDMCallback> callback = std::make_shared<SudoIDMCallback>();
     authOptions.accountId = userId;
     sudoIAMClient.AuthUser(authOptions, challenge, AuthType::PIN, AuthTrustLevel::ATL1, callback);
     std::shared_ptr<SudoIDMCallback> sudoCallback = std::static_pointer_cast<SudoIDMCallback>(callback);
     WaitForAuth();
     verifyResult = sudoCallback->GetVerifyResult();
-
-    sudoIAMClient.CloseSession(userId);
     return verifyResult;
 }
 

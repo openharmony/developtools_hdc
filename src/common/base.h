@@ -185,6 +185,32 @@ namespace Base {
     void RemoveLogCache();
     void RollLogFile(const char *path);
     void ChmodLogFile();
+    bool CreateLogDir();
+    bool CompressLogFile(string fileName);
+    void CompressLogFiles();
+    void RemoveOlderLogFiles();
+    vector<string> GetDirFileName();
+    string GetCompressLogFileName(string fileName);
+    uint32_t GetLogOverCount(vector<string> files, uint64_t limitDirSize);
+    string GetLogDirName();
+    string GetLogNameWithTime();
+    inline string GetTarToolName()
+    {
+        return LOG_COMPRESS_TOOL_NAME;
+    }
+    inline string GetTarBinFile()
+    {
+#ifdef _WIN32
+        return LOG_COMPRESS_TOOL_BIN_WIN32;
+#else
+        return LOG_COMPRESS_TOOL_BIN_UNIX;
+#endif
+    }
+
+    inline string GetTarParams()
+    {
+        return LOG_COMPRESS_TOOL_PARAMS;
+    }
 #endif
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
     bool IsRoot();

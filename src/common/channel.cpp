@@ -598,7 +598,7 @@ void HdcChannelBase::DispMntnInfo(HChannel hChannel)
         WRITE_LOG(LOG_WARN, "prt is null");
         return;
     }
-    WRITE_LOG(LOG_WARN, "channel info: id:%u isDead:%d ref:%u, writeFailedTimes:%u",
+    WRITE_LOG(LOG_DEBUG, "channel info: id:%u isDead:%d ref:%u, writeFailedTimes:%u",
         hChannel->channelId, hChannel->isDead, uint32_t(hChannel->ref), uint32_t(hChannel->writeFailedTimes));
 }
 }

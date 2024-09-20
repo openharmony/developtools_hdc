@@ -498,8 +498,7 @@ namespace Base {
         }
         // Sort file names by time, with newer ones coming first
         sort(files.begin(), files.end(), CompareLogFileName);
-        uint64_t limitDirSize = (g_logLevel < LOG_DEBUG) ? NORMAL_LOG_DIR_SIZE : MAX_LOG_DIR_SIZE;
-        uint32_t deleteCount = GetLogOverCount(files, limitDirSize);
+        uint32_t deleteCount = GetLogOverCount(files, MAX_LOG_DIR_SIZE);
         WRITE_LOG(LOG_INFO, "log file count: %u, logLimit: %u", files.size(), logLimitSize);
         if (deleteCount == 0 || files.size() < deleteCount) {
             return;

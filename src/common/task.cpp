@@ -65,6 +65,11 @@ bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const i
         return true;
     } else {
         HdcSessionBase *sessionBase = reinterpret_cast<HdcSessionBase *>(taskInfo->ownerSessionClass);
+        if (sessionBase->IsSessionDeleted(taskInfo->sessionId)) {
+            WRITE_LOG(LOG_FATAL, "SendToAnother session is deleted channelId:%u command:%u",
+                taskInfo->channelId, command);
+            return false;
+        }
         return sessionBase->Send(taskInfo->sessionId, taskInfo->channelId, command, bufPtr, size) > 0;
     }
 }

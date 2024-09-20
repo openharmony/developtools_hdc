@@ -123,7 +123,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         return;
     } else if (nread == 0) {
         // maybe just after accept, second client req
-        WRITE_LOG(LOG_FATAL, "ReadStream idle read channelId:%u", channelId);
+        WRITE_LOG(LOG_DEBUG, "ReadStream idle read channelId:%u", channelId);
         return;
     } else if (nread < 0) {
         Base::TryCloseHandle((uv_handle_t *)tcp);

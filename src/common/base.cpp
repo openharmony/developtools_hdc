@@ -305,7 +305,6 @@ namespace Base {
             if (waitResult == WAIT_OBJECT_0) {
                 retVal = true;
             } else if (waitResult == WAIT_TIMEOUT) {
-                TerminateProcess(pi.hProcess, 0);
                 retVal = true;
             }
             CloseHandle(pi.hProcess);
@@ -334,9 +333,7 @@ namespace Base {
         } else if (!pc) {
             if ((execlp(GetTarToolName().c_str(), GetTarToolName().c_str(), GetTarParams().c_str(),
                 GetCompressLogFileName(fileName).c_str(), fileName.c_str(), nullptr)) == -1) {
-                exit(EXIT_FAILURE);
-            } else {
-                exit(0);
+                WRITE_LOG(LOG_WARN, "CompressLogFile execlp failed.");
             }
         } else {
             int status;
@@ -370,7 +367,8 @@ namespace Base {
                 continue;
             }
             if ((name.find(LOG_FILE_SUFFIX) != string::npos && CompressLogFile(name))) {
-                unlink(name.c_str());
+                string full = GetLogDirName() + name;
+                unlink(full.c_str());
             }
         }
     }

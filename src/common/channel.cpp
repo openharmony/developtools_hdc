@@ -180,8 +180,7 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
     --hChannel->ref;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     if (status < 0) {
-        WRITE_LOG(LOG_WARN, "WriteCallback TryCloseHandle channelId:%u isDead:%d ref:%d",
-            hChannel->channelId, hChannel->isDead, int32_t(hChannel->ref));
+        hChannel->writeFailedTimes++;
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hChannel->isDead && !hChannel->ref) {
             thisClass->FreeChannel(hChannel->channelId);
@@ -475,6 +474,7 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
     if (hChannel->ref > 0) {
         return;
     }
+    thisClass->DispMntnInfo(hChannel);
     if (hChannel->hChildWorkTCP.loop) {
         auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
         thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
@@ -590,5 +590,15 @@ void HdcChannelBase::EchoToAllChannelsViaSessionId(uint32_t targetSessionId, con
             EchoToClient(hChannel, (uint8_t *)echo.c_str(), echo.size());
         }
     }
+}
+
+void HdcChannelBase::DispMntnInfo(HChannel hChannel)
+{
+    if (!hChannel) {
+        WRITE_LOG(LOG_WARN, "prt is null");
+        return;
+    }
+    WRITE_LOG(LOG_DEBUG, "channel info: id:%u isDead:%d ref:%u, writeFailedTimes:%u",
+        hChannel->channelId, hChannel->isDead, uint32_t(hChannel->ref), uint32_t(hChannel->writeFailedTimes));
 }
 }

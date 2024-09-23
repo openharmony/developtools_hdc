@@ -589,6 +589,14 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
             nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ?
                                        hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
+
+            // when a session is set up for a period of time, the read data is discarded to empty the USB channel.
+            if (hSession->isNeedDropData) {
+                WRITE_LOG(LOG_WARN, "Read usb thread sid:%u read size:%d, isNeedDropData:%d drop data",
+                    hSession->sessionId, childRet, hSession->isNeedDropData.load());
+                childRet = 0;
+                continue;
+            }
             if (childRet < 0) {
                 WRITE_LOG(LOG_FATAL, "Read usb failed, ret:%d", childRet);
                 break;
@@ -731,17 +739,42 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
         return nullptr;
     }
     UpdateUSBDaemonInfo(hUSB, hSession, STATUS_CONNECTED);
+    hSession->isNeedDropData = true;
+    WRITE_LOG(LOG_INFO, "ConnectDetectDaemon set isNeedDropData true, sid:%u", hSession->sessionId);
     BeginUsbRead(hSession);
     hUSB->usbMountPoint = pdi->usbMountPoint;
-    WRITE_LOG(LOG_DEBUG, "HSession HdcHostUSB::ConnectDaemon");
+    WRITE_LOG(LOG_DEBUG, "HSession HdcHostUSB::ConnectDaemon, sid:%u", hSession->sessionId);
 
     Base::StartWorkThread(&pServer->loopMain, pServer->SessionWorkThread, Base::FinishWorkThread, hSession);
     // wait for thread up
     while (hSession->childLoop.active_handles == 0) {
         uv_sleep(1);
     }
-    auto ctrl = pServer->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-    Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
+
+    auto funcDelayStartSessionNotify = [hSession](const uint8_t flag, string &msg, const void *p) -> void {
+        HdcServer *pServer = (HdcServer *)hSession->classInstance;
+        auto ctrl = pServer->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
+        hSession->isNeedDropData = false;
+        WRITE_LOG(LOG_INFO, "funcDelayStartSessionNotify set isNeedDropData false, sid:%u", hSession->sessionId);
+        Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
+    };
+
+    // delay NEW_SESSION_DROP_USB_DATA_TIME_MS to start session
+    SendSoftResetToDaemon(hSession, 0);
+    Base::DelayDoSimple(&(pServer->loopMain), NEW_SESSION_DROP_USB_DATA_TIME_MS, funcDelayStartSessionNotify);
     return hSession;
+}
+
+void HdcHostUSB::SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld)
+{
+    HUSB hUSB = hSession->hUSB;
+    hUSB->lockSendUsbBlock.lock();
+    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%u sidOld:%u", hSession->sessionId, sessionIdOld);
+    auto header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
+    if (SendUSBRaw(hSession, header.data(), header.size()) <= 0) {
+        WRITE_LOG(LOG_FATAL, "SendSoftResetToDaemon send failed");
+    }
+    hUSB->lockSendUsbBlock.unlock();
+    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%u finished", hSession->sessionId);
 }
 }  // namespace Hdc

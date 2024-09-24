@@ -97,6 +97,7 @@ protected:
         uv_loop_t *loop;
         uv_fs_t fsOpenReq;
         uv_fs_t fsCloseReq;
+        uv_fs_t fsSyncReq;
         uv_fs_cb cb;
         vector<string> taskQueue;  // save file list if directory send mode
         TransferConfig transferConfig;  // Used for network IO configuration initialization

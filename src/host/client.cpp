@@ -155,7 +155,6 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_DEVICE);
     vecNoConnectKeyCommand.push_back(CMDSTR_WAIT_FOR);
-    vecNoConnectKeyCommand.push_back(CMDSTR_KILL_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " ls");
     vecNoConnectKeyCommand.push_back(CMDSTR_FORWARD_FPORT + " rm");
     for (string v : vecNoConnectKeyCommand) {

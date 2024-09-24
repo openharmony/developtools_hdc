@@ -66,8 +66,6 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_SERVICE_KILL);
     registerCommand.push_back(CMDSTR_SERVICE_START);
     registerCommand.push_back(CMDSTR_GENERATE_KEY);
-    registerCommand.push_back(CMDSTR_KILL_SERVER);
-    registerCommand.push_back(CMDSTR_KILL_DAEMON);
     registerCommand.push_back(CMDSTR_APP_INSTALL);
     registerCommand.push_back(CMDSTR_APP_UNINSTALL);
     registerCommand.push_back(CMDSTR_TARGET_MOUNT);

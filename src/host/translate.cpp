@@ -34,6 +34,7 @@ namespace TranslateCommand {
               "\n"
               "service commands(on daemon):\n"
               " target mount                          - Set /system /vendor partition read-write\n"
+              " wait                                  - Wait for the device to become available\n"
               " target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\\recovery.\n"
               " target boot [MODE]                    - Reboot the into MODE.\n"
               " smode [-r]                            - Restart daemon with root permissions, '-r' to cancel root\n"
@@ -80,7 +81,10 @@ namespace TranslateCommand {
               " shell [COMMAND...]                    - Run shell command (interactive shell if no command given)\n"
               " bugreport [FILE]                      - Return all information from the device, stored in file if "
               "FILE is specified\n"
-              " jpid                                  - List pids of processes hosting a JDWP transport\n"
+              " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
+              " track-jpid [-a|-p]                    - Track PIDs of debug processes hosting a JDWP transport\n"
+              "                                         -a: include debug and release processes\n"
+              "                                         -p: don't display debug and release tags\n"
               "\n"
               "security commands:\n"
               " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
@@ -167,7 +171,7 @@ namespace TranslateCommand {
             " shell [COMMAND...]                    - Run shell command (interactive shell if no command given)\n"
             " bugreport [FILE]                      - Return all information from the device, stored in file if FILE "
             "is specified\n"
-            " jpid                                  - List pids of processes hosting a JDWP transport\n"
+            " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
             " sideload [PATH]                       - Sideload the given full OTA package\n"
             "\n"
             "security commands:\n"
@@ -344,11 +348,6 @@ namespace TranslateCommand {
                    || !strncmp(input.c_str(), string(CMDSTR_FORWARD_RPORT + " ").c_str(),
                                CMDSTR_FORWARD_RPORT.size() + 1)) {
             stringError = ForwardPort(input.c_str(), outCmd);
-        } else if (!strcmp(input.c_str(), CMDSTR_KILL_SERVER.c_str())) {
-            outCmd->cmdFlag = CMD_KERNEL_SERVER_KILL;
-        } else if (!strcmp(input.c_str(), CMDSTR_KILL_DAEMON.c_str())) {
-            outCmd->cmdFlag = CMD_UNITY_TERMINATE;
-            outCmd->parameters = "0";
         } else if (!strncmp(input.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
             outCmd->cmdFlag = CMD_APP_INIT;
             outCmd->parameters = input;

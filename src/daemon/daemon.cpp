@@ -202,7 +202,6 @@ bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_UNITY_RUNMODE:
         case CMD_UNITY_HILOG:
         case CMD_UNITY_ROOTRUN:
-        case CMD_UNITY_TERMINATE:
         case CMD_UNITY_BUGREPORT_INIT:
         case CMD_JDWP_LIST:
         case CMD_JDWP_TRACK:
@@ -828,7 +827,6 @@ bool HdcDaemon::CheckControl(const uint16_t command)
         case CMD_UNITY_RUNMODE:
         case CMD_UNITY_HILOG:
         case CMD_UNITY_ROOTRUN:
-        case CMD_UNITY_TERMINATE:
         case CMD_UNITY_BUGREPORT_INIT:
         case CMD_JDWP_LIST:
         case CMD_JDWP_TRACK:

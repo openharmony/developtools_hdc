@@ -288,7 +288,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         // close-step1
         ++thisClass->refCount;
         if (req->fs_type == UV_FS_WRITE) {
-            uv_fs_fsync(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, nullptr);
+            uv_fs_fsync(thisClass->loopTask, &context->fsSyncReq, context->fsOpenReq.result, nullptr);
         }
         WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d",
                   thisClass->taskInfo->channelId, context->fsOpenReq.result, context->closeReqSubmitted);

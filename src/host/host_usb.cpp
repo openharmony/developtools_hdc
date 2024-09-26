@@ -482,6 +482,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
             strerror_r(errno, buf, bufSize);
 #endif
             WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d]", errno, buf, childRet);
+            Base::DispUvStreamInfo(stream, "hostusb select failed");
             break;
         }
         childRet = send(fd, reinterpret_cast<const char *>(appendData) + index, dataSize - index, 0);
@@ -494,10 +495,12 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
             strerror_r(errno, buf, bufSize);
 #endif
             WRITE_LOG(LOG_FATAL, "UsbToHdcProtocol senddata err:%d [%s]", errno, buf);
+            Base::DispUvStreamInfo(stream, "hostusb send failed");
             break;
         }
         index += childRet;
     }
+    hSession->stat.dataSendBytes += index;
     if (index != dataSize) {
         WRITE_LOG(LOG_FATAL, "UsbToHdcProtocol partialsenddata err:%d [%d]", index, dataSize);
         return ERR_IO_FAIL;

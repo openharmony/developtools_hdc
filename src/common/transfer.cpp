@@ -41,7 +41,7 @@ HdcTransferBase::~HdcTransferBase()
             taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
         
         if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
-            uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+            CloseFd(&ctxNow, ctxNow.fsOpenReq.result);
             ctxNow.isFdOpen = false;
         }
     } else {
@@ -49,6 +49,19 @@ HdcTransferBase::~HdcTransferBase()
             taskInfo->channelId, ctxNow.lastErrno, ctxNow.ioFinish);
     }
 };
+
+void HdcTransferBase::CloseFd(CtxFile *context, ssize_t fd)
+{
+    uv_fs_t *fs = new uv_fs_t();
+    if (fs == nullptr) {
+        WRITE_LOG(LOG_WARN, "CloseFd fs nullptr");
+        return;
+    }
+    auto callback = [](uv_fs_t *fsPtr) -> {
+        delete fsPtr;
+    };
+    uv_fs_close(context->loop, fs, fd, callback);
+}
 
 bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
 {
@@ -740,7 +753,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             if (!RecvIOPayload(context, payload, payloadSize)) {
                 WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
                     taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result);
-                uv_fs_close(nullptr, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+                CloseFd(&ctxNow, ctxNow.fsOpenReq.result);
                 ctxNow.isFdOpen = false;
                 HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
                 thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);

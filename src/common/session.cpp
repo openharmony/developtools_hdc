@@ -644,6 +644,7 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
             WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%u", sessionId);
             break;
         }
+        WRITE_LOG(LOG_INFO, "dataFdSend:%llu, dataFdRecv:%llu", uint64_t(hSession->stat.dataSendBytes), uint64_t(hSession->stat.dataRecvBytes));
         hSession->isDead = true;
         Base::TimerUvTask(&loopMain, hSession, FreeSessionOpeate);
         NotifyInstanceSessionFree(hSession, false);
@@ -972,6 +973,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
         WRITE_LOG(LOG_FATAL, "FetchIOBuf read io failed,%s", buf);
         return ERR_IO_FAIL;
     }
+    hSession->stat.dataRecvBytes += read;
     hSession->availTailIndex += read;
     while (!hSession->isDead && hSession->availTailIndex > static_cast<int>(sizeof(PayloadHead))) {
         childRet = ptrConnect->OnRead(hSession, ioBuf + indexBuf, hSession->availTailIndex);

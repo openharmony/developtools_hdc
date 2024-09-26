@@ -555,6 +555,7 @@ namespace Base {
     {
         bool hasCallClose = false;
         if (handle->loop && !uv_is_closing(handle)) {
+            DispUvStreamInfo((const uv_stream_t *)handle, "before uv handle close");
             uv_close((uv_handle_t *)handle, closeCallBack);
             hasCallClose = true;
         }
@@ -563,6 +564,24 @@ namespace Base {
         }
     }
 
+    void DispUvStreamInfo(const uv_stream_t *handle, const char *prefix)
+    {
+        uv_handle_type type = handle->type;
+        string name = "unknown";
+        if (type == UV_TCP) {
+            name = "tcp";
+        } else if (type == UV_NAMED_PIPE) {
+            name = "named_pipe";
+        } else {
+            WRITE_LOG(LOG_DEBUG, "%s, the uv handle type is %d", prefix, type);
+            return;
+        }
+
+        size_t bufNotSended = uv_stream_get_write_queue_size(handle);
+        if (bufNotSended != 0) {
+            WRITE_LOG(LOG_DEBUG, "%s, the uv handle type is %s, has %u bytes data", prefix, name.c_str(), bufNotSended);
+        }
+    }
     int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen)
     {
         StartTraceScope("Base::SendToStream");
@@ -1572,6 +1591,9 @@ namespace Base {
         uint8_t version = (HDC_VERSION_NUMBER << 12 >> 24) & 0xff;
         uint8_t fix = (HDC_VERSION_NUMBER << 20 >> 28) & 0xff;  // max 16, tail is p
         string ver = StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
+    #ifndef IS_RELEASE_VERSION
+        ver += " for ide mac test only";
+    #endif
         return "Ver: " + ver;
     }
 

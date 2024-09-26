@@ -78,6 +78,7 @@ namespace Base {
     void TryCloseHandle(const uv_handle_t *handle);
     void TryCloseHandle(const uv_handle_t *handle, uv_close_cb closeCallBack);
     void TryCloseHandle(const uv_handle_t *handle, bool alwaysCallback, uv_close_cb closeCallBack);
+    void DispUvStreamInfo(const uv_stream_t *handle, const char *prefix);
     char **SplitCommandToArgs(const char *cmdStringLine, int *slotIndex);
     bool RunPipeComand(const char *cmdString, char *outBuf, uint16_t sizeOutBuf, bool ignoreTailLf);
     // results need to save in buf which can't be const

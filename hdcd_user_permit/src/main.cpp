@@ -26,13 +26,13 @@ using namespace OHOS;
 using namespace OHOS::HDC::AUTH;
 using namespace OHOS::AAFwk;
 
-static HdcdConnection *ConnectExtensionAbility(void)
+static sptr<HdcdConnection> ConnectExtensionAbility(void)
 {
     Want want;
     string bundle;
     string ability;
 
-    auto con = new HdcdConnection();
+    sptr<HdcdConnection> con = new(std::nothrow) HdcdConnection();
     if (!con) {
         AUTH_LOGE("alloc mem failed");
         return nullptr;
@@ -75,19 +75,13 @@ static int GetUserPermit(void)
     }
     if (!con->GetShowDialogResult()) {
         AUTH_LOGE("show dialog failed");
-        delete con;
-        con = nullptr;
         return USER_PERMIT_ERR_SHOW_DIALOG_FAIL;
     }
     if (!WaitDialogResult()) {
         AUTH_LOGE("wait ability result failed");
-        delete con;
-        con = nullptr;
         return USER_PERMIT_ERR_WAIT_DIALOG_FAIL;
     }
 
-    delete con;
-    con = nullptr;
     return USER_PERMIT_SUCCESS;
 }
 

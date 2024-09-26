@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2024 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,38 +13,22 @@
  * limitations under the License.
  */
 
-#ifndef HDC_DEFINE_REGISTER_H
-#define HDC_DEFINE_REGISTER_H
+#ifndef FORWARDDATAREADSTREAM_FUZZER_H
+#define FORWARDDATAREADSTREAM_FUZZER_H
 
-#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
-#include <string>
 #include <thread>
+#include <vector>
 
-#include <securec.h>
-#include <sys/un.h>
+#include <sys/wait.h>
 #include <unistd.h>
-#include <uv.h>
-#ifdef HDC_HILOG
-#include "hilog/log.h"
-#ifdef LOG_DOMAIN
-#undef LOG_DOMAIN
-#endif // LOG_DOMAIN
 
-#define LOG_DOMAIN 0xD002D13
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif // LOG_TAG
+#include "forward.h"
 
-#define LOG_TAG "HDC_LOG"
-#endif // HDC_HILOG
+#define FUZZ_PROJECT_NAME "ForwardDataReadStream_fuzzer"
 
-namespace Hdc {
-// str one of ark:pid@com.xxx.xxxx, ark:pid@Debugger, ark:pid@tid@Debugger
-using Callback = std::function<void(int fd, std::string str)>;
-}
-#endif // end HDC_DEFINE_REGISTER_H
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+
+#endif // FORWARDDATAREADSTREAM_FUZZER_H

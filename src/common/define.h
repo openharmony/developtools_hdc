@@ -176,5 +176,12 @@ const string CMDSTR_FLASHD_UPDATE = "update";
 const string CMDSTR_FLASHD_FLASH = "flash";
 const string CMDSTR_FLASHD_ERASE = "erase";
 const string CMDSTR_FLASHD_FORMAT = "format";
+
+// ################################ Macro define ###################################
+#ifdef IS_RELEASE_VERSION
+#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FUNCTION__, __LINE__, level, fmt, ##__VA_ARGS__)
+#else
+#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
+#endif
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

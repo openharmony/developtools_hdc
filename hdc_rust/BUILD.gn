@@ -141,10 +141,9 @@ ohos_static_library("cffi_host") {
     "src/cffi",
   ]
 
-  deps = [ "//third_party/libusb:libusb" ]
-
   external_deps = [
     "bounds_checking_function:libsec_static",
+    "libusb:libusb",
     "lz4:liblz4_static",
   ]
 

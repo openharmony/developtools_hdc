@@ -101,7 +101,7 @@ void HdcHostUSB::InitLogging(void *ctxUSB)
     std::string debugEnv = "LIBUSB_DEBUG";
     libusb_log_level debugLevel;
 
-    switch (static_cast<Hdc::LogLevel>(Base::GetLogLevel())) {
+    switch (static_cast<Hdc::HdcLogLevel>(Base::GetLogLevel())) {
         case LOG_WARN:
             debugLevel = LIBUSB_LOG_LEVEL_ERROR;
             break;
@@ -427,7 +427,7 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
         }
         if (hUSB->hostBulkIn.endpoint == 0 || hUSB->hostBulkOut.endpoint == 0) {
             WRITE_LOG(LOG_DEBUG, "hostBulkIn.endpoint %d hUSB->hostBulkOut.endpoint %d",
-                    hUSB->hostBulkIn.endpoint, hUSB->hostBulkOut.endpoint);
+                hUSB->hostBulkIn.endpoint, hUSB->hostBulkOut.endpoint);
             break;
         }
         ret = 0;
@@ -437,7 +437,7 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
 // multi-thread calll
 void HdcHostUSB::CancelUsbIo(HSession hSession)
 {
-    WRITE_LOG(LOG_DEBUG, "HostUSB CancelUsbIo, ref:%u", uint32_t(hSession->ref));
+    WRITE_LOG(LOG_INFO, "HostUSB CancelUsbIo, sid:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
     HUSB hUSB = hSession->hUSB;
     std::unique_lock<std::mutex> lock(hUSB->lockDeviceHandle);
     if (!hUSB->hostBulkIn.isShutdown) {
@@ -560,12 +560,14 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
         childRet = libusb_submit_transfer(ep->transfer);
         hUSB->lockDeviceHandle.unlock();
         if (childRet < 0) {
-            WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, ret:%d", childRet);
+            WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, sid:%u ret:%d",
+                hSession->sessionId, childRet);
             break;
         }
         ep->cv.wait(lock, [ep]() { return ep->isComplete; });
         if (ep->transfer->status != 0) {
-            WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, status:%d", ep->transfer->status);
+            WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, sid:%u status:%d",
+                hSession->sessionId, ep->transfer->status);
             break;
         }
         ret = ep->transfer->actual_length;
@@ -590,13 +592,18 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
                                        hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
             if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "Read usb failed, ret:%d", childRet);
+                WRITE_LOG(LOG_FATAL, "Read usb failed, sid:%u ret:%d", hSession->sessionId, childRet);
                 break;
+            }
+            if (childRet == 0) {
+                WRITE_LOG(LOG_WARN, "Read usb return 0, continue read, sid:%u", hSession->sessionId);
+                childRet = nextReadSize;
+                continue;
             }
             childRet = SendToHdcStream(hSession, reinterpret_cast<uv_stream_t *>(&hSession->dataPipe[STREAM_MAIN]),
                                        hUSB->hostBulkIn.buf, childRet);
             if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "SendToHdcStream failed, ret:%d", childRet);
+                WRITE_LOG(LOG_FATAL, "SendToHdcStream failed, sid:%u ret:%d", hSession->sessionId, childRet);
                 break;
             }
         }
@@ -605,7 +612,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         hUSB->hostBulkIn.isShutdown = true;
         server->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
-        WRITE_LOG(LOG_DEBUG, "Usb loop read finish");
+        WRITE_LOG(LOG_INFO, "Usb loop read finish sid:%u", hSession->sessionId);
     }).detach();
 }
 
@@ -649,7 +656,7 @@ int HdcHostUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     ++hSession->ref;
     ret = SubmitUsbBio(hSession, true, data, length);
     if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "Send usb failed, ret:%d", ret);
+        WRITE_LOG(LOG_FATAL, "Send usb failed, sid:%u ret:%d", hSession->sessionId, ret);
         CancelUsbIo(hSession);
         hSession->hUSB->hostBulkOut.isShutdown = true;
         server->FreeSession(hSession->sessionId);
@@ -727,7 +734,7 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
     if (!FindDeviceByID(hUSB, hUSB->usbMountPoint.c_str(), hUSB->ctxUSB)) {
         pServer->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
-        WRITE_LOG(LOG_DEBUG, "FindDeviceByID fail");
+        WRITE_LOG(LOG_WARN, "FindDeviceByID fail");
         return nullptr;
     }
     UpdateUSBDaemonInfo(hUSB, hSession, STATUS_CONNECTED);

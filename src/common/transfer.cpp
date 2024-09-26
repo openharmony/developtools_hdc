@@ -253,6 +253,12 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                 context->ioFinish = true;
                 break;
             }
+            if (req->result == 0) {
+                context->ioFinish = true;
+                WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof",
+                    context->localPath.c_str(), context->fsOpenReq.result);
+                break;
+            }
             if (context->indexIO < context->fileSize) {
                 thisClass->SimpleFileIO(context, context->indexIO, nullptr, context->isStableBufSize ?
                     (Base::GetMaxBufSizeStable() * thisClass->maxTransferBufFactor) :
@@ -265,7 +271,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             WRITE_LOG(LOG_DEBUG, "write file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
                       context->fileSize);
 #endif // HDC_DEBUG
-            if (context->indexIO >= context->fileSize) {
+            if (context->indexIO >= context->fileSize || req->result == 0) {
                 // The active end must first read it first, but you can't make Finish first, because Slave may not
                 // end.Only slave receives complete talents Finish
                 context->closeNotify = true;
@@ -636,7 +642,10 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
-        localPath = Base::StringFormat("%s%c%s", localPath.c_str(), Base::GetPathSep(), optName);
+        localPath = localPath + Base::GetPathSep() + optName;
+    }
+    if (r != 0 && (localPath.back() == Base::GetPathSep())) { // not exist and is dir
+        localPath = localPath + optName;
     }
     return false;
 }

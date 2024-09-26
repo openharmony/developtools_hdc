@@ -202,8 +202,56 @@ namespace Base {
         return strcmp(a.c_str(), b.c_str()) < 0;
     }
 
+#ifdef _WIN32
+    void RemoveOlderLogFilesOnWindows()
+    {
+        vector<string> files;
+        WIN32_FIND_DATA findData;
+        HANDLE hFind = FindFirstFile((GetTmpDir() + "/*").c_str(), &findData);
+        if (hFind == INVALID_HANDLE_VALUE) {
+            WRITE_LOG(LOG_WARN, "Failed to open TEMP dir");
+            return;
+        }
+
+        do {
+            if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+                SetErrorMode(SEM_FAILCRITICALERRORS);
+                if (strncmp(findData.cFileName, LOG_FILE_NAME_PREFIX.c_str(), LOG_FILE_NAME_PREFIX.size()) == 0) {
+                    files.push_back(findData.cFileName);
+                }
+            }
+        } while (FindNextFile(hFind, &findData));
+        FindClose(hFind);
+
+        if (files.size() <= MAX_LOG_FILE_COUNT) {
+            return;
+        }
+
+        // Sort file names by time, with earlier ones coming first
+        sort(files.begin(), files.end(), CompareLogFileName);
+
+        uint16_t deleteCount = files.size() - MAX_LOG_FILE_COUNT;
+        WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
+        uint16_t count = 0;
+        for (auto name : files) {
+            if (count >= deleteCount) {
+                break;
+            }
+            string deleteFile = GetTmpDir() + name;
+            LPCTSTR lpFileName = TEXT(deleteFile.c_str());
+            BOOL ret = DeleteFile(lpFileName);
+            WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
+            count++;
+        }
+    }
+#endif
+
     void RemoveOlderLogFiles()
     {
+#ifdef _WIN32
+        RemoveOlderLogFilesOnWindows();
+        return;
+#endif
         vector<string> files;
         DIR* dir = opendir(GetTmpDir().c_str());
         if (dir == nullptr) {
@@ -316,24 +364,23 @@ namespace Base {
 #ifdef  HDC_HILOG
         string tmpPath = functionName;
         string filePath = GetFileNameAny(tmpPath);
-        static constexpr OHOS::HiviewDFX::HiLogLabel LOG_LABEL = {LOG_CORE, 0xD002D13, "HDC_LOG"};
         switch (static_cast<int>(logLevel)) {
             case static_cast<int>(LOG_DEBUG):
                 // Info level log can be printed default in hilog, debug can't
-                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                             filePath.c_str(), line, buf);
+                HDC_LOG_INFO("[%{public}s:%{public}d] %{public}s",
+                    filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_INFO):
-                OHOS::HiviewDFX::HiLog::Info(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                             filePath.c_str(), line, buf);
+                HDC_LOG_INFO("[%{public}s:%{public}d] %{public}s",
+                    filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_WARN):
-                OHOS::HiviewDFX::HiLog::Warn(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                             filePath.c_str(), line, buf);
+                HDC_LOG_WARN("[%{public}s:%{public}d] %{public}s",
+                    filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_FATAL):
-                OHOS::HiviewDFX::HiLog::Fatal(LOG_LABEL, "[%{public}s:%{public}d] %{public}s",
-                                              filePath.c_str(), line, buf);
+                HDC_LOG_FATAL("[%{public}s:%{public}d] %{public}s",
+                    filePath.c_str(), line, buf);
                 break;
             default:
                 break;

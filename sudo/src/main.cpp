@@ -109,7 +109,6 @@ static bool GetCmdInPath(char *cmd, int cmdBufLen, char *envp[])
     char *cp = nullptr;
     char pathBuf[PATH_MAX + 1] = {0};
     bool findSuccess = false;
-    int ret;
 
     if (strchr(cmd, '/') != nullptr) {
         return true;
@@ -128,7 +127,7 @@ static bool GetCmdInPath(char *cmd, int cmdBufLen, char *envp[])
         if ((cp = strchr(path, ':')) != nullptr) {
             *cp = '\0';
         }
-        ret = sprintf_s(pathBuf, sizeof(pathBuf), "%s/%s", *path ? path : ".", cmd);
+        int ret = sprintf_s(pathBuf, sizeof(pathBuf), "%s/%s", *path ? path : ".", cmd);
         if (ret > 0 && stat(pathBuf, &st) == 0 && S_ISREG(st.st_mode)) {
             findSuccess = true;
             break;
@@ -275,7 +274,6 @@ static bool VerifyAccount(int32_t userId)
 
 static bool UserAccountVerify(char *pwd, int pwdLen)
 {
-    int32_t userId = -1;
     std::shared_ptr<PinAuth::IInputer> inputer = nullptr;
     OHOS::ErrCode err;
     int verifyResult = 0;
@@ -292,6 +290,7 @@ static bool UserAccountVerify(char *pwd, int pwdLen)
         return false;
     }
     if (pid == 0) {
+        int32_t userId = -1;
         close(fds[0]);
         err = OsAccountManager::GetForegroundOsAccountLocalId(userId);
         if (err != 0) {

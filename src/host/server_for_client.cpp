@@ -797,7 +797,8 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
         return ERR_HANDSHAKE_CONNECTKEY_FAILED;
     }
     // channel handshake step3
-    WRITE_LOG(LOG_DEBUG, "ServerForClient channel handshake finished");
+    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%u handshake finished",
+        hChannel->channelId, hChannel->targetSessionId);
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
     if (handShake->banner[WAIT_TAG_OFFSET] == WAIT_DEVICE_TAG || !CheckAutoFillTarget(hChannel)) {
@@ -807,7 +808,8 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     // channel handshake stBindChannelToSession
     if (BindChannelToSession(hChannel, nullptr, 0)) {
         hChannel->availTailIndex = 0;
-        WRITE_LOG(LOG_FATAL, "BindChannelToSession failed channelId:%u", hChannel->channelId);
+        WRITE_LOG(LOG_FATAL, "BindChannelToSession failed channelId:%u sid:%u",
+            hChannel->channelId, hChannel->targetSessionId);
         return ERR_GENERIC;
     }
     return 0;
@@ -856,7 +858,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());
             }
         }
-        WRITE_LOG(LOG_DEBUG, "ReadChannel command: %s", bufPtr);
+        WRITE_LOG(LOG_DEBUG, "ReadChannel cid:%u sid:%u key:%s command: %s",
+            hChannel->channelId, hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             return -10;  //  -10 error formatCommand

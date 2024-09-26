@@ -333,7 +333,7 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
                 if (ctxNow.isFdOpen) {
                     WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, localPath:%s result:%d, closeReqSubmitted:%d",
                               ctxNow.localPath.c_str(), ctxNow.fsOpenReq.result, ctxNow.closeReqSubmitted);
-                    uv_fs_close(loopTask, &ctxNow.fsCloseReq, ctxNow.fsOpenReq.result, nullptr);
+                    CloseFd(&ctxNow, ctxNow.fsOpenReq.result);
                     // solve the fd leak caused by early exit due to illegal operation on a directory.
                     ctxNow.isFdOpen = false;
                 }

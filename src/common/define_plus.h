@@ -244,6 +244,7 @@ struct HdcSession {
     std::mutex mapTaskMutex;
     AuthVerifyType verifyType;
     std::atomic<bool> isNeedDropData; // host: Whether to discard the USB data after it is read
+    std::atomic<uint32_t> dropBytes;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
 
     HdcSessionStat stat;

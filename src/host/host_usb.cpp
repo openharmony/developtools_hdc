@@ -464,14 +464,14 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 {
     HSession hSession = (HSession)stream->data;
     unsigned int fd = hSession->dataFd[STREAM_MAIN];
-    fd_set fdSet;
     struct timeval timeout = { 3, 0 };
-    FD_ZERO(&fdSet);
-    FD_SET(fd, &fdSet);
     int index = 0;
     int childRet = 0;
 
     while (index < dataSize) {
+        fd_set fdSet;
+        FD_ZERO(&fdSet);
+        FD_SET(fd, &fdSet);
         childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout);
         if (childRet <= 0) {
             constexpr int bufSize = 1024;
@@ -601,8 +601,9 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
 
             // when a session is set up for a period of time, the read data is discarded to empty the USB channel.
             if (hSession->isNeedDropData) {
-                WRITE_LOG(LOG_WARN, "Read usb thread sid:%u read size:%d, isNeedDropData:%d drop data",
-                    hSession->sessionId, childRet, hSession->isNeedDropData.load());
+                // WRITE_LOG(LOG_WARN, "Read usb thread sid:%u read size:%d, isNeedDropData:%d drop data",
+                //     hSession->sessionId, childRet, hSession->isNeedDropData.load());
+                hSession->dropBytes += childRet;
                 childRet = 0;
                 continue;
             }
@@ -765,7 +766,8 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
         HdcServer *pServer = (HdcServer *)hSession->classInstance;
         auto ctrl = pServer->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
         hSession->isNeedDropData = false;
-        WRITE_LOG(LOG_INFO, "funcDelayStartSessionNotify set isNeedDropData false, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "funcDelayStartSessionNotify set isNeedDropData false, sid:%u drop %u bytes data",
+            hSession->sessionId, uint32_t(hSession->dropBytes));
         Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
     };
 

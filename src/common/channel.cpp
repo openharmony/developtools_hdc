@@ -477,13 +477,21 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
     thisClass->DispMntnInfo(hChannel);
     if (hChannel->hChildWorkTCP.loop) {
         auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
-        thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
+        bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
+        if (!ret) {
+            WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u", hChannel->channelId, hChannel->targetSessionId);
+        }
         auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
             if (!hChannel->childCleared) {
                 WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
                     hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
+                // auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
+                // bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
+                // if (!ret) {
+                //     WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u", hChannel->channelId, hChannel->targetSessionId);
+                // }
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);

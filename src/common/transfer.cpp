@@ -58,6 +58,7 @@ void HdcTransferBase::CloseFd(CtxFile *context, ssize_t fd)
         return;
     }
     auto callback = [](uv_fs_t *fsPtr) -> void {
+        uv_fs_req_cleanup(fsPtr);
         delete fsPtr;
     };
     uv_fs_close(context->loop, fs, fd, callback);

@@ -464,14 +464,15 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 {
     HSession hSession = (HSession)stream->data;
     unsigned int fd = hSession->dataFd[STREAM_MAIN];
-    struct timeval timeout = { 3, 0 };
     int index = 0;
     int childRet = 0;
+    int retryTimes = 0;
 
     while (index < dataSize) {
         fd_set fdSet;
         FD_ZERO(&fdSet);
         FD_SET(fd, &fdSet);
+        struct timeval timeout = { 3, 0 };
         childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout);
         if (childRet <= 0) {
             constexpr int bufSize = 1024;
@@ -481,9 +482,15 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 #else
             strerror_r(errno, buf, bufSize);
 #endif
-            WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d]", errno, buf, childRet);
+            WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d] retryTimes %d", errno, buf, childRet, retryTimes);
             Base::DispUvStreamInfo(stream, "hostusb select failed");
-            break;
+            if (retryTimes < 3) {
+                retryTimes++;
+                sleep(1);
+                continue;
+            } else {
+                break;
+            }
         }
         childRet = send(fd, reinterpret_cast<const char *>(appendData) + index, dataSize - index, 0);
         if (childRet < 0) {

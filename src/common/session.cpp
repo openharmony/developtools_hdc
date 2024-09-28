@@ -644,7 +644,9 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
             WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%u", sessionId);
             break;
         }
-        WRITE_LOG(LOG_INFO, "dataFdSend:%llu, dataFdRecv:%llu", uint64_t(hSession->stat.dataSendBytes), uint64_t(hSession->stat.dataRecvBytes));
+        WRITE_LOG(LOG_INFO, "dataFdSend:%llu, dataFdRecv:%llu",
+            uint64_t(hSession->stat.dataSendBytes),
+            uint64_t(hSession->stat.dataRecvBytes));
         hSession->isDead = true;
         Base::TimerUvTask(&loopMain, hSession, FreeSessionOpeate);
         NotifyInstanceSessionFree(hSession, false);

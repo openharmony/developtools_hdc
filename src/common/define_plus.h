@@ -192,8 +192,9 @@ struct HdcUART {
 using HUART = struct HdcUART *;
 #endif
 struct HdcSessionStat {
-    // send/recv bytes for dataPipe/dataFd
+    // bytes successed send to hSession->dataFd[STREAM_MAIN]
     std::atomic<uint64_t> dataSendBytes;
+    // bytes successed read from hSession->dataPipe[STREAM_WORK]
     std::atomic<uint64_t> dataRecvBytes;
 };
 

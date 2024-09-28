@@ -189,6 +189,12 @@ struct HdcUART {
 };
 using HUART = struct HdcUART *;
 #endif
+struct HdcSessionStat {
+    // bytes successed send to hSession->dataFd[STREAM_MAIN]
+    std::atomic<uint64_t> dataSendBytes;
+    // bytes successed read from hSession->dataPipe[STREAM_WORK]
+    std::atomic<uint64_t> dataRecvBytes;
+};
 
 struct HdcSession {
     bool serverOrDaemon;  // instance of daemon or server
@@ -237,8 +243,10 @@ struct HdcSession {
     std::mutex mapTaskMutex;
     AuthVerifyType verifyType;
     std::atomic<bool> isNeedDropData; // host: Whether to discard the USB data after it is read
+    std::atomic<uint64_t> dropBytes;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
 
+    HdcSessionStat stat;
     std::string ToDebugString()
     {
         std::ostringstream oss;
@@ -278,6 +286,7 @@ struct HdcSession {
         (void)memset_s(dataPipe, sizeof(dataPipe), 0, sizeof(dataPipe));
         (void)memset_s(&hChildWorkTCP, sizeof(hChildWorkTCP), 0, sizeof(hChildWorkTCP));
         (void)memset_s(&fdChildWorkTCP, sizeof(fdChildWorkTCP), 0, sizeof(fdChildWorkTCP));
+        (void)memset_s(&stat, sizeof(stat), 0, sizeof(stat));
 #ifdef HDC_SUPPORT_UART
         hUART = nullptr;
 #endif

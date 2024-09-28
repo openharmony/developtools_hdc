@@ -466,7 +466,7 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
         bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
         if (!ret) {
             WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u",
-                    hChannel->channelId, hChannel->targetSessionId);
+                hChannel->channelId, hChannel->targetSessionId);
         }
         auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;

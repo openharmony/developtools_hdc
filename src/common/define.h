@@ -177,5 +177,15 @@ const string CMDSTR_FLASHD_UPDATE = "update";
 const string CMDSTR_FLASHD_FLASH = "flash";
 const string CMDSTR_FLASHD_ERASE = "erase";
 const string CMDSTR_FLASHD_FORMAT = "format";
+
+#ifdef _WIN32
+#define hdc_strerrno(buf) \
+        char buf[1024] = { 0 }; \
+        strerror_s(buf, 1024, errno)
+#else
+#define hdc_strerrno(buf)  \
+        char buf[1024] = { 0 };  \
+        strerror_r(errno, buf, 1024)
+#endif
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

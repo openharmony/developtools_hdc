@@ -477,33 +477,20 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
         struct timeval timeout = { 3, 0 };
         childRet = select(fd + 1, nullptr, &fdSet, nullptr, &timeout);
         if (childRet <= 0) {
-            constexpr int bufSize = 1024;
-            char buf[bufSize] = { 0 };
-#ifdef _WIN32
-            strerror_s(buf, bufSize, errno);
-#else
-            strerror_r(errno, buf, bufSize);
-#endif
+            hdc_strerrno(buf);
             WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d] retry times %d alread send %d bytes, total %d bytes",
                     errno, buf, childRet, retryTimes, index, dataSize);
             Base::DispUvStreamInfo(stream, "hostusb select failed");
-            if (retryTimes < maxRetryTimes) {
-                retryTimes++;
-                sleep(oneSecond);
-                continue;
-            } else {
+            if (retryTimes >= maxRetryTimes) {
                 break;
             }
+            retryTimes++;
+            sleep(oneSecond);
+            continue;
         }
         childRet = send(fd, reinterpret_cast<const char *>(appendData) + index, dataSize - index, 0);
         if (childRet < 0) {
-            constexpr int bufSize = 1024;
-            char buf[bufSize] = { 0 };
-#ifdef _WIN32
-            strerror_s(buf, bufSize, errno);
-#else
-            strerror_r(errno, buf, bufSize);
-#endif
+            hdc_strerrno(buf);
             WRITE_LOG(LOG_FATAL, "UsbToHdcProtocol senddata err:%d [%s]", errno, buf);
             Base::DispUvStreamInfo(stream, "hostusb send failed");
             break;
@@ -605,8 +592,6 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
 
             // when a session is set up for a period of time, the read data is discarded to empty the USB channel.
             if (hSession->isNeedDropData) {
-                // WRITE_LOG(LOG_WARN, "Read usb thread sid:%u read size:%d, isNeedDropData:%d drop data",
-                //     hSession->sessionId, childRet, hSession->isNeedDropData.load());
                 hSession->dropBytes += childRet;
                 childRet = 0;
                 continue;

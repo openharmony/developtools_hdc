@@ -245,7 +245,7 @@ struct HdcSession {
     std::mutex mapTaskMutex;
     AuthVerifyType verifyType;
     std::atomic<bool> isNeedDropData; // host: Whether to discard the USB data after it is read
-    std::atomic<uint32_t> dropBytes;
+    std::atomic<uint64_t> dropBytes;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
 
     HdcSessionStat stat;
@@ -288,10 +288,6 @@ struct HdcSession {
         (void)memset_s(pollHandle, sizeof(pollHandle), 0, sizeof(pollHandle));
         (void)memset_s(ctrlFd, sizeof(ctrlFd), 0, sizeof(ctrlFd));
         (void)memset_s(dataFd, sizeof(dataFd), 0, sizeof(dataFd));
-        (void)memset_s(&childLoop, sizeof(childLoop), 0, sizeof(childLoop));
-        (void)memset_s(dataPipe, sizeof(dataPipe), 0, sizeof(dataPipe));
-        (void)memset_s(&hChildWorkTCP, sizeof(hChildWorkTCP), 0, sizeof(hChildWorkTCP));
-        (void)memset_s(&fdChildWorkTCP, sizeof(fdChildWorkTCP), 0, sizeof(fdChildWorkTCP));
         (void)memset_s(&stat, sizeof(stat), 0, sizeof(stat));
 #ifdef HDC_SUPPORT_UART
         hUART = nullptr;

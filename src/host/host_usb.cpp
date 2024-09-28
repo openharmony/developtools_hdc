@@ -739,6 +739,7 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
     }
     UpdateUSBDaemonInfo(hUSB, hSession, STATUS_CONNECTED);
     hSession->isNeedDropData = true;
+    hSession->dropBytes = 0;
     WRITE_LOG(LOG_INFO, "ConnectDetectDaemon set isNeedDropData true, sid:%u", hSession->sessionId);
     BeginUsbRead(hSession);
     hUSB->usbMountPoint = pdi->usbMountPoint;
@@ -754,8 +755,8 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
         HdcServer *pServer = (HdcServer *)hSession->classInstance;
         auto ctrl = pServer->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
         hSession->isNeedDropData = false;
-        WRITE_LOG(LOG_INFO, "funcDelayStartSessionNotify set isNeedDropData false, sid:%u drop %u bytes data",
-            hSession->sessionId, uint32_t(hSession->dropBytes));
+        WRITE_LOG(LOG_INFO, "funcDelayStartSessionNotify set isNeedDropData false, sid:%u drop %llu bytes data",
+            hSession->sessionId, uint64_t(hSession->dropBytes));
         Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
     };
 

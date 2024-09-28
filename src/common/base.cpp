@@ -1879,9 +1879,6 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         uint8_t version = (HDC_VERSION_NUMBER << 12 >> 24) & 0xff;
         uint8_t fix = (HDC_VERSION_NUMBER << 20 >> 28) & 0xff;  // max 16, tail is p
         string ver = StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
-    #ifndef IS_RELEASE_VERSION
-        ver += " for ide mac test only 2 ";
-    #endif
         return "Ver: " + ver;
     }
 

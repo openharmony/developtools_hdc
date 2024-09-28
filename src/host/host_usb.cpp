@@ -467,6 +467,8 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
     int index = 0;
     int childRet = 0;
     int retryTimes = 0;
+    const int maxRetryTimes = 3;
+    const int oneSecond = 1;
 
     while (index < dataSize) {
         fd_set fdSet;
@@ -482,11 +484,12 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 #else
             strerror_r(errno, buf, bufSize);
 #endif
-            WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d] retryTimes %d", errno, buf, childRet, retryTimes);
+            WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d] retry times %d alread send %d bytes, total %d bytes",
+                    errno, buf, childRet, retryTimes, index, dataSize);
             Base::DispUvStreamInfo(stream, "hostusb select failed");
-            if (retryTimes < 3) {
+            if (retryTimes < maxRetryTimes) {
                 retryTimes++;
-                sleep(1);
+                sleep(oneSecond);
                 continue;
             } else {
                 break;

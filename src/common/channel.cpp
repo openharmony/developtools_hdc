@@ -487,11 +487,6 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
             if (!hChannel->childCleared) {
                 WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
                     hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
-                // auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
-                // bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
-                // if (!ret) {
-                //     WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u", hChannel->channelId, hChannel->targetSessionId);
-                // }
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);

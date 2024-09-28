@@ -938,6 +938,10 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         }
         int ret = Base::WriteToFd(fd, pDynBuf, bufLen);
         delete[] pDynBuf;
+        if (ret <= 0) {
+            hdc_strerrno(buf);
+            WRITE_LOG(LOG_WARN, "SendToPollFd, send %d bytes to fd %d failed [%d][%s]", bufLen, fd, ret, buf);
+        }
         return ret;
     }
 

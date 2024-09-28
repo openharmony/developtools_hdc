@@ -179,5 +179,25 @@ const string CMDSTR_FLASHD_UPDATE = "update";
 const string CMDSTR_FLASHD_FLASH = "flash";
 const string CMDSTR_FLASHD_ERASE = "erase";
 const string CMDSTR_FLASHD_FORMAT = "format";
+
+// ################################ Error Message ###################################
+const string TERMINAL_HDC_PROCESS_FAILED = "[E002101]:Terminal hdc process failed, "\
+    "please terminal the hdc process in the task manager first.";
+
+// ################################ Macro define ###################################
+#ifdef IS_RELEASE_VERSION
+#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FUNCTION__, __LINE__, level, fmt, ##__VA_ARGS__)
+#else
+#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
+#endif
+#ifdef _WIN32
+#define hdc_strerrno(buf) \
+        char buf[1024] = { 0 }; \
+        strerror_s(buf, 1024, errno)
+#else
+#define hdc_strerrno(buf)  \
+        char buf[1024] = { 0 };  \
+        strerror_r(errno, buf, 1024)
+#endif
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

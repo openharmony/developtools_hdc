@@ -214,7 +214,7 @@ void HdcDaemonUSB::CloseEndpoint(HUSB hUSB, bool closeCtrlEp)
     WRITE_LOG(LOG_FATAL, "DaemonUSB close endpoint");
 }
 
-void HdcDaemonUSB::ResetOldSession(uint32_t sessionId)
+void HdcDaemonUSB::ResetOldSession(uint32_t sessionId, bool isSoftReset)
 {
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
     if (sessionId == 0) {
@@ -226,7 +226,9 @@ void HdcDaemonUSB::ResetOldSession(uint32_t sessionId)
         return;
     }
     // The Host side is restarted, but the USB cable is still connected
-    WRITE_LOG(LOG_WARN, "Hostside softreset to restart daemon, old sessionId:%u", sessionId);
+    hSession->isSoftReset = isSoftReset;
+    WRITE_LOG(LOG_WARN, "Hostside softreset to restart daemon, old sessionId:%u isSoftReset:%d",
+        sessionId, isSoftReset);
     daemon->FreeSession(sessionId);
 }
 
@@ -242,8 +244,9 @@ int HdcDaemonUSB::AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *session
         USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
         uint32_t inSessionId = ntohl(usbPayloadHeader->sessionId);
         if ((usbPayloadHeader->option & USB_OPTION_RESET)) {
-            WRITE_LOG(LOG_FATAL, "USB_OPTION_RESET sessionId:%u", inSessionId);
-            ResetOldSession(inSessionId);
+            WRITE_LOG(LOG_INFO, "USB_OPTION_RESET inSessionId:%u, currentSessionId:%u",
+                inSessionId, currentSessionId);
+            ResetOldSession(inSessionId, true);
             ret = ERR_IO_SOFT_RESET;
             break;
         }
@@ -356,7 +359,13 @@ void HdcDaemonUSB::OnNewHandshakeOK(const uint32_t sessionId)
 // MainThreadCall, when seession was freed
 void HdcDaemonUSB::OnSessionFreeFinally(const HSession hSession)
 {
+    WRITE_LOG(LOG_DEBUG, "OnSessionFreeFinally sid:%u currentsid:%u", hSession->sessionId, currentSessionId);
+    if (hSession->isSoftReset) {
+        WRITE_LOG(LOG_INFO, "OnSessionFreeFinally sid:%u softreset", hSession->sessionId);
+        return;
+    }
     if (currentSessionId == hSession->sessionId) {
+        WRITE_LOG(LOG_DEBUG, "OnSessionFreeFinally set isAlive false");
         isAlive = false;
         // uv_cancel ctxRecv.req == UV_EBUSY, not effect immediately. It must be close by logic
     }
@@ -638,6 +647,7 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
         break;
     }
     if (!ret) {
+        WRITE_LOG(LOG_INFO, "OnUSBRead ret false, set isAlive = false");
         thisClass->isAlive = false;
         thisClass->ctxRecv.atPollQueue = false;
     }

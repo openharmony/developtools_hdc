@@ -51,7 +51,7 @@ private:
     bool JumpAntiquePacket(const uint8_t &buf, ssize_t bytes) const;
     int SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t *data, const int length);
     int CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop);
-    void ResetOldSession(uint32_t sessionId);
+    void ResetOldSession(uint32_t sessionId, bool isSoftReset = false);
     int GetMaxPacketSize(int fdFfs);
     int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     void FillUsbV2Head(struct UsbFunctionfsDescV2 &descUsbFfs);

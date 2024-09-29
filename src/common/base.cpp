@@ -555,6 +555,7 @@ namespace Base {
     {
         bool hasCallClose = false;
         if (handle->loop && !uv_is_closing(handle)) {
+            DispUvStreamInfo((const uv_stream_t *)handle, "before uv handle close");
             uv_close((uv_handle_t *)handle, closeCallBack);
             hasCallClose = true;
         }
@@ -563,6 +564,24 @@ namespace Base {
         }
     }
 
+    void DispUvStreamInfo(const uv_stream_t *handle, const char *prefix)
+    {
+        uv_handle_type type = handle->type;
+        string name = "unknown";
+        if (type == UV_TCP) {
+            name = "tcp";
+        } else if (type == UV_NAMED_PIPE) {
+            name = "named_pipe";
+        } else {
+            WRITE_LOG(LOG_DEBUG, "%s, the uv handle type is %d", prefix, type);
+            return;
+        }
+
+        size_t bufNotSended = uv_stream_get_write_queue_size(handle);
+        if (bufNotSended != 0) {
+            WRITE_LOG(LOG_DEBUG, "%s, the uv handle type is %s, has %u bytes data", prefix, name.c_str(), bufNotSended);
+        }
+    }
     int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen)
     {
         StartTraceScope("Base::SendToStream");
@@ -641,6 +660,10 @@ namespace Base {
         }
         int ret = Base::WriteToFd(fd, pDynBuf, bufLen);
         delete[] pDynBuf;
+        if (ret <= 0) {
+            hdc_strerrno(buf);
+            WRITE_LOG(LOG_WARN, "SendToPollFd, send %d bytes to fd %d failed [%d][%s]", bufLen, fd, ret, buf);
+        }
         return ret;
     }
 

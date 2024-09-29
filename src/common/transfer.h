@@ -132,7 +132,7 @@ protected:
     void ExtractRelativePath(string &cwd, string &path);
     bool AddFeatures(FeatureFlagsUnion &feature);
     bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
-    void CloseFd(CtxFile *context, ssize_t fd);
+    void CloseFd(ssize_t fd);
 
     CtxFile ctxNow;
     uint16_t commandBegin;

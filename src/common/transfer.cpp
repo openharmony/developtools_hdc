@@ -53,7 +53,7 @@ HdcTransferBase::~HdcTransferBase()
 void HdcTransferBase::CloseFd(ssize_t fd)
 {
     uv_fs_t fs;
-    uv_fs_close(nullptr, fs, fd, nullptr);
+    uv_fs_close(nullptr, &fs, fd, nullptr);
     uv_fs_req_cleanup(&fs);
 }
 

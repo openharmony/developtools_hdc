@@ -87,6 +87,7 @@ constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 10;
 #endif
 constexpr uint16_t TCP_CONNECT_MAX_RETRY_COUNT = 6;
 constexpr uint16_t TCP_CONNECT_RETRY_TIME_MS = 500;
+constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MS = 1000;
 
 // double-word(hex)=[0]major[1][2]minor[3][4]version[5]fix(a-p)[6][7]reserve
 // |----------------------------------------------------------------|
@@ -182,6 +183,14 @@ const string CMDSTR_FLASHD_FORMAT = "format";
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FUNCTION__, __LINE__, level, fmt, ##__VA_ARGS__)
 #else
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
+#ifdef _WIN32
+#define hdc_strerrno(buf) \
+        char buf[1024] = { 0 }; \
+        strerror_s(buf, 1024, errno)
+#else
+#define hdc_strerrno(buf)  \
+        char buf[1024] = { 0 };  \
+        strerror_r(errno, buf, 1024)
 #endif
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

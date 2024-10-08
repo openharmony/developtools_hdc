@@ -183,6 +183,7 @@ const string CMDSTR_FLASHD_FORMAT = "format";
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FUNCTION__, __LINE__, level, fmt, ##__VA_ARGS__)
 #else
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
+#endif
 #ifdef _WIN32
 #define hdc_strerrno(buf) \
         char buf[1024] = { 0 }; \

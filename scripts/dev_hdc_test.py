@@ -944,7 +944,7 @@ def check_cmd_time(cmd, pattern, duration, times):
         if pattern is None:
             subprocess.check_output(f"{GP.hdc_head} {cmd}".split())
         else:
-            check_shell(cmd, pattern, fetch=fetchable)
+            assert check_shell(cmd, pattern, fetch=fetchable)
         start_out = time.time() * 1000
         res.append(start_out - start_in)
 

@@ -96,10 +96,6 @@ def test_rate():
 @pytest.mark.repeat(1)
 def test_file_error():
     assert check_hdc_cmd("target mount")
-    #assert check_shell(
-    #    f"file send {get_local_path('small')} system/bin/hdcd",
-    #    "busy"
-    #    )
     assert check_shell(
         f"file recv",
         "[Fail]There is no local and remote path"
@@ -108,10 +104,6 @@ def test_file_error():
         f"file send",
         "[Fail]There is no local and remote path"
     )
-    #assert check_shell(
-    #    f"file send {get_local_path('large')} {get_remote_path('../../../')}",
-    #    "space left on device"
-    #)
     assert check_hdc_cmd(f"shell rm -rf {get_remote_path('../../../large')}")
     assert check_hdc_cmd(f"shell param set persist.hdc.control.file false")
     assert check_shell(

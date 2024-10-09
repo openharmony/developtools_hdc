@@ -20,6 +20,13 @@ ohos_executable("exec_sudo") {
       "src/main.cpp",
       "src/sudo_iam.cpp",
     ]
+    sanitize = {
+      cfi = true
+      cfi_cross_dso = true
+      cfi_vcall_icall_only = true
+      debug = false
+    }
+
     deps = []
 
     external_deps = [

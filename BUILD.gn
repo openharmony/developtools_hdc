@@ -113,6 +113,9 @@ template("hdcd_source_set") {
     if (is_emulator) {
       defines += [ "HDC_EMULATOR" ]
     }
+    if (build_variant == "user") {
+      defines += [ "IS_RELEASE_VERSION" ]
+    }
     configs = [ ":hdc_config" ]
 
     deps = []
@@ -250,6 +253,7 @@ template("build_hdc") {
           debug = false
         }
         deps = [ ":hdcd_${image_name}_source" ]
+        external_deps = [ "hilog:libhilog" ]
         output_name = "hdcd_${image_name}"
         install_enable = false
         subsystem_name = "developtools"
@@ -308,6 +312,7 @@ template("build_hdc") {
         debug = false
       }
       deps = [ ":hdcd_${image_name}_source" ]
+      external_deps = [ "hilog:libhilog" ]
       output_name = "hdcd_${image_name}"
       install_enable = false
       subsystem_name = "developtools"

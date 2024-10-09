@@ -457,9 +457,9 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
             break;
         }
 
-        string confirmmsg = "[E000002]:The device unauthorized.\n"\
-                             "This server's public key is not set.\n"\
-                             "Please check for a confirmation dialog on your device.\n"\
+        string confirmmsg = "[E000002]:The device unauthorized.\r\n"\
+                             "This server's public key is not set.\r\n"\
+                             "Please check for a confirmation dialog on your device.\r\n"\
                              "Otherwise try 'hdc kill' if that seems wrong.";
         std::thread notifymsg([this, &handshake, channelId, sessionId = hSession->sessionId, &confirmmsg]() {
             this->EchoHandshakeMsg(handshake, channelId, sessionId, confirmmsg);
@@ -483,9 +483,9 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
     if (ret) {
         SendAuthSignMsg(handshake, channelId, hSession->sessionId, pubkey, hSession->tokenRSA);
     } else {
-        string notifymsg = "[E000003]:The device unauthorized.\n"\
-                            "The user denied the access for the device.\n"\
-                             "Please execute 'hdc kill' and redo your command, "\
+        string notifymsg = "[E000003]:The device unauthorized.\r\n"\
+                            "The user denied the access for the device.\r\n"\
+                             "Please execute 'hdc kill' and redo your command,\r\n"\
                              "then check for a confirmation dialog on your device.";
         EchoHandshakeMsg(handshake, channelId, hSession->sessionId, notifymsg);
     }
@@ -539,7 +539,7 @@ bool HdcDaemon::AuthVerifyRsaSign(HSession hSession, const string &tokenSign, co
             break;
         }
         // the length of vaild sign result for BASE64 can't bigger than  EVP_PKEY_size(signKey) * 2
-        if (tokenSign.size() > (EVP_PKEY_size(signKey) * (unsigned long)2)) {
+        if (tokenSign.size() > ((size_t)EVP_PKEY_size(signKey) * (size_t)2)) {
             WRITE_LOG(LOG_FATAL, "invalid base64 sign size %zd for session %u", tokenSign.size(), hSession->sessionId);
             break;
         }

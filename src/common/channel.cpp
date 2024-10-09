@@ -399,7 +399,11 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
     AdminChannel(OP_ADD, channelId, hChannel);
     *hOutChannel = hChannel;
-    WRITE_LOG(LOG_DEBUG, "Mallocchannel:%u", channelId);
+    if (isServerOrClient) {
+        WRITE_LOG(LOG_INFO, "Mallocchannel:%u", channelId);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "Mallocchannel:%u", channelId);
+    }
     return channelId;
 }
 
@@ -409,15 +413,25 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
     HChannel hChannel = (HChannel)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     if (hChannel->uvHandleRef > 0) {
-        WRITE_LOG(LOG_DEBUG, "FreeChannelFinally uvHandleRef:%d channelId:%u",
-            hChannel->uvHandleRef, hChannel->channelId);
+        if (hChannel->serverOrClient) {
+            WRITE_LOG(LOG_INFO, "FreeChannelFinally uvHandleRef:%d channelId:%u sid:%u",
+                hChannel->uvHandleRef, hChannel->channelId, hChannel->targetSessionId);
+        } else {
+            WRITE_LOG(LOG_DEBUG, "FreeChannelFinally uvHandleRef:%d channelId:%u sid:%u",
+                hChannel->uvHandleRef, hChannel->channelId, hChannel->targetSessionId);
+        }
         return;
     }
     thisClass->NotifyInstanceChannelFree(hChannel);
     thisClass->AdminChannel(OP_REMOVE, hChannel->channelId, nullptr);
-    WRITE_LOG(LOG_DEBUG, "!!!FreeChannelFinally channelId:%u finish", hChannel->channelId);
+
     if (!hChannel->serverOrClient) {
+        WRITE_LOG(LOG_DEBUG, "!!!FreeChannelFinally channelId:%u sid:%u finish",
+            hChannel->channelId, hChannel->targetSessionId);
         uv_stop(thisClass->loopMain);
+    } else {
+        WRITE_LOG(LOG_INFO, "!!!FreeChannelFinally channelId:%u sid:%u finish",
+            hChannel->channelId, hChannel->targetSessionId);
     }
 #ifdef HDC_HOST
     Base::TryCloseHandle((const uv_handle_t *)&hChannel->hChildWorkTCP);
@@ -472,8 +486,8 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
             HChannel hChannel = (HChannel)handle->data;
             HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
             if (!hChannel->childCleared) {
-                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u",
-                    hChannel->childCleared, hChannel->channelId);
+                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
+                    hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);

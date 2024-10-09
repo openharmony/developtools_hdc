@@ -16,7 +16,7 @@
 #define DEFINE_ENUM_H
 
 namespace Hdc {
-enum LogLevel {
+enum HdcLogLevel {
     LOG_OFF,
     LOG_FATAL,
     LOG_WARN,

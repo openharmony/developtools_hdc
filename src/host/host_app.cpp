@@ -21,6 +21,7 @@ HdcHostApp::HdcHostApp(HTaskInfo hTaskInfo)
 {
     commandBegin = CMD_APP_BEGIN;
     commandData = CMD_APP_DATA;
+    originLocalDir = "";
     isStableBuf = hTaskInfo->isStableBuf;
 }
 
@@ -78,6 +79,7 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
                 string tarpath = Dir2Tar(path.c_str());
                 if (!tarpath.empty()) {
                     context->taskQueue.push_back(tarpath);
+                    originLocalDir = path;
                 }
             }
         }
@@ -168,8 +170,11 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
             WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
         }
     }
-    LogMsg(MSG_INFO, "%s path:%s, queuesize:%d, msg:%s", modeDesc.c_str(), ctxNow.localPath.c_str(),
-           ctxNow.taskQueue.size(), msg + printedMsgLen);
+    string path = ctxNow.localPath;
+    if (!originLocalDir.empty()) {
+        path = originLocalDir;
+    }
+    LogMsg(MSG_INFO, "%s path:%s msg:%s", modeDesc.c_str(), path.c_str(), msg + printedMsgLen);
     printedMsgLen = strlen(msg);
     if (singalStop || !ctxNow.taskQueue.size()) {
         LogMsg(MSG_OK, "AppMod finish");

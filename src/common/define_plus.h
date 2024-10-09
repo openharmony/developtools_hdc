@@ -38,8 +38,6 @@ static string MaskString(const string &str)
     }
 }
 
-#define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE__, __LINE__, level, fmt, ##__VA_ARGS__)
-
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(exp) ({         \
     __typeof__(exp) _rc;                   \
@@ -262,12 +260,8 @@ struct HdcSession {
         return oss.str();
     }
 
-    HdcSession()
+    HdcSession():serverOrDaemon(false), handshakeOK(false), isDead(false), voteReset(false)
     {
-        serverOrDaemon = false;
-        handshakeOK = false;
-        isDead = false;
-        voteReset = false;
         connectKey = "";
         connType = CONN_USB;
         sessionId = 0;
@@ -288,6 +282,10 @@ struct HdcSession {
         (void)memset_s(pollHandle, sizeof(pollHandle), 0, sizeof(pollHandle));
         (void)memset_s(ctrlFd, sizeof(ctrlFd), 0, sizeof(ctrlFd));
         (void)memset_s(dataFd, sizeof(dataFd), 0, sizeof(dataFd));
+        (void)memset_s(&childLoop, sizeof(childLoop), 0, sizeof(childLoop));
+        (void)memset_s(dataPipe, sizeof(dataPipe), 0, sizeof(dataPipe));
+        (void)memset_s(&hChildWorkTCP, sizeof(hChildWorkTCP), 0, sizeof(hChildWorkTCP));
+        (void)memset_s(&fdChildWorkTCP, sizeof(fdChildWorkTCP), 0, sizeof(fdChildWorkTCP));
         (void)memset_s(&stat, sizeof(stat), 0, sizeof(stat));
 #ifdef HDC_SUPPORT_UART
         hUART = nullptr;

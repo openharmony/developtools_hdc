@@ -35,7 +35,7 @@ public:
     virtual ~SudoIInputer();
     void OnGetData(int32_t authSubType, std::vector<uint8_t> challenge,
                                 std::shared_ptr<IInputerData> inputerData) override;
-    void SetPasswd(char *passwd, int len);
+    void SetPasswd(char *pwd, int len);
 private:
     std::vector<uint8_t> passwd_;
 };
@@ -48,6 +48,7 @@ namespace AccountSA {
 class SudoIDMCallback : public IDMCallback {
 public:
     virtual ~SudoIDMCallback() = default;
+    SudoIDMCallback();
     void OnAcquireInfo(int32_t module, uint32_t acquireInfo, const Attributes &extraInfo) override;
     void OnResult(int32_t result, const Attributes &extraInfo) override;
     bool GetVerifyResult(void);

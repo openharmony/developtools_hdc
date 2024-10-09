@@ -231,7 +231,7 @@ class GP(object):
     
     @classmethod
     def get_version(cls):
-        version = "v1.0.2a"
+        version = f"v1.0.4a"
         return version
 
 
@@ -247,6 +247,7 @@ def pytest_run(args):
             print("Please unzip package.zip to resource directory, please rerun after operation.")
             input("[ENTER]")
             return
+    gen_package_dir()
     start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     if args.count is not None:
         for i in range(args.count):
@@ -276,12 +277,13 @@ def rmdir(path):
     try:
         if sys.platform == "win32":
             if os.path.isfile(path):
-                subprocess.call(f"del {path}".split())
+                os.remove(path)
             else:
-                subprocess.call(f"del /Q {path}".split())
+                shutil.rmtree(path)
         else:
             subprocess.call(f"rm -rf {path}".split())
     except OSError:
+        print(f"Error: {path} : cannot remove")
         pass
 
 
@@ -293,7 +295,7 @@ def get_remote_path(path):
     return f"{GP.remote_path}/{path}"
 
 
-def _get_local_md5(local):
+def get_local_md5(local):
     md5_hash = hashlib.md5()
     with open(local, "rb") as f:
         for byte_block in iter(lambda: f.read(4096), b""):
@@ -318,9 +320,24 @@ def check_shell(cmd, pattern=None, fetch=False):
         return subprocess.check_call(cmd.split()) == 0
 
 
-def _check_dir(local, remote):
-    def _get_md5sum(remote):
-        cmd = f"{GP.hdc_head} shell md5sum {remote}/*"
+def get_shell_result(cmd, pattern=None, fetch=False):
+    cmd = f"{GP.hdc_head} {cmd}"
+    print(f"\nexecuting command: {cmd}")
+    return subprocess.check_output(cmd.split()).decode()
+
+
+def check_rate(cmd, expected_rate):
+    send_result = get_shell_result(cmd)
+    rate = float(send_result.split("rate:")[1].split("kB/s")[0])
+    return rate > expected_rate
+
+
+def check_dir(local, remote, is_single_dir=False):
+    def _get_md5sum(remote, is_single_dir=False):
+        if is_single_dir:
+            cmd = f"{GP.hdc_head} shell md5sum {remote}/*"
+        else:
+            cmd = f'{GP.hdc_head} shell find {remote} -type f -exec md5sum {{}} \;'
         result = subprocess.check_output(cmd.split()).decode()
         return result
     
@@ -335,7 +352,7 @@ def _check_dir(local, remote):
             return "PermissionError"
         except FileNotFoundError:
             return "FileNotFoundError"
-    print("remote" + remote)
+    print("remote:" + remote)
     output = _get_md5sum(remote)
     print(output)
 
@@ -344,8 +361,15 @@ def _check_dir(local, remote):
         if len(line) < 32: # length of MD5
             continue
         expected_md5, file_name = line.split()[:2]
-        file_name = file_name.replace(f"{remote}/", "")
-        file_path = os.path.join(os.getcwd(), local, file_name)  # 构建完整的文件路径
+        if is_single_dir:
+            file_name = file_name.replace(f"{remote}", "")
+        elif GP.remote_path in remote:
+            file_name = file_name.split(GP.remote_dir_path)[1].replace("/", "\\")
+        else:
+            file_name = file_name.split(remote)[1].replace("/", "\\")
+        file_path = os.path.join(os.getcwd(), GP.local_path) + file_name  # 构建完整的文件路径
+        if is_single_dir:
+            file_path = os.path.join(os.getcwd(), local) + file_name
         print(file_path)
         actual_md5 = _calculate_md5(file_path)
         print(f"Expected: {expected_md5}")
@@ -362,12 +386,12 @@ def _check_file(local, remote):
     if remote.startswith("/proc"):
         local_size = os.path.getsize(local)
         if local_size > 0:
-            return true
+            return True
         else:
-            return false
+            return False
     else:
         cmd = f"shell md5sum {remote}"
-        local_md5 = _get_local_md5(local)
+        local_md5 = get_local_md5(local)
         return check_shell(cmd, local_md5)
 
 
@@ -400,7 +424,10 @@ def check_file_recv(remote, local):
 def check_app_install(app, bundle, args=""):
     app = os.path.join(GP.local_path, app)
     install_cmd = f"install {args} {app}"
-    return check_shell(install_cmd, "successfully") and _check_app_installed(bundle, "s" in args)
+    if (args == "-s" and app.endswith(".hap")) or (args == "" and app.endswith(".hsp")):
+        return check_shell(install_cmd, "failed to install bundle")
+    else:
+        return check_shell(install_cmd, "successfully") and _check_app_installed(bundle, "s" in args)
 
 
 def check_app_uninstall(bundle, args=""):
@@ -419,12 +446,17 @@ def check_app_install_multi(tables, args=""):
     apps_str = " ".join(apps)
     install_cmd = f"install {args} {apps_str}"
 
-    if not check_shell(install_cmd, "successfully"):
-        return False
-
-    for bundle in bundles:
-        if not _check_app_installed(bundle, "s" in args):
+    if ((args == "-s" and re.search(".hap", apps_str)) or (re.search(".hsp", apps_str) and re.search(".hap", apps_str))
+        or (args == "" and 0 == apps_str.count(".hap"))):
+        if not check_shell(install_cmd, "failed to install bundle"):
             return False
+    else:
+        if not check_shell(install_cmd, "successfully"):
+            return False
+
+        for bundle in bundles:
+            if not _check_app_installed(bundle, "s" in args):
+                return False
 
     return True
 
@@ -448,7 +480,7 @@ def check_hdc_cmd(cmd, pattern=None, **args):
         if os.path.isfile(local):
             return _check_file(local, remote)
         else:
-            return _check_dir(local, remote)
+            return check_dir(local, remote)
     elif cmd.startswith("install"):
         bundle = args.get("bundle", "invalid")
         opt = " ".join(cmd.split()[1:-1])
@@ -486,6 +518,16 @@ def switch_usb():
     return res
 
 
+def copy_file(src, dst):
+    try:
+        shutil.copy2(src, dst)
+        print(f"File copied successfully from {src} to {dst}")
+    except IOError as e:
+        print(f"Unable to copy file. {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+
 def switch_tcp():
     if not GP.remote_ip: # skip tcp check
         print("!!! remote_ip is none, skip tcp check !!!")
@@ -520,26 +562,30 @@ def select_cmd():
             return opt
 
 
-def prepare_source():
+def gen_file(path, size):
+    index = 0
+    path = os.path.abspath(path)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
 
-    def gen_file(path, size):
-        index = 0
-        path = os.path.abspath(path)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+    while index < size:
+        os.write(fd, os.urandom(1024))
+        index += 1024
+    os.close(fd)
 
-        while index < size:
-            os.write(fd, os.urandom(1024))
-            index += 1024
-        os.close(fd)
 
-    def create_file_with_size(path, size):
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
-        os.write(fd, b'\0' * size)
-        os.close(fd)
+def gen_zero_file(path, size):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+    os.write(fd, b'0' * size)
+    os.close(fd)
 
-    print(f"in prepare {GP.local_path},wait for 2 mins.")
-    current_path = os.getcwd()
-    os.mkdir(GP.local_path)
+
+def create_file_with_size(path, size):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o755)
+    os.write(fd, b'\0' * size)
+    os.close(fd)
+
+
+def gen_file_set():
     print("generating empty file ...")
     gen_file(os.path.join(GP.local_path, "empty"), 0)
 
@@ -553,20 +599,29 @@ def prepare_source():
     gen_file(os.path.join(GP.local_path, "large"), 2 * 1024 ** 3)
 
     print("generating soft link ...")
-    os.symlink("small", os.path.join(GP.local_path, "soft_small"))
+    try:
+        os.symlink("small", os.path.join(GP.local_path, "soft_small"))
+    except FileExistsError:
+        print("soft_small already exists")
+
+    print("generating text file ...")
+    gen_zero_file(os.path.join(GP.local_path, "word_100M.txt"), 100 * 1024 ** 2)
 
     print("generating package dir ...")
-    os.mkdir(os.path.join(GP.local_path, "package"))
+    if not os.path.exists(os.path.join(GP.local_path, "package")):
+        os.mkdir(os.path.join(GP.local_path, "package"))
     for i in range(1, 6):
         gen_file(os.path.join(GP.local_path, "package", f"fake.hap.{i}"), 20 * 1024 ** 2)
 
     print("generating deep dir ...")
     deepth = 4
     deep_path = os.path.join(GP.local_path, "deep_dir")
-    os.mkdir(deep_path)
+    if not os.path.exists(deep_path):
+        os.mkdir(deep_path)
     for deep in range(deepth):
         deep_path = os.path.join(deep_path, f"deep_dir{deep}")
-        os.mkdir(deep_path)
+        if not os.path.exists(deep_path):
+            os.mkdir(deep_path)
     gen_file(os.path.join(deep_path, "deep"), 102400)
 
     print("generating dir with file ...")
@@ -589,6 +644,42 @@ def prepare_source():
     dir_path = os.path.join(GP.local_path, "empty_dir")
     rmdir(dir_path)
     os.mkdir(dir_path)
+
+    print("generating version file ...")
+    gen_file(os.path.join(GP.local_path, GP.get_version()), 0)
+
+
+def prepare_source():
+    if os.path.exists(os.path.join(GP.local_path, GP.get_version())):
+        print(f"hdc test version is {GP.get_version}, check ok, skip prepare.")
+        return
+    print(f"in prepare {GP.local_path},wait for 2 mins.")
+    current_path = os.getcwd()
+
+    if os.path.exists(GP.local_path):
+        # 打开local_path遍历其中的文件，删除hap hsp以外的所有文件
+        for file in os.listdir(GP.local_path):
+            if file.endswith(".hap") or file.endswith(".hsp"):
+                continue
+            file_path = os.path.join(GP.local_path, file)
+            rmdir(file_path)
+    else:
+        os.mkdir(GP.local_path)
+    
+    gen_file_set()
+
+
+def gen_package_dir():
+    print("generating app dir ...")
+    dir_path = os.path.join(GP.local_path, "app_dir")
+    rmdir(dir_path)
+    os.mkdir(dir_path)
+    app = os.path.join(GP.local_path, "entry-default-signed-debug.hap")
+    dst_dir = os.path.join(GP.local_path, "app_dir")
+    if not os.path.exists(app):
+        print(f"Source file {app} does not exist.")
+    else:
+        copy_file(app, dst_dir)
 
 
 def setup_tester():
@@ -741,14 +832,14 @@ def make_multiprocess_file(local, remote, mode, num, task_type):
         for _ in range(num):
             if mode == "send":
                 end_of_file_name = os.path.basename(local)
-                if _check_dir(local, f"{remote}/{end_of_file_name}"):
+                if check_dir(local, f"{remote}/{end_of_file_name}", is_single_dir=True):
                     res *= 1
                 else:
                     res *= 0
             elif mode == "recv":
                 end_of_file_name = os.path.basename(remote)
                 local = os.path.join(local, end_of_file_name)
-                if _check_dir(f"{local}", f"{remote}"):
+                if check_dir(f"{local}", f"{remote}", is_single_dir=True):
                     res *= 1
                 else:
                     res *= 0
@@ -814,7 +905,10 @@ def check_cmd_time(cmd, pattern, duration, times):
     res = []
     for i in range(times):
         start_in = time.time() * 1000
-        check_shell(cmd, pattern, fetch=fetchable)
+        if pattern is None:
+            subprocess.check_output(f"{GP.hdc_head} {cmd}".split())
+        else:
+            check_shell(cmd, pattern, fetch=fetchable)
         start_out = time.time() * 1000
         res.append(start_out - start_in)
 
@@ -839,3 +933,55 @@ def check_cmd_time(cmd, pattern, duration, times):
         duration = 150 * 1.2
     # 150ms is baseline timecost for hdc shell xxx cmd, 20% can be upper maybe system status
     return timecost < duration
+
+
+def check_rom(baseline):
+
+    def _try_get_size(message):
+        try:
+            size = int(message.split('\t')[0])
+        except ValueError:
+            size = -9999 * 1024 # error size
+            print(f"try get size value error, from {message}")
+        return size
+
+    if baseline is None:
+        baseline = 2200
+    # 2200KB is the baseline of hdcd and libhdc.dylib.so size all together
+    cmd_hdcd = f"{GP.hdc_head} shell du system/bin/hdcd"
+    result_hdcd = subprocess.check_output(cmd_hdcd.split()).decode()
+    hdcd_size = _try_get_size(result_hdcd)
+    cmd_libhdc = f"{GP.hdc_head} shell du system/lib/libhdc.dylib.so"
+    result_libhdc = subprocess.check_output(cmd_libhdc.split()).decode()
+    if "directory" in result_libhdc:
+        cmd_libhdc64 = f"{GP.hdc_head} shell du system/lib64/libhdc.dylib.so"
+        result_libhdc64 = subprocess.check_output(cmd_libhdc64.split()).decode()
+        if "directory" in result_libhdc64:
+            libhdc_size = 0
+        else:
+            libhdc_size = _try_get_size(result_libhdc64)
+    else:
+        libhdc_size = _try_get_size(result_libhdc)
+    all_size = hdcd_size + libhdc_size
+    GP.hdcd_rom = all_size
+    if all_size < 0:
+        GP.hdcd_rom = "error"
+        return False
+    else:
+        GP.hdcd_rom = f"{all_size} KB"
+    if all_size > baseline:
+        print(f"rom size is {all_size}, overlimit baseline {baseline}")
+        return False
+    else:
+        print(f"rom size is {all_size}, underlimit baseline {baseline}")
+        return True
+
+
+def run_command_with_timeout(command, timeout):
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        return result.stdout.decode(), result.stderr.decode()
+    except subprocess.TimeoutExpired:
+        return None, "Command timed out"
+    except subprocess.CalledProcessError as e:
+        return None, e.stderr.decode()

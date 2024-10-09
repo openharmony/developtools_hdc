@@ -19,6 +19,7 @@
 #include "serial_struct.h"
 
 namespace Hdc {
+std::shared_mutex g_deletedSessionIdRecordMutex;
 HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize)
 {
     // print version pid
@@ -734,7 +735,7 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
 
 void HdcSessionBase::AddDeletedSessionId(uint32_t sessionId)
 {
-    std::unique_lock<std::shared_mutex> lock(deletedSessionIdRecordMutex);
+    std::unique_lock<std::shared_mutex> lock(g_deletedSessionIdRecordMutex);
     if (deletedSessionIdSet.find(sessionId) != deletedSessionIdSet.end()) {
         WRITE_LOG(LOG_INFO, "SessionId:%u is already in the cache", sessionId);
         return;
@@ -755,7 +756,7 @@ void HdcSessionBase::AddDeletedSessionId(uint32_t sessionId)
 
 bool HdcSessionBase::IsSessionDeleted(uint32_t sessionId) const
 {
-    std::shared_lock<std::shared_mutex> lock(deletedSessionIdRecordMutex);
+    std::shared_lock<std::shared_mutex> lock(g_deletedSessionIdRecordMutex);
     if (deletedSessionIdSet.find(sessionId) != deletedSessionIdSet.end()) {
         return true;
     }

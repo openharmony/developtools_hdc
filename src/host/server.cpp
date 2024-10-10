@@ -829,8 +829,8 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         connType = CONN_SERIAL;
     }
 #endif
-    else { // USB
-        connType = CONN_USB;
+    else { // Not support
+        return ERR_NO_SUPPORT;
     }
     HDaemonInfo hdi = nullptr;
     if (connectKey == "any") {

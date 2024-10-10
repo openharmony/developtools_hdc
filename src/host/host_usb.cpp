@@ -479,7 +479,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
         if (childRet <= 0) {
             hdc_strerrno(buf);
             WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d] retry times %d alread send %d bytes, total %d bytes",
-                    errno, buf, childRet, retryTimes, index, dataSize);
+                errno, buf, childRet, retryTimes, index, dataSize);
             Base::DispUvStreamInfo(stream, "hostusb select failed");
             if (retryTimes >= maxRetryTimes) {
                 break;
@@ -591,16 +591,16 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
             nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ?
                                        hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
+            if (childRet < 0) {
+                WRITE_LOG(LOG_FATAL, "Read usb failed, sid:%u ret:%d", hSession->sessionId, childRet);
+                break;
+            }
 
             // when a session is set up for a period of time, the read data is discarded to empty the USB channel.
             if (hSession->isNeedDropData) {
                 hSession->dropBytes += childRet;
                 childRet = 0;
                 continue;
-            }
-            if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "Read usb failed, sid:%u ret:%d", hSession->sessionId, childRet);
-                break;
             }
             if (childRet == 0) {
                 WRITE_LOG(LOG_WARN, "Read usb return 0, continue read, sid:%u", hSession->sessionId);

@@ -70,43 +70,69 @@ uint32_t HdcClient::GetLastPID()
     return pid;
 }
 
-bool HdcClient::StartKillServer(const char *cmd, bool startOrKill)
+bool HdcClient::StartServer(const string &cmd)
 {
-    bool isNowRunning = Base::ProgramMutex(SERVER_NAME.c_str(), true) != 0;
-    const int signNum = 9;
-    uint32_t pid = GetLastPID();
-    if (!pid) {
-        WRITE_LOG(LOG_FATAL, "StartKillServer pid is 0");
+    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    if (serverStatus < 0) {
+        WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
         return false;
     }
-    if (startOrKill) {
-        if (isNowRunning) {
-            // already running
-            if (!strstr(cmd, " -r")) {
-                return true;
-            }
-            if (pid) {
-                int rc = uv_kill(pid, signNum);
-                WRITE_LOG(LOG_DEBUG, "uv_kill rc:%d", rc);
-            }
-        }
+
+    // server is not running
+    if (serverStatus == 0) {
         HdcServer::PullupServer(channelHostPort.c_str());
+        return true;
+    }
+
+    // server is running
+    if (cmd.find(" -r") == std::string::npos) {
+        return true;
+    }
+
+    // restart server
+    uint32_t pid = GetLastPID();
+    if (pid == 0) {
+        Base::PrintMessage(TERMINAL_HDC_PROCESS_FAILED.c_str());
+        return false;
+    }
+    int rc = uv_kill(pid, SIGKILL);
+    WRITE_LOG(LOG_DEBUG, "uv_kill rc:%d", rc);
+    HdcServer::PullupServer(channelHostPort.c_str());
+    return true;
+}
+
+bool HdcClient::KillServer(const string &cmd)
+{
+    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    if (serverStatus < 0) {
+        WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
+        return false;
+    }
+
+    // server is not running
+    if (serverStatus == 0) {
+        if (cmd.find(" -r") != std::string::npos) {
+            HdcServer::PullupServer(channelHostPort.c_str());
+        }
+        return true;
+    }
+
+    // server is running
+    uint32_t pid = GetLastPID();
+    if (pid == 0) {
+        Base::PrintMessage(TERMINAL_HDC_PROCESS_FAILED.c_str());
+        return false;
+    }
+    int rc = uv_kill(pid, SIGKILL);
+    if (rc == 0) {
+        Base::PrintMessage("Kill server finish");
     } else {
-        if (isNowRunning && pid) {
-            int rc = uv_kill(pid, signNum);
-            if (rc == 0) {
-                Base::PrintMessage("Kill server finish");
-            } else {
-                constexpr int size = 1024;
-                char buf[size] = { 0 };
-                uv_strerror_r(rc, buf, size);
-                Base::PrintMessage("Kill server failed %s", buf);
-            }
-        }
-        // already running
-        if (!strstr(cmd, " -r")) {
-            return true;
-        }
+        constexpr int size = 1024;
+        char buf[size] = { 0 };
+        uv_strerror_r(rc, buf, size);
+        Base::PrintMessage("Kill server failed %s", buf);
+    }
+    if (cmd.find(" -r") != std::string::npos) {
         HdcServer::PullupServer(channelHostPort.c_str());
     }
     return true;
@@ -117,9 +143,9 @@ void HdcClient::DoCtrlServiceWork(uv_check_t *handle)
     HdcClient *thisClass = (HdcClient *)handle->data;
     string &strCmd = thisClass->command;
     if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
-        thisClass->StartKillServer(thisClass->command.c_str(), true);
+        thisClass->StartServer(strCmd);
     } else if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
-        thisClass->StartKillServer(thisClass->command.c_str(), false);
+        thisClass->KillServer(strCmd);
         // clang-format off
     } else if (!strncmp(thisClass->command.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size()) &&
                 strCmd.find(" ") != std::string::npos) {

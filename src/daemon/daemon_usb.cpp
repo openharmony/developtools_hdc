@@ -336,7 +336,7 @@ int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     HdcDaemon *daemon = (HdcDaemon *)hSession->classInstance;
     uint32_t sessionId = hSession->sessionId;
     std::unique_lock<std::mutex> lock(mutexUsbFfs);
-    if (daemon->IsSessionDeleted(sessionId)) {
+    if (Base::IsSessionDeleted(sessionId)) {
         WRITE_LOG(LOG_DEBUG, "SendUSBRaw session %u is deleted", sessionId);
         return ERR_SESSION_DEAD;
     }
@@ -400,7 +400,7 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
             return;
         }
         HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(hSessionInfo->classInstance);
-        if (daemon->IsSessionDeleted(hSessionInfo->sessionId)) {
+        if (Base::IsSessionDeleted(hSessionInfo->sessionId)) {
             WRITE_LOG(LOG_INFO, "funcNewSessionUp session is deleted");
             delete hSessionInfo;
             handle->data = nullptr;

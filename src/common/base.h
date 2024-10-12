@@ -271,6 +271,8 @@ namespace Base {
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);
     FILE *Fopen(const char *fileName, const char *mode);
+    void AddDeletedSessionId(uint32_t sessionId);
+    bool IsSessionDeleted(uint32_t sessionId);
 }  // namespace base
 }  // namespace Hdc
 

@@ -2385,5 +2385,38 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         return fopen(fileName, mode);
 #endif
     }
+
+    std::set<uint32_t> g_deletedSessionIdSet;
+    std::queue<uint32_t> g_deletedSessionIdQueue;
+    std::mutex g_deletedSessionIdRecordMutex;
+    void AddDeletedSessionId(uint32_t sessionId)
+    {
+        std::lock_guard<std::mutex> lock(g_deletedSessionIdRecordMutex);
+        if (g_deletedSessionIdSet.find(sessionId) != g_deletedSessionIdSet.end()) {
+            WRITE_LOG(LOG_INFO, "SessionId:%u is already in the cache", sessionId);
+            return;
+        }
+        WRITE_LOG(LOG_INFO, "AddDeletedSessionId:%u", sessionId);
+        g_deletedSessionIdSet.insert(sessionId);
+        g_deletedSessionIdQueue.push(sessionId);
+
+        // Delete old records and only save MAX_DELETED_SESSION_ID_RECORD_COUNT records
+        if (g_deletedSessionIdQueue.size() > MAX_DELETED_SESSION_ID_RECORD_COUNT) {
+            uint32_t id = g_deletedSessionIdQueue.front();
+            WRITE_LOG(LOG_INFO, "g_deletedSessionIdQueue size:%u, g_deletedSessionIdSet size:%u, pop session id:%u",
+                g_deletedSessionIdQueue.size(), g_deletedSessionIdSet.size(), id);
+            g_deletedSessionIdQueue.pop();
+            g_deletedSessionIdSet.erase(id);
+        }
+    }
+
+    bool IsSessionDeleted(uint32_t sessionId)
+    {
+        std::lock_guard<std::mutex> lock(g_deletedSessionIdRecordMutex);
+        if (g_deletedSessionIdSet.find(sessionId) != g_deletedSessionIdSet.end()) {
+            return true;
+        }
+        return false;
+    }
 }
 }  // namespace Hdc

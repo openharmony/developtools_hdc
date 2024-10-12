@@ -904,6 +904,10 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
         WRITE_LOG(LOG_FATAL, "ChannelSendSessionCtrlMsg hSession nullptr sessionId:%u", sessionId);
         return false;
     }
-    return Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrlMsg.data(), ctrlMsg.size()) > 0;
+    int rc = Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrlMsg.data(), ctrlMsg.size());
+    if (rc <= 0) {
+        WRITE_LOG(LOG_FATAL, "send ctrlmsg failed sessionId:%u rc:%d", sessionId, rc);
+    }
+    return rc > 0;
 }
 }  // namespace Hdc

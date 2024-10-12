@@ -600,12 +600,6 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
 {
     StartTraceScope("HdcSessionBase::FreeSessionOpeate");
     HSession hSession = (HSession)handle->data;
-    HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
-    if (hSession->ref > 0) {
-        WRITE_LOG(LOG_WARN, "FreeSessionOpeate sid:%u ref:%u > 0", hSession->sessionId, uint32_t(hSession->ref));
-        return;
-    }
-    WRITE_LOG(LOG_INFO, "FreeSessionOpeate sid:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
 #ifdef HDC_HOST
     if (hSession->hUSB != nullptr
         && (!hSession->hUSB->hostBulkIn.isShutdown || !hSession->hUSB->hostBulkOut.isShutdown)) {
@@ -614,6 +608,12 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
         return;
     }
 #endif
+    HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
+    if (hSession->ref > 0) {
+        WRITE_LOG(LOG_WARN, "FreeSessionOpeate sid:%u ref:%u > 0", hSession->sessionId, uint32_t(hSession->ref));
+        return;
+    }
+    WRITE_LOG(LOG_INFO, "FreeSessionOpeate sid:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
     // wait workthread to free
     if (hSession->pollHandle[STREAM_WORK]->loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);

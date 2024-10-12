@@ -27,9 +27,6 @@ ohos_prebuilt_etc("hdcd.cfg") {
   if (build_variant == "user") {
     source = "hdcd.cfg"
   }
-  if (hdc_feature_support_sudo && build_variant == "user") {
-    source = "hdcd_sudo.cfg"
-  }
   relative_install_dir = "init"
   install_images = [
     "system",

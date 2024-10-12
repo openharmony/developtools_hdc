@@ -119,6 +119,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     return;
 Finish:
     WRITE_LOG(LOG_FATAL, "Connect failed sessionId:%u", hSession->sessionId);
+    hSession->childCleared = true;
     ptrConnect->FreeSession(hSession->sessionId);
 }
 

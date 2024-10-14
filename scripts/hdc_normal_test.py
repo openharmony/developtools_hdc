@@ -97,6 +97,10 @@ def test_rate():
 def test_file_error():
     assert check_hdc_cmd("target mount")
     assert check_shell(
+        f"file send {get_local_path('small')} system/bin/hdcd",
+        "busy"
+    )
+    assert check_shell(
         f"file recv",
         "[Fail]There is no local and remote path"
     )

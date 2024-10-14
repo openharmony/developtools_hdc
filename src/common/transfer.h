@@ -104,6 +104,7 @@ protected:
         FileMode fileMode;
         vector<FileMode> dirMode; // save dir mode on master
         map<string, FileMode> dirModeMap; // save dir mode on slave
+        ssize_t openFd;
     };
     // Just app-mode use
     enum AppModType {
@@ -114,7 +115,8 @@ protected:
     };
 
     static void OnFileOpen(uv_fs_t *req);
-    static void OnFileClose(uv_fs_t *req);
+    static void OnFileOpenFailed(CtxFile *context);
+    static void OnFileClose(CtxFile *context);
     int GetSubFiles(const char *path, string filter, vector<string> *out);
     int GetSubFilesRecursively(string path, string currentDirname, vector<string> *out);
     virtual void CheckMaster(CtxFile *context)

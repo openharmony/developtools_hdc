@@ -94,8 +94,7 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
 
     context->transferConfig.options = options;
     context->transferConfig.functionName = CMDSTR_APP_INSTALL;
-    RunQueue(context);
-    ret = true;
+    ret = RunQueue(context);
 Finish:
     if (argv) {
         delete[](reinterpret_cast<char *>(argv));
@@ -108,23 +107,31 @@ bool HdcHostApp::BeginSideload(CtxFile *context, const char *localPath)
     bool ret = false;
     context->transferConfig.functionName = CMDSTR_APP_SIDELOAD;
     context->taskQueue.push_back(localPath);
-    RunQueue(context);
-    ret = true;
+    ret = RunQueue(context);
     return ret;
 }
 
-void HdcHostApp::RunQueue(CtxFile *context)
+bool HdcHostApp::RunQueue(CtxFile *context)
 {
-    ++refCount;
     context->localPath = context->taskQueue.back();
-    uv_fs_open(loopTask, &context->fsOpenReq, context->localPath.c_str(), O_RDONLY, 0, OnFileOpen);
+    uv_fs_t *openReq = new uv_fs_t;
+    if (openReq == nullptr) {
+        LogMsg(MSG_FAIL, "HdcHostApp::RunQueue new uv_fs_t failed");
+        OnFileOpenFailed(context);
+        return false;
+    }
+    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    openReq->data = context;
+    ++refCount;
+    uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, 0, OnFileOpen);
     context->master = true;
+    return true;
 }
 
 void HdcHostApp::CheckMaster(CtxFile *context)
 {
     uv_fs_t fs = {};
-    uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
+    uv_fs_fstat(nullptr, &fs, context->openFd, nullptr);
     context->transferConfig.fileSize = fs.statbuf.st_size;
     uv_fs_req_cleanup(&fs);
 
@@ -180,8 +187,7 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
         LogMsg(MSG_OK, "AppMod finish");
         return false;
     }
-    RunQueue(&ctxNow);
-    return true;
+    return RunQueue(&ctxNow);
 }
 
 bool HdcHostApp::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)

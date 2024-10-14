@@ -43,6 +43,27 @@ bool HdcDaemonApp::ReadyForRelease()
     return true;
 }
 
+void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
+{
+    string dstPath = "/data/local/tmp/";
+    string bufString(reinterpret_cast<char *>(payload), payloadSize);
+    SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
+    // update transferconfig to main context
+    ctxNow.master = false;
+#ifdef HDC_PCDEBUG
+    char tmpPath[256] = "";
+    size_t size = 256;
+    uv_os_tmpdir(tmpPath, &size);
+    dstPath = tmpPath;
+    dstPath += Base::GetPathSep();
+#endif
+    dstPath += ctxNow.transferConfig.optionalName;
+    ctxNow.localPath = dstPath;
+    ctxNow.transferBegin = Base::GetRuntimeMSec();
+    ctxNow.fileSize = ctxNow.transferConfig.fileSize;
+    return;
+}
+
 bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
@@ -53,25 +74,16 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
     bool ret = true;
     switch (command) {
         case CMD_APP_CHECK: {
-            string dstPath = "/data/local/tmp/";
-            string bufString(reinterpret_cast<char *>(payload), payloadSize);
-            SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
-            // update transferconfig to main context
-            ctxNow.master = false;
-            ctxNow.fsOpenReq.data = &ctxNow;
-#ifdef HDC_PCDEBUG
-            char tmpPath[256] = "";
-            size_t size = 256;
-            uv_os_tmpdir(tmpPath, &size);
-            dstPath = tmpPath;
-            dstPath += Base::GetPathSep();
-#endif
-            dstPath += ctxNow.transferConfig.optionalName;
-            ctxNow.localPath = dstPath;
-            ctxNow.transferBegin = Base::GetRuntimeMSec();
-            ctxNow.fileSize = ctxNow.transferConfig.fileSize;
+            uv_fs_t *openReq = new uv_fs_t;
+            if (openReq == nullptr) {
+                WRITE_LOG(LOG_FATAL, "HdcDaemonApp::CommandDispatch new uv_fs_t failed");
+                return false;
+            }
+            memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+            MakeCtxForAppCheck(payload, payloadSize);
+            openReq->data = &ctxNow;
             ++refCount;
-            uv_fs_open(loopTask, &ctxNow.fsOpenReq, ctxNow.localPath.c_str(),
+            uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(),
                        UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH,
                        OnFileOpen);
             break;

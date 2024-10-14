@@ -789,7 +789,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
                 }
                 auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
                 uv_walk(ptrLoop, clearLoopTask, nullptr);
-#if defined(HDC_HOST) && !defined(HOST_LINUX)
+#ifdef _WIN32
                 // If all processing ends, Then return0,this call will block
                 if (!ptrLoop->active_handles) {
                     ret = true;

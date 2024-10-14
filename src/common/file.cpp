@@ -52,9 +52,17 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         delete[](reinterpret_cast<char *>(argv));
         return false;
     }
+    uv_fs_t *openReq = new uv_fs_t;
+    if (openReq == nullptr) {
+        delete[](reinterpret_cast<char *>(argv));
+        LogMsg(MSG_FAIL, "HdcFile::BeginTransfer new openReq failed");
+        return false;
+    }
+    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    openReq->data = context;
     do {
         ++refCount;
-        uv_fs_open(loopTask, &context->fsOpenReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
+        uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         context->master = true;
         ret = true;
     } while (false);
@@ -255,7 +263,6 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     ctxNow.fileSize = stat.fileSize;
     ctxNow.localPath = stat.path;
     ctxNow.master = false;
-    ctxNow.fsOpenReq.data = &ctxNow;
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "HdcFile fileSize got %" PRIu64 "", ctxNow.fileSize);
 #endif
@@ -281,9 +288,16 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
             return false;
         }
     }
+    uv_fs_t *openReq = new uv_fs_t;
+    if (openReq == nullptr) {
+        LogMsg(MSG_FAIL, "HdcFile::SlaveCheck new openReq failed");
+        return false;
+    }
+    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    openReq->data = &ctxNow;
     // begin work
     ++refCount;
-    uv_fs_open(loopTask, &ctxNow.fsOpenReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
+    uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (ctxNow.transferDirBegin == 0) {
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
@@ -299,9 +313,17 @@ void HdcFile::TransferNext(CtxFile *context)
     context->taskQueue.pop_back();
     WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
               context->localPath.c_str(), ctxNow.taskQueue.size());
+    uv_fs_t *openReq = new uv_fs_t;
+    if (openReq == nullptr) {
+        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s", context->localPath.c_str());
+        OnFileOpenFailed(context);
+        return;
+    }
+    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    openReq->data = context;
     do {
         ++refCount;
-        uv_fs_open(loopTask, &context->fsOpenReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
+        uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
     } while (false);
 
     return;
@@ -332,8 +354,8 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
             if (*payload) {  // close-step3
                 if (ctxNow.isFdOpen) {
                     WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, localPath:%s result:%d, closeReqSubmitted:%d",
-                              ctxNow.localPath.c_str(), ctxNow.fsOpenReq.result, ctxNow.closeReqSubmitted);
-                    CloseFd(ctxNow.fsOpenReq.result);
+                              ctxNow.localPath.c_str(), ctxNow.openFd, ctxNow.closeReqSubmitted);
+                    CloseFd(ctxNow.openFd);
                     // solve the fd leak caused by early exit due to illegal operation on a directory.
                     ctxNow.isFdOpen = false;
                 }

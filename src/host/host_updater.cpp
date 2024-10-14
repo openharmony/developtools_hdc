@@ -76,12 +76,21 @@ HostUpdater::HostUpdater(HTaskInfo hTaskInfo) : HdcTransferBase(hTaskInfo)
 
 HostUpdater::~HostUpdater() {}
 
-void HostUpdater::RunQueue(CtxFile &context)
+bool HostUpdater::RunQueue(CtxFile &context)
 {
-    refCount++;
     context.localPath = context.taskQueue.back();
-    uv_fs_open(loopTask, &context.fsOpenReq, context.localPath.c_str(), O_RDONLY, 0, OnFileOpen);
+    uv_fs_t *openReq = new uv_fs_t;
+    if (openReq == nullptr) {
+        WRITE_LOG(LOG_FATAL, "HostUpdater::RunQueue new uv_fs_t failed");
+        OnFileOpenFailed(&context);
+        return false;
+    }
+    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    openReq->data = &context;
+    refCount++;
+    uv_fs_open(loopTask, openReq, context.localPath.c_str(), O_RDONLY, 0, OnFileOpen);
     context.master = true;
+    return true;
 }
 
 bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payload, int payloadSize, size_t minParam,
@@ -123,15 +132,14 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
     ctxNow.transferConfig.options = cmdParam;
     ctxNow.localPath = localPath;
     ctxNow.taskQueue.push_back(localPath);
-    RunQueue(ctxNow);
-    return true;
+    return RunQueue(ctxNow);
 }
 
 void HostUpdater::CheckMaster(CtxFile *context)
 {
     uv_fs_t fs;
     Base::ZeroStruct(fs.statbuf);
-    uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
+    uv_fs_fstat(nullptr, &fs, context->openFd, nullptr);
     context->transferConfig.fileSize = fs.statbuf.st_size;
     uv_fs_req_cleanup(&fs);
     context->transferConfig.optionalName = Base::GetFileNameAny(context->localPath);
@@ -252,8 +260,7 @@ bool HostUpdater::CheckUpdateContinue(const uint16_t command, const uint8_t *pay
     if (singalStop || !ctxNow.taskQueue.size()) {
         return false;
     }
-    RunQueue(ctxNow);
-    return true;
+    return RunQueue(ctxNow);
 }
 
 bool HostUpdater::CheckMatchUpdate(const std::string &input, TranslateCommand::FormatCommand &outCmd)

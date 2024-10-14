@@ -21,6 +21,7 @@
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
 #include <selinux/selinux.h>
 #endif
+#include <memory>
 namespace Hdc {
 constexpr uint64_t HDC_TIME_CONVERT_BASE = 1000000000;
 
@@ -38,10 +39,10 @@ HdcTransferBase::~HdcTransferBase()
 {
     if (ctxNow.isFdOpen) {
         WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u result:%d ioFinish:%d",
-            taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result, ctxNow.ioFinish);
+            taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd, ctxNow.ioFinish);
         
-        if (ctxNow.lastErrno != 0 || (ctxNow.fsOpenReq.result > 0 && !ctxNow.ioFinish)) {
-            CloseFd(ctxNow.fsOpenReq.result);
+        if (ctxNow.lastErrno != 0 || (ctxNow.openFd > 0 && !ctxNow.ioFinish)) {
+            CloseFd(ctxNow.openFd);
             ctxNow.isFdOpen = false;
         }
     } else {
@@ -61,8 +62,6 @@ bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
 {
     if (full) {
         *context = {};
-        context->fsOpenReq.data = context;
-        context->fsCloseReq.data = context;
         context->thisClass = this;
         context->loop = loopTask;
         context->cb = OnFileIO;
@@ -72,6 +71,7 @@ bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
     context->lastErrno = 0;
     context->ioFinish = false;
     context->closeReqSubmitted = false;
+    context->openFd = -1;
     return true;
 }
 
@@ -118,7 +118,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         ++refCount;
         if (context->master) {  // master just read, and slave just write.when master/read, sendBuf can be nullptr
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
-            uv_fs_read(context->loop, req, context->fsOpenReq.result, &iov, 1, index, context->cb);
+            uv_fs_read(context->loop, req, context->openFd, &iov, 1, index, context->cb);
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
@@ -127,7 +127,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
                 break;
             }
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
-            uv_fs_write(context->loop, req, context->fsOpenReq.result, &iov, 1, index, context->cb);
+            uv_fs_write(context->loop, req, context->openFd, &iov, 1, index, context->cb);
         }
         ret = true;
         break;
@@ -147,11 +147,9 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     return bytes;
 }
 
-void HdcTransferBase::OnFileClose(uv_fs_t *req)
+void HdcTransferBase::OnFileClose(CtxFile *context)
 {
     StartTraceScope("HdcTransferBase::OnFileClose");
-    uv_fs_req_cleanup(req);
-    CtxFile *context = (CtxFile *)req->data;
     context->closeReqSubmitted = false;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     if (context->closeNotify) {
@@ -174,7 +172,7 @@ void HdcTransferBase::SetFileTime(CtxFile *context)
     uv_fs_t fs;
     double aTimeSec = static_cast<long double>(context->transferConfig.atime) / HDC_TIME_CONVERT_BASE;
     double mTimeSec = static_cast<long double>(context->transferConfig.mtime) / HDC_TIME_CONVERT_BASE;
-    uv_fs_futime(nullptr, &fs, context->fsOpenReq.result, aTimeSec, mTimeSec, nullptr);
+    uv_fs_futime(nullptr, &fs, context->openFd, aTimeSec, mTimeSec, nullptr);
     uv_fs_req_cleanup(&fs);
 }
 
@@ -264,7 +262,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             if (req->result == 0) {
                 context->ioFinish = true;
                 WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof",
-                    context->localPath.c_str(), context->fsOpenReq.result);
+                    context->localPath.c_str(), context->openFd);
                 break;
             }
             if (context->indexIO < context->fileSize) {
@@ -295,15 +293,19 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         // close-step1
         ++thisClass->refCount;
         if (req->fs_type == UV_FS_WRITE) {
-            uv_fs_fsync(thisClass->loopTask, &context->fsSyncReq, context->fsOpenReq.result, nullptr);
-            uv_fs_req_cleanup(&context->fsSyncReq);
+            uv_fs_t req = {};
+            uv_fs_fsync(nullptr, &req, context->openFd, nullptr);
+            uv_fs_req_cleanup(&req);
         }
         WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d",
-                  thisClass->taskInfo->channelId, context->fsOpenReq.result, context->closeReqSubmitted);
+                  thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted);
         if (context->lastErrno == 0 && !context->closeReqSubmitted) {
             context->closeReqSubmitted = true;
             WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
-            uv_fs_close(thisClass->loopTask, &context->fsCloseReq, context->fsOpenReq.result, OnFileClose);
+            uv_fs_t closeReq = {};
+            uv_fs_close(nullptr, &closeReq, context->openFd, nullptr);
+            uv_fs_req_cleanup(&closeReq);
+            OnFileClose(context);
             context->isFdOpen = false;
         } else {
             thisClass->WhenTransferFinish(context);
@@ -319,14 +321,30 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     delete contextIO;  // Req is part of the Contextio structure, no free release
 }
 
+void HdcTransferBase::OnFileOpenFailed(CtxFile *context)
+{
+    HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+    if (context->isDir && context->master) {
+        uint8_t payload = 1;
+        thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
+    } else if (context->isDir && !context->master) {
+        uint8_t payload = 1;
+        thisClass->SendToAnother(CMD_FILE_FINISH, &payload, 1);
+    } else {
+        thisClass->TaskFinish();
+    }
+    return;
+}
+
 void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 {
+    std::unique_ptr<uv_fs_t> uptrReq(req);
     CtxFile *context = (CtxFile *)req->data;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     StartTraceScope("HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
     WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
-        context->localPath.c_str(), thisClass->taskInfo->channelId, context->fsOpenReq.result);
+        context->localPath.c_str(), thisClass->taskInfo->channelId, req->result);
     --thisClass->refCount;
     if (req->result <= 0) {
         constexpr int bufSize = 1024;
@@ -335,25 +353,18 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           context->localPath.c_str());
         WRITE_LOG(LOG_FATAL, "open path:%s error:%s", context->localPath.c_str(), buf);
-        if (context->isDir && context->master) {
-            uint8_t payload = 1;
-            thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, 1);
-        } else if (context->isDir && !context->master) {
-            uint8_t payload = 1;
-            thisClass->SendToAnother(CMD_FILE_FINISH, &payload, 1);
-        } else {
-            thisClass->TaskFinish();
-        }
+        OnFileOpenFailed(context);
         return;
     }
     thisClass->ResetCtx(context);
     context->isFdOpen = true;
+    context->openFd = req->result;
     if (context->master) { // master just read, and slave just write.
         // init master
         uv_fs_t fs = {};
-        uv_fs_fstat(nullptr, &fs, context->fsOpenReq.result, nullptr);
+        uv_fs_fstat(nullptr, &fs, context->openFd, nullptr);
         WRITE_LOG(LOG_DEBUG, "uv_fs_fstat result:%d fileSize:%llu",
-            context->fsOpenReq.result, fs.statbuf.st_size);
+            context->openFd, fs.statbuf.st_size);
         TransferConfig &st = context->transferConfig;
         st.fileSize = fs.statbuf.st_size;
         st.optionalName = context->localName;
@@ -747,8 +758,8 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
                 WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
-                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.fsOpenReq.result);
-                CloseFd(ctxNow.fsOpenReq.result);
+                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd);
+                CloseFd(ctxNow.openFd);
                 ctxNow.isFdOpen = false;
                 HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
                 thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);

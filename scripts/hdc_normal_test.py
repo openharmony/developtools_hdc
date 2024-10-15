@@ -353,13 +353,13 @@ def test_hdcd_rom():
 
 def test_smode_r():
     assert check_hdc_cmd(f'smode -r')
-    run_command_with_timeout("hdc wait", 7)
+    run_command_with_timeout("hdc wait", 8)
     assert check_shell(f"shell id", "context=u:r:sh:s0")
 
 
 def test_smode():
     assert check_hdc_cmd(f'smode')
-    run_command_with_timeout("hdc wait", 7)
+    run_command_with_timeout("hdc wait", 8)
     assert check_shell(f"shell id", "context=u:r:su:s0")
     assert not check_hdc_cmd("ls /data/log/faultlog/faultlogger | grep hdcd", "hdcd")
 

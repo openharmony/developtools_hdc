@@ -133,6 +133,13 @@ ohos_source_set("hdc_common") {
     ":hdc_ut_config",
   ]
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+  if (hdc_fuzz_test) {
+    defines += [
+      "FUZZ_TEST",
+      "HDC_HILOG",
+    ]
+    external_deps += [ "hilog:libhilog" ]
+  }
 }
 
 ohos_source_set("hdc_daemon") {
@@ -356,6 +363,7 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   ]
   deps = [ ":hdc_common" ]
   external_deps = [
+    "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
   ]
@@ -374,7 +382,10 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   deps = [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"
-  external_deps = [ "libuv:uv" ]
+  external_deps = [
+    "hilog:libhilog",
+    "libuv:uv",
+  ]
   public_external_deps = [
     "bounds_checking_function:libsec_static",
     "libuv:uv",
@@ -393,6 +404,7 @@ ohos_fuzztest("DaemonUsbReadFuzzTest") {
   ]
   deps = [ ":hdc_common" ]
   external_deps = [
+    "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
   ]

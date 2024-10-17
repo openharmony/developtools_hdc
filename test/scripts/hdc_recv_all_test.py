@@ -76,10 +76,11 @@ def file_copy_check(local, remote, file_id):
             pass
         else:
             os.mkdir(local)
-        copy_cmd = f"hdc shell mkdir -o /data/local/tmp/{file_id} && cp -rf {remote} /data/local/tmp/{file_id}/"
-        shell_cmd = f"hdc shell ls -alZ /data/local/tmp/{file_id}/"
-        recv_cmd = f"hdc file recv /data/local/tmp/{file_id} {local}"
-        remove_cmd = f"hdc shell rm -rf /data/local/tmp/{file_id}"
+        device_tmp_dir = "data/local/tmp"
+        copy_cmd = f"hdc shell mkdir -p {device_tmp_dir}/{file_id} && cp -rf {remote} {device_tmp_dir}/{file_id}/"
+        shell_cmd = f"hdc shell ls -alZ {device_tmp_dir}/{file_id}/"
+        recv_cmd = f"hdc file recv {device_tmp_dir}/{file_id} {local}"
+        remove_cmd = f"hdc shell rm -rf {device_tmp_dir}/{file_id}"
         copy_output = subprocess.check_output(copy_cmd.split()).decode().replace(',', ' ')
         check_output = subprocess.check_output(shell_cmd.split()).decode().replace(',', ' ')
         recv_output = subprocess.check_output(recv_cmd.split()).decode().replace(',', ' ')

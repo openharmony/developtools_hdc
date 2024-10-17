@@ -132,6 +132,8 @@ const char HUGE_BUF_TAG = 'H';                // support huge buffer
 const size_t BANNER_FEATURE_TAG_OFFSET = 11;
 const char WAIT_DEVICE_TAG = 'W';
 const size_t WAIT_TAG_OFFSET = 11;
+const size_t SERVICE_KILL_OFFSET = 10;
+const char SERVICE_KILL_TAG = 'K';
 // input command
 const string CMDSTR_SOFTWARE_VERSION = "version";
 const string CMDSTR_SOFTWARE_HELP = "help";

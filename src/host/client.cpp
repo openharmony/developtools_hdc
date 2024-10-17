@@ -176,6 +176,7 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_VERSION);
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_HELP);
     vecNoConnectKeyCommand.push_back(CMDSTR_TARGET_DISCOVER);
+    vecNoConnectKeyCommand.push_back(CMDSTR_SERVICE_KILL);
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
@@ -428,6 +429,14 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         return;
     }
     uv_timer_stop(handle);
+
+    if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(),
+        CMDSTR_SERVICE_KILL.size()) && !thisClass->channel->isSupportedKillServerCmd) {
+        WRITE_LOG(LOG_DEBUG, "uv_kill server");
+        thisClass->CtrlServiceWork(CMDSTR_SERVICE_KILL.c_str());
+        return;
+    }
+
     WRITE_LOG(LOG_DEBUG, "Connect server successful");
     bool closeInput = false;
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
@@ -596,7 +605,10 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         return ERR_BUF_CHECK;
     }
     hChannel->isStableBuf = (hShake->banner[BANNER_FEATURE_TAG_OFFSET] != HUGE_BUF_TAG);
-    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d", hChannel->isStableBuf);
+    hChannel->isSupportedKillServerCmd =
+        (hShake->banner[SERVICE_KILL_OFFSET] != SERVICE_KILL_TAG);
+    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d, killflag:%d",
+        hChannel->isStableBuf, hChannel->isSupportedKillServerCmd);
     if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {
         hShake->banner[WAIT_TAG_OFFSET] = WAIT_DEVICE_TAG;
     }

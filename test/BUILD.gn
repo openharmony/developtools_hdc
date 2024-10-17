@@ -404,7 +404,6 @@ ohos_fuzztest("DaemonUsbReadFuzzTest") {
   ]
   deps = [ ":hdc_common" ]
   external_deps = [
-    "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
   ]

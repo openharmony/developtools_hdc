@@ -80,7 +80,7 @@ private:
     uv_thread_t threadChanneMain;
 
 private:
-    void DispMntnInfo(HChannel hOutChannel);
+    void DispMntnInfo(HChannel hChannel);
 };
 }  // namespace Hdc
 

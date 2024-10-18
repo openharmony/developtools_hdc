@@ -606,7 +606,7 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
     }
     hChannel->isStableBuf = (hShake->banner[BANNER_FEATURE_TAG_OFFSET] != HUGE_BUF_TAG);
     hChannel->isSupportedKillServerCmd =
-        (hShake->banner[SERVICE_KILL_OFFSET] != SERVICE_KILL_TAG);
+        (hShake->banner[SERVICE_KILL_OFFSET] == SERVICE_KILL_TAG);
     WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d, killflag:%d",
         hChannel->isStableBuf, hChannel->isSupportedKillServerCmd);
     if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {

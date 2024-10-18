@@ -487,6 +487,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             break;
         }
         case CMD_SERVICE_KILL: {
+            ptrServer->SessionSoftReset();
             WRITE_LOG(LOG_DEBUG, "server kill");
             EchoClient(hChannel, MSG_OK, "Kill server finish");
             _exit(0);

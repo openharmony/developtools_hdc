@@ -488,6 +488,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         }
         case CMD_SERVICE_KILL: {
             WRITE_LOG(LOG_DEBUG, "server kill");
+            EchoClient(hChannel, MSG_OK, "Kill server finish");
             _exit(0);
         }
         case CMD_CHECK_SERVER: {

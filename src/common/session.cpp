@@ -466,6 +466,8 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
         hSession = nullptr;
         return nullptr;
     }
+    (void)memset_s(hSession->pollHandle[STREAM_WORK], handleSize, 0, handleSize);
+    (void)memset_s(hSession->pollHandle[STREAM_MAIN], handleSize, 0, handleSize);
     uv_poll_init_socket(&loopMain, pollHandleMain, hSession->ctrlFd[STREAM_MAIN]);
     uv_poll_start(pollHandleMain, UV_READABLE, ReadCtrlFromSession);
     hSession->pollHandle[STREAM_MAIN]->data = hSession;

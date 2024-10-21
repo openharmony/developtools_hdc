@@ -243,8 +243,6 @@ struct HdcSession {
     uv_thread_t hWorkChildThread;
     std::mutex mapTaskMutex;
     AuthVerifyType verifyType;
-    std::atomic<bool> isNeedDropData; // host: Whether to discard the USB data after it is read
-    std::atomic<uint64_t> dropBytes;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
 
     HdcSessionStat stat;
@@ -292,7 +290,6 @@ struct HdcSession {
         hUART = nullptr;
 #endif
         verifyType = AuthVerifyType::RSA_3072_SHA512;
-        isNeedDropData = true;
         isSoftReset = false;
     }
 

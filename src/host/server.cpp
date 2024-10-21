@@ -1061,6 +1061,7 @@ void HdcServer::EchoToClientsForSession(uint32_t targetSessionId, const string &
 
 void HdcServer::SessionSoftReset()
 {
+    uv_rwlock_rdlock(&daemonAdmin);
     map<string, HDaemonInfo>::iterator iter;
     for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
         HDaemonInfo di = iter->second;
@@ -1075,5 +1076,6 @@ void HdcServer::SessionSoftReset()
             clsUSBClt->SendSoftResetToDaemon(hSession, 0);
         }
     }
+    uv_rwlock_rdunlock(&daemonAdmin);
 }
 }  // namespace Hdc

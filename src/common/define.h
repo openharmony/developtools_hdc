@@ -81,7 +81,7 @@ constexpr uint16_t FORWORD_PORT_RM_BUF_SIZE = 9;
 constexpr uint16_t FORWORD_PORT_OTHER_BUF_SIZE = 6;
 constexpr uint16_t CMD_REMOTE_SIZE = 8;
 constexpr uint16_t PORT_MAX_LEN = 5;
-constexpr uint16_t START_SERVER_FOR_CLIENT_TIME = 300;
+constexpr uint16_t START_SERVER_FOR_CLIENT_TIME = 3000; // 3 seconds, for client wait for server start
 constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
 #ifdef HDC_HOST
 constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 32;

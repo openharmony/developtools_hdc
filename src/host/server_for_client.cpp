@@ -485,6 +485,12 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             ret = false;
             break;
         }
+        case CMD_SERVICE_START: {
+            PrintLastError(hChannel);
+            EchoClient(hChannel, MSG_OK, "Start server finish");
+            ret = false;
+            break;
+        }
         case CMD_CHECK_SERVER: {
             WRITE_LOG(LOG_DEBUG, "CMD_CHECK_SERVER command");
             ReportServerVersion(hChannel);
@@ -909,5 +915,27 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
         WRITE_LOG(LOG_FATAL, "send ctrlmsg failed sessionId:%u rc:%d", sessionId, rc);
     }
     return rc > 0;
+}
+
+void HdcServerForClient::PrintLastError(HChannel HChannel)
+{
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    uint32_t errorCode = ptrServer->lastErrorNum;
+    if (errorCode > 0) {
+        string errorString = GetErrorString(errorCode);
+        EchoClient(HChannel, MSG_FAIL, "[E%06x]%s", errorCode, errorString.c_str());
+        ptrServer->lastErrorNum = 0;
+    }
+}
+
+string HdcServerForClient::GetErrorString(uint32_t errorCode)
+{
+    auto map = ErrorStringEnglish.find(errorCode);
+    if (map != ErrorStringEnglish.end()) {
+        return map->second;
+    }
+    // default error
+    string UnknownError = "Unknown error";
+    return UnknownError;
 }
 }  // namespace Hdc

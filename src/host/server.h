@@ -44,6 +44,7 @@ public:
     HdcHostUART *clsUARTClt = nullptr;
 #endif
     void *clsServerForClient;
+    std::atomic<uint32_t> lastErrorNum;
 
 private:
     void ClearInstanceResource() override;

@@ -328,6 +328,10 @@ namespace TranslateCommand {
             if (strstr(input.c_str(), " -v")) {
                 outCmd->parameters = "v";
             }
+        } else if (!strncmp(input.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
+            outCmd->cmdFlag = CMD_SERVICE_KILL;
+        } else if (!strncmp(input.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
+            outCmd->cmdFlag = CMD_SERVICE_START;
         } else if (!strncmp(input.c_str(), CMDSTR_CHECK_SERVER.c_str(), CMDSTR_CHECK_SERVER.size())) {
             outCmd->cmdFlag = CMD_CHECK_SERVER;
         } else if (!strncmp(input.c_str(), CMDSTR_CHECK_DEVICE.c_str(), CMDSTR_CHECK_DEVICE.size())) {

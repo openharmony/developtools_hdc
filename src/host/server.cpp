@@ -26,6 +26,7 @@ HdcServer::HdcServer(bool serverOrDaemonIn)
     clsUARTClt = nullptr;
 #endif
     clsServerForClient = nullptr;
+    lastErrorNum = 0;
     uv_rwlock_init(&daemonAdmin);
     uv_rwlock_init(&forwardAdmin);
 }
@@ -456,6 +457,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             GetDaemonAuthType(hSession, handshake);
             if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
                 WRITE_LOG(LOG_FATAL, "load public key failed");
+                lastErrorNum = 0x000005; // E000005: load public key failed
                 return false;
             }
             handshake.authType = AUTH_PUBLICKEY;

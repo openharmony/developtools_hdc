@@ -1815,7 +1815,11 @@ namespace Base {
         if (uv_fileno((const uv_handle_t *)tcp, &fdOs) < 0) {
             return ERR_API_FAIL;
         }
+#ifdef HDC_HOST
         dupFd = dup(uv_open_osfhandle(fdOs));
+#else
+        dupFd = fcntl(uv_open_osfhandle(fdOs), F_DUPFD_CLOEXEC, uv_open_osfhandle(fdOs));
+#endif // HDC_HOST
 #endif
         return dupFd;
     }

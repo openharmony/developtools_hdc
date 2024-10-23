@@ -82,7 +82,7 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {
-        WRITE_LOG(LOG_FATAL, "AcceptClient error fdChildWorkTCP:%d", hSession->fdChildWorkTCP);
+        WRITE_LOG(LOG_FATAL, "AcceptClient error fdChildWorkTCP:%d,errno:%d", hSession->fdChildWorkTCP, errno);
         goto Finish;
     }
     Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP);

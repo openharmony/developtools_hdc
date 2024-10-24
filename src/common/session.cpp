@@ -586,6 +586,7 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
     if (hSession->connType == CONN_TCP) {
         // Turn off TCP to prevent continuing writing
         Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP, true, closeSessionTCPHandle);
+        Base::CloseFd(hSession->dataFd[STREAM_WORK]);
     }
     hSession->availTailIndex = 0;
     if (hSession->ioBuf) {

@@ -90,7 +90,13 @@ uint64_t Header::Size()
     WRITE_LOG(LOG_DEBUG, "header size octalStr %s", octalStr.c_str());
     if (!octalStr.empty()) {
         const int octal = 8;
-        num = stoull(octalStr, nullptr, octal);
+        if (std::find_if(octalStr.begin(), octalStr.end(),
+            [](unsigned char c) { return c < '0' || c > '7'; }) == octalStr.end()) {
+            num = stoull(octalStr, nullptr, octal);
+        } else {
+            num = 0;
+            WRITE_LOG(LOG_WARN, "header size %s is invaild", octalStr.c_str());
+        }
     }
     WRITE_LOG(LOG_DEBUG, "header size num %llu", num);
     return num;

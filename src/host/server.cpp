@@ -44,13 +44,16 @@ void HdcServer::ClearInstanceResource()
     Base::TryCloseLoop(&loopMain, "HdcServer::~HdcServer");
     if (clsTCPClt) {
         delete clsTCPClt;
+        clsTCPClt = nullptr;
     }
     if (clsUSBClt) {
         delete clsUSBClt;
+        clsUSBClt = nullptr;
     }
 #ifdef HDC_SUPPORT_UART
     if (clsUARTClt) {
         delete clsUARTClt;
+        clsUARTClt = nullptr;
     }
 #endif
     if (clsServerForClient) {

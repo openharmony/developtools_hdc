@@ -78,6 +78,7 @@ private:
         {0x002103, "Failed to start the HDC server process!\r\n"
             "Please check the HDC server process port is occupied or used as an exception port.\r\n"
             "Alternatively, change the OHOS_HDC_SERVER_PORT environment variable and re-run the command."},
+        {0xFFFFFF, "Unknown error"},
     };
 };
 }  // namespace Hdc

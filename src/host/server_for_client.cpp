@@ -934,8 +934,6 @@ string HdcServerForClient::GetErrorString(uint32_t errorCode)
     if (map != ErrorStringEnglish.end()) {
         return map->second;
     }
-    // default error
-    string UnknownError = "Unknown error";
-    return UnknownError;
+    return ErrorStringEnglish.at(0xFFFFFF); // 0xFFFFFF:  Unknown error
 }
 }  // namespace Hdc

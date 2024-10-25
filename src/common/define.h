@@ -98,8 +98,8 @@ constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MS = 1000;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30100200 is 3.1.0c
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30100200;
+// 0x30100300 is 3.1.0d
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30100300;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;
@@ -132,6 +132,8 @@ const char HUGE_BUF_TAG = 'H';                // support huge buffer
 const size_t BANNER_FEATURE_TAG_OFFSET = 11;
 const char WAIT_DEVICE_TAG = 'W';
 const size_t WAIT_TAG_OFFSET = 11;
+const size_t SERVICE_KILL_OFFSET = 10;
+const char SERVICE_KILL_TAG = 'K';
 // input command
 const string CMDSTR_SOFTWARE_VERSION = "version";
 const string CMDSTR_SOFTWARE_HELP = "help";

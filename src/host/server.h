@@ -35,6 +35,7 @@ public:
     static bool PullupServer(const char *listenString);
     static void UsbPreConnect(uv_timer_t *handle);
     void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear) override;
+    void SessionSoftReset();
 
     HdcHostTCP *clsTCPClt;
     HdcHostUSB *clsUSBClt;

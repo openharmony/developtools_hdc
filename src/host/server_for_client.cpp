@@ -80,6 +80,7 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     struct ChannelHandShake handShake = {};
     if (EOK == strcpy_s(handShake.banner, sizeof(handShake.banner), HANDSHAKE_MESSAGE.c_str())) {
         handShake.banner[BANNER_FEATURE_TAG_OFFSET] = HUGE_BUF_TAG; // set feature tag for huge buf size
+        handShake.banner[SERVICE_KILL_OFFSET] = SERVICE_KILL_TAG;
         handShake.channelId = htonl(hChannel->channelId);
         string ver = Base::GetVersion() + HDC_MSG_HASH;
         WRITE_LOG(LOG_DEBUG, "Server ver:%s", ver.c_str());
@@ -484,6 +485,12 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             GetTargetList(hChannel, formatCommandInput);
             ret = false;
             break;
+        }
+        case CMD_SERVICE_KILL: {
+            ptrServer->SessionSoftReset();
+            WRITE_LOG(LOG_DEBUG, "server kill");
+            EchoClient(hChannel, MSG_OK, "Kill server finish");
+            _exit(0);
         }
         case CMD_CHECK_SERVER: {
             WRITE_LOG(LOG_DEBUG, "CMD_CHECK_SERVER command");

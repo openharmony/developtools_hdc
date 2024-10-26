@@ -1063,4 +1063,28 @@ void HdcServer::EchoToClientsForSession(uint32_t targetSessionId, const string &
     WRITE_LOG(LOG_INFO, "%s:%u %s", __FUNCTION__, targetSessionId, echo.c_str());
     hSfc->EchoToAllChannelsViaSessionId(targetSessionId, echo);
 }
+
+void HdcServer::SessionSoftReset()
+{
+    uv_rwlock_rdlock(&daemonAdmin);
+    map<string, HDaemonInfo>::iterator iter;
+    for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
+        HDaemonInfo di = iter->second;
+        if (!di) {
+            continue;
+        }
+        string devname = di->devName;
+        if (devname.empty()) {
+            continue;
+        }
+        if (di->connType == CONN_USB) {
+            HSession hSession = di->hSession;
+            if (!hSession) {
+                continue;
+            }
+            clsUSBClt->SendSoftResetToDaemon(hSession, 0);
+        }
+    }
+    uv_rwlock_rdunlock(&daemonAdmin);
+}
 }  // namespace Hdc

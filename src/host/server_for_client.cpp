@@ -698,7 +698,9 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput)
 {
     bool ret = false;
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
-    if (!hChannel->hChildWorkTCP.loop || formatCommand->cmdFlag == CMD_FORWARD_REMOVE) {
+    if (!hChannel->hChildWorkTCP.loop ||
+        formatCommand->cmdFlag == CMD_FORWARD_REMOVE ||
+        formatCommand->cmdFlag == CMD_SERVICE_START) {
         // Main thread command, direct Listen main thread
         ret = DoCommandLocal(hChannel, formatCommandInput);
     } else {  // CONNECT DAEMON's work thread command, non-primary thread

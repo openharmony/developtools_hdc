@@ -209,6 +209,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         // default pullup, just default listenstr.If want to customer listen-string, please use 'hdc -m -s lanip:port'
         if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
             Base::PrintMessage("hdc start server, listening: %s", serverListenString.c_str());
+        }
         if (!strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(),
             CMDSTR_SERVICE_KILL.size())) {
             WRITE_LOG(LOG_DEBUG, "kill server, but server not exist, so do nothing");

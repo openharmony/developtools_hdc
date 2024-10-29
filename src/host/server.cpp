@@ -1076,6 +1076,8 @@ void HdcServer::SessionSoftReset()
         string devname = di->devName;
         if (devname.empty()) {
             continue;
+        } else if ((di->connStatus != STATUS_CONNECTED)) {
+            continue;
         }
         if (di->connType == CONN_USB) {
             HSession hSession = di->hSession;

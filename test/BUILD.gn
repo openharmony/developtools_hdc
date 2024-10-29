@@ -413,10 +413,34 @@ ohos_fuzztest("DaemonUsbReadFuzzTest") {
   ]
 }
 
+ohos_fuzztest("DecompressToLocalFuzzTest") {
+  module_out_path = FUZZ_OUTPUT_PATH
+  fuzz_config_file = "${hdc_path}/test/fuzztest/decompresstolocal_fuzzer"
+  configs = [ ":hdc_test_config" ]
+  cflags = fuzz_cflags
+  sources = [
+    "${hdc_path}/src/common/compress.cpp",
+    "${hdc_path}/src/common/decompress.cpp",
+    "${hdc_path}/src/common/entry.cpp",
+    "${hdc_path}/src/common/header.cpp",
+    "fuzztest/decompresstolocal_fuzzer/DecompressToLocal_fuzzer.cpp",
+  ]
+  deps = [ ":hdc_common" ]
+  external_deps = [
+    "init:libbeget_proxy",
+    "init:libbegetutil",
+  ]
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
+  ]
+}
+
 group("hdc_fuzztest") {
   testonly = true
   deps = [
     ":DaemonUsbReadFuzzTest",
+    ":DecompressToLocalFuzzTest",
     ":ForwardReadStreamFuzzTest",
     ":JdwpReadStreamFuzzTest",
   ]

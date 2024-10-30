@@ -80,7 +80,6 @@ static string CompressToTar(const char *dir)
     string sdir = dir;
     string tarname = Base::GetRandomString(EXPECTED_LEN) + ".tar";
     string tarpath = Base::GetTmpDir() + tarname;
-    // WRITE_LOG(LOG_DEBUG, "tarpath:%s", tarpath.c_str());
     Compress c;
     c.UpdataPrefix(sdir);
     c.AddPath(sdir);
@@ -95,7 +94,6 @@ static string DecompressFromTar(const char *path)
     string::size_type rindex = tarpath.rfind(".tar");
     if (rindex != string::npos) {
         dir = tarpath.substr(0, rindex) + Base::GetPathSep();
-        // WRITE_LOG(LOG_DEBUG, "path:%s dir:%s", path, dir.c_str());
         Decompress dc(tarpath);
         dc.DecompressToLocal(dir);
     }
@@ -111,14 +109,17 @@ static string GenerateFile(const uint8_t *data, size_t size)
     string path =  dir + "/" + "abcdefgh.data";
     FILE *fp = fopen(path.c_str(), "wb");
     if (!fp) {
-        WRITE_LOG(LOG_WARN,"fopen failed %s", path.c_str());
+        WRITE_LOG(LOG_WARN, "fopen failed %s", path.c_str());
         return dir;
     }
     size_t count = fwrite(data, sizeof(uint8_t), size, fp);
     if (count < 0) {
-        WRITE_LOG(LOG_WARN,"fwrite count:%zd error:%d", count, ferror(fp));
+        WRITE_LOG(LOG_WARN, "fwrite count:%zd error:%d", count, ferror(fp));
     }
-    fclose(fp);
+    int rc = fclose(fp);
+    if (rc != 0) {
+        WRITE_LOG(LOG_WARN, "fclose rc:%d errno:%d", rc, errno);
+    }
     return dir;
 }
 

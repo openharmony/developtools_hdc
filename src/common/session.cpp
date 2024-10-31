@@ -832,7 +832,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
                          const uint8_t *data, const int dataSize)
 {
     StartTraceScope("HdcSessionBase::Send");
-    HSession hSession = AdminSession(OP_QUERY, sessionId, nullptr);
+    HSession hSession = AdminSession(OP_QUERY_REF, sessionId, nullptr);
     if (!hSession) {
         WRITE_LOG(LOG_WARN, "Send to offline device, drop it, sessionId:%u", sessionId);
         return ERR_SESSION_NOFOUND;
@@ -856,6 +856,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     uint8_t *finayBuf = new(std::nothrow) uint8_t[finalBufSize]();
     if (finayBuf == nullptr) {
         WRITE_LOG(LOG_WARN, "send allocmem err");
+        --hSession->ref;
         return ERR_BUF_ALLOC;
     }
     bool bufRet = false;
@@ -878,13 +879,17 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     if (!bufRet) {
         delete[] finayBuf;
         WRITE_LOG(LOG_WARN, "send copywholedata err for dataSize:%d", dataSize);
+        --hSession->ref;
         return ERR_BUF_COPY;
     }
+    int ret = -1;
     if (CMD_KERNEL_ECHO == commandFlag) {
-        return SendByProtocol(hSession, finayBuf, finalBufSize, true);
+        ret = SendByProtocol(hSession, finayBuf, finalBufSize, true);
     } else {
-        return SendByProtocol(hSession, finayBuf, finalBufSize);
+        ret = SendByProtocol(hSession, finayBuf, finalBufSize);
     }
+    --hSession->ref;
+    return ret;
 }
 
 int HdcSessionBase::DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe, uint8_t *encBuf)

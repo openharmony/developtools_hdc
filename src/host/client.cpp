@@ -482,6 +482,10 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
     HChannel hChannel = (HChannel)stream->data;
     HdcClient *thisClass = (HdcClient *)hChannel->clsChannel;
+    if (!hChannel->handshakeOK) {
+        WRITE_LOG(LOG_WARN, "ReadStd handshake not ready");
+        return; // if not handshake, do not send the cmd input to server.
+    }
     char *cmd = hChannel->bufStd;
     if (nread <= 0) {
         WRITE_LOG(LOG_FATAL, "ReadStd error nread:%zd", nread);

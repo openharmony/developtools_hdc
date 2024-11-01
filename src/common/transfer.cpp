@@ -297,9 +297,9 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
             uv_fs_fsync(nullptr, &req, context->openFd, nullptr);
             uv_fs_req_cleanup(&req);
         }
-        WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d",
-                  thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted);
-        if (context->lastErrno == 0 && !context->closeReqSubmitted) {
+        WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d, context->isFdOpen %d",
+                  thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted, context->isFdOpen);
+        if (context->lastErrno == 0 && !context->closeReqSubmitted && context->isFdOpen) {
             context->closeReqSubmitted = true;
             WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
             uv_fs_t closeReq = {};

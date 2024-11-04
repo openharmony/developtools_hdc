@@ -17,6 +17,13 @@
 #include "host_common.h"
 
 namespace Hdc {
+struct ClearUsbChannelWorkInfo {
+    int result = 0;
+    HSession hSession = nullptr;
+    HDaemonInfo pDaemonInfo = nullptr;
+};
+using HClearUsbChannelWorkInfo = struct ClearUsbChannelWorkInfo *;
+
 class HdcHostUSB : public HdcUSBBase {
 public:
     HdcHostUSB(const bool serverOrDaemonIn, void *ptrMainBase, void *ctxUSBin);
@@ -41,6 +48,9 @@ private:
     static void WatchUsbNodeChange(uv_timer_t *handle);
     static void KickoutZombie(HSession hSession);
     static void LIBUSB_CALL USBBulkCallback(struct libusb_transfer *transfer);
+    static void ClearUsbChannel(uv_work_t *req);
+    static void ClearUsbChannelFinished(uv_work_t *req, int status);
+    static void SendSoftResetToDaemonSync(HSession hSession, uint32_t sessionIdOld);
     int StartupUSBWork();
     void CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor *descConfig);
     int CheckActiveConfig(libusb_device *device, HUSB hUSB, libusb_device_descriptor& desc);

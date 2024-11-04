@@ -765,7 +765,7 @@ static bool MakeRsaSign(EVP_PKEY_CTX *ctx, string &result, unsigned char *digest
         return false;
     }
 
-    WRITE_LOG(LOG_INFO, "sign success, and EVP_EncodeBlock is %s", result.c_str());
+    WRITE_LOG(LOG_INFO, "sign success");
     return true;
 }
 

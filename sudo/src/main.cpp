@@ -135,7 +135,7 @@ static bool GetCmdInPath(char *cmd, int cmdBufLen, char *envp[])
         path = cp + 1;
     } while (cp != nullptr);
 
-    free(pathBak);
+    delete [] pathBak;
     if (!findSuccess) {
         WriteTty(COMMAND_NOT_FOUND);
         return false;

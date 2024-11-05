@@ -75,18 +75,6 @@ static void RemovePath(const string &path)
     }
 }
 
-static string CompressToTar(const char *dir)
-{
-    string sdir = dir;
-    string tarname = Base::GetRandomString(EXPECTED_LEN) + ".tar";
-    string tarpath = Base::GetTmpDir() + tarname;
-    Compress c;
-    c.UpdataPrefix(sdir);
-    c.AddPath(sdir);
-    c.SaveToFile(tarpath);
-    return tarpath;
-}
-
 static string DecompressFromTar(const char *path)
 {
     string dir;
@@ -100,27 +88,40 @@ static string DecompressFromTar(const char *path)
     return dir;
 }
 
-static string GenerateFile(const uint8_t *data, size_t size)
+static string GenerateTarFile(const uint8_t *data, size_t size)
 {
-    string dir = "./decompresstolocal";
-    if (access(dir.c_str(), 0) != 0) {
-        mkdir(dir.c_str(), S_IRWXU);
-    }
-    string path =  dir + "/" + "abcdefgh.data";
+    string name = Base::GetRandomString(EXPECTED_LEN);
+    string path = "./" + name + ".tar";
     FILE *fp = fopen(path.c_str(), "wb");
     if (!fp) {
         WRITE_LOG(LOG_WARN, "fopen failed %s", path.c_str());
-        return dir;
+        return path;
     }
-    size_t count = fwrite(data, sizeof(uint8_t), size, fp);
+
+    Header header;
+    header.UpdataSize(size);
+    header.UpdataFileType(TypeFlage::ORDINARYFILE);
+    header.UpdataName(name + ".data");
+    char buff[HEADER_LEN] = { 0 };
+    header.GetBytes(reinterpret_cast<uint8_t *>(buff), HEADER_LEN);
+    size_t count = fwrite(buff, sizeof(uint8_t), HEADER_LEN, fp);
     if (count < 0) {
         WRITE_LOG(LOG_WARN, "fwrite count:%zd error:%d", count, ferror(fp));
+    }
+    count = fwrite(data, sizeof(uint8_t), size, fp);
+    if (count < 0) {
+        WRITE_LOG(LOG_WARN, "fwrite count:%zd error:%d", count, ferror(fp));
+    }
+    auto pading = HEADER_LEN - size % HEADER_LEN;
+    if (pading < HEADER_LEN) {
+        char pad[HEADER_LEN] = { 0 };
+        fwrite(pad, sizeof(uint8_t), pading, fp);
     }
     int rc = fclose(fp);
     if (rc != 0) {
         WRITE_LOG(LOG_WARN, "fclose rc:%d errno:%d", rc, errno);
     }
-    return dir;
+    return path;
 }
 
 bool FuzzDecompressToLocal(const uint8_t *data, size_t size)
@@ -128,12 +129,10 @@ bool FuzzDecompressToLocal(const uint8_t *data, size_t size)
     if (size <= 0) {
         return true;
     }
-    string dir = GenerateFile(data, size);
-    string tarpath = CompressToTar(dir.c_str());
+    string tarpath = GenerateTarFile(data, size);
     string tardir = DecompressFromTar(tarpath.c_str());
     RemovePath(tardir);
     RemovePath(tarpath);
-    RemovePath(dir);
     return true;
 }
 } // namespace Hdc

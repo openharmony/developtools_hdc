@@ -133,7 +133,7 @@ static void SetSelinuxLabel(bool isRoot)
         WRITE_LOG(LOG_WARN, "SetSelinuxLabel isRoot:%d", isRoot);
         return;
     }
-    if ((strcmp(con, "u:r:hdcd:s0") != 0) && (strcmp(con, "u:r:updater:s0") != 0)) {
+    if ((con != nullptr) && (strcmp(con, "u:r:hdcd:s0") != 0) && (strcmp(con, "u:r:updater:s0") != 0)) {
         WRITE_LOG(LOG_WARN, "SetSelinuxLabel con:%s isRoot:%d", con, isRoot);
         freecon(con);
         return;

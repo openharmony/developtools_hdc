@@ -419,7 +419,6 @@ ohos_fuzztest("DecompressToLocalFuzzTest") {
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
   sources = [
-    "${hdc_path}/src/common/compress.cpp",
     "${hdc_path}/src/common/decompress.cpp",
     "${hdc_path}/src/common/entry.cpp",
     "${hdc_path}/src/common/header.cpp",

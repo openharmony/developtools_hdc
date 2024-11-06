@@ -371,6 +371,7 @@ def test_hilog_exit_after_hdc_kill():
     p.start()
 
     hilog_pid = get_shell_result(f'shell pidof hilog')
+    assert not hilog_pid == ''
     assert check_hdc_cmd(f'kill', "Kill server finish")
     run_command_with_timeout("hdc wait", 5)
     time.sleep(1)

@@ -426,6 +426,7 @@ ohos_fuzztest("DecompressToLocalFuzzTest") {
   ]
   deps = [ ":hdc_common" ]
   external_deps = [
+    "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
   ]

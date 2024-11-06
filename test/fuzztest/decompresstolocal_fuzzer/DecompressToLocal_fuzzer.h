@@ -17,7 +17,6 @@
 #define DECOMPRESSTOLOCAL_FUZZER_H
 
 #include <unistd.h>
-#include "compress.h"
 #include "decompress.h"
 
 #define FUZZ_PROJECT_NAME "DecompressToLocal_fuzzer"

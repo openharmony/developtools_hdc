@@ -27,7 +27,7 @@ static int RemoveDir(const string &dir)
     struct dirent *ent;
     struct stat st;
     while ((ent = readdir(pdir)) != nullptr) {
-        if (ent->d_name[0] == '.') {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
             continue;
         }
         std::string subpath = dir + Base::GetPathSep() + ent->d_name;
@@ -48,6 +48,7 @@ static int RemoveDir(const string &dir)
         }
     }
     if (rmdir(dir.c_str()) == -1) {
+        WRITE_LOG(LOG_WARN, "rmdir dir:%s errno:%d", dir.c_str(), errno);
         closedir(pdir);
         return -1;
     }
@@ -98,19 +99,20 @@ static string GenerateTarFile(const uint8_t *data, size_t size)
         return path;
     }
 
-    Header header;
-    header.UpdataSize(size);
-    header.UpdataFileType(TypeFlage::ORDINARYFILE);
-    header.UpdataName(name + ".data");
-    char buff[HEADER_LEN] = { 0 };
-    header.GetBytes(reinterpret_cast<uint8_t *>(buff), HEADER_LEN);
-    size_t count = fwrite(buff, sizeof(uint8_t), HEADER_LEN, fp);
+    uint8_t buf[HEADER_LEN];
+    size_t min = size < HEADER_LEN ? size : HEADER_LEN;
+    if (memcpy_s(buf, min, data, min) != EOK) {
+        int rc = fclose(fp);
+        WRITE_LOG(LOG_WARN, "memcpy_s failed %s rc:%d", path.c_str(), rc);
+        return path;
+    }
+    size_t count = fwrite(buf, sizeof(uint8_t), HEADER_LEN, fp);
     if (count < 0) {
-        WRITE_LOG(LOG_WARN, "fwrite count:%zd error:%d", count, ferror(fp));
+        WRITE_LOG(LOG_WARN, "fwrite buf count:%zd error:%d", count, ferror(fp));
     }
     count = fwrite(data, sizeof(uint8_t), size, fp);
     if (count < 0) {
-        WRITE_LOG(LOG_WARN, "fwrite count:%zd error:%d", count, ferror(fp));
+        WRITE_LOG(LOG_WARN, "fwrite data count:%zd error:%d", count, ferror(fp));
     }
     auto pading = HEADER_LEN - size % HEADER_LEN;
     if (pading < HEADER_LEN) {

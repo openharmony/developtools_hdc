@@ -361,22 +361,33 @@ def test_fport_cmd():
 
 #子进程执行函数
 def new_process_run(cmd):
-    assert check_shell(f'{cmd}')
+    # 重定向 stdout 和 stderr 到 /dev/null
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = os.dup2(devnull.fileno(), 1)  # 重定向 stdout
+        old_stderr = os.dup2(devnull.fileno(), 2)  # 重定向 stderr
+        try:
+            # 这里是子进程的代码，不会有任何输出到控制台
+            check_shell(f'{cmd}')
+        finally:
+            # 恢复原始的 stdout 和 stderr
+            os.dup2(old_stdout, 1)
+            os.dup2(old_stderr, 2)
 
 
 def test_hilog_exit_after_hdc_kill():
-    assert check_shell(f'shell pkill hilog')
     # 新开进程执行hdc shell hilog，防止阻塞主进程
     p = multiprocessing.Process(target=new_process_run, args=("shell hilog",))
     p.start()
-
+    time.sleep(1)
     hilog_pid = get_shell_result(f'shell pidof hilog')
-    assert not hilog_pid == ''
+    hilog_pid = hilog_pid.replace("\r\n", "")
+    assert hilog_pid.isdigit()
     assert check_hdc_cmd(f'kill', "Kill server finish")
     run_command_with_timeout("hdc wait", 5)
     time.sleep(1)
     hilog_pid2 = get_shell_result(f'shell pidof hilog')
-    assert hilog_pid == ''
+    assert hilog_pid2 == ''
+    p.join()
 
 
 def test_shell_cmd_timecost():

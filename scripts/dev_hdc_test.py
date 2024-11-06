@@ -305,6 +305,24 @@ def get_local_md5(local):
     return md5_hash.hexdigest()
 
 
+def check_shell_any_device(cmd, pattern=None, fetch=False):
+    print(f"\nexecuting command: {cmd}")
+    if pattern: # check output valid
+        print("pattern case")
+        output = subprocess.check_output(cmd.split()).decode()
+        res = pattern in output
+        print(f"--> output: {output}")
+        print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")
+        return res
+    elif fetch:
+        output = subprocess.check_output(cmd.split()).decode()
+        print(f"--> output: {output}")
+        return output
+    else: # check cmd run successfully
+        print("other case")
+        return subprocess.check_call(cmd.split()) == 0
+
+
 def check_shell(cmd, pattern=None, fetch=False):
     cmd = f"{GP.hdc_head} {cmd}"
     print(f"\nexecuting command: {cmd}")

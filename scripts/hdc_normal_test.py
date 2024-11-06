@@ -21,6 +21,7 @@
 import argparse
 import time
 import os
+import multiprocessing
 
 import pytest
 
@@ -356,6 +357,25 @@ def test_fport_cmd():
     assert check_hdc_cmd(f"fport rm {task_str2}", "success")
     assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
     assert check_hdc_cmd(f"fport rm {task_str2}", "success")
+
+
+#子进程执行函数
+def new_process_run(cmd):
+    assert check_shell(f'{cmd}')
+
+
+def test_hilog_exit_after_hdc_kill():
+    assert check_shell(f'shell pkill hilog')
+    # 新开进程执行hdc shell hilog，防止阻塞主进程
+    p = multiprocessing.Process(target=new_process_run, args=("shell hilog",))
+    p.start()
+
+    hilog_pid = get_shell_result(f'shell pidof hilog')
+    assert check_hdc_cmd(f'kill', "Kill server finish")
+    run_command_with_timeout("hdc wait", 5)
+    time.sleep(1)
+    hilog_pid2 = get_shell_result(f'shell pidof hilog')
+    assert hilog_pid == hilog_pid2
 
 
 def test_shell_cmd_timecost():

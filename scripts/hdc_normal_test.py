@@ -30,7 +30,7 @@ from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_r
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate, get_shell_result
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
-from dev_hdc_test import check_rom, check_shell
+from dev_hdc_test import check_rom, check_shell, check_shell_any_device
 
 
 def test_list_targets():
@@ -38,6 +38,12 @@ def test_list_targets():
     assert check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
     assert check_hdc_cmd("shell mkdir data/local/tmp/it_send_dir")
 
+def test_list_targets_multi_usb_device():
+    devices_str = check_shell_any_device("hdc list targets", None, True)
+    devices_array = devices_str.split('\n')
+    if devices_array:
+        for device in devices_array:
+            assert check_shell_any_device(f"hdc -t {device} shell id", "u:r:su:s0")
 
 @pytest.mark.repeat(5)
 def test_empty_file():
@@ -284,6 +290,29 @@ def test_version_cmd():
     assert check_hdc_version("version", version)
     assert check_hdc_version("checkserver", version)
 
+
+def test_fport_cmd_output():
+    local_port = 18070
+    remote_port = 11080
+    fport_arg = f"tcp:{local_port} tcp:{remote_port}"
+    assert check_hdc_cmd(f"fport {fport_arg}", "Forwardport result:OK")
+    assert check_shell_any_device(f"netstat -ano", "LISTENING", False);
+    assert check_shell_any_device(f"netstat -ano", f"{local_port}", False);
+    assert check_hdc_cmd(f"fport ls", fport_arg)
+    assert check_hdc_cmd(f"fport rm {fport_arg}", "success")
+
+def test_rport_cmd_output():
+    local_port = 17090
+    remote_port = 11080
+    rport_arg = f"tcp:{local_port} tcp:{remote_port}"
+    assert check_hdc_cmd(f"rport {rport_arg}", "Forwardport result:OK")
+    netstat_line = get_shell_result(f'shell "netstat -anp | grep {local_port}"')
+    assert "LISTEN" in netstat_line
+    assert "hdcd" in netstat_line
+    fport_list = get_shell_result(f"fport ls")
+    assert "Reverse" in fport_list
+    assert rport_arg in fport_list
+    assert check_hdc_cmd(f"fport rm {rport_arg}", "success")
 
 def test_fport_cmd():
     fport_list = []

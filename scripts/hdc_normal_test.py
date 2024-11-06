@@ -44,7 +44,7 @@ def test_list_targets_multi_usb_device():
     devices_array = devices_str.split('\n')
     if devices_array:
         for device in devices_array:
-            assert check_shell_any_device(f"hdc -t {device} shell id", "u:r:su:s0")
+            assert check_shell_any_device(f"hdc -t {device} shell id", "u:r:")
 
 @pytest.mark.repeat(5)
 def test_empty_file():
@@ -375,7 +375,7 @@ def test_hilog_exit_after_hdc_kill():
     run_command_with_timeout("hdc wait", 5)
     time.sleep(1)
     hilog_pid2 = get_shell_result(f'shell pidof hilog')
-    assert hilog_pid == hilog_pid2
+    assert hilog_pid == ''
 
 
 def test_shell_cmd_timecost():

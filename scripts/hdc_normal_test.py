@@ -39,12 +39,14 @@ def test_list_targets():
     assert check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
     assert check_hdc_cmd("shell mkdir data/local/tmp/it_send_dir")
 
+
 def test_list_targets_multi_usb_device():
     devices_str = check_shell_any_device("hdc list targets", None, True)
     devices_array = devices_str.split('\n')
     if devices_array:
         for device in devices_array:
             assert check_shell_any_device(f"hdc -t {device} shell id", "u:r:")
+
 
 @pytest.mark.repeat(5)
 def test_empty_file():
@@ -302,6 +304,7 @@ def test_fport_cmd_output():
     assert check_hdc_cmd(f"fport ls", fport_arg)
     assert check_hdc_cmd(f"fport rm {fport_arg}", "success")
 
+
 def test_rport_cmd_output():
     local_port = 17090
     remote_port = 11080
@@ -314,6 +317,7 @@ def test_rport_cmd_output():
     assert "Reverse" in fport_list
     assert rport_arg in fport_list
     assert check_hdc_cmd(f"fport rm {rport_arg}", "success")
+
 
 def test_fport_cmd():
     fport_list = []

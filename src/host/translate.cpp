@@ -112,21 +112,23 @@ namespace TranslateCommand {
             "                                         USB connect automatic, TCP need to connect manually\n"
 #ifdef HDC_SUPPORT_UART
             "\n"
-            "                                         UART connect need connect manually.\n"
-            "                                         Baud Rate can be specified with commas.\n"
+            "                                         UART connect need connect manually\n"
+            "                                         Baud Rate can be specified with commas\n"
             "                                         key format: <Port Name>[,Baud Rate]\n"
             "                                         example: tconn COM5,921600\n"
-            "                                         Default Baud Rate is 921600.\n"
+            "                                         Default Baud Rate is 921600\n"
             "\n"
 #endif
             " start [-r]                            - Start server. If with '-r', will be restart server\n"
             " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
             " -s [ip:]port                          - Set hdc server listen config\n"
+            " -m                                    - Start server at foreground\n"
+            " -p                                    - Skip the server startup, run in single client mode\n"
             "\n"
             "service commands(on daemon):\n"
             " target mount                          - Set /system /vendor partition read-write\n"
-            " target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\\recovery.\n"
-            " target boot [MODE]                    - Reboot the into MODE.\n"
+            " target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\\recovery\n"
+            " target boot [MODE]                    - Reboot the into MODE\n"
             " smode [-r]                            - Restart daemon with root permissions, '-r' to cancel root\n"
             "                                         permissions\n"
             " tmode usb                             - Reboot the device, listening on USB\n"
@@ -184,8 +186,21 @@ namespace TranslateCommand {
             " erase [-f] partition                  - Erase partition\n"
             " format [-f] partition                 - Format partition\n"
             "---------------------------------external commands:------------------------------------\n"
-            "extconn key                             - Connect external device via key, TCP use ip:port(remian)\n"
-            "-S [ip:]port                            - Set hdc external server listen config\n"
+            "extconn key                            - Connect external device via key, TCP use ip:port(remian)\n"
+            "-S [ip:]port                           - Set hdc external server listen config\n"
+            "\n"
+            "---------------------------------environment variables:-----------------------------\n"
+#ifdef _WIN32
+            "\%OHOS_HDC_SERVER_PORT\%                - Set hdc server listen port(range 1~65535, default 8710)\n"
+            "\%OHOS_HDC_LOG_LEVEL\%                  - Set hdc server log level(range 0~5, default 5)\n"
+            "\%OHOS_HDC_LOG_LIMIT\%                  - Set the number of logs that trigger the total"
+            " log file size statistics (default 300 (files))\n"
+#else
+            "$OHOS_HDC_SERVER_PORT                  - Set hdc server listen port(range 1~65535, default 8710)\n"
+            "$OHOS_HDC_LOG_LEVEL                    - Set hdc server log level(range 0~5, default 5)\n"
+            "$OHOS_HDC_LOG_LIMIT                    - Set the number of logs that trigger the total"
+            " log file size statistics (default 300 (files))\n"
+#endif
             "\n";
         return ret;
     }

@@ -58,9 +58,28 @@ private:
     bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId) override;
     HSession FindAliveSession(uint32_t sessionId);
     HSession FindAliveSessionFromDaemonMap(const HChannel hChannel);
+    string GetErrorString(uint32_t errorCode);
+    void PrintLastError(HChannel HChannel);
 
     uv_tcp_t tcpListen;
     void *clsServer;
+    const std::unordered_map<uint32_t, std::string> ErrorStringEnglish = {
+#ifdef _WIN32
+        {0x000005, "Failed to load the authorization pub key!\r\n"
+            "Please check the public key directory:[%USERPROFILE%\\.harmony]\r\n"
+            "Alternatively, delete the public key directory and re-run the command.\r\n"
+            "Delete command: \"del %USERPROFILE%\\.harmony\""},
+#else
+        {0x000005, "Failed to load the authorization pub key!\r\n"
+            "Please check the public key directory:[~/.harmony]\r\n"
+            "Alternatively, delete the public key directory and re-run the command.\r\n"
+            "Delete command: \"rm -r ~/.harmony\""},
+#endif
+        {0x002103, "Failed to start the HDC server process!\r\n"
+            "Please check the HDC server process port is occupied or used as an exception port.\r\n"
+            "Alternatively, change the OHOS_HDC_SERVER_PORT environment variable and re-run the command."},
+        {0xFFFFFF, "Unknown error"},
+    };
 };
 }  // namespace Hdc
 #endif

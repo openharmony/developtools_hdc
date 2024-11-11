@@ -201,18 +201,17 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         std::cerr << TranslateCommand::Usage();
         return 0;
     }
-    if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
-        !strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size())) {
+    if (!strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size())) {
         client.CtrlServiceWork(commands.c_str());
+        return 0;
+    }
+    if (!strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
+        !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
+        client.ChannelCtrlServer(commands, connectKey);
         return 0;
     }
     if (isPullServer && Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
         // default pullup, just default listenstr.If want to customer listen-string, please use 'hdc -m -s lanip:port'
-        if (!strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(),
-            CMDSTR_SERVICE_KILL.size())) {
-            WRITE_LOG(LOG_DEBUG, "kill server, but server not exist, so do nothing");
-            return 0;
-        }
         HdcServer::PullupServer(serverListenString.c_str());
         uv_sleep(START_SERVER_FOR_CLIENT_TIME);  // give time to start serverForClient,at least 200ms
     }

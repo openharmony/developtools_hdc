@@ -486,6 +486,12 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             ret = false;
             break;
         }
+        case CMD_SERVICE_START: {
+            PrintLastError(hChannel);
+            EchoClient(hChannel, MSG_OK, "Start server finish");
+            ret = false;
+            break;
+        }
         case CMD_SERVICE_KILL: {
             ptrServer->SessionSoftReset();
             WRITE_LOG(LOG_DEBUG, "server kill");
@@ -692,7 +698,9 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput)
 {
     bool ret = false;
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
-    if (!hChannel->hChildWorkTCP.loop || formatCommand->cmdFlag == CMD_FORWARD_REMOVE) {
+    if (!hChannel->hChildWorkTCP.loop ||
+        formatCommand->cmdFlag == CMD_FORWARD_REMOVE ||
+        formatCommand->cmdFlag == CMD_SERVICE_START) {
         // Main thread command, direct Listen main thread
         ret = DoCommandLocal(hChannel, formatCommandInput);
     } else {  // CONNECT DAEMON's work thread command, non-primary thread
@@ -916,5 +924,25 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
         WRITE_LOG(LOG_FATAL, "send ctrlmsg failed sessionId:%u rc:%d", sessionId, rc);
     }
     return rc > 0;
+}
+
+void HdcServerForClient::PrintLastError(HChannel HChannel)
+{
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    uint32_t errorCode = ptrServer->lastErrorNum;
+    if (errorCode > 0) {
+        string errorString = GetErrorString(errorCode);
+        EchoClient(HChannel, MSG_FAIL, "[E%06x]%s", errorCode, errorString.c_str());
+        ptrServer->lastErrorNum = 0;
+    }
+}
+
+string HdcServerForClient::GetErrorString(uint32_t errorCode)
+{
+    auto map = ErrorStringEnglish.find(errorCode);
+    if (map != ErrorStringEnglish.end()) {
+        return map->second;
+    }
+    return ErrorStringEnglish.at(0xFFFFFF); // 0xFFFFFF:  Unknown error
 }
 }  // namespace Hdc

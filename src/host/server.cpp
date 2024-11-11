@@ -26,6 +26,7 @@ HdcServer::HdcServer(bool serverOrDaemonIn)
     clsUARTClt = nullptr;
 #endif
     clsServerForClient = nullptr;
+    lastErrorNum = 0;
     uv_rwlock_init(&daemonAdmin);
     uv_rwlock_init(&forwardAdmin);
 }
@@ -43,13 +44,16 @@ void HdcServer::ClearInstanceResource()
     Base::TryCloseLoop(&loopMain, "HdcServer::~HdcServer");
     if (clsTCPClt) {
         delete clsTCPClt;
+        clsTCPClt = nullptr;
     }
     if (clsUSBClt) {
         delete clsUSBClt;
+        clsUSBClt = nullptr;
     }
 #ifdef HDC_SUPPORT_UART
     if (clsUARTClt) {
         delete clsUARTClt;
+        clsUARTClt = nullptr;
     }
 #endif
     if (clsServerForClient) {
@@ -456,6 +460,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             GetDaemonAuthType(hSession, handshake);
             if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
                 WRITE_LOG(LOG_FATAL, "load public key failed");
+                lastErrorNum = 0x000005; // E000005: load public key failed
                 return false;
             }
             handshake.authType = AUTH_PUBLICKEY;
@@ -1070,6 +1075,8 @@ void HdcServer::SessionSoftReset()
         }
         string devname = di->devName;
         if (devname.empty()) {
+            continue;
+        } else if ((di->connStatus != STATUS_CONNECTED)) {
             continue;
         }
         if (di->connType == CONN_USB) {

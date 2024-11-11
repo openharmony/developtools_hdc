@@ -101,6 +101,56 @@ bool HdcClient::StartServer(const string &cmd)
     return true;
 }
 
+void HdcClient::ChannelCtrlServerStart(const char *listenString)
+{
+    Base::PrintMessage("hdc start server, listening: %s", channelHostPort.c_str());
+    HdcServer::PullupServer(channelHostPort.c_str());
+    uv_sleep(START_CMD_WAIT_TIME);
+    ExecuteCommand(CMDSTR_SERVICE_START.c_str());
+}
+
+bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
+{
+    // new version build channle to send Ctrl command to server
+    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    if (serverStatus < 0) {
+        WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
+        return false;
+    }
+    bool isRestart = (cmd.find(" -r") != std::string::npos);
+    bool isKill = !strncmp(cmd.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size());
+    bool isStart = !strncmp(cmd.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size());
+    Initial(connectKey);
+    // server is not running, "hdc start [-r]" and "hdc kill -r" will start server directly.
+    if (serverStatus == 0) {
+        if ((isRestart && isKill) || isStart) {
+            ChannelCtrlServerStart(channelHostPort.c_str());
+        } else if (!isRestart && isKill) { // "hdc kill" will print message and exit directly.
+            Base::PrintMessage("hdc server process not exists");
+        }
+        return true;
+    }
+    // server is running
+    if (isStart) {
+        if (isRestart) { // "hdc start -r": kill and restart server.
+            ExecuteCommand(CMDSTR_SERVICE_KILL.c_str());
+            MallocChannel(&channel);
+            ChannelCtrlServerStart(channelHostPort.c_str());
+        } else { // "hdc start": ignore and print message.
+            Base::PrintMessage("hdc server process already exists");
+        }
+        return true;
+    } else if (isKill) { // "hdc kill": kill server.
+        ExecuteCommand(CMDSTR_SERVICE_KILL.c_str());
+        if (isRestart) { // "-r": restart server.
+            MallocChannel(&channel);
+            ChannelCtrlServerStart(channelHostPort.c_str());
+        }
+        return true;
+    }
+    return true;
+}
+
 bool HdcClient::KillServer(const string &cmd)
 {
     int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
@@ -133,7 +183,12 @@ bool HdcClient::KillServer(const string &cmd)
         Base::PrintMessage("Kill server failed %s", buf);
     }
     if (cmd.find(" -r") != std::string::npos) {
+        string connectKey;
+        Base::PrintMessage("hdc start server, listening: %s", channelHostPort.c_str());
         HdcServer::PullupServer(channelHostPort.c_str());
+        uv_sleep(START_CMD_WAIT_TIME);
+        Initial(connectKey);
+        ExecuteCommand(CMDSTR_SERVICE_START.c_str());
     }
     return true;
 }
@@ -433,7 +488,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(),
         CMDSTR_SERVICE_KILL.size()) && !thisClass->channel->isSupportedKillServerCmd) {
         WRITE_LOG(LOG_DEBUG, "uv_kill server");
-        thisClass->CtrlServiceWork(CMDSTR_SERVICE_KILL.c_str());
+        thisClass->CtrlServiceWork(thisClass->command.c_str());
         return;
     }
 

@@ -246,7 +246,7 @@ bool ReadKey(const char *file, list<void *> *listPrivateKey)
     return ret;
 }
 
-int GetUserKeyPath(string &path)
+bool GetUserKeyPath(string &path)
 {
     struct stat status;
     const char harmoneyPath[] = ".harmony";

@@ -156,6 +156,7 @@ enum HdcCommand {
     CMD_CHECK_DEVICE,
     CMD_WAIT_FOR,
     CMD_SERVICE_KILL,
+    CMD_SERVICE_START,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,

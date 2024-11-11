@@ -30,6 +30,7 @@ public:
     int Initial(const string &connectKeyIn);
     int ExecuteCommand(const string &commandIn);
     int CtrlServiceWork(const char *commandIn);
+    bool ChannelCtrlServer(const string &cmd, string &connectKey);
 
 protected:
 private:
@@ -46,6 +47,7 @@ private:
     uint32_t GetLastPID();
     bool StartServer(const string &cmd);
     bool KillServer(const string &cmd);
+    void ChannelCtrlServerStart(const char *listenString);
     void BindLocalStd();
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);

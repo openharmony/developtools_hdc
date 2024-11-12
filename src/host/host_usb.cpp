@@ -663,7 +663,7 @@ int HdcHostUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
         HdcServer* serverClass = (HdcServer *)server;
         if (serverClass != nullptr && serverClass->clsServerForClient != nullptr) {
             HdcServerForClient *sfc = (HdcServerForClient *)serverClass->clsServerForClient;
-            const string msg("[Fail]USB Device is disconnected.");
+            const string msg("[Fail][E000006]USB Device is disconnected.");
             sfc->EchoToAllChannelsViaSessionId(hSession->sessionId, msg);
         }
         server->FreeSession(hSession->sessionId);

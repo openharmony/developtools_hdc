@@ -190,13 +190,7 @@ bool HdcServer::PullupServer(const char *listenString)
     if (pc < 0) {
         return false;
     } else if (!pc) {
-        int i;
-        const int maxFD = 1024;
-        for (i = 0; i < maxFD; ++i) {
-            // close file pipe
-            int fd = i;
-            Base::CloseFd(fd);
-        }
+        Base::CloseOpenFd();
         execl(path, "hdc", "-m", "-s", listenString, nullptr);
         exit(0);
         return true;

@@ -39,6 +39,7 @@
 namespace Hdc {
 namespace Base {
     uint8_t GetLogLevel();
+    extern bool g_startClientMode;
     extern uint8_t g_logLevel;
     void SetLogLevel(const uint8_t logLevel);
     uint8_t GetLogLevelByEnv();
@@ -273,6 +274,7 @@ namespace Base {
     FILE *Fopen(const char *fileName, const char *mode);
     void AddDeletedSessionId(uint32_t sessionId);
     bool IsSessionDeleted(uint32_t sessionId);
+    void CloseOpenFd(void);
 }  // namespace base
 }  // namespace Hdc
 

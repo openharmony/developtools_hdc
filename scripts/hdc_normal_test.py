@@ -21,6 +21,7 @@
 import argparse
 import time
 import os
+import multiprocessing
 
 import pytest
 
@@ -30,13 +31,21 @@ from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_r
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate, get_shell_result
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
-from dev_hdc_test import check_rom, check_shell
+from dev_hdc_test import check_rom, check_shell, check_shell_any_device
 
 
 def test_list_targets():
     assert check_hdc_targets()
     assert check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
     assert check_hdc_cmd("shell mkdir data/local/tmp/it_send_dir")
+
+
+def test_list_targets_multi_usb_device():
+    devices_str = check_shell_any_device("hdc list targets", None, True)
+    devices_array = devices_str.split('\n')
+    if devices_array:
+        for device in devices_array:
+            assert check_shell_any_device(f"hdc -t {device} shell id", "u:r:")
 
 
 @pytest.mark.repeat(5)
@@ -285,6 +294,31 @@ def test_version_cmd():
     assert check_hdc_version("checkserver", version)
 
 
+def test_fport_cmd_output():
+    local_port = 18070
+    remote_port = 11080
+    fport_arg = f"tcp:{local_port} tcp:{remote_port}"
+    assert check_hdc_cmd(f"fport {fport_arg}", "Forwardport result:OK")
+    assert check_shell_any_device(f"netstat -ano", "LISTENING", False);
+    assert check_shell_any_device(f"netstat -ano", f"{local_port}", False);
+    assert check_hdc_cmd(f"fport ls", fport_arg)
+    assert check_hdc_cmd(f"fport rm {fport_arg}", "success")
+
+
+def test_rport_cmd_output():
+    local_port = 17090
+    remote_port = 11080
+    rport_arg = f"tcp:{local_port} tcp:{remote_port}"
+    assert check_hdc_cmd(f"rport {rport_arg}", "Forwardport result:OK")
+    netstat_line = get_shell_result(f'shell "netstat -anp | grep {local_port}"')
+    assert "LISTEN" in netstat_line
+    assert "hdcd" in netstat_line
+    fport_list = get_shell_result(f"fport ls")
+    assert "Reverse" in fport_list
+    assert rport_arg in fport_list
+    assert check_hdc_cmd(f"fport rm {rport_arg}", "success")
+
+
 def test_fport_cmd():
     fport_list = []
     rport_list = []
@@ -327,6 +361,37 @@ def test_fport_cmd():
     assert check_hdc_cmd(f"fport rm {task_str2}", "success")
     assert check_hdc_cmd(f"rport {task_str2}", "Forwardport result:OK")
     assert check_hdc_cmd(f"fport rm {task_str2}", "success")
+
+
+#子进程执行函数
+def new_process_run(cmd):
+    # 重定向 stdout 和 stderr 到 /dev/null
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = os.dup2(devnull.fileno(), 1)  # 重定向 stdout
+        old_stderr = os.dup2(devnull.fileno(), 2)  # 重定向 stderr
+        try:
+            # 这里是子进程的代码，不会有任何输出到控制台
+            check_shell(f'{cmd}')
+        finally:
+            # 恢复原始的 stdout 和 stderr
+            os.dup2(old_stdout, 1)
+            os.dup2(old_stderr, 2)
+
+
+def test_hilog_exit_after_hdc_kill():
+    # 新开进程执行hdc shell hilog，防止阻塞主进程
+    p = multiprocessing.Process(target=new_process_run, args=("shell hilog",))
+    p.start()
+    time.sleep(1)
+    hilog_pid = get_shell_result(f'shell pidof hilog')
+    hilog_pid = hilog_pid.replace("\r\n", "")
+    assert hilog_pid.isdigit()
+    assert check_hdc_cmd(f'kill', "Kill server finish")
+    run_command_with_timeout("hdc wait", 5)
+    time.sleep(1)
+    hilog_pid2 = get_shell_result(f'shell pidof hilog')
+    assert hilog_pid2 == ''
+    p.join()
 
 
 def test_shell_cmd_timecost():

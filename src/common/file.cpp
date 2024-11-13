@@ -269,11 +269,13 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
     // check path

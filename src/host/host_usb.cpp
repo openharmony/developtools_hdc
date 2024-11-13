@@ -660,6 +660,12 @@ int HdcHostUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
         WRITE_LOG(LOG_FATAL, "Send usb failed, sid:%u ret:%d", hSession->sessionId, ret);
         CancelUsbIo(hSession);
         hSession->hUSB->hostBulkOut.isShutdown = true;
+        HdcServer* serverClass = (HdcServer *)server;
+        if (serverClass != nullptr && serverClass->clsServerForClient != nullptr) {
+            HdcServerForClient *sfc = (HdcServerForClient *)serverClass->clsServerForClient;
+            const string msg("[Fail][E001003] USB communication abnormal, please check the USB communication link.");
+            sfc->EchoToAllChannelsViaSessionId(hSession->sessionId, msg);
+        }
         server->FreeSession(hSession->sessionId);
     }
     --hSession->ref;

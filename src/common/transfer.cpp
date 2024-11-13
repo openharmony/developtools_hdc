@@ -213,12 +213,12 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     payloadHead.compressSize = compressSize;
     head = SerialStruct::SerializeToString(payloadHead);
     if (head.size() + 1 > payloadPrefixReserve) {
-        WRITE_LOG(LOG_INFO, "SendIOPayload head size:%d, payloadprefix:%d.",
+        WRITE_LOG(LOG_DEBUG, "SendIOPayload head size:%d, payloadprefix:%d.",
             head.size(), payloadPrefixReserve);
         goto out;
     }
     if (EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
-        WRITE_LOG(LOG_INFO, "SendIOPayload memcpy_s fail.");
+        WRITE_LOG(LOG_DEBUG, "SendIOPayload memcpy_s fail.");
         goto out;
     }
     ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;

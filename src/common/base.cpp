@@ -44,6 +44,7 @@ using namespace std::chrono;
 
 namespace Hdc {
 namespace Base {
+    bool g_startClientMode = true;
     constexpr int DEF_FILE_PERMISSION = 0750;
 #ifndef _WIN32
     sigset_t g_blockList;
@@ -577,6 +578,17 @@ namespace Base {
     }
 #endif
 
+#ifndef  HDC_HILOG
+static void EchoLog(string &buf)
+{
+    if (!g_startClientMode) {
+        return;
+    }
+    printf("%s", buf.c_str());
+    fflush(stdout);
+}
+#endif
+
 void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
     {
         if (logLevel > g_logLevel) {
@@ -630,8 +642,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         string logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
                                      threadIdString.c_str(), debugInfo.c_str(), buf, sep.c_str());
 
-        printf("%s", logBuf.c_str());
-        fflush(stdout);
+        EchoLog(logBuf);
 
         if (!g_logCache) {
             LogToFile(logBuf.c_str());
@@ -2200,6 +2211,47 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
         }
         return rc;
     }
+
+void CloseOpenFd(void)
+{
+#ifndef _WIN32
+    pid_t pid = getpid();
+    char procPath[PATH_MAX];
+
+    int ret = sprintf_s(procPath, sizeof(procPath), "/proc/%d/fd", pid);
+    if (ret < 0) {
+        WRITE_LOG(LOG_FATAL, "get procPath failed, pid is %d", pid);
+        return;
+    }
+
+    DIR *dir = opendir("/proc/self/fd");
+    if (dir == nullptr) {
+        WRITE_LOG(LOG_FATAL, "open /proc/self/fd failed errno:%d", errno);
+        return;
+    }
+    char path[PATH_MAX] = { 0 };
+    char target[PATH_MAX] = { 0 };
+    struct dirent *dp = nullptr;
+    while ((dp = readdir(dir)) != nullptr) {
+        if (dp->d_type != DT_LNK) {
+            continue;
+        }
+        ret = sprintf_s(path, sizeof(path), "/proc/self/fd/%s", dp->d_name);
+        if (ret < 0) {
+            WRITE_LOG(LOG_FATAL, "get path failed, dp->d_name is %s", dp->d_name);
+            break;
+        }
+        int len = readlink(path, target, sizeof(target));
+        int fd = atoi(dp->d_name);
+        if (strncmp(procPath, target, len) != 0) {
+            CloseFd(fd);
+        }
+    }
+    closedir(dir);
+    return;
+#endif
+    return;
+}
 
     void InitProcess(void)
     {

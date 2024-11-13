@@ -358,7 +358,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           context->localPath.c_str());
         WRITE_LOG(LOG_FATAL, "open path:%s error:%s, dir:%d, master:%d",
-            context->isDir, context->master, context->localPath.c_str(), buf);
+            context->localPath.c_str(), buf, context->isDir, context->master);
         OnFileOpenFailed(context);
         return;
     }

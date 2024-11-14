@@ -2249,7 +2249,7 @@ void CloseOpenFd(void)
     }
     closedir(dir);
     return;
-#else
+#elif defined(HOST_MAC)
     int i;
     const int maxFD = 1024;
     for (i = 0; i < maxFD; ++i) {

@@ -323,8 +323,8 @@ def check_shell_any_device(cmd, pattern=None, fetch=False):
         return subprocess.check_call(cmd.split()) == 0
 
 
-def check_shell(cmd, pattern=None, fetch=False):
-    cmd = f"{GP.hdc_head} {cmd}"
+def check_shell(cmd, pattern=None, fetch=False, head=GP.hdc_head):
+    cmd = f"{head} {cmd}"
     print(f"\nexecuting command: {cmd}")
     if pattern: # check output valid
         output = subprocess.check_output(cmd.split()).decode()
@@ -402,7 +402,7 @@ def check_dir(local, remote, is_single_dir=False):
     return (result == 1)
 
 
-def _check_file(local, remote):
+def _check_file(local, remote, head=GP.hdc_head):
     if remote.startswith("/proc"):
         local_size = os.path.getsize(local)
         if local_size > 0:
@@ -412,7 +412,7 @@ def _check_file(local, remote):
     else:
         cmd = f"shell md5sum {remote}"
         local_md5 = get_local_md5(local)
-        return check_shell(cmd, local_md5)
+        return check_shell(cmd, local_md5, head=head)
 
 
 def _check_app_installed(bundle, is_shared=False):
@@ -489,16 +489,16 @@ def check_app_uninstall_multi(tables, args=""):
     return True
 
 
-def check_hdc_cmd(cmd, pattern=None, **args):
+def check_hdc_cmd(cmd, pattern=None, head=GP.hdc_head, **args):
     if cmd.startswith("file"):
-        if not check_shell(cmd, "FileTransfer finish"):
+        if not check_shell(cmd, "FileTransfer finish", head=head):
             return False
         if cmd.startswith("file send"):
             local, remote = cmd.split()[-2:]
         else:
             remote, local = cmd.split()[-2:]
         if os.path.isfile(local):
-            return _check_file(local, remote)
+            return _check_file(local, remote, head=head)
         else:
             return check_dir(local, remote)
     elif cmd.startswith("install"):
@@ -1039,3 +1039,25 @@ def run_command_with_timeout(command, timeout):
         return None, "Command timed out"
     except subprocess.CalledProcessError as e:
         return None, e.stderr.decode()
+
+
+def check_cmd_block(command, pattern, timeout=600):
+    # 启动子进程
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # 用于存储子进程的输出
+    output = ""
+
+    try:
+        # 读取子进程的输出
+        output, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.terminate()
+        process.kill()
+        output, _ = process.communicate()
+
+    print(f"--> output: {output}")
+    if pattern in output:
+        return True
+    else:
+        return False

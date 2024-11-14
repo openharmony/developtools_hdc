@@ -31,7 +31,17 @@ from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_r
 from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate, get_shell_result
 from dev_hdc_test import make_multiprocess_file, rmdir
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
-from dev_hdc_test import check_rom, check_shell, check_shell_any_device
+from dev_hdc_test import check_rom, check_shell, check_shell_any_device, check_cmd_block
+
+
+def test_hdc_server_foreground():
+    port = os.getenv('OHOS_HDC_SERVER_PORT')
+    if port is None:
+        port = 8710
+    assert check_hdc_cmd("kill", "Kill server finish")
+    assert check_cmd_block(f"{GP.hdc_exe} -m", f"port: {port}", timeout=5)
+    assert check_hdc_cmd("start")
+    time.sleep(3)
 
 
 def test_list_targets():
@@ -41,11 +51,13 @@ def test_list_targets():
 
 
 def test_list_targets_multi_usb_device():
-    devices_str = check_shell_any_device("hdc list targets", None, True)
+    devices_str = check_shell_any_device(f"{GP.hdc_exe} list targets", None, True)
+    time.sleep(3)
     devices_array = devices_str.split('\n')
     if devices_array:
         for device in devices_array:
-            assert check_shell_any_device(f"hdc -t {device} shell id", "u:r:")
+            if len(device) > 8:
+                assert check_shell_any_device(f"{GP.hdc_exe} -t {device} shell id", "u:r:")
 
 
 @pytest.mark.repeat(5)
@@ -279,6 +291,28 @@ def test_tmode_port():
     print(netstat_port)
     assert "LISTEN" in netstat_port
     assert "hdcd" in netstat_port
+
+
+def test_tconn():
+    daemon_port = 58710
+    address = "127.0.0.1"
+    assert (check_hdc_cmd(f"tmode port {daemon_port}"))
+    time.sleep(5)
+    assert check_hdc_cmd(f"shell param get persist.hdc.port", f"{daemon_port}")
+    assert check_hdc_cmd(f"fport tcp:{daemon_port} tcp:{daemon_port}", "Forwardport result:OK")
+    assert check_hdc_cmd(f"fport ls ", f"tcp:{daemon_port} tcp:{daemon_port}")
+    assert check_shell(f"tconn {address}:{daemon_port}", "Connect OK", head=GP.hdc_exe)
+    time.sleep(3)
+    assert check_shell("list targets", f"{address}:{daemon_port}", head=GP.hdc_exe)
+    tcp_head = f"{GP.hdc_exe} -t {address}:{daemon_port}"
+    assert check_hdc_cmd(f"file send {get_local_path('medium')} {get_remote_path('it_tcp_medium')}",
+        head=tcp_head)
+    assert check_hdc_cmd(f"file recv {get_remote_path('it_tcp_medium')} {get_local_path('medium_tcp_recv')}",
+        head=tcp_head)
+    assert check_shell(f"tconn {address}:{daemon_port} -remove", head=GP.hdc_exe)
+    assert not check_shell("list targets", f"{address}:{daemon_port}", head=GP.hdc_exe)
+    assert check_hdc_cmd(f"fport rm tcp:{daemon_port} tcp:{daemon_port}", "Remove forward ruler success")
+    assert not check_hdc_cmd(f"fport ls ", f"tcp:{daemon_port} tcp:{daemon_port}")
 
 
 def test_target_key():

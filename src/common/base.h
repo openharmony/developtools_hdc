@@ -39,7 +39,7 @@
 namespace Hdc {
 namespace Base {
     uint8_t GetLogLevel();
-    extern bool g_startClientMode;
+    extern bool g_isBackgroundServer;
     extern uint8_t g_logLevel;
     void SetLogLevel(const uint8_t logLevel);
     uint8_t GetLogLevelByEnv();

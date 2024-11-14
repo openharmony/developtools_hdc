@@ -44,7 +44,7 @@ using namespace std::chrono;
 
 namespace Hdc {
 namespace Base {
-    bool g_startClientMode = true;
+    bool g_isBackgroundServer = false;
     constexpr int DEF_FILE_PERMISSION = 0750;
 #ifndef _WIN32
     sigset_t g_blockList;
@@ -581,7 +581,7 @@ namespace Base {
 #ifndef  HDC_HILOG
 static void EchoLog(string &buf)
 {
-    if (!g_startClientMode) {
+    if (g_isBackgroundServer) {
         return;
     }
     printf("%s", buf.c_str());
@@ -589,7 +589,7 @@ static void EchoLog(string &buf)
 }
 #endif
 
-void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
+    void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...)
     {
         if (logLevel > g_logLevel) {
             return;
@@ -2214,7 +2214,7 @@ void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char
 
 void CloseOpenFd(void)
 {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(HOST_MAC)
     pid_t pid = getpid();
     char procPath[PATH_MAX];
 
@@ -2249,8 +2249,15 @@ void CloseOpenFd(void)
     }
     closedir(dir);
     return;
+#elif defined(HOST_MAC)
+    int i;
+    const int maxFD = 1024;
+    for (i = 0; i < maxFD; ++i) {
+        // close file pipe
+        int fd = i;
+        Base::CloseFd(fd);
+    }
 #endif
-    return;
 }
 
     void InitProcess(void)

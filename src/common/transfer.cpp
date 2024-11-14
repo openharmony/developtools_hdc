@@ -136,7 +136,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         if (ioContext != nullptr) {
             delete ioContext;
             ioContext = nullptr;
-            WRITE_LOG(LOG_DEBUG, "SimpleFileIO ret=false, delete context.");
+            WRITE_LOG(LOG_WARN, "SimpleFileIO ret=false, delete context.");
         }
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
@@ -213,12 +213,12 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     payloadHead.compressSize = compressSize;
     head = SerialStruct::SerializeToString(payloadHead);
     if (head.size() + 1 > payloadPrefixReserve) {
-        WRITE_LOG(LOG_DEBUG, "SendIOPayload head size:%d, payloadprefix:%d.",
+        WRITE_LOG(LOG_WARN, "SendIOPayload head size:%d, payloadprefix:%d.",
             head.size(), payloadPrefixReserve);
         goto out;
     }
     if (EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
-        WRITE_LOG(LOG_DEBUG, "SendIOPayload memcpy_s fail.");
+        WRITE_LOG(LOG_WARN, "SendIOPayload memcpy_s fail.");
         goto out;
     }
     ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;
@@ -260,7 +260,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                       context->fileSize);
 #endif // HDC_DEBUG
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
-                WRITE_LOG(LOG_DEBUG, "OnFileIO SendIOPayload fail.");
+                WRITE_LOG(LOG_WARN, "OnFileIO SendIOPayload fail.");
                 context->ioFinish = true;
                 break;
             }
@@ -722,7 +722,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
             break;
         }
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {
-            WRITE_LOG(LOG_DEBUG, "RecvIOPayload SimpleFileIO fail.");
+            WRITE_LOG(LOG_WARN, "RecvIOPayload SimpleFileIO fail.");
             break;
         }
         ret = true;

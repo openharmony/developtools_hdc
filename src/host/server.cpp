@@ -191,7 +191,7 @@ bool HdcServer::PullupServer(const char *listenString)
         return false;
     } else if (!pc) {
         Base::CloseOpenFd();
-        execl(path, "hdc", "-m", "-s", "-b", listenString, nullptr);
+        execl(path, "hdc", "-m", "-b", "-s", listenString, nullptr);
         exit(0);
         return true;
     }

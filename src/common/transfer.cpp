@@ -218,7 +218,8 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
         goto out;
     }
     if (EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
-        WRITE_LOG(LOG_WARN, "SendIOPayload memcpy_s fail.");
+        WRITE_LOG(LOG_WARN, "SendIOPayload memcpy_s fail, sendBufSize:%d, head size:%d.",
+            sendBufSize, head.size());
         goto out;
     }
     ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;

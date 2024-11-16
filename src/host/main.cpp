@@ -289,7 +289,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpbmncs:Sd:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:t:l:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
@@ -306,8 +306,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 needExit = true;
                 return needExit;
             }
-            case 'b': {  // [not-publish]
-                Base::g_isBackgroundServer = true;
+            case 'f': {  // [not-publish]
                 break;
             }
             case 'l': {

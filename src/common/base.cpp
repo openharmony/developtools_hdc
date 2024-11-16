@@ -2242,8 +2242,9 @@ void CloseOpenFd(void)
             break;
         }
         int len = readlink(path, target, sizeof(target));
-        int fd = atoi(dp->d_name);
-        if (strncmp(procPath, target, len) != 0) {
+        errno = 0;
+        int fd = static_cast<int>(strtol(dp->d_name, nullptr, 10));
+        if (strncmp(procPath, target, len) != 0 && errno == 0) {
             CloseFd(fd);
         }
     }

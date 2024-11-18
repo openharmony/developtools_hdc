@@ -278,6 +278,8 @@ static bool UserAccountVerify(char *pwd, int pwdLen)
     pid = fork();
     if (pid == -1) {
         WriteStdErr("exec fork failed\n");
+        close(fds[0]);
+        close(fds[1]);
         return false;
     }
     if (pid == 0) {
@@ -353,10 +355,10 @@ int main(int argc, char* argv[], char* env[])
      * Make exec cmd and the args
     */
     argvNew = ParseCmd(argc, argv, env, execCmd, PATH_MAX + 1);
+    CloseTty();
     if (argvNew == nullptr) {
         return 1;
     }
-    CloseTty();
 
     /*
      * set uid, gid, egid

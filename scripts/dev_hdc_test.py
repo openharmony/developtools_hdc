@@ -1054,7 +1054,7 @@ def check_cmd_block(command, pattern, timeout=600):
     except subprocess.TimeoutExpired:
         process.terminate()
         process.kill()
-        output, _ = process.communicate()
+        output, _ = process.communicate(timeout=timeout)
 
     print(f"--> output: {output}")
     if pattern in output:

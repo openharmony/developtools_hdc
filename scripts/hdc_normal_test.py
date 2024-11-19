@@ -41,7 +41,7 @@ def test_hdc_server_foreground():
     assert check_hdc_cmd("kill", "Kill server finish")
     assert check_cmd_block(f"{GP.hdc_exe} -m", f"port: {port}", timeout=5)
     assert check_hdc_cmd("start")
-    time.sleep(3)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
 
 
 def test_list_targets():
@@ -52,7 +52,7 @@ def test_list_targets():
 
 def test_list_targets_multi_usb_device():
     devices_str = check_shell_any_device(f"{GP.hdc_exe} list targets", None, True)
-    time.sleep(3)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
     devices_array = devices_str.split('\n')
     if devices_array:
         for device in devices_array:
@@ -240,18 +240,22 @@ def test_install_dir():
 
 def test_server_kill():
     assert check_hdc_cmd("kill", "Kill server finish")
-    assert check_hdc_cmd("start server", "")
+    assert check_hdc_cmd("start server")
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    assert check_hdc_cmd("checkserver", "Ver")
 
 
 def test_target_cmd():
     assert check_hdc_targets()
-    time.sleep(3)
     check_hdc_cmd("target boot")
     start_time = time.time()
-    run_command_with_timeout("hdc wait", 60) # reboot takes up to 60 seconds
+    run_command_with_timeout("hdc wait", 30) # reboot takes up to 30 seconds
+    time.sleep(3) # sleep 3s to wait for the device to boot
+    run_command_with_timeout("hdc wait", 30) # reboot takes up to 30 seconds
     end_time = time.time()
     print(f"command exec time {end_time - start_time}")
-    assert (end_time - start_time) > 5 # Reboot takes at least 5 seconds
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    assert (end_time - start_time) > 8 # Reboot takes at least 8 seconds
 
 
 @pytest.mark.repeat(1)
@@ -284,9 +288,15 @@ def test_target_mount():
 
 def test_tmode_port():
     assert (check_hdc_cmd("tmode port", "Set device run mode successful"))
-    time.sleep(5)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
     assert (check_hdc_cmd("tmode port 12345"))
-    time.sleep(5)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
     netstat_port = get_shell_result(f'shell "netstat -anp | grep 12345"')
     print(netstat_port)
     assert "LISTEN" in netstat_port
@@ -297,7 +307,10 @@ def test_tconn():
     daemon_port = 58710
     address = "127.0.0.1"
     assert (check_hdc_cmd(f"tmode port {daemon_port}"))
-    time.sleep(5)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
     assert check_hdc_cmd(f"shell param get persist.hdc.port", f"{daemon_port}")
     assert check_hdc_cmd(f"fport tcp:{daemon_port} tcp:{daemon_port}", "Forwardport result:OK")
     assert check_hdc_cmd(f"fport ls ", f"tcp:{daemon_port} tcp:{daemon_port}")
@@ -421,8 +434,9 @@ def test_hilog_exit_after_hdc_kill():
     hilog_pid = hilog_pid.replace("\r\n", "")
     assert hilog_pid.isdigit()
     assert check_hdc_cmd(f'kill', "Kill server finish")
-    run_command_with_timeout("hdc wait", 5)
-    time.sleep(1)
+    assert check_hdc_cmd("start")
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
     hilog_pid2 = get_shell_result(f'shell pidof hilog')
     assert hilog_pid2 == ''
     p.join()
@@ -452,15 +466,19 @@ def test_hdcd_rom():
 
 def test_smode_r():
     assert check_hdc_cmd(f'smode -r')
-    run_command_with_timeout("hdc wait", 5)
-    time.sleep(1)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
     assert check_shell(f"shell id", "context=u:r:sh:s0")
 
 
 def test_smode():
     assert check_hdc_cmd(f'smode')
-    run_command_with_timeout("hdc wait", 5)
-    time.sleep(1)
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    time.sleep(3) # sleep 3s to wait for the device to connect channel
+    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
     assert check_shell(f"shell id", "context=u:r:su:s0")
     assert not check_hdc_cmd("ls /data/log/faultlog/faultlogger | grep hdcd", "hdcd")
 

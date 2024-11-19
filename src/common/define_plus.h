@@ -137,7 +137,7 @@ struct HdcUSB {
 #ifdef HDC_HOST
     libusb_context *ctxUSB = nullptr;  // child-use, main null
     libusb_device *device;
-    libusb_device_handle *devHandle;
+    libusb_device_handle *devHandle = nullptr;
     uint16_t retryCount;
     uint8_t devId;
     uint8_t busId;

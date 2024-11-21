@@ -51,11 +51,11 @@ def test_list_targets():
 
 
 def test_usb_disconnect():
-     assert check_hdc_targets()
-     cmd = 'shell "kill -9 `pidof hdcd`"'
-     check_hdc_cmd(f"{cmd}", "[Fail][E001003] USB communication abnormal, please check the USB communication link.")
-     time.sleep(2)
-     assert check_hdc_targets()
+    assert check_hdc_targets()
+    cmd = 'shell "kill -9 `pidof hdcd`"'
+    check_hdc_cmd(f"{cmd}", "[Fail][E001003] USB communication abnormal, please check the USB communication link.")
+    time.sleep(2)
+    assert check_hdc_targets()
 
 
 def test_list_targets_multi_usb_device():

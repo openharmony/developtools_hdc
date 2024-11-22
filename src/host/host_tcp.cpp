@@ -159,12 +159,17 @@ void HdcHostTCP::FindLanDaemon()
     uv_interface_address_t *info;
     int count;
     int i;
+    int ret;
     char ipAddr[BUF_SIZE_TINY] = "";
     if (broadcastFindWorking) {
         return;
     }
     lstDaemonResult.clear();
-    uv_interface_addresses(&info, &count);
+    ret = uv_interface_addresses(&info, &count);
+    if (ret != 0 || count <= 0) {
+        WRITE_LOG(LOG_FATAL, "uv_interface_addresses failed %d, count is %d", ret, count);
+        return;
+    }
     i = count;
     while (--i) {
         uv_interface_address_t interface = info[i];

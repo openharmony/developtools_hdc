@@ -352,6 +352,10 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
         case OP_REMOVE: {
             uv_rwlock_wrlock(&daemonAdmin);
             if (mapDaemon.count(connectKey)) {
+                HDaemonInfo hDaemonInfo = mapDaemon[connectKey];
+                if (hDaemonInfo != nullptr) {
+                    delete hDaemonInfo;
+                }
                 mapDaemon.erase(connectKey);
             }
             uv_rwlock_wrunlock(&daemonAdmin);
@@ -718,6 +722,10 @@ string HdcServer::AdminForwardMap(uint8_t opType, const string &taskString, HFor
         case OP_REMOVE: {
             uv_rwlock_wrlock(&forwardAdmin);
             if (mapForward.count(taskString)) {
+                HForwardInfo hForwardInfo = mapForward[taskString];
+                if (hForwardInfo != nullptr) {
+                    delete hForwardInfo;
+                }
                 mapForward.erase(taskString);
             }
             uv_rwlock_wrunlock(&forwardAdmin);

@@ -59,7 +59,7 @@ protected:
     string channelHost;
     uint16_t channelPort;
     uv_loop_t *loopMain;
-    bool isServerOrClient;
+    bool isServerOrClient; // true is server, false is client
     uv_rwlock_t mainAsync;
     uv_async_t asyncMainLoop;
     list<void *> lstMainThreadOP;

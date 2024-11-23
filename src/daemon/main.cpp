@@ -312,23 +312,23 @@ int main(int argc, const char *argv[])
 #ifdef HDC_EMULATOR
 #ifdef HDC_SUPPORT_UART
         if (!g_enableBridge && !g_enableUart) {
-            Base::PrintMessage("TCP, USB, Bridge and Uart are disable, cannot run continue\n");
+            Base::PrintMessageAndWriteLog("TCP, USB, Bridge and Uart are disable, cannot run continue");
             return -1;
         }
 #else
         if (!g_enableBridge) {
-            Base::PrintMessage("Both TCP, Bridge and USB are disable, cannot run continue\n");
+            Base::PrintMessageAndWriteLog("Both TCP, Bridge and USB are disable, cannot run continue");
             return -1;
         }
 #endif
 #else
 #ifdef HDC_SUPPORT_UART
         if (!g_enableUart) {
-            Base::PrintMessage("TCP, USB and Uart are disable, cannot run continue\n");
+            Base::PrintMessageAndWriteLog("TCP, USB and Uart are disable, cannot run continue");
             return -1;
         }
 #else
-        Base::PrintMessage("Both TCP and USB are disable, cannot run continue\n");
+        Base::PrintMessageAndWriteLog("Both TCP and USB are disable, cannot run continue");
         return -1;
 #endif
 #endif
@@ -340,7 +340,8 @@ int main(int argc, const char *argv[])
     SystemDepend::GetDevItem("const.debuggable", debugMode);
     if (debugMode == "1") {
         if (!NeedDropRootPrivileges()) {
-            Base::PrintMessage("DropRootPrivileges fail, EXITING...\n");
+            Base::PrintMessageAndWriteLog("DropRootPrivileges fail, EXITING...");
+            WRITE_LOG(LOG_FATAL, "DropRootPrivileges fail, EXITING...");
             return -1;
         }
         WRITE_LOG(LOG_INFO, "HdcDaemon run as root mode.");

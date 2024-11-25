@@ -105,6 +105,7 @@ protected:
         vector<FileMode> dirMode; // save dir mode on master
         map<string, FileMode> dirModeMap; // save dir mode on slave
         ssize_t openFd;
+        bool sandboxMode;
     };
     // Just app-mode use
     enum AppModType {

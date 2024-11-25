@@ -74,6 +74,12 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     return ret;
 }
 
+bool HdcFile::IsValidBundleName(string &bundleName)
+{
+    return bundleName.length() > 0 &&
+        bundleName.find("invalid") != std::string::npos;
+}
+
 bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
 {
     int srcArgvIndex = 0;
@@ -82,6 +88,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
     const string cmdOptionSync = "-sync";
     const string cmdOptionZip = "-z";
     const string cmdOptionModeSync = "-m";
+    const string cmdBundleName = "-b";
 
     for (int i = 0; i < argc; i++) {
         if (argv[i] == cmdOptionZip) {
@@ -105,6 +112,10 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             ++srcArgvIndex;
         } else if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
             ++srcArgvIndex;
+        } else if (argv[i] == cmdBundleName) {
+            context->sandboxMode = true;
+            context->transferConfig.reserve1 = argv[i + 1];
+            srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);
             return false;
@@ -124,9 +135,26 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         }
         ExtractRelativePath(context->transferConfig.clientCwd, context->localPath);
     } else {
+        if (context->sandboxMode &&
+            context->transferConfig.reserve1.size() > 0 &&
+            !IsValidBundleName(context->transferConfig.reserve1)) {
+            LogMsg(MSG_FAIL, "Invalid BundleName:%s",
+                context->transferConfig.reserve1.c_str());
+            return false;
+        }
         if ((srcArgvIndex + 1) == argc) {
             context->remotePath = ".";
             context->localPath = argv[argc - 1];
+        }
+
+        if (context->sandboxMode && IsValidBundleName(context->transferConfig.reserve1)) {
+            string fullPath = "/data/local/tmp/debug/100/";
+            fullPath.append(context->transferConfig.reserve1);
+            fullPath.append("/");
+            fullPath.append(context->localPath);
+            context->localPath = fullPath;
+            WRITE_LOG(LOG_DEBUG, "beginTransfer sandboxMode localPath:%s",
+                context->localPath.c_str());
         }
     }
 
@@ -251,6 +279,19 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
     return true;
 }
 
+void HdcFile::GetErrStr(std::string &errStr, std::string &bundleName)
+{
+    if (!taskInfo->serverOrDaemon && IsValidBundleName(bundleName)) {
+        string fullPath = "/data/local/tmp/debug/100/";
+        fullPath.append(bundleName);
+        fullPath.append("/");
+        size_t pos = 0;
+        if ((pos = errStr.find(fullPath)) != std::string::npos) {
+            errStr = errStr.replace(pos, fullPath.length(), "");
+        }
+    }
+}
+
 bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 {
     bool ret = true;
@@ -267,15 +308,29 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     WRITE_LOG(LOG_DEBUG, "HdcFile fileSize got %" PRIu64 "", ctxNow.fileSize);
 #endif
 
+    if (!taskInfo->serverOrDaemon && IsValidBundleName(stat.reserve1)) {
+        string fullPath = "/data/local/tmp/debug/100/";
+        fullPath.append(stat.reserve1);
+        fullPath.append("/");
+        fullPath.append(ctxNow.localPath);
+        ctxNow.localPath = fullPath;
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck sandboxMode localPath:%s",
+            ctxNow.localPath.c_str());
+    } else if (!taskInfo->serverOrDaemon && stat.reserve1.size() > 0) {
+        LogMsg(MSG_FAIL, "Invalid BundleName:%s",
+                ctxNow.transferConfig.reserve1.c_str());
+        return false;
+    }
+
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
+        GetErrStr(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
-        WRITE_LOG(LOG_WARN, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
+        GetErrStr(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
-        WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
     // check path

@@ -14,7 +14,6 @@
  */
 #include "file.h"
 #include "serial_struct.h"
-#include <stdlib.h>
 
 namespace Hdc {
 HdcFile::HdcFile(HTaskInfo hTaskInfo)

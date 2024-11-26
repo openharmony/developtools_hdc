@@ -106,6 +106,8 @@ protected:
         map<string, FileMode> dirModeMap; // save dir mode on slave
         ssize_t openFd;
         bool sandboxMode;
+        string bundleName;
+        string inputLocalPath;
     };
     // Just app-mode use
     enum AppModType {

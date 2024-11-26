@@ -74,12 +74,6 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     return ret;
 }
 
-bool HdcFile::IsValidBundleName(string &bundleName)
-{
-    return bundleName.length() > 0 &&
-        bundleName.find("invalid") == std::string::npos;
-}
-
 bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
 {
     int srcArgvIndex = 0;
@@ -150,29 +144,29 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             context->remotePath = ".";
             context->localPath = argv[argc - 1];
         }
+        context->localName = Base::GetFullFilePath(context->localPath);
 
         if (context->sandboxMode && IsValidBundleName(context->transferConfig.reserve1)) {
-            string fullPath = "/data/local/tmp/";
+            string fullPath = SANDBOX_ROOT_DIR;
             fullPath.append(context->transferConfig.reserve1);
-            fullPath.append("/");
             string appDir(fullPath);
+            fullPath.append("/");
             fullPath.append(context->inputLocalPath);
+            fullPath = Base::GetPathWithoutFilename(fullPath);
             string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
             if (resolvedPath.size() <= 0 ||
-                strncmp(resolvedPath, appDir.c_str(), appDir.size()) != 0) {
+                strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
                 LogMsg(MSG_FAIL, "Invalid path:%s",
                     context->inputLocalPath.c_str());
                 WRITE_LOG(LOG_WARN, "SetMasterParameters Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
-                    context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath, errno);
+                    context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
                 return false;
             }
-            context->localPath = string(resolvedPath);
+            context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
             WRITE_LOG(LOG_WARN, "SetMasterParameters sandboxMode localPath:%s",
                 context->localPath.c_str());
         }
     }
-
-    context->localName = Base::GetFullFilePath(context->localPath);
 
     mode_t mode = mode_t(~S_IFMT);
     if (!Base::CheckDirectoryOrPath(context->localPath.c_str(), true, true, errStr, mode) && (mode & S_IFDIR)) {
@@ -293,19 +287,6 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
     return true;
 }
 
-void HdcFile::GetErrStr(std::string &errStr, std::string &bundleName)
-{
-    if (!taskInfo->serverOrDaemon && IsValidBundleName(bundleName)) {
-        string fullPath = "/data/local/tmp/";
-        fullPath.append(bundleName);
-        fullPath.append("/");
-        size_t pos = 0;
-        if ((pos = errStr.find(fullPath)) != std::string::npos) {
-            errStr = errStr.replace(pos, fullPath.length(), "");
-        }
-    }
-}
-
 bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 {
     bool ret = true;
@@ -325,7 +306,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 #endif
 
     if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
-        string fullPath = "/data/local/tmp/";
+        string fullPath = SANDBOX_ROOT_DIR;
         fullPath.append(ctxNow.bundleName);
         fullPath.append("/");
         string appDir(fullPath);
@@ -340,20 +321,20 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     }
 
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
-        GetErrStr(errStr, stat.reserve1);
+        RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
     if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
-        string fullPath = "/data/local/tmp/";
+        string fullPath = SANDBOX_ROOT_DIR;
         fullPath.append(ctxNow.bundleName);
         string appDir(fullPath);
         fullPath.append("/");
         fullPath.append(ctxNow.inputLocalPath);
         fullPath = Base::GetPathWithoutFilename(fullPath);
- 
+
         string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
         if (resolvedPath.size() <= 0 ||
             strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
@@ -365,7 +346,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     }
 
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
-        GetErrStr(errStr, stat.reserve1);
+        RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;

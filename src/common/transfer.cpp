@@ -53,15 +53,16 @@ HdcTransferBase::~HdcTransferBase()
 
 void HdcTransferBase::CloseCtxFd(CtxFile *context)
 {
-    if (ctxNow.isFdOpen) {
-        WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
-            ctxNow.localPath.c_str(), ctxNow.openFd, ctxNow.closeReqSubmitted);
-        uv_fs_t fs;
-        uv_fs_close(nullptr, &fs, ctxNow.openFd, nullptr);
-        uv_fs_req_cleanup(&fs);
-        // solve the fd leak caused by early exit due to illegal operation on a directory.
-        ctxNow.isFdOpen = false;
+    if (context == nullptr || !context->isFdOpen) {
+        return;
     }
+    WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
+        context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
+    uv_fs_t fs;
+    uv_fs_close(nullptr, &fs, context->openFd, nullptr);
+    uv_fs_req_cleanup(&fs);
+    // solve the fd leak caused by early exit due to illegal operation on a directory.
+    context->isFdOpen = false;
 }
 
 bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)

@@ -138,12 +138,15 @@ protected:
     bool AddFeatures(FeatureFlagsUnion &feature);
     bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
     void CloseFd(ssize_t fd);
+    void RemoveSandboxRootPath(std::string &errStr, std::string &bundleName);
+    bool IsValidBundleName(string &bundleName);
 
     CtxFile ctxNow;
     uint16_t commandBegin;
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+    const string SANDBOX_ROOT_DIR = "/data/local/tmp/";
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
 #endif

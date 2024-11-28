@@ -146,7 +146,7 @@ protected:
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
-    const string SANDBOX_ROOT_DIR = "/data/local/tmp/";
+    const string SANDBOX_ROOT_DIR = "/mnt/debug/100/debug_hap/";
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
 #endif

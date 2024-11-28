@@ -150,6 +150,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             string fullPath = SANDBOX_ROOT_DIR;
             fullPath.append(context->transferConfig.reserve1);
             string appDir(fullPath);
+            appDir = Base::CanonicalizeSpecPath(appDir);
             fullPath.append("/");
             fullPath.append(context->inputLocalPath);
             fullPath = Base::GetPathWithoutFilename(fullPath);
@@ -331,6 +332,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         string fullPath = SANDBOX_ROOT_DIR;
         fullPath.append(ctxNow.bundleName);
         string appDir(fullPath);
+        appDir = Base::CanonicalizeSpecPath(appDir);
         fullPath.append("/");
         fullPath.append(ctxNow.inputLocalPath);
         fullPath = Base::GetPathWithoutFilename(fullPath);
@@ -339,8 +341,8 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         if (resolvedPath.size() <= 0 ||
             strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
             LogMsg(MSG_FAIL, "Invalid path:%s", ctxNow.inputLocalPath.c_str());
-            WRITE_LOG(LOG_WARN, "SlaveCheck Invalid path:%s, fullPath:%s, resolvedPath:%s, errno:%d",
-                ctxNow.inputLocalPath.c_str(),  fullPath.c_str(), resolvedPath.c_str(), errno);
+            WRITE_LOG(LOG_WARN, "SlaveCheck Invalid path:%s, fullPath:%s, resolvedPath:%s, appDir:%s, errno:%d",
+                ctxNow.inputLocalPath.c_str(),  fullPath.c_str(), resolvedPath.c_str(), appDir.c_str(), errno);
             return false;
         }
     }

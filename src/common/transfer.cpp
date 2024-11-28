@@ -361,9 +361,12 @@ void HdcTransferBase::RemoveSandboxRootPath(std::string &errStr, std::string &bu
         string fullPath = SANDBOX_ROOT_DIR;
         fullPath.append(bundleName);
         fullPath.append("/");
+        fullPath = Base::CanonicalizeSpecPath(fullPath);
         size_t pos = 0;
         if ((pos = errStr.find(fullPath)) != std::string::npos) {
             errStr = errStr.replace(pos, fullPath.length(), "");
+        } else {
+            WRITE_LOG(LOG_DEBUG, "fullPath:%s, errStr:%s", fullPath.c_str(), errStr.c_str());
         }
     }
 }
@@ -386,8 +389,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         thisClass->RemoveSandboxRootPath(localPath, context->bundleName);
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           localPath.c_str());
-        WRITE_LOG(LOG_FATAL, "open path:%s error:%s, dir:%d, master:%d", context->localPath.c_str(), buf,
-           context->isDir, context->master);
+        WRITE_LOG(LOG_FATAL, "open path:%s, localPath:%s, error:%s, dir:%d, master:%d", context->localPath.c_str(),
+            localPath.c_str(), buf, context->isDir, context->master);
         OnFileOpenFailed(context);
         return;
     }

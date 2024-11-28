@@ -122,6 +122,7 @@ void *HdcForwardBase::MallocContext(bool masterSlave)
     ctx->id = Base::GetRandomU32();
     ctx->masterSlave = masterSlave;
     ctx->thisClass = this;
+    ctx->fd = -1;
     ctx->fdClass = nullptr;
     ctx->tcp.data = ctx;
     ctx->pipe.data = ctx;
@@ -164,6 +165,16 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
                 context->fdClass = nullptr;
                 Base::TryCloseHandle((uv_handle_t *)handle, funcIdleHandleClose);
             }
+        };
+        Base::IdleUvTask(loopTask, ctx, funcReqClose);
+    } else {
+        auto funcReqClose = [](uv_idle_t *handle) -> void {
+            uv_close_cb funcIdleHandleClose = [](uv_handle_t *handle) -> void {
+                HCtxForward ctx = (HCtxForward)handle->data;
+                ctx->thisClass->FreeContextCallBack(ctx);
+                delete (uv_idle_t *)handle;
+            };
+            Base::TryCloseHandle((uv_handle_t *)handle, funcIdleHandleClose);
         };
         Base::IdleUvTask(loopTask, ctx, funcReqClose);
     }

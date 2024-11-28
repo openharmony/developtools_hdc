@@ -42,7 +42,7 @@ HdcTransferBase::~HdcTransferBase()
             taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd, ctxNow.ioFinish);
         
         if (ctxNow.lastErrno != 0 || (ctxNow.openFd > 0 && !ctxNow.ioFinish)) {
-            CloseFd(ctxNow.openFd);
+            CloseCtxFd(&ctxNow);
             ctxNow.isFdOpen = false;
         }
     } else {
@@ -51,11 +51,18 @@ HdcTransferBase::~HdcTransferBase()
     }
 };
 
-void HdcTransferBase::CloseFd(ssize_t fd)
+void HdcTransferBase::CloseCtxFd(CtxFile *context)
 {
+    if (context == nullptr || !context->isFdOpen) {
+        return;
+    }
+    WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
+        context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
     uv_fs_t fs;
-    uv_fs_close(nullptr, &fs, fd, nullptr);
+    uv_fs_close(nullptr, &fs, context->openFd, nullptr);
     uv_fs_req_cleanup(&fs);
+    // solve the fd leak caused by early exit due to illegal operation on a directory.
+    context->isFdOpen = false;
 }
 
 bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
@@ -786,10 +793,9 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             // Note, I will trigger FileIO after multiple times.
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
-                WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
-                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd);
-                CloseFd(ctxNow.openFd);
-                ctxNow.isFdOpen = false;
+                WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d isFdOpen %d",
+                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd, ctxNow.isFdOpen);
+                CloseCtxFd(&ctxNow);
                 HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
                 thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);
                 ret = false;

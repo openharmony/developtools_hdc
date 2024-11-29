@@ -168,7 +168,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
                 context->localPath.c_str());
         }
     }
-
+    context->localName = Base::GetFullFilePath(context->localPath);
     mode_t mode = mode_t(~S_IFMT);
     if (!Base::CheckDirectoryOrPath(context->localPath.c_str(), true, true, errStr, mode) && (mode & S_IFDIR)) {
         context->isDir = true;

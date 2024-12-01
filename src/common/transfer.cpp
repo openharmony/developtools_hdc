@@ -358,10 +358,7 @@ bool HdcTransferBase::IsValidBundleName(string &bundleName)
 void HdcTransferBase::RemoveSandboxRootPath(std::string &errStr, std::string &bundleName)
 {
     if (!taskInfo->serverOrDaemon && IsValidBundleName(bundleName)) {
-        string fullPath = SANDBOX_ROOT_DIR;
-        fullPath.append(bundleName);
-        fullPath.append("/");
-        fullPath = Base::CanonicalizeSpecPath(fullPath);
+        string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();
         size_t pos = 0;
         if ((pos = errStr.find(fullPath)) != std::string::npos) {
             errStr = errStr.replace(pos, fullPath.length(), "");

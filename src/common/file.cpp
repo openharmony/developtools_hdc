@@ -74,10 +74,8 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     return ret;
 }
 
-bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
+bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
 {
-    int srcArgvIndex = 0;
-    string errStr;
     const string cmdOptionTstmp = "-a";
     const string cmdOptionSync = "-sync";
     const string cmdOptionZip = "-z";
@@ -121,25 +119,33 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         return false;
     }
     if (context->sandboxMode) {
-        WRITE_LOG(LOG_WARN, "sandboxMode, srcArgvIndex:%d, argc:%d", srcArgvIndex, argc);
         if ((srcArgvIndex + 1) == argc) {
             context->remotePath = ".";
             context->localPath = argv[argc - 1];
-            context->inputLocalPath = argv[argc - 1];
+            context->inputLocalPath = context->localPath;
         } else if ((srcArgvIndex + 2) == argc) {
             context->remotePath = argv[argc - 1];
             context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
-            context->inputLocalPath = argv[argc - CMD_FILE_PENULT_PARAM];
+            context->inputLocalPath = context->localPath;
         } else {
             WRITE_LOG(LOG_WARN, "too many parameters.");
         }
-        WRITE_LOG(LOG_INFO, "sandboxmode, localPath:%s, remotePath:%s", context->localPath.c_str(), context->remotePath.c_str());
     } else {
         context->remotePath = argv[argc - 1];
         context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
         context->inputLocalPath = argv[argc - CMD_FILE_PENULT_PARAM];
     }
-    
+    return true;
+}
+
+bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
+{
+    int srcArgvIndex = 0;
+    string errStr;
+    if (!ParseMasterParameters(context, argc, argv, srcArgvIndex)) {
+        return false;
+    }
+
     if (taskInfo->serverOrDaemon) {
         // master and server
         if ((srcArgvIndex + 1) == argc && !context->sandboxMode) {
@@ -162,15 +168,12 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             context->localPath = argv[argc - 1];
         }
         context->localName = Base::GetFullFilePath(context->localPath);
-        WRITE_LOG(LOG_INFO, "localName:%s, localPath:%s", context->localName.c_str(), context->localPath.c_str());
 
         if (context->sandboxMode && IsValidBundleName(context->transferConfig.reserve1)) {
-            string fullPath = SANDBOX_ROOT_DIR;
-            fullPath.append(context->transferConfig.reserve1);
+            string fullPath = SANDBOX_ROOT_DIR + context->transferConfig.reserve1;
             string appDir(fullPath);
             appDir = Base::CanonicalizeSpecPath(appDir);
-            fullPath.append("/");
-            fullPath.append(context->inputLocalPath);
+            fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
             fullPath = Base::GetPathWithoutFilename(fullPath);
             string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
             if (resolvedPath.size() <= 0 ||
@@ -182,15 +185,9 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
                 return false;
             }
             context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
-            WRITE_LOG(LOG_WARN, "SetMasterParameters sandboxMode localPath:%s",
-                context->localPath.c_str());
-            WRITE_LOG(LOG_INFO, "SetMasterParameters sandbox mode, localName:%s, localPath:%s", context->localName.c_str(), context->localPath.c_str());    
-        } else {
-            WRITE_LOG(LOG_INFO, "SetMasterParameters normal mode, localName:%s, localPath:%s", context->localName.c_str(), context->localPath.c_str());
         }
     }
     context->localName = Base::GetFullFilePath(context->localPath);
-WRITE_LOG(LOG_INFO, "222 localName:%s, localPath:%s", context->localName.c_str(), context->localPath.c_str());
     mode_t mode = mode_t(~S_IFMT);
     if (!Base::CheckDirectoryOrPath(context->localPath.c_str(), true, true, errStr, mode) && (mode & S_IFDIR)) {
         context->isDir = true;
@@ -203,12 +200,9 @@ WRITE_LOG(LOG_INFO, "222 localName:%s, localPath:%s", context->localName.c_str()
         context->dirSize = 0;
         context->localDirName = Base::GetPathWithoutFilename(context->localPath);
 
-        WRITE_LOG(LOG_DEBUG, "localDirName = %s", context->localDirName.c_str());
-
         context->localName = context->taskQueue.back();
         context->localPath = context->localDirName + context->localName;
 
-        WRITE_LOG(LOG_DEBUG, "localPath = %s", context->localPath.c_str());
         context->taskQueue.pop_back();
     }
     return true;
@@ -329,20 +323,15 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 #endif
 
     if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
-        string fullPath = SANDBOX_ROOT_DIR;
-        fullPath.append(ctxNow.bundleName);
-        fullPath.append("/");
+        string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName + Base::GetPathSep();
         string appDir(fullPath);
         fullPath.append(ctxNow.inputLocalPath);
         ctxNow.localPath = fullPath;
-        WRITE_LOG(LOG_DEBUG, "SlaveCheck sandboxMode localPath:%s",
-            ctxNow.localPath.c_str());
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
         LogMsg(MSG_FAIL, "Invalid BundleName:%s",
             ctxNow.bundleName.c_str());
         return false;
     }
-WRITE_LOG(LOG_INFO, " 111 localName:%s, localPath:%s", stat.optionalName.c_str(), ctxNow.localPath.c_str());
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
@@ -351,12 +340,10 @@ WRITE_LOG(LOG_INFO, " 111 localName:%s, localPath:%s", stat.optionalName.c_str()
     }
 
     if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
-        string fullPath = SANDBOX_ROOT_DIR;
-        fullPath.append(ctxNow.bundleName);
+        string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName;
         string appDir(fullPath);
         appDir = Base::CanonicalizeSpecPath(appDir);
-        fullPath.append("/");
-        fullPath.append(ctxNow.inputLocalPath);
+        fullPath = fullPath + Base::GetPathSep() + ctxNow.inputLocalPath;
         fullPath = Base::GetPathWithoutFilename(fullPath);
 
         string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
@@ -368,7 +355,6 @@ WRITE_LOG(LOG_INFO, " 111 localName:%s, localPath:%s", stat.optionalName.c_str()
             return false;
         }
     }
-WRITE_LOG(LOG_INFO, " 222 localName:%s, localPath:%s", stat.optionalName.c_str(), ctxNow.localPath.c_str());
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
@@ -396,7 +382,6 @@ WRITE_LOG(LOG_INFO, " 222 localName:%s, localPath:%s", stat.optionalName.c_str()
     openReq->data = &ctxNow;
     // begin work
     ++refCount;
-    WRITE_LOG(LOG_INFO, " 333 localName:%s, localPath:%s", stat.optionalName.c_str(), ctxNow.localPath.c_str());
     uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (ctxNow.transferDirBegin == 0) {

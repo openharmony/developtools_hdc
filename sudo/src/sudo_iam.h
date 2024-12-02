@@ -45,7 +45,7 @@ private:
 
 namespace AccountSA {
 
-class SudoIDMCallback : public IDMCallback {
+class SudoIDMCallback : public AuthenticationCallback {
 public:
     virtual ~SudoIDMCallback() = default;
     SudoIDMCallback();

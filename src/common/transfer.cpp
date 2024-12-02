@@ -42,7 +42,7 @@ HdcTransferBase::~HdcTransferBase()
             taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd, ctxNow.ioFinish);
         
         if (ctxNow.lastErrno != 0 || (ctxNow.openFd > 0 && !ctxNow.ioFinish)) {
-            CloseFd(ctxNow.openFd);
+            CloseCtxFd(&ctxNow);
             ctxNow.isFdOpen = false;
         }
     } else {
@@ -51,11 +51,18 @@ HdcTransferBase::~HdcTransferBase()
     }
 };
 
-void HdcTransferBase::CloseFd(ssize_t fd)
+void HdcTransferBase::CloseCtxFd(CtxFile *context)
 {
+    if (context == nullptr || !context->isFdOpen) {
+        return;
+    }
+    WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
+        context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
     uv_fs_t fs;
-    uv_fs_close(nullptr, &fs, fd, nullptr);
+    uv_fs_close(nullptr, &fs, context->openFd, nullptr);
     uv_fs_req_cleanup(&fs);
+    // solve the fd leak caused by early exit due to illegal operation on a directory.
+    context->isFdOpen = false;
 }
 
 bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
@@ -136,6 +143,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         if (ioContext != nullptr) {
             delete ioContext;
             ioContext = nullptr;
+            WRITE_LOG(LOG_WARN, "SimpleFileIO ret=false, delete context.");
         }
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
@@ -212,9 +220,13 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     payloadHead.compressSize = compressSize;
     head = SerialStruct::SerializeToString(payloadHead);
     if (head.size() + 1 > payloadPrefixReserve) {
+        WRITE_LOG(LOG_WARN, "SendIOPayload head size:%d, payloadprefix:%d.",
+            head.size(), payloadPrefixReserve);
         goto out;
     }
     if (EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
+        WRITE_LOG(LOG_WARN, "SendIOPayload memcpy_s fail, sendBufSize:%d, head size:%d.",
+            sendBufSize, head.size());
         goto out;
     }
     ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;
@@ -256,6 +268,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                       context->fileSize);
 #endif // HDC_DEBUG
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
+                WRITE_LOG(LOG_WARN, "OnFileIO SendIOPayload fail.");
                 context->ioFinish = true;
                 break;
             }
@@ -352,7 +365,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         uv_strerror_r((int)req->result, buf, bufSize);
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           context->localPath.c_str());
-        WRITE_LOG(LOG_FATAL, "open path:%s error:%s", context->localPath.c_str(), buf);
+        WRITE_LOG(LOG_FATAL, "open path:%s error:%s, dir:%d, master:%d",
+            context->localPath.c_str(), buf, context->isDir, context->master);
         OnFileOpenFailed(context);
         return;
     }
@@ -716,6 +730,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
             break;
         }
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {
+            WRITE_LOG(LOG_WARN, "RecvIOPayload SimpleFileIO fail.");
             break;
         }
         ret = true;
@@ -757,10 +772,9 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             // Note, I will trigger FileIO after multiple times.
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
-                WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d",
-                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd);
-                CloseFd(ctxNow.openFd);
-                ctxNow.isFdOpen = false;
+                WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d isFdOpen %d",
+                    taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd, ctxNow.isFdOpen);
+                CloseCtxFd(&ctxNow);
                 HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
                 thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);
                 ret = false;

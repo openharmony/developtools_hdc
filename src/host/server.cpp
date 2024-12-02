@@ -84,41 +84,47 @@ void HdcServer::TryStopInstance()
 
 bool HdcServer::Initial(const char *listenString)
 {
+    bool ret = false;
     if (Base::ProgramMutex(SERVER_NAME.c_str(), false) != 0) {
         WRITE_LOG(LOG_FATAL, "Other instance already running, program mutex failed");
         return false;
     }
     Base::RemoveLogFile();
-    clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
-    int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
-    if (rc != RET_SUCCESS) {
-        WRITE_LOG(LOG_FATAL, "clsServerForClient Initial failed");
-        return false;
-    }
-    clsUSBClt->InitLogging(ctxUSB);
-    clsTCPClt = new HdcHostTCP(true, this);
-    clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
-    if (clsUSBClt->Initial() != RET_SUCCESS) {
-        WRITE_LOG(LOG_FATAL, "clsUSBClt Initial failed");
-        return false;
-    }
-    if (!clsServerForClient || !clsTCPClt || !clsUSBClt) {
-        WRITE_LOG(LOG_FATAL, "Class init failed");
-        return false;
-    }
-
+    do {
+        clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
+        int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
+        if (rc != RET_SUCCESS) {
+            WRITE_LOG(LOG_FATAL, "clsServerForClient Initial failed");
+            break;
+        }
+        clsUSBClt->InitLogging(ctxUSB);
+        clsTCPClt = new HdcHostTCP(true, this);
+        clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
+        if (clsUSBClt->Initial() != RET_SUCCESS) {
+            WRITE_LOG(LOG_FATAL, "clsUSBClt Initial failed");
+            break;
+        }
+        if (!clsServerForClient || !clsTCPClt || !clsUSBClt) {
+            WRITE_LOG(LOG_FATAL, "Class init failed");
+            break;
+        }
 #ifdef HDC_SUPPORT_UART
-    clsUARTClt = new HdcHostUART(*this);
-    if (!clsUARTClt) {
-        WRITE_LOG(LOG_FATAL, "Class init failed");
-        return false;
-    }
-    if (clsUARTClt->Initial() != RET_SUCCESS) {
-        WRITE_LOG(LOG_FATAL, "clsUARTClt Class init failed.");
-        return false;
-    }
+        clsUARTClt = new HdcHostUART(*this);
+        if (!clsUARTClt) {
+            WRITE_LOG(LOG_FATAL, "Class init failed");
+            break;
+        }
+        if (clsUARTClt->Initial() != RET_SUCCESS) {
+            WRITE_LOG(LOG_FATAL, "clsUARTClt Class init failed.");
+            break;
+        }
 #endif
-    return true;
+        ret = true;
+    } while (0);
+    if (!ret) {
+        ClearInstanceResource();
+    }
+    return ret;
 }
 
 bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
@@ -346,6 +352,10 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
         case OP_REMOVE: {
             uv_rwlock_wrlock(&daemonAdmin);
             if (mapDaemon.count(connectKey)) {
+                HDaemonInfo hDaemonInfo = mapDaemon[connectKey];
+                if (hDaemonInfo != nullptr) {
+                    delete hDaemonInfo;
+                }
                 mapDaemon.erase(connectKey);
             }
             uv_rwlock_wrunlock(&daemonAdmin);
@@ -712,6 +722,10 @@ string HdcServer::AdminForwardMap(uint8_t opType, const string &taskString, HFor
         case OP_REMOVE: {
             uv_rwlock_wrlock(&forwardAdmin);
             if (mapForward.count(taskString)) {
+                HForwardInfo hForwardInfo = mapForward[taskString];
+                if (hForwardInfo != nullptr) {
+                    delete hForwardInfo;
+                }
                 mapForward.erase(taskString);
             }
             uv_rwlock_wrunlock(&forwardAdmin);

@@ -668,6 +668,17 @@ static void EchoLog(string &buf)
         va_end(ap);
     }
 
+    void PrintMessageAndWriteLog(const char *fmt, ...)
+    {
+        va_list ap;
+        va_start(ap, fmt);
+        if (vfprintf(stdout, fmt, ap) > 0) {
+            fprintf(stdout, "\n");
+        }
+        WRITE_LOG(LOG_WARN, fmt);
+        va_end(ap);
+    }
+
     // if can linkwith -lstdc++fs, use std::filesystem::path(path).filename();
     string GetFileNameAny(string &path)
     {

@@ -289,25 +289,32 @@ string HdcClient::GetHilogPath()
     return exePath;
 }
 
-void HdcClient::RunCommandWin32(const string& cmd)
+bool HdcClient::CreatePipePair(HANDLE *hParentRead, HANDLE *hSubWrite, HANDLE *hSubRead, HANDLE *hParentWrite,
+    SECURITY_ATTRIBUTES *sa)
 {
-    HANDLE hSubWrite;
-    HANDLE hParentRead;
-    HANDLE hParentWrite;
-    HANDLE hSubRead;
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    SECURITY_ATTRIBUTES sa;
-    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.lpSecurityDescriptor = NULL;
-    sa.bInheritHandle = true;
-
-    if (!CreatePipe(&hParentRead, &hSubWrite, &sa, 0) ||
-        !CreatePipe(&hSubRead, &hParentWrite, &sa, 0) ||
-        !SetHandleInformation(hParentRead, HANDLE_FLAG_INHERIT, 0) ||
-        !SetHandleInformation(hParentWrite, HANDLE_FLAG_INHERIT, 0)) {
-        return;
+    if (!CreatePipe(hParentRead, hSubWrite, sa, 0)) {
+        return false;
     }
+    if (!CreatePipe(hSubRead, hParentWrite, sa, 0)) {
+        CloseHandle(*hParentRead);
+        CloseHandle(*hSubWrite);
+        return false;
+    }
+    if (!SetHandleInformation(*hParentRead, HANDLE_FLAG_INHERIT, 0) ||
+        !SetHandleInformation(*hParentWrite, HANDLE_FLAG_INHERIT, 0)) {
+        CloseHandle(*hParentRead);
+        CloseHandle(*hSubWrite);
+        CloseHandle(*hSubRead);
+        CloseHandle(*hParentWrite);
+        return false;
+    }
+    return true;
+}
+
+bool HdcClient::CreateChildProcess(HANDLE hSubWrite, HANDLE hSubRead, PROCESS_INFORMATION *pi, const string& cmd)
+{
+    STARTUPINFO si;
+    bool ret = false;
 
     ZeroMemory(&si, sizeof(STARTUPINFO));
     si.cb = sizeof(STARTUPINFO);
@@ -318,27 +325,57 @@ void HdcClient::RunCommandWin32(const string& cmd)
     si.wShowWindow = SW_HIDE;
     si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 
-    const char *msg = cmd.c_str();
-    char buffer[BUF_SIZE_SMALL] = {0};
-    if (strcpy_s(buffer, sizeof(buffer), msg) != EOK) {
+    do {
+        const char *msg = cmd.c_str();
+        char buffer[BUF_SIZE_SMALL] = {0};
+        if (strcpy_s(buffer, sizeof(buffer), msg) != EOK) {
+            break;
+        }
+        const string exePath = GetHilogPath();
+        if (!CreateProcess(_T(exePath.c_str()), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, pi)) {
+            WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
+            break;
+        }
+        ret = true;
+    } while (0);
+
+    return ret;
+}
+
+void HdcClient::RunCommandWin32(const string& cmd)
+{
+    HANDLE hSubWrite;
+    HANDLE hParentRead;
+    HANDLE hParentWrite;
+    HANDLE hSubRead;
+    PROCESS_INFORMATION pi;
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = true;
+
+    if (!CreatePipePair(&hParentRead, &hSubWrite, &hSubRead, &hParentWrite, &sa)) {
         return;
     }
-    const string exePath = GetHilogPath();
-    if (!CreateProcess(_T(exePath.c_str()), _T(buffer), NULL, NULL, true, NULL, NULL, NULL, &si, &pi)) {
-        WRITE_LOG(LOG_INFO, "create process failed, error:%d", GetLastError());
-        return;
+
+    if (!CreateChildProcess(hSubWrite, hSubRead, &pi, cmd)) {
+        CloseHandle(hSubWrite);
+        CloseHandle(hParentRead);
+        CloseHandle(hParentWrite);
+        CloseHandle(hSubRead);
+    } else {
+        auto thread = std::thread([&hParentRead]() {
+            ReadFileThreadFunc(&hParentRead);
+        });
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        CloseHandle(hSubWrite);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        thread.join();
+        CloseHandle(hParentRead);
+        CloseHandle(hParentWrite);
+        CloseHandle(hSubRead);
     }
-    auto thread = std::thread([&hParentRead]() {
-        ReadFileThreadFunc(&hParentRead);
-    });
-    WaitForSingleObject(pi.hProcess, INFINITE);
-    CloseHandle(hSubWrite);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    thread.join();
-    CloseHandle(hParentRead);
-    CloseHandle(hParentWrite);
-    CloseHandle(hSubRead);
 }
 #else
 void HdcClient::RunCommand(const string& cmd)

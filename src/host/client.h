@@ -61,6 +61,9 @@ private:
 #ifdef _WIN32
     static string GetHilogPath();
     void RunCommandWin32(const string& cmd);
+    bool CreatePipePair(HANDLE *hParentRead, HANDLE *hSubWrite, HANDLE *hSubRead, HANDLE *hParentWrite,
+        SECURITY_ATTRIBUTES *sa);
+    bool CreateChildProcess(HANDLE hSubWrite, HANDLE hSubRead, PROCESS_INFORMATION *pi, const string& cmd);
 #else
     static void RunCommand(const string& cmd);
 #endif

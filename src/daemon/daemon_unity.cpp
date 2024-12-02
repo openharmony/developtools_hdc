@@ -169,6 +169,8 @@ bool HdcDaemonUnity::CallRemount()
     }
     pid = fork();
     if (pid < 0) {
+        close(pipefd[0]);
+        close(pipefd[1]);
         WRITE_LOG(LOG_FATAL, "Failed to fork: %s", strerror(errno));
         return false;
     }
@@ -198,6 +200,13 @@ bool HdcDaemonUnity::CallRemount()
 
 bool HdcDaemonUnity::RemountDevice()
 {
+    string debugMode;
+    SystemDepend::GetDevItem("const.debuggable", debugMode);
+    if (debugMode != "1") {
+        LogMsg(MSG_FAIL, "[E007100] Operate need running under debug mode");
+        return false;
+    }
+
     if (getuid() != 0) {
         LogMsg(MSG_FAIL, "Operate need running as root");
         return false;

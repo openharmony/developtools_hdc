@@ -86,7 +86,7 @@ struct TaskInformation {
     bool hasInitial;
     bool taskStop;
     bool taskFree;
-    bool serverOrDaemon;
+    bool serverOrDaemon; // true is server, false is daemon
     bool masterSlave;
     uv_loop_t *runLoop;
     void *taskClass;
@@ -136,7 +136,7 @@ struct HostUSBEndpoint {
 struct HdcUSB {
 #ifdef HDC_HOST
     libusb_context *ctxUSB = nullptr;  // child-use, main null
-    libusb_device *device;
+    libusb_device *device = nullptr;
     libusb_device_handle *devHandle = nullptr;
     uint16_t retryCount;
     uint8_t devId;
@@ -198,7 +198,7 @@ struct HdcSessionStat {
 };
 
 struct HdcSession {
-    bool serverOrDaemon;  // instance of daemon or server
+    bool serverOrDaemon;  // instance of daemon or server, true is server, false is daemon
     bool handshakeOK;     // Is an expected peer side
     bool isDead;
     bool voteReset;
@@ -322,7 +322,7 @@ struct HdcChannel {
     uint8_t uvHandleRef = 0;  // libuv handle ref -- just main thread now
     bool handshakeOK;
     bool isDead;
-    bool serverOrClient;  // client's channel/ server's channel
+    bool serverOrClient;  // true: server's channel, false: client's channel
     bool childCleared;
     bool interactiveShellMode;  // Is shell interactive mode
     bool keepAlive;             // channel will not auto-close by server

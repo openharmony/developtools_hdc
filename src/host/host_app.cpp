@@ -85,7 +85,7 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
         }
     }
     if (!context->taskQueue.size()) {
-        LogMsg(MSG_FAIL, "Not any installation package was found");
+        LogMsg(MSG_FAIL, "[E006001] Not any installation package was found");
         goto Finish;
     }
     // remove repeate

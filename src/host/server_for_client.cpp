@@ -721,7 +721,7 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
         return nullptr;
     }
     if (hdi->connStatus != STATUS_CONNECTED) {
-        EchoClient(hChannel, MSG_FAIL, "Device not founded or connected");
+        EchoClient(hChannel, MSG_FAIL, "[E001005] Device not found or connected");
         return nullptr;
     }
     if (hdi->hSession->isDead) {

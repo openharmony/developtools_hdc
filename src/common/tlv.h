@@ -16,6 +16,13 @@
 #ifndef __H_TLV_H__
 #define __H_TLV_H__
 
+#include "common.h"
+// #include <cstdint>
+// #include <map>
+// #include <set>
+
+namespace Hdc {
+
 struct TLV {
     uint32_t tag;
     uint32_t len;
@@ -30,17 +37,22 @@ public:
     TlvBuf(uint8_t *tlvs, uint32_t size, std::set<uint32_t> validtags);
     ~TlvBuf();
 public:
-    bool Append(const struct TLV *t, const uint32 size);
-    bool CopyToBuf(uint8_t *dst, const uint32_t size) const;
+    bool Append(const struct TLV *t, const uint32_t size);
+    bool Append(const uint32_t tag, const uint32_t len, const uint8_t *val);
     uint32_t GetBufSize(void) const;
-    // the caller must free the memory pointed by the return value if not null
-    struct TLV * FindTlv(uint32_t tag) const;
-    // if return true, invalid_tags is empty, else the invalid tags will bring out by invalid_tags
-    bool ContainInvalidTag(std::set<uint32_t> &invalid_tags) const;
+    bool CopyToBuf(uint8_t *dst, const uint32_t size) const;
+    // // the caller must free the memory pointed by the return value if not null
+    struct TLV *FindTlv(const uint32_t tag) const;
+    // // if return true, invalid_tags is empty, else the invalid tags will bring out by invalid_tags
+    bool ContainInvalidTag(void) const;
+    void Clear(void);
     void Display(void) const;
 private:
-    std::map<uint32_t tag, struct TLV tlv> mTlvMap;
+    // key is the tag
+    std::map<uint32_t, struct TLV> mTlvMap;
     std::set<uint32_t> mValidTags;
+};
+
 }
 
 #endif

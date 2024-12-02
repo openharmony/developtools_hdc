@@ -42,6 +42,7 @@ hdc_common_sources = [
   "src/common/tcp.cpp",
   "src/common/transfer.cpp",
   "src/common/usb.cpp",
+  "src/common/tlv.cpp",
 ]
 
 hash_sources = [

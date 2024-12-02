@@ -34,6 +34,7 @@ hdc_common_sources = [
   "${hdc_path}/src/common/tcp.cpp",
   "${hdc_path}/src/common/transfer.cpp",
   "${hdc_path}/src/common/usb.cpp",
+  "${hdc_path}/src/common/tlv.cpp",
 ]
 
 hdc_daemon_sources = [

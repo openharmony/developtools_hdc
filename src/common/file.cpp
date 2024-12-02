@@ -111,11 +111,13 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);
+            WRITE_LOG(LOG_WARN, "Unknown file option: %s", argv[i]);
             return false;
         }
     }
     if (argc == srcArgvIndex) {
         LogMsg(MSG_FAIL, "There is no local and remote path");
+        WRITE_LOG(LOG_WARN, "There is no local and remote path");
         return false;
     }
     if (context->sandboxMode) {
@@ -123,7 +125,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             context->remotePath = ".";
             context->localPath = argv[argc - 1];
             context->inputLocalPath = context->localPath;
-        } else if ((srcArgvIndex + 2) == argc) {
+        } else if ((srcArgvIndex + CMD_FILE_PENULT_PARAM) == argc) {
             context->remotePath = argv[argc - 1];
             context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
             context->inputLocalPath = context->localPath;
@@ -133,7 +135,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
     } else {
         context->remotePath = argv[argc - 1];
         context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
-        context->inputLocalPath = argv[argc - CMD_FILE_PENULT_PARAM];
+        context->inputLocalPath = context->localPath;
     }
     return true;
 }
@@ -157,9 +159,9 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         if (context->sandboxMode &&
             context->transferConfig.reserve1.size() > 0 &&
             !IsValidBundleName(context->transferConfig.reserve1)) {
-            LogMsg(MSG_FAIL, "Invalid BundleName:%s",
+            LogMsg(MSG_FAIL, "[E005101]Invalid bundle name:%s",
                 context->transferConfig.reserve1.c_str());
-            WRITE_LOG(LOG_WARN, "SetMasterParameters Invalid BundleName:%s",
+            WRITE_LOG(LOG_WARN, "SetMasterParameters invalid bundleName:%s",
                 context->transferConfig.reserve1.c_str());
             return false;
         }
@@ -178,7 +180,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
             if (resolvedPath.size() <= 0 ||
                 strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
-                LogMsg(MSG_FAIL, "Invalid path:%s",
+                LogMsg(MSG_FAIL, "[E005102]Local path:%s is invalid, it is out of the application directory.",
                     context->inputLocalPath.c_str());
                 WRITE_LOG(LOG_WARN, "SetMasterParameters Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
                     context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
@@ -315,7 +317,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     SerialStruct::ParseFromString(stat, serialString);
     ctxNow.fileSize = stat.fileSize;
     ctxNow.localPath = stat.path;
-    ctxNow.inputLocalPath = stat.path;
+    ctxNow.inputLocalPath = ctxNow.localPath;
     ctxNow.master = false;
     ctxNow.bundleName = stat.reserve1;
 #ifdef HDC_DEBUG
@@ -328,7 +330,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         fullPath.append(ctxNow.inputLocalPath);
         ctxNow.localPath = fullPath;
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
-        LogMsg(MSG_FAIL, "Invalid BundleName:%s",
+        LogMsg(MSG_FAIL, "[E005001]Invalid BundleName:%s",
             ctxNow.bundleName.c_str());
         return false;
     }
@@ -349,7 +351,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
         if (resolvedPath.size() <= 0 ||
             strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
-            LogMsg(MSG_FAIL, "Invalid path:%s", ctxNow.inputLocalPath.c_str());
+            LogMsg(MSG_FAIL, "[E005002]Remote path:%s is invalid, it is out of the application directory.", ctxNow.inputLocalPath.c_str());
             WRITE_LOG(LOG_WARN, "SlaveCheck Invalid path:%s, fullPath:%s, resolvedPath:%s, errno:%d",
                 ctxNow.inputLocalPath.c_str(),  fullPath.c_str(), resolvedPath.c_str(), errno);
             return false;

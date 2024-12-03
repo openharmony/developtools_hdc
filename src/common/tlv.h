@@ -39,6 +39,7 @@ public:
 public:
     bool Append(const struct TLV *t, const uint32_t size);
     bool Append(const uint32_t tag, const uint32_t len, const uint8_t *val);
+    // calculate total size for net tlv size, not contain the size of field 'TLV::uint8_t *val'
     uint32_t GetBufSize(void) const;
     bool CopyToBuf(uint8_t *dst, const uint32_t size) const;
     // // the caller must free the memory pointed by the return value if not null

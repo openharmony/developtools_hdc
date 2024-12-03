@@ -169,6 +169,7 @@ uint32_t TlvBuf::GetBufSize(void) const
 
     uint32_t size = 0;
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
+        // note: donnt contain the size of field 'TLV::uint8_t *val'
         size += sizeof(it->second.tag);
         size += sizeof(it->second.len);
         size += it->second.len;

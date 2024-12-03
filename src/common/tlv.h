@@ -20,9 +20,6 @@
 namespace Hdc {
 
 #define TLV_HEAD_SIZE (sizeof(uint32_t) + sizeof(uint32_t))
-#define TLV_SIZE(len) ((len) + TLV_HEAD_SIZE)
-#define TO_TAG(ptr) *reinterpret_cast<const uint32_t*>(ptr)
-#define TO_LEN(ptr) *reinterpret_cast<const uint32_t*>(ptr)
 
 class TlvBuf {
 

@@ -43,9 +43,9 @@ TlvBuf::TlvBuf(const uint8_t *tlvs, const uint32_t size)
             this->Clear();
             return;
         }
-        uint32_t tag = TO_TAG(tlvs + pos);
+        uint32_t tag = *reinterpret_cast<const uint32_t*>(tlvs + pos);
         pos += sizeof(tag);
-        uint32_t len = TO_LEN(tlvs + pos);
+        uint32_t len = *reinterpret_cast<const uint32_t*>(tlvs + pos);
         pos += sizeof(len);
         const uint8_t *val = tlvs + pos;
 

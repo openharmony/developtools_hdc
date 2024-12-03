@@ -28,6 +28,8 @@
 #include "account_iam_client.h"
 #include "os_account_manager.h"
 #include "sudo_iam.h"
+#include "pinauth_register.h"
+#include "user_auth_client.h"
 
 #define PWD_BUF_LEN 128
 #define DEFAULT_PATH "/system/bin"
@@ -253,10 +255,20 @@ static bool VerifyAccount(int32_t userId)
     AuthOptions authOptions;
     bool verifyResult = false;
 
-    AccountIAMClient &sudoIAMClient = AccountIAMClient::GetInstance();
-    std::shared_ptr<IDMCallback> callback = std::make_shared<SudoIDMCallback>();
+    std::shared_ptr<AuthenticationCallback> callback = std::make_shared<SudoIDMCallback>();
     authOptions.accountId = userId;
-    sudoIAMClient.AuthUser(authOptions, challenge, AuthType::PIN, AuthTrustLevel::ATL1, callback);
+    if (callback == nullptr) {
+        WriteStdErr(OUT_OF_MEM);
+        return false;
+    }
+
+    UserAuth::AuthParam authParam;
+    authParam.userId = userId;
+    authParam.challenge = challenge;
+    authParam.authType = AuthType::PIN;
+    authParam.authTrustLevel = AuthTrustLevel::ATL1;
+
+    UserAuth::UserAuthClient::GetInstance().BeginAuthentication(authParam, callback);
     std::shared_ptr<SudoIDMCallback> sudoCallback = std::static_pointer_cast<SudoIDMCallback>(callback);
     WaitForAuth();
     verifyResult = sudoCallback->GetVerifyResult();
@@ -270,6 +282,7 @@ static bool UserAccountVerify(char *pwd, int pwdLen)
     int verifyResult = 0;
     pid_t pid;
     int fds[2];
+    std::vector<int32_t> ids;
 
     if (pipe(fds) != 0) {
         WriteStdErr("exec pipe failed\n");
@@ -285,23 +298,23 @@ static bool UserAccountVerify(char *pwd, int pwdLen)
     if (pid == 0) {
         int32_t userId = -1;
         close(fds[0]);
-        err = OsAccountManager::GetForegroundOsAccountLocalId(userId);
+        err = OsAccountManager::QueryActiveOsAccountIds(ids);
         if (err != 0) {
             WriteStdErr("get os account local id failed\n");
             exit(1);
         }
+        userId = ids[0];
         inputer = std::make_shared<PinAuth::SudoIInputer>();
         std::shared_ptr<PinAuth::SudoIInputer> sudoInputer = std::static_pointer_cast<PinAuth::SudoIInputer>(inputer);
         sudoInputer->SetPasswd(pwd, pwdLen);
-        err = AccountIAMClient::GetInstance().RegisterPINInputer(inputer);
-        if (err != 0) {
+        if (!PinAuth::PinAuthRegister::GetInstance().RegisterInputer(inputer)) {
             WriteStdErr("register pin inputer failed\n");
             exit(1);
         }
         if (VerifyAccount(userId)) {
             verifyResult = 1;
         }
-        AccountIAMClient::GetInstance().UnregisterPINInputer();
+        PinAuth::PinAuthRegister::GetInstance().UnRegisterInputer();
         write(fds[1], &verifyResult, sizeof(verifyResult));
         close(fds[1]);
         exit(0);

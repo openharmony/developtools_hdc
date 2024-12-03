@@ -19,10 +19,53 @@ using namespace std;
 
 namespace Hdc {
 
+TlvBuf::TlvBuf()
+{
+    this->Clear();
+}
+
 TlvBuf::TlvBuf(std::set<uint32_t> validtags)
 {
-    mValidTags = validtags;
     this->Clear();
+    this->mValidTags = validtags;
+}
+
+TlvBuf::TlvBuf(const uint8_t *tlvs, const uint32_t size)
+{
+    this->Clear();
+    if (tlvs == nullptr || size == 0) {
+        WRITE_LOG(LOG_WARN, "invalid tlvs or size, size is %u", size);
+        return;
+    }
+    for (uint32_t pos = 0; pos < size;) {
+        if ((size - pos) < TLV_HEAD_SIZE) {
+            WRITE_LOG(LOG_WARN, "invalid tlvs, size is %u, pos is %d", size, pos);
+            this->Clear();
+            return;
+        }
+        uint32_t tag = *(uint32_t *)(tlvs + pos);
+        pos += sizeof(tag);
+        uint32_t len = *(uint32_t *)(tlvs + pos);
+        pos += sizeof(len);
+        const uint8_t *val = tlvs + pos;
+
+        if (len <= 0 || len > (size - pos)) {
+            WRITE_LOG(LOG_WARN, "invalid tlvs, tag %u, len %u, pos %d, size %u", tag, len, pos, size);
+            this->Clear();
+            return;
+        }
+        if (!this->Append(tag, len, val)) {
+            WRITE_LOG(LOG_WARN, "append tlv failed, tag %u, len %u", tag, len);
+            this->Clear();
+            return;
+        }
+        pos += len;
+    }
+}
+
+TlvBuf::TlvBuf(const uint8_t *tlvs, const uint32_t size, const std::set<uint32_t> validtags) : TlvBuf(tlvs, size)
+{
+    this->mValidTags = validtags;
 }
 
 TlvBuf::~TlvBuf()
@@ -37,57 +80,10 @@ void TlvBuf::Clear(void)
     }
 
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
-        if (it->second.val != nullptr) {
-            delete[] it->second.val;
-        }
+        it->second.clear();
     }
     this->mTlvMap.clear();
-}
-
-TlvBuf::TlvBuf(uint8_t *tlvs, uint32_t size, std::set<uint32_t> validtags)
-{
-    this->Clear();
-    if (tlvs == nullptr || size == 0) {
-        WRITE_LOG(LOG_WARN, "invalid tlvs or size, size is %u", size);
-        return;
-    }
-    for (uint32_t pos = 0; pos < size;) {
-        if ((size - pos) < sizeof(struct TLV)) {
-            WRITE_LOG(LOG_WARN, "invalid tlvs, size is %u, pos is %d", size, pos);
-            this->Clear();
-            return;
-        }
-        struct TLV *t = (struct TLV *)(tlvs + pos);
-        pos += sizeof(struct TLV);
-        uint32_t tag = t->tag;
-        uint32_t len = t->len;
-
-        if (len <= 0 || len > (size - pos)) {
-            WRITE_LOG(LOG_WARN, "invalid tlvs, tag %u, len %u, pos %d, size %u", tag, len, pos, size);
-            this->Clear();
-            return;
-        }
-        if (!this->Append(tag, len, t->val)) {
-            WRITE_LOG(LOG_WARN, "append tlv failed, tag %u, len %u", tag, len);
-            this->Clear();
-            return;
-        }
-    }
-    this->mValidTags = validtags;
-}
-
-bool TlvBuf::Append(const struct TLV *t, const uint32_t size)
-{
-    if (t == nullptr || size < sizeof(struct TLV)) {
-        WRITE_LOG(LOG_WARN, "invalid tlv or size, size is %u", size);
-        return false;
-    }
-    if (t->len + sizeof(struct TLV) != size) {
-        WRITE_LOG(LOG_WARN, "invalid size %u, len %u", size, t->len);
-        return false;
-    }
-
-    return this->Append(t->tag, t->len, t->val);
+    this->mValidTags.clear();
 }
 
 bool TlvBuf::Append(const uint32_t tag, const uint32_t len, const uint8_t *val)
@@ -100,51 +96,37 @@ bool TlvBuf::Append(const uint32_t tag, const uint32_t len, const uint8_t *val)
         WRITE_LOG(LOG_WARN, "the val ptr is null");
         return false;
     }
-    uint8_t *v = new uint8_t[len];
-    if (v == nullptr) {
-        WRITE_LOG(LOG_WARN, "memory not enough %u", len);
-        return false;
-    }
-    if (memcpy_s(v, len, val, len) != 0) {
-        WRITE_LOG(LOG_WARN, "memcpy failed, len %u", len);
-        delete[] v;
-        return false;
-    }
     if (this->mTlvMap.count(tag) > 0) {
         WRITE_LOG(LOG_WARN, "duplicate tag is %u", tag);
         return false;
     }
-    this->mTlvMap[tag] = {tag, len, v};
+    std::vector<uint8_t> v;
+    v.assign(val, val + len);
+    this->mTlvMap[tag] = v;
     return true;
 }
 
-struct TLV *TlvBuf::FindTlv(const uint32_t tag) const
+bool TlvBuf::FindTlv(const uint32_t tag, uint32_t &len, uint8_t *&val) const
 {
     auto it = this->mTlvMap.find(tag);
     if (it == this->mTlvMap.end()) {
-        return nullptr;
+        return false;
     }
-    struct TLV t = it->second;
-    struct TLV *ret = new TLV();
-    if (ret == nullptr) {
-        WRITE_LOG(LOG_WARN, "memory not enough");
-        return nullptr;
+    auto tlv = it->second;
+    len = tlv.size();
+    val = new uint8_t[len];
+    if (val == nullptr) {
+        WRITE_LOG(LOG_WARN, "memory not enough %u", len);
+        return false;
     }
-    ret->val = new uint8_t[t.len];
-    if (ret == nullptr) {
-        WRITE_LOG(LOG_WARN, "memory not enough %u", t.len);
-        delete ret;
-        return nullptr;
+    if (memcpy_s(val, len, tlv.data(), tlv.size()) != 0) {
+        WRITE_LOG(LOG_WARN, "memcpy failed, len %u", len);
+        delete[] val;
+        val = nullptr;
+        len = 0;
+        return false;
     }
-    ret->tag = t.tag;
-    ret->len = t.len;
-    if (memcpy_s(ret->val, t.len, t.val, t.len) != 0) {
-        WRITE_LOG(LOG_WARN, "memcpy failed, len %u", t.len);
-        delete[] ret->val;
-        delete ret;
-        return nullptr;
-    }
-    return ret;
+    return true;
 }
 
 bool TlvBuf::ContainInvalidTag(void) const
@@ -154,7 +136,8 @@ bool TlvBuf::ContainInvalidTag(void) const
     }
 
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
-        if (this->mValidTags.count(it->second.tag) != 0) {
+        if (this->mValidTags.count(it->first) == 0) {
+            WRITE_LOG(LOG_WARN, "contain invalid tag %u len %u", it->first, it->second.size());
             return true;
         }
     }
@@ -169,10 +152,8 @@ uint32_t TlvBuf::GetBufSize(void) const
 
     uint32_t size = 0;
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
-        // note: donnt contain the size of field 'TLV::uint8_t *val'
-        size += sizeof(it->second.tag);
-        size += sizeof(it->second.len);
-        size += it->second.len;
+        size += TLV_HEAD_SIZE;
+        size += it->second.size();
     }
     return size;
 }
@@ -187,17 +168,16 @@ bool TlvBuf::CopyToBuf(uint8_t *dst, const uint32_t size) const
 
     uint32_t pos = 0;
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
-        struct TLV tlv = it->second;
-        struct TLV *t = (struct TLV*)(dst + pos);
-        t->tag = tlv.tag;
-        pos += sizeof(t->tag);
-        t->len = tlv.len;
-        pos += sizeof(t->len);
-        if (memcpy_s(dst + pos, size - pos, tlv.val, tlv.len) != 0) {
-            WRITE_LOG(LOG_WARN, "memcpy failed, len %u", tlv.len);
+        auto tlv = it->second;
+        *(uint32_t *)(dst + pos) = it->first;
+        pos += sizeof(uint32_t);
+        *(uint32_t *)(dst + pos) = tlv.size();
+        pos += sizeof(uint32_t);
+        if (memcpy_s(dst + pos, size - pos, tlv.data(), tlv.size()) != 0) {
+            WRITE_LOG(LOG_WARN, "memcpy failed, len %u", tlv.size());
             return false;
         }
-        pos += tlv.len;
+        pos += tlv.size();
     }
     return true;
 }
@@ -209,8 +189,7 @@ void TlvBuf::Display(void) const
         return;
     }
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
-        struct TLV tlv = it->second;
-        WRITE_LOG(LOG_INFO, "tag %u len %u", tlv.tag, tlv.len);
+        WRITE_LOG(LOG_INFO, "tag %u len %u", it->first, it->second.size());
     }
 }
 

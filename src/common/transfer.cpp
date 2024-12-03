@@ -355,15 +355,15 @@ bool HdcTransferBase::IsValidBundleName(string &bundleName)
         bundleName.find("invalid") == std::string::npos;
 }
 
-void HdcTransferBase::RemoveSandboxRootPath(std::string &errStr, std::string &bundleName)
+void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, std::string &bundleName)
 {
     if (!taskInfo->serverOrDaemon && IsValidBundleName(bundleName)) {
         string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();
         size_t pos = 0;
-        if ((pos = errStr.find(fullPath)) != std::string::npos) {
-            errStr = errStr.replace(pos, fullPath.length(), "");
+        if ((pos = srcStr.find(fullPath)) != std::string::npos) {
+            srcStr = srcStr.replace(pos, fullPath.length(), "");
         } else {
-            WRITE_LOG(LOG_DEBUG, "fullPath:%s, errStr:%s", fullPath.c_str(), errStr.c_str());
+            WRITE_LOG(LOG_DEBUG, "fullPath:%s, srcStr:%s", fullPath.c_str(), srcStr.c_str());
         }
     }
 }

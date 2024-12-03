@@ -43,7 +43,8 @@ public:
     void SetUp();
     void TearDown();
 private:
-    uint8_t *BuildTlv(const std::vector<uint32_t> tags, const std::vector<uint32_t> sizes, uint8_t val, uint32_t &tlvsize) const;
+    uint8_t *BuildTlv(const std::vector<uint32_t> tags,
+            const std::vector<uint32_t> sizes, uint8_t val, uint32_t &tlvsize) const;
 };
 
 void HdcBaseTest::SetUpTestCase()
@@ -56,7 +57,8 @@ void HdcBaseTest::SetUp() {}
 
 void HdcBaseTest::TearDown() {}
 
-uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags, const std::vector<uint32_t> sizes, uint8_t val, uint32_t &tlvsize) const
+uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags,
+        const std::vector<uint32_t> sizes, uint8_t val, uint32_t &tlvsize) const
 {
     if (tags.size() != sizes.size() || tags.empty()) {
         WRITE_LOG(LOG_WARN, "not valid size: %u, %u", tags.size(), sizes.size());
@@ -68,9 +70,14 @@ uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags, const std::vect
         tlvsize += size;
     }
 
+    if (tlvsize == 0) {
+        WRITE_LOG(LOG_WARN, "invalid size 0");
+        return nullptr;
+    }
     uint8_t *tlv = new uint8_t[tlvsize];
     if (tlv == nullptr) {
         WRITE_LOG(LOG_WARN, "not enough memory %u", tlvsize);
+        tlvsize = 0;
         return nullptr;
     }
     uint32_t pos = 0;
@@ -80,7 +87,11 @@ uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags, const std::vect
         *(uint32_t *)(tlv + pos + sizeof(tags[i])) = sizes[i];
 
         pos += TLV_HEAD_SIZE;
-        memset(tlv + pos, val, sizes[i]);
+        if (memset_s(tlv + pos, tlvsize - pos, val, sizes[i]) != 0) {
+            tlvsize = 0;
+            delete[] tlv;
+            return nullptr;
+        }
         pos += sizes[i];
     }
 
@@ -163,6 +174,17 @@ HWTEST_F(HdcBaseTest, TlvBuf_Append_001, TestSize.Level0)
     ASSERT_EQ(tb.GetBufSize(), TLV_SIZE(sizeof(val)) * 2);
 }
 
+HWTEST_F(HdcBaseTest, TlvBuf_Append_002, TestSize.Level0)
+{
+    uint32_t tag = 1;
+    string val = "hello world!";
+    TlvBuf tb;
+    ASSERT_EQ(tb.GetBufSize(), 0);
+
+    ASSERT_EQ(tb.Append(tag, val), true);
+    ASSERT_EQ(tb.GetBufSize(), TLV_SIZE(val.size()));
+}
+
 HWTEST_F(HdcBaseTest, TlvBuf_CopyToBuf_001, TestSize.Level0)
 {
     uint32_t tag = 1;
@@ -178,6 +200,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_CopyToBuf_001, TestSize.Level0)
     uint8_t *buf = new uint8_t[size];
     ASSERT_EQ(tb.CopyToBuf(buf, size - 1), false);
     ASSERT_EQ(tb.CopyToBuf(nullptr, size), false);
+
     ASSERT_EQ(tb.CopyToBuf(buf, size), true);
     ASSERT_EQ(*(uint32_t *)buf, tag);
     ASSERT_EQ(*(uint32_t *)(buf + sizeof(tag)), len);
@@ -207,6 +230,21 @@ HWTEST_F(HdcBaseTest, TlvBuf_FindTlv_001, TestSize.Level0)
     ASSERT_EQ(memcmp(fval, val, len), 0);
 
     delete[] fval;
+}
+
+HWTEST_F(HdcBaseTest, TlvBuf_FindTlv_002, TestSize.Level0)
+{
+    uint32_t tag = 1;
+    string val = "hello world!";
+    TlvBuf tb;
+    ASSERT_EQ(tb.GetBufSize(), 0);
+
+    ASSERT_EQ(tb.Append(tag, val), true);
+    ASSERT_EQ(tb.GetBufSize(), TLV_SIZE(val.size()));
+
+    string fval;
+    ASSERT_EQ(tb.FindTlv(tag, fval), true);
+    ASSERT_EQ(val, fval);
 }
 
 HWTEST_F(HdcBaseTest, TlvBuf_ContainInvalidTag_001, TestSize.Level0)

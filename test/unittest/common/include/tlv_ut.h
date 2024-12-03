@@ -17,10 +17,4 @@
 #define __H_TLV_UT_H__
 #include "tlv.h"
 
-// #ifdef WRITE_LOG
-// #undef WRITE_LOG
-// // #define WRITE_LOG(level, fmt, ...)   printf("%s:%s:%d" fmt "\n", __FILE_NAME__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-// #define WRITE_LOG(level, fmt, ...)   printf(fmt "\n", ##__VA_ARGS__)
-// #endif
-
 #endif // __H_TLV_UT_H__

@@ -43,9 +43,9 @@ TlvBuf::TlvBuf(const uint8_t *tlvs, const uint32_t size)
             this->Clear();
             return;
         }
-        uint32_t tag = *(uint32_t *)(tlvs + pos);
+        uint32_t tag = TO_TAG(tlvs + pos);
         pos += sizeof(tag);
-        uint32_t len = *(uint32_t *)(tlvs + pos);
+        uint32_t len = TO_LEN(tlvs + pos);
         pos += sizeof(len);
         const uint8_t *val = tlvs + pos;
 
@@ -86,6 +86,11 @@ void TlvBuf::Clear(void)
     this->mValidTags.clear();
 }
 
+bool TlvBuf::Append(const uint32_t tag, const string &val)
+{
+    return this->Append(tag, val.size(), reinterpret_cast<const uint8_t*>(val.data()));
+}
+
 bool TlvBuf::Append(const uint32_t tag, const uint32_t len, const uint8_t *val)
 {
     if (len == 0) {
@@ -114,6 +119,10 @@ bool TlvBuf::FindTlv(const uint32_t tag, uint32_t &len, uint8_t *&val) const
     }
     auto tlv = it->second;
     len = tlv.size();
+    if (len == 0) {
+        WRITE_LOG(LOG_WARN, "invalid size 0 for tag %u", it->first);
+        return false;
+    }
     val = new uint8_t[len];
     if (val == nullptr) {
         WRITE_LOG(LOG_WARN, "memory not enough %u", len);
@@ -126,6 +135,19 @@ bool TlvBuf::FindTlv(const uint32_t tag, uint32_t &len, uint8_t *&val) const
         len = 0;
         return false;
     }
+    return true;
+}
+
+bool TlvBuf::FindTlv(const uint32_t tag, string &val) const
+{
+    auto it = this->mTlvMap.find(tag);
+    if (it == this->mTlvMap.end()) {
+        return false;
+    }
+    auto tlv = it->second;
+    val.clear();
+    val.assign(tlv.begin(), tlv.end());
+
     return true;
 }
 

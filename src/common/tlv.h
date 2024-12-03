@@ -17,39 +17,34 @@
 #define __H_TLV_H__
 
 #include "common.h"
-// #include <cstdint>
-// #include <map>
-// #include <set>
-
 namespace Hdc {
 
 #define TLV_HEAD_SIZE (sizeof(uint32_t) + sizeof(uint32_t))
 #define TLV_SIZE(len) ((len) + TLV_HEAD_SIZE)
+#define TO_TAG(ptr) *reinterpret_cast<const uint32_t*>(ptr)
+#define TO_LEN(ptr) *reinterpret_cast<const uint32_t*>(ptr)
 
 class TlvBuf {
-
-    // struct TLV {
-    //     uint32_t tag;
-    //     uint32_t len;
-    //     uint8_t val[len];
-    // };
 
 public:
     TlvBuf();
     // construct a empty TlvBuf object with valid tags
-    TlvBuf(std::set<uint32_t> validtags);
+    explicit  TlvBuf(std::set<uint32_t> validtags);
     TlvBuf(const uint8_t *tlvs, const uint32_t size);
     // construct a TlvBuf object from a TLV buffer with valid tags
     TlvBuf(const uint8_t *tlvs, const uint32_t size, const std::set<uint32_t> validtags);
     ~TlvBuf();
 public:
     void Clear(void);
+    bool Append(const uint32_t tag, const string &val);
     bool Append(const uint32_t tag, const uint32_t len, const uint8_t *val);
     // calculate total size for net tlv size, not contain the size of field 'TLV::uint8_t *val'
     uint32_t GetBufSize(void) const;
     bool CopyToBuf(uint8_t *dst, const uint32_t size) const;
     // // the caller must free the memory pointed by the return value if not null
     bool FindTlv(const uint32_t tag, uint32_t &len, uint8_t *&val) const;
+    // // the caller must free the memory pointed by the return value if not null
+    bool FindTlv(const uint32_t tag, string &val) const;
     // // if return true, invalid_tags is empty, else the invalid tags will bring out by invalid_tags
     bool ContainInvalidTag(void) const;
     void Display(void) const;

@@ -775,6 +775,15 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 ret = false;
                 break;
             }
+            if (!context->isOtherSideSandboxSupported && context->sandboxMode) {
+                const char* name = taskInfo->serverOrDaemon ? "Daemon" : "Host";
+                WRITE_LOG(LOG_FATAL, "%s side not support sandbox mode.", name);
+                LogMsg(MSG_FAIL, "[E005004]%s side cannot support sandbox mode.", name);
+                OnFileOpenFailed(context);
+                TaskFinish();
+                ret = false;
+                break;
+            }
             int ioRet = SimpleFileIO(context, context->indexIO, nullptr, (context->isStableBufSize) ?
                 Base::GetMaxBufSizeStable() * maxTransferBufFactor :
                 Base::GetMaxBufSize() * maxTransferBufFactor);
@@ -820,6 +829,7 @@ void HdcTransferBase::ExtractRelativePath(string &cwd, string &path)
 bool HdcTransferBase::AddFeatures(FeatureFlagsUnion &feature)
 {
     feature.bits.hugeBuf = !isStableBuf;
+    feature.bits.reserveBits1 = 1;
     return true;
 }
 
@@ -833,10 +843,12 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
         }
         WRITE_LOG(LOG_DEBUG, "isStableBuf:%d, hugeBuf:%d", isStableBuf, feature.bits.hugeBuf);
         context->isStableBufSize = isStableBuf ? true : (!feature.bits.hugeBuf);
+        context->isOtherSideSandboxSupported = feature.bits.reserveBits1 > 0;
         return true;
     } else if (payloadSize == 0) {
         WRITE_LOG(LOG_DEBUG, "FileBegin CheckFeatures payloadSize:%d, use default feature.", payloadSize);
         context->isStableBufSize = true;
+        context->isOtherSideSandboxSupported = false;
         return true;
     } else {
         WRITE_LOG(LOG_FATAL, "CheckFeatures payloadSize:%d", payloadSize);

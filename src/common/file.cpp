@@ -331,7 +331,6 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 
     if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
         string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName + Base::GetPathSep();
-        string appDir(fullPath);
         fullPath.append(ctxNow.inputLocalPath);
         ctxNow.localPath = fullPath;
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
@@ -340,7 +339,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         return false;
     }
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
-        RemoveSandboxRootPath(errStr, stat.reserve1);
+        RemoveSandboxRootPath(errStr, ctxNow.bundleName);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
@@ -363,7 +362,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         }
     }
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
-        RemoveSandboxRootPath(errStr, stat.reserve1);
+        RemoveSandboxRootPath(errStr, ctxNow.bundleName);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;

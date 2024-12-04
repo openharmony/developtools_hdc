@@ -108,6 +108,7 @@ protected:
         bool sandboxMode;
         string bundleName;
         string inputLocalPath;
+        bool isOtherSideSandboxSupported;
     };
     // Just app-mode use
     enum AppModType {

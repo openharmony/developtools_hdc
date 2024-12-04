@@ -138,7 +138,7 @@ protected:
     void ExtractRelativePath(string &cwd, string &path);
     bool AddFeatures(FeatureFlagsUnion &feature);
     bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
-    void RemoveSandboxRootPath(std::string &srcStr, std::string &bundleName);
+    void RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName);
     bool IsValidBundleName(string &bundleName);
     void CloseCtxFd(CtxFile *context);
 

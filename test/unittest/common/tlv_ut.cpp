@@ -36,6 +36,7 @@ namespace Hdc {
             printf("%s\n", buf);
         }
     }
+#define MAX_BUFFER_SIZE (1 * 1024 * 1024 * 1024)
 class HdcBaseTest : public testing::Test {
 public:
     static void SetUpTestCase(void);
@@ -74,7 +75,7 @@ uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags,
         tlvsize += size;
     }
 
-    if (tlvsize == 0) {
+    if (tlvsize == 0 || tlvsize > MAX_BUFFER_SIZE) {
         WRITE_LOG(LOG_WARN, "invalid size 0");
         return nullptr;
     }
@@ -145,6 +146,22 @@ HWTEST_F(HdcBaseTest, TlvBuf_Constructor_004, TestSize.Level0)
     delete[] tlv;
 }
 
+HWTEST_F(HdcBaseTest, TlvBuf_Constructor_005, TestSize.Level0)
+{
+    std::set<uint32_t> validtags = { 1, 2, 3 };
+
+    std::vector<uint32_t> tags = { 1 };
+    std::vector<uint32_t> sizes = { TLV_VALUE_MAX_LEN + 1 };
+    uint32_t tlvsize = 0;
+    uint8_t *tlv = this->BuildTlv(tags, sizes, 0xAB, tlvsize);
+    ASSERT_NE(tlv, nullptr);
+
+    TlvBuf tb(tlv, tlvsize, validtags);
+    ASSERT_EQ(tb.GetBufSize(), 0);
+
+    delete[] tlv;
+}
+
 HWTEST_F(HdcBaseTest, TlvBuf_Clear_001, TestSize.Level0)
 {
     std::vector<uint32_t> tags = { 1 };
@@ -187,6 +204,20 @@ HWTEST_F(HdcBaseTest, TlvBuf_Append_002, TestSize.Level0)
 
     ASSERT_EQ(tb.Append(tag, val), true);
     ASSERT_EQ(tb.GetBufSize(), TlvSize(val.size()));
+}
+
+HWTEST_F(HdcBaseTest, TlvBuf_Append_003, TestSize.Level0)
+{
+    TlvBuf tb;
+
+    ASSERT_EQ(tb.Append(1, 0, nullptr), false);
+    ASSERT_EQ(tb.GetBufSize(), 0);
+
+    ASSERT_EQ(tb.Append(1, TLV_VALUE_MAX_LEN + 1, nullptr), false);
+    ASSERT_EQ(tb.GetBufSize(), 0);
+
+    ASSERT_EQ(tb.Append(1, TLV_VALUE_MAX_LEN, nullptr), false);
+    ASSERT_EQ(tb.GetBufSize(), 0);
 }
 
 HWTEST_F(HdcBaseTest, TlvBuf_CopyToBuf_001, TestSize.Level0)

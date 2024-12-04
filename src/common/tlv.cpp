@@ -93,7 +93,7 @@ bool TlvBuf::Append(const uint32_t tag, const string &val)
 
 bool TlvBuf::Append(const uint32_t tag, const uint32_t len, const uint8_t *val)
 {
-    if (len == 0) {
+    if (len == 0 || len > TLV_VALUE_MAX_LEN) {
         WRITE_LOG(LOG_WARN, "the len is invalid: %u", len);
         return false;
     }
@@ -119,11 +119,11 @@ bool TlvBuf::FindTlv(const uint32_t tag, uint32_t &len, uint8_t *&val) const
     }
     auto tlv = it->second;
     len = tlv.size();
-    if (len == 0) {
-        WRITE_LOG(LOG_WARN, "invalid size 0 for tag %u", it->first);
+    if (len == 0 || len > TLV_VALUE_MAX_LEN) {
+        WRITE_LOG(LOG_WARN, "invalid size 0 for tag %u len %u", it->first, len);
         return false;
     }
-    val = new uint8_t[len];
+    val = new (std::nothrow) uint8_t[len];
     if (val == nullptr) {
         WRITE_LOG(LOG_WARN, "memory not enough %u", len);
         return false;
@@ -191,9 +191,9 @@ bool TlvBuf::CopyToBuf(uint8_t *dst, const uint32_t size) const
     uint32_t pos = 0;
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
         auto tlv = it->second;
-        *(uint32_t *)(dst + pos) = it->first;
+        *reinterpret_cast<uint32_t*>(dst + pos) = it->first;
         pos += sizeof(uint32_t);
-        *(uint32_t *)(dst + pos) = tlv.size();
+        *reinterpret_cast<uint32_t*>(dst + pos) = tlv.size();
         pos += sizeof(uint32_t);
         if (memcpy_s(dst + pos, size - pos, tlv.data(), tlv.size()) != 0) {
             WRITE_LOG(LOG_WARN, "memcpy failed, len %u", tlv.size());

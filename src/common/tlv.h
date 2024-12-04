@@ -17,12 +17,12 @@
 #define __H_TLV_H__
 
 #include "common.h"
-namespace Hdc {
 
+namespace Hdc {
 #define TLV_HEAD_SIZE (sizeof(uint32_t) + sizeof(uint32_t))
+#define TLV_VALUE_MAX_LEN (16 * 1024 * 1024)
 
 class TlvBuf {
-
 public:
     TlvBuf();
     // construct a empty TlvBuf object with valid tags

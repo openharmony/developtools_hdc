@@ -347,7 +347,7 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HDaemonInfo hdiOld = nullptr;
     (reinterpret_cast<HdcServer *>(ptrServer))->AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
-    if (!hdiOld) {
+    if (hdiOld == nullptr || hdiOld->hSession == nullptr) {
         EchoClient(hChannel, MSG_FAIL, "No target available");
         return false;
     }
@@ -724,7 +724,7 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
         EchoClient(hChannel, MSG_FAIL, "[E001005] Device not found or connected");
         return nullptr;
     }
-    if (hdi->hSession->isDead) {
+    if (hdi->hSession == nullptr || hdi->hSession->isDead) {
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }

@@ -32,6 +32,7 @@ hdc_common_sources = [
   "${hdc_path}/src/common/session.cpp",
   "${hdc_path}/src/common/task.cpp",
   "${hdc_path}/src/common/tcp.cpp",
+  "${hdc_path}/src/common/tlv.cpp",
   "${hdc_path}/src/common/transfer.cpp",
   "${hdc_path}/src/common/usb.cpp",
 ]
@@ -286,6 +287,27 @@ ohos_unittest("hdc_host_uart_unittest") {
   external_deps = [ "googletest:gmock_main" ]
 }
 
+ohos_unittest("hdc_base_unittest") {
+  use_exceptions = true
+  module_out_path = module_output_path
+  resource_config_file = "unittest/resource/ohos_test.xml"
+  sources = [
+    "${hdc_path}/src/common/tlv.cpp",
+    "unittest/common/tlv_ut.cpp",
+  ]
+
+  configs = [
+    ":hdc_common_config",
+    ":hdc_ut_code_flag",
+    ":hdc_ut_config",
+  ]
+  public_external_deps = common_external_deps
+  external_deps = [
+    "googletest:gmock_main",
+    "init:libbegetutil",
+  ]
+}
+
 group("HdcJdwpTest") {
   testonly = true
   deps = [ ":hdc_jdwp_unittest" ]
@@ -294,6 +316,7 @@ group("HdcJdwpTest") {
 group("hdc_unittest") {
   testonly = true
   deps = [
+    ":hdc_base_unittest",
     ":hdc_host_uart_unittest",
     ":hdc_host_uart_unittest(${host_toolchain})",
     ":hdc_jdwp_unittest",

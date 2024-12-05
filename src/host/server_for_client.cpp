@@ -349,6 +349,7 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
     (reinterpret_cast<HdcServer *>(ptrServer))->AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
     if (hdiOld == nullptr || hdiOld->hSession == nullptr) {
         EchoClient(hChannel, MSG_FAIL, "No target available");
+        WRITE_LOG(LOG_FATAL, "CommandRemoveSession No target available");
         return false;
     }
     (reinterpret_cast<HdcServer *>(ptrServer))->FreeSession(hdiOld->hSession->sessionId);

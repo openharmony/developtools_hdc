@@ -527,6 +527,10 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
                 hdiNew->daemonAuthStatus = tlvmap[TAG_DAEOMN_AUTHSTATUS];
                 WRITE_LOG(LOG_INFO, "daemonauthstatus = %s", hdiNew->daemonAuthStatus.c_str());
             }
+            if (tlvmap.find(TAG_FEATURE_SHELL_OPT) != tlvmap.end()) {
+                hdiNew->daemonFeature[TAG_FEATURE_SHELL_OPT] = tlvmap[TAG_FEATURE_SHELL_OPT];
+                WRITE_LOG(LOG_INFO, "shellOpt = %s", hdiNew->daemonFeature[TAG_FEATURE_SHELL_OPT].c_str());
+            }
         } else {
             WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");
         }

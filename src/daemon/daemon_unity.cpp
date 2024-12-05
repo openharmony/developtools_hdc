@@ -73,7 +73,37 @@ bool HdcDaemonUnity::AsyncCmdOut(bool finish, int64_t exitStatus, const string r
     return ret;
 }
 
-int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
+bool HdcDaemonUnity::CheckbundlePath(const string &bundleName, string &mountPath)
+{
+    if (access(DEBUG_BUNDLE_PATH.c_str(), F_OK) != 0 || !Base::CheckBundleName(bundleName)) {
+        WRITE_LOG(LOG_FATAL, "debug path %s not found", DEBUG_BUNDLE_PATH.c_str());
+        LogMsg(MSG_FAIL, "[E003001] The specified bundle name \"%s\" is not a debug application or "
+            "the debug application path does not exist", bundleName.c_str());
+        return false;
+    }
+    string targetPath = "";
+    targetPath += DEBUG_BUNDLE_PATH;
+    targetPath += bundleName;
+    if ((access(targetPath.c_str(), F_OK) != 0)) {
+        WRITE_LOG(LOG_FATAL, "bundle mount path %s not found", targetPath.c_str());
+        LogMsg(MSG_FAIL, "[E003001] The specified bundle name \"%s\" is not a debug application or "
+            "the debug application path does not exist", bundleName.c_str());
+        return false;
+    }
+    mountPath += targetPath;
+    return true;
+}
+
+int HdcDaemonUnity::ExecuteOptionShell(const string &shellCommand, const string &bundleName)
+{
+    string mountPath = "";
+    if (!CheckbundlePath(bundleName, mountPath)) {
+        return -1;
+    }
+    return ExecuteShell(shellCommand, mountPath);
+}
+
+int HdcDaemonUnity::ExecuteShell(const string &shellCommand, string optionPath)
 {
     do {
         AsyncCmd::CmdResultCallback funcResultOutput;
@@ -83,7 +113,7 @@ int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
         if (!asyncCommand.Initial(loopTask, funcResultOutput)) {
             break;
         }
-        asyncCommand.ExecuteCommand(shellCommand);
+        asyncCommand.ExecuteCommand(shellCommand, optionPath);
         ++refCount;
         return RET_SUCCESS;
     } while (false);
@@ -91,6 +121,28 @@ int HdcDaemonUnity::ExecuteShell(const char *shellCommand)
     TaskFinish();
     WRITE_LOG(LOG_DEBUG, "Shell failed finish");
     return -1;
+}
+
+int HdcDaemonUnity::ExecuteShellExtend(const uint8_t *payload, const int payloadSize)
+{
+    string bundleName = "";
+    string command = "";
+    string errMsg = "";
+    TlvBuf tlvbuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
+    tlvbuf.Display();
+    if (tlvbuf.ContainInvalidTag()) {
+        LogMsg(MSG_FAIL, "[E003004] Device does not support this shell option");
+        return -1;
+    } else {
+        if (!tlvbuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
+            WRITE_LOG(LOG_FATAL, "ExecuteShellExtend bundleName is empty");
+        }
+        if (!tlvbuf.FindTlv(TAG_SHELL_CMD, command)) {
+            WRITE_LOG(LOG_FATAL, "ExecuteShellExtend command is empty");
+        }
+    }
+    WRITE_LOG(LOG_DEBUG, "ExecuteShellExtend command: %s, bundleName: %s", command.c_str(), bundleName.c_str());
+    return ExecuteOptionShell(command, bundleName);
 }
 
 bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
@@ -352,6 +404,12 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
     switch (command) {
         case CMD_UNITY_EXECUTE: {
             ExecuteShell(const_cast<char *>(strPayload.c_str()));
+            break;
+        }
+        case CMD_UNITY_EXECUTE_EX: {
+            if (ExecuteShellExtend(payload, payloadSize) != 0) {
+                ret = false;
+            }
             break;
         }
         case CMD_UNITY_REMOUNT: {

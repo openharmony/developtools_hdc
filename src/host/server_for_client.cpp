@@ -17,7 +17,7 @@
 #include "hdc_hash_gen.h"
 #endif
 #include "server.h"
-
+#include "host_shell_option.h"
 namespace Hdc {
 static const int MAX_RETRY_COUNT = 500;
 static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
@@ -640,6 +640,7 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
             WRITE_LOG(LOG_DEBUG, "parameters: %s", parameters.c_str());
         }
     }
+    delete[](reinterpret_cast<char *>(argv));
 }
 
 bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
@@ -647,12 +648,12 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
     bool ret = false;
     int sizeSend = formatCommand->parameters.size();
-    string cmdFlag;
     switch (formatCommand->cmdFlag) {
         // Some simple commands only need to forward the instruction, no need to start Task
         case CMD_SHELL_INIT:
         case CMD_SHELL_DATA:
         case CMD_UNITY_EXECUTE:
+        case CMD_UNITY_EXECUTE_EX:
         case CMD_UNITY_REMOUNT:
         case CMD_UNITY_REBOOT:
         case CMD_UNITY_RUNMODE:
@@ -661,8 +662,7 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         case CMD_JDWP_TRACK:
         case CMD_JDWP_LIST: {
             if (!SendToDaemon(hChannel, formatCommand->cmdFlag,
-                              reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())),
-                              sizeSend)) {
+                reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())), sizeSend)) {
                 break;
             }
             ret = true;
@@ -689,12 +689,12 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
             break;
     }
     if (!ret) {
-        EchoClient(hChannel, MSG_FAIL, "Failed to communicate with daemon");
+        EchoClient(hChannel, MSG_FAIL, "[E002106] Failed to communicate with daemon");
     }
     return ret;
 }
 // Do not specify Target's operations no longer need to put it in the thread.
-bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput)
+bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, HDaemonInfo &hdi)
 {
     bool ret = false;
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
@@ -704,6 +704,11 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput)
         // Main thread command, direct Listen main thread
         ret = DoCommandLocal(hChannel, formatCommandInput);
     } else {  // CONNECT DAEMON's work thread command, non-primary thread
+        if (!CommandMatchDaemonFeature(formatCommand->cmdFlag, hdi)) {
+        // only the cmdFlag in the FEATURE_VERSION_MATCH_MAP needs to be checked, others to permissive.
+            EchoClient(hChannel, MSG_FAIL, "[E002105] Unsupport command");
+            return false;
+        }
         ret = DoCommandRemote(hChannel, formatCommandInput);
     }
     return ret;
@@ -891,8 +896,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         formatCommand.parameters = string(reinterpret_cast<char *>(bufPtr), bytesIO);
         formatCommand.cmdFlag = CMD_SHELL_DATA;
     }
-
-    if (!DoCommand(hChannel, &formatCommand)) {
+    if (!DoCommand(hChannel, &formatCommand, hdi)) {
         return -3;  // -3: error or want close
     }
     ret = bytesIO;
@@ -944,5 +948,19 @@ string HdcServerForClient::GetErrorString(uint32_t errorCode)
         return map->second;
     }
     return ErrorStringEnglish.at(0xFFFFFF); // 0xFFFFFF:  Unknown error
+}
+
+bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi)
+{
+    string cmdFlagStr = std::to_string(cmdFlag);
+    if (FEATURE_CHECK_SET.find(cmdFlag)!= FEATURE_CHECK_SET.end()) {
+        auto tagMatch = hdi->daemonFeature.find(cmdFlagStr);
+        if (tagMatch != hdi->daemonFeature.end()) {
+            return !strncmp(tagMatch->second.c_str(), STR_FEATURE_ENABLE.c_str(), STR_FEATURE_ENABLE.size());
+        } else {
+            return false;
+        }
+    }
+    return true;
 }
 }  // namespace Hdc

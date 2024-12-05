@@ -40,6 +40,7 @@ private:
     static void OnUSBRead(uv_fs_t *req);
     static void WatchEPTimer(uv_timer_t *handle);
     static void UvWriteCallback(uv_write_t *req, int status);
+    static bool IsUSBBulkClosing(const HUSB hUSB);
     int ConnectEPPoint(HUSB hUSB);
     int DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int readBytes);
     int AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *sessionId);

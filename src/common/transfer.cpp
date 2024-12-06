@@ -349,7 +349,7 @@ void HdcTransferBase::OnFileOpenFailed(CtxFile *context)
     return;
 }
 
-bool HdcTransferBase::IsValidBundleName(string &bundleName)
+bool HdcTransferBase::IsValidBundleName(const string &bundleName)
 {
     return bundleName.length() > 0 &&
         bundleName.find("invalid") == std::string::npos;

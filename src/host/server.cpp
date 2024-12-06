@@ -412,6 +412,7 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
         // update
         HdcDaemonInformation diNew = *hdiOld;
         diNew.connStatus = STATUS_OFFLINE;
+        diNew.hSession = nullptr;
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
         CleanForwardMap(hSession->sessionId);

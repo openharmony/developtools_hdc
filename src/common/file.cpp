@@ -106,9 +106,9 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             ++srcArgvIndex;
         } else if (argv[i] == cmdBundleName) {
             context->sandboxMode = true;
-            if (argc == srcArgvIndex + 1) {
+            if (argc == srcArgvIndex) {
                 LogMsg(MSG_FAIL, "[E005003]There is no bundle name.");
-                WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
+                WRITE_LOG(LOG_WARN, "There is no bundle name.");
                 return false;
             }
             context->transferConfig.reserve1 = argv[i + 1];
@@ -148,6 +148,25 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
     return true;
 }
 
+bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
+{
+    string fullPath = SANDBOX_ROOT_DIR + context->bundleName;
+    string appDir(fullPath);
+    appDir = Base::CanonicalizeSpecPath(appDir);
+    fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
+    fullPath = Base::GetPathWithoutFilename(fullPath);
+    resolvedPath = Base::CanonicalizeSpecPath(fullPath);
+    if (resolvedPath.size() <= 0 ||
+        strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
+        LogMsg(MSG_FAIL, "[E005102]Remote path:%s is invalid, it is out of the application directory.",
+            context->inputLocalPath.c_str());
+        WRITE_LOG(LOG_WARN, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
+            context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
+        return false;
+    }
+    return true;
+}
+
 bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
 {
     int srcArgvIndex = 0;
@@ -180,21 +199,13 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         context->localName = Base::GetFullFilePath(context->localPath);
 
         if (context->sandboxMode && IsValidBundleName(context->transferConfig.reserve1)) {
-            string fullPath = SANDBOX_ROOT_DIR + context->transferConfig.reserve1;
-            string appDir(fullPath);
-            appDir = Base::CanonicalizeSpecPath(appDir);
-            fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
-            fullPath = Base::GetPathWithoutFilename(fullPath);
-            string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
-            if (resolvedPath.size() <= 0 ||
-                strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
-                LogMsg(MSG_FAIL, "[E005102]Local path:%s is invalid, it is out of the application directory.",
-                    context->inputLocalPath.c_str());
-                WRITE_LOG(LOG_WARN, "SetMasterParameters Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
-                    context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
+            string resolvedPath;
+            if (CheckSandboxSubPath(context, resolvedPath)) {
+                context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
+            } else {
+                WRITE_LOG(LOG_WARN, "SetMasterParameters, CheckSandboxSubPath false.");
                 return false;
             }
-            context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
         }
     }
     context->localName = Base::GetFullFilePath(context->localPath);
@@ -336,36 +347,26 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName + Base::GetPathSep();
         fullPath.append(ctxNow.inputLocalPath);
         ctxNow.localPath = fullPath;
+
+        string resolvedPath;
+        if (!CheckSandboxSubPath(&ctxNow, resolvedPath)) {
+            WRITE_LOG(LOG_WARN, "SlaveCheck CheckSandboxSubPath false.");
+            return false;
+        }
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
         LogMsg(MSG_FAIL, "[E005001]Invalid BundleName:%s",
             ctxNow.bundleName.c_str());
         return false;
     }
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
-        RemoveSandboxRootPath(errStr, ctxNow.bundleName);
+        RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
-    if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
-        string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName;
-        string appDir(fullPath);
-        appDir = Base::CanonicalizeSpecPath(appDir);
-        fullPath = fullPath + Base::GetPathSep() + ctxNow.inputLocalPath;
-        fullPath = Base::GetPathWithoutFilename(fullPath);
-
-        string resolvedPath = Base::CanonicalizeSpecPath(fullPath);
-        if (resolvedPath.size() <= 0 ||
-            strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
-            LogMsg(MSG_FAIL, "[E005002]Remote path:%s is invalid, it is out of the application directory.", ctxNow.inputLocalPath.c_str());
-            WRITE_LOG(LOG_WARN, "SlaveCheck Invalid path:%s, fullPath:%s, resolvedPath:%s, errno:%d",
-                ctxNow.inputLocalPath.c_str(),  fullPath.c_str(), resolvedPath.c_str(), errno);
-            return false;
-        }
-    }
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
-        RemoveSandboxRootPath(errStr, ctxNow.bundleName);
+        RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;

@@ -153,7 +153,9 @@ struct HdcUSB {
     // usb accessory FunctionFS
     // USB main thread use, sub-thread disable, sub-thread uses the main thread USB handle
     int bulkOut;  // EP1 device recv
+    bool isBulkOutClosing;
     int bulkIn;   // EP2 device send
+    bool isBulkInClosing;
 #endif
     uint32_t payloadSize;
     uint16_t wMaxPacketSizeSend;

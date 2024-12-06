@@ -40,6 +40,10 @@ struct UvData {
 HdcDaemonUSB::HdcDaemonUSB(const bool serverOrDaemonIn, void *ptrMainBase)
     : HdcUSBBase(serverOrDaemonIn, ptrMainBase)
 {
+    usbHandle.bulkOut = -1;
+    usbHandle.isBulkOutClosing = false;
+    usbHandle.bulkIn = -1;
+    usbHandle.isBulkInClosing = false;
 }
 
 HdcDaemonUSB::~HdcDaemonUSB()
@@ -280,14 +284,17 @@ int HdcDaemonUSB::CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop)
     ctx->bulkInOut = bulkInOut;
     ctx->thisClass = this;
     isAlive = false;
+    bulkInOut ? ctx->thisClass->usbHandle.isBulkInClosing = true : ctx->thisClass->usbHandle.isBulkOutClosing = true;
     WRITE_LOG(LOG_DEBUG, "CloseBulkEp bulkFd:%d", bulkFd);
     uv_fs_close(loop, req, bulkFd, [](uv_fs_t *req) {
         auto ctx = (CtxCloseBulkEp *)req->data;
         WRITE_LOG(LOG_DEBUG, "Try to abort blukin write callback %s", ctx->bulkInOut ? "bulkin" : "bulkout");
         if (ctx->bulkInOut) {
-            ctx->thisClass->usbHandle.bulkIn = 0;
+            ctx->thisClass->usbHandle.bulkIn = -1;
+            ctx->thisClass->usbHandle.isBulkInClosing = false;
         } else {
-            ctx->thisClass->usbHandle.bulkOut = 0;
+            ctx->thisClass->usbHandle.bulkOut = -1;
+            ctx->thisClass->usbHandle.isBulkOutClosing = false;
         }
         uv_fs_req_cleanup(req);
         delete ctx;
@@ -678,6 +685,15 @@ int HdcDaemonUSB::LoopUSBRead(HUSB hUSB, int readMaxWanted)
     return RET_SUCCESS;
 }
 
+bool HdcDaemonUSB::IsUSBBulkClosing(const HUSB hUSB)
+{
+    if (hUSB == nullptr) {
+        WRITE_LOG(LOG_WARN, "hUSB is null");
+        return false;
+    }
+    return hUSB->isBulkOutClosing || hUSB->isBulkInClosing;
+}
+
 // Because USB can connect to only one host，daemonUSB is only one Session by default
 void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
 {
@@ -689,12 +705,12 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     }
     bool resetEp = false;
     do {
-        if (hUSB->bulkIn > 0) {
+        if (hUSB->bulkIn > 0 && !hUSB->isBulkInClosing) {
             WRITE_LOG(LOG_DEBUG, "Watchdog close bulkin");
             thisClass->CloseBulkEp(true, thisClass->usbHandle.bulkIn, &daemon->loopMain);
             resetEp = true;
         }
-        if (hUSB->bulkOut > 0) {
+        if (hUSB->bulkOut > 0 && !hUSB->isBulkOutClosing) {
             WRITE_LOG(LOG_DEBUG, "Watchdog close bulkout");
             thisClass->CloseBulkEp(false, thisClass->usbHandle.bulkOut, &daemon->loopMain);
             resetEp = true;
@@ -704,7 +720,8 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
             resetEp = true;
         }
     } while (false);
-    if (resetEp || thisClass->usbHandle.bulkIn != 0 || thisClass->usbHandle.bulkOut != 0) {
+
+    if (IsUSBBulkClosing(hUSB) || resetEp || thisClass->usbHandle.bulkIn > 0 || thisClass->usbHandle.bulkOut > 0) {
         return;
     }
     // until all bulkport reset

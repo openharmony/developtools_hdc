@@ -27,7 +27,7 @@ public:
 
 private:
     static void OnFdRead(uv_fs_t *req);
-    int ExecuteShell(const char *shellCommand);
+    int ExecuteShell(const string &shellCommand, string optionPath = "");
     bool FindMountDeviceByPath(const char *toQuery, char *dev);
     bool RemountPartition(const char *dir);
     bool CallRemount();
@@ -39,7 +39,9 @@ private:
     bool AsyncCmdOut(bool finish, int64_t exitStatus, const string result);
     bool TrackJdwpProcess(void *daemonIn, const string& param);
     void RemoveJdwpTracker();
-
+    int ExecuteShellExtend(const uint8_t *payload, const int payloadSize);
+    int ExecuteOptionShell(const string &shellCommand, const string &bundleName);
+    bool CheckbundlePath(const string &bundleName, string &mountPath);
     AsyncCmd asyncCommand;
     uint16_t currentDataCommand;
 #ifdef UNIT_TEST

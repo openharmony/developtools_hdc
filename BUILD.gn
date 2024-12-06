@@ -367,6 +367,7 @@ ohos_executable("hdc") {
     "src/host/ext_client.cpp",
     "src/host/host_app.cpp",
     "src/host/host_forward.cpp",
+    "src/host/host_shell_option.cpp",
     "src/host/host_tcp.cpp",
     "src/host/host_unity.cpp",
     "src/host/host_updater.cpp",

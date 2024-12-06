@@ -136,6 +136,9 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             context->inputLocalPath = context->localPath;
         } else {
             WRITE_LOG(LOG_WARN, "too many parameters.");
+            context->remotePath = argv[argc - 1];
+            context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
+            context->inputLocalPath = context->localPath;
         }
     } else {
         context->remotePath = argv[argc - 1];

@@ -90,7 +90,7 @@ bool HdcDaemonUnity::CheckbundlePath(const string &bundleName, string &mountPath
             "the debug application path does not exist", bundleName.c_str());
         return false;
     }
-    mountPath += targetPath;
+    mountPath = targetPath;
     return true;
 }
 

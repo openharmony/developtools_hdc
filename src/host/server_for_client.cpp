@@ -705,7 +705,8 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
         ret = DoCommandLocal(hChannel, formatCommandInput);
     } else {  // CONNECT DAEMON's work thread command, non-primary thread
         if (!CommandMatchDaemonFeature(formatCommand->cmdFlag, hdi)) {
-        // only the cmdFlag in the FEATURE_VERSION_MATCH_MAP needs to be checked, others to permissive.
+            // only the cmdFlag in the FEATURE_VERSION_MATCH_MAP needs to be checked, others to permissive.
+            WRITE_LOG(LOG_WARN, "unsupport cmdFlag: %d, due to daemon feature dismatch", formatCommand->cmdFlag);
             EchoClient(hChannel, MSG_FAIL, "[E002105] Unsupport command");
             return false;
         }
@@ -953,14 +954,13 @@ string HdcServerForClient::GetErrorString(uint32_t errorCode)
 bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi)
 {
     string cmdFlagStr = std::to_string(cmdFlag);
-    if (FEATURE_CHECK_SET.find(cmdFlag)!= FEATURE_CHECK_SET.end()) {
-        auto tagMatch = hdi->daemonFeature.find(cmdFlagStr);
-        if (tagMatch != hdi->daemonFeature.end()) {
-            return !strncmp(tagMatch->second.c_str(), STR_FEATURE_ENABLE.c_str(), STR_FEATURE_ENABLE.size());
-        } else {
-            return false;
-        }
+    if (FEATURE_CHECK_SET.find(cmdFlag) == FEATURE_CHECK_SET.end()) { // not need check
+        return true;
     }
-    return true;
+    auto tagMatch = hdi->daemonFeature.find(cmdFlagStr);
+    if (tagMatch == hdi->daemonFeature.end()) { // unsupport command
+        return false;
+    }
+    return (tagMatch->second == STR_FEATURE_ENABLE);
 }
 }  // namespace Hdc

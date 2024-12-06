@@ -116,7 +116,7 @@ bool TlvAppendParameter(const uint32_t tag, const string &shellCommand, string &
         errMsg = "[E003002] Unsupport interactive shell command option";
         return false;
     }
-    if (tag == TAG_SHELL_BUNDLE && !Base::CheckBundleName(shellCommand.c_str())) {
+    if (tag == TAG_SHELL_BUNDLE && !Base::CheckBundleName(shellCommand)) {
         errMsg = "[E003001] The specified bundle name \"" + shellCommand + "\" is not a debug application or "
             "the debug application path does not exist";
         return false;

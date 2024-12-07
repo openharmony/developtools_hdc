@@ -122,7 +122,6 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
     }
     if (argc == srcArgvIndex) {
         LogMsg(MSG_FAIL, "There is no local and remote path");
-        WRITE_LOG(LOG_WARN, "There is no local and remote path");
         return false;
     }
     if (context->sandboxMode) {
@@ -135,7 +134,6 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
             context->inputLocalPath = context->localPath;
         } else {
-            WRITE_LOG(LOG_WARN, "too many parameters.");
             context->remotePath = argv[argc - 1];
             context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
             context->inputLocalPath = context->localPath;

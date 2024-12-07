@@ -105,6 +105,10 @@ protected:
         vector<FileMode> dirMode; // save dir mode on master
         map<string, FileMode> dirModeMap; // save dir mode on slave
         ssize_t openFd;
+        bool sandboxMode;
+        string bundleName;
+        string inputLocalPath;
+        bool isOtherSideSandboxSupported;
     };
     // Just app-mode use
     enum AppModType {
@@ -134,6 +138,8 @@ protected:
     void ExtractRelativePath(string &cwd, string &path);
     bool AddFeatures(FeatureFlagsUnion &feature);
     bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
+    void RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName);
+    bool IsValidBundleName(const string &bundleName);
     void CloseCtxFd(CtxFile *context);
 
     CtxFile ctxNow;
@@ -141,6 +147,7 @@ protected:
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+    const string SANDBOX_ROOT_DIR = "/mnt/debug/100/debug_hap/";
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
 #endif

@@ -116,7 +116,6 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);
-            WRITE_LOG(LOG_WARN, "Unknown file option: %s", argv[i]);
             return false;
         }
     }

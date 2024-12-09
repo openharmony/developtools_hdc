@@ -349,7 +349,7 @@ void HdcTransferBase::OnFileOpenFailed(CtxFile *context)
     return;
 }
 
-bool HdcTransferBase::IsValidBundleName(const string &bundleName)
+bool HdcTransferBase::IsValidBundlePath(const string &bundleName)
 {
     string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();
     return Base::CheckBundleName(bundleName) && access(fullPath.c_str(), F_OK) == 0;
@@ -357,7 +357,7 @@ bool HdcTransferBase::IsValidBundleName(const string &bundleName)
 
 void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName)
 {
-    if (taskInfo->serverOrDaemon || !IsValidBundleName(bundleName)) {
+    if (taskInfo->serverOrDaemon || !IsValidBundlePath(bundleName)) {
         return;
     }
     string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();

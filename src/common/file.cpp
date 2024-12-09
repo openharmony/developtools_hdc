@@ -106,7 +106,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             ++srcArgvIndex;
         } else if (argv[i] == cmdBundleName) {
             context->sandboxMode = true;
-            if (argc == srcArgvIndex) {
+            if (argc == srcArgvIndex + 1) {
                 LogMsg(MSG_FAIL, "[E005003]There is no bundle name.");
                 WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
                 return false;

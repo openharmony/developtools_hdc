@@ -106,7 +106,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             ++srcArgvIndex;
         } else if (argv[i] == cmdBundleName) {
             context->sandboxMode = true;
-            if (argc == srcArgvIndex) {
+            if (argc == srcArgvIndex + 1) {
                 LogMsg(MSG_FAIL, "[E005003]There is no bundle name.");
                 WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
                 return false;
@@ -182,7 +182,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
     } else {
         if (context->sandboxMode &&
             context->transferConfig.reserve1.size() > 0 &&
-            !IsValidBundleName(context->transferConfig.reserve1)) {
+            !IsValidBundlePath(context->transferConfig.reserve1)) {
             LogMsg(MSG_FAIL, "[E005101]Invalid bundle name:%s",
                 context->transferConfig.reserve1.c_str());
             WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
@@ -195,7 +195,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         }
         context->localName = Base::GetFullFilePath(context->localPath);
 
-        if (context->sandboxMode && IsValidBundleName(context->transferConfig.reserve1)) {
+        if (context->sandboxMode && IsValidBundlePath(context->transferConfig.reserve1)) {
             string resolvedPath;
             if (CheckSandboxSubPath(context, resolvedPath)) {
                 context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
@@ -340,7 +340,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     WRITE_LOG(LOG_DEBUG, "HdcFile fileSize got %" PRIu64 "", ctxNow.fileSize);
 #endif
 
-    if (!taskInfo->serverOrDaemon && IsValidBundleName(ctxNow.bundleName)) {
+    if (!taskInfo->serverOrDaemon && IsValidBundlePath(ctxNow.bundleName)) {
         string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName + Base::GetPathSep();
         fullPath.append(ctxNow.inputLocalPath);
         ctxNow.localPath = fullPath;

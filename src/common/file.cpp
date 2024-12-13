@@ -151,6 +151,7 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     string appDir(fullPath);
     appDir = Base::CanonicalizeSpecPath(appDir);
     fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
+    // 去除最后的/，保证GetPathWithoutFileName得到的是一个去除了最后一个目录节点的子目录
     while (fullPath.back() == Base::GetPathSep()) {
         fullPath.pop_back();
     }

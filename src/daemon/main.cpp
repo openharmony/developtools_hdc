@@ -42,7 +42,7 @@ bool RestartDaemon(bool forkchild)
     return true;
 }
 
-void GetTCPChannelMode(void)
+void GetDebugChannelMode(void)
 {
     string modeValue;
     if (SystemDepend::GetDevItem("persist.hdc.mode.tcp", modeValue)) {
@@ -57,12 +57,24 @@ void GetTCPChannelMode(void)
     return;
 }
 
+void DisableTcpAndUSB(void)
+{
+    g_enableTcp = false;
+    g_enableUsb = false;
+    WRITE_LOG(LOG_INFO, "Disable USB and TCP");
+}
+
 bool ForkChildCheck(int argc, const char *argv[])
 {
     // hdcd        #service start foreground
     // hdcd -b     #service start backgroundRun
     // hdcd -fork  #fork
     Base::PrintMessage("Background mode, persist.hdc.mode");
+    /*
+     * First, check persist.hdc.mode.tcp or persist.hdc.mode.usb to enable usb/tcp channel
+     * Second, check persist.hdc.mode to enable corresponding channels
+    */
+    GetDebugChannelMode();
     string workMode;
     SystemDepend::GetDevItem("persist.hdc.mode", workMode);
     workMode = Base::Trim(workMode);
@@ -77,22 +89,23 @@ bool ForkChildCheck(int argc, const char *argv[])
     } else if (workMode == CMDSTR_TMODE_UART) {
         WRITE_LOG(LOG_DEBUG, "Property enable UART");
         g_enableUart = true;
+        DisableTcpAndUSB();
 #endif
 #ifdef HDC_EMULATOR
     } else if (workMode == CMDSTR_TMODE_BRIDGE || workMode.empty()) {
         WRITE_LOG(LOG_DEBUG, "Property enable Bridge");
         g_enableBridge = true;
+        DisableTcpAndUSB();
 #endif
-    } else if (workMode == CMDSTR_TMODE_USB || workMode == CMDSTR_TMODE_TCP) {
-        // for tcp and usb, we use persist.hdc.mode.tcp and persist.hdc.mode.usb to control
-        GetTCPChannelMode();
     } else {
-        WRITE_LOG(LOG_DEBUG, "Default USB mode");
-        g_enableUsb = true;
+        if (workMode != CMDSTR_TMODE_USB && workMode != CMDSTR_TMODE_TCP) {
+            WRITE_LOG(LOG_DEBUG, "Default USB mode");
+            g_enableUsb = true;
 #ifdef HDC_SUPPORT_UART
-        WRITE_LOG(LOG_DEBUG, "Default UART mode");
-        g_enableUart = true;
+            WRITE_LOG(LOG_DEBUG, "Default UART mode");
+            g_enableUart = true;
 #endif
+        }
     }
     if (argc == CMD_ARG1_COUNT) {
         if (!strcmp(argv[1], "-forkchild")) {

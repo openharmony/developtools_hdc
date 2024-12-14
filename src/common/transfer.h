@@ -134,7 +134,19 @@ protected:
     void ExtractRelativePath(string &cwd, string &path);
     bool AddFeatures(FeatureFlagsUnion &feature);
     bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
-    void CloseCtxFd(CtxFile *context);
+    static void CloseCtxFd(CtxFile *context)
+    {
+        if (context == nullptr || !context->isFdOpen) {
+            return;
+        }
+        WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
+            context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
+        uv_fs_t fs;
+        uv_fs_close(nullptr, &fs, context->openFd, nullptr);
+        uv_fs_req_cleanup(&fs);
+        // solve the fd leak caused by early exit due to illegal operation on a directory.
+        context->isFdOpen = false;
+    }
 
     CtxFile ctxNow;
     uint16_t commandBegin;

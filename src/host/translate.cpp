@@ -235,11 +235,6 @@ namespace TranslateCommand {
                 outCmd->bJumpDo = true;
                 return stringError;
             }
-            if (sport.size() > std::to_string(MAX_IP_PORT).size()) {
-                stringError = "Port too long than " + std::to_string(MAX_IP_PORT);
-                outCmd->bJumpDo = true;
-                return stringError;
-            }
             if (ip == "localhost") {
                 ip = "127.0.0.1";
                 outCmd->parameters.replace(0, pos, ip);

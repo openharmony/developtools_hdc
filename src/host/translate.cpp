@@ -244,7 +244,7 @@ namespace TranslateCommand {
                 ip = "127.0.0.1";
                 outCmd->parameters.replace(0, pos, ip);
             }
-            int port = std::stoi(sport);
+            int port = atoi(sport.c_str());
             sockaddr_in addr;
             if ((port <= 0 || port > MAX_IP_PORT) || uv_ip4_addr(ip.c_str(), port, &addr) < 0) {
                 stringError = "IP:Port incorrect";

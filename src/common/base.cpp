@@ -2351,7 +2351,7 @@ void CloseOpenFd(void)
             if (!IsDigitString(segment)) {
                 return false;
             }
-            int num = std::stoi(segment);
+            int num = atoi(segment.c_str());
             if (num < 0 || num > maxValue) {
                 return false;
             }

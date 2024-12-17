@@ -46,9 +46,6 @@ namespace Hdc {
 namespace Base {
     bool g_isBackgroundServer = false;
     constexpr int DEF_FILE_PERMISSION = 0750;
-#ifndef _WIN32
-    sigset_t g_blockList;
-#endif
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -2281,10 +2278,6 @@ void CloseOpenFd(void)
         signal(SIGALRM, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
         signal(SIGTTOU, SIG_IGN);
-        sigemptyset(&g_blockList);
-        constexpr int crashSignal = 35;
-        sigaddset(&g_blockList, crashSignal);
-        sigprocmask(SIG_BLOCK, &g_blockList, nullptr);
 #endif
     }
 

@@ -491,6 +491,49 @@ def test_smode():
     assert not check_hdc_cmd("ls /data/log/faultlog/faultlogger | grep hdcd", "hdcd")
 
 
+def test_persist_hdc_mode_tcp():
+    assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp enable")
+    time.sleep(5)
+    run_command_with_timeout("hdc wait", 3)
+    netstat_listen = get_shell_result(f'shell "netstat -anp | grep 0.0.0.0"')
+    assert "LISTEN" in netstat_listen
+    assert "hdcd" in netstat_listen
+    assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp disable")
+    time.sleep(5)
+    run_command_with_timeout("hdc wait", 3)
+    netstat_listen = get_shell_result(f'shell "netstat -anp | grep 0.0.0.0"')
+    assert "LISTEN" not in netstat_listen
+    assert "hdcd" not in netstat_listen
+
+
+def test_persist_hdc_mode_usb():
+    assert check_hdc_cmd(f"shell param set persist.hdc.mode.usb enable")
+    echo_result = get_shell_result(f'shell "echo 12345"')
+    assert "12345" not in echo_result
+    time.sleep(10)
+    run_command_with_timeout("hdc wait", 3)
+    echo_result = get_shell_result(f'shell "echo 12345"')
+    assert "12345" in echo_result
+
+
+def test_persist_hdc_mode_tcp_usb():
+    assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp enable")
+    time.sleep(5)
+    run_command_with_timeout("hdc wait", 3)
+    assert check_hdc_cmd(f"shell param set persist.hdc.mode.usb enable")
+    time.sleep(10)
+    run_command_with_timeout("hdc wait", 3)
+    netstat_listen = get_shell_result(f'shell "netstat -anp | grep 0.0.0.0"')
+    assert "LISTEN" in netstat_listen
+    assert "hdcd" in netstat_listen
+    assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp disable")
+    time.sleep(5)
+    run_command_with_timeout("hdc wait", 3)
+    netstat_listen = get_shell_result(f'shell "netstat -anp | grep 0.0.0.0"')
+    assert "LISTEN" not in netstat_listen
+    assert "hdcd" not in netstat_listen
+
+
 def setup_class():
     print("setting up env ...")
     check_hdc_cmd("shell rm -rf data/local/tmp/it_*")

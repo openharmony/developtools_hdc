@@ -42,7 +42,7 @@ bool RestartDaemon(bool forkchild)
     return true;
 }
 
-void GetDebugChannelMode(void)
+void CheckTcpAndUSBSwitch(void)
 {
     string modeValue;
     if (SystemDepend::GetDevItem("persist.hdc.mode.tcp", modeValue)) {
@@ -74,10 +74,11 @@ bool ForkChildCheck(int argc, const char *argv[])
      * First, check persist.hdc.mode.tcp or persist.hdc.mode.usb to enable usb/tcp channel
      * Second, check persist.hdc.mode to enable corresponding channels
     */
-    GetDebugChannelMode();
+    CheckTcpAndUSBSwitch();
     string workMode;
     SystemDepend::GetDevItem("persist.hdc.mode", workMode);
     workMode = Base::Trim(workMode);
+    WRITE_LOG(LOG_INFO, "persist.hdc.mode is %s", workMode.c_str());
     if (workMode == "all") {
         WRITE_LOG(LOG_DEBUG, "Property enable USB and TCP");
         g_enableUsb = true;

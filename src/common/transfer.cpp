@@ -51,20 +51,6 @@ HdcTransferBase::~HdcTransferBase()
     }
 };
 
-void HdcTransferBase::CloseCtxFd(CtxFile *context)
-{
-    if (context == nullptr || !context->isFdOpen) {
-        return;
-    }
-    WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
-        context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
-    uv_fs_t fs;
-    uv_fs_close(nullptr, &fs, context->openFd, nullptr);
-    uv_fs_req_cleanup(&fs);
-    // solve the fd leak caused by early exit due to illegal operation on a directory.
-    context->isFdOpen = false;
-}
-
 bool HdcTransferBase::ResetCtx(CtxFile *context, bool full)
 {
     if (full) {
@@ -305,21 +291,18 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     if (context->ioFinish) {
         // close-step1
         ++thisClass->refCount;
-        if (req->fs_type == UV_FS_WRITE) {
+        if (req->fs_type == UV_FS_WRITE && context->isFdOpen) {
             uv_fs_t req = {};
             uv_fs_fsync(nullptr, &req, context->openFd, nullptr);
             uv_fs_req_cleanup(&req);
         }
         WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d, context->isFdOpen %d",
                   thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted, context->isFdOpen);
-        if (context->lastErrno == 0 && !context->closeReqSubmitted && context->isFdOpen) {
+        if (context->lastErrno == 0 && !context->closeReqSubmitted) {
             context->closeReqSubmitted = true;
             WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
-            uv_fs_t closeReq = {};
-            uv_fs_close(nullptr, &closeReq, context->openFd, nullptr);
-            uv_fs_req_cleanup(&closeReq);
+            CloseCtxFd(context);
             OnFileClose(context);
-            context->isFdOpen = false;
         } else {
             thisClass->WhenTransferFinish(context);
             --thisClass->refCount;

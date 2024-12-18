@@ -231,6 +231,18 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     uint8_t *bufIO = contextIO->bufIO;
     StartTraceScope("HdcTransferBase::OnFileIO");
+    if (thisClass->taskInfo->channelTask) {
+        HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(thisClass->taskInfo->channelClass);
+        if (channelBase->queuedPackages.load() >= 10) {
+        	WRITE_LOG(LOG_WARN, "queued packages:%d is full", channelBase->queuedPackages.load());
+            Base::DelayDo(req->loop, 50, 0, "ChannelFull", req, [](const uint8_t flag, string &msg, const void *data) {
+                uv_fs_t *req = (uv_fs_t *)data;
+                OnFileIO(req);
+            });
+            return;
+        }
+        channelBase->queuedPackages.fetch_add(1, std::memory_order_relaxed);
+    }
     uv_fs_req_cleanup(req);
     while (true) {
         if (context->ioFinish) {

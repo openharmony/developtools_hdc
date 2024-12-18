@@ -23,6 +23,7 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
     uv_rwlock_init(&mainAsync);
     uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
     uv_rwlock_init(&lockMapChannel);
+    queuedPackages.store(0);
 }
 
 HdcChannelBase::~HdcChannelBase()
@@ -189,6 +190,7 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
     }
     delete[]((uint8_t *)req->data);
     delete req;
+    thisClass->queuedPackages.fetch_sub(1, std::memory_order_relaxed);
 }
 
 void HdcChannelBase::AsyncMainLoopTask(uv_idle_t *handle)

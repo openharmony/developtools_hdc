@@ -30,7 +30,8 @@ public:
     void EchoToAllChannelsViaSessionId(uint32_t targetSessionId, const string &echo);
     vector<uint8_t> GetChannelHandshake(string &connectKey) const;
     void SendWithCmd(const uint32_t channelId, const uint16_t commandFlag, uint8_t *bufPtr, const int size);
-
+public:
+    std::atomic<int> queuedPackages;
 protected:
     struct ChannelHandShake {
         char banner[12];  // must first index

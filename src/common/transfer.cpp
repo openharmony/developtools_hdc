@@ -232,10 +232,13 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     uint8_t *bufIO = contextIO->bufIO;
     StartTraceScope("HdcTransferBase::OnFileIO");
     if (thisClass->taskInfo->channelTask) {
+        const int maxPackages = 20;
+        const int onePackageTransferTime = 6;
+        const int delayMs = maxPackages * onePackageTransferTime;
         HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(thisClass->taskInfo->channelClass);
-        if (channelBase->queuedPackages.load() >= 10) {
-        	WRITE_LOG(LOG_WARN, "queued packages:%d is full", channelBase->queuedPackages.load());
-            Base::DelayDo(req->loop, 50, 0, "ChannelFull", req, [](const uint8_t flag, string &msg, const void *data) {
+        if (channelBase->queuedPackages.load() >= maxPackages) {
+        	WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());
+            Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req, [](const uint8_t flag, string &msg, const void *data) {
                 uv_fs_t *req = (uv_fs_t *)data;
                 OnFileIO(req);
             });

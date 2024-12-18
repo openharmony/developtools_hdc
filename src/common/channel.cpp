@@ -187,10 +187,11 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
         if (!hChannel->isDead && !hChannel->ref) {
             thisClass->FreeChannel(hChannel->channelId);
         }
+    } else {
+        thisClass->queuedPackages.fetch_sub(1, std::memory_order_relaxed);
     }
     delete[]((uint8_t *)req->data);
     delete req;
-    thisClass->queuedPackages.fetch_sub(1, std::memory_order_relaxed);
 }
 
 void HdcChannelBase::AsyncMainLoopTask(uv_idle_t *handle)

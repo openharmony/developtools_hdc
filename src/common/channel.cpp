@@ -188,7 +188,9 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
             thisClass->FreeChannel(hChannel->channelId);
         }
     } else {
+#ifdef HDC_HOST
         thisClass->queuedPackages.fetch_sub(1, std::memory_order_relaxed);
+#endif
     }
     delete[]((uint8_t *)req->data);
     delete req;

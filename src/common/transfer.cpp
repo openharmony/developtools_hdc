@@ -309,13 +309,20 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
 // return true: do io delayed
 bool HdcTransferBase::IODelayed(uv_fs_t *req)
 {
+#ifndef HDC_HOST
+    return false;
+#endif
+    if (req->fs_type != UV_FS_READ) {
+        return false;
+    }
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
     CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     if (thisClass->taskInfo->channelTask) {
-        const int maxPackages = 20;
-        const int onePackageTransferTime = 6;
-        const int delayMs = maxPackages * onePackageTransferTime;
+        const int maxPackages = 64;
+        const int onePackageTransferTime = 2;
+        const int delayPackages = maxPackages / 2;
+        const int delayMs = delayPackages * onePackageTransferTime;
         HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(thisClass->taskInfo->channelClass);
         if (channelBase->queuedPackages.load() >= maxPackages) {
             WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());

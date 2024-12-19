@@ -264,12 +264,12 @@ bool HdcTransferBase::ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTran
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
     uint8_t *bufIO = contextIO->bufIO;
     DEBUG_LOG("read file data %" PRIu64 "/%" PRIu64 "", context->indexIO, context->fileSize);
-    if (req->result == 0) {
-        WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", context->localPath.c_str(), context->openFd);
-        return true;
-    }
     if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
         WRITE_LOG(LOG_WARN, "OnFileIO SendIOPayload fail.");
+        return true;
+    }
+    if (req->result == 0) {
+        WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", context->localPath.c_str(), context->openFd);
         return true;
     }
     if (context->indexIO < context->fileSize) {

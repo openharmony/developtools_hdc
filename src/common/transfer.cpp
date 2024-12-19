@@ -224,28 +224,39 @@ out:
     return ret;
 }
 
-void HdcTransferBase::OnFileIO(uv_fs_t *req)
+bool HdcTransferBase::IODelayed(uv_fs_t *req)
 {
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
     CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
-    uint8_t *bufIO = contextIO->bufIO;
-    StartTraceScope("HdcTransferBase::OnFileIO");
     if (thisClass->taskInfo->channelTask) {
         const int maxPackages = 20;
         const int onePackageTransferTime = 6;
         const int delayMs = maxPackages * onePackageTransferTime;
         HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(thisClass->taskInfo->channelClass);
         if (channelBase->queuedPackages.load() >= maxPackages) {
-        	WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());
-            Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req, [](const uint8_t flag, string &msg, const void *data) {
-                uv_fs_t *req = (uv_fs_t *)data;
-                OnFileIO(req);
-            });
-            return;
+            WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());
+            Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req,
+                          [](const uint8_t flag, string &msg, const void *data){
+                              uv_fs_t *req = (uv_fs_t *)data;
+                              OnFileIO(req);
+                          });
+            return true;
         }
         channelBase->queuedPackages.fetch_add(1, std::memory_order_relaxed);
     }
+    return false;
+}
+void HdcTransferBase::OnFileIO(uv_fs_t *req)
+{
+    StartTraceScope("HdcTransferBase::OnFileIO");
+    if (IODelayed(req)) {
+        return;
+    }
+    CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
+    CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
+    HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+    uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
     while (true) {
         if (context->ioFinish) {
@@ -264,10 +275,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
         }
         context->indexIO += req->result;
         if (req->fs_type == UV_FS_READ) {
-#ifdef HDC_DEBUG
-            WRITE_LOG(LOG_DEBUG, "read file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
-                      context->fileSize);
-#endif // HDC_DEBUG
+            DEBUG_LOG("read file data %" PRIu64 "/%" PRIu64 "", context->indexIO, context->fileSize);
             if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
                 WRITE_LOG(LOG_WARN, "OnFileIO SendIOPayload fail.");
                 context->ioFinish = true;
@@ -287,10 +295,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
                 context->ioFinish = true;
             }
         } else if (req->fs_type == UV_FS_WRITE) {  // write
-#ifdef HDC_DEBUG
-            WRITE_LOG(LOG_DEBUG, "write file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
-                      context->fileSize);
-#endif // HDC_DEBUG
+            DEBUG_LOG("write file data %" PRIu64 "/%" PRIu64 "", context->indexIO, context->fileSize);
             if (context->indexIO >= context->fileSize || req->result == 0) {
                 // The active end must first read it first, but you can't make Finish first, because Slave may not
                 // end.Only slave receives complete talents Finish

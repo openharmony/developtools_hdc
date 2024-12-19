@@ -203,6 +203,12 @@ const string TERMINAL_HDC_PROCESS_FAILED = "[E002101]:Terminal hdc process faile
 #else
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
 #endif
+#ifdef HDC_DEBUG
+#define DEBUG_LOG(fmt, ...)   WRITE_LOG(LOG_DEBUG, fmt, ##__VA_ARGS__)
+#else
+#define DEBUG_LOG(fmt, ...)
+#endif
+
 #ifdef _WIN32
 #define hdc_strerrno(buf) \
         char buf[1024] = { 0 }; \

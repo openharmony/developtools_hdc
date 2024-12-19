@@ -237,7 +237,7 @@ bool HdcTransferBase::IODelayed(uv_fs_t *req)
         if (channelBase->queuedPackages.load() >= maxPackages) {
             WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());
             Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req,
-                          [](const uint8_t flag, string &msg, const void *data){
+                          [](const uint8_t flag, string &msg, const void *data) {
                               uv_fs_t *req = (uv_fs_t *)data;
                               OnFileIO(req);
                           });

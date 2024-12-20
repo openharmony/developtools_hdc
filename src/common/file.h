@@ -33,8 +33,10 @@ private:
     void WhenTransferFinish(CtxFile *context) override;
     bool BeginTransfer(CtxFile *context, const string &command);
     void TransferSummary(CtxFile *context);
+    bool ParseMasterParameters(CtxFile *context, int argc, char **argv, int &srcArgvIndex);
     bool SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv);
     bool FileModeSync(const uint16_t cmd, uint8_t *payload, const int payloadSize);
+    bool CheckSandboxSubPath(CtxFile *context, string &resolvedPath);
 };
 }  // namespace Hdc
 

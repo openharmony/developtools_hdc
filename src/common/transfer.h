@@ -105,6 +105,10 @@ protected:
         vector<FileMode> dirMode; // save dir mode on master
         map<string, FileMode> dirModeMap; // save dir mode on slave
         ssize_t openFd;
+        bool sandboxMode;
+        string bundleName;
+        string inputLocalPath;
+        bool isOtherSideSandboxSupported;
     };
     // Just app-mode use
     enum AppModType {
@@ -147,12 +151,15 @@ protected:
         // solve the fd leak caused by early exit due to illegal operation on a directory.
         context->isFdOpen = false;
     }
+    void RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName);
+    bool IsValidBundleName(const string &bundleName);
 
     CtxFile ctxNow;
     uint16_t commandBegin;
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+    const string SANDBOX_ROOT_DIR = "/mnt/debug/100/debug_hap/";
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
 #endif

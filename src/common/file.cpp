@@ -108,7 +108,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             context->sandboxMode = true;
             if (argc == srcArgvIndex) {
                 LogMsg(MSG_FAIL, "[E005003]There is no bundle name.");
-                WRITE_LOG(LOG_WARN, "There is no bundle name.");
+                WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
                 return false;
             }
             context->transferConfig.reserve1 = argv[i + 1];
@@ -116,7 +116,6 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);
-            WRITE_LOG(LOG_WARN, "Unknown file option: %s", argv[i]);
             return false;
         }
     }
@@ -158,7 +157,7 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
         strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
         LogMsg(MSG_FAIL, "[E005102]Remote path:%s is invalid, it is out of the application directory.",
             context->inputLocalPath.c_str());
-        WRITE_LOG(LOG_WARN, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
+        WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
             context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
         return false;
     }
@@ -186,7 +185,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             !IsValidBundleName(context->transferConfig.reserve1)) {
             LogMsg(MSG_FAIL, "[E005101]Invalid bundle name:%s",
                 context->transferConfig.reserve1.c_str());
-            WRITE_LOG(LOG_WARN, "SetMasterParameters invalid bundleName:%s",
+            WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
                 context->transferConfig.reserve1.c_str());
             return false;
         }
@@ -348,7 +347,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 
         string resolvedPath;
         if (!CheckSandboxSubPath(&ctxNow, resolvedPath)) {
-            WRITE_LOG(LOG_WARN, "SlaveCheck CheckSandboxSubPath false.");
+            WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckSandboxSubPath false.");
             return false;
         }
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
@@ -359,14 +358,14 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
-        WRITE_LOG(LOG_WARN, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
     if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, stat.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
-        WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
     // check path

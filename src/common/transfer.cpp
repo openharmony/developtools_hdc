@@ -334,8 +334,7 @@ void HdcTransferBase::OnFileOpenFailed(CtxFile *context)
 
 bool HdcTransferBase::IsValidBundleName(const string &bundleName)
 {
-    return bundleName.length() > 0 &&
-        bundleName.find("invalid") == std::string::npos;
+    return Base::CheckBundleName(bundleName);
 }
 
 void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName)

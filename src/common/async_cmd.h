@@ -37,13 +37,13 @@ public:
     // uv_loop_t loop is given to uv_spawn, which can't be const
     bool Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint32_t optionsIn = 0);
     void DoRelease();  // Release process resources
-    bool ExecuteCommand(const string &command);
+    bool ExecuteCommand(const string &command, string executePath = "");
     bool ReadyForRelease();
 
 private:
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
-    int ThreadFork(const string &command, bool readWrite, int &cpid);
+    int ThreadFork(const string &command, const string &optionPath, bool readWrite, int &cpid);
     static void *Popen(void *arg);
 #if !defined(_WIN32) && !defined(HDC_HOST)
     bool GetDevItem(const char *key, string &out);
@@ -64,9 +64,14 @@ struct AsyncParams {
     bool readWriteParam;
     int &cpidParam;
     bool isRoot;
+    string optionPath;
 
-    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam, bool isRoot)
-        :commandParam(commandParam), readWriteParam(readWriteParam), cpidParam(cpidParam), isRoot(isRoot) {};
+    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam, bool isRoot, const string &optionPath)
+        :commandParam(commandParam),
+        readWriteParam(readWriteParam),
+        cpidParam(cpidParam),
+        isRoot(isRoot),
+        optionPath(optionPath) {};
 };
 }  // namespace Hdc
 #endif

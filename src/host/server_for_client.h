@@ -36,7 +36,7 @@ private:
     bool SetTCPListen();
     int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO) override;
     void ReportServerVersion(HChannel hChannel);
-    bool DoCommand(HChannel hChannel, void *formatCommandInput);
+    bool DoCommand(HChannel hChannel, void *formatCommandInput, HDaemonInfo &hdi);
     void OrderFindTargets(HChannel hChannel);
     bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck = false);
     static void OrderConnecTargetResult(uv_timer_t *req);
@@ -60,9 +60,13 @@ private:
     HSession FindAliveSessionFromDaemonMap(const HChannel hChannel);
     string GetErrorString(uint32_t errorCode);
     void PrintLastError(HChannel HChannel);
+    bool CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi);
 
     uv_tcp_t tcpListen;
     void *clsServer;
+    const std::set<uint16_t> FEATURE_CHECK_SET = {
+        CMD_UNITY_EXECUTE_EX,
+    }; // feature cmdFlag
     const std::unordered_map<uint32_t, std::string> ErrorStringEnglish = {
 #ifdef _WIN32
         {0x000005, "Failed to load the authorization pub key!\r\n"

@@ -84,6 +84,8 @@ constexpr uint16_t PORT_MAX_LEN = 5;
 constexpr uint16_t START_SERVER_FOR_CLIENT_TIME = 300;
 constexpr uint16_t START_CMD_WAIT_TIME = 3000; // 3 seconds, for client wait for server start
 constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
+constexpr uint16_t BUNDLE_MIN_SIZE = 7;
+constexpr uint16_t BUNDLE_MAX_SIZE = 128;
 #ifdef HDC_HOST
 constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 32;
 #else
@@ -101,8 +103,8 @@ constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MAX_MS = 1000;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30100300 is 3.1.0d
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30100300;
+// 0x30100400 is 3.1.0e
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30100400;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;
@@ -114,6 +116,7 @@ constexpr int32_t RSA_KEY_BITS = 3072;
 
 const string WHITE_SPACES = " \t\n\r";
 const string UT_TMP_PATH = "/tmp/hdc-ut";
+const string DEBUG_BUNDLE_PATH = "/mnt/debug/100/debug_hap/";
 const string LOG_FILE_NAME = "hdc.log";
 const string LOG_FILE_NAME_PREFIX = "hdc-";
 const string LOG_FILE_SUFFIX = ".log";
@@ -151,6 +154,7 @@ const string CMDSTR_WAIT_FOR = "wait";
 const string CMDSTR_CONNECT_TARGET = "tconn";
 const string CMDSTR_CONNECT_ANY = "any";
 const string CMDSTR_SHELL = "shell";
+const string CMDSTR_SHELL_EX = "shell -";
 const string CMDSTR_TARGET_REBOOT = "target boot";
 const string CMDSTR_TARGET_MOUNT = "target mount";
 const string CMDSTR_STARTUP_MODE = "smode";
@@ -192,7 +196,8 @@ const string CMDSTR_FLASHD_UPDATE = "update";
 const string CMDSTR_FLASHD_FLASH = "flash";
 const string CMDSTR_FLASHD_ERASE = "erase";
 const string CMDSTR_FLASHD_FORMAT = "format";
-
+const string STR_FEATURE_ENABLE = "enable";
+const string STR_FEATURE_DISABLE = "disable";
 // ################################ Error Message ###################################
 const string TERMINAL_HDC_PROCESS_FAILED = "[E002101]:Terminal hdc process failed, "\
     "please terminal the hdc process in the task manager first.";

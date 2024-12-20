@@ -113,7 +113,7 @@ def test_large_file():
 
 @pytest.mark.repeat(1)
 def test_running_file():
-    assert check_hdc_cmd(f"file recv /system/bin/hdcd {get_local_path('running_recv')}")
+    assert check_hdc_cmd(f"file recv system/bin/hdcd {get_local_path('running_recv')}")
 
 
 @pytest.mark.repeat(1)
@@ -257,9 +257,9 @@ def test_target_cmd():
     assert check_hdc_targets()
     check_hdc_cmd("target boot")
     start_time = time.time()
-    run_command_with_timeout("hdc wait", 30) # reboot takes up to 30 seconds
+    run_command_with_timeout(f"{GP.hdc_head} wait", 30) # reboot takes up to 30 seconds
     time.sleep(3) # sleep 3s to wait for the device to boot
-    run_command_with_timeout("hdc wait", 30) # reboot takes up to 30 seconds
+    run_command_with_timeout(f"{GP.hdc_head} wait", 30) # reboot takes up to 30 seconds
     end_time = time.time()
     print(f"command exec time {end_time - start_time}")
     time.sleep(3) # sleep 3s to wait for the device to connect channel
@@ -297,14 +297,14 @@ def test_target_mount():
 def test_tmode_port():
     assert (check_hdc_cmd("tmode port", "Set device run mode successful"))
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     assert (check_hdc_cmd("tmode port 12345"))
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     netstat_port = get_shell_result(f'shell "netstat -anp | grep 12345"')
     print(netstat_port)
     assert "LISTEN" in netstat_port
@@ -316,9 +316,9 @@ def test_tconn():
     address = "127.0.0.1"
     assert (check_hdc_cmd(f"tmode port {daemon_port}"))
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     assert check_hdc_cmd(f"shell param get persist.hdc.port", f"{daemon_port}")
     assert check_hdc_cmd(f"fport tcp:{daemon_port} tcp:{daemon_port}", "Forwardport result:OK")
     assert check_hdc_cmd(f"fport ls ", f"tcp:{daemon_port} tcp:{daemon_port}")
@@ -444,7 +444,7 @@ def test_hilog_exit_after_hdc_kill():
     assert check_hdc_cmd(f'kill', "Kill server finish")
     assert check_hdc_cmd("start")
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     hilog_pid2 = get_shell_result(f'shell pidof hilog')
     assert hilog_pid2 == ''
     p.join()
@@ -467,6 +467,71 @@ def test_shell_huge_cat():
         times=10)
 
 
+def test_shell_option_bundle_normal():
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}")
+        assert check_shell(f"shell -b {GP.debug_app} pwd", f"mnt/debug/100/debug_hap/{GP.debug_app}")
+        check_shell(f"shell -b {GP.debug_app} touch test01")
+        assert check_shell(f"shell -b {GP.debug_app} ls", "test01")
+        assert check_shell(f"shell           -b            {GP.debug_app} echo            123             ",
+                    "123")
+        check_shell(f"shell -b {GP.debug_app} \"echo 123 > test02\"")
+        assert check_shell(f"shell -b {GP.debug_app} cat test02", "123")
+        check_shell(f"shell -b {GP.debug_app} mkdir test03")
+        assert check_shell(f"shell -b {GP.debug_app} stat test03", "Access")
+        check_shell(f"shell -b {GP.debug_app} rm -rf test01 test02 test03")
+        assert check_shell(f"shell -b {GP.debug_app} ls test01", "test01: No such file or directory")
+        assert check_shell(f"shell -b {GP.debug_app} ls test02", "test02: No such file or directory")
+        assert check_shell(f"shell -b {GP.debug_app} ls test03", "test03: No such file or directory")
+
+
+def test_shell_option_bundle_error():
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        # 不存在的bundle名称
+        assert check_shell("shell -b com.XXXX.not.exist.app pwd", "[Fail][E003001]")
+        # 相对路径逃逸1
+        assert check_shell(f"shell -b ../../../../ pwd", "[Fail][E003001")
+        # 相对路径逃逸2
+        assert check_shell(f"shell -b ././././pwd", "[Fail][E003001]")
+        # 相对路径逃逸3
+        assert check_shell(f"shell -b / pwd", "[Fail][E003001]")
+        # 交互式shell不支持
+        assert check_shell(f"shell -b {GP.debug_app}", "[Fail][E003002]")
+        # bundle参数(129)超过128
+        str_len_129 = "a" * 129
+        assert check_shell(f"shell -b {str_len_129} pwd", "[Fail][E003001]")
+        # bundle参数(6)低于7
+        str_len_6 = "a" * 6
+        assert check_shell(f"shell -b {str_len_6} pwd", "[Fail][E003001]")
+        # bundle参数存在非法参数
+        str_invalid = "#########"
+        assert check_shell(f"shell -b {str_invalid} pwd", "[Fail][E003001]")
+        # 其他参数用例1
+        assert check_shell("shell -param 1234567890 pwd", "[Fail][E003003]")
+        # 其他参数用例2
+        assert check_shell("shell -basd {GP.debug_app} pwd", "[Fail][E003003]")
+        # 缺少参数字母
+        assert check_shell(f"shell - {GP.debug_app} ls", "[Fail][E003003]")
+        # 缺少bundle参数1
+        assert check_shell("shell -b ls", "[Fail][E003001]")
+        # 缺少bundle参数2
+        assert check_shell("shell -b", "[Fail][E003005]")
+        # 存在未知参数在前面
+        assert check_shell(f"shell -t -b {GP.debug_app} ls", "[Fail][E003003]")
+        # 参数在后面
+        assert check_shell(f"shell ls -b {GP.debug_app}", "No such file or directory")
+        # 双倍参数
+        assert check_shell(f"shell -b -b {GP.debug_app} ls", "[Fail][E003001]")
+        # 双倍-杠
+        assert check_shell(f"shell --b {GP.debug_app}", "[Fail][E003003]")
+
+
 def test_hdcd_rom():
     baseline = 2200 # 2200KB
     assert check_rom(baseline)
@@ -475,18 +540,18 @@ def test_hdcd_rom():
 def test_smode_r():
     assert check_hdc_cmd(f'smode -r')
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     assert check_shell(f"shell id", "context=u:r:sh:s0")
 
 
 def test_smode():
     assert check_hdc_cmd(f'smode')
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    run_command_with_timeout("hdc wait", 3) # wait 3s for the device to connect channel
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     assert check_shell(f"shell id", "context=u:r:su:s0")
     assert not check_hdc_cmd("ls /data/log/faultlog/faultlogger | grep hdcd", "hdcd")
 

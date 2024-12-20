@@ -269,13 +269,19 @@ namespace Base {
     #define TAG_TOKEN "token"
     #define TAG_DAEOMN_AUTHSTATUS "daemonauthstatus"
     #define TAG_AUTH_TYPE "authtype"
+    #define TAG_FEATURE_SHELL_OPT "1200" // CMD_UNITY_EXECUTE_EX
     void TrimSubString(string &str, string substr);
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);
     FILE *Fopen(const char *fileName, const char *mode);
     void AddDeletedSessionId(uint32_t sessionId);
     bool IsSessionDeleted(uint32_t sessionId);
+    bool CheckBundleName(const string &bundleName);
     void CloseOpenFd(void);
+    const std::set<uint32_t> REGISTERD_TAG_SET = {
+        TAG_SHELL_BUNDLE,
+        TAG_SHELL_CMD,
+    };
 }  // namespace base
 }  // namespace Hdc
 

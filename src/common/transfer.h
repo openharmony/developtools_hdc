@@ -152,7 +152,7 @@ protected:
         context->isFdOpen = false;
     }
     void RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName);
-    bool IsValidBundleName(const string &bundleName);
+    bool IsValidBundlePath(const string &bundleName);
 
     CtxFile ctxNow;
     uint16_t commandBegin;

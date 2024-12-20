@@ -151,6 +151,11 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     string appDir(fullPath);
     appDir = Base::CanonicalizeSpecPath(appDir);
     fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
+    // remove the postfix char '/', make sure that the method Base::GetPathWithoutFilename
+    // returns a path without the last dir node name.
+    while (fullPath.back() == Base::GetPathSep()) {
+        fullPath.pop_back();
+    }
     fullPath = Base::GetPathWithoutFilename(fullPath);
     resolvedPath = Base::CanonicalizeSpecPath(fullPath);
     if (resolvedPath.size() <= 0 ||

@@ -332,6 +332,26 @@ void HdcTransferBase::OnFileOpenFailed(CtxFile *context)
     return;
 }
 
+bool HdcTransferBase::IsValidBundlePath(const string &bundleName)
+{
+    string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();
+    return Base::CheckBundleName(bundleName) && access(fullPath.c_str(), F_OK) == 0;
+}
+
+void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName)
+{
+    if (taskInfo->serverOrDaemon || !IsValidBundlePath(bundleName)) {
+        return;
+    }
+    string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();
+    size_t pos = 0;
+    if ((pos = srcStr.find(fullPath)) != std::string::npos) {
+        srcStr = srcStr.replace(pos, fullPath.length(), "");
+    } else {
+        WRITE_LOG(LOG_DEBUG, "fullPath:%s, srcStr:%s", fullPath.c_str(), srcStr.c_str());
+    }
+}
+
 void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 {
     std::unique_ptr<uv_fs_t> uptrReq(req);
@@ -346,10 +366,12 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_strerror_r((int)req->result, buf, bufSize);
+        string localPath = context->localPath;
+        thisClass->RemoveSandboxRootPath(localPath, context->bundleName);
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
-                          context->localPath.c_str());
-        WRITE_LOG(LOG_FATAL, "open path:%s error:%s, dir:%d, master:%d",
-            context->localPath.c_str(), buf, context->isDir, context->master);
+                          localPath.c_str());
+        WRITE_LOG(LOG_FATAL, "open path:%s, localPath:%s, error:%s, dir:%d, master:%d", context->localPath.c_str(),
+            localPath.c_str(), buf, context->isDir, context->master);
         OnFileOpenFailed(context);
         return;
     }
@@ -737,6 +759,15 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 ret = false;
                 break;
             }
+            if (!context->isOtherSideSandboxSupported && context->sandboxMode) {
+                const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
+                WRITE_LOG(LOG_DEBUG, "%s doesn't support -b option.", name);
+                LogMsg(MSG_FAIL, "[E005004]%s doesn't support -b option.", name);
+                OnFileOpenFailed(context);
+                TaskFinish();
+                ret = false;
+                break;
+            }
             int ioRet = SimpleFileIO(context, context->indexIO, nullptr, (context->isStableBufSize) ?
                 Base::GetMaxBufSizeStable() * maxTransferBufFactor :
                 Base::GetMaxBufSize() * maxTransferBufFactor);
@@ -782,6 +813,7 @@ void HdcTransferBase::ExtractRelativePath(string &cwd, string &path)
 bool HdcTransferBase::AddFeatures(FeatureFlagsUnion &feature)
 {
     feature.bits.hugeBuf = !isStableBuf;
+    feature.bits.reserveBits1 = 1;
     return true;
 }
 
@@ -795,10 +827,12 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
         }
         WRITE_LOG(LOG_DEBUG, "isStableBuf:%d, hugeBuf:%d", isStableBuf, feature.bits.hugeBuf);
         context->isStableBufSize = isStableBuf ? true : (!feature.bits.hugeBuf);
+        context->isOtherSideSandboxSupported = feature.bits.reserveBits1 > 0;
         return true;
     } else if (payloadSize == 0) {
         WRITE_LOG(LOG_DEBUG, "FileBegin CheckFeatures payloadSize:%d, use default feature.", payloadSize);
         context->isStableBufSize = true;
+        context->isOtherSideSandboxSupported = false;
         return true;
     } else {
         WRITE_LOG(LOG_FATAL, "CheckFeatures payloadSize:%d", payloadSize);

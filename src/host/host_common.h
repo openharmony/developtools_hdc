@@ -22,6 +22,7 @@
 #include "forward.h"
 #include "async_cmd.h"
 #include "serial_struct.h"
+#include "tlv.h"
 
 #include "host_tcp.h"
 #include "host_usb.h"
@@ -34,6 +35,7 @@
 #include "host_app.h"
 #include "host_forward.h"
 #include "host_unity.h"
+#include "host_shell_option.h"
 // clang-format on
 
 #endif

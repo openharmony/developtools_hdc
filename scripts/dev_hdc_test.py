@@ -63,6 +63,7 @@ class GP(object):
     testcase_path = "ts_windows.csv"
     loaded_testcase = 0
     hdcd_rom = "not checked"
+    debug_app = "com.example.myapplication"
 
     @classmethod
     def init(cls):
@@ -323,7 +324,9 @@ def check_shell_any_device(cmd, pattern=None, fetch=False):
         return subprocess.check_call(cmd.split()) == 0
 
 
-def check_shell(cmd, pattern=None, fetch=False, head=GP.hdc_head):
+def check_shell(cmd, pattern=None, fetch=False, head=None):
+    if head is None:
+        head = GP.hdc_head
     cmd = f"{head} {cmd}"
     print(f"\nexecuting command: {cmd}")
     if pattern: # check output valid
@@ -402,7 +405,9 @@ def check_dir(local, remote, is_single_dir=False):
     return (result == 1)
 
 
-def _check_file(local, remote, head=GP.hdc_head):
+def _check_file(local, remote, head=None):
+    if head is None:
+        head = GP.hdc_head
     if remote.startswith("/proc"):
         local_size = os.path.getsize(local)
         if local_size > 0:
@@ -489,7 +494,9 @@ def check_app_uninstall_multi(tables, args=""):
     return True
 
 
-def check_hdc_cmd(cmd, pattern=None, head=GP.hdc_head, **args):
+def check_hdc_cmd(cmd, pattern=None, head=None, **args):
+    if head is None:
+        head = GP.hdc_head
     if cmd.startswith("file"):
         if not check_shell(cmd, "FileTransfer finish", head=head):
             return False
@@ -512,7 +519,7 @@ def check_hdc_cmd(cmd, pattern=None, head=GP.hdc_head, **args):
         return check_shell(cmd, "successfully") and not _check_app_installed(bundle, "s" in opt)
 
     else:
-        return check_shell(cmd, pattern, **args)
+        return check_shell(cmd, pattern, head=head, **args)
 
 
 def check_soft_local(local_source, local_soft, remote):

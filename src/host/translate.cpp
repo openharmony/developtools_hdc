@@ -51,6 +51,7 @@ namespace TranslateCommand {
               "                                         -sync: just update newer file\n"
               "                                         -z: compress transfer\n"
               "                                         -m: mode sync\n"
+              "                                         -b: send/receive file to debug application directory\n"
               "\n"
               "forward commands:\n"
               " fport localnode remotenode            - Forward local traffic to remote device\n"
@@ -79,7 +80,9 @@ namespace TranslateCommand {
               "\n"
               "debug commands:\n"
               " hilog [-h]                            - Show device log, -h for detail\n"
-              " shell [COMMAND...]                    - Run shell command (interactive shell if no command given)\n"
+              " shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)\n"
+              "                                         -b: run command in specified debug application bundle path\n"
+              "                                             bundle parameter only support non-interactive shell\n"
               " bugreport [FILE]                      - Return all information from the device, stored in file if "
               "FILE is specified\n"
               " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
@@ -144,6 +147,7 @@ namespace TranslateCommand {
             "                                         -sync: just update newer file\n"
             "                                         -z: compress transfer\n"
             "                                         -m: mode sync\n"
+            "                                         -b: send/receive file to debug application directory\n"
             "\n"
             "forward commands:\n"
             " fport localnode remotenode            - Forward local traffic to remote device\n"
@@ -172,7 +176,9 @@ namespace TranslateCommand {
             "\n"
             "debug commands:\n"
             " hilog [-h]                            - Show device log, -h for detail\n"
-            " shell [COMMAND...]                    - Run shell command (interactive shell if no command given)\n"
+            " shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)\n"
+            "                                         -b: run command in specified debug application bundle path\n"
+            "                                             bundle parameter only support non-interactive shell\n"
             " bugreport [FILE]                      - Return all information from the device, stored in file if FILE "
             "is specified\n"
             " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
@@ -361,6 +367,12 @@ namespace TranslateCommand {
         } else if (!strncmp(input.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
             outCmd->parameters = input.c_str() + CMDSTR_CONNECT_TARGET.size() + 1;  // with ' '
             stringError = TargetConnect(outCmd);
+        } else if (!strncmp(input.c_str(), (CMDSTR_SHELL_EX).c_str(), (CMDSTR_SHELL_EX).size())) {
+            if (!HostShellOption::FormatParametersToTlv(
+                input, CMDSTR_SHELL_EX.size() - 1, outCmd->parameters, stringError)) {
+                outCmd->bJumpDo = true;
+            }
+            outCmd->cmdFlag = CMD_UNITY_EXECUTE_EX;
         } else if (!strncmp(input.c_str(), (CMDSTR_SHELL + " ").c_str(), CMDSTR_SHELL.size() + 1)) {
             outCmd->cmdFlag = CMD_UNITY_EXECUTE;
             outCmd->parameters = input.c_str() + CMDSTR_SHELL.size() + 1;

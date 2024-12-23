@@ -48,7 +48,7 @@ protected:
     }
     virtual void NotifyInstanceChannelFree(HChannel hChannel) {};
     void Send(const uint32_t channelId, uint8_t *bufPtr, const int size);
-    void SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size);
+    void SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size, const uint16_t commandFlag = 0);
     void SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size);
     void EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int size);
     virtual bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId)
@@ -67,6 +67,7 @@ protected:
 
 private:
     static void MainAsyncCallback(uv_async_t *handle);
+    static void FileCmdWriteCallback(uv_write_t *req, int status);
     static void WriteCallback(uv_write_t *req, int status);
     static void AsyncMainLoopTask(uv_idle_t *handle);
     static void FreeChannelOpeate(uv_timer_t *handle);

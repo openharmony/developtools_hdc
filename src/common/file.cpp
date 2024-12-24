@@ -153,15 +153,18 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
     // remove the postfix char '/', make sure that the method Base::GetPathWithoutFilename
     // returns a path without the last dir node name.
-    while (fullPath.back() == Base::GetPathSep()) {
+    // if input local path ends with "../" likes "data/storage/el1/base/../../../../", the final value
+    // of fullpath will be the parent dir of the expected path. it won't be unexcepted, so correct it.
+    const int lastTwoIndex = 2;
+    while (fullPath.back() == Base::GetPathSep() && fullPath[fullPath.size() - lastTwoIndex] != '.') {
         fullPath.pop_back();
     }
     fullPath = Base::GetPathWithoutFilename(fullPath);
     resolvedPath = Base::CanonicalizeSpecPath(fullPath);
     if (resolvedPath.size() <= 0 ||
         strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
-        LogMsg(MSG_FAIL, "[E005102]Remote path:%s is invalid, it is out of the application directory.",
-            context->inputLocalPath.c_str());
+        LogMsg(MSG_FAIL, "[E005102]Remote path:%s is invalid, no such file/directory or it's out of "
+            "the application directory.", context->inputLocalPath.c_str());
         WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
             context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
         return false;

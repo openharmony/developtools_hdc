@@ -803,6 +803,7 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     hTaskInfo->channelTask = true;
     hTaskInfo->channelClass = this;
     hTaskInfo->isStableBuf = hChannel->isStableBuf;
+    hTaskInfo->isCleared = false;
     return hTaskInfo;
 };
 }  // namespace Hdc

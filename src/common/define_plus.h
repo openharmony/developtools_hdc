@@ -96,6 +96,7 @@ struct TaskInformation {
     void *channelClass;
     uint8_t debugRelease; // 0:allApp 1:debugApp 2:releaseApp
     bool isStableBuf;
+    bool isCleared; // true: RemoveInstanceTask OP_CLEAR is called
 };
 using HTaskInfo = TaskInformation *;
 

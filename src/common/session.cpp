@@ -105,14 +105,21 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
     }
 
     WRITE_LOG(LOG_WARN, "BeginRemoveTask taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
-    bool ret = RemoveInstanceTask(OP_CLEAR, hTask);
-    if (!ret) {
-        WRITE_LOG(LOG_INFO, "RemoveInstanceTask false taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
-    }
     auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
         StartTraceScope("HdcSessionBase::BeginRemoveTask taskClassDeleteRetry");
         HTaskInfo hTask = (HTaskInfo)handle->data;
         HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
+        if (hTask->isCleared == false) {
+            hTask->isCleared = true;
+            WRITE_LOG(LOG_WARN, "taskClassDeleteRetry start clear task, taskType:%d cid:%u sid:%u",
+                hTask->taskType, hTask->channelId, hTask->sessionId);
+            bool ret = thisClass->RemoveInstanceTask(OP_CLEAR, hTask);
+            if (!ret) {
+                WRITE_LOG(LOG_WARN, "taskClassDeleteRetry RemoveInstanceTask return false taskType:%d cid:%u sid:%u",
+                    hTask->taskType, hTask->channelId, hTask->sessionId);
+            }
+        }
+
         constexpr uint32_t count = 1000;
         if (hTask->closeRetryCount == 0 || hTask->closeRetryCount > count) {
             WRITE_LOG(LOG_DEBUG, "TaskDelay task remove retry count %d/%d, taskType:%d channelId:%u, sessionId:%u",
@@ -1390,6 +1397,7 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo->masterSlave = masterTask;
             hTaskInfo->closeRetryCount = 0;
             hTaskInfo->channelTask = false;
+            hTaskInfo->isCleared = false;
 
             int addTaskRetry = 3; // try 3 time
             while (addTaskRetry > 0) {

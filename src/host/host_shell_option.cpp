@@ -82,7 +82,7 @@ bool ParameterToTlv(char **argv, int argc, TlvBuf &tlvBuf, string &errMsg)
         if (std::strcmp(argv[i], cmdOptionBundle.c_str()) == 0) {
             if (i + 1 >= argc) {
                 WRITE_LOG(LOG_FATAL, "empty bundle name");
-                errMsg = "[E003005] The specified bundle name is empty";
+                errMsg = "[E003005] There is no bundle name.";
                 break;
             }
             string bundlePath = argv[i + 1];
@@ -117,8 +117,7 @@ bool TlvAppendParameter(const uint32_t tag, const string &shellCommand, string &
         return false;
     }
     if (tag == TAG_SHELL_BUNDLE && !Base::CheckBundleName(shellCommand)) {
-        errMsg = "[E003001] The specified bundle name \"" + shellCommand + "\" is not a debug application or "
-            "the debug application path does not exist";
+        errMsg = "[E003001] Invalid bundle name: " + shellCommand;
         return false;
     }
     if (!tlvBuf.Append(tag, shellCommand.size(),

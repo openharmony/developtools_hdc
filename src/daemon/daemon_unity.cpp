@@ -77,7 +77,7 @@ bool HdcDaemonUnity::CheckbundlePath(const string &bundleName, string &mountPath
 {
     if (access(DEBUG_BUNDLE_PATH.c_str(), F_OK) != 0 || !Base::CheckBundleName(bundleName)) {
         WRITE_LOG(LOG_FATAL, "debug path %s not found", DEBUG_BUNDLE_PATH.c_str());
-        LogMsg(MSG_FAIL, "[E003001]Invalid bundle name:%s", bundleName.c_str());
+        LogMsg(MSG_FAIL, "[E003001] Invalid bundle name: %s", bundleName.c_str());
         return false;
     }
     string targetPath = "";
@@ -85,7 +85,7 @@ bool HdcDaemonUnity::CheckbundlePath(const string &bundleName, string &mountPath
     targetPath += bundleName;
     if ((access(targetPath.c_str(), F_OK) != 0)) {
         WRITE_LOG(LOG_FATAL, "bundle mount path %s not found", targetPath.c_str());
-        LogMsg(MSG_FAIL, "[E003001]Invalid bundle name:%s", bundleName.c_str());
+        LogMsg(MSG_FAIL, "[E003001] Invalid bundle name: %s", bundleName.c_str());
         return false;
     }
     mountPath = targetPath;

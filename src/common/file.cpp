@@ -359,7 +359,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
             return false;
         }
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
-        LogMsg(MSG_FAIL, "[E005001]Invalid BundleName:%s",
+        LogMsg(MSG_FAIL, "[E005101]Invalid bundle name:%s",
             ctxNow.bundleName.c_str());
         return false;
     }

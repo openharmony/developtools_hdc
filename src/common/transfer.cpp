@@ -762,7 +762,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
             if (!context->isOtherSideSandboxSupported && context->sandboxMode) {
                 const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
                 WRITE_LOG(LOG_DEBUG, "%s doesn't support -b option.", name);
-                LogMsg(MSG_FAIL, "[E005004]%s doesn't support -b option.", name);
+                LogMsg(MSG_FAIL, "[E005004] %s doesn't support -b option.", name);
                 OnFileOpenFailed(context);
                 TaskFinish();
                 ret = false;

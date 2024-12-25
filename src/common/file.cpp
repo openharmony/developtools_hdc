@@ -107,7 +107,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
         } else if (argv[i] == cmdBundleName) {
             context->sandboxMode = true;
             if (argc == srcArgvIndex + 1) {
-                LogMsg(MSG_FAIL, "[E005003]There is no bundle name.");
+                LogMsg(MSG_FAIL, "[E005003] There is no bundle name.");
                 WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
                 return false;
             }
@@ -163,7 +163,7 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     resolvedPath = Base::CanonicalizeSpecPath(fullPath);
     if (resolvedPath.size() <= 0 ||
         strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
-        LogMsg(MSG_FAIL, "[E005102]Remote path:%s is invalid, no such file/directory or it's out of "
+        LogMsg(MSG_FAIL, "[E005102] Remote path: %s is invalid, no such file/directory or it's out of "
             "the application directory.", context->inputLocalPath.c_str());
         WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
             context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
@@ -191,7 +191,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         if (context->sandboxMode &&
             context->transferConfig.reserve1.size() > 0 &&
             !IsValidBundlePath(context->transferConfig.reserve1)) {
-            LogMsg(MSG_FAIL, "[E005101]Invalid bundle name:%s",
+            LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
                 context->transferConfig.reserve1.c_str());
             WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
                 context->transferConfig.reserve1.c_str());
@@ -359,7 +359,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
             return false;
         }
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
-        LogMsg(MSG_FAIL, "[E005101]Invalid bundle name:%s",
+        LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
             ctxNow.bundleName.c_str());
         return false;
     }

@@ -117,8 +117,7 @@ bool TlvAppendParameter(const uint32_t tag, const string &shellCommand, string &
         return false;
     }
     if (tag == TAG_SHELL_BUNDLE && !Base::CheckBundleName(shellCommand)) {
-        errMsg = "[E003001] The specified bundle name \"" + shellCommand + "\" is not a debug application or "
-            "the debug application path does not exist";
+        errMsg = "[E003001] Invalid bundle name: " + shellCommand;
         return false;
     }
     if (!tlvBuf.Append(tag, shellCommand.size(),

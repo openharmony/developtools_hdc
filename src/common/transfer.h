@@ -121,6 +121,7 @@ protected:
     static void OnFileOpen(uv_fs_t *req);
     static void OnFileOpenFailed(CtxFile *context);
     static void OnFileClose(CtxFile *context);
+    void PrintUnsupportOption(const string &option, CtxFile *context);
     int GetSubFiles(const char *path, string filter, vector<string> *out);
     int GetSubFilesRecursively(string path, string currentDirname, vector<string> *out);
     virtual void CheckMaster(CtxFile *context)

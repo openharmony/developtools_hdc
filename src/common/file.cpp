@@ -76,12 +76,6 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
 
 bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
 {
-    const string cmdOptionTstmp = "-a";
-    const string cmdOptionSync = "-sync";
-    const string cmdOptionZip = "-z";
-    const string cmdOptionModeSync = "-m";
-    const string cmdBundleName = "-b";
-
     for (int i = 0; i < argc; i++) {
         if (argv[i] == cmdOptionZip) {
             context->transferConfig.compressType = COMPRESS_LZ4;
@@ -107,7 +101,9 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
         } else if (argv[i] == cmdBundleName) {
             context->sandboxMode = true;
             if (argc == srcArgvIndex + 1) {
-                LogMsg(MSG_FAIL, "[E005003] There is no bundle name.");
+                LogMsg(MSG_FAIL, "[E005003] The parameter is missing, correct your input by referring below:\n%s",
+                    taskInfo->serverOrDaemon ? "Usage: hdc file send [-b bundlename] local remote" :
+                    "Usage: hdc file recv [-b bundlename] remote local");
                 WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
                 return false;
             }
@@ -119,10 +115,19 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             return false;
         }
     }
+    if (!ValidateAndSetPaths(context, argc, argv, srcArgvIndex)) {
+        return false;
+    }
+    return true;
+}
+
+bool HdcFile::ValidateAndSetPaths(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
+{
     if (argc == srcArgvIndex) {
         LogMsg(MSG_FAIL, "There is no local and remote path");
         return false;
     }
+
     if (context->sandboxMode) {
         if ((srcArgvIndex + 1) == argc) {
             context->remotePath = ".";
@@ -187,31 +192,8 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             return false;
         }
         ExtractRelativePath(context->transferConfig.clientCwd, context->localPath);
-    } else {
-        if (context->sandboxMode &&
-            context->transferConfig.reserve1.size() > 0 &&
-            !IsValidBundlePath(context->transferConfig.reserve1)) {
-            LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
-                context->transferConfig.reserve1.c_str());
-            WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
-                context->transferConfig.reserve1.c_str());
-            return false;
-        }
-        if ((srcArgvIndex + 1) == argc) {
-            context->remotePath = ".";
-            context->localPath = argv[argc - 1];
-        }
-        context->localName = Base::GetFullFilePath(context->localPath);
-
-        if (context->sandboxMode && IsValidBundlePath(context->transferConfig.reserve1)) {
-            string resolvedPath;
-            if (CheckSandboxSubPath(context, resolvedPath)) {
-                context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
-            } else {
-                WRITE_LOG(LOG_WARN, "SetMasterParameters, CheckSandboxSubPath false.");
-                return false;
-            }
-        }
+    } else if (!SetMasterParametersOnDaemon(context, argc, argv, srcArgvIndex)) {
+        return false;
     }
     context->localName = Base::GetFullFilePath(context->localPath);
     mode_t mode = mode_t(~S_IFMT);
@@ -230,6 +212,35 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         context->localPath = context->localDirName + context->localName;
 
         context->taskQueue.pop_back();
+    }
+    return true;
+}
+
+bool HdcFile::SetMasterParametersOnDaemon(CtxFile *context, int argc, char **argv, int srcArgvIndex)
+{
+    if (context->sandboxMode &&
+        context->transferConfig.reserve1.size() > 0 &&
+        !IsValidBundlePath(context->transferConfig.reserve1)) {
+        LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
+            context->transferConfig.reserve1.c_str());
+        WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
+            context->transferConfig.reserve1.c_str());
+        return false;
+    }
+    if ((srcArgvIndex + 1) == argc) {
+        context->remotePath = ".";
+        context->localPath = argv[argc - 1];
+    }
+    context->localName = Base::GetFullFilePath(context->localPath);
+
+    if (context->sandboxMode && IsValidBundlePath(context->transferConfig.reserve1)) {
+        string resolvedPath;
+        if (CheckSandboxSubPath(context, resolvedPath)) {
+            context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
+        } else {
+            WRITE_LOG(LOG_WARN, "SetMasterParameters, CheckSandboxSubPath false.");
+            return false;
+        }
     }
     return true;
 }
@@ -332,10 +343,31 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
 
 bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 {
-    bool ret = true;
-    bool childRet = false;
-    string errStr;
-    // parse option
+    if (!ParseAndValidateOptions(payload, payloadSize)) {
+        return false;
+    }
+
+    if (!CheckBundleAndPath()) {
+        return false;
+    }
+
+    if (!CheckLocalPathAndFilename()) {
+        return false;
+    }
+
+    if (!HandleFileExistenceAndNewness()) {
+        return false;
+    }
+
+    if (!BeginFileOperations()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool HdcFile::ParseAndValidateOptions(uint8_t *payload, const int payloadSize)
+{
     string serialString(reinterpret_cast<char *>(payload), payloadSize);
     TransferConfig &stat = ctxNow.transferConfig;
     SerialStruct::ParseFromString(stat, serialString);
@@ -344,10 +376,16 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     ctxNow.inputLocalPath = ctxNow.localPath;
     ctxNow.master = false;
     ctxNow.bundleName = stat.reserve1;
+
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "HdcFile fileSize got %" PRIu64 "", ctxNow.fileSize);
 #endif
 
+    return true;
+}
+
+bool HdcFile::CheckBundleAndPath()
+{
     if (!taskInfo->serverOrDaemon && IsValidBundlePath(ctxNow.bundleName)) {
         string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName + Base::GetPathSep();
         fullPath.append(ctxNow.inputLocalPath);
@@ -363,23 +401,33 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
             ctxNow.bundleName.c_str());
         return false;
     }
-    if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
-        RemoveSandboxRootPath(errStr, stat.reserve1);
+    return true;
+}
+
+bool HdcFile::CheckLocalPathAndFilename()
+{
+    string errStr;
+    if (!CheckLocalPath(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
+        RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
-    if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
-        RemoveSandboxRootPath(errStr, stat.reserve1);
+    if (!CheckFilename(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
+        RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
         WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
-    // check path
-    childRet = SmartSlavePath(stat.clientCwd, ctxNow.localPath, stat.optionalName.c_str());
+    return true;
+}
+
+bool HdcFile::HandleFileExistenceAndNewness()
+{
+    bool childRet = SmartSlavePath(ctxNow.transferConfig.clientCwd,ctxNow.localPath,
+        ctxNow.transferConfig.optionalName.c_str());
     if (childRet && ctxNow.transferConfig.updateIfNew) {  // file exist and option need update
-        // if is newer
         uv_fs_t fs = {};
         uv_fs_stat(nullptr, &fs, ctxNow.localPath.c_str(), nullptr);
         uv_fs_req_cleanup(&fs);
@@ -388,6 +436,11 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
             return false;
         }
     }
+    return true;
+}
+
+bool HdcFile::BeginFileOperations()
+{
     uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
         LogMsg(MSG_FAIL, "HdcFile::SlaveCheck new openReq failed");
@@ -395,7 +448,6 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
     }
     memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = &ctxNow;
-    // begin work
     ++refCount;
     uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
@@ -403,7 +455,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
     }
     ctxNow.transferBegin = Base::GetRuntimeMSec();
-    return ret;
+    return true;
 }
 
 void HdcFile::TransferNext(CtxFile *context)

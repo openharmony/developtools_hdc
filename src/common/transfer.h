@@ -69,6 +69,11 @@ public:
     {
     }
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
+    const string cmdOptionTstmp = "-a";
+    const string cmdOptionSync = "-sync";
+    const string cmdOptionZip = "-z";
+    const string cmdOptionModeSync = "-m";
+    const string cmdBundleName = "-b";
 
 protected:
     // Static file context
@@ -121,7 +126,7 @@ protected:
     static void OnFileOpen(uv_fs_t *req);
     static void OnFileOpenFailed(CtxFile *context);
     static void OnFileClose(CtxFile *context);
-    void PrintUnsupportOption(const string &option, CtxFile *context);
+    bool PrintUnsupportOption(const string &option, CtxFile *context);
     int GetSubFiles(const char *path, string filter, vector<string> *out);
     int GetSubFilesRecursively(string path, string currentDirname, vector<string> *out);
     virtual void CheckMaster(CtxFile *context)

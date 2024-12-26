@@ -370,7 +370,10 @@ bool HdcFile::ParseAndValidateOptions(uint8_t *payload, const int payloadSize)
 {
     string serialString(reinterpret_cast<char *>(payload), payloadSize);
     TransferConfig &stat = ctxNow.transferConfig;
-    SerialStruct::ParseFromString(stat, serialString);
+    if (!SerialStruct::ParseFromString(stat, serialString)) {
+        WRITE_LOG(LOG_DEBUG, "ParseFromString failed, serialString: %s", serialString.c_str());
+        return false;
+    }
     ctxNow.fileSize = stat.fileSize;
     ctxNow.localPath = stat.path;
     ctxNow.inputLocalPath = ctxNow.localPath;
@@ -425,7 +428,7 @@ bool HdcFile::CheckLocalPathAndFilename()
 
 bool HdcFile::HandleFileExistenceAndNewness()
 {
-    bool childRet = SmartSlavePath(ctxNow.transferConfig.clientCwd,ctxNow.localPath,
+    bool childRet = SmartSlavePath(ctxNow.transferConfig.clientCwd, ctxNow.localPath,
         ctxNow.transferConfig.optionalName.c_str());
     if (childRet && ctxNow.transferConfig.updateIfNew) {  // file exist and option need update
         uv_fs_t fs = {};

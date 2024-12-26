@@ -759,8 +759,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 ret = false;
                 break;
             }
-            if (!context->isOtherSideSandboxSupported && context->sandboxMode) {
-                PrintUnsupportOption("-b", context);
+            if (!PrintUnsupportOption(cmdBundleName, context)) {
                 ret = false;
                 break;
             }
@@ -836,12 +835,16 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
     }
 }
 
-void HdcTransferBase::PrintUnsupportOption(const string &option, CtxFile *context)
+bool HdcTransferBase::PrintUnsupportOption(const string &option, CtxFile *context)
 {
-    const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
-    WRITE_LOG(LOG_DEBUG, "%s doesn't support %s option.", name, option.c_str());
-    LogMsg(MSG_FAIL, "[E005004] %s doesn't support %s option.", name, option.c_str());
-    OnFileOpenFailed(context);
-    TaskFinish();
+    if (option == cmdBundleName && !context->isOtherSideSandboxSupported && context->sandboxMode) {
+        const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
+        WRITE_LOG(LOG_DEBUG, "%s doesn't support %s option.", name, option.c_str());
+        LogMsg(MSG_FAIL, "[E005004] %s doesn't support %s option.", name, option.c_str());
+        OnFileOpenFailed(context);
+        TaskFinish();
+        return false;
+    }
+    return true;
 }
 }  // namespace Hdc

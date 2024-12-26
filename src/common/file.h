@@ -44,11 +44,6 @@ private:
     bool CheckLocalPathAndFilename();
     bool ParseAndValidateOptions(uint8_t *payload, const int payloadSize);
     bool ValidateAndSetPaths(CtxFile *context, int argc, char **argv, int &srcArgvIndex);
-    const string cmdOptionTstmp = "-a";
-    const string cmdOptionSync = "-sync";
-    const string cmdOptionZip = "-z";
-    const string cmdOptionModeSync = "-m";
-    const string cmdBundleName = "-b";
 };
 }  // namespace Hdc
 

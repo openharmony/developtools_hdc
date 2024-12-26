@@ -835,7 +835,7 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
     }
 }
 
-bool HdcTransferBase::PrintUnsupportOption(const string &option, CtxFile *context)
+bool HdcTransferBase::CheckSandboxOptionCompatibility(const string &option, CtxFile *context)
 {
     if (option == cmdBundleName && !context->isOtherSideSandboxSupported && context->sandboxMode) {
         const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";

@@ -314,14 +314,14 @@ def check_shell_any_device(cmd, pattern=None, fetch=False):
         res = pattern in output
         print(f"--> output: {output}")
         print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")
-        return res
+        return res, output
     elif fetch:
         output = subprocess.check_output(cmd.split()).decode()
         print(f"--> output: {output}")
-        return output
+        return True, output
     else: # check cmd run successfully
         print("other case")
-        return subprocess.check_call(cmd.split()) == 0
+        return subprocess.check_call(cmd.split()) == 0, ""
 
 
 def check_shell(cmd, pattern=None, fetch=False, head=None):
@@ -494,7 +494,7 @@ def check_app_uninstall_multi(tables, args=""):
     return True
 
 
-def check_hdc_cmd(cmd, pattern=None, head=None, **args):
+def check_hdc_cmd(cmd, pattern=None, head=None, is_single_dir=True, **args):
     if head is None:
         head = GP.hdc_head
     if cmd.startswith("file"):
@@ -504,10 +504,13 @@ def check_hdc_cmd(cmd, pattern=None, head=None, **args):
             local, remote = cmd.split()[-2:]
         else:
             remote, local = cmd.split()[-2:]
+        if "-b" in cmd:
+            mnt_debug_path = "mnt/debug/100/debug_hap/"
+            remote = f"{mnt_debug_path}/{GP.debug_app}/{remote}"
         if os.path.isfile(local):
             return _check_file(local, remote, head=head)
         else:
-            return check_dir(local, remote)
+            return check_dir(local, remote, is_single_dir=is_single_dir)
     elif cmd.startswith("install"):
         bundle = args.get("bundle", "invalid")
         opt = " ".join(cmd.split()[1:-1])

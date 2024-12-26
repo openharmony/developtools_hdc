@@ -402,6 +402,7 @@ bool HdcFile::CheckBundleAndPath()
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
         LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
             ctxNow.bundleName.c_str());
+        WRITE_LOG(LOG_DEBUG, "Invalid bundle name: %s", ctxNow.bundleName.c_str());
         return false;
     }
     return true;

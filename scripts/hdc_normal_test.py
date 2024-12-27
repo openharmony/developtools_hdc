@@ -527,7 +527,7 @@ def test_file_option_bundle_error():
         assert check_shell(f"file send -b 1 "
                            f"{get_local_path('small')} {get_remote_path('it_small')}", "[E005101]")
         assert check_shell(f"file send -b "
-                           f"{get_local_path('small')} {get_remote_path('it_small')}", "no such file or directory")
+                           f"{get_local_path('small')} {get_remote_path('it_small')}", "There is no remote path")
         assert check_shell(f"file recv -b ./{GP.debug_app} "
                            f"{get_remote_path('it_small')} {get_local_path('small_recv')}", "[E005101]")
         # 逃逸

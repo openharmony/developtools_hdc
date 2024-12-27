@@ -759,7 +759,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 ret = false;
                 break;
             }
-            if (!PrintUnsupportOption(cmdBundleName, context)) {
+            if (!CheckSandboxOptionCompatibility(cmdBundleName, context)) {
                 ret = false;
                 break;
             }

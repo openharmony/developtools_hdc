@@ -115,10 +115,8 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             return false;
         }
     }
-    if (!ValidateAndSetPaths(context, argc, argv, srcArgvIndex)) {
-        return false;
-    }
-    return true;
+
+    return ValidateAndSetPaths(context, argc, argv, srcArgvIndex);
 }
 
 bool HdcFile::ValidateAndSetPaths(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
@@ -359,11 +357,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         return false;
     }
 
-    if (!BeginFileOperations()) {
-        return false;
-    }
-
-    return true;
+    return BeginFileOperations();
 }
 
 bool HdcFile::ParseAndValidateOptions(uint8_t *payload, const int payloadSize)

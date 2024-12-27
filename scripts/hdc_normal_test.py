@@ -28,8 +28,8 @@ import pytest
 from dev_hdc_test import GP
 from dev_hdc_test import check_library_installation, check_hdc_version, check_cmd_time
 from dev_hdc_test import check_hdc_cmd, check_hdc_targets, get_local_path, get_remote_path, run_command_with_timeout
-from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate, get_shell_result
-from dev_hdc_test import make_multiprocess_file, rmdir
+from dev_hdc_test import check_app_install, check_app_uninstall, prepare_source, pytest_run, update_source, check_rate
+from dev_hdc_test import make_multiprocess_file, rmdir, get_shell_result
 from dev_hdc_test import check_app_install_multi, check_app_uninstall_multi
 from dev_hdc_test import check_rom, check_shell, check_shell_any_device, check_cmd_block
 
@@ -61,11 +61,11 @@ def test_usb_disconnect():
 def test_list_targets_multi_usb_device():
     devices_str = check_shell_any_device(f"{GP.hdc_exe} list targets", None, True)
     time.sleep(3) # sleep 3s to wait for the device to connect channel
-    devices_array = devices_str.split('\n')
+    devices_array = devices_str[1].split('\n')
     if devices_array:
         for device in devices_array:
             if len(device) > 8:
-                assert check_shell_any_device(f"{GP.hdc_exe} -t {device} shell id", "u:r:")
+                assert check_shell_any_device(f"{GP.hdc_exe} -t {device} shell id", "u:r:")[0]
 
 
 @pytest.mark.repeat(5)
@@ -76,15 +76,19 @@ def test_empty_file():
 
 @pytest.mark.repeat(5)
 def test_empty_dir():
-    assert check_shell(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}", "the source folder is empty")
+    assert check_shell(f"file send {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}",
+        "the source folder is empty")
     assert check_hdc_cmd("shell mkdir data/local/tmp/it_empty_dir_recv")
-    assert check_shell(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}", "the source folder is empty")
+    assert check_shell(f"file recv {get_remote_path('it_empty_dir_recv')} {get_local_path('empty_dir_recv')}",
+        "the source folder is empty")
 
 
 @pytest.mark.repeat(5)
 def test_long_path():
-    assert check_hdc_cmd(f"file send {get_local_path('deep_test_dir')} {get_remote_path('it_send_dir')}")
-    assert check_hdc_cmd(f"file recv {get_remote_path('it_send_dir/deep_test_dir')} {get_local_path('recv_test_dir')}")
+    assert check_hdc_cmd(f"file send {get_local_path('deep_test_dir')} {get_remote_path('it_send_dir')}",
+                         is_single_dir=False)
+    assert check_hdc_cmd(f"file recv {get_remote_path('it_send_dir/deep_test_dir')} {get_local_path('recv_test_dir')}",
+                         is_single_dir=False)
 
 
 @pytest.mark.repeat(5)
@@ -289,7 +293,7 @@ def test_target_mount():
     remount_vendor = get_shell_result(f'shell "mount |grep /vendor |head -1"')
     print(remount_vendor)
     assert "rw" in remount_vendor
-    remount_system = get_shell_result(f'shell "cat /proc/mounts | grep /system |head -1"')
+    remount_system = get_shell_result(f'shell "cat proc/mounts | grep /system |head -1"')
     print(remount_system)
     assert "rw" in remount_system
 
@@ -354,8 +358,8 @@ def test_fport_cmd_output():
     remote_port = 11080
     fport_arg = f"tcp:{local_port} tcp:{remote_port}"
     assert check_hdc_cmd(f"fport {fport_arg}", "Forwardport result:OK")
-    assert check_shell_any_device(f"netstat -ano", "LISTENING", False);
-    assert check_shell_any_device(f"netstat -ano", f"{local_port}", False);
+    assert check_shell_any_device(f"netstat -ano", "LISTENING", False)[0]
+    assert check_shell_any_device(f"netstat -ano", f"{local_port}", False)[0]
     assert check_hdc_cmd(f"fport ls", fport_arg)
     assert check_hdc_cmd(f"fport rm {fport_arg}", "success")
 
@@ -467,25 +471,106 @@ def test_shell_huge_cat():
         times=10)
 
 
+def test_file_option_bundle_normal():
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        data_storage_el2_path = "data/storage/el2/base"
+        check_shell(f"shell rm -rf mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}/it*")
+        check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}")
+
+        # file send & recv test
+        test_resource_list = ['empty', 'medium', 'small', 'problem_dir']
+        for test_item in test_resource_list:
+            if test_item == 'problem_dir' and os.path.exists(get_local_path(f'recv_bundle_{test_item}')):
+                rmdir(get_local_path(f'recv_bundle_{test_item}'))
+
+            assert check_hdc_cmd(f"file send -b {GP.debug_app} "
+                                 f"{get_local_path(f'{test_item}')} {data_storage_el2_path}/it_{test_item}")
+            assert check_hdc_cmd(f"file recv -b {GP.debug_app} {data_storage_el2_path}/it_{test_item} "
+                                 f"{get_local_path(f'recv_bundle_{test_item}')} ")
+
+
+def test_file_option_bundle_error():
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        data_storage_el2_path = "data/storage/el2/base"
+        is_user = check_shell("shell id", "uid=2000(shell)")
+        assert check_shell(f"file send -b {GP.debug_app} "
+                           f"{get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}",
+                           "the source folder is empty")
+
+        assert check_shell(f"file send -b {GP.debug_app} ", "There is no local and remote path")
+        assert check_shell(f"file recv -b {GP.debug_app} ", "There is no local and remote path")
+
+        # 报错优先级
+        assert check_shell(f"file send -b ./{GP.debug_app} ", "There is no local and remote path")
+        assert check_shell(f"file recv -b ./{GP.debug_app} ", "There is no local and remote path")
+
+        # 报错优先级
+        assert check_shell(f"file recv -b ", "[E005003]")
+        assert check_shell(f"file send -b ", "[E005003]")
+
+        assert check_shell(f"file send -b ./{GP.debug_app} "
+                    f"{get_local_path('small')} {get_remote_path('it_small')}", "[E005101]")
+        assert check_shell(f"file recv -b ./{GP.debug_app} "
+                    f"{get_local_path('small')} {get_remote_path('it_small')}", "[E005101]")
+
+        # bundle不存在或不符合要求
+        assert check_shell(f"file send -b ./{GP.debug_app} "
+                           f"{get_local_path('small')} {get_remote_path('it_small')}", "[E005101]")
+        assert check_shell(f"file send -b com.AAAA "
+                           f"{get_local_path('small')} {get_remote_path('it_small')}", "[E005101]")
+        assert check_shell(f"file send -b 1 "
+                           f"{get_local_path('small')} {get_remote_path('it_small')}", "[E005101]")
+        assert check_shell(f"file send -b "
+                           f"{get_local_path('small')} {get_remote_path('it_small')}", "no such file or directory")
+        assert check_shell(f"file recv -b ./{GP.debug_app} "
+                           f"{get_remote_path('it_small')} {get_local_path('small_recv')}", "[E005101]")
+        # 逃逸
+        assert check_shell(f"file send -b {GP.debug_app} "
+                           f"{get_local_path('small')} ../../../it_small", "[E005102]")
+        assert check_shell(f"file recv -b {GP.debug_app} ../../../it_small"
+                           f"{get_local_path('small_recv')} ", "[E005102]")
+        assert check_shell(f"file send -b {GP.debug_app} "
+                           f"{get_local_path('small')} {data_storage_el2_path}/../../../../../ ",
+                           "permission denied" if is_user else "[E005102]")
+        assert check_shell(f"file send -b {GP.debug_app} "
+                           f"{get_local_path('small')} {data_storage_el2_path}/aa/bb/cc/ ",
+                           "[E005102]")
+
+
 def test_shell_option_bundle_normal():
     version = "Ver: 3.1.0e"
     if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
         print("version does not match, ignore this case")
     else:
-        check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}")
+        data_storage_el2_path = "data/storage/el2/base"
+        check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}")
         assert check_shell(f"shell -b {GP.debug_app} pwd", f"mnt/debug/100/debug_hap/{GP.debug_app}")
-        check_shell(f"shell -b {GP.debug_app} touch test01")
-        assert check_shell(f"shell -b {GP.debug_app} ls", "test01")
+        assert check_shell(f"shell -b {GP.debug_app} cd {data_storage_el2_path}; pwd",
+                           f"mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}")
+        check_shell(f"shell -b {GP.debug_app} touch {data_storage_el2_path}/test01")
+        assert not check_shell(f"shell -b {GP.debug_app} touch {data_storage_el2_path}/test01", "denied")
+        assert not check_shell(f"shell -b {GP.debug_app} touch -a {data_storage_el2_path}/test01", "denied")
+        assert check_shell(f"shell -b {GP.debug_app} ls {data_storage_el2_path}/", "test01")
         assert check_shell(f"shell           -b            {GP.debug_app} echo            123             ",
                     "123")
-        check_shell(f"shell -b {GP.debug_app} \"echo 123 > test02\"")
-        assert check_shell(f"shell -b {GP.debug_app} cat test02", "123")
-        check_shell(f"shell -b {GP.debug_app} mkdir test03")
-        assert check_shell(f"shell -b {GP.debug_app} stat test03", "Access")
-        check_shell(f"shell -b {GP.debug_app} rm -rf test01 test02 test03")
-        assert check_shell(f"shell -b {GP.debug_app} ls test01", "test01: No such file or directory")
-        assert check_shell(f"shell -b {GP.debug_app} ls test02", "test02: No such file or directory")
-        assert check_shell(f"shell -b {GP.debug_app} ls test03", "test03: No such file or directory")
+        check_shell(f"shell -b {GP.debug_app} \"echo 123 > {data_storage_el2_path}/test02\"")
+        assert check_shell(f"shell -b {GP.debug_app} cat {data_storage_el2_path}/test02", "123")
+        check_shell(f"shell -b {GP.debug_app} mkdir {data_storage_el2_path}/test03")
+        assert check_shell(f"shell -b {GP.debug_app} stat {data_storage_el2_path}/test03", "Access")
+        check_shell(f"shell -b {GP.debug_app} rm -rf {data_storage_el2_path}/test01 "
+                    f"{data_storage_el2_path}/test02 {data_storage_el2_path}/test03")
+        assert check_shell(f"shell -b {GP.debug_app} ls {data_storage_el2_path}/test01",
+                           "test01: No such file or directory")
+        assert check_shell(f"shell -b {GP.debug_app} ls {data_storage_el2_path}/test02",
+                           "test02: No such file or directory")
+        assert check_shell(f"shell -b {GP.debug_app} ls {data_storage_el2_path}/test03",
+                           "test03: No such file or directory")
 
 
 def test_shell_option_bundle_error():
@@ -530,6 +615,16 @@ def test_shell_option_bundle_error():
         assert check_shell(f"shell -b -b {GP.debug_app} ls", "[Fail][E003001]")
         # 双倍-杠
         assert check_shell(f"shell --b {GP.debug_app}", "[Fail][E003003]")
+
+
+def test_option_bundle_error_usage_support():
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        assert check_shell("shell -b", "Usage: hdc shell [-b bundlename] [COMMAND...]")
+        assert check_shell(f"file recv -b ", "Usage: hdc file recv [-b bundlename] remote local")
+        assert check_shell(f"file send -b ", "Usage: hdc file send [-b bundlename] local remote")
 
 
 def test_hdcd_rom():

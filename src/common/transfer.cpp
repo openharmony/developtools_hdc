@@ -759,12 +759,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 ret = false;
                 break;
             }
-            if (!context->isOtherSideSandboxSupported && context->sandboxMode) {
-                const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
-                WRITE_LOG(LOG_DEBUG, "%s doesn't support -b option.", name);
-                LogMsg(MSG_FAIL, "[E005004] %s doesn't support -b option.", name);
-                OnFileOpenFailed(context);
-                TaskFinish();
+            if (!CheckSandboxOptionCompatibility(cmdBundleName, context)) {
                 ret = false;
                 break;
             }
@@ -838,5 +833,18 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
         WRITE_LOG(LOG_FATAL, "CheckFeatures payloadSize:%d", payloadSize);
         return false;
     }
+}
+
+bool HdcTransferBase::CheckSandboxOptionCompatibility(const string &option, CtxFile *context)
+{
+    if (option == cmdBundleName && !context->isOtherSideSandboxSupported && context->sandboxMode) {
+        const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
+        WRITE_LOG(LOG_DEBUG, "%s doesn't support %s option.", name, option.c_str());
+        LogMsg(MSG_FAIL, "[E005004] %s doesn't support %s option.", name, option.c_str());
+        OnFileOpenFailed(context);
+        TaskFinish();
+        return false;
+    }
+    return true;
 }
 }  // namespace Hdc

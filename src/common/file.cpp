@@ -185,7 +185,7 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
 
     if (taskInfo->serverOrDaemon) {
         // master and server
-        if ((srcArgvIndex + 1) == argc && !context->sandboxMode) {
+        if ((srcArgvIndex + 1) == argc) {
             LogMsg(MSG_FAIL, "There is no remote path");
             return false;
         }

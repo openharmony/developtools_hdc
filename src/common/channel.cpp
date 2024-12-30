@@ -23,6 +23,7 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
     uv_rwlock_init(&mainAsync);
     uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
     uv_rwlock_init(&lockMapChannel);
+    queuedPackages.store(0);
 }
 
 HdcChannelBase::~HdcChannelBase()
@@ -174,6 +175,16 @@ Finish:
     }
 }
 
+void HdcChannelBase::FileCmdWriteCallback(uv_write_t *req, int status)
+{
+#ifdef HDC_HOST
+        HChannel hChannel = (HChannel)req->handle->data;
+        HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
+        thisClass->queuedPackages.fetch_sub(1, std::memory_order_relaxed);
+#endif
+    WriteCallback(req, status);
+}
+
 void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
 {
     HChannel hChannel = (HChannel)req->handle->data;
@@ -286,7 +297,7 @@ void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t comman
         return;
     }
 
-    SendChannel(hChannel, data, size + sizeof(commandFlag));
+    SendChannel(hChannel, data, size + sizeof(commandFlag), commandFlag);
     delete[] data;
 }
 
@@ -308,7 +319,7 @@ void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t comman
     --hChannel->ref;
 }
 
-void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size)
+void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size, const uint16_t commandFlag)
 {
     StartTraceScope("HdcChannelBase::SendChannel");
     uv_stream_t *sendStream = nullptr;
@@ -329,7 +340,11 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
     }
     if (!uv_is_closing((const uv_handle_t *)sendStream) && uv_is_writable(sendStream)) {
         ++hChannel->ref;
-        Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+        if (commandFlag == CMD_FILE_DATA || commandFlag == CMD_APP_DATA) {
+            Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)FileCmdWriteCallback, data);
+        } else {
+            Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+        }
     } else {
         delete[] data;
     }

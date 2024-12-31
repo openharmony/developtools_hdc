@@ -21,6 +21,7 @@
 #include "hitrace_meter.h"
 #endif
 #include "define_enum.h"
+#include "mntn/uv_status.h"
 
 namespace Hdc {
     
@@ -226,6 +227,7 @@ struct HdcSession {
     std::string tokenRSA;  // SHA_DIGEST_LENGTH+1==21
     // child work
     uv_loop_t childLoop;  // run in work thread
+    LoopStatus childLoopStatus;
     // pipe0 in main thread(hdc server mainloop), pipe1 in work thread
     uv_poll_t *pollHandle[2];  // control channel
     int ctrlFd[2];         // control channel socketpair
@@ -261,7 +263,8 @@ struct HdcSession {
         return oss.str();
     }
 
-    HdcSession():serverOrDaemon(false), handshakeOK(false), isDead(false), voteReset(false)
+    HdcSession() : serverOrDaemon(false), handshakeOK(false), isDead(false),
+                   voteReset(false), childLoopStatus("ChildLoop-Session")
     {
         connectKey = "";
         connType = CONN_USB;

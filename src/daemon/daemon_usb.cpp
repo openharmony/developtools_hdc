@@ -120,11 +120,13 @@ int HdcDaemonUSB::Initial()
         WRITE_LOG(LOG_FATAL, "Init alloc memory failed");
         return ERR_BUF_ALLOC;
     }
+    ctxRecv.epIndex = 0x40000000;
 
     HdcDaemon *daemon = (HdcDaemon *)clsMainBase;
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall");
+    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall %p", daemon);
     uv_timer_init(&daemon->loopMain, &checkEP);
     checkEP.data = this;
+    daemon->loopMainStatus.AddHandle(reinterpret_cast<uintptr_t>(&checkEP), "DaemonUsbWatchEPTimer");
     uv_timer_start(&checkEP, WatchEPTimer, 0, TIME_BASE);
     return 0;
 }
@@ -495,6 +497,7 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
             delete uvData;
             break;
         }
+        // xxxxxxxx
         ret = uv_write(reqWrite, stream, &bfr, 1, UvWriteCallback);
         if (ret < 0) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_write false ret:%d", ret);
@@ -540,10 +543,10 @@ int HdcDaemonUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int
 
 int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int readBytes)
 {
+    StartTraceScope("HdcDaemonUSB::DispatchToWorkThread");
     HSession hChildSession = nullptr;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
     int childRet = RET_SUCCESS;
-    StartTraceScope("HdcDaemonUSB::DispatchToWorkThread");
     if (sessionId == 0) {
         // hdc packet data
         sessionId = currentSessionId;
@@ -590,9 +593,12 @@ bool HdcDaemonUSB::JumpAntiquePacket(const uint8_t &buf, ssize_t bytes) const
 void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
 {  // Only read at the main thread
     StartTraceScope("HdcDaemonUSB::OnUSBRead");
+
     auto ctxIo = reinterpret_cast<CtxUvFileCommonIo *>(req->data);
     auto hUSB = reinterpret_cast<HUSB>(ctxIo->data);
     auto thisClass = reinterpret_cast<HdcDaemonUSB *>(ctxIo->thisClass);
+    HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase);
+    CallStatGuard csg(daemon->loopMainStatus, ctxIo->epIndex, req->result);
     uint8_t *bufPtr = ctxIo->buf;
     ssize_t bytesIOBytes = req->result;
     uint32_t sessionId = 0;
@@ -623,6 +629,8 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
         } else if (bytesIOBytes == 0) {  // zero packet
             WRITE_LOG(LOG_ALL, "Zero packet received");
         } else {
+            // xxxxxxx
+            // daemon->loopMainStatus.HandleStart(req->result);
             if (thisClass->JumpAntiquePacket(*bufPtr, bytesIOBytes)) {
                 WRITE_LOG(LOG_DEBUG, "JumpAntiquePacket auto jump");
                 ret = true;
@@ -646,6 +654,7 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
         }
         int nextReadSize = childRet == 0 ? hUSB->wMaxPacketSizeSend : std::min(childRet, Base::GetUsbffsBulkSize());
         thisClass->saveNextReadSize = nextReadSize;
+        csg.Commit();
         if (thisClass->LoopUSBRead(hUSB, nextReadSize) < 0) {
             WRITE_LOG(LOG_FATAL, "LoopUSBRead failed");
             break;
@@ -700,6 +709,7 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     HdcDaemonUSB *thisClass = (HdcDaemonUSB *)handle->data;
     HUSB hUSB = &thisClass->usbHandle;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase);
+    CallStatGuard csg(daemon->loopMainStatus, reinterpret_cast<uintptr_t>(handle), 0);
     if (thisClass->isAlive || thisClass->ctxRecv.atPollQueue) {
         return;
     }
@@ -726,11 +736,15 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     }
     // until all bulkport reset
     if (thisClass->ConnectEPPoint(hUSB) != RET_SUCCESS) {
-        WRITE_LOG(LOG_DEBUG, "WatchEPTimer ConnectEPPoint failed");
+        WRITE_LOG(LOG_WARN, "WatchEPTimer ConnectEPPoint failed");
         return;
     }
     // connect OK
     thisClass->isAlive = true;
+    thisClass->ctxRecv.epIndex++;
+    uintptr_t epIndex = thisClass->ctxRecv.epIndex;
+    daemon->loopMainStatus.AddHandle(epIndex, "DaemonUsbLoopUSBRead-" + std::to_string(epIndex));
+    daemon->loopMainStatus.Display("new ep create:");
     thisClass->LoopUSBRead(hUSB, hUSB->wMaxPacketSizeSend);
 }
 }  // namespace Hdc

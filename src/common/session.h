@@ -17,6 +17,7 @@
 #include <shared_mutex>
 #include <sstream>
 #include "common.h"
+#include "mntn/uv_status.h"
 
 namespace Hdc {
 enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_FLASHD };
@@ -127,6 +128,7 @@ public:
     }
     static vector<uint8_t> BuildCtrlString(InnerCtrlCommand command, uint32_t channelId, uint8_t *data, int dataSize);
     uv_loop_t loopMain;
+    LoopStatus loopMainStatus;
     bool serverOrDaemon;
     uv_async_t asyncMainLoop;
     uv_rwlock_t mainAsync;

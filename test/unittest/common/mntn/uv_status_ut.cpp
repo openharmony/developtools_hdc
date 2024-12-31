@@ -80,12 +80,10 @@ void HandleTest::TearDown() {}
 HWTEST_F(HandleTest, Handle_Constructor_001, TestSize.Level0)
 {
     {
-        LoopStatus loop1("ut-loop");
-        loop1.Init();
+        LoopStatus loop1("ut-loop1");
         BuildHandle(loop1, 1, "handle-1-", 100, 200);
         loop1.Close();
-        LoopStatus loop2("ut-loop");
-        loop2.Init();
+        LoopStatus loop2("ut-loop2");
         BuildHandle(loop2, 1, "handle-2-", 100, 200);
         loop2.Close();
     }

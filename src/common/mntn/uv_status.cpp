@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "log.h"
 #include "uv_status.h"
 #include <sys/time.h>
 
@@ -20,7 +21,6 @@ using namespace std;
 
 namespace Hdc
 {
-
     static int64_t time_sub(const struct timeval end, const struct timeval start)
     {
         int64_t endUS = end.tv_sec * 1000 * 1000 + end.tv_usec;
@@ -61,6 +61,7 @@ namespace Hdc
             WRITE_LOG(LOG_FATAL, "this handle[%s] already do something now", mName.c_str());
             return;
         }
+        // WRITE_LOG(LOG_FATAL, "handle[%s] start do something", mName.c_str());
         mState = HANDLE_DOING;
         gettimeofday(&mInTime, NULL);
         if (bytes > 0)
@@ -74,6 +75,7 @@ namespace Hdc
             WRITE_LOG(LOG_FATAL, "this handle[%s] do nothing now", mName.c_str());
             return;
         }
+        // WRITE_LOG(LOG_FATAL, "handle[%s] end do something", mName.c_str());
         mState = HANDLE_DONE;
         gettimeofday(&mOutTime, NULL);
         int64_t duration = time_sub(mOutTime, mInTime);
@@ -112,13 +114,15 @@ namespace Hdc
         Display("life over:");
         mHandles.clear();
     }
-    void LoopStatus::Init(void)
+    void LoopStatus::InitWithSufixId(const uint32_t id)
     {
         gettimeofday(&mInitTime, NULL);
+        mName += ("-" + std::to_string(id));
     }
     void LoopStatus::Close(void)
     {
         gettimeofday(&mCloseTime, NULL);
+        Display("loop close:");
     }
     void LoopStatus::AddHandle(const uintptr_t handle, const string &name)
     {
@@ -134,6 +138,7 @@ namespace Hdc
         }
         HandleStatus h(name);
         mHandles[handle] = h;
+        WRITE_LOG(LOG_FATAL, "add handle %p name %s", handle, name.c_str());
     }
     void LoopStatus::DelHandle(const uintptr_t handle)
     {
@@ -149,7 +154,7 @@ namespace Hdc
     {
         if (!mHandles.count(handle))
         {
-            WRITE_LOG(LOG_FATAL, "start handle failed, not exist");
+            WRITE_LOG(LOG_FATAL, "start handle %p failed, not exist", handle);
             return;
         }
         mHandles[handle].CallStart(bytes);
@@ -158,7 +163,7 @@ namespace Hdc
     {
         if (!mHandles.count(handle))
         {
-            WRITE_LOG(LOG_FATAL, "end handle failed, not exist");
+            WRITE_LOG(LOG_FATAL, "end handle %p failed, not exist", handle);
             return;
         }
         mHandles[handle].CallEnd();

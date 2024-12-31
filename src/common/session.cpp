@@ -19,7 +19,7 @@
 #include "serial_struct.h"
 
 namespace Hdc {
-HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize)
+HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize) : loopMainStatus("MainLoop-Session")
 {
     // print version pid
     WRITE_LOG(LOG_INFO, "Program running. %s Pid:%u", Base::GetVersion().c_str(), getpid());
@@ -68,6 +68,7 @@ HdcSessionBase::~HdcSessionBase()
     Base::TryCloseHandle((uv_handle_t *)&asyncMainLoop);
 #endif
     uv_loop_close(&loopMain);
+    loopMainStatus.Close();
     // clear base
     uv_rwlock_destroy(&mainAsync);
     uv_rwlock_destroy(&lockMapSession);
@@ -370,6 +371,7 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
     switch (hSession->connType) {
         case CONN_TCP: {
             uv_tcp_init(&loopMain, &hSession->hWorkTCP);
+            loopMainStatus.AddHandle(reinterpret_cast<uintptr_t>(&hSession->hWorkTCP), "hWorkTCP");
             ++hSession->uvHandleRef;
             hSession->hWorkTCP.data = hSession;
             break;
@@ -469,11 +471,13 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     (void)memset_s(hSession->pollHandle[STREAM_WORK], handleSize, 0, handleSize);
     (void)memset_s(hSession->pollHandle[STREAM_MAIN], handleSize, 0, handleSize);
     uv_poll_init_socket(&loopMain, pollHandleMain, hSession->ctrlFd[STREAM_MAIN]);
+    loopMainStatus.AddHandle(reinterpret_cast<uintptr_t>(pollHandleMain), "pollHandle[STREAM_MAIN]");
     uv_poll_start(pollHandleMain, UV_READABLE, ReadCtrlFromSession);
     hSession->pollHandle[STREAM_MAIN]->data = hSession;
     hSession->pollHandle[STREAM_WORK]->data = hSession;
     // Activate USB DAEMON's data channel, may not for use
     uv_tcp_init(&loopMain, &hSession->dataPipe[STREAM_MAIN]);
+    loopMainStatus.AddHandle(reinterpret_cast<uintptr_t>(&hSession->dataPipe[STREAM_MAIN]), "dataPipe[STREAM_MAIN]");
     (void)memset_s(&hSession->dataPipe[STREAM_WORK], sizeof(hSession->dataPipe[STREAM_WORK]),
                    0, sizeof(uv_tcp_t));
     ++hSession->uvHandleRef;
@@ -493,6 +497,8 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     } else {
         AdminSession(OP_ADD, hSession->sessionId, hSession);
     }
+    loopMainStatus.InitWithSufixId(hSession->sessionId);
+    hSession->childLoopStatus.InitWithSufixId(hSession->sessionId);
     return hSession;
 }
 
@@ -1041,6 +1047,7 @@ bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8
 void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events)
 {
     HSession hSession = (HSession)poll->data;
+    CallStatGuard csg(hSession->loopMainStatus, reinterpret_cast<uintptr_t>(poll), 0);
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     const int size = Base::GetMaxBufSizeStable();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
@@ -1212,6 +1219,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
 void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
 {
     HSession hSession = (HSession)poll->data;
+    CallStatGuard csg(hSession->childLoopStatus, reinterpret_cast<uintptr_t>(poll), 0);
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;
@@ -1289,6 +1297,7 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     uv_poll_t *pollHandle = hSession->pollHandle[STREAM_WORK];
     pollHandle->data = hSession;
     uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
+    hSession->childLoopStatus.AddHandle(reinterpret_cast<uintptr_t>((pollHandle), "ctrlFd[STREAM_WORK]");
     uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
     WRITE_LOG(LOG_DEBUG, "!!!Workthread run begin, sessionId:%u instance:%s", hSession->sessionId,
               thisClass->serverOrDaemon ? "server" : "daemon");

@@ -16,7 +16,15 @@
 #ifndef __H_UV_STATUS_H__
 #define __H_UV_STATUS_H__
 
-#include "common.h"
+// #include "common.h"
+#include <cinttypes>
+#include <string>
+#include <sys/time.h>
+// #include <sys/types.h>
+// #include <unistd.h>
+#include <map>
+
+using std::string;
 
 namespace Hdc {
 
@@ -51,9 +59,8 @@ class LoopStatus {
 public:
     LoopStatus(const string &name);
     ~LoopStatus();
-private:
-    void Init(void);
 public:
+    void InitWithSufixId(const uint32_t id);
     void Close(void);
     void AddHandle(const uintptr_t handle, const string &name);
     void DelHandle(const uintptr_t handle);
@@ -65,6 +72,31 @@ private:
     struct timeval mInitTime;
     struct timeval mCloseTime;
     std::map<uintptr_t, HandleStatus> mHandles;
+};
+
+class CallStatGuard {
+public:
+    CallStatGuard(LoopStatus &loop, const uintptr_t handle, ssize_t bytes) : mCommitted(false), mLoop(loop), mHandle(handle)
+    {
+        mLoop.HandleStart(handle, bytes);
+    }
+    ~CallStatGuard() {
+        if (mCommitted) {
+            return;
+        }
+        mLoop.HandleEnd(mHandle);
+    }
+    void Commit(void) {
+        if (mCommitted) {
+            return;
+        }
+        mLoop.HandleEnd(mHandle);
+        mCommitted = true;
+    }
+private:
+    bool mCommitted;
+    LoopStatus &mLoop;
+    const uintptr_t mHandle;
 };
 
 } /* namespace Hdc  */

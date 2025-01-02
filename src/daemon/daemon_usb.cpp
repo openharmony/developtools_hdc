@@ -120,7 +120,6 @@ int HdcDaemonUSB::Initial()
         WRITE_LOG(LOG_FATAL, "Init alloc memory failed");
         return ERR_BUF_ALLOC;
     }
-    ctxRecv.epIndex = 0x40000000;
 
     HdcDaemon *daemon = (HdcDaemon *)clsMainBase;
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall %p", daemon);
@@ -628,8 +627,6 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
         } else if (bytesIOBytes == 0) {  // zero packet
             WRITE_LOG(LOG_ALL, "Zero packet received");
         } else {
-            // xxxxxxx
-            // daemon->loopMainStatus.HandleStart(req->result);
             if (thisClass->JumpAntiquePacket(*bufPtr, bytesIOBytes)) {
                 WRITE_LOG(LOG_DEBUG, "JumpAntiquePacket auto jump");
                 ret = true;
@@ -653,7 +650,6 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
         }
         int nextReadSize = childRet == 0 ? hUSB->wMaxPacketSizeSend : std::min(childRet, Base::GetUsbffsBulkSize());
         thisClass->saveNextReadSize = nextReadSize;
-        csg.Commit();
         if (thisClass->LoopUSBRead(hUSB, nextReadSize) < 0) {
             WRITE_LOG(LOG_FATAL, "LoopUSBRead failed");
             break;
@@ -740,8 +736,6 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     }
     // connect OK
     thisClass->isAlive = true;
-    thisClass->ctxRecv.epIndex++;
-    // uintptr_t epIndex = thisClass->ctxRecv.epIndex;
     DispAllLoopStatus("new ep create:");
     thisClass->LoopUSBRead(hUSB, hUSB->wMaxPacketSizeSend);
 }

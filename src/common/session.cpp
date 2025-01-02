@@ -495,8 +495,6 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     } else {
         AdminSession(OP_ADD, hSession->sessionId, hSession);
     }
-    // loopMainStatus.InitWithSufixId(hSession->sessionId);
-    // hSession->childLoopStatus.InitWithSufixId(hSession->sessionId);
     return hSession;
 }
 

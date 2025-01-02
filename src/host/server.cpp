@@ -934,7 +934,6 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
         return;
     }
     Base::SetTcpOptions((uv_tcp_t *)&hChannel->hChildWorkTCP);
-    WRITE_LOG(LOG_WARN, "Hdcserver AttachChannel loop child[%p] tcp[%]", &hSession->childLoop, hChannel->hChildWorkTCP.loop);
     uv_read_start((uv_stream_t *)&hChannel->hChildWorkTCP, hSfc->AllocCallback, hSfc->ReadStream);
     --hChannel->ref;
 };

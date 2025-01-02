@@ -16,12 +16,9 @@
 #ifndef __H_UV_STATUS_H__
 #define __H_UV_STATUS_H__
 
-// #include "common.h"
 #include <cinttypes>
 #include <string>
 #include <sys/time.h>
-// #include <sys/types.h>
-// #include <unistd.h>
 #include <map>
 #include "uv.h"
 
@@ -49,11 +46,13 @@ private:
 
 class CallStatGuard {
 public:
-    CallStatGuard(LoopStatus &loopStatus, const uv_loop_t *loop, const string &handle) : mCommitted(false), mLoop(loop), mLoopStatus(loopStatus)
+    CallStatGuard(LoopStatus &loopStatus, const uv_loop_t *loop, const string &handle) :
+        mCommitted(false), mLoop(loop), mLoopStatus(loopStatus)
     {
         mLoopStatus.HandleStart(loop, handle);
     }
-    ~CallStatGuard() {
+    ~CallStatGuard()
+    {
         if (mCommitted) {
             return;
         }

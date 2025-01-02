@@ -20,23 +20,23 @@
 
 using namespace std;
 
-namespace Hdc
-{
-    static int64_t time_sub(const struct timeval end, const struct timeval start)
+namespace Hdc {
+    #define US_PER_SEC (1000 * 1000)
+    static int64_t TimeSub(const struct timeval end, const struct timeval start)
     {
-        int64_t endUS = end.tv_sec * 1000 * 1000 + end.tv_usec;
-        int64_t startUS = start.tv_sec * 1000 * 1000 + start.tv_usec;
+        int64_t endUS = end.tv_sec * US_PER_SEC + end.tv_usec;
+        int64_t startUS = start.tv_sec * US_PER_SEC + start.tv_usec;
 
         return endUS - startUS;
     }
-    static uint64_t time_ns(const struct timeval time)
+    static uint64_t TimeUsec(const struct timeval time)
     {
-        return time.tv_sec * 1000 * 1000 + time.tv_usec;
+        return time.tv_sec * US_PER_SEC + time.tv_usec;
     }
-    static struct timeval time_now(void)
+    static struct timeval TimeNow(void)
     {
         struct timeval now;
-        gettimeofday(&now, NULL);
+        gettimeofday(&now, nullptr);
         return now;
     }
 
@@ -53,7 +53,6 @@ namespace Hdc
     {
         mCallBackTime.tv_sec = 0;
         mCallBackTime.tv_usec = 0;
-        // WRITE_LOG(LOG_FATAL, "new lp for [%s][%p]", mLoopName.c_str(), mLoop);
 
         std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
         if (g_loopStatusMap.count(mLoop)) {
@@ -63,8 +62,6 @@ namespace Hdc
     }
     LoopStatus::~LoopStatus()
     {
-        // Display("life over:");
-
         std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
         if (!g_loopStatusMap.count(mLoop)) {
             return;
@@ -74,14 +71,14 @@ namespace Hdc
     void LoopStatus::HandleStart(const uv_loop_t *loop, const string &handle)
     {
         if (loop != mLoop) {
-            WRITE_LOG(LOG_FATAL, "not match loop [%s][%p] for run [%s][%p]", mLoopName.c_str(), mLoop, handle.c_str(), loop);
+            WRITE_LOG(LOG_FATAL, "not match loop [%s] for run [%s]", mLoopName.c_str(), handle.c_str());
             return;
         }
         if (Busy()) {
             WRITE_LOG(LOG_FATAL, "the loop is busy for [%s] cannt run [%s]", mHandleName.c_str(), handle.c_str());
             return;
         }
-        gettimeofday(&mCallBackTime, NULL);
+        gettimeofday(&mCallBackTime, nullptr);
         mHandleName = handle;
     }
     void LoopStatus::HandleEnd(const uv_loop_t *loop)
@@ -107,7 +104,7 @@ namespace Hdc
         if (Busy()) {
             WRITE_LOG(LOG_FATAL, "%s loop[%s] is busy for [%s] start[%llu] duration[%llu]",
                     info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
-                    time_ns(mCallBackTime), time_sub(time_now(), mCallBackTime));
+                    TimeUsec(mCallBackTime), TimeSub(TimeNow(), mCallBackTime));
         } else {
             WRITE_LOG(LOG_FATAL, "%s loop[%s] is idle", info.c_str(), mLoopName.c_str());
         }

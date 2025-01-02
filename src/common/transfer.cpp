@@ -592,27 +592,26 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
     // If optName show this is directory mode, check localPath and try create each layer
     WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s", localPath.c_str(), optName.c_str());
     if ((optName.find('/') == string::npos) && (optName.find('\\') == string::npos)) {
-        WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s,  return", optName.c_str());
-        return true;
+        WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s", optName.c_str());
+    } else {
+        ctxNow.isDir = true;
     }
-    ctxNow.isDir = true;
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     mode_t mode = req.statbuf.st_mode;
     uv_fs_req_cleanup(&req);
-
     if (r) {
         vector<string> dirsOflocalPath;
         string split(1, Base::GetPathSep());
         Base::SplitString(localPath, split, dirsOflocalPath);
-
+        if (dirsOflocalPath.size() > 0 && !ctxNow.isDir && localPath.back() != Base::GetPathSep()) {
+            dirsOflocalPath.pop_back();
+        }
         WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu", localPath.c_str(), dirsOflocalPath.size());
         string makedirPath;
-
         if (!Base::IsAbsolutePath(localPath)) {
             makedirPath = ".";
         }
-
         for (auto dir : dirsOflocalPath) {
             WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", dir.c_str());
 
@@ -633,10 +632,9 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         }
         // set flag to remove first layer directory of filename from master
         ctxNow.targetDirNotExist = true;
-    } else if (!(mode & S_IFDIR)) {
+    } else if (ctxNow.isDir && !(mode & S_IFDIR)) {
         WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
-        errStr = "Not a directory, path:";
-        errStr += localPath.c_str();
+        errStr = "Not a directory, path:" + localPath;
         return false;
     }
     return true;

@@ -28,43 +28,6 @@ public:
     static void TearDownTestCase(void);
     void SetUp();
     void TearDown();
-private:
-    std::vector<uintptr_t> BuildHandles(LoopStatus &loop, const int num, const uintptr_t handle, const string &name, const uint64_t duration, const uint64_t bytes)
-    {
-        std::vector<uintptr_t> handles;
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> distr(0x400000, 0x40000000);
-        for (int i = 0; i < num; i++) {
-            int r = distr(gen);
-            uintptr_t hr = handle + r;
-            loop.AddHandle(hr, name + std::to_string(hr));
-            handles.push_back(hr);
-        }
-        return handles;
-    }
-    void RandExecuteHandles(LoopStatus &loop, std::vector<uintptr_t> handles)
-    {
-        for (uintptr_t handle : handles) {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_int_distribution<> distr(0x400000, 0x40000000);
-            int r = distr(gen);
-            ssize_t bytes = r % (512 * 1024);
-            loop.HandleStart(handle, bytes);
-            usleep(r % 100);
-            if (r % 3 != 0) {
-                loop.HandleEnd(handle);
-            }
-        }
-    }
-    void BuildHandle(LoopStatus &loop, const uintptr_t handle, const string &name, const uint64_t duration, const uint64_t bytes)
-    {
-        std::vector<uintptr_t> handles = BuildHandles(loop, 100, handle, name, duration, bytes);
-        for (int i = 0; i < 1000; i++) {
-            RandExecuteHandles(loop, handles);
-        }
-    }
 };
 
 void HandleTest::SetUpTestCase()
@@ -80,12 +43,10 @@ void HandleTest::TearDown() {}
 HWTEST_F(HandleTest, Handle_Constructor_001, TestSize.Level0)
 {
     {
-        LoopStatus loop1("ut-loop1");
-        BuildHandle(loop1, 1, "handle-1-", 100, 200);
-        loop1.Close();
-        LoopStatus loop2("ut-loop2");
-        BuildHandle(loop2, 1, "handle-2-", 100, 200);
-        loop2.Close();
+        uv_loop_t l;
+        LoopStatus loop(&l, "loop-test");
+        CallStatGuard csg1(loop, &l, "call-0");
+        CallStatGuard csg2(loop, &l, "call-1");
     }
     ASSERT_EQ(0, 0);
 }

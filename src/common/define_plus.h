@@ -90,6 +90,7 @@ struct TaskInformation {
     bool serverOrDaemon; // true is server, false is daemon
     bool masterSlave;
     uv_loop_t *runLoop;
+    LoopStatus *runLoopStatus;
     void *taskClass;
     void *ownerSessionClass;
     uint32_t closeRetryCount;
@@ -264,7 +265,7 @@ struct HdcSession {
     }
 
     HdcSession() : serverOrDaemon(false), handshakeOK(false), isDead(false),
-                   voteReset(false), childLoopStatus("ChildLoop-Session")
+                   voteReset(false), childLoopStatus(&childLoop, "ChildLoop")
     {
         connectKey = "";
         connType = CONN_USB;
@@ -336,6 +337,7 @@ struct HdcChannel {
     // child work
     uv_tcp_t hChildWorkTCP;  // work channel for server, no use in client
     uv_os_sock_t fdChildWorkTCP;
+    LoopStatus *loopStatus;
     // read io cache
     int bufSize;         // total buffer size
     int availTailIndex;  // buffer available data size

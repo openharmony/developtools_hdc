@@ -83,6 +83,7 @@ void HdcHostUnity::OnFileIO(uv_fs_t *req)
     CtxUnityIO *contextIO = reinterpret_cast<CtxUnityIO *>(req->data);
     ContextUnity *context = reinterpret_cast<ContextUnity *>(contextIO->context);
     HdcHostUnity *thisClass = reinterpret_cast<HdcHostUnity *>(context->thisClass);
+    CallStatGuard csg(*thisClass->loopTaskStatus, req->loop, "HdcHostUnity::OnFileIO");
     uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
     --thisClass->refCount;

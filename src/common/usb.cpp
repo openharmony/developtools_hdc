@@ -31,7 +31,7 @@ void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
     StartTraceScope("HdcUSBBase::ReadUSB");
     HSession hSession = (HSession)stream->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
-    CallStatGuard csg(hSession->childLoopStatus, reinterpret_cast<uintptr_t>(stream), nread);
+    CallStatGuard csg(hSession->childLoopStatus, stream->loop, "HdcUSBBase::ReadUSB");
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
         WRITE_LOG(LOG_FATAL, "ReadUSB FetchIOBuf error sessionId:%u", hSession->sessionId);
         hSessionBase->FreeSession(hSession->sessionId);
@@ -55,7 +55,6 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
 #else
     Base::SetTcpOptions(stream);
 #endif
-    hSession->childLoopStatus.AddHandle(reinterpret_cast<uintptr_t>(stream), "dataPipe[STREAM_WORK]");
     if (uv_read_start((uv_stream_t *)stream, pSession->AllocCallback, ReadUSB)) {
         WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed");
         return false;

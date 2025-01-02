@@ -23,80 +23,53 @@
 // #include <sys/types.h>
 // #include <unistd.h>
 #include <map>
+#include "uv.h"
 
 using std::string;
 
 namespace Hdc {
 
-class HandleStatus {
-public:
-    HandleStatus();
-    HandleStatus(const string &name);
-    ~HandleStatus();
-private:
-    void Init(const string &name);
-public:
-    void CallStart(ssize_t bytes);
-    void CallEnd(void);
-    void Display(const string &info) const;
-private:
-    enum HandleState {
-        HANDLE_NONE = 0,
-        HANDLE_DOING = 1,
-        HANDLE_DONE = 2,
-    };
-    string StateToString(void) const;
-private:
-    string mName;
-    HandleState mState;
-    struct timeval mInTime;
-    struct timeval mOutTime;
-    uint64_t mTotalDuration;
-    uint64_t mDealedBytes;
-};
-
+void DispAllLoopStatus(const string &info);
 class LoopStatus {
 public:
-    LoopStatus(const string &name);
+    LoopStatus(uv_loop_t *loop, const string &loopName);
     ~LoopStatus();
+private:
+    bool Busy(void) const;
 public:
-    void InitWithSufixId(const uint32_t id);
-    void Close(void);
-    void AddHandle(const uintptr_t handle, const string &name);
-    void DelHandle(const uintptr_t handle);
-    void HandleStart(const uintptr_t handle, ssize_t bytes);
-    void HandleEnd(const uintptr_t handle);
+    void HandleStart(const uv_loop_t *loop, const string &handle);
+    void HandleEnd(const uv_loop_t *loop);
     void Display(const string &info) const;
 private:
-    string mName;
-    struct timeval mInitTime;
-    struct timeval mCloseTime;
-    std::map<uintptr_t, HandleStatus> mHandles;
+    uv_loop_t *mLoop;
+    const string mLoopName;
+    string mHandleName;
+    struct timeval mCallBackTime;
 };
 
 class CallStatGuard {
 public:
-    CallStatGuard(LoopStatus &loop, const uintptr_t handle, ssize_t bytes) : mCommitted(false), mLoop(loop), mHandle(handle)
+    CallStatGuard(LoopStatus &loopStatus, const uv_loop_t *loop, const string &handle) : mCommitted(false), mLoop(loop), mLoopStatus(loopStatus)
     {
-        mLoop.HandleStart(handle, bytes);
+        mLoopStatus.HandleStart(loop, handle);
     }
     ~CallStatGuard() {
         if (mCommitted) {
             return;
         }
-        mLoop.HandleEnd(mHandle);
+        mLoopStatus.HandleEnd(mLoop);
     }
     void Commit(void) {
         if (mCommitted) {
             return;
         }
-        mLoop.HandleEnd(mHandle);
+        mLoopStatus.HandleEnd(mLoop);
         mCommitted = true;
     }
 private:
     bool mCommitted;
-    LoopStatus &mLoop;
-    const uintptr_t mHandle;
+    const uv_loop_t *mLoop;
+    LoopStatus &mLoopStatus;
 };
 
 } /* namespace Hdc  */

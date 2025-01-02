@@ -41,6 +41,8 @@ void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf
             // ==0 finish;<0 error
             break;
         }
+        HdcSessionBase *sessionBase = (HdcSessionBase *)(thisClass->clsMainBase);
+        CallStatGuard csg(sessionBase->loopMainStatus, handle->loop, "HdcTCPBase::RecvUDP");
         WRITE_LOG(LOG_DEBUG, "RecvUDP %s", rcvbuf->base);
         if (strncmp(rcvbuf->base, HANDSHAKE_MESSAGE.c_str(), HANDSHAKE_MESSAGE.size())) {
             break;
@@ -72,6 +74,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     HSession hSession = (HSession)tcp->data;
     HdcTCPBase *thisClass = (HdcTCPBase *)hSession->classModule;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)thisClass->clsMainBase;
+    CallStatGuard csg(hSessionBase->loopMainStatus, tcp->loop, "HdcTCPBase::ReadStream");
     bool ret = false;
     while (true) {
         if (nread == UV_ENOBUFS) {

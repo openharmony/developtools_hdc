@@ -42,6 +42,7 @@ protected:                                                                      
     int ThreadCtrlCommunicate(const uint8_t *bufPtr, const int size);             // main thread and session thread
 
     uv_loop_t *loopTask;  // childuv pointer
+    LoopStatus *loopTaskStatus;
     void *clsSession;
     // Task has stopped running. When Task is officially running, set True as soon as possible, set FALSE after the last
     // step, when the value is false, the Task class will be destructured as soon as possible

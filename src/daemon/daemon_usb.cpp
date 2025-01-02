@@ -126,7 +126,6 @@ int HdcDaemonUSB::Initial()
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall %p", daemon);
     uv_timer_init(&daemon->loopMain, &checkEP);
     checkEP.data = this;
-    daemon->loopMainStatus.AddHandle(reinterpret_cast<uintptr_t>(&checkEP), "DaemonUsbWatchEPTimer");
     uv_timer_start(&checkEP, WatchEPTimer, 0, TIME_BASE);
     return 0;
 }
@@ -598,7 +597,7 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
     auto hUSB = reinterpret_cast<HUSB>(ctxIo->data);
     auto thisClass = reinterpret_cast<HdcDaemonUSB *>(ctxIo->thisClass);
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase);
-    CallStatGuard csg(daemon->loopMainStatus, ctxIo->epIndex, req->result);
+    CallStatGuard csg(daemon->loopMainStatus, req->loop, "HdcDaemonUSB::OnUSBRead");
     uint8_t *bufPtr = ctxIo->buf;
     ssize_t bytesIOBytes = req->result;
     uint32_t sessionId = 0;
@@ -709,7 +708,7 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     HdcDaemonUSB *thisClass = (HdcDaemonUSB *)handle->data;
     HUSB hUSB = &thisClass->usbHandle;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase);
-    CallStatGuard csg(daemon->loopMainStatus, reinterpret_cast<uintptr_t>(handle), 0);
+    CallStatGuard csg(daemon->loopMainStatus, handle->loop, "HdcDaemonUSB::WatchEPTimer");
     if (thisClass->isAlive || thisClass->ctxRecv.atPollQueue) {
         return;
     }
@@ -742,9 +741,8 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     // connect OK
     thisClass->isAlive = true;
     thisClass->ctxRecv.epIndex++;
-    uintptr_t epIndex = thisClass->ctxRecv.epIndex;
-    daemon->loopMainStatus.AddHandle(epIndex, "DaemonUsbLoopUSBRead-" + std::to_string(epIndex));
-    daemon->loopMainStatus.Display("new ep create:");
+    // uintptr_t epIndex = thisClass->ctxRecv.epIndex;
+    DispAllLoopStatus("new ep create:");
     thisClass->LoopUSBRead(hUSB, hUSB->wMaxPacketSizeSend);
 }
 }  // namespace Hdc

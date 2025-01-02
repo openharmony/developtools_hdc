@@ -64,6 +64,7 @@ namespace Hdc {
         uv_tcp_t *pServBridge = (uv_tcp_t *)uvpipe;
         HdcDaemonBridge *thisClass = (HdcDaemonBridge *)pServBridge->data;
         HdcSessionBase *ptrConnect = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
+        CallStatGuard csg(ptrConnect->loopMainStatus, uvpipe->loop, "HdcDaemonBridge::AcceptClient");
         const uint16_t maxWaitTime = UV_DEFAULT_INTERVAL;
         int newPort = *(int *)buf->base;
         int newClientFd;

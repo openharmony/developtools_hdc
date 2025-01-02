@@ -22,6 +22,7 @@ HdcTaskBase::HdcTaskBase(HTaskInfo hTaskInfo)
 {
     taskInfo = hTaskInfo;
     loopTask = hTaskInfo->runLoop;
+    loopTaskStatus = hTaskInfo->runLoopStatus;
     clsSession = hTaskInfo->ownerSessionClass;
     childReady = false;
     singalStop = false;

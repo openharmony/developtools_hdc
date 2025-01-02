@@ -16,6 +16,7 @@
 #include "log.h"
 #include "uv_status.h"
 #include <sys/time.h>
+#include <mutex>
 
 using namespace std;
 
@@ -32,150 +33,83 @@ namespace Hdc
     {
         return time.tv_sec * 1000 * 1000 + time.tv_usec;
     }
-
-    void HandleStatus::Init(const string &name)
-    {
-        mName = name;
-        mState = HANDLE_NONE;
-        mInTime.tv_sec = 0;
-        mInTime.tv_usec = 0;
-        mOutTime.tv_sec = 0;
-        mOutTime.tv_usec = 0;
-        mTotalDuration = 0;
-        mDealedBytes = 0;
-    }
-    HandleStatus::HandleStatus()
-    {
-        Init("NotUseNow");
-    }
-    HandleStatus::HandleStatus(const string &name)
-    {
-        Init(name);
-    }
-    HandleStatus::~HandleStatus()
-    {
-    }
-    void HandleStatus::CallStart(ssize_t bytes)
-    {
-        if (mState != HANDLE_NONE && mState != HANDLE_DONE) {
-            WRITE_LOG(LOG_FATAL, "this handle[%s] already do something now", mName.c_str());
-            return;
-        }
-        // WRITE_LOG(LOG_FATAL, "handle[%s] start do something", mName.c_str());
-        mState = HANDLE_DOING;
-        gettimeofday(&mInTime, NULL);
-        if (bytes > 0)
-        {
-            mDealedBytes += bytes;
-        }
-    }
-    void HandleStatus::CallEnd(void)
-    {
-        if (mState != HANDLE_DOING) {
-            WRITE_LOG(LOG_FATAL, "this handle[%s] do nothing now", mName.c_str());
-            return;
-        }
-        // WRITE_LOG(LOG_FATAL, "handle[%s] end do something", mName.c_str());
-        mState = HANDLE_DONE;
-        gettimeofday(&mOutTime, NULL);
-        int64_t duration = time_sub(mOutTime, mInTime);
-        if (duration > 0) {
-            mTotalDuration += duration;
-        }
-    }
-    void HandleStatus::Display(const string &info) const
+    static struct timeval time_now(void)
     {
         struct timeval now;
-        int64_t hung = 0;
-        if (time_ns(mOutTime) < time_ns(mInTime)) {
-            gettimeofday(&now, NULL);
-            hung = time_sub(now, mInTime);
-        }
-        WRITE_LOG(LOG_INFO, "handle[%s] %s [%s:%lldus] last[in:%llu~out:%llu]us duration[%llu]us bytes[%llu]",
-                  mName.c_str(), info.c_str(), StateToString().c_str(), hung, time_ns(mInTime),
-                  time_ns(mOutTime), mTotalDuration, mDealedBytes);
-    }
-    string HandleStatus::StateToString(void) const
-    {
-        const string stateString[] = { "none", "doing", "done" };
-        return stateString[mState];
+        gettimeofday(&now, NULL);
+        return now;
     }
 
-    LoopStatus::LoopStatus(const string &name)
+    static std::map<uv_loop_t *, LoopStatus *> g_loopStatusMap;
+    static std::mutex g_mapLoopStatusMutex;
+    void DispAllLoopStatus(const string &info)
     {
-        mName = name;
-        mInitTime.tv_sec = 0;
-        mInitTime.tv_usec = 0;
-        mCloseTime.tv_sec = 0;
-        mCloseTime.tv_usec = 0;
+        std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
+        for (auto [loop, stat] : g_loopStatusMap) {
+            stat->Display(info);
+        }
+    }
+    LoopStatus::LoopStatus(uv_loop_t *loop, const string &loopName) : mLoop(loop), mLoopName(loopName)
+    {
+        mCallBackTime.tv_sec = 0;
+        mCallBackTime.tv_usec = 0;
+        // WRITE_LOG(LOG_FATAL, "new lp for [%s][%p]", mLoopName.c_str(), mLoop);
+
+        std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
+        if (g_loopStatusMap.count(mLoop)) {
+            return;
+        }
+        g_loopStatusMap[loop] = this;
     }
     LoopStatus::~LoopStatus()
     {
-        Display("life over:");
-        mHandles.clear();
-    }
-    void LoopStatus::InitWithSufixId(const uint32_t id)
-    {
-        gettimeofday(&mInitTime, NULL);
-        mName += ("-" + std::to_string(id));
-    }
-    void LoopStatus::Close(void)
-    {
-        gettimeofday(&mCloseTime, NULL);
-        Display("loop close:");
-    }
-    void LoopStatus::AddHandle(const uintptr_t handle, const string &name)
-    {
-        if (!handle || name.empty())
-        {
-            WRITE_LOG(LOG_FATAL, "invalid param");
+        // Display("life over:");
+
+        std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
+        if (!g_loopStatusMap.count(mLoop)) {
             return;
         }
-        if (mHandles.count(handle))
-        {
-            WRITE_LOG(LOG_FATAL, "add %s failed, alread exist", name.c_str());
-            return;
-        }
-        HandleStatus h(name);
-        mHandles[handle] = h;
-        WRITE_LOG(LOG_FATAL, "add handle %p name %s", handle, name.c_str());
+        g_loopStatusMap.erase(mLoop);
     }
-    void LoopStatus::DelHandle(const uintptr_t handle)
+    void LoopStatus::HandleStart(const uv_loop_t *loop, const string &handle)
     {
-        if (!mHandles.count(handle))
-        {
-            WRITE_LOG(LOG_FATAL, "del handle failed, not exist");
+        if (loop != mLoop) {
+            WRITE_LOG(LOG_FATAL, "not match loop [%s][%p] for run [%s][%p]", mLoopName.c_str(), mLoop, handle.c_str(), loop);
             return;
         }
-        mHandles[handle].Display("will delete:");
-        mHandles.erase(handle);
+        if (Busy()) {
+            WRITE_LOG(LOG_FATAL, "the loop is busy for [%s] cannt run [%s]", mHandleName.c_str(), handle.c_str());
+            return;
+        }
+        gettimeofday(&mCallBackTime, NULL);
+        mHandleName = handle;
     }
-    void LoopStatus::HandleStart(const uintptr_t handle, ssize_t bytes)
+    void LoopStatus::HandleEnd(const uv_loop_t *loop)
     {
-        if (!mHandles.count(handle))
-        {
-            WRITE_LOG(LOG_FATAL, "start handle %p failed, not exist", handle);
+        if (loop != mLoop) {
+            WRITE_LOG(LOG_FATAL, "not match loop [%s] for end [%s]", mLoopName.c_str(), mHandleName.c_str());
             return;
         }
-        mHandles[handle].CallStart(bytes);
+        if (!Busy()) {
+            WRITE_LOG(LOG_FATAL, "the loop [%s] is idle now", mLoopName.c_str());
+            return;
+        }
+        mCallBackTime.tv_sec = 0;
+        mCallBackTime.tv_usec = 0;
+        mHandleName = "idle";
     }
-    void LoopStatus::HandleEnd(const uintptr_t handle)
+    bool LoopStatus::Busy(void) const
     {
-        if (!mHandles.count(handle))
-        {
-            WRITE_LOG(LOG_FATAL, "end handle %p failed, not exist", handle);
-            return;
-        }
-        mHandles[handle].CallEnd();
+        return (mCallBackTime.tv_sec != 0 || mCallBackTime.tv_usec != 0);
     }
     void LoopStatus::Display(const string &info) const
     {
-        WRITE_LOG(LOG_INFO, "loop[%s] %s time[init:%llu~close:%llu~duration:%lld]us has [%d] handles:",
-                  mName.c_str(), info.c_str(), time_ns(mInitTime), time_ns(mCloseTime),
-                  time_sub(mCloseTime, mInitTime), mHandles.size());
-        for (auto it : mHandles)
-        {
-            it.second.Display(info);
+        if (Busy()) {
+            WRITE_LOG(LOG_FATAL, "%s loop[%s] is busy for [%s] start[%llu] duration[%llu]",
+                    info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
+                    time_ns(mCallBackTime), time_sub(time_now(), mCallBackTime));
+        } else {
+            WRITE_LOG(LOG_FATAL, "%s loop[%s] is idle", info.c_str(), mLoopName.c_str());
         }
     }
 

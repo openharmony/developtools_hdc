@@ -90,6 +90,7 @@ void HdcForwardBase::ListenCallback(uv_stream_t *server, const int status)
     HCtxForward ctxListen = (HCtxForward)server->data;
     HdcForwardBase *thisClass = ctxListen->thisClass;
     uv_stream_t *client = nullptr;
+    CallStatGuard csg(*(ctxListen->thisClass->loopTaskStatus), server->loop, "HdcForwardBase::ListenCallback");
 
     if (status == -1 || !ctxListen->ready) {
         WRITE_LOG(LOG_FATAL, "ListenCallback status:%d id:%u ready:%d",
@@ -266,6 +267,7 @@ void HdcForwardBase::AllocForwardBuf(uv_handle_t *handle, size_t sizeSuggested, 
 void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
     HCtxForward ctx = (HCtxForward)stream->data;
+    CallStatGuard csg(*(ctx->thisClass->loopTaskStatus), stream->loop, "HdcForwardBase::ReadForwardBuf");
     if (nread < 0) {
         WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:%zd id:%u", nread, ctx->id);
         ctx->thisClass->FreeContext(ctx, 0, true);
@@ -286,6 +288,7 @@ void HdcForwardBase::ConnectTarget(uv_connect_t *connection, int status)
 {
     HCtxForward ctx = (HCtxForward)connection->data;
     HdcForwardBase *thisClass = ctx->thisClass;
+    CallStatGuard csg(*(ctx->thisClass->loopTaskStatus), connection->handle->loop, "HdcForwardBase::ConnectTarget");
     delete connection;
     if (status < 0) {
         constexpr int bufSize = 1024;

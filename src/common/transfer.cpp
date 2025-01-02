@@ -224,90 +224,134 @@ out:
     return ret;
 }
 
+void HdcTransferBase::ProcressFileIOFinish(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass)
+{
+    // close-step1
+    ++thisClass->refCount;
+    if (req->fs_type == UV_FS_WRITE && context->isFdOpen) {
+        uv_fs_t req = {};
+        uv_fs_fsync(nullptr, &req, context->openFd, nullptr);
+        uv_fs_req_cleanup(&req);
+    }
+    WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d, context->isFdOpen %d",
+              thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted, context->isFdOpen);
+    if (context->lastErrno == 0 && !context->closeReqSubmitted) {
+        context->closeReqSubmitted = true;
+        WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
+        CloseCtxFd(context);
+        OnFileClose(context);
+    } else {
+        thisClass->WhenTransferFinish(context);
+        --thisClass->refCount;
+    }
+}
+// return true: finished
+bool HdcTransferBase::ProcressFileIOWrite(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass)
+{
+    DEBUG_LOG("write file data %" PRIu64 "/%" PRIu64 "", context->indexIO, context->fileSize);
+    if (context->indexIO >= context->fileSize || req->result == 0) {
+        // The active end must first read it first, but you can't make Finish first, because Slave may not
+        // end.Only slave receives complete talents Finish
+        context->closeNotify = true;
+        thisClass->SetFileTime(context);
+        return true;
+    }
+    return false;
+}
+// return true: finished
+bool HdcTransferBase::ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass)
+{
+    CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
+    uint8_t *bufIO = contextIO->bufIO;
+    DEBUG_LOG("read file data %" PRIu64 "/%" PRIu64 "", context->indexIO, context->fileSize);
+    if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
+        WRITE_LOG(LOG_WARN, "OnFileIO SendIOPayload fail.");
+        return true;
+    }
+    if (req->result == 0) {
+        WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", context->localPath.c_str(), context->openFd);
+        return true;
+    }
+    if (context->indexIO < context->fileSize) {
+        thisClass->SimpleFileIO(context, context->indexIO, nullptr, context->isStableBufSize ?
+            (Base::GetMaxBufSizeStable() * thisClass->maxTransferBufFactor) :
+            (Base::GetMaxBufSize() * thisClass->maxTransferBufFactor));
+        return false;
+    }
+    return true;
+}
+// return true: finished
+bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass)
+{
+    if (context->ioFinish) {
+        WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
+        return true;
+    }
+    if (req->result < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r((int)req->result, buf, bufSize);
+        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
+        context->closeNotify = true;
+        context->lastErrno = abs(req->result);
+        return true;
+    }
+    context->indexIO += req->result;
+    if (req->fs_type == UV_FS_READ) {
+        return ProcressFileIORead(req, context, thisClass);
+    }
+    if (req->fs_type == UV_FS_WRITE) {  // write
+        return ProcressFileIOWrite(req, context, thisClass);
+    }
+
+    return true;
+}
+// return true: do io delayed
+bool HdcTransferBase::IODelayed(uv_fs_t *req)
+{
+#ifndef HDC_HOST
+    return false;
+#endif
+    if (req->fs_type != UV_FS_READ) {
+        return false;
+    }
+    CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
+    CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
+    HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+    if (thisClass->taskInfo->channelTask) {
+        const int maxPackages = 64;
+        const int onePackageTransferTime = 2;
+        const int delayPackages = maxPackages / 2;
+        const int delayMs = delayPackages * onePackageTransferTime;
+        HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(thisClass->taskInfo->channelClass);
+        if (channelBase->queuedPackages.load() >= maxPackages) {
+            WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());
+            Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req,
+                          [](const uint8_t flag, string &msg, const void *data) {
+                              uv_fs_t *req = (uv_fs_t *)data;
+                              OnFileIO(req);
+                          });
+            return true;
+        }
+        channelBase->queuedPackages.fetch_add(1, std::memory_order_relaxed);
+    }
+    return false;
+}
 void HdcTransferBase::OnFileIO(uv_fs_t *req)
 {
+    StartTraceScope("HdcTransferBase::OnFileIO");
+    if (IODelayed(req)) {
+        return;
+    }
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
     CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     CallStatGuard csg(*thisClass->loopTaskStatus, req->loop, "HdcTransferBase::OnFileIO");
     uint8_t *bufIO = contextIO->bufIO;
-    StartTraceScope("HdcTransferBase::OnFileIO");
     uv_fs_req_cleanup(req);
-    while (true) {
-        if (context->ioFinish) {
-            WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
-            break;
-        }
-        if (req->result < 0) {
-            constexpr int bufSize = 1024;
-            char buf[bufSize] = { 0 };
-            uv_strerror_r((int)req->result, buf, bufSize);
-            WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
-            context->closeNotify = true;
-            context->lastErrno = abs(req->result);
-            context->ioFinish = true;
-            break;
-        }
-        context->indexIO += req->result;
-        if (req->fs_type == UV_FS_READ) {
-#ifdef HDC_DEBUG
-            WRITE_LOG(LOG_DEBUG, "read file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
-                      context->fileSize);
-#endif // HDC_DEBUG
-            if (!thisClass->SendIOPayload(context, context->indexIO - req->result, bufIO, req->result)) {
-                WRITE_LOG(LOG_WARN, "OnFileIO SendIOPayload fail.");
-                context->ioFinish = true;
-                break;
-            }
-            if (req->result == 0) {
-                context->ioFinish = true;
-                WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof",
-                    context->localPath.c_str(), context->openFd);
-                break;
-            }
-            if (context->indexIO < context->fileSize) {
-                thisClass->SimpleFileIO(context, context->indexIO, nullptr, context->isStableBufSize ?
-                    (Base::GetMaxBufSizeStable() * thisClass->maxTransferBufFactor) :
-                    (Base::GetMaxBufSize() * thisClass->maxTransferBufFactor));
-            } else {
-                context->ioFinish = true;
-            }
-        } else if (req->fs_type == UV_FS_WRITE) {  // write
-#ifdef HDC_DEBUG
-            WRITE_LOG(LOG_DEBUG, "write file data %" PRIu64 "/%" PRIu64 "", context->indexIO,
-                      context->fileSize);
-#endif // HDC_DEBUG
-            if (context->indexIO >= context->fileSize || req->result == 0) {
-                // The active end must first read it first, but you can't make Finish first, because Slave may not
-                // end.Only slave receives complete talents Finish
-                context->closeNotify = true;
-                context->ioFinish = true;
-                thisClass->SetFileTime(context);
-            }
-        } else {
-            context->ioFinish = true;
-        }
-        break;
-    }
+    context->ioFinish = ProcressFileIO(req, context, thisClass);
     if (context->ioFinish) {
-        // close-step1
-        ++thisClass->refCount;
-        if (req->fs_type == UV_FS_WRITE && context->isFdOpen) {
-            uv_fs_t req = {};
-            uv_fs_fsync(nullptr, &req, context->openFd, nullptr);
-            uv_fs_req_cleanup(&req);
-        }
-        WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d, context->isFdOpen %d",
-                  thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted, context->isFdOpen);
-        if (context->lastErrno == 0 && !context->closeReqSubmitted) {
-            context->closeReqSubmitted = true;
-            WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
-            CloseCtxFd(context);
-            OnFileClose(context);
-        } else {
-            thisClass->WhenTransferFinish(context);
-            --thisClass->refCount;
-        }
+        ProcressFileIOFinish(req, context, thisClass);
     }
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     thisClass->cirbuf.Free(bufIO - payloadPrefixReserve);
@@ -761,12 +805,7 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 ret = false;
                 break;
             }
-            if (!context->isOtherSideSandboxSupported && context->sandboxMode) {
-                const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
-                WRITE_LOG(LOG_DEBUG, "%s doesn't support -b option.", name);
-                LogMsg(MSG_FAIL, "[E005004] %s doesn't support -b option.", name);
-                OnFileOpenFailed(context);
-                TaskFinish();
+            if (!CheckSandboxOptionCompatibility(cmdBundleName, context)) {
                 ret = false;
                 break;
             }
@@ -840,5 +879,18 @@ bool HdcTransferBase::CheckFeatures(CtxFile *context, uint8_t *payload, const in
         WRITE_LOG(LOG_FATAL, "CheckFeatures payloadSize:%d", payloadSize);
         return false;
     }
+}
+
+bool HdcTransferBase::CheckSandboxOptionCompatibility(const string &option, CtxFile *context)
+{
+    if (option == cmdBundleName && !context->isOtherSideSandboxSupported && context->sandboxMode) {
+        const char* name = taskInfo->serverOrDaemon ? "Device ROM" : "SDK";
+        WRITE_LOG(LOG_DEBUG, "%s doesn't support %s option.", name, option.c_str());
+        LogMsg(MSG_FAIL, "[E005004] %s doesn't support %s option.", name, option.c_str());
+        OnFileOpenFailed(context);
+        TaskFinish();
+        return false;
+    }
+    return true;
 }
 }  // namespace Hdc

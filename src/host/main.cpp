@@ -433,6 +433,7 @@ void RunExternalClient(string &str, string &connectKey, string &containerInOut)
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])
 {
+    (void)Base::GetTmpDir();
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
 #endif

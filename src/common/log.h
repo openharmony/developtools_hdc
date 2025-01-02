@@ -40,5 +40,11 @@ enum HdcLogLevel {
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
 #endif
 
+#ifdef HDC_DEBUG
+#define DEBUG_LOG(fmt, ...)   WRITE_LOG(LOG_DEBUG, fmt, ##__VA_ARGS__)
+#else
+#define DEBUG_LOG(fmt, ...)
+#endif
+
 }  // namespace Hdc
 #endif  // __H_LOG_H__

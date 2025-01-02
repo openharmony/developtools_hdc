@@ -46,8 +46,9 @@ private:
 
 class CallStatGuard {
 public:
-    CallStatGuard(LoopStatus &loopStatus, const uv_loop_t *loop, const string &handle) :
-        mCommitted(false), mLoop(loop), mLoopStatus(loopStatus)
+    CallStatGuard(LoopStatus &loopStatus, const uv_loop_t *loop, const string &handle) : mCommitted(false),
+                                                                                         mLoop(loop),
+                                                                                         mLoopStatus(loopStatus)
     {
         mLoopStatus.HandleStart(loop, handle);
     }
@@ -58,7 +59,8 @@ public:
         }
         mLoopStatus.HandleEnd(mLoop);
     }
-    void Commit(void) {
+    void Commit(void)
+    {
         if (mCommitted) {
             return;
         }

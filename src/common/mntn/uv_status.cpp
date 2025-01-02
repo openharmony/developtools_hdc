@@ -103,8 +103,8 @@ namespace Hdc {
     {
         if (Busy()) {
             WRITE_LOG(LOG_FATAL, "%s loop[%s] is busy for [%s] start[%llu] duration[%llu]",
-                    info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
-                    TimeUsec(mCallBackTime), TimeSub(TimeNow(), mCallBackTime));
+                      info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
+                      TimeUsec(mCallBackTime), TimeSub(TimeNow(), mCallBackTime));
         } else {
             WRITE_LOG(LOG_FATAL, "%s loop[%s] is idle", info.c_str(), mLoopName.c_str());
         }

@@ -122,7 +122,7 @@ int HdcDaemonUSB::Initial()
     }
 
     HdcDaemon *daemon = (HdcDaemon *)clsMainBase;
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall %p", daemon);
+    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall");
     uv_timer_init(&daemon->loopMain, &checkEP);
     checkEP.data = this;
     uv_timer_start(&checkEP, WatchEPTimer, 0, TIME_BASE);
@@ -495,7 +495,6 @@ int HdcDaemonUSB::UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int
             delete uvData;
             break;
         }
-        // xxxxxxxx
         ret = uv_write(reqWrite, stream, &bfr, 1, UvWriteCallback);
         if (ret < 0) {
             WRITE_LOG(LOG_WARN, "UsbToStream uv_write false ret:%d", ret);

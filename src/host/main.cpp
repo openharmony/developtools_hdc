@@ -202,12 +202,12 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         std::cerr << TranslateCommand::Usage();
         return 0;
     }
-    if (!strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size())) {
+    if (!strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size()) ||
+        !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
         client.CtrlServiceWork(commands.c_str());
         return 0;
     }
-    if (!strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
-        !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
+    if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
         client.ChannelCtrlServer(commands, connectKey);
         return 0;
     }

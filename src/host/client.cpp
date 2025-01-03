@@ -120,54 +120,34 @@ bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
     bool isRestart = (cmd.find(" -r") != std::string::npos);
     bool isKill = !strncmp(cmd.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size());
     bool isStart = !strncmp(cmd.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size());
+    if (isKill) {
+        Base::PrintMessage("[E002201]Kill server failed, unsupport channel kill.");
+        return false;
+    }
+    if (!isStart) {
+        Base::PrintMessage("[E002202]Unsupport command or parameters");
+        return false;
+    }
     Initial(connectKey);
     // server is not running, "hdc start [-r]" and "hdc kill -r" will start server directly.
     if (serverStatus == 0) {
-        if ((isRestart && isKill) || isStart) {
-            ChannelCtrlServerStart(channelHostPort.c_str());
-        } else if (!isRestart && isKill) { // "hdc kill" will print message and exit directly.
-            Base::PrintMessage("hdc server process not exists");
-        }
+        ChannelCtrlServerStart(channelHostPort.c_str());
         return true;
     }
     // server is running
-    if (isStart) {
-        if (isRestart) { // "hdc start -r": kill and restart server.
-            ExecuteCommand(CMDSTR_SERVICE_KILL.c_str());
-            MallocChannel(&channel);
-            ChannelCtrlServerStart(channelHostPort.c_str());
-        } else { // "hdc start": ignore and print message.
-            Base::PrintMessage("hdc server process already exists");
+    if (isRestart) { // "hdc start -r": kill and restart server.
+        if (!KillMethodByUv()) {
+            return false;
         }
-        return true;
-    } else if (isKill) { // "hdc kill": kill server.
-        ExecuteCommand(CMDSTR_SERVICE_KILL.c_str());
-        if (isRestart) { // "-r": restart server.
-            MallocChannel(&channel);
-            ChannelCtrlServerStart(channelHostPort.c_str());
-        }
-        return true;
+        ChannelCtrlServerStart(channelHostPort.c_str());
+    } else { // "hdc start": ignore and print message.
+        Base::PrintMessage("[E002203]hdc server process already exists");
     }
     return true;
 }
 
-bool HdcClient::KillServer(const string &cmd)
+bool HdcClient::KillMethodByUv()
 {
-    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
-    if (serverStatus < 0) {
-        WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
-        return false;
-    }
-
-    // server is not running
-    if (serverStatus == 0) {
-        if (cmd.find(" -r") != std::string::npos) {
-            HdcServer::PullupServer(channelHostPort.c_str());
-        }
-        return true;
-    }
-
-    // server is running
     uint32_t pid = GetLastPID();
     if (pid == 0) {
         Base::PrintMessage(TERMINAL_HDC_PROCESS_FAILED.c_str());
@@ -181,7 +161,25 @@ bool HdcClient::KillServer(const string &cmd)
         char buf[size] = { 0 };
         uv_strerror_r(rc, buf, size);
         Base::PrintMessage("Kill server failed %s", buf);
+        return false;
     }
+    return true;
+}
+
+bool HdcClient::KillServer(const string &cmd)
+{
+    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    if (serverStatus < 0) {
+        WRITE_LOG(LOG_FATAL, "get server status failed, serverStatus:%d", serverStatus);
+        return false;
+    }
+
+    // server is running
+    if (serverStatus != 0 && !KillMethodByUv()) {
+        return false;
+    }
+
+    // server need to restart
     if (cmd.find(" -r") != std::string::npos) {
         string connectKey;
         Base::PrintMessage("hdc start server, listening: %s", channelHostPort.c_str());
@@ -231,7 +229,6 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_VERSION);
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_HELP);
     vecNoConnectKeyCommand.push_back(CMDSTR_TARGET_DISCOVER);
-    vecNoConnectKeyCommand.push_back(CMDSTR_SERVICE_KILL);
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
@@ -521,14 +518,6 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         return;
     }
     uv_timer_stop(handle);
-
-    if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(),
-        CMDSTR_SERVICE_KILL.size()) && !thisClass->channel->isSupportedKillServerCmd) {
-        WRITE_LOG(LOG_DEBUG, "uv_kill server");
-        thisClass->CtrlServiceWork(thisClass->command.c_str());
-        return;
-    }
-
     WRITE_LOG(LOG_DEBUG, "Connect server successful");
     bool closeInput = false;
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
@@ -701,10 +690,8 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         return ERR_BUF_CHECK;
     }
     hChannel->isStableBuf = (hShake->banner[BANNER_FEATURE_TAG_OFFSET] != HUGE_BUF_TAG);
-    hChannel->isSupportedKillServerCmd =
-        (hShake->banner[SERVICE_KILL_OFFSET] == SERVICE_KILL_TAG);
-    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d, killflag:%d",
-        hChannel->isStableBuf, hChannel->isSupportedKillServerCmd);
+    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d",
+        hChannel->isStableBuf);
     if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {
         hShake->banner[WAIT_TAG_OFFSET] = WAIT_DEVICE_TAG;
     }

@@ -103,7 +103,7 @@ def test_no_exist_path():
         assert check_hdc_cmd(f"file send "
                              f"{get_local_path(f'{test_item}')} {remote_unexist_path}/it_{test_item}")
         assert check_hdc_cmd(f"file recv {remote_unexist_path}/it_{test_item} "
-                             f"{get_local_path(local_unexist_path)}")
+                             f"{local_unexist_path}")
 
 
 @pytest.mark.repeat(5)

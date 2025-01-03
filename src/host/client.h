@@ -57,6 +57,7 @@ private:
     bool WaitFor(const string &str);
     string ListTargetsAll(const string &str);
     void UpdateList(const string &str);
+    bool KillMethodByUv();
 
 #ifdef _WIN32
     static string GetHilogPath();

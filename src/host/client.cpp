@@ -121,7 +121,7 @@ bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
     bool isKill = !strncmp(cmd.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size());
     bool isStart = !strncmp(cmd.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size());
     if (isKill) {
-        Base::PrintMessage("[E002201]Kill server failed unsupport channel kill.");
+        Base::PrintMessage("[E002201]Kill server failed, unsupport channel kill.");
         return false;
     }
     if (!isStart) {

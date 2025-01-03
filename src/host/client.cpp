@@ -121,11 +121,11 @@ bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
     bool isKill = !strncmp(cmd.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size());
     bool isStart = !strncmp(cmd.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size());
     if (isKill) {
-        Base::PrintMessage("Kill server failed unsupport channel kill.");
+        Base::PrintMessage("[E002201]Kill server failed unsupport channel kill.");
         return false;
     }
     if (!isStart) {
-        Base::PrintMessage("Unknown command");
+        Base::PrintMessage("[E002202]Unsupport command or parameters");
         return false;
     }
     Initial(connectKey);
@@ -141,7 +141,7 @@ bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
         }
         ChannelCtrlServerStart(channelHostPort.c_str());
     } else { // "hdc start": ignore and print message.
-        Base::PrintMessage("hdc server process already exists");
+        Base::PrintMessage("[E002203]hdc server process already exists");
     }
     return true;
 }
@@ -170,7 +170,7 @@ bool HdcClient::KillServer(const string &cmd)
 {
     int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
     if (serverStatus < 0) {
-        WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
+        WRITE_LOG(LOG_FATAL, "get server status failed, serverStatus:%d", serverStatus);
         return false;
     }
 

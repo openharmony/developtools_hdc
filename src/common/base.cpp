@@ -2119,13 +2119,8 @@ static void EchoLog(string &buf)
     {
         string res;
 #ifdef HDC_HOST
-        static char path[PATH_MAX] = "";
-        static std::atomic<bool> hasGetTmpDir(false);
-        if (hasGetTmpDir) {
-            res = path;
-            return res;
-        }
         int value = -1;
+        char path[PATH_MAX] = "";
         size_t size = sizeof(path);
         value = uv_os_tmpdir(path, &size);
         if (value < 0) {
@@ -2142,7 +2137,6 @@ static void EchoLog(string &buf)
         if (path[strlen(path) - 1] != Base::GetPathSep()) {
             path[strlen(path)] = Base::GetPathSep();
         }
-        hasGetTmpDir = true;
         res = path;
 #else
         res = "/data/local/tmp/";

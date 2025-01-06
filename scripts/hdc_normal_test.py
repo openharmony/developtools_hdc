@@ -254,6 +254,8 @@ def test_server_kill():
     assert check_hdc_cmd("kill", "Kill server finish")
     assert check_hdc_cmd("start server")
     time.sleep(3) # sleep 3s to wait for the device to connect channel
+    assert check_hdc_cmd("kill -r", "Start server finish")
+    assert check_hdc_cmd("start -r", "hdc start server")
     assert check_hdc_cmd("checkserver", "Ver")
 
 

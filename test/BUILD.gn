@@ -29,13 +29,13 @@ hdc_common_sources = [
   "${hdc_path}/src/common/file.cpp",
   "${hdc_path}/src/common/file_descriptor.cpp",
   "${hdc_path}/src/common/forward.cpp",
+  "${hdc_path}/src/common/mntn/uv_status.cpp",
   "${hdc_path}/src/common/session.cpp",
   "${hdc_path}/src/common/task.cpp",
   "${hdc_path}/src/common/tcp.cpp",
   "${hdc_path}/src/common/tlv.cpp",
   "${hdc_path}/src/common/transfer.cpp",
   "${hdc_path}/src/common/usb.cpp",
-  "${hdc_path}/src/common/mntn/uv_status.cpp",
 ]
 
 hdc_daemon_sources = [
@@ -293,10 +293,10 @@ ohos_unittest("hdc_base_unittest") {
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
   sources = [
-    "${hdc_path}/src/common/tlv.cpp",
     "${hdc_path}/src/common/mntn/uv_status.cpp",
-    "unittest/common/tlv_ut.cpp",
+    "${hdc_path}/src/common/tlv.cpp",
     "unittest/common/mntn/uv_status_ut.cpp",
+    "unittest/common/tlv_ut.cpp",
     "unittest/common/ut_base.cpp",
   ]
 

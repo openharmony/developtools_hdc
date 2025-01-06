@@ -74,7 +74,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     HSession hSession = (HSession)tcp->data;
     HdcTCPBase *thisClass = (HdcTCPBase *)hSession->classModule;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)thisClass->clsMainBase;
-    CallStatGuard csg(hSessionBase->loopMainStatus, tcp->loop, "HdcTCPBase::ReadStream");
+    CallStatGuard csg(hSession->childLoopStatus, tcp->loop, "HdcTCPBase::ReadStream");
     bool ret = false;
     while (true) {
         if (nread == UV_ENOBUFS) {

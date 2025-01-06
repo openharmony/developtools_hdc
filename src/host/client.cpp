@@ -912,6 +912,7 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     HTaskInfo hTaskInfo = new TaskInformation();
     hTaskInfo->channelId = hChannel->channelId;
     hTaskInfo->runLoop = loopMain;
+    hTaskInfo->runLoopStatus = &loopMainStatus;
     hTaskInfo->serverOrDaemon = true;
     hTaskInfo->channelTask = true;
     hTaskInfo->channelClass = this;

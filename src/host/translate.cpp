@@ -237,6 +237,7 @@ namespace TranslateCommand {
                 return stringError;
             }
             string sport = outCmd->parameters.substr(pos + 1);
+            WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", ip.c_str(), sport.c_str());
             if (sport.empty() || !Base::IsDigitString(sport)) {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;
@@ -246,7 +247,7 @@ namespace TranslateCommand {
                 ip = "127.0.0.1";
                 outCmd->parameters.replace(0, pos, ip);
             }
-            int port = std::stoi(sport);
+            int port = static_cast<int>(strtol(sport.c_str(), nullptr, 10));
             sockaddr_in addr;
             if ((port <= 0 || port > MAX_IP_PORT) || uv_ip4_addr(ip.c_str(), port, &addr) < 0) {
                 stringError = "IP:Port incorrect";

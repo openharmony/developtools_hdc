@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef __H_LOG_H__
-#define __H_LOG_H__
+#ifndef __H_HDC_LOG_H__
+#define __H_HDC_LOG_H__
 
 #include <cinttypes>
 
@@ -47,4 +47,4 @@ enum HdcLogLevel {
 #endif
 
 }  // namespace Hdc
-#endif  // __H_LOG_H__
+#endif  // __H_HDC_LOG_H__

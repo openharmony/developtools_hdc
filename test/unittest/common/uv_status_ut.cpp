@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "mntn/uv_status.h"
+#include "uv_status.h"
 #include <random>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

@@ -36,7 +36,6 @@ private:
         int bufSize;
         bool atPollQueue;
         uv_fs_t req;
-        uintptr_t epIndex;
     };
     static void OnUSBRead(uv_fs_t *req);
     static void WatchEPTimer(uv_timer_t *handle);

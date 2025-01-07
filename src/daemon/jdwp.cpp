@@ -18,10 +18,11 @@
 #include "system_depend.h"
 
 namespace Hdc {
-HdcJdwp::HdcJdwp(uv_loop_t *loopIn, LoopStatus &ls) : loopStatus(ls)
+HdcJdwp::HdcJdwp(uv_loop_t *loopIn, LoopStatus *ls) : loopStatus(ls)
 {
     listenPipe.data = this;
     loop = loopIn;
+    loopStatus = ls;
     refCount = 0;
     uv_rwlock_init(&lockMapContext);
     uv_rwlock_init(&lockJdwpTrack);
@@ -116,7 +117,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 {
     HCtxJdwp ctxJdwp = static_cast<HCtxJdwp>(pipe->data);
     HdcJdwp *thisClass = static_cast<HdcJdwp *>(ctxJdwp->thisClass);
-    CallStatGuard csg(thisClass->loopStatus, pipe->loop, "HdcJdwp::ReadStream");
+    CALLSTAT_GUARD(*(thisClass->loopStatus), pipe->loop, "HdcJdwp::ReadStream");
     static std::once_flag firstLog;
     std::call_once(firstLog, [&]() { SystemDepend::SetDevItem("persist.hdc.jdwp", "0"); });
     
@@ -226,7 +227,7 @@ void HdcJdwp::AcceptClient(uv_stream_t *server, int status)
 {
     uv_pipe_t *listenPipe = (uv_pipe_t *)server;
     HdcJdwp *thisClass = (HdcJdwp *)listenPipe->data;
-    CallStatGuard csg(thisClass->loopStatus, server->loop, "HdcJdwp::AcceptClient");
+    CALLSTAT_GUARD(*(thisClass->loopStatus), server->loop, "HdcJdwp::AcceptClient");
     HCtxJdwp ctxJdwp = (HCtxJdwp)thisClass->MallocContext();
     if (!ctxJdwp) {
         return;

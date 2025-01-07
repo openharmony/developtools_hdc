@@ -294,7 +294,7 @@ void HdcSessionBase::AsyncMainLoopTask(uv_idle_t *handle)
 {
     AsyncParam *param = (AsyncParam *)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)param->thisClass;
-    CallStatGuard csg(thisClass->loopMainStatus, handle->loop, "HdcSessionBase::AsyncMainLoopTask");
+    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcSessionBase::AsyncMainLoopTask");
     switch (param->method) {
         case ASYNC_FREE_SESSION:
             // Destruction is unified in the main thread
@@ -317,7 +317,7 @@ void HdcSessionBase::AsyncMainLoopTask(uv_idle_t *handle)
 void HdcSessionBase::MainAsyncCallback(uv_async_t *handle)
 {
     HdcSessionBase *thisClass = (HdcSessionBase *)handle->data;
-    CallStatGuard csg(thisClass->loopMainStatus, handle->loop, "HdcSessionBase::MainAsyncCallback");
+    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcSessionBase::MainAsyncCallback");
     list<void *>::iterator i;
     list<void *> &lst = thisClass->lstMainThreadOP;
     uv_rwlock_wrlock(&thisClass->mainAsync);
@@ -1044,7 +1044,7 @@ bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8
 void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events)
 {
     HSession hSession = (HSession)poll->data;
-    CallStatGuard csg(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromSession");
+    CALLSTAT_GUARD(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromSession");
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     const int size = Base::GetMaxBufSizeStable();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
@@ -1216,7 +1216,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
 void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
 {
     HSession hSession = (HSession)poll->data;
-    CallStatGuard csg(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromMain");
+    CALLSTAT_GUARD(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromMain");
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;

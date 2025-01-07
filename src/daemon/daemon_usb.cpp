@@ -594,8 +594,8 @@ void HdcDaemonUSB::OnUSBRead(uv_fs_t *req)
     auto ctxIo = reinterpret_cast<CtxUvFileCommonIo *>(req->data);
     auto hUSB = reinterpret_cast<HUSB>(ctxIo->data);
     auto thisClass = reinterpret_cast<HdcDaemonUSB *>(ctxIo->thisClass);
-    HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase);
-    CallStatGuard csg(daemon->loopMainStatus, req->loop, "HdcDaemonUSB::OnUSBRead");
+    CALLSTAT_GUARD((reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase))->loopMainStatus,
+                   req->loop, "HdcDaemonUSB::OnUSBRead");
     uint8_t *bufPtr = ctxIo->buf;
     ssize_t bytesIOBytes = req->result;
     uint32_t sessionId = 0;
@@ -703,7 +703,7 @@ void HdcDaemonUSB::WatchEPTimer(uv_timer_t *handle)
     HdcDaemonUSB *thisClass = (HdcDaemonUSB *)handle->data;
     HUSB hUSB = &thisClass->usbHandle;
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(thisClass->clsMainBase);
-    CallStatGuard csg(daemon->loopMainStatus, handle->loop, "HdcDaemonUSB::WatchEPTimer");
+    CALLSTAT_GUARD(daemon->loopMainStatus, handle->loop, "HdcDaemonUSB::WatchEPTimer");
     if (thisClass->isAlive || thisClass->ctxRecv.atPollQueue) {
         return;
     }

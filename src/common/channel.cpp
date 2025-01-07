@@ -119,7 +119,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
     HChannel hChannel = (HChannel)tcp->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     uint32_t channelId = hChannel->channelId;
-    CallStatGuard csg(*hChannel->loopStatus, tcp->loop, "HdcChannelBase::ReadStream");
+    CALLSTAT_GUARD(*(hChannel->loopStatus), tcp->loop, "HdcChannelBase::ReadStream");
 
     if (nread == UV_ENOBUFS) {
         WRITE_LOG(LOG_FATAL, "ReadStream nobufs channelId:%u", channelId);
@@ -192,7 +192,7 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
     HChannel hChannel = (HChannel)req->handle->data;
     --hChannel->ref;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
-    CallStatGuard csg(*hChannel->loopStatus, req->handle->loop, "HdcChannelBase::WriteCallback");
+    CALLSTAT_GUARD(*(hChannel->loopStatus), req->handle->loop, "HdcChannelBase::WriteCallback");
     if (status < 0) {
         WRITE_LOG(LOG_WARN, "WriteCallback status:%d", status);
         hChannel->writeFailedTimes++;
@@ -209,7 +209,7 @@ void HdcChannelBase::AsyncMainLoopTask(uv_idle_t *handle)
 {
     AsyncParam *param = (AsyncParam *)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)param->thisClass;
-    CallStatGuard csg(thisClass->loopMainStatus, handle->loop, "HdcChannelBase::AsyncMainLoopTask");
+    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcChannelBase::AsyncMainLoopTask");
     switch (param->method) {
         case ASYNC_FREE_CHANNEL: {
             // alloc/release should pair in main thread.
@@ -232,7 +232,7 @@ void HdcChannelBase::AsyncMainLoopTask(uv_idle_t *handle)
 void HdcChannelBase::MainAsyncCallback(uv_async_t *handle)
 {
     HdcChannelBase *thisClass = (HdcChannelBase *)handle->data;
-    CallStatGuard csg(thisClass->loopMainStatus, handle->loop, "HdcChannelBase::MainAsyncCallback");
+    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcChannelBase::MainAsyncCallback");
     if (uv_is_closing((uv_handle_t *)thisClass->loopMain)) {
         WRITE_LOG(LOG_WARN, "MainAsyncCallback uv_is_closing loopMain");
         return;

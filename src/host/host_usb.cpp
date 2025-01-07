@@ -217,7 +217,7 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
 {
     HdcHostUSB *thisClass = static_cast<HdcHostUSB *>(handle->data);
     HdcServer *ptrConnect = static_cast<HdcServer *>(thisClass->clsMainBase);
-    CallStatGuard csg(ptrConnect->loopMainStatus, handle->loop, "HdcHostUSB::WatchUsbNodeChange");
+    CALLSTAT_GUARD(ptrConnect->loopMainStatus, handle->loop, "HdcHostUSB::WatchUsbNodeChange");
     libusb_device **devs = nullptr;
     libusb_device *dev = nullptr;
     // kick zombie

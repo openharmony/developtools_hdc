@@ -151,7 +151,7 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
         ((HdcDaemonUART *)clsUARTServ)->Initial();
     }
 #endif
-    clsJdwp = new(std::nothrow) HdcJdwp(&loopMain, loopMainStatus);
+    clsJdwp = new(std::nothrow) HdcJdwp(&loopMain, &loopMainStatus);
     if (clsJdwp == nullptr) {
         WRITE_LOG(LOG_FATAL, "InitMod new clsJdwp failed");
         return;

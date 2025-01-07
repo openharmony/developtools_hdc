@@ -26,7 +26,6 @@ using std::string;
 
 namespace Hdc {
 
-void DispAllLoopStatus(const string &info);
 class LoopStatus {
 public:
     LoopStatus(uv_loop_t *loop, const string &loopName);
@@ -37,6 +36,7 @@ public:
     void HandleStart(const uv_loop_t *loop, const string &handle);
     void HandleEnd(const uv_loop_t *loop);
     void Display(const string &info) const;
+    void UnUsedForUpdater(void) const {}
 private:
     uv_loop_t *mLoop;
     const string mLoopName;
@@ -72,6 +72,13 @@ private:
     const uv_loop_t *mLoop;
     LoopStatus &mLoopStatus;
 };
+
+void DispAllLoopStatus(const string &info);
+#ifdef UPDATER_MODE
+#define CALLSTAT_GUARD(ls, loop, funcname) (ls).UnUsedForUpdater()
+#else
+#define CALLSTAT_GUARD(ls, loop, funcname) CallStatGuard csg(ls, loop, funcname)
+#endif
 
 } /* namespace Hdc  */
 

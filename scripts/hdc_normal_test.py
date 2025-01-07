@@ -634,6 +634,17 @@ def test_hdcd_rom():
     assert check_rom(baseline)
 
 
+def test_smode_permission():
+    check_shell(f"shell rm -rf data/deep_test_dir")
+    assert check_hdc_cmd(f'smode -r')
+    time.sleep(3)
+    run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
+    assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
+                       "permission denied")
+    assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
+                       "[E005005]")
+
+
 def test_smode_r():
     assert check_hdc_cmd(f'smode -r')
     time.sleep(3) # sleep 3s to wait for the device to connect channel
@@ -641,6 +652,8 @@ def test_smode_r():
     time.sleep(3) # sleep 3s to wait for the device to connect channel
     run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
     assert check_shell(f"shell id", "context=u:r:sh:s0")
+    assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
+                       "permission denied")
 
 
 def test_smode():

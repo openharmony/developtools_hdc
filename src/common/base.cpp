@@ -1740,8 +1740,7 @@ static void EchoLog(string &buf)
                 char buf[bufSize] = { 0 };
                 uv_strerror_r((int)req.result, buf, bufSize);
                 WRITE_LOG(LOG_WARN, "create dir %s failed %s", path.c_str(), buf);
-                err = "Error create directory, path:";
-                err += path.c_str();
+                err = "[E005005] Error create directory: " + string(buf) + ", path:" + path;
                 return false;
             }
         } else {

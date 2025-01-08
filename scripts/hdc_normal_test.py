@@ -106,6 +106,21 @@ def test_no_exist_path():
                              f"{local_unexist_path}")
 
 
+@pytest.mark.repeat(3)
+def test_no_exist_path_with_seperate():
+    test_resource_list = ['empty', 'medium', 'small']
+    remote_unexist_path = f"{get_remote_path('it_no_exist/deep_test_dir/')}"
+    for test_item in test_resource_list:
+        check_hdc_cmd(f"shell rm -rf {get_remote_path('it_no_exist*')}")
+        local_unexist_path = get_local_path(f'{(os.path.join("recv_no_exist", "deep_test_dir"))}')
+        if os.path.exists(get_local_path('recv_no_exist')):
+            rmdir(get_local_path('recv_no_exist'))
+        assert check_hdc_cmd(f"file send "
+                             f"{get_local_path(f'{test_item}')} {remote_unexist_path}/")
+        assert check_hdc_cmd(f"file recv {remote_unexist_path}/{test_item} "
+                             f"{local_unexist_path}{os.sep}")
+
+
 @pytest.mark.repeat(5)
 def test_small_file():
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")

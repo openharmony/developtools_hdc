@@ -102,6 +102,7 @@ def test_small_file_compress():
     assert check_hdc_cmd(f"file send -z {get_local_path('small')} {get_remote_path('it_small_z')}")
     assert check_hdc_cmd(f"file recv -z {get_remote_path('it_small_z')} {get_local_path('small_z_recv')}") 
 
+
 @pytest.mark.repeat(1)
 def test_node_file():
     assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")

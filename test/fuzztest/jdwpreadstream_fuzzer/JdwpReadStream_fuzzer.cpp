@@ -15,15 +15,16 @@
 
 #include "JdwpReadStream_fuzzer.h"
 #include <uv.h>
+#include <uv_status.h>
 
 namespace Hdc {
 class HdcJdwpFuzzer : public HdcJdwp {
 public:
-    explicit HdcJdwpFuzzer(uv_loop_t *loop) : HdcJdwp(loop) {}
+    explicit HdcJdwpFuzzer(uv_loop_t *loop, LoopStatus *loopStatus) : HdcJdwp(loop, loopStatus) {}
 
-    static std::unique_ptr<HdcJdwpFuzzer> Instance(uv_loop_t *loop)
+    static std::unique_ptr<HdcJdwpFuzzer> Instance(uv_loop_t *loop, LoopStatus *loopStatus)
     {
-        std::unique_ptr<HdcJdwpFuzzer> jdwp = std::make_unique<HdcJdwpFuzzer>(loop);
+        std::unique_ptr<HdcJdwpFuzzer> jdwp = std::make_unique<HdcJdwpFuzzer>(loop, loopStatus);
         return jdwp;
     }
 };
@@ -32,7 +33,8 @@ bool FuzzJdwpReadStream(const uint8_t *data, size_t size)
 {
     uv_loop_t loop;
     uv_loop_init(&loop);
-    auto jdwp = HdcJdwpFuzzer::Instance(&loop);
+    LoopStatus ls(&loop, "not support");
+    auto jdwp = HdcJdwpFuzzer::Instance(&loop, &ls);
     if (jdwp == nullptr) {
         WRITE_LOG(LOG_FATAL, "FuzzJdwpReadStream jdwp is null");
         return false;

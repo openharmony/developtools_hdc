@@ -384,6 +384,7 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
   sources = [
+    "${hdc_path}/src/common/uv_status.cpp",
     "${hdc_path}/src/daemon/jdwp.cpp",
     "${hdc_path}/src/daemon/system_depend.cpp",
     "fuzztest/jdwpreadstream_fuzzer/JdwpReadStream_fuzzer.cpp",

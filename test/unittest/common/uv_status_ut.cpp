@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "log.h"
 #include "uv_status.h"
 #include <random>
 #include <gmock/gmock.h>
@@ -24,30 +25,62 @@ using namespace testing;
 namespace Hdc {
 class HandleTest : public testing::Test {
 public:
+    HandleTest() {}
     static void SetUpTestCase(void);
     static void TearDownTestCase(void);
     void SetUp();
     void TearDown();
+public:
+    uv_loop_t mLoop;
+    uv_idle_t mIdle;
+    LoopStatus *mLoopStatus;
+    unsigned int mCallDuration;
+    int mCycles;
 };
 
-void HandleTest::SetUpTestCase()
-{
+static void IdleCallBack(uv_idle_t* handle) {
+    HandleTest *ht = (HandleTest *)handle->data;
+    static int cycles = 0;
+    CALLSTAT_GUARD(*(ht->mLoopStatus), &(ht->mLoop), "IdleCallBack");
+
+    uv_sleep(ht->mCallDuration);
+    if (cycles++ > ht->mCycles) {
+        uv_stop(&(ht->mLoop));
+    }
 }
+
+void HandleTest::SetUpTestCase() { }
 
 void HandleTest::TearDownTestCase() {}
 
-void HandleTest::SetUp() {}
-
-void HandleTest::TearDown() {}
-
-HWTEST_F(HandleTest, Handle_Constructor_001, TestSize.Level0)
+void HandleTest::SetUp()
 {
-    {
-        uv_loop_t l;
-        LoopStatus loop(&l, "loop-test");
-        CallStatGuard csg1(loop, &l, "call-0");
-        CallStatGuard csg2(loop, &l, "call-1");
-    }
+    StartLoopMonitor();
+    mCallDuration = 1 * MS_PER_SEC;
+    uv_loop_init(&mLoop);
+    mIdle.data = this;
+    uv_idle_init(&mLoop, &mIdle);
+    uv_idle_start(&mIdle, IdleCallBack);
+    mLoopStatus = new LoopStatus(&mLoop, "HandleTestLoop");
+}
+
+void HandleTest::TearDown()
+{
+    delete mLoopStatus;
+}
+
+HWTEST_F(HandleTest, Handle_NoHungTest_001, TestSize.Level0)
+{
+    mCycles = 5;
+    mCallDuration = MS_PER_SEC / 2;
+    uv_run(&mLoop, UV_RUN_DEFAULT);
+    ASSERT_EQ(0, 0);
+}
+HWTEST_F(HandleTest, Handle_HungTest_001, TestSize.Level0)
+{
+    mCycles = 1;
+    mCallDuration = 3 * MS_PER_SEC;
+    uv_run(&mLoop, UV_RUN_DEFAULT);
     ASSERT_EQ(0, 0);
 }
 

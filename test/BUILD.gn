@@ -309,6 +309,7 @@ ohos_unittest("hdc_base_unittest") {
   external_deps = [
     "googletest:gmock_main",
     "init:libbegetutil",
+    "libuv:uv",
   ]
 }
 

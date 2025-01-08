@@ -20,11 +20,14 @@
 #include <string>
 #include <sys/time.h>
 #include <map>
-#include "uv.h"
+#include <uv.h>
 
 using std::string;
 
 namespace Hdc {
+
+#define MS_PER_SEC 1000
+#define US_PER_SEC (1000 * 1000)
 
 class LoopStatus {
 public:
@@ -36,12 +39,17 @@ public:
     void HandleStart(const uv_loop_t *loop, const string &handle);
     void HandleEnd(const uv_loop_t *loop);
     void Display(const string &info) const;
+    void HungCheck(int64_t timeout) const;
     void UnUsedForUpdater(void) const {}
+public:
+    static void MonitorTimerProc(uv_timer_t *req);
 private:
     uv_loop_t *mLoop;
     const string mLoopName;
     string mHandleName;
+    bool mBusyNow;
     struct timeval mCallBackTime;
+    uv_timer_t mMonitorTimer;
 };
 
 class CallStatGuard {
@@ -79,6 +87,9 @@ void DispAllLoopStatus(const string &info);
 #else
 #define CALLSTAT_GUARD(ls, loop, funcname) CallStatGuard csg(ls, loop, funcname)
 #endif
+void StartLoopMonitor(void);
+int GetLoopHungTimeout(void);
+int GetLoopMonitorPeriod(void);
 
 } /* namespace Hdc  */
 

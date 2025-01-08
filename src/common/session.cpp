@@ -362,6 +362,7 @@ void HdcSessionBase::PushAsyncMessage(const uint32_t sessionId, const uint8_t me
 
 void HdcSessionBase::WorkerPendding()
 {
+    StartLoopMonitor();
     uv_run(&loopMain, UV_RUN_DEFAULT);
     ClearInstanceResource();
 }

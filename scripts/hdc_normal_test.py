@@ -97,6 +97,11 @@ def test_small_file():
     assert check_hdc_cmd(f"file recv {get_remote_path('it_small')} {get_local_path('small_recv')}")
 
 
+@pytest.mark.repeat(5)
+def test_small_file_compress():
+    assert check_hdc_cmd(f"file send -z {get_local_path('small')} {get_remote_path('it_small_z')}")
+    assert check_hdc_cmd(f"file recv -z {get_remote_path('it_small_z')} {get_local_path('small_z_recv')}") 
+
 @pytest.mark.repeat(1)
 def test_node_file():
     assert check_hdc_cmd(f"file recv {get_remote_path('../../../sys/power/state')} {get_local_path('state')}")
@@ -110,9 +115,27 @@ def test_medium_file():
 
 
 @pytest.mark.repeat(1)
+def test_medium_file_compress():
+    assert check_hdc_cmd(f"file send -z {get_local_path('medium')} {get_remote_path('it_medium_z')}")
+    assert check_hdc_cmd(f"file recv -z {get_remote_path('it_medium_z')} {get_local_path('medium_z_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_medium_file_compress2():
+    assert check_hdc_cmd(f"file send -z {get_local_path('word_100M.txt')} {get_remote_path('word_100M_compress.txt')}")
+    assert check_hdc_cmd(f"file recv -z {get_remote_path('word_100M_compress.txt')} {get_local_path('word_100M_compress_recv.txt')}")
+
+
+@pytest.mark.repeat(1)
 def test_large_file():
     assert check_hdc_cmd(f"file send {get_local_path('large')} {get_remote_path('it_large')}")
     assert check_hdc_cmd(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}")
+
+
+@pytest.mark.repeat(1)
+def test_large_file_compress():
+    assert check_hdc_cmd(f"file send -z {get_local_path('large')} {get_remote_path('it_large_z')}")
+    assert check_hdc_cmd(f"file recv -z {get_remote_path('it_large_z')} {get_local_path('large_z_recv')}")
 
 
 @pytest.mark.repeat(1)

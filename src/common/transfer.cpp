@@ -170,6 +170,15 @@ void HdcTransferBase::SetFileTime(CtxFile *context)
     uv_fs_req_cleanup(&fs);
 }
 
+bool HdcTransferBase::InitTransferPayload(TransferPayload payloadHead, uint64_t index, uint8_t compressType,
+    uint32_t dataSize)
+{
+    payloadHead.compressType = compressType;
+    payloadHead.uncompressSize = dataSize;
+    payloadHead.index = index;
+    return true;
+}
+
 bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *data, int dataSize)
 {
     TransferPayload payloadHead;
@@ -180,9 +189,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     bool ret = false;
 
     StartTraceScope("HdcTransferBase::SendIOPayload");
-    payloadHead.compressType = context->transferConfig.compressType;
-    payloadHead.uncompressSize = dataSize;
-    payloadHead.index = index;
+    InitTransferPayload(payloadHead, index, context->transferConfig.compressType, dataSize);
     if (dataSize > 0) {
         switch (payloadHead.compressType) {
 #ifdef HARMONY_PROJECT
@@ -194,6 +201,13 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
                 }
                 compressSize = LZ4_compress_default((const char *)data, (char *)sendBuf + payloadPrefixReserve,
                                                     dataSize, dataSize);
+                if (compressSize == 0) {
+                    WRITE_LOG(LOG_DEBUG, "LZ4 compress failed, path: %s compress none", context->localPath.c_str());
+                    delete[] sendBuf;
+                    payloadHead.compressType = COMPRESS_NONE;
+                    compressSize = dataSize;
+                    sendBuf = data - payloadPrefixReserve;
+                }
                 break;
             }
 #endif
@@ -205,18 +219,12 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
     }
     payloadHead.compressSize = compressSize;
     head = SerialStruct::SerializeToString(payloadHead);
-    if (head.size() + 1 > payloadPrefixReserve) {
-        WRITE_LOG(LOG_WARN, "SendIOPayload head size:%d, payloadprefix:%d.",
-            head.size(), payloadPrefixReserve);
-        goto out;
-    }
-    if (EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
-        WRITE_LOG(LOG_WARN, "SendIOPayload memcpy_s fail, sendBufSize:%d, head size:%d.",
-            sendBufSize, head.size());
+    if (head.size() + 1 > payloadPrefixReserve ||
+        EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
+        WRITE_LOG(LOG_WARN, "fail, head size:%d, reserve:%d", head.size(), payloadPrefixReserve);
         goto out;
     }
     ret = SendToAnother(commandData, sendBuf, payloadPrefixReserve + compressSize) > 0;
-
 out:
     if (dataSize > 0 && payloadHead.compressType == COMPRESS_LZ4) {
         delete[] sendBuf;
@@ -774,8 +782,13 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         }
     }
     while (true) {
-        if (static_cast<uint32_t>(clearSize) != pld.uncompressSize || dataSize - payloadPrefixReserve < clearSize) {
+        if (static_cast<uint32_t>(clearSize) != pld.uncompressSize) {
             WRITE_LOG(LOG_WARN, "invalid data size for fileIO: %d", clearSize);
+            break;
+        }
+        if (pld.compressType == COMPRESS_NONE && dataSize - payloadPrefixReserve < clearSize) {
+            WRITE_LOG(LOG_WARN, "not enough data size for fileIO dataSize: %d, clearSize: %d",
+                      dataSize - payloadPrefixReserve, clearSize);
             break;
         }
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {

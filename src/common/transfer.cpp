@@ -170,7 +170,7 @@ void HdcTransferBase::SetFileTime(CtxFile *context)
     uv_fs_req_cleanup(&fs);
 }
 
-bool HdcTransferBase::InitTransferPayload(TransferPayload payloadHead, uint64_t index, uint8_t compressType,
+bool HdcTransferBase::InitTransferPayload(TransferPayload &payloadHead, uint64_t index, uint8_t compressType,
     uint32_t dataSize)
 {
     payloadHead.compressType = compressType;

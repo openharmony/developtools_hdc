@@ -187,6 +187,8 @@ private:
     int SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes);
     bool SendIOPayload(CtxFile *context, uint64_t index, uint8_t *data, int dataSize);
     bool RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize);
+    bool InitTransferPayload(TransferPayload &payloadHead, uint64_t index, uint8_t compressType,
+        uint32_t dataSize);
     double maxTransferBufFactor = 0.8;  // Make the data sent by each IO in one hdc packet
 };
 }  // namespace Hdc

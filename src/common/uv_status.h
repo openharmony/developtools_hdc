@@ -50,6 +50,7 @@ private:
     string mHandleName;
     bool mBusyNow;
     struct timeval mCallBackTime;
+    uv_timer_t mReportTimer;
 };
 
 class CallStatGuard {

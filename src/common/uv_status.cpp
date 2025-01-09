@@ -56,10 +56,9 @@ namespace Hdc {
     }
     void LoopStatus::StartReportTimer(void)
     {
-        uv_timer_t timer;
-        uv_timer_init(mLoop, &timer);
-        timer.data = this;
-        uv_timer_start(&timer, ReportTimerProc, 0, 1 * MS_PER_SEC);
+        uv_timer_init(mLoop, &mReportTimer);
+        mReportTimer.data = this;
+        uv_timer_start(&mReportTimer, ReportTimerProc, 0, 1 * MS_PER_SEC);
     }
     LoopStatus::LoopStatus(uv_loop_t *loop, const string &loopName) : mLoop(loop), mLoopName(loopName)
     {

@@ -454,7 +454,7 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
         return nullptr;
     }
     uv_loop_init(&hSession->childLoop);
-    childLoopStatus.StartReportTimer();
+    hSession->childLoopStatus.StartReportTimer();
     hSession->uvHandleRef = 0;
     // pullup child
     WRITE_LOG(LOG_INFO, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",

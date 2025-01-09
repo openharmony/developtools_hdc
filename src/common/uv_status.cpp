@@ -15,7 +15,6 @@
 
 #include "log.h"
 #include "uv_status.h"
-#include <sys/time.h>
 #include <thread>
 #include <mutex>
 
@@ -116,30 +115,21 @@ namespace Hdc {
             Display("hung :", false);
         }
     }
-
-    int GetLoopHungTimeout(void)
-    {
-        return MS_PER_SEC / 2;
-    }
-    int GetLoopMonitorPeriod(void)
-    {
-        return 3 * MS_PER_SEC;
-    }
     static void LoopMonitorWorker(void)
     {
         WRITE_LOG(LOG_FATAL, "LoopMonitorWorker every %d ms check hung %d us",
-                  GetLoopMonitorPeriod(), GetLoopHungTimeout());
+                  LOOP_MONITOR_PERIOD, LOOP_HUNG_TIMEOUT);
         bool exit = false;
         while (!exit) {
             // every 1 second check one time
-            uv_sleep(GetLoopMonitorPeriod());
+            uv_sleep(LOOP_MONITOR_PERIOD);
             std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
             if (g_loopStatusMap.empty()) {
                 WRITE_LOG(LOG_FATAL, "LoopMonitorWorker the loop status map is empty, stop monitor");
                 exit = true;
             }
             for (auto [loop, stat] : g_loopStatusMap) {
-                stat->HungCheck(GetLoopHungTimeout());
+                stat->HungCheck(LOOP_HUNG_TIMEOUT);
             }
         }
     }

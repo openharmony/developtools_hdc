@@ -28,6 +28,8 @@ namespace Hdc {
 
 #define NS_PER_MS 1000000
 #define MS_PER_SEC 1000
+#define LOOP_MONITOR_PERIOD 3 * MS_PER_SEC
+#define LOOP_HUNG_TIMEOUT MS_PER_SEC / 2
 
 class LoopStatus {
 public:
@@ -89,8 +91,6 @@ void DispAllLoopStatus(const string &info);
 #define CALLSTAT_GUARD(ls, loop, funcname) CallStatGuard csg(ls, loop, funcname)
 #endif
 void StartLoopMonitor(void);
-int GetLoopHungTimeout(void);
-int GetLoopMonitorPeriod(void);
 
 } /* namespace Hdc  */
 

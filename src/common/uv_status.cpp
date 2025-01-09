@@ -54,12 +54,12 @@ namespace Hdc {
         LoopStatus *ls = reinterpret_cast<LoopStatus *>(req->data);
         CALLSTAT_GUARD(*ls, req->loop, "LoopStatus::ReportTimerProc");
     }
-    void LoopStatus::ReportOnce(uv_loop_t *loop)
+    void LoopStatus::StartReportTimer(void)
     {
         uv_timer_t timer;
-        uv_timer_init(loop, &timer);
+        uv_timer_init(mLoop, &timer);
         timer.data = this;
-        uv_timer_start(&timer, ReportTimerProc, 0, 0);
+        uv_timer_start(&timer, ReportTimerProc, 0, 1 * MS_PER_SEC);
     }
     LoopStatus::LoopStatus(uv_loop_t *loop, const string &loopName) : mLoop(loop), mLoopName(loopName)
     {
@@ -130,11 +130,11 @@ namespace Hdc {
 
     int GetLoopHungTimeout(void)
     {
-        return 1 * US_PER_SEC;
+        return US_PER_SEC / 2;
     }
     int GetLoopMonitorPeriod(void)
     {
-        return 1 * MS_PER_SEC;
+        return 3 * MS_PER_SEC;
     }
     static void LoopMonitorWorker(void)
     {
@@ -150,7 +150,6 @@ namespace Hdc {
                 exit = true;
             }
             for (auto [loop, stat] : g_loopStatusMap) {
-                stat->ReportOnce(loop);
                 stat->HungCheck(GetLoopHungTimeout());
             }
         }

@@ -42,7 +42,7 @@ public:
     void HungCheck(int64_t timeout) const;
     void UnUsedForUpdater(void) const {}
 public:
-    void ReportOnce(uv_loop_t *loop);
+    void StartReportTimer(void);
     static void ReportTimerProc(uv_timer_t *req);
 private:
     uv_loop_t *mLoop;

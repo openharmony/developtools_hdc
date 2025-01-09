@@ -20,6 +20,7 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
     SetChannelTCPString(addrString);
     isServerOrClient = serverOrClient;
     loopMain = loopMainIn;
+    loopMainStatus.StartReportTimer();
     threadChanneMain = uv_thread_self();
     uv_rwlock_init(&mainAsync);
     uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);

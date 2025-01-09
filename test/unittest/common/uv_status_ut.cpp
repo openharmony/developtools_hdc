@@ -56,12 +56,12 @@ void HandleTest::TearDownTestCase() {}
 
 void HandleTest::SetUp()
 {
-    StartLoopMonitor();
     mCallDuration = 1 * MS_PER_SEC;
     uv_loop_init(&mLoop);
     mIdle.data = this;
     uv_idle_init(&mLoop, &mIdle);
     uv_idle_start(&mIdle, IdleCallBack);
+    StartLoopMonitor();
     mLoopStatus = new LoopStatus(&mLoop, "HandleTestLoop");
 }
 
@@ -81,7 +81,7 @@ HWTEST_F(HandleTest, Handle_NoHungTest_001, TestSize.Level0)
 HWTEST_F(HandleTest, Handle_HungTest_001, TestSize.Level0)
 {
     mCycles = 1;
-    mCallDuration = 3 * MS_PER_SEC;
+    mCallDuration = 6 * MS_PER_SEC;
     uv_run(&mLoop, UV_RUN_DEFAULT);
     ASSERT_EQ(0, 0);
 }

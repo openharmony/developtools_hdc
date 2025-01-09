@@ -41,6 +41,7 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize) : loo
     setenv(uvThreadEnv.c_str(), uvThreadVal.c_str(), 1);
 #endif
     uv_loop_init(&loopMain);
+    loopMainStatus.StartReportTimer();
     WRITE_LOG(LOG_DEBUG, "loopMain init");
     uv_rwlock_init(&mainAsync);
 #ifndef FUZZ_TEST
@@ -453,6 +454,7 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
         return nullptr;
     }
     uv_loop_init(&hSession->childLoop);
+    childLoopStatus.StartReportTimer();
     hSession->uvHandleRef = 0;
     // pullup child
     WRITE_LOG(LOG_INFO, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",

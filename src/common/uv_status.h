@@ -42,14 +42,14 @@ public:
     void HungCheck(int64_t timeout) const;
     void UnUsedForUpdater(void) const {}
 public:
-    static void MonitorTimerProc(uv_timer_t *req);
+    void ReportOnce(uv_loop_t *loop);
+    static void ReportTimerProc(uv_timer_t *req);
 private:
     uv_loop_t *mLoop;
     const string mLoopName;
     string mHandleName;
     bool mBusyNow;
     struct timeval mCallBackTime;
-    uv_timer_t mMonitorTimer;
 };
 
 class CallStatGuard {

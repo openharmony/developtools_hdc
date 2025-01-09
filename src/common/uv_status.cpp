@@ -49,10 +49,17 @@ namespace Hdc {
             stat->Display(info);
         }
     }
-    void LoopStatus::MonitorTimerProc(uv_timer_t *req)
+    void LoopStatus::ReportTimerProc(uv_timer_t *req)
     {
         LoopStatus *ls = reinterpret_cast<LoopStatus *>(req->data);
-        CALLSTAT_GUARD(*ls, req->loop, "LoopStatus::MonitorTimerProc");
+        CALLSTAT_GUARD(*ls, req->loop, "LoopStatus::ReportTimerProc");
+    }
+    void LoopStatus::ReportOnce(uv_loop_t *loop)
+    {
+        uv_timer_t timer;
+        uv_timer_init(loop, &timer);
+        timer.data = this;
+        uv_timer_start(&timer, ReportTimerProc, 0, 0);
     }
     LoopStatus::LoopStatus(uv_loop_t *loop, const string &loopName) : mLoop(loop), mLoopName(loopName)
     {
@@ -64,10 +71,7 @@ namespace Hdc {
         if (g_loopStatusMap.count(mLoop)) {
             return;
         }
-        uv_timer_init(loop, &mMonitorTimer);
-        mMonitorTimer.data = this;
-        uv_timer_start(&mMonitorTimer, MonitorTimerProc, 0, MS_PER_SEC);
-        g_loopStatusMap[loop] = this;
+        g_loopStatusMap[mLoop] = this;
     }
     LoopStatus::~LoopStatus()
     {
@@ -146,6 +150,7 @@ namespace Hdc {
                 exit = true;
             }
             for (auto [loop, stat] : g_loopStatusMap) {
+                stat->ReportOnce(loop);
                 stat->HungCheck(GetLoopHungTimeout());
             }
         }

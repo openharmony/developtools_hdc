@@ -136,7 +136,7 @@ namespace Hdc {
     {
         WRITE_LOG(LOG_FATAL, "LoopMonitorWorker every %d ms check hung %d us",
                   GetLoopMonitorPeriod(), GetLoopHungTimeout());
-        while (true) {
+        for (;;) {
             std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
             if (g_loopStatusMap.empty()) {
                 WRITE_LOG(LOG_FATAL, "LoopMonitorWorker the loop status map is empty, stop monitor");

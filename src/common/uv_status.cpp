@@ -66,7 +66,7 @@ namespace Hdc {
         }
         uv_timer_init(loop, &mMonitorTimer);
         mMonitorTimer.data = this;
-        uv_timer_start(&mMonitorTimer, MonitorTimerProc, 0, 1000);
+        uv_timer_start(&mMonitorTimer, MonitorTimerProc, 0, MS_PER_SEC);
         g_loopStatusMap[loop] = this;
     }
     LoopStatus::~LoopStatus()
@@ -137,12 +137,16 @@ namespace Hdc {
         WRITE_LOG(LOG_FATAL, "LoopMonitorWorker every %d ms check hung %d us",
                   GetLoopMonitorPeriod(), GetLoopHungTimeout());
         while (true) {
-            // every 5 seconds check one time
-            uv_sleep(GetLoopMonitorPeriod());
             std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
+            if (g_loopStatusMap.empty()) {
+                WRITE_LOG(LOG_FATAL, "LoopMonitorWorker the loop status map is empty, stop monitor");
+                break;
+            }
             for (auto [loop, stat] : g_loopStatusMap) {
                 stat->HungCheck(GetLoopHungTimeout());
             }
+            // every 5 seconds check one time
+            uv_sleep(GetLoopMonitorPeriod());
         }
     }
     void StartLoopMonitor(void)

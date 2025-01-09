@@ -38,7 +38,8 @@ public:
     int mCycles;
 };
 
-static void IdleCallBack(uv_idle_t* handle) {
+static void IdleCallBack(uv_idle_t* handle)
+{
     HandleTest *ht = (HandleTest *)handle->data;
     static int cycles = 0;
     CALLSTAT_GUARD(*(ht->mLoopStatus), &(ht->mLoop), "IdleCallBack");
@@ -67,6 +68,7 @@ void HandleTest::SetUp()
 void HandleTest::TearDown()
 {
     delete mLoopStatus;
+    mLoopStatus = nullptr;
 }
 
 HWTEST_F(HandleTest, Handle_NoHungTest_001, TestSize.Level0)

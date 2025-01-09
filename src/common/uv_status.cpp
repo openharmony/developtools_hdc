@@ -22,22 +22,13 @@
 using namespace std;
 
 namespace Hdc {
-    static int64_t TimeSub(const struct timeval end, const struct timeval start)
+    static int64_t TimeSub(const uint64_t end, const uint64_t start)
     {
-        int64_t endUS = end.tv_sec * US_PER_SEC + end.tv_usec;
-        int64_t startUS = start.tv_sec * US_PER_SEC + start.tv_usec;
-
-        return endUS - startUS;
+        return end - start;
     }
-    static uint64_t TimeUsec(const struct timeval time)
+    static uint64_t TimeNow(void)
     {
-        return time.tv_sec * US_PER_SEC + time.tv_usec;
-    }
-    static struct timeval TimeNow(void)
-    {
-        struct timeval now;
-        gettimeofday(&now, nullptr);
-        return now;
+        return uv_hrtime() / NS_PER_MS;
     }
 
     static std::map<uv_loop_t *, LoopStatus *> g_loopStatusMap;
@@ -63,8 +54,7 @@ namespace Hdc {
     LoopStatus::LoopStatus(uv_loop_t *loop, const string &loopName) : mLoop(loop), mLoopName(loopName)
     {
         mBusyNow = false;
-        mCallBackTime.tv_sec = 0;
-        mCallBackTime.tv_usec = 0;
+        mCallBackTime = 0;
 
         std::unique_lock<std::mutex> lock(g_mapLoopStatusMutex);
         if (g_loopStatusMap.count(mLoop)) {
@@ -91,7 +81,7 @@ namespace Hdc {
             return;
         }
         mBusyNow = true;
-        gettimeofday(&mCallBackTime, nullptr);
+        mCallBackTime = uv_now(loop);
         mHandleName = handle;
     }
     void LoopStatus::HandleEnd(const uv_loop_t *loop)
@@ -110,26 +100,26 @@ namespace Hdc {
     {
         return mBusyNow;
     }
-    void LoopStatus::Display(const string &info) const
+    void LoopStatus::Display(const string &info, bool all) const
     {
         if (Busy()) {
             WRITE_LOG(LOG_FATAL, "%s loop[%s] is busy for [%s] start[%llu] duration[%llu]",
                       info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
-                      TimeUsec(mCallBackTime), TimeSub(TimeNow(), mCallBackTime));
-        } else {
+                      mCallBackTime, TimeSub(TimeNow(), mCallBackTime));
+        } else if (all) {
             WRITE_LOG(LOG_INFO, "%s loop[%s] is idle", info.c_str(), mLoopName.c_str());
         }
     }
     void LoopStatus::HungCheck(int64_t timeout) const
     {
         if (TimeSub(TimeNow(), mCallBackTime) > timeout) {
-            Display("hung :");
+            Display("hung :", false);
         }
     }
 
     int GetLoopHungTimeout(void)
     {
-        return US_PER_SEC / 2;
+        return MS_PER_SEC / 2;
     }
     int GetLoopMonitorPeriod(void)
     {

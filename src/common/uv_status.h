@@ -26,8 +26,8 @@ using std::string;
 
 namespace Hdc {
 
+#define NS_PER_MS 1000000
 #define MS_PER_SEC 1000
-#define US_PER_SEC (1000 * 1000)
 
 class LoopStatus {
 public:
@@ -38,7 +38,7 @@ private:
 public:
     void HandleStart(const uv_loop_t *loop, const string &handle);
     void HandleEnd(const uv_loop_t *loop);
-    void Display(const string &info) const;
+    void Display(const string &info, bool all = true) const;
     void HungCheck(int64_t timeout) const;
     void UnUsedForUpdater(void) const {}
 public:
@@ -49,7 +49,7 @@ private:
     const string mLoopName;
     string mHandleName;
     bool mBusyNow;
-    struct timeval mCallBackTime;
+    uint64_t mCallBackTime;
     uv_timer_t mReportTimer;
 };
 

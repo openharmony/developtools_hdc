@@ -502,8 +502,12 @@ def check_hdc_cmd(cmd, pattern=None, head=None, is_single_dir=True, **args):
             return False
         if cmd.startswith("file send"):
             local, remote = cmd.split()[-2:]
+            if remote[-1] == '/' or remote[-1] == '\\':
+                remote = f"{remote}{os.path.basename(local)}"
         else:
             remote, local = cmd.split()[-2:]
+            if local[-1] == '/' or local[-1] == '\\':
+                local = f"{local}{os.path.basename(remote)}"
         if "-b" in cmd:
             mnt_debug_path = "mnt/debug/100/debug_hap/"
             remote = f"{mnt_debug_path}/{GP.debug_app}/{remote}"

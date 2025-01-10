@@ -161,6 +161,7 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     HSession hSession = hdcServer->MallocSession(true, CONN_USB, this);
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "malloc usb session failed sn:%s", Hdc::MaskString(sn).c_str());
+        delete hUSB;
         return false;
     }
     hSession->connectKey = hUSB->serialNumber;
@@ -264,6 +265,7 @@ bool HdcHostUSB::HasValidDevice(libusb_device *device)
         hasValid = true;
         break;
     }
+    libusb_free_config_descriptor(descConfig);
     return hasValid;
 }
 

@@ -80,8 +80,11 @@ namespace Hdc {
             return;
         }
         mBusyNow = true;
-        mCallBackTime = uv_now(loop);
         mHandleName = handle;
+        if (loop == nullptr) {
+            WRITE_LOG(LOG_FATAL, "the loop is null for [%s] cannt run [%s]", mHandleName.c_str(), handle.c_str());
+        }
+        mCallBackTime = uv_now(loop);
     }
     void LoopStatus::HandleEnd(const uv_loop_t *loop)
     {

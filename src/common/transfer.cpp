@@ -839,8 +839,6 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d isFdOpen %d",
                     taskInfo->channelId, ctxNow.lastErrno, ctxNow.openFd, ctxNow.isFdOpen);
                 CloseCtxFd(&ctxNow);
-                HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
-                thisClass->CommandDispatch(CMD_FILE_FINISH, payload, 1);
                 ret = false;
                 break;
             }

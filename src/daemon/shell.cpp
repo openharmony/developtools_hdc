@@ -186,18 +186,23 @@ static void SetSelinuxLabel()
 
 int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 {
-    ShellParams params = ShellParams(cmd, arg0, arg1, ptm, devname);
+    auto params = new ShellParams(cmd, arg0, arg1, ptm, devname);
+    if (!params) {
+        return -1;
+    }
     pthread_t threadId;
     void *shellRes;
-    int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(ShellFork), &params);
+    int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(ShellFork), params);
     if (ret != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         strerror_r(errno, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
+        delete params;
         return ERR_GENERIC;
     }
     pthread_join(threadId, &shellRes);
+    delete params;
     return static_cast<int>(reinterpret_cast<size_t>(shellRes));
 }
 

@@ -160,10 +160,13 @@ int AsyncCmd::ThreadFork(const string &command, const string &optionPath, bool r
     if (debugMode == "1" && rootMode == "1") {
         isRoot = true;
     }
-    AsyncParams params = AsyncParams(command, readWrite, cpid, isRoot, optionPath);
+    auto params = new AsyncParams(command, readWrite, cpid, isRoot, optionPath);
+    if (!params) {
+        return -1;
+    }
     pthread_t threadId;
     void *popenRes;
-    int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(Popen), &params);
+    int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(Popen), params);
     if (ret != 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
@@ -173,9 +176,11 @@ int AsyncCmd::ThreadFork(const string &command, const string &optionPath, bool r
         strerror_r(errno, buf, bufSize);
 #endif
         WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
+        delete params;
         return ERR_GENERIC;
     }
     pthread_join(threadId, &popenRes);
+    delete params;
     return static_cast<int>(reinterpret_cast<size_t>(popenRes));
 }
 

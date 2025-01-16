@@ -162,10 +162,11 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     while (fullPath.back() == Base::GetPathSep() && fullPath[fullPath.size() - lastTwoIndex] != '.') {
         fullPath.pop_back();
     }
-    fullPath = Base::GetPathWithoutFilename(fullPath);
-    resolvedPath = Base::CanonicalizeSpecPath(fullPath);
-    if (resolvedPath.size() <= 0 ||
-        strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
+    resolvedPath = PathSimplify(fullPath);
+    if (resolvedPath.size() > appDir.size() + 1) {
+        resolvedPath = Base::GetPathWithoutFilename(resolvedPath);
+    }
+    if (!IsPathInsideSandbox(resolvedPath, appDir)) {
         LogMsg(MSG_FAIL, "[E005102] Remote path: %s is invalid, no such file/directory or it's out of "
             "the application directory.", context->inputLocalPath.c_str());
         WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
@@ -173,6 +174,39 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
         return false;
     }
     return true;
+}
+
+bool HdcFile::IsPathInsideSandbox(const string &path, const string &appDir)
+{
+    if (path.size() < appDir.size()) {
+        return false;
+    }
+    string resolvedPath = path + Base::GetPathSep();
+    string appDirPath = appDir + Base::GetPathSep();
+    return (strncmp(resolvedPath.c_str(), appDirPath.c_str(), appDirPath.size()) == 0);
+}
+
+string HdcFile::PathSimplify(const string &path)
+{
+    string outPath;
+    string group;
+    vector<string> nameVec;
+    std::stringstream oss(path);
+    while (getline(oss, group, Base::GetPathSep())) {
+        if (group == "" || group == ".") {
+            continue;
+        }
+        if (group == ".." && (nameVec.size() != 0)) {
+            nameVec.pop_back();
+        } else if (group != "..") {
+            nameVec.push_back(group);
+        }
+    }
+
+    for (string& name : nameVec) {
+        outPath += Base::GetPathSep() + name;
+    }
+    return (outPath.size() != 0) ? outPath : string(1, Base::GetPathSep());
 }
 
 bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)

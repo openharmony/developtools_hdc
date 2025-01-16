@@ -1795,7 +1795,7 @@ static void EchoLog(string &buf)
     inline int CalcDecodeLength(const uint8_t *b64input)
     {
         int len = strlen(reinterpret_cast<char *>(const_cast<uint8_t *>(b64input)));
-        if (!len) {
+        if (len < LAST_EQUAL_NUM) {
             return 0;
         }
         int padding = 0;

@@ -104,9 +104,27 @@ bool HdcJdwpSimulator::Connect2Jdwp()
 bool HdcJdwpSimulator::Send2Jdwp()
 {
 #ifdef JS_JDWP_CONNECT
+    constexpr size_t pkgNameMinSize = 7;
+    constexpr size_t pkgNameMaxSize = 128;
+    constexpr size_t procNameMaxSize = 128;
     uint32_t pidCurr = static_cast<uint32_t>(getprocpid());
     std::string processName = processName_;
+    if (processName.size() > procNameMaxSize) {
+        HILOG_FATAL(LOG_CORE, "procName over size:%{public}zu size:%{public}zu pkgName:%{public}s",
+                    procNameMaxSize, processName.size(), processName.c_str());
+        return false;
+    }
     std::string pkgName = pkgName_;
+    if (pkgName.size() < pkgNameMinSize) {
+        HILOG_FATAL(LOG_CORE, "pkgName less size:%{public}zu size:%{public}zu pkgName:%{public}s",
+                    pkgNameMinSize, pkgName.size(), pkgName.c_str());
+        return false;
+    }
+    if (pkgName.size() > pkgNameMaxSize) {
+        HILOG_FATAL(LOG_CORE, "pkgName over size:%{public}zu size:%{public}zu pkgName:%{public}s",
+                    pkgNameMaxSize, pkgName.size(), pkgName.c_str());
+        return false;
+    }
     bool isDebug = isDebug_;
     std::string pp = pkgName;
     if (!processName.empty()) {

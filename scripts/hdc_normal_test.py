@@ -121,6 +121,35 @@ def test_no_exist_path_with_seperate():
                              f"{local_unexist_path}{os.sep}")
 
 
+@pytest.mark.repeat(3)
+def test_no_exist_bundle_path():
+    # bundle test
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        data_storage_el2_path = "data/storage/el2/base"
+        remote_unexist_path = f"{data_storage_el2_path}/it_no_exist/deep_test_dir/"
+        check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}")
+        # file send & recv test
+        test_resource_list = ['empty', 'medium', 'small', 'problem_dir']
+        for test_item in test_resource_list:
+            check_hdc_cmd(f"shell -b {GP.debug_app} rm -rf {data_storage_el2_path}/it_no_exist/")
+            local_unexist_path = get_local_path(
+                f'{(os.path.join("recv_no_exist", "deep_test_dir", f"recv_{test_item}"))}')
+            if os.path.exists(get_local_path('recv_no_exist')):
+                rmdir(get_local_path('recv_no_exist'))
+
+            assert check_hdc_cmd(f"shell -b {GP.debug_app} ls {data_storage_el2_path}/it_no_exist",
+                                 "No such file or directory")
+            assert not os.path.exists(get_local_path('recv_no_exist'))
+
+            assert check_hdc_cmd(f"file send -b {GP.debug_app} "
+                                f"{get_local_path(f'{test_item}')} {remote_unexist_path}/it_{test_item}")
+            assert check_hdc_cmd(f"file recv  -b {GP.debug_app} {remote_unexist_path}/it_{test_item} "
+                                f"{local_unexist_path}")
+
+
 @pytest.mark.repeat(5)
 def test_small_file():
     assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('it_small')}")
@@ -594,9 +623,32 @@ def test_file_option_bundle_error():
         assert check_shell(f"file send -b {GP.debug_app} "
                            f"{get_local_path('small')} {data_storage_el2_path}/../../../../../ ",
                            "permission denied" if is_user else "[E005102]")
-        assert check_shell(f"file send -b {GP.debug_app} "
-                           f"{get_local_path('small')} {data_storage_el2_path}/aa/bb/cc/ ",
-                           "[E005102]")
+
+
+def test_file_option_bundle_error_bugfix():
+    version = "Ver: 3.1.0e"
+    if not check_hdc_version("version", version) or not check_hdc_version("shell hdcd -v", version):
+        print("version does not match, ignore this case")
+    else:
+        data_storage_el2_path = "data/storage/el2/base"
+        check_shell(f"shell rm -rf mnt/debug/100/debug_hap/{GP.debug_app}_extra/{data_storage_el2_path}/*")
+        check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}_extra/{data_storage_el2_path}/")
+        outside_error = "[E005102]"
+        # bundle根目录 逃逸
+        for remote_fail_path in ["..", "../..", "../../..", "../../../..",
+                                 "../.", "./..", "../",
+                                 f"../{GP.debug_app}_extra/{data_storage_el2_path}/",
+                                 f"../{GP.debug_app}_notexsit/{data_storage_el2_path}/",
+                                 f"../{GP.debug_app}_notexsit/",
+                                 f"./../../../../../../../../../../aa"]:
+            assert check_shell(f"file send -b {GP.debug_app} "
+                           f"{get_local_path('small')} {remote_fail_path} ", outside_error)
+
+        # bundle根目录 未逃逸
+        for remote_ok_path in ['.', './', './.', '...',
+                               f"../../../../../../../../../../../mnt/debug/100/debug_hap/{GP.debug_app}/"]:
+            assert not check_shell(f"file send -b {GP.debug_app} "
+                            f"{get_local_path('small')} {remote_ok_path}", outside_error)
 
 
 def test_shell_option_bundle_normal():

@@ -44,6 +44,8 @@ private:
     bool CheckLocalPathAndFilename();
     bool ParseAndValidateOptions(uint8_t *payload, const int payloadSize);
     bool ValidateAndSetPaths(CtxFile *context, int argc, char **argv, int &srcArgvIndex);
+    string PathSimplify(const string &path);
+    bool IsPathInsideSandbox(const string &path, const string &appDir);
 };
 }  // namespace Hdc
 

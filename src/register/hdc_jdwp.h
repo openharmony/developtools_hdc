@@ -54,7 +54,6 @@ private:
     bool Connect2Jdwp();
     bool Send2Jdwp();
     void ReadFromJdwp();
-    bool IsValidate();
 };
 } // namespace Hdc
 #endif  // REGISTER_HDC_JDWP_H

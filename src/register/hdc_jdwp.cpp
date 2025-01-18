@@ -104,9 +104,6 @@ bool HdcJdwpSimulator::Connect2Jdwp()
 bool HdcJdwpSimulator::Send2Jdwp()
 {
 #ifdef JS_JDWP_CONNECT
-    if (!IsValidate()) {
-        return false;
-    }
     uint32_t pidCurr = static_cast<uint32_t>(getprocpid());
     std::string processName = processName_;
     std::string pkgName = pkgName_;
@@ -287,30 +284,5 @@ void HdcJdwpSimulator::DelWatchHdcdJdwp()
 {
     int rc = RemoveParameterWatcher(PERSIST_HDC_JDWP, nullptr, nullptr);
     HILOG_INFO(LOG_CORE, "DelWatchHdcdJdwp rc:%{public}d", rc);
-}
-
-bool HdcJdwpSimulator::IsValidate()
-{
-    constexpr size_t pkgNameMinSize = 7;
-    constexpr size_t pkgNameMaxSize = 128;
-    constexpr size_t procNameMaxSize = 4096;
-    std::string processName = processName_;
-    if (processName.size() > procNameMaxSize) {
-        HILOG_WARN(LOG_CORE, "procName over size:%{public}zu size:%{public}zu pkgName:%{public}s",
-                   procNameMaxSize, processName.size(), processName.c_str());
-        return false;
-    }
-    std::string pkgName = pkgName_;
-    if (pkgName.size() < pkgNameMinSize) {
-        HILOG_WARN(LOG_CORE, "pkgName less size:%{public}zu size:%{public}zu pkgName:%{public}s",
-                   pkgNameMinSize, pkgName.size(), pkgName.c_str());
-        return false;
-    }
-    if (pkgName.size() > pkgNameMaxSize) {
-        HILOG_WARN(LOG_CORE, "pkgName over size:%{public}zu size:%{public}zu pkgName:%{public}s",
-                   pkgNameMaxSize, pkgName.size(), pkgName.c_str());
-        return false;
-    }
-    return true;
 }
 } // namespace Hdc

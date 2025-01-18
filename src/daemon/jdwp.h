@@ -40,9 +40,9 @@ private:
 #endif
 #ifdef JS_JDWP_CONNECT
     // pkgNameSize: 7 bytes -- 128 bytes
-    // procNameSize: 0 byte -- 128 bytes
+    // procNameSize: 0 byte -- 4096 bytes
     static constexpr uint8_t JS_PKG_MIN_SIZE = 7;
-    static constexpr uint16_t JS_PKG_MAX_SIZE = (128 + 1 + 128);
+    static constexpr uint16_t JS_PKG_MAX_SIZE = (128 + 1 + 4096);
     struct JsMsgHeader {
         uint32_t msgLen;
         uint32_t pid;

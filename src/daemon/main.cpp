@@ -100,8 +100,6 @@ bool ForkChildCheck(int argc, const char *argv[])
 #endif
     } else {
         if (workMode != CMDSTR_TMODE_USB && workMode != CMDSTR_TMODE_TCP) {
-            WRITE_LOG(LOG_DEBUG, "Default USB mode");
-            g_enableUsb = true;
 #ifdef HDC_SUPPORT_UART
             WRITE_LOG(LOG_DEBUG, "Default UART mode");
             g_enableUart = true;

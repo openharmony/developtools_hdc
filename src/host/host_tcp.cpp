@@ -64,7 +64,9 @@ void HdcHostTCP::BroadcastFindDaemon(const char *broadcastLanIP)
     lstDaemonResult.clear();
 
     uv_loop_t loopBroadcast;
+    LoopStatus loopBroadcastStatus(&loopBroadcast, "loopBroadcast");
     uv_loop_init(&loopBroadcast);
+    loopBroadcastStatus.StartReportTimer();
     struct sockaddr_in6 addr;
     uv_udp_send_t req;
     uv_udp_t client;

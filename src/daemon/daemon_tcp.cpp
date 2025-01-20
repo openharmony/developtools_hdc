@@ -70,6 +70,7 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
     HdcDaemonTCP *thisClass = (HdcDaemonTCP *)pServTCP->data;
     HdcSessionBase *ptrConnect = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
     HdcSessionBase *daemon = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
+    CALLSTAT_GUARD(daemon->loopMainStatus, server->loop, "HdcDaemonTCP::AcceptClient");
     const uint16_t maxWaitTime = UV_DEFAULT_INTERVAL;
     auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
     HSession hSession = ptrConnect->MallocSession(false, CONN_TCP, thisClass);

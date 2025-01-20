@@ -765,6 +765,7 @@ void HdcServer::UsbPreConnect(uv_timer_t *handle)
     HSession hSession = (HSession)handle->data;
     bool stopLoop = false;
     HdcServer *hdcServer = (HdcServer *)hSession->classInstance;
+    CALLSTAT_GUARD(hdcServer->loopMainStatus, handle->loop, "HdcServer::UsbPreConnect");
     while (true) {
         WRITE_LOG(LOG_DEBUG, "HdcServer::UsbPreConnect");
         HDaemonInfo pDi = nullptr;
@@ -920,6 +921,7 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     }
     uv_tcp_init(&hSession->childLoop, &hChannel->hChildWorkTCP);
     hChannel->hChildWorkTCP.data = hChannel;
+    hChannel->loopStatus = &hSession->childLoopStatus;
     hChannel->targetSessionId = hSession->sessionId;
     if ((ret = uv_tcp_open((uv_tcp_t *)&hChannel->hChildWorkTCP, hChannel->fdChildWorkTCP)) < 0) {
         constexpr int bufSize = 1024;

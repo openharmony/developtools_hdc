@@ -21,23 +21,8 @@ using namespace testing::ext;
 using namespace testing;
 
 namespace Hdc {
-    namespace Base {
-        void PrintLogEx(const char *func, int line, uint8_t level, const char *msg, ...)
-        {
-            char buf[4096] = { 0 }; // only 4k to avoid stack overflow in 32bit or L0
-            va_list args;
-            va_start(args, msg);
-            const int size = vsnprintf_s(buf, sizeof(buf), sizeof(buf) - 1, msg, args);
-            va_end(args);
-            if (size < 0) {
-                printf("vsnprintf_s failed %d \n", size);
-                return;
-            }
-            printf("%s\n", buf);
-        }
-    }
 #define MAX_BUFFER_SIZE (1 * 1024 * 1024 * 1024)
-class HdcBaseTest : public testing::Test {
+class HdcTLVTest : public testing::Test {
 public:
     static void SetUpTestCase(void);
     static void TearDownTestCase(void);
@@ -50,17 +35,17 @@ private:
     uint32_t TlvSize(uint32_t len) { return len + TLV_HEAD_SIZE; }
 };
 
-void HdcBaseTest::SetUpTestCase()
+void HdcTLVTest::SetUpTestCase()
 {
 }
 
-void HdcBaseTest::TearDownTestCase() {}
+void HdcTLVTest::TearDownTestCase() {}
 
-void HdcBaseTest::SetUp() {}
+void HdcTLVTest::SetUp() {}
 
-void HdcBaseTest::TearDown() {}
+void HdcTLVTest::TearDown() {}
 
-uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags,
+uint8_t *HdcTLVTest::BuildTlv(const std::vector<uint32_t> tags,
     const std::vector<uint32_t> sizes,
     uint8_t val,
     uint32_t &tlvsize) const
@@ -103,20 +88,20 @@ uint8_t *HdcBaseTest::BuildTlv(const std::vector<uint32_t> tags,
     return tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Constructor_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Constructor_001, TestSize.Level0)
 {
     TlvBuf tb;
     ASSERT_EQ(tb.GetBufSize(), 0);
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Constructor_002, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Constructor_002, TestSize.Level0)
 {
     std::set<uint32_t> validtags = { 1, 2, 3 };
     TlvBuf tb(validtags);
     ASSERT_EQ(tb.GetBufSize(), 0);
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Constructor_003, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Constructor_003, TestSize.Level0)
 {
     std::vector<uint32_t> tags = { 1 };
     std::vector<uint32_t> sizes = { 1 };
@@ -130,7 +115,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Constructor_003, TestSize.Level0)
     delete[] tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Constructor_004, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Constructor_004, TestSize.Level0)
 {
     std::set<uint32_t> validtags = { 1, 2, 3 };
 
@@ -146,7 +131,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Constructor_004, TestSize.Level0)
     delete[] tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Constructor_005, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Constructor_005, TestSize.Level0)
 {
     std::set<uint32_t> validtags = { 1, 2, 3 };
 
@@ -162,7 +147,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Constructor_005, TestSize.Level0)
     delete[] tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Clear_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Clear_001, TestSize.Level0)
 {
     std::vector<uint32_t> tags = { 1 };
     std::vector<uint32_t> sizes = { 1 };
@@ -178,7 +163,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Clear_001, TestSize.Level0)
     delete[] tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Append_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Append_001, TestSize.Level0)
 {
     uint8_t val[10] = { 0xAC };
     TlvBuf tb;
@@ -195,7 +180,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Append_001, TestSize.Level0)
     ASSERT_EQ(tb.GetBufSize(), TlvSize(sizeof(val)) * 2);
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Append_002, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Append_002, TestSize.Level0)
 {
     uint32_t tag = 1;
     string val = "hello world!";
@@ -206,7 +191,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Append_002, TestSize.Level0)
     ASSERT_EQ(tb.GetBufSize(), TlvSize(val.size()));
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Append_003, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Append_003, TestSize.Level0)
 {
     TlvBuf tb;
 
@@ -220,7 +205,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_Append_003, TestSize.Level0)
     ASSERT_EQ(tb.GetBufSize(), 0);
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_CopyToBuf_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_CopyToBuf_001, TestSize.Level0)
 {
     uint32_t tag = 1;
     const uint32_t len = 10;
@@ -242,7 +227,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_CopyToBuf_001, TestSize.Level0)
     ASSERT_EQ(memcmp(buf + TLV_HEAD_SIZE, val, len), 0);
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_FindTlv_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_FindTlv_001, TestSize.Level0)
 {
     uint32_t tag = 1;
     const uint32_t len = 10;
@@ -267,7 +252,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_FindTlv_001, TestSize.Level0)
     delete[] fval;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_FindTlv_002, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_FindTlv_002, TestSize.Level0)
 {
     uint32_t tag = 1;
     string val = "hello world!";
@@ -282,7 +267,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_FindTlv_002, TestSize.Level0)
     ASSERT_EQ(val, fval);
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_ContainInvalidTag_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_ContainInvalidTag_001, TestSize.Level0)
 {
     std::set<uint32_t> validtags = { 1, 2, 3 };
     std::vector<uint32_t> tags = { 1, 2, 3 };
@@ -304,7 +289,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_ContainInvalidTag_001, TestSize.Level0)
     delete[] tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_ContainInvalidTag_002, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_ContainInvalidTag_002, TestSize.Level0)
 {
     std::set<uint32_t> validtags = { 1, 2 };
     std::vector<uint32_t> tags = { 1, 2, 3 };
@@ -320,7 +305,7 @@ HWTEST_F(HdcBaseTest, TlvBuf_ContainInvalidTag_002, TestSize.Level0)
     delete[] tlv;
 }
 
-HWTEST_F(HdcBaseTest, TlvBuf_Display_001, TestSize.Level0)
+HWTEST_F(HdcTLVTest, TlvBuf_Display_001, TestSize.Level0)
 {
     std::vector<uint32_t> tags = { 1 };
     std::vector<uint32_t> sizes = { 1 };

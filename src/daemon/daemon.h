@@ -112,9 +112,10 @@ private:
     string GetSessionAuthmsg(uint32_t sessionid);
     string GetSessionAuthToken(uint32_t sessionid);
     string GetSessionAuthPubkey(uint32_t sessionid);
+    bool GetAuthByPassValue();
     std::map<uint32_t, HdcDaemonAuthInfo> mapAuthStatus;
     std::mutex mapAuthStatusMutex;
-    bool enableSecure;
+    bool authEnable;
 };
 }  // namespace Hdc
 #endif

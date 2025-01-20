@@ -44,7 +44,7 @@ HdcDaemon::HdcDaemon(bool serverOrDaemonIn)
     clsUARTServ = nullptr;
 #endif
     clsJdwp = nullptr;
-    enableSecure = false;
+    authEnable = false;
 }
 
 HdcDaemon::~HdcDaemon()
@@ -111,6 +111,42 @@ void HdcDaemon::TryStopInstance()
     WRITE_LOG(LOG_DEBUG, "Stop loopmain");
 }
 
+bool HdcDaemon::GetAuthByPassValue()
+{
+    // enable security
+    string secure;
+    if (!SystemDepend::GetDevItem("const.hdc.secure", secure)) {
+        WRITE_LOG(LOG_INFO, "Get param secure failed");
+        return true;
+    }
+    if (Base::Trim(secure) != "1") {
+        WRITE_LOG(LOG_INFO, "Authentication is not required in root mode");
+        return false;
+    }
+
+    string oemmode;
+    if (!SystemDepend::GetDevItem("const.boot.oemmode", oemmode)) {
+        WRITE_LOG(LOG_INFO, "Get param oemmode failed");
+        return true;
+    }
+    if (Base::Trim(oemmode) != "rd") {
+        WRITE_LOG(LOG_INFO, "The device is locked, Authentication is required");
+        return true;
+    }
+
+    string authbypass;
+    if (!SystemDepend::GetDevItem("persist.hdc.auth_bypass", authbypass)) {
+        WRITE_LOG(LOG_INFO, "Get param auth_bypass failed");
+        return true;
+    }
+    if (Base::Trim(authbypass) == "1") {
+        WRITE_LOG(LOG_INFO, "Auth bypass, allow access");
+        return false;
+    }
+
+    return true;
+}
+
 #ifdef HDC_SUPPORT_UART
 void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB, [[maybe_unused]] bool bEnableUART)
 #else
@@ -157,13 +193,8 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
         return;
     }
     ((HdcJdwp *)clsJdwp)->Initial();
-    // enable security
-    string secure;
-    SystemDepend::GetDevItem("const.hdc.secure", secure);
-    string authbypass;
-    SystemDepend::GetDevItem("persist.hdc.auth_bypass", authbypass);
 #ifndef HDC_EMULATOR
-    enableSecure = ((Base::Trim(secure) == "1") && (Base::Trim(authbypass) != "1"));
+    authEnable = GetAuthByPassValue();
 #endif
 }
 
@@ -346,7 +377,7 @@ void HdcDaemon::ClearKnownHosts()
 {
     char const *keyfile = "/data/service/el1/public/hdc/hdc_keys";
 
-    if (!enableSecure || HandDaemonAuthBypass()) {
+    if (!authEnable || HandDaemonAuthBypass()) {
         WRITE_LOG(LOG_INFO, "not enable secure, noneed clear keyfile");
         return;
     }
@@ -678,13 +709,8 @@ bool HdcDaemon::HandDaemonAuthBypass(void)
 
 bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
-    if (!enableSecure) {
+    if (!authEnable) {
         WRITE_LOG(LOG_INFO, "not enable secure, allow access for %u", hSession->sessionId);
-        UpdateSessionAuthOk(hSession->sessionId);
-        SendAuthOkMsg(handshake, channelId, hSession->sessionId);
-        return true;
-    } else if (HandDaemonAuthBypass()) {
-        WRITE_LOG(LOG_INFO, "auth bypass, allow access for %u", hSession->sessionId);
         UpdateSessionAuthOk(hSession->sessionId);
         SendAuthOkMsg(handshake, channelId, hSession->sessionId);
         return true;
@@ -871,7 +897,7 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
 {
     StartTraceScope("HdcDaemon::FetchCommand");
     bool ret = true;
-    if (enableSecure && (GetSessionAuthStatus(hSession->sessionId) != AUTH_OK) &&
+    if (authEnable && (GetSessionAuthStatus(hSession->sessionId) != AUTH_OK) &&
         command != CMD_KERNEL_HANDSHAKE && command != CMD_KERNEL_CHANNEL_CLOSE) {
         string authmsg = GetSessionAuthmsg(hSession->sessionId);
         WRITE_LOG(LOG_WARN, "session %u auth failed: %s for command %u",

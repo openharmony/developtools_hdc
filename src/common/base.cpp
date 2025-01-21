@@ -2510,5 +2510,23 @@ void CloseOpenFd(void)
         WRITE_LOG(LOG_WARN, "bundleName:%s contains invalid characters", bundleName.c_str());
         return false;
     }
+
+    // Determine whether the command can be printed.
+    // Commands that are frequently called will not be printed.
+    // Return true to indicate that this command can print.
+    bool CanPrintCmd(const uint16_t command)
+    {
+        switch (command) {
+            case CMD_APP_DATA:
+            case CMD_FILE_DATA:
+            case CMD_FORWARD_DATA:
+            case CMD_SHELL_DATA:
+            case CMD_UNITY_BUGREPORT_DATA:
+                return false;
+            default:
+                return true;
+        }
+        return true;
+    }
 }
 }  // namespace Hdc

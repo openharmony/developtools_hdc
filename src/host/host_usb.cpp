@@ -26,6 +26,8 @@ HdcHostUSB::HdcHostUSB(const bool serverOrDaemonIn, void *ptrMainBase, void *ctx
     HdcServer *pServer = (HdcServer *)ptrMainBase;
     ctxUSB = (libusb_context *)ctxUSBin;
     uv_timer_init(&pServer->loopMain, &devListWatcher);
+    logRePrintTimer = 0;
+    logRePrintCount = 0;
 }
 
 HdcHostUSB::~HdcHostUSB()
@@ -49,7 +51,6 @@ int HdcHostUSB::Initial()
 {
     if (!ctxUSB) {
         WRITE_LOG(LOG_FATAL, "USB mod ctxUSB is nullptr, recompile please");
-        return -1;
     }
     WRITE_LOG(LOG_DEBUG, "HdcHostUSB init");
     modRunning = true;
@@ -226,6 +227,21 @@ void HdcHostUSB::ReviewUsbNodeLater(string &nodeKey)
 void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
 {
     HdcHostUSB *thisClass = static_cast<HdcHostUSB *>(handle->data);
+    if (thisClass->ctxUSB == nullptr) {
+        if (libusb_init((libusb_context **)&thisClass->ctxUSB) != 0) {
+            thisClass->ctxUSB = nullptr;
+            if (thisClass->logRePrintTimer % MAX_LOG_TIMER == 0 &&
+                thisClass->logRePrintCount < MAX_LOG_REPRINT_COUNT) {
+                WRITE_LOG(LOG_FATAL, "WatchUsbNodeChange failed to init libusb, reprint count: %d",
+                    ++thisClass->logRePrintCount);
+                thisClass->logRePrintTimer = 0; // every MAX_LOG_REPRINT times will reprint log once.
+            }
+            thisClass->logRePrintTimer++;
+            return;
+        }
+        thisClass->logRePrintCount = 0;
+        thisClass->InitLogging(thisClass->ctxUSB);
+    }
     HdcServer *ptrConnect = static_cast<HdcServer *>(thisClass->clsMainBase);
     CALLSTAT_GUARD(ptrConnect->loopMainStatus, handle->loop, "HdcHostUSB::WatchUsbNodeChange");
     libusb_device **devs = nullptr;
@@ -286,10 +302,14 @@ void HdcHostUSB::UsbWorkThread(void *arg)
     HdcHostUSB *thisClass = (HdcHostUSB *)arg;
     constexpr uint8_t usbHandleTimeout = 30;  // second
     while (thisClass->modRunning) {
-        struct timeval zerotime;
-        zerotime.tv_sec = usbHandleTimeout;
-        zerotime.tv_usec = 0;  // if == 0,windows will be high CPU load
-        libusb_handle_events_timeout(thisClass->ctxUSB, &zerotime);
+        if (thisClass->ctxUSB) {
+            struct timeval zerotime;
+            zerotime.tv_sec = usbHandleTimeout;
+            zerotime.tv_usec = 0;  // if == 0,windows will be high CPU load
+            libusb_handle_events_timeout(thisClass->ctxUSB, &zerotime);
+        } else {
+            sleep(usbHandleTimeout);
+        }
     }
     WRITE_LOG(LOG_DEBUG, "Host Sessionbase usb workthread finish");
 }

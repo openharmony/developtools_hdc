@@ -74,6 +74,8 @@ private:
     libusb_context *ctxUSB;
     uv_timer_t devListWatcher;
     map<string, UsbCheckStatus> mapIgnoreDevice;
+    int logRePrintTimer;
+    int logRePrintCount;
 
 private:
     uv_thread_t threadUsbWork;

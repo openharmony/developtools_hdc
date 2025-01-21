@@ -281,6 +281,7 @@ namespace Base {
         TAG_SHELL_BUNDLE,
         TAG_SHELL_CMD,
     };
+    bool CanPrintCmd(const uint16_t command);
 }  // namespace base
 }  // namespace Hdc
 

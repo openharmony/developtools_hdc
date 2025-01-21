@@ -111,7 +111,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     }
     uv_read_stop((uv_stream_t *)&hSession->hWorkTCP);
     Base::SetTcpOptions((uv_tcp_t *)&hSession->hWorkTCP);
-    WRITE_LOG(LOG_DEBUG, "HdcHostTCP::Connect");
+    WRITE_LOG(LOG_INFO, "HdcHostTCP::Connect start session work thread, sid:%u", hSession->sessionId);
     Base::StartWorkThread(&ptrConnect->loopMain, ptrConnect->SessionWorkThread, Base::FinishWorkThread, hSession);
     // wait for thread up
     while (hSession->childLoop.active_handles == 0) {
@@ -152,6 +152,8 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
         return nullptr;
     }
     conn->data = hSession;
+    WRITE_LOG(LOG_INFO, "start tcp connect, connectKey:%s sid:%u", Hdc::MaskString(connectKey).c_str(),
+        hSession->sessionId);
     uv_tcp_connect(conn, (uv_tcp_t *)&hSession->hWorkTCP, (const struct sockaddr *)&dest, Connect);
     return hSession;
 }

@@ -197,6 +197,10 @@ void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload
 void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint16_t commandFlag,
                                              uint8_t *payload, const int payloadSize)
 {
+    if (Base::CanPrintCmd(commandFlag)) {
+        WRITE_LOG(LOG_INFO, "SendCommandToClient cid:%u sid:%u commandID:%u payloadSize:%d",
+            hChannel->channelId, hChannel->targetSessionId, commandFlag, payloadSize);
+    }
     SendChannelWithCmd(hChannel, commandFlag, payload, payloadSize);
 }
 
@@ -205,6 +209,10 @@ bool HdcServerForClient::SendToDaemon(HChannel hChannel, const uint16_t commandF
     HDaemonInfo hdi = nullptr;
     bool ret = false;
     HdcServer *ptrServer = (HdcServer *)clsServer;
+    if (Base::CanPrintCmd(commandFlag)) {
+        WRITE_LOG(LOG_INFO, "SendToDaemon cid:%u sid:%u key:%s commandID:%u sizeSend:%d", hChannel->channelId,
+            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), commandFlag, bufSize);
+    }
     while (true) {
         ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
         if (hdi == nullptr) {
@@ -599,7 +607,8 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         if ((formatCommand->cmdFlag == CMD_FILE_INIT || formatCommand->cmdFlag == CMD_APP_INIT) &&
             hChannel->fromClient) {
             // remote client mode, CMD_FILE_INIT and CMD_APP_INIT command send back to client
-            WRITE_LOG(LOG_DEBUG, "command send back to remote client channelId:%u", hChannel->channelId);
+            WRITE_LOG(LOG_INFO, "CMD_FILE_INIT|CMD_APP_INIT command send back to remote client, cid:%u",
+                hChannel->channelId);
             SendChannelWithCmd(hChannel, formatCommand->cmdFlag,
                 reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())) + sizeCmdFlag,
                 sizeSend - sizeCmdFlag);
@@ -718,14 +727,17 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
     HdcServer *ptrServer = (HdcServer *)clsServer;
     ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
     if (!hdi) {
+        WRITE_LOG(LOG_WARN, "Not match target founded cid:%u", hChannel->channelId);
         EchoClient(hChannel, MSG_FAIL, "Not match target founded, check connect-key please");
         return nullptr;
     }
     if (hdi->connStatus != STATUS_CONNECTED) {
+        WRITE_LOG(LOG_WARN, "Device not found or connected cid:%u", hChannel->channelId);
         EchoClient(hChannel, MSG_FAIL, "[E001005] Device not found or connected");
         return nullptr;
     }
     if (hdi->hSession == nullptr || hdi->hSession->isDead) {
+        WRITE_LOG(LOG_WARN, "Bind tartget session is null or dead cid:%u", hChannel->channelId);
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }
@@ -882,8 +894,9 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());
             }
         }
-        WRITE_LOG(LOG_DEBUG, "ReadChannel cid:%u sid:%u key:%s command: %s",
-            hChannel->channelId, hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
+
+        WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s command:%s", hChannel->channelId,
+            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             return -10;  //  -10 error formatCommand

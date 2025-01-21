@@ -438,6 +438,16 @@ void RunExternalClient(string &str, string &connectKey, string &containerInOut)
 
 #ifndef UNIT_TEST
 
+#ifdef _WIN32
+static void RestoreConsoleOutputCP(UINT outputCP)
+{
+    if (outputCP == 0) {
+        return;
+    }
+    SetConsoleOutputCP(outputCP);
+}
+#endif
+
 // hdc -l4 -m -s ip:port|hdc -l4 -m
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])
@@ -460,7 +470,7 @@ int main(int argc, const char *argv[])
     delete[](reinterpret_cast<char*>(optArgv));
     if (cmdOptionResult) {
 #ifdef _WIN32
-    SetConsoleOutputCP(oldOutputCP);
+    RestoreConsoleOutputCP(oldOutputCP);
 #endif
         return 0;
     }
@@ -480,7 +490,7 @@ int main(int argc, const char *argv[])
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
             Hdc::Base::RemoveLogCache();
 #ifdef _WIN32
-            SetConsoleOutputCP(oldOutputCP);
+            RestoreConsoleOutputCP(oldOutputCP);
 #endif
             _exit(0);
         }
@@ -530,7 +540,7 @@ int main(int argc, const char *argv[])
     WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main");
     Hdc::Base::RemoveLogCache();
 #ifdef _WIN32
-    SetConsoleOutputCP(oldOutputCP);
+    RestoreConsoleOutputCP(oldOutputCP);
 #endif
     return 0;
 }

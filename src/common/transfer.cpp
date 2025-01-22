@@ -243,10 +243,10 @@ void HdcTransferBase::ProcressFileIOFinish(uv_fs_t *req, CtxFile *context, HdcTr
     }
     WRITE_LOG(LOG_DEBUG, "channelId:%u result:%d, closeReqSubmitted:%d, context->isFdOpen %d",
               thisClass->taskInfo->channelId, context->openFd, context->closeReqSubmitted, context->isFdOpen);
+    CloseCtxFd(context);
     if (context->lastErrno == 0 && !context->closeReqSubmitted) {
         context->closeReqSubmitted = true;
         WRITE_LOG(LOG_DEBUG, "OnFileIO fs_close, channelId:%u", thisClass->taskInfo->channelId);
-        CloseCtxFd(context);
         OnFileClose(context);
     } else {
         thisClass->WhenTransferFinish(context);

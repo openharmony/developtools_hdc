@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <unordered_set>
 #ifdef CONFIG_USE_JEMALLOC_DFX_INIF
 #include <malloc.h>
 #endif

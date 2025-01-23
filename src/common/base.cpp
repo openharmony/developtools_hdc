@@ -535,6 +535,7 @@ namespace Base {
         int value = -1;
         uv_fs_t fs;
         value = uv_fs_stat(nullptr, &fs, path, nullptr);
+        uv_fs_req_cleanup(&fs);
         if (value != 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };

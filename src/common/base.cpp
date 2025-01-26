@@ -46,6 +46,8 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     bool g_isBackgroundServer = false;
+    string g_tempDir = "";
+    uint16_t g_logFileCount = MAX_LOG_FILE_COUNT;
     constexpr int DEF_FILE_PERMISSION = 0750;
     uint8_t GetLogLevel()
     {
@@ -372,23 +374,26 @@ namespace Base {
         }
     }
 
-    uint16_t GetLogLimitByEnv()
+    void UpdateLogLimitFileCountCache()
     {
         char *env = getenv(ENV_SERVER_LOG_LIMIT.c_str());
         size_t maxLen = 5;
         if (!env || strlen(env) > maxLen) {
-            return MAX_LOG_FILE_COUNT;
+            g_logFileCount = MAX_LOG_FILE_COUNT;
+            return;
         }
         int limitCount = atoi(env);
-        WRITE_LOG(LOG_DEBUG, "get log limit count from env: %d", limitCount);
         if (limitCount <= 0) {
-            WRITE_LOG(LOG_WARN, "invalid log limit count: %d", limitCount);
-            return MAX_LOG_FILE_COUNT;
+            g_logFileCount = MAX_LOG_FILE_COUNT;
         } else {
-            return static_cast<uint16_t>(limitCount);
+            g_logFileCount = static_cast<uint16_t>(limitCount);
         }
     }
 
+    uint16_t GetLogLimitFileCount()
+    {
+        return g_logFileCount;
+    }
 
 #ifdef _WIN32
     void RemoveOlderLogFilesOnWindows()
@@ -489,7 +494,7 @@ namespace Base {
     void RemoveOlderLogFiles()
     {
         vector<string> files = GetDirFileName();
-        uint16_t logLimitSize = GetLogLimitByEnv();
+        uint16_t logLimitSize = GetLogLimitFileCount();
         if (files.size() <= logLimitSize) {
             return;
         }
@@ -501,14 +506,9 @@ namespace Base {
             return;
         }
         WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
-        uint32_t count = 0;
         uint32_t beginCount = files.size() - deleteCount;
-        for (auto name : files) {
-            count++;
-            if (count < beginCount) {
-                continue;
-            }
-            string deleteFile = GetLogDirName() + name;
+        for (auto name = files.begin() + beginCount; name != files.end(); name++) {
+            string deleteFile = GetLogDirName() + *name;
             WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
             unlink(deleteFile.c_str());
         }
@@ -2111,9 +2111,8 @@ static void EchoLog(string &buf)
         return res;
     }
 
-    string GetTmpDir()
+    void UpdateTmpDirCache()
     {
-        string res;
 #ifdef HDC_HOST
         int value = -1;
         char path[PATH_MAX] = "";
@@ -2123,21 +2122,23 @@ static void EchoLog(string &buf)
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(value, buf, bufSize);
-            WRITE_LOG(LOG_FATAL, "get tmppath failed: %s", buf);
-            return res;
+            return;
         }
         if (strlen(path) >= PATH_MAX - 1) {
-            WRITE_LOG(LOG_FATAL, "get tmppath failed: buffer space max");
-            return res;
+            return;
         }
         if (path[strlen(path) - 1] != Base::GetPathSep()) {
             path[strlen(path)] = Base::GetPathSep();
         }
-        res = path;
+        g_tempDir = path;
 #else
-        res = "/data/local/tmp/";
+        g_tempDir = "/data/local/tmp/";
 #endif
-        return res;
+    }
+
+    string GetTmpDir()
+    {
+        return g_tempDir;
     }
 
 #ifndef  HDC_HILOG
@@ -2528,5 +2529,13 @@ void CloseOpenFd(void)
         }
         return true;
     }
-}
-}  // namespace Hdc
+
+    void UpdateEnvCache()
+    {
+        UpdateTmpDirCache();
+#ifndef HDC_HILOG
+        UpdateLogLimitFileCountCache();
+#endif
+    }
+} // namespace Base
+} // namespace Hdc

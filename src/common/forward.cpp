@@ -61,8 +61,9 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
     bool ret = false;
     while (true) {
         if (uv_accept(server, client)) {
-            WRITE_LOG(LOG_FATAL, "uv_accept id:%u type:%d remoteParamenters:%s",
-                ctxListen->id, ctxListen->type, ctxListen->remoteParamenters.c_str());
+            WRITE_LOG(LOG_FATAL, "OnAccept uv_accept failed Listenid:%u type:%d remoteParamenters:%s cid:%u sid:%u",
+                ctxListen->id, ctxListen->type, ctxListen->remoteParamenters.c_str(), taskInfo->channelId,
+                taskInfo->sessionId);
             break;
         }
         ctxClient->type = ctxListen->type;
@@ -71,10 +72,14 @@ void HdcForwardBase::OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_str
         // clang-format off
         if (snprintf_s(buf + forwardParameterBufSize, maxSize, maxSize - 1, "%s",
                        ctxClient->remoteParamenters.c_str()) < 0) {
+            WRITE_LOG(LOG_FATAL, "OnAccept prepare buffer failed Listenid:%u type:%d remotePara:%s cid:%u sid:%u",
+                ctxListen->id, ctxListen->type, ctxListen->remoteParamenters.c_str(), taskInfo->channelId,
+                taskInfo->sessionId);
             break;
         }
-        WRITE_LOG(LOG_DEBUG, "OnAccept id:%u type:%d remoteParamenters:%s",
-            ctxClient->id, ctxClient->type, ctxClient->remoteParamenters.c_str());
+        WRITE_LOG(LOG_INFO, "Forward OnAccept ctxclientid:%u type:%d remoteParamenters:%s cid:%u sid:%u",
+            ctxClient->id, ctxClient->type, ctxClient->remoteParamenters.c_str(), taskInfo->channelId,
+            taskInfo->sessionId);
         SendToTask(ctxClient->id, CMD_FORWARD_ACTIVE_SLAVE, reinterpret_cast<uint8_t *>(buf),
                    strlen(buf + forwardParameterBufSize) + 9); // 9: pre 8bytes preserve for param bits
         ret = true;
@@ -93,14 +98,16 @@ void HdcForwardBase::ListenCallback(uv_stream_t *server, const int status)
     CALLSTAT_GUARD(*(ctxListen->thisClass->loopTaskStatus), server->loop, "HdcForwardBase::ListenCallback");
 
     if (status == -1 || !ctxListen->ready) {
-        WRITE_LOG(LOG_FATAL, "ListenCallback status:%d id:%u ready:%d",
-            status, ctxListen->id, ctxListen->ready);
+        WRITE_LOG(LOG_FATAL, "ListenCallback status:%d id:%u ready:%d cid:%u sid:%u",
+            status, ctxListen->id, ctxListen->ready, thisClass->taskInfo->channelId, thisClass->taskInfo->sessionId);
         thisClass->FreeContext(ctxListen, 0, false);
         thisClass->TaskFinish();
         return;
     }
     HCtxForward ctxClient = (HCtxForward)thisClass->MallocContext(true);
     if (!ctxClient) {
+        WRITE_LOG(LOG_FATAL, "ListenCallback ctxClient is null, ctxListenid:%u cid:%u sid:%u",
+            ctxListen->id, thisClass->taskInfo->channelId, thisClass->taskInfo->sessionId);
         return;
     }
     if (ctxListen->type == FORWARD_TCP) {
@@ -187,14 +194,15 @@ void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNot
     HCtxForward ctx = nullptr;
     if (!ctxIn) {
         if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
-            WRITE_LOG(LOG_DEBUG, "Query id:%u failed", id);
+            WRITE_LOG(LOG_DEBUG, "FreeContext Query id:%u failed cid:%u sid:%u", id, taskInfo->channelId,
+                taskInfo->sessionId);
             return;
         }
     } else {
         ctx = ctxIn;
     }
-    WRITE_LOG(LOG_DEBUG, "FreeContext id:%u, bNotifyRemote:%d, finish:%d",
-        ctx->id, bNotifyRemote, ctx->finish);
+    WRITE_LOG(LOG_INFO, "FreeContext id:%u, bNotifyRemote:%d, finish:%d cid:%u sid:%u",
+        ctx->id, bNotifyRemote, ctx->finish, taskInfo->channelId, taskInfo->sessionId);
     if (ctx->finish) {
         return;
     }
@@ -269,13 +277,15 @@ void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv
     HCtxForward ctx = (HCtxForward)stream->data;
     CALLSTAT_GUARD(*(ctx->thisClass->loopTaskStatus), stream->loop, "HdcForwardBase::ReadForwardBuf");
     if (nread < 0) {
-        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:%zd id:%u", nread, ctx->id);
+        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:%zd id:%u cid:%u sid:%u", nread, ctx->id,
+            ctx->thisClass->taskInfo->channelId, ctx->thisClass->taskInfo->sessionId);
         ctx->thisClass->FreeContext(ctx, 0, true);
         delete[] buf->base;
         return;
     }
     if (nread == 0) {
-        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:0 id:%u", ctx->id);
+        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:0 id:%u cid:%u sid:%u", nread, ctx->id,
+            ctx->thisClass->taskInfo->channelId, ctx->thisClass->taskInfo->sessionId);
         delete[] buf->base;
         return;
     }
@@ -385,23 +395,40 @@ bool HdcForwardBase::SetupTCPPoint(HCtxForward ctxPoint)
     string &sNodeCfg = ctxPoint->localArgs[1];
     int port = atoi(sNodeCfg.c_str());
     ctxPoint->tcp.data = ctxPoint;
-    uv_tcp_init(loopTask, &ctxPoint->tcp);
+    int rc = uv_tcp_init(loopTask, &ctxPoint->tcp);
+    if (rc < 0) {
+        WRITE_LOG(LOG_FATAL, "SetupTCPPoint uv_tcp_init failed, rc:%d port:%d ctxid:%u cid:%u sid:%u", rc, port,
+            ctxPoint->id, taskInfo->channelId, taskInfo->sessionId);
+        return false;
+    }
     struct sockaddr_in addr;
     if (ctxPoint->masterSlave) {
-        uv_ip4_addr("127.0.0.1", port, &addr);  // loop interface
-        uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addr, 0);
+        uv_ip4_addr("127.0.0.1", port, &addr); // loop interface
+        rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addr, 0);
+        if (rc < 0) {
+            WRITE_LOG(LOG_FATAL, "SetupTCPPoint master uv_tcp_bind failed, rc:%d port:%d ctxid:%u cid:%u sid:%u",
+                rc, port, ctxPoint->id, taskInfo->channelId, taskInfo->sessionId);
+            return false;
+        }
+        WRITE_LOG(LOG_INFO, "SetupTCPPoint master uv_listen port:%d ctxid:%u cid:%u sid:%u", port, ctxPoint->id,
+            taskInfo->channelId, taskInfo->sessionId);
         if (uv_listen((uv_stream_t *)&ctxPoint->tcp, UV_LISTEN_LBACKOG, ListenCallback)) {
             ctxPoint->lastError = "TCP Port listen failed at " + sNodeCfg;
+            WRITE_LOG(LOG_FATAL, "SetupTCPPoint master uv_listen failed port:%d ctxid:%u cid:%u sid:%u",
+                port, ctxPoint->id, taskInfo->channelId, taskInfo->sessionId);
             return false;
         }
     } else {
         uv_ip4_addr("127.0.0.1", port, &addr);  // loop interface
         uv_connect_t *conn = new(std::nothrow) uv_connect_t();
         if (conn == nullptr) {
-            WRITE_LOG(LOG_FATAL, "SetupTCPPoint new conn failed");
+            WRITE_LOG(LOG_FATAL, "SetupTCPPoint new conn failed port:%d ctxid:%u cid:%u sid:%u", port, ctxPoint->id,
+                taskInfo->channelId, taskInfo->sessionId);
             return false;
         }
         conn->data = ctxPoint;
+        WRITE_LOG(LOG_INFO, "SetupTCPPoint slave uv_tcp_connect port:%d ctxid:%u cid:%u sid:%u", port, ctxPoint->id,
+            taskInfo->channelId, taskInfo->sessionId);
         uv_tcp_connect(conn, (uv_tcp_t *)&ctxPoint->tcp, (const struct sockaddr *)&addr, ConnectTarget);
     }
     return true;
@@ -644,7 +671,8 @@ bool HdcForwardBase::SlaveConnect(uint8_t *bufCmd, const int bufSize, bool bChec
         WRITE_LOG(LOG_FATAL, "SlaveConnect DetechForwardType failed content:%s", content);
         goto Finish;
     }
-    WRITE_LOG(LOG_DEBUG, "id:%u type:%d", ctxPoint->id, ctxPoint->type);
+    WRITE_LOG(LOG_INFO, "SlaveConnect ctxid:%u type:%d cid:%u sid:%u", ctxPoint->id, ctxPoint->type,
+        taskInfo->channelId, taskInfo->sessionId);
     if (ctxPoint->type == FORWARD_ARK) {
         if (ctxPoint->checkPoint) {
             if (!SetupArkPoint(ctxPoint)) {
@@ -824,7 +852,6 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
     FilterCommand(payload, &id, &pContent);
     sizeContent = payloadSize - DWORD_SERIALIZE_SIZE;
     if (!(ctx = (HCtxForward)AdminContext(OP_QUERY, id, nullptr))) {
-        WRITE_LOG(LOG_WARN, "Query id:%u failed", id);
         return true;
     }
     switch (command) {
@@ -841,7 +868,8 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
                 break;
             }
             if (SendForwardBuf(ctx, pContent, sizeContent) < 0) {
-                WRITE_LOG(LOG_WARN, "ForwardCommandDispatch SendForwardBuf rc < 0, ctxid:%u", ctx->id);
+                WRITE_LOG(LOG_WARN, "ForwardCommandDispatch SendForwardBuf rc < 0, ctxid:%u cid:%u sid:%u", id,
+                    taskInfo->channelId, taskInfo->sessionId);
                 FreeContext(ctx, 0, true);
             }
             break;
@@ -868,7 +896,8 @@ bool HdcForwardBase::ForwardCommandDispatch(const uint16_t command, uint8_t *pay
 bool HdcForwardBase::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     if (command != CMD_FORWARD_DATA) {
-        WRITE_LOG(LOG_WARN, "CommandDispatch command:%d payloadSize:%d", command, payloadSize);
+        WRITE_LOG(LOG_WARN, "CommandDispatch command:%d payloadSize:%d cid:%u sid:%u", command, payloadSize,
+            taskInfo->channelId, taskInfo->sessionId);
     }
     bool ret = true;
     string sError;

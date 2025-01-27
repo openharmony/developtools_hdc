@@ -40,6 +40,12 @@ enum HdcLogLevel {
 #define WRITE_LOG(level, fmt, ...)   Base::PrintLogEx(__FILE_NAME__, __LINE__, level, fmt, ##__VA_ARGS__)
 #endif
 
+#ifndef HDC_HOST
+#define WRITE_LOG_DAEMON(level, fmt, ...) WRITE_LOG(level, fmt, ##__VA_ARGS__)
+#else
+#define WRITE_LOG_DAEMON(level, fmt, ...)
+#endif
+
 #ifdef HDC_DEBUG
 #define DEBUG_LOG(fmt, ...)   WRITE_LOG(LOG_DEBUG, fmt, ##__VA_ARGS__)
 #else

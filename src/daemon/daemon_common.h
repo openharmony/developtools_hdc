@@ -22,6 +22,7 @@
 #include "forward.h"
 #include "async_cmd.h"
 #include "serial_struct.h"
+#include "tlv.h"
 
 #ifndef HDC_HOST // daemon used
 #include "system_depend.h"

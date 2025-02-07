@@ -66,15 +66,8 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     return ret;
 }
 
-bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
+bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
 {
-    int srcArgvIndex = 0;
-    string errStr;
-    const string cmdOptionTstmp = "-a";
-    const string cmdOptionSync = "-sync";
-    const string cmdOptionZip = "-z";
-    const string cmdOptionModeSync = "-m";
-
     for (int i = 0; i < argc; i++) {
         if (argv[i] == cmdOptionZip) {
             context->transferConfig.compressType = COMPRESS_LZ4;
@@ -97,17 +90,91 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             ++srcArgvIndex;
         } else if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
             ++srcArgvIndex;
+        } else if (argv[i] == cmdBundleName) {
+            context->sandboxMode = true;
+            if (argc == srcArgvIndex + 1) {
+                LogMsg(MSG_FAIL, "[E005003] The parameter is missing, correct your input by referring below:\n%s",
+                    taskInfo->serverOrDaemon ? "Usage: hdc file send [-b bundlename] local remote" :
+                    "Usage: hdc file recv [-b bundlename] remote local");
+                WRITE_LOG(LOG_DEBUG, "There is no bundle name.");
+                return false;
+            }
+            context->transferConfig.reserve1 = argv[i + 1];
+            context->bundleName = argv[i + 1];
+            srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i][0] == '-') {
             LogMsg(MSG_FAIL, "Unknown file option: %s", argv[i]);
             return false;
         }
     }
+
+    return ValidateAndSetPaths(context, argc, argv, srcArgvIndex);
+}
+
+bool HdcFile::ValidateAndSetPaths(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
+{
     if (argc == srcArgvIndex) {
         LogMsg(MSG_FAIL, "There is no local and remote path");
         return false;
     }
-    context->remotePath = argv[argc - 1];
-    context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
+
+    if (context->sandboxMode) {
+        if ((srcArgvIndex + 1) == argc) {
+            context->remotePath = ".";
+            context->localPath = argv[argc - 1];
+            context->inputLocalPath = context->localPath;
+        } else if ((srcArgvIndex + CMD_FILE_PENULT_PARAM) == argc) {
+            context->remotePath = argv[argc - 1];
+            context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
+            context->inputLocalPath = context->localPath;
+        } else {
+            context->remotePath = argv[argc - 1];
+            context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
+            context->inputLocalPath = context->localPath;
+        }
+    } else {
+        context->remotePath = argv[argc - 1];
+        context->localPath = argv[argc - CMD_FILE_PENULT_PARAM];
+        context->inputLocalPath = context->localPath;
+    }
+    return true;
+}
+
+bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
+{
+    string fullPath = SANDBOX_ROOT_DIR + context->bundleName;
+    string appDir(fullPath);
+    appDir = Base::CanonicalizeSpecPath(appDir);
+    fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
+    // remove the postfix char '/', make sure that the method Base::GetPathWithoutFilename
+    // returns a path without the last dir node name.
+    // if input local path ends with "../" likes "data/storage/el1/base/../../../../", the final value
+    // of fullpath will be the parent dir of the expected path. it won't be unexcepted, so correct it.
+    const int lastTwoIndex = 2;
+    while (fullPath.back() == Base::GetPathSep() && fullPath[fullPath.size() - lastTwoIndex] != '.') {
+        fullPath.pop_back();
+    }
+    fullPath = Base::GetPathWithoutFilename(fullPath);
+    resolvedPath = Base::CanonicalizeSpecPath(fullPath);
+    if (resolvedPath.size() <= 0 ||
+        strncmp(resolvedPath.c_str(), appDir.c_str(), appDir.size()) != 0) {
+        LogMsg(MSG_FAIL, "[E005102] Remote path: %s is invalid, no such file/directory or it's out of "
+            "the application directory.", context->inputLocalPath.c_str());
+        WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
+            context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
+        return false;
+    }
+    return true;
+}
+
+bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
+{
+    int srcArgvIndex = 0;
+    string errStr;
+    if (!ParseMasterParameters(context, argc, argv, srcArgvIndex)) {
+        return false;
+    }
+
     if (taskInfo->serverOrDaemon) {
         // master and server
         if ((srcArgvIndex + 1) == argc) {
@@ -115,15 +182,10 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
             return false;
         }
         ExtractRelativePath(context->transferConfig.clientCwd, context->localPath);
-    } else {
-        if ((srcArgvIndex + 1) == argc) {
-            context->remotePath = ".";
-            context->localPath = argv[argc - 1];
-        }
+    } else if (!SetMasterParametersOnDaemon(context, argc, argv, srcArgvIndex)) {
+        return false;
     }
-
     context->localName = Base::GetFullFilePath(context->localPath);
-
     mode_t mode = mode_t(~S_IFMT);
     if (!Base::CheckDirectoryOrPath(context->localPath.c_str(), true, true, errStr, mode) && (mode & S_IFDIR)) {
         context->isDir = true;
@@ -136,13 +198,39 @@ bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int arg
         context->dirSize = 0;
         context->localDirName = Base::GetPathWithoutFilename(context->localPath);
 
-        WRITE_LOG(LOG_DEBUG, "localDirName = %s", context->localDirName.c_str());
-
         context->localName = context->taskQueue.back();
         context->localPath = context->localDirName + context->localName;
 
-        WRITE_LOG(LOG_DEBUG, "localPath = %s", context->localPath.c_str());
         context->taskQueue.pop_back();
+    }
+    return true;
+}
+
+bool HdcFile::SetMasterParametersOnDaemon(CtxFile *context, int argc, char **argv, int srcArgvIndex)
+{
+    if (context->sandboxMode &&
+        context->transferConfig.reserve1.size() > 0 &&
+        !IsValidBundlePath(context->transferConfig.reserve1)) {
+        LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
+            context->transferConfig.reserve1.c_str());
+        WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
+            context->transferConfig.reserve1.c_str());
+        return false;
+    }
+    if ((srcArgvIndex + 1) == argc) {
+        context->remotePath = ".";
+        context->localPath = argv[argc - 1];
+    }
+    context->localName = Base::GetFullFilePath(context->localPath);
+
+    if (context->sandboxMode && IsValidBundlePath(context->transferConfig.reserve1)) {
+        string resolvedPath;
+        if (CheckSandboxSubPath(context, resolvedPath)) {
+            context->localPath = resolvedPath + Base::GetPathSep() + context->localName;
+        } else {
+            WRITE_LOG(LOG_WARN, "SetMasterParameters, CheckSandboxSubPath false.");
+            return false;
+        }
     }
     return true;
 }
@@ -245,34 +333,92 @@ bool HdcFile::FileModeSync(const uint16_t cmd, uint8_t *payload, const int paylo
 
 bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
 {
-    bool ret = true;
-    bool childRet = false;
-    string errStr;
-    // parse option
+    if (!ParseAndValidateOptions(payload, payloadSize)) {
+        return false;
+    }
+
+    if (!CheckBundleAndPath()) {
+        return false;
+    }
+
+    if (!CheckLocalPathAndFilename()) {
+        return false;
+    }
+
+    if (!HandleFileExistenceAndNewness()) {
+        return false;
+    }
+
+    return BeginFileOperations();
+}
+
+bool HdcFile::ParseAndValidateOptions(uint8_t *payload, const int payloadSize)
+{
     string serialString(reinterpret_cast<char *>(payload), payloadSize);
     TransferConfig &stat = ctxNow.transferConfig;
-    SerialStruct::ParseFromString(stat, serialString);
+    if (!SerialStruct::ParseFromString(stat, serialString)) {
+        WRITE_LOG(LOG_DEBUG, "ParseFromString failed, serialString: %s", serialString.c_str());
+        return false;
+    }
     ctxNow.fileSize = stat.fileSize;
     ctxNow.localPath = stat.path;
+    ctxNow.inputLocalPath = ctxNow.localPath;
     ctxNow.master = false;
     ctxNow.fsOpenReq.data = &ctxNow;
+    ctxNow.bundleName = stat.reserve1;
+
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "HdcFile fileSize got %" PRIu64 "", ctxNow.fileSize);
 #endif
 
-    if (!CheckLocalPath(ctxNow.localPath, stat.optionalName, errStr)) {
+    return true;
+}
+
+bool HdcFile::CheckBundleAndPath()
+{
+    if (!taskInfo->serverOrDaemon && IsValidBundlePath(ctxNow.bundleName)) {
+        string fullPath = SANDBOX_ROOT_DIR + ctxNow.bundleName + Base::GetPathSep();
+        fullPath.append(ctxNow.inputLocalPath);
+        ctxNow.localPath = fullPath;
+
+        string resolvedPath;
+        if (!CheckSandboxSubPath(&ctxNow, resolvedPath)) {
+            WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckSandboxSubPath false.");
+            return false;
+        }
+    } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
+        LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
+            ctxNow.bundleName.c_str());
+        WRITE_LOG(LOG_DEBUG, "Invalid bundle name: %s", ctxNow.bundleName.c_str());
+        return false;
+    }
+    return true;
+}
+
+bool HdcFile::CheckLocalPathAndFilename()
+{
+    string errStr;
+    if (!CheckLocalPath(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
+        RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
-    if (!CheckFilename(ctxNow.localPath, stat.optionalName, errStr)) {
+    if (!CheckFilename(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
+        RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
+        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
-    // check path
-    childRet = SmartSlavePath(stat.clientCwd, ctxNow.localPath, stat.optionalName.c_str());
+    return true;
+}
+
+bool HdcFile::HandleFileExistenceAndNewness()
+{
+    bool childRet = SmartSlavePath(ctxNow.transferConfig.clientCwd, ctxNow.localPath,
+        ctxNow.transferConfig.optionalName.c_str());
     if (childRet && ctxNow.transferConfig.updateIfNew) {  // file exist and option need update
-        // if is newer
         uv_fs_t fs = {};
         uv_fs_stat(nullptr, &fs, ctxNow.localPath.c_str(), nullptr);
         uv_fs_req_cleanup(&fs);
@@ -281,7 +427,18 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
             return false;
         }
     }
-    // begin work
+    return true;
+}
+
+bool HdcFile::BeginFileOperations()
+{
+    uv_fs_t *openReq = new uv_fs_t;
+    if (openReq == nullptr) {
+        LogMsg(MSG_FAIL, "HdcFile::SlaveCheck new openReq failed");
+        return false;
+    }
+    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    openReq->data = &ctxNow;
     ++refCount;
     uv_fs_open(loopTask, &ctxNow.fsOpenReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
@@ -289,7 +446,7 @@ bool HdcFile::SlaveCheck(uint8_t *payload, const int payloadSize)
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
     }
     ctxNow.transferBegin = Base::GetRuntimeMSec();
-    return ret;
+    return true;
 }
 
 void HdcFile::TransferNext(CtxFile *context)

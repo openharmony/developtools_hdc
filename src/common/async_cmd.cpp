@@ -148,7 +148,7 @@ static void SetSelinuxLabel(bool isRoot)
 }
 #endif
 
-int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
+int AsyncCmd::ThreadFork(const string &command, const string &optionPath, bool readWrite, int &cpid)
 {
     string debugMode = "";
     string rootMode = "";
@@ -160,7 +160,7 @@ int AsyncCmd::ThreadFork(const string &command, bool readWrite, int &cpid)
     if (debugMode == "1" && rootMode == "1") {
         isRoot = true;
     }
-    AsyncParams params = AsyncParams(command, readWrite, cpid, isRoot);
+    AsyncParams params = AsyncParams(command, readWrite, cpid, isRoot, optionPath);
     pthread_t threadId;
     void *popenRes;
     int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(Popen), &params);
@@ -234,7 +234,12 @@ void *AsyncCmd::Popen(void *arg)
         SetSelinuxLabel(isRoot);
 #endif
         string shellPath = Base::GetShellPath();
-        execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
+        if (!params.optionPath.empty() && chdir(params.optionPath.c_str()) != 0) {
+            string cmdEcho = "echo \"[E003006] Internal error: AsyncCmd chdir failed:" + params.optionPath + "\"";
+            execl(shellPath.c_str(), shellPath.c_str(), "-c", cmdEcho.c_str(), NULL);
+        } else {
+            execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
+        }
     } else {
         if (readWrite) {
             Base::CloseFd(fds[pipeWrite]);
@@ -253,11 +258,11 @@ void *AsyncCmd::Popen(void *arg)
 #endif
 }
 
-bool AsyncCmd::ExecuteCommand(const string &command)
+bool AsyncCmd::ExecuteCommand(const string &command, string executePath)
 {
     string cmd = command;
     cmd = Base::ShellCmdTrim(cmd);
-    if ((fd = ThreadFork(cmd, true, pid)) < 0) {
+    if ((fd = ThreadFork(cmd, executePath, true, pid)) < 0) {
         WRITE_LOG(LOG_FATAL, "ExecuteCommand failed cmd:%s fd:%d", cmd.c_str(), fd);
         return false;
     }

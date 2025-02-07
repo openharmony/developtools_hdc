@@ -1356,8 +1356,9 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
         default:
             break;
     }
-    if (!serverOrDaemon
-        && (command == CMD_SHELL_INIT || (command > CMD_UNITY_COMMAND_HEAD && command < CMD_UNITY_COMMAND_TAIL))) {
+    if (!serverOrDaemon &&
+            (command == CMD_SHELL_INIT || command == CMD_UNITY_EXECUTE_EX ||
+                (command > CMD_UNITY_COMMAND_HEAD && command < CMD_UNITY_COMMAND_TAIL))) {
         // daemon's single side command
         ret = true;
     } else if (command == CMD_KERNEL_WAKEUP_SLAVETASK) {

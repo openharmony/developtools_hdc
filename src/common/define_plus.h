@@ -361,6 +361,7 @@ struct HdcDaemonInformation {
     std::string version;
     std::string emgmsg;
     std::string daemonAuthStatus;
+    std::map<std::string, std::string> daemonFeature;
 };
 using HDaemonInfo = struct HdcDaemonInformation *;
 

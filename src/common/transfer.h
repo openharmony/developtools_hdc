@@ -69,6 +69,11 @@ public:
     {
     }
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize);
+    const string cmdOptionTstmp = "-a";
+    const string cmdOptionSync = "-sync";
+    const string cmdOptionZip = "-z";
+    const string cmdOptionModeSync = "-m";
+    const string cmdBundleName = "-b";
 
 protected:
     // Static file context
@@ -103,6 +108,10 @@ protected:
         FileMode fileMode;
         vector<FileMode> dirMode; // save dir mode on master
         map<string, FileMode> dirModeMap; // save dir mode on slave
+        bool sandboxMode;
+        string bundleName;
+        string inputLocalPath;
+        bool isOtherSideSandboxSupported;
     };
     // Just app-mode use
     enum AppModType {
@@ -113,7 +122,9 @@ protected:
     };
 
     static void OnFileOpen(uv_fs_t *req);
+    static void OnFileOpenFailed(CtxFile *context);
     static void OnFileClose(uv_fs_t *req);
+    bool CheckSandboxOptionCompatibility(const string &option, CtxFile *context);
     int GetSubFiles(const char *path, string filter, vector<string> *out);
     int GetSubFilesRecursively(string path, string currentDirname, vector<string> *out);
     virtual void CheckMaster(CtxFile *context)
@@ -131,12 +142,15 @@ protected:
     void ExtractRelativePath(string &cwd, string &path);
     bool AddFeatures(FeatureFlagsUnion &feature);
     bool CheckFeatures(CtxFile *context, uint8_t *payload, const int payloadSize);
+    void RemoveSandboxRootPath(std::string &srcStr, const std::string &bundleName);
+    bool IsValidBundlePath(const string &bundleName);
 
     CtxFile ctxNow;
     uint16_t commandBegin;
     uint16_t commandData;
     bool isStableBuf;
     const string CMD_OPTION_CLIENTCWD = "-cwd";
+    const string SANDBOX_ROOT_DIR = "/mnt/debug/100/debug_hap/";
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     CircleBuffer cirbuf;
 #endif

@@ -169,6 +169,7 @@ enum HdcCommand {
     // It will be separated from unity in the near future
     CMD_UNITY_BUGREPORT_INIT,
     CMD_UNITY_BUGREPORT_DATA,
+    CMD_UNITY_EXECUTE_EX = 1200,    // need to check TAG_FEATURE_SHELL_OPT
     // Shell commands types
     CMD_SHELL_INIT = 2000,
     CMD_SHELL_DATA,
@@ -221,6 +222,12 @@ enum UsbProtocolOption {
     USB_OPTION_RESERVE4 = 4,
     USB_OPTION_RESERVE8 = 8,
     USB_OPTION_RESERVE16 = 16,
+};
+
+enum ShellExecuteTag {
+    TAG_SHELL_CMD = 0x00000000,
+    TAG_SHELL_BUNDLE = 0x00000001,
+    TAG_SHELL_DEFAULT = 0xFFFFFFFF,
 };
 }
 #endif

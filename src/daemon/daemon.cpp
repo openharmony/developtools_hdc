@@ -205,6 +205,7 @@ bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uin
         case CMD_UNITY_BUGREPORT_INIT:
         case CMD_JDWP_LIST:
         case CMD_JDWP_TRACK:
+        case CMD_UNITY_EXECUTE_EX:
             ret = TaskCommandDispatch<HdcDaemonUnity>(hTaskInfo, TYPE_UNITY, command, payload, payloadSize);
             break;
         case CMD_SHELL_INIT:
@@ -822,6 +823,7 @@ bool HdcDaemon::CheckControl(const uint16_t command)
     bool ret = false; // default no debug
     switch (command) { // this switch is match RedirectToTask function
         case CMD_UNITY_EXECUTE:
+        case CMD_UNITY_EXECUTE_EX:
         case CMD_UNITY_REMOUNT:
         case CMD_UNITY_REBOOT:
         case CMD_UNITY_RUNMODE:
@@ -1097,6 +1099,7 @@ void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
         Base::TlvAppend(emgmsg, TAG_EMGMSG, msg);
         Base::TlvAppend(emgmsg, TAG_DEVNAME, hostname);
         Base::TlvAppend(emgmsg, TAG_DAEOMN_AUTHSTATUS, daemonAuthResult);
+        AddFeatureTagToEmgmsg(emgmsg);
         handshake.buf = emgmsg;
     }
 
@@ -1127,5 +1130,9 @@ void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channe
 {
     string msg = "[E000001]:The sdk hdc.exe version is too low, please upgrade to the latest version.";
     EchoHandshakeMsg(handshake, channelid, sessionid, msg);
+}
+void HdcDaemon::AddFeatureTagToEmgmsg(string &emgmsg)
+{
+    Base::TlvAppend(emgmsg, TAG_FEATURE_SHELL_OPT, "enable");
 }
 }  // namespace Hdc

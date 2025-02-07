@@ -36,7 +36,7 @@ private:
     bool SetTCPListen();
     int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO) override;
     void ReportServerVersion(HChannel hChannel);
-    bool DoCommand(HChannel hChannel, void *formatCommandInput);
+    bool DoCommand(HChannel hChannel, void *formatCommandInput, HDaemonInfo &hdi);
     void OrderFindTargets(HChannel hChannel);
     bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck = false);
     static void OrderConnecTargetResult(uv_timer_t *req);
@@ -58,9 +58,13 @@ private:
     bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId) override;
     HSession FindAliveSession(uint32_t sessionId);
     HSession FindAliveSessionFromDaemonMap(const HChannel hChannel);
+    bool CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi);
 
     uv_tcp_t tcpListen;
     void *clsServer;
+    const std::set<uint16_t> FEATURE_CHECK_SET = {
+        CMD_UNITY_EXECUTE_EX,
+    }; // feature cmdFlag
 };
 }  // namespace Hdc
 #endif

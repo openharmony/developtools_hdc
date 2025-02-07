@@ -282,6 +282,7 @@ namespace Base {
         TAG_SHELL_CMD,
     };
     bool CanPrintCmd(const uint16_t command);
+    void UpdateEnvCache();
 }  // namespace base
 }  // namespace Hdc
 

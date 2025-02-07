@@ -452,7 +452,7 @@ static void RestoreConsoleOutputCP(UINT outputCP)
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])
 {
-    (void)Base::GetTmpDir();
+    Base::UpdateEnvCache();
 #ifdef _WIN32
     UINT oldOutputCP = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);

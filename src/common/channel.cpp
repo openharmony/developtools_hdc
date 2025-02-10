@@ -287,6 +287,9 @@ void HdcChannelBase::PushAsyncMessage(const uint32_t channelId, const uint8_t me
 void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size)
 {
     StartTraceScope("HdcChannelBase::SendChannelWithCmd");
+    if (size <= 0) {
+        return;
+    }
     auto data = new uint8_t[size + sizeof(commandFlag)]();
     if (!data) {
         return;

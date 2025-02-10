@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <regex>
 #include <cstring>
 #include <dirent.h>
 #include <iomanip>
@@ -2122,6 +2123,30 @@ namespace Base {
         // unix paltform open file with default char
         return fopen(fileName, mode);
 #endif
+    }
+
+    bool CheckBundleName(const string &bundleName)
+    {
+        if (bundleName.empty()) {
+            WRITE_LOG(LOG_WARN, "bundleName is empty");
+            return false;
+        }
+        size_t length = bundleName.size();
+        if (length < BUNDLE_MIN_SIZE) {
+            WRITE_LOG(LOG_WARN, "bundleName length:%d is less than %d", length, BUNDLE_MIN_SIZE);
+            return false;
+        }
+
+        if (length > BUNDLE_MAX_SIZE) {
+            WRITE_LOG(LOG_WARN, "bundleName length:%d is bigger than %d", length, BUNDLE_MAX_SIZE);
+            return false;
+        }
+        // 校验bundle是0-9,a-Z,_,.组成的字符串
+        if (regex_match(bundleName, std::regex("^[0-9a-zA-Z_\\.]+$"))) {
+            return true;
+        }
+        WRITE_LOG(LOG_WARN, "bundleName:%s contains invalid characters", bundleName.c_str());
+        return false;
     }
 }
 }  // namespace Hdc

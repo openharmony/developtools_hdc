@@ -73,6 +73,7 @@ private:
     bool HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool GetHostPubkeyInfo(const string& buf, string& hostname, string& pubkey);
     bool AlreadyInKnownHosts(const string& key);
+    void AddFeatureTagToEmgmsg(string& emgmsg);
     void UpdateKnownHosts(const string& key);
     void ClearInstanceResource() override;
     void DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake &handshake);

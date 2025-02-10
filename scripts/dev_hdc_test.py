@@ -52,6 +52,7 @@ class GP(object):
     hdc_exe = "hdc"
     local_path = "resource"
     remote_path = "data/local/tmp"
+    remote_dir_path = "data/local/tmp/it_send_dir"
     remote_ip = "auto"
     remote_port = 8710
     hdc_head = "hdc"
@@ -61,6 +62,7 @@ class GP(object):
     changed_testcase = "n"
     testcase_path = "ts_windows.csv"
     loaded_testcase = 0
+    debug_app = "com.example.myapplication"
 
     @classmethod
     def init(cls):
@@ -268,6 +270,7 @@ def pytest_run(args):
     report_file = os.path.join(report_dir, f"{report_time}report.html")
     print(f"Test over, the script version is {GP.get_version()},"
         f" start at {start_time}, end at {end_time} \n"
+        f"=======>The device hdcd ROM size is {GP.hdcd_rom}.\n"
         f"=======>{report_file} is saved. \n"
     )
     input("=======>press [Enter] key to Show logs.")
@@ -303,8 +306,28 @@ def get_local_md5(local):
     return md5_hash.hexdigest()
 
 
-def check_shell(cmd, pattern=None, fetch=False):
-    cmd = f"{GP.hdc_head} {cmd}"
+def check_shell_any_device(cmd, pattern=None, fetch=False):
+    print(f"\nexecuting command: {cmd}")
+    if pattern: # check output valid
+        print("pattern case")
+        output = subprocess.check_output(cmd.split()).decode()
+        res = pattern in output
+        print(f"--> output: {output}")
+        print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")
+        return res, output
+    elif fetch:
+        output = subprocess.check_output(cmd.split()).decode()
+        print(f"--> output: {output}")
+        return True, output
+    else: # check cmd run successfully
+        print("other case")
+        return subprocess.check_call(cmd.split()) == 0, ""
+
+
+def check_shell(cmd, pattern=None, fetch=False, head=None):
+    if head is None:
+        head = GP.hdc_head
+    cmd = f"{head} {cmd}"
     print(f"\nexecuting command: {cmd}")
     if pattern: # check output valid
         output = subprocess.check_output(cmd.split()).decode()
@@ -382,7 +405,9 @@ def check_dir(local, remote, is_single_dir=False):
     return (result == 1)
 
 
-def _check_file(local, remote):
+def _check_file(local, remote, head=None):
+    if head is None:
+        head = GP.hdc_head
     if remote.startswith("/proc"):
         local_size = os.path.getsize(local)
         if local_size > 0:
@@ -392,7 +417,7 @@ def _check_file(local, remote):
     else:
         cmd = f"shell md5sum {remote}"
         local_md5 = get_local_md5(local)
-        return check_shell(cmd, local_md5)
+        return check_shell(cmd, local_md5, head=head)
 
 
 def _check_app_installed(bundle, is_shared=False):
@@ -469,18 +494,23 @@ def check_app_uninstall_multi(tables, args=""):
     return True
 
 
-def check_hdc_cmd(cmd, pattern=None, **args):
+def check_hdc_cmd(cmd, pattern=None, head=None, is_single_dir=True, **args):
+    if head is None:
+        head = GP.hdc_head
     if cmd.startswith("file"):
-        if not check_shell(cmd, "FileTransfer finish"):
+        if not check_shell(cmd, "FileTransfer finish", head=head):
             return False
         if cmd.startswith("file send"):
             local, remote = cmd.split()[-2:]
         else:
             remote, local = cmd.split()[-2:]
+        if "-b" in cmd:
+            mnt_debug_path = "mnt/debug/100/debug_hap/"
+            remote = f"{mnt_debug_path}/{GP.debug_app}/{remote}"
         if os.path.isfile(local):
-            return _check_file(local, remote)
+            return _check_file(local, remote, head=head)
         else:
-            return check_dir(local, remote)
+            return check_dir(local, remote, is_single_dir=is_single_dir)
     elif cmd.startswith("install"):
         bundle = args.get("bundle", "invalid")
         opt = " ".join(cmd.split()[1:-1])
@@ -492,7 +522,7 @@ def check_hdc_cmd(cmd, pattern=None, **args):
         return check_shell(cmd, "successfully") and not _check_app_installed(bundle, "s" in opt)
 
     else:
-        return check_shell(cmd, pattern, **args)
+        return check_shell(cmd, pattern, head=head, **args)
 
 
 def check_soft_local(local_source, local_soft, remote):
@@ -649,6 +679,19 @@ def gen_file_set():
     gen_file(os.path.join(GP.local_path, GP.get_version()), 0)
 
 
+def gen_package_dir():
+    print("generating app dir ...")
+    dir_path = os.path.join(GP.local_path, "app_dir")
+    rmdir(dir_path)
+    os.mkdir(dir_path)
+    app = os.path.join(GP.local_path, "entry-default-signed-debug.hap")
+    dst_dir = os.path.join(GP.local_path, "app_dir")
+    if not os.path.exists(app):
+        print(f"Source file {app} does not exist.")
+    else:
+        copy_file(app, dst_dir)
+
+
 def prepare_source():
     if os.path.exists(os.path.join(GP.local_path, GP.get_version())):
         print(f"hdc test version is {GP.get_version}, check ok, skip prepare.")
@@ -669,17 +712,38 @@ def prepare_source():
     gen_file_set()
 
 
-def gen_package_dir():
-    print("generating app dir ...")
-    dir_path = os.path.join(GP.local_path, "app_dir")
-    rmdir(dir_path)
-    os.mkdir(dir_path)
-    app = os.path.join(GP.local_path, "entry-default-signed-debug.hap")
-    dst_dir = os.path.join(GP.local_path, "app_dir")
-    if not os.path.exists(app):
-        print(f"Source file {app} does not exist.")
-    else:
-        copy_file(app, dst_dir)
+def add_prepare_source():
+    deep_path = os.path.join(GP.local_path, "deep_test_dir")
+    print("generating deep test dir ...")
+    absolute_path = os.path.abspath(__file__)
+    deepth = (255 - 9 - len(absolute_path)) % 14
+    os.mkdir(deep_path)
+    for deep in range(deepth):
+        deep_path = os.path.join(deep_path, f"deep_test_dir{deep}")
+        os.mkdir(deep_path)
+    gen_file(os.path.join(deep_path, "deep_test"), 102400)
+
+    recv_dir = os.path.join(GP.local_path, "recv_test_dir")
+    print("generating recv test dir ...")
+    os.mkdir(recv_dir)
+
+
+def update_source():
+    deep_path = os.path.join(GP.local_path, "deep_test_dir")
+    if not os.path.exists(deep_path):
+        print("generating deep test dir ...")
+        absolute_path = os.path.abspath(__file__)
+        deepth = (255 - 9 - len(absolute_path)) % 14
+        os.mkdir(deep_path)
+        for deep in range(deepth):
+            deep_path = os.path.join(deep_path, f"deep_test_dir{deep}")
+            os.mkdir(deep_path)
+        gen_file(os.path.join(deep_path, "deep_test"), 102400)
+
+    recv_dir = os.path.join(GP.local_path, "recv_test_dir")
+    if not os.path.exists(recv_dir):
+        print("generating recv test dir ...")
+        os.mkdir(recv_dir)
 
 
 def setup_tester():
@@ -908,7 +972,7 @@ def check_cmd_time(cmd, pattern, duration, times):
         if pattern is None:
             subprocess.check_output(f"{GP.hdc_head} {cmd}".split())
         else:
-            check_shell(cmd, pattern, fetch=fetchable)
+            assert check_shell(cmd, pattern, fetch=fetchable)
         start_out = time.time() * 1000
         res.append(start_out - start_in)
 
@@ -985,3 +1049,25 @@ def run_command_with_timeout(command, timeout):
         return None, "Command timed out"
     except subprocess.CalledProcessError as e:
         return None, e.stderr.decode()
+
+
+def check_cmd_block(command, pattern, timeout=600):
+    # 启动子进程
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # 用于存储子进程的输出
+    output = ""
+
+    try:
+        # 读取子进程的输出
+        output, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.terminate()
+        process.kill()
+        output, _ = process.communicate(timeout=timeout)
+
+    print(f"--> output: {output}")
+    if pattern in output:
+        return True
+    else:
+        return False

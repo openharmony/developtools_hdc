@@ -817,6 +817,7 @@ static void EchoLog(string &buf)
                     break;
                 }
                 if (!uv_run(ptrLoop, UV_RUN_ONCE)) {
+                    uv_loop_close(ptrLoop);
                     ret = true;
                     break;
                 }

@@ -301,10 +301,10 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
         uv_strerror_r((int)req->result, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
         context->closeNotify = true;
-        context->lastErrno = static_cast<uint32_t>(abs(req->result));
+        context->lastErrno = abs(req->result);
         return true;
     }
-    context->indexIO += static_cast<uint64_t>(req->result);
+    context->indexIO += req->result;
     if (req->fs_type == UV_FS_READ) {
         return ProcressFileIORead(req, context, thisClass);
     }

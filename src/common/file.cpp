@@ -52,6 +52,11 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         delete[](reinterpret_cast<char *>(argv));
         return false;
     }
+    if (!CheckBlacklistPath(context)) {
+        WRITE_LOG(LOG_INFO, "Operation not allowed");
+        delete[](reinterpret_cast<char *>(argv));
+        return false;
+    }
     uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
         delete[](reinterpret_cast<char *>(argv));
@@ -72,6 +77,29 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     }
     delete[](reinterpret_cast<char *>(argv));
     return ret;
+}
+
+bool HdcFile::containsBlacklistedSubstring(const std::string& input,
+    const std::unordered_set<std::string>& blacklistFiles)
+{
+    for (const auto& blacklisted : blacklistFiles) {
+        if (input.find(blacklisted) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool HdcFile::CheckBlacklistPath(CtxFile *context)
+{
+    // Initialize blacklistFiles,
+    // if you need to add blacklistFiles content, you can use blacklistFiles.insert("");
+    std::unordered_set<std::string> blacklistFiles = {"/data/service/el1/public/hdc"};
+    if (containsBlacklistedSubstring(context->localPath, blacklistFiles)) {
+        LogMsg(MSG_FAIL, "[E005008] Operation not allowed");
+        return false;
+    }
+    return true;
 }
 
 bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int &srcArgvIndex)
@@ -438,6 +466,11 @@ bool HdcFile::CheckBundleAndPath()
 
 bool HdcFile::CheckLocalPathAndFilename()
 {
+    if (!CheckBlacklistPath(&ctxNow)) {
+        WRITE_LOG(LOG_DEBUG, "Operation not allowed");
+        return false;
+    }
+
     string errStr;
     if (!CheckLocalPath(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);

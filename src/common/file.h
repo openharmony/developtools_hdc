@@ -42,6 +42,9 @@ private:
     bool BeginFileOperations();
     bool HandleFileExistenceAndNewness();
     bool CheckLocalPathAndFilename();
+    bool CheckBlacklistPath(CtxFile *context);
+    bool containsBlacklistedSubstring(const std::string& input,
+        const std::unordered_set<std::string>& blacklistFiles);
     bool ParseAndValidateOptions(uint8_t *payload, const int payloadSize);
     bool ValidateAndSetPaths(CtxFile *context, int argc, char **argv, int &srcArgvIndex);
     string PathSimplify(const string &path);

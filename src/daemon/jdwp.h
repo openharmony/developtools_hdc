@@ -39,7 +39,7 @@ public:
 private:
 #endif
 #ifdef JS_JDWP_CONNECT
-    static constexpr uint8_t JS_PKG_MIN_SIZE = 7;  // JsMsgHeader + "pkgName:"uint8_t[7~400]
+    static constexpr uint8_t JS_PKG_MIN_SIZE = 7;
     static constexpr uint16_t JS_PKG_MAX_SIZE = 512;
     struct JsMsgHeader {
         uint32_t msgLen;

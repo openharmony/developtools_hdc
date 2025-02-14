@@ -43,7 +43,9 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize)
     uv_loop_init(&loopMain);
     WRITE_LOG(LOG_DEBUG, "loopMain init");
     uv_rwlock_init(&mainAsync);
+#ifndef FUZZ_TEST
     uv_async_init(&loopMain, &asyncMainLoop, MainAsyncCallback);
+#endif
     uv_rwlock_init(&lockMapSession);
     serverOrDaemon = serverOrDaemonIn;
     ctxUSB = nullptr;
@@ -62,7 +64,9 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize)
 
 HdcSessionBase::~HdcSessionBase()
 {
+#ifndef FUZZ_TEST
     Base::TryCloseHandle((uv_handle_t *)&asyncMainLoop);
+#endif
     uv_loop_close(&loopMain);
     // clear base
     uv_rwlock_destroy(&mainAsync);

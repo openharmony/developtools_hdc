@@ -415,7 +415,10 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
         hChannel->serverOrClient = isServerOrClient;
         ++channelId;  // Use different value for serverForClient&client in per process
     }
-    uv_tcp_init(loopMain, &hChannel->hWorkTCP);
+    int rc = uv_tcp_init(loopMain, &hChannel->hWorkTCP);
+    if (rc < 0) {
+        WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
+    }
     ++hChannel->uvHandleRef;
     hChannel->hWorkThread = uv_thread_self();
     hChannel->hWorkTCP.data = hChannel;

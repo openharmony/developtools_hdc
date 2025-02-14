@@ -45,7 +45,7 @@ void HdcDaemonTCP::Stop()
 {
     Base::TryCloseHandle((const uv_handle_t *)&servUDP);
     Base::TryCloseHandle((const uv_handle_t *)&servTCP);
-    WRITE_LOG(LOG_DEBUG, "Stop tcpListenPort:%u", tcpListenPort);
+    WRITE_LOG(LOG_INFO, "Stop tcpListenPort:%u", tcpListenPort);
 }
 
 void HdcDaemonTCP::TransmitConfig(const sockaddr *addrSrc, uv_udp_t *handle)
@@ -144,7 +144,7 @@ int HdcDaemonTCP::SetTCPListen()
 
 int HdcDaemonTCP::Initial()
 {
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonTCP init");
+    WRITE_LOG(LOG_INFO, "HdcDaemonTCP init");
     SetUDPListen();
     if (SetTCPListen() != RET_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "TCP listen failed");

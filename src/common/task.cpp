@@ -30,12 +30,14 @@ HdcTaskBase::HdcTaskBase(HTaskInfo hTaskInfo)
     if (taskInfo->masterSlave) {
         SendToAnother(CMD_KERNEL_WAKEUP_SLAVETASK, nullptr, 0);
     }
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase channelId:%u", taskInfo->channelId);
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase type:%u cid:%u sid:%u", taskInfo->taskType, taskInfo->channelId,
+        taskInfo->sessionId);
 }
 
 HdcTaskBase::~HdcTaskBase()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcTaskBase channelId:%u", taskInfo->channelId);
+    WRITE_LOG(LOG_DEBUG, "~HdcTaskBase type:%u cid:%u sid:%u", taskInfo->taskType, taskInfo->channelId,
+        taskInfo->sessionId);
 }
 
 bool HdcTaskBase::ReadyForRelease()
@@ -48,9 +50,11 @@ void HdcTaskBase::TaskFinish()
 {
     StartTraceScope("HdcTaskBase::TaskFinish");
     uint8_t count = 1;
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify begin channelId:%u", taskInfo->channelId);
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify begin type:%u cid:%u sid:%u", taskInfo->taskType,
+        taskInfo->channelId, taskInfo->sessionId);
     SendToAnother(CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify end channelId:%u", taskInfo->channelId);
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify end type:%u cid:%u sid:%u", taskInfo->taskType,
+        taskInfo->channelId, taskInfo->sessionId);
 }
 
 bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size)

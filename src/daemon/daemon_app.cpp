@@ -83,6 +83,8 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
             MakeCtxForAppCheck(payload, payloadSize);
             openReq->data = &ctxNow;
             ++refCount;
+            WRITE_LOG(LOG_INFO, "CMD_APP_CHECK cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
+                taskInfo->sessionId, ctxNow.localPath.c_str(), ctxNow.remotePath.c_str());
             uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(),
                        UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH,
                        OnFileOpen);

@@ -45,7 +45,7 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
     uv_tcp_t *stream = &hSession->dataPipe[STREAM_WORK];
     if (uv_tcp_init(&hSession->childLoop, stream) ||
         uv_tcp_open(stream, hSession->dataFd[STREAM_WORK])) {
-        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed");
+        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed, sid:%u", hSession->sessionId);
         return false;
     }
     stream->data = hSession;
@@ -56,11 +56,11 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
     Base::SetTcpOptions(stream);
 #endif
     if (uv_read_start((uv_stream_t *)stream, pSession->AllocCallback, ReadUSB)) {
-        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed");
+        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed, sid:%u", hSession->sessionId);
         return false;
     }
-    WRITE_LOG(LOG_DEBUG, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d",
-        hSession->dataFd[STREAM_WORK]);
+    WRITE_LOG(LOG_INFO, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d, sid:%u",
+        hSession->dataFd[STREAM_WORK], hSession->sessionId);
     return true;
 };
 

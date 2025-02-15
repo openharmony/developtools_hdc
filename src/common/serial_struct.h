@@ -95,6 +95,15 @@ namespace SerialStruct {
                            Field<fieldFour, &Hdc::HdcSessionBase::PayloadProtect::vCode>("vCode"));
         }
     };
+
+    template<> struct Descriptor<Hdc::HdcSessionBase::HeartbeatMsg> {
+        static auto type()
+        {
+            return Message(
+                Field<fieldOne, &Hdc::HdcSessionBase::HeartbeatMsg::heartbeatCount>("heartbeatCount"),
+                Field<fieldTwo, &Hdc::HdcSessionBase::HeartbeatMsg::reserved>("reserved"));
+        }
+    };
 }  // SerialStruct
 }  // Hdc
 #endif  // HDC_SERIAL_STRUCT_H

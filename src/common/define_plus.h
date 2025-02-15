@@ -22,6 +22,7 @@
 #endif
 #include "define_enum.h"
 #include "uv_status.h"
+#include "heartbeat.h"
 
 namespace Hdc {
     
@@ -249,6 +250,8 @@ struct HdcSession {
     std::mutex mapTaskMutex;
     AuthVerifyType verifyType;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
+    HdcHeartbeat heartbeat;
+    uv_timer_t heartbeatTimer;
 
     HdcSessionStat stat;
     std::string ToDebugString()

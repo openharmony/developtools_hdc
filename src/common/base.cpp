@@ -48,6 +48,7 @@ namespace Base {
     bool g_isBackgroundServer = false;
     string g_tempDir = "";
     uint16_t g_logFileCount = MAX_LOG_FILE_COUNT;
+    bool g_heartbeatSwitch = true;
     constexpr int DEF_FILE_PERMISSION = 0750;
     uint8_t GetLogLevel()
     {
@@ -2538,6 +2539,57 @@ void CloseOpenFd(void)
 #ifndef HDC_HILOG
         UpdateLogLimitFileCountCache();
 #endif
+        UpdateHeartbeatSwitchCache();
     }
+
+    const HdcFeatureSet& GetSupportFeature(void)
+    {
+        //hdc support feature lists
+        static HdcFeatureSet feature {
+            FEATURE_HEARTBEAT
+        };
+
+        return feature;
+    }
+
+    std::string FeatureToString(const HdcFeatureSet& feature)
+    {
+        std::string result;
+        for (unsigned long i = 0; i < feature.size(); i++) {
+            result += feature[i];
+            if (i == (feature.size() - 1)) {
+                break;
+            }
+            result += ",";
+        }
+        return result;
+    }
+
+    void StringToFeatureSet(const std::string featureStr, HdcFeatureSet& features)
+    {
+        return SplitString(featureStr, ",", features);
+    }
+
+    bool IsSupportFeature(const HdcFeatureSet& features, std::string feature)
+    {
+        return std::find(std::begin(features), std::end(features), feature) != std::end(features);
+    }
+
+    void UpdateHeartbeatSwitchCache()
+    {
+        char *env = getenv(ENV_SERVER_HEARTBEAT.c_str());
+        if (!env) {
+            g_heartbeatSwitch = true;
+            return;
+        }
+        g_heartbeatSwitch = strncmp(env, "1", 1);
+    }
+
+    bool GetheartbeatSwitch()
+    {
+        WRITE_LOG(LOG_WARN, "turn %s heartbeatSwitch", g_heartbeatSwitch ? "On" : "Off");
+        return g_heartbeatSwitch;
+    }
+
 } // namespace Base
 } // namespace Hdc

@@ -29,11 +29,16 @@ bool FuzzForwardReadStream(const uint8_t *data, size_t size)
     hTaskInfo->ownerSessionClass = daemon;
     auto forward = new(std::nothrow) HdcForwardBase(hTaskInfo);
     if (forward == nullptr) {
+        delete daemon;
+        delete hTaskInfo;
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream forward is null");
         return false;
     }
     HdcForwardBase::HCtxForward ctx = (HdcForwardBase::HCtxForward)forward->MallocContext(true);
     if (ctx == nullptr) {
+        delete daemon;
+        delete forward;
+        delete hTaskInfo;
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream ctx is null");
         return false;
     }

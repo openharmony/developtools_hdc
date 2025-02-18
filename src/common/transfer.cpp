@@ -307,6 +307,8 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
         WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
         context->closeNotify = true;
         context->lastErrno = static_cast<uint32_t>(abs(req->result));
+        uint8_t payload = 0;
+        thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
         return true;
     }
     context->indexIO += static_cast<uint64_t>(req->result);

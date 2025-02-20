@@ -88,8 +88,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 #else
         delete[] buf;
 #endif
-        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr cid:%u sid:%u", taskInfo->channelId,
-            taskInfo->sessionId);
+        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr cid:%u sid:%u", taskInfo->channelId, taskInfo->sessionId);
         return -1;
     }
     bool ret = false;
@@ -108,6 +107,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             break;
         }
         uv_fs_t *req = &ioContext->fs;
+        ioContext->bytes = bytes;
         ioContext->bufIO = buf + payloadPrefixReserve;
         ioContext->context = context;
         req->data = ioContext;
@@ -206,7 +206,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
                 }
                 compressSize = LZ4_compress_default((const char *)data, (char *)sendBuf + payloadPrefixReserve,
                                                     dataSize, dataSize);
-                if (compressSize == 0) {
+                if (compressSize <= 0) {
                     WRITE_LOG(LOG_DEBUG, "LZ4 compress failed, path: %s compress none", context->localPath.c_str());
                     delete[] sendBuf;
                     payloadHead.compressType = COMPRESS_NONE;
@@ -294,21 +294,25 @@ bool HdcTransferBase::ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTran
     return true;
 }
 // return true: finished
-bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass)
+bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass,
+    uint64_t bytes)
 {
     if (context->ioFinish) {
         WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
         return true;
     }
-    if (req->result < 0) {
+    if (req->result < 0 || (!context->master && bytes != static_cast<uint64_t>(req->result))) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_strerror_r((int)req->result, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
+        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s, req result: %d, bytes: %llu",
+            buf, req->result, bytes);
         context->closeNotify = true;
         context->lastErrno = static_cast<uint32_t>(abs(req->result));
-        uint8_t payload = 0;
-        thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
+        if (!context->master) {
+            uint8_t payload = 0;
+            thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
+        }
         return true;
     }
     context->indexIO += static_cast<uint64_t>(req->result);
@@ -364,7 +368,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     CALLSTAT_GUARD(*(thisClass->loopTaskStatus), req->loop, "HdcTransferBase::OnFileIO");
     uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
-    context->ioFinish = ProcressFileIO(req, context, thisClass);
+    context->ioFinish = ProcressFileIO(req, context, thisClass, contextIO->bytes);
     if (context->ioFinish) {
         ProcressFileIOFinish(req, context, thisClass);
     }

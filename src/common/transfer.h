@@ -176,11 +176,12 @@ private:
         uv_fs_t fs;
         uint8_t *bufIO;
         CtxFile *context;
+        uint64_t bytes;
     };
     static const uint8_t payloadPrefixReserve = 64;
     static void OnFileIO(uv_fs_t *req);
     static bool IODelayed(uv_fs_t *req);
-    static bool ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);
+    static bool ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass, uint64_t bytes);
     static bool ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);
     static bool ProcressFileIOWrite(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);
     static void ProcressFileIOFinish(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);

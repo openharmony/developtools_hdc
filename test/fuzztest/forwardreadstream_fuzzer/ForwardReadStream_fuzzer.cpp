@@ -18,48 +18,39 @@
 #include "forward.h"
 
 namespace Hdc {
-class HdcForwardFuzzer : public HdcForwardBase {
-public:
-    explicit HdcForwardFuzzer(HTaskInfo hTaskInfo) : HdcForwardBase(hTaskInfo) {}
-
-    static std::unique_ptr<HdcForwardFuzzer> Instance(HTaskInfo hTaskInfo)
-    {
-        std::unique_ptr<HdcForwardFuzzer> forward = std::make_unique<HdcForwardFuzzer>(hTaskInfo);
-        return forward;
-    }
-};
 
 bool FuzzForwardReadStream(const uint8_t *data, size_t size)
 {
+    if (size <= 0) {
+        return true;
+    }
     HTaskInfo hTaskInfo = new TaskInformation();
     HdcSessionBase *daemon = new HdcSessionBase(false);
     hTaskInfo->ownerSessionClass = daemon;
-    auto forward = HdcForwardFuzzer::Instance(hTaskInfo);
+    auto forward = new(std::nothrow) HdcForwardBase(hTaskInfo);
     if (forward == nullptr) {
+        delete daemon;
+        delete hTaskInfo;
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream forward is null");
         return false;
     }
     HdcForwardBase::HCtxForward ctx = (HdcForwardBase::HCtxForward)forward->MallocContext(true);
     if (ctx == nullptr) {
+        delete daemon;
+        delete forward;
+        delete hTaskInfo;
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream ctx is null");
         return false;
     }
-    uv_pipe_t pipe;
-    pipe.data = ctx;
-    uv_stream_t *stream = (uv_stream_t *)&pipe;
-    uv_buf_t *rbf = (uv_buf_t*)malloc(sizeof(uv_buf_t));
-    if (rbf == nullptr) {
-        return false;
-    }
-    if (size <= 0) {
-        return true;
-    }
-    rbf->base = new char[size];
-    (void)memcpy_s(rbf->base, size, reinterpret_cast<char *>(const_cast<uint8_t *>(data)), size);
-    forward->ReadForwardBuf(stream, (ssize_t)size, rbf);
+    uv_stream_t *stream = (uv_stream_t *)&ctx->tcp;
+    uint8_t *base = new uint8_t[size];
+    (void)memcpy_s(base, size, const_cast<uint8_t *>(data), size);
+    uv_buf_t rbf = uv_buf_init(reinterpret_cast<char *>(base), size);
+    forward->ReadForwardBuf(stream, (ssize_t)size, &rbf);
     delete ctx;
-    delete hTaskInfo;
     delete daemon;
+    delete forward;
+    delete hTaskInfo;
     return true;
 }
 } // namespace Hdc

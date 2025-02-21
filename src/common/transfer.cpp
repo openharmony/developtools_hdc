@@ -301,18 +301,25 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
         WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
         return true;
     }
-    if (req->result < 0 || (!context->master && bytes != static_cast<uint64_t>(req->result))) {
+    if (req->result < 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_strerror_r((int)req->result, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s, req result: %d, bytes: %llu",
-            buf, req->result, bytes);
+        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
         context->closeNotify = true;
         context->lastErrno = static_cast<uint32_t>(abs(req->result));
         if (!context->master) {
             uint8_t payload = 0;
             thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
         }
+        return true;
+    }
+    if (!context->master && bytes != static_cast<uint64_t>(req->result)) {
+        WRITE_LOG(LOG_WARN, "OnFileIO read bytes:%llu is not equal to req result:%d", bytes, req->result);
+        context->lastErrno = static_cast<uint32_t>(abs(ProcressFileIOCheckError(context)));
+        context->closeNotify = true;
+        uint8_t payload = 0;
+        thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
         return true;
     }
     context->indexIO += static_cast<uint64_t>(req->result);
@@ -324,6 +331,23 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
     }
 
     return true;
+}
+// check process file IO Error
+int HdcTransferBase::ProcressFileIOCheckError(CtxFile *context)
+{
+    uv_fs_t fs = {};
+    int ret = uv_fs_statfs(nullptr, &fs, context->localPath.c_str(), nullptr);
+    if (ret < 0) {
+        WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
+            uv_strerror(ret), context->localPath.c_str());
+        uv_fs_req_cleanup(&fs);
+        return ret;
+    }
+    uv_statfs_t* statfs = static_cast<uv_statfs_t*>(fs.ptr);
+    uint64_t freeBytes = statfs->f_bsize * statfs->f_bfree;
+    WRITE_LOG(LOG_DEBUG, "CheckSpace, path: %s, freeBytes: %llu", context->localPath.c_str(), freeBytes);
+    uv_fs_req_cleanup(&fs);
+    return (freeBytes == 0) ? ENOSPC : EIO;
 }
 // return true: do io delayed
 bool HdcTransferBase::IODelayed(uv_fs_t *req)

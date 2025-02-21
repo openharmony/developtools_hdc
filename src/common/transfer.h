@@ -185,6 +185,7 @@ private:
     static bool ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);
     static bool ProcressFileIOWrite(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);
     static void ProcressFileIOFinish(uv_fs_t *req, CtxFile *context, HdcTransferBase *thisClass);
+    static int ProcressFileIOCheckError(CtxFile *context);
     int SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sendBuf, int bytes);
     bool SendIOPayload(CtxFile *context, uint64_t index, uint8_t *data, int dataSize);
     bool RecvIOPayload(CtxFile *context, uint8_t *data, int dataSize);

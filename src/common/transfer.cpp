@@ -301,25 +301,13 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
         WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
         return true;
     }
-    if (req->result < 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-        uv_strerror_r((int)req->result, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
+    if (req->result < 0 || (!context->master && bytes != static_cast<uint64_t>(req->result))) {
         context->closeNotify = true;
-        context->lastErrno = static_cast<uint32_t>(abs(req->result));
+        context->lastErrno = static_cast<uint32_t>(abs(ProcressFileIOCheckError(req, context, bytes)));
         if (!context->master) {
             uint8_t payload = 0;
             thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
         }
-        return true;
-    }
-    if (!context->master && bytes != static_cast<uint64_t>(req->result)) {
-        WRITE_LOG(LOG_WARN, "OnFileIO read bytes:%llu is not equal to req result:%d", bytes, req->result);
-        context->lastErrno = static_cast<uint32_t>(abs(ProcressFileIOCheckError(context)));
-        context->closeNotify = true;
-        uint8_t payload = 0;
-        thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
         return true;
     }
     context->indexIO += static_cast<uint64_t>(req->result);
@@ -333,8 +321,16 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
     return true;
 }
 // check process file IO Error
-int HdcTransferBase::ProcressFileIOCheckError(CtxFile *context)
+int HdcTransferBase::ProcressFileIOCheckError(uv_fs_t *req, CtxFile *context, uint64_t bytes)
 {
+    if (req->result < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r((int)req->result, buf, bufSize);
+        WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
+        return req->result;
+    }
+    WRITE_LOG(LOG_WARN, "OnFileIO read bytes:%llu not equal to req result:%d", bytes, req->result);
     uv_fs_t fs = {};
     int ret = uv_fs_statfs(nullptr, &fs, context->localPath.c_str(), nullptr);
     if (ret < 0) {

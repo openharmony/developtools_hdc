@@ -496,10 +496,14 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
     }
 }
 
-void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey)
+void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, HSession &hSession)
 {
     HDaemonInfo hdiOld = nullptr;
-    AdminDaemonMap(OP_QUERY, connectKey, hdiOld);
+    if (hSession == nullptr) {
+        WRITE_LOG(LOG_FATAL, "Invalid paramter, hSession is null");
+        return;
+    }
+    AdminDaemonMap(OP_QUERY, hSession->connectKey, hdiOld);
     if (!hdiOld) {
         return;
     }
@@ -532,12 +536,13 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
                 hdiNew->daemonFeature[TAG_FEATURE_SHELL_OPT] = tlvmap[TAG_FEATURE_SHELL_OPT];
                 WRITE_LOG(LOG_INFO, "shellOpt = %s", hdiNew->daemonFeature[TAG_FEATURE_SHELL_OPT].c_str());
             }
+            ParsePeerSupportFeatures(hSession, tlvmap);
         } else {
             WRITE_LOG(LOG_FATAL, "TlvToStringMap failed");
         }
     }
     hdiNew->version = handshake.version;
-    AdminDaemonMap(OP_UPDATE, connectKey, hdiNew);
+    AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
 }
 
 bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize)
@@ -567,7 +572,7 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
         return true;
     }
     // handshake auth OK
-    UpdateHdiInfo(handshake, hSession->connectKey);
+    UpdateHdiInfo(handshake, hSession);
     hSession->handshakeOK = true;
     return true;
 }
@@ -582,6 +587,12 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         ret = ServerSessionHandshake(hSession, payload, payloadSize);
         WRITE_LOG(LOG_INFO, "Session handshake %s connType:%d sid:%u", ret ? "successful" : "failed",
                   hSession->connType, hSession->sessionId);
+        return ret;
+    }
+    if (command == CMD_HEARTBEAT_MSG) {
+        // heartbeat msg
+        std::string str = hSession->heartbeat.HandleRecvHeartbeatMsg(payload, payloadSize);
+        WRITE_LOG(LOG_INFO, "recv %s for session %u", str.c_str(), hSession->sessionId);
         return ret;
     }
     // When you first initialize, ChannelID may be 0

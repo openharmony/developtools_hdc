@@ -756,6 +756,9 @@ void HdcDaemon::GetServerCapability(HSession &hSession, SessionHandShake &handsh
         hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
     }
     WRITE_LOG(LOG_INFO, "client auth type is %u for %u session", hSession->verifyType, hSession->sessionId);
+
+    //Get server support features
+    ParsePeerSupportFeatures(hSession, tlvMap);
 }
 
 void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake &handshake)
@@ -892,11 +895,8 @@ bool HdcDaemon::CheckControl(const uint16_t command)
     return ret;
 }
 
-bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
-                             const int payloadSize)
+bool HdcDaemon::CheckAuthStatus(HSession hSession, const uint32_t channelId, const uint16_t command)
 {
-    StartTraceScope("HdcDaemon::FetchCommand");
-    bool ret = true;
     if (authEnable && (GetSessionAuthStatus(hSession->sessionId) != AUTH_OK) &&
         command != CMD_KERNEL_HANDSHAKE && command != CMD_KERNEL_CHANNEL_CLOSE) {
         string authmsg = GetSessionAuthmsg(hSession->sessionId);
@@ -907,6 +907,17 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
         }
         uint8_t count = 1;
         Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+        return false;
+    }
+    return true;
+}
+
+bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
+                             const int payloadSize)
+{
+    StartTraceScope("HdcDaemon::FetchCommand");
+    bool ret = true;
+    if (!CheckAuthStatus(hSession, channelId, command)) {
         return true;
     }
     if (command != CMD_UNITY_BUGREPORT_DATA &&
@@ -929,6 +940,12 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
                 Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, payload, 1);
             }
             ret = true;
+            break;
+        }
+        case CMD_HEARTBEAT_MSG: {
+            // heartbeat msg
+            std::string str = hSession->heartbeat.HandleRecvHeartbeatMsg(payload, payloadSize);
+            WRITE_LOG(LOG_INFO, "recv %s for session %u", str.c_str(), hSession->sessionId);
             break;
         }
         default:
@@ -1163,5 +1180,7 @@ void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channe
 void HdcDaemon::AddFeatureTagToEmgmsg(string &emgmsg)
 {
     Base::TlvAppend(emgmsg, TAG_FEATURE_SHELL_OPT, "enable");
+    //told server, we support features
+    Base::TlvAppend(emgmsg, TAG_SUPPORT_FEATURE, Base::FeatureToString(Base::GetSupportFeature()));
 }
 }  // namespace Hdc

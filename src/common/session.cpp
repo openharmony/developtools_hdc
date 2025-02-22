@@ -972,6 +972,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
         WRITE_LOG(LOG_FATAL, "FetchIOBuf read io failed,%s", buf);
         return ERR_IO_FAIL;
     }
+    hSession->heartbeat.AddMessageCount();
     hSession->stat.dataRecvBytes += read;
     hSession->availTailIndex += read;
     while (!hSession->isDead && hSession->availTailIndex > static_cast<int>(sizeof(PayloadHead))) {
@@ -1076,6 +1077,15 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
     delete[] buf;
 }
 
+void HdcSessionBase::SetHeartbeatFeature(SessionHandShake &handshake)
+{
+    if (!Base::GetheartbeatSwitch()) {
+        return;
+    }
+    // told daemon, we support features
+    Base::TlvAppend(handshake.buf, TAG_SUPPORT_FEATURE, Base::FeatureToString(Base::GetSupportFeature()));
+}
+
 void HdcSessionBase::WorkThreadInitSession(HSession hSession, SessionHandShake &handshake)
 {
     handshake.banner = HANDSHAKE_MESSAGE;
@@ -1088,6 +1098,8 @@ void HdcSessionBase::WorkThreadInitSession(HSession hSession, SessionHandShake &
     handshake.authType = AUTH_NONE;
     // told daemon, we support RSA_3072_SHA512 auth
     Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
+    HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
+    hSessionBase->SetHeartbeatFeature(handshake);
 }
 
 bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
@@ -1176,6 +1188,8 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
         }
         case SP_STOP_SESSION: {
             WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand STOP_SESSION sessionId:%u", hSession->sessionId);
+            HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
+            hSessionBase->StopHeartbeatWork(hSession);
             auto closeSessionChildThreadTCPHandle = [](uv_handle_t *handle) -> void {
                 HSession hSession = (HSession)handle->data;
                 Base::TryCloseHandle((uv_handle_t *)handle);
@@ -1296,6 +1310,48 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
     Base::TryCloseChildLoop(&hSession->childLoop, "Session childUV");
 }
 
+//stop Heartbeat
+void HdcSessionBase::StopHeartbeatWork(HSession hSession)
+{
+    hSession->heartbeat.SetSupportHeartbeat(false);
+    uv_timer_stop(&hSession->heartbeatTimer);
+}
+
+// send heartbeat msg
+void HdcSessionBase::SendHeartbeatMsg(uv_timer_t *handle)
+{
+    HSession hSession = (HSession)handle->data;
+    if (!hSession->heartbeat.GetSupportHeartbeat()) {
+        WRITE_LOG(LOG_INFO, "session %u not support heatbeat", hSession->sessionId);
+        if (hSession->handshakeOK) {
+            uv_timer_stop(&hSession->heartbeatTimer);
+        }
+        return;
+    }
+
+    std::string str = hSession->heartbeat.ToString();
+    WRITE_LOG(LOG_INFO, "send %s for session %u", str.c_str(), hSession->sessionId);
+
+    HeartbeatMsg heartbeat = {};
+    heartbeat.heartbeatCount = hSession->heartbeat.GetHeartbeatCount();
+    hSession->heartbeat.AddHeartbeatCount();
+    string s = SerialStruct::SerializeToString(heartbeat);
+    HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
+    thisClass->Send(hSession->sessionId, 0, CMD_HEARTBEAT_MSG,
+        reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), s.size());
+}
+
+void HdcSessionBase::StartHeartbeatWork(HSession hSession)
+{
+    if (!Base::GetheartbeatSwitch()) {
+        return;
+    }
+    WRITE_LOG(LOG_DEBUG, "StartHeartbeatWork");
+    hSession->heartbeatTimer.data = hSession;
+    uv_timer_init(&hSession->childLoop, &hSession->heartbeatTimer);
+    uv_timer_start(&hSession->heartbeatTimer, SendHeartbeatMsg, 0, HEARTBEAT_INTERVAL);
+}
+
 void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
 {
     HSession hSession = (HSession)arg->data;
@@ -1306,6 +1362,9 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     pollHandle->data = hSession;
     uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
     uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
+    // start heartbeat rimer
+    HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
+    hSessionBase->StartHeartbeatWork(hSession);
     WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sid:%u instance:%s", hSession->sessionId,
               thisClass->serverOrDaemon ? "server" : "daemon");
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);  // work pendding
@@ -1434,5 +1493,21 @@ void HdcSessionBase::PostStopInstanceMessage(bool restart)
     PushAsyncMessage(0, ASYNC_STOP_MAINLOOP, nullptr, 0);
     WRITE_LOG(LOG_INFO, "StopDaemon has sended restart %d", restart);
     wantRestart = restart;
+}
+
+void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::string, std::string> &tlvMap)
+{
+    if (hSession == nullptr) {
+        WRITE_LOG(LOG_FATAL, "Invalid paramter, hSession is null");
+        return;
+    }
+
+    if (tlvMap.find(TAG_SUPPORT_FEATURE) != tlvMap.end()) {
+        std::vector<std::string> features;
+        WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
+            tlvMap[TAG_SUPPORT_FEATURE].c_str(), hSession->sessionId);
+        Base::SplitString(tlvMap[TAG_SUPPORT_FEATURE], ",", features);
+        hSession->heartbeat.SetSupportHeartbeat(Base::IsSupportFeature(features, FEATURE_HEARTBEAT));
+    }
 }
 }  // namespace Hdc

@@ -59,6 +59,10 @@ public:
         uint8_t checkSum;  // enable it will be lose about 20% speed
         uint8_t vCode;
     };
+    struct HeartbeatMsg {
+        uint64_t heartbeatCount;
+        string reserved;
+    };
 
     HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize = SIZE_THREAD_POOL);
     virtual ~HdcSessionBase();
@@ -87,6 +91,7 @@ public:
     static void SessionWorkThread(uv_work_t *arg);
     static void ReadCtrlFromSession(uv_poll_t *poll, int status, int events);
     static void ReadCtrlFromMain(uv_poll_t *poll, int status, int events);
+    static void ParsePeerSupportFeatures(HSession &hSession, std::map<std::string, std::string> &tlvMap);
     HSession QueryUSBDeviceRegister(void *pDev, uint8_t busIDIn, uint8_t devIDIn);
     virtual HSession MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule,
                                    uint32_t sessionId = 0);
@@ -204,6 +209,7 @@ private:
     static void FreeSessionFinally(uv_idle_t *handle);
     static void AsyncMainLoopTask(uv_idle_t *handle);
     static void FreeSessionOpeate(uv_timer_t *handle);
+    static void SendHeartbeatMsg(uv_timer_t *handle);
     int MallocSessionByConnectType(HSession hSession);
     void FreeSessionByConnectType(HSession hSession);
     bool WorkThreadStartSession(HSession hSession);
@@ -211,6 +217,9 @@ private:
     uint32_t GetSessionPseudoUid();
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
+    void StartHeartbeatWork(HSession hSession);
+    void SetHeartbeatFeature(SessionHandShake &handshake);
+    void StopHeartbeatWork(HSession hSession);
 
     map<uint32_t, HSession> mapSession;
     uv_rwlock_t lockMapSession;

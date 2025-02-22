@@ -60,7 +60,7 @@ private:
     bool HandServerAuth(HSession hSession, SessionHandShake &handshake);
     void GetDaemonAuthType(HSession hSession, SessionHandShake &handshake);
     string GetDaemonMapList(uint8_t opType);
-    void UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, const string &connectKey);
+    void UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, HSession &hSession);
     bool ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize);
     void GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut);
     void TryStopInstance();

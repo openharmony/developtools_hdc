@@ -36,6 +36,7 @@ const string DEFAULT_SERVER_ADDR = "::ffff:127.0.0.1:8710";
 const string ENV_SERVER_PORT = "OHOS_HDC_SERVER_PORT";
 const string ENV_SERVER_LOG = "OHOS_HDC_LOG_LEVEL";
 const string ENV_SERVER_LOG_LIMIT = "OHOS_HDC_LOG_LIMIT";
+const string ENV_SERVER_HEARTBEAT = "OHOS_HDC_HEARTBEAT"; // 1: turn off heartbeat
 
 // ################################ macro define ###################################
 constexpr uint8_t MINOR_TIMEOUT = 5;
@@ -89,6 +90,7 @@ constexpr uint16_t START_CMD_WAIT_TIME = 3000; // 3 seconds, for client wait for
 constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
 constexpr uint16_t BUNDLE_MIN_SIZE = 7;
 constexpr uint16_t BUNDLE_MAX_SIZE = 128;
+constexpr uint16_t HEARTBEAT_INTERVAL = 5000; // 5 seconds
 #ifdef HDC_HOST
 constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 32;
 #else

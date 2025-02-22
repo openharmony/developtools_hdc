@@ -269,6 +269,7 @@ namespace Base {
     #define TAG_DAEOMN_AUTHSTATUS "daemonauthstatus"
     #define TAG_AUTH_TYPE "authtype"
     #define TAG_FEATURE_SHELL_OPT "1200" // CMD_UNITY_EXECUTE_EX
+    #define TAG_SUPPORT_FEATURE "supportfeatures"
     void TrimSubString(string &str, string substr);
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);
@@ -283,6 +284,14 @@ namespace Base {
     };
     bool CanPrintCmd(const uint16_t command);
     void UpdateEnvCache();
+    #define FEATURE_HEARTBEAT "heartbeat"
+    using HdcFeatureSet = std::vector<std::string>;
+    const HdcFeatureSet& GetSupportFeature(void);
+    std::string FeatureToString(const HdcFeatureSet& feature);
+    void StringToFeatureSet(const std::string featureStr, HdcFeatureSet& features);
+    bool IsSupportFeature(const HdcFeatureSet& features, std::string feature);
+    void UpdateHeartbeatSwitchCache();
+    bool GetheartbeatSwitch();
 }  // namespace base
 }  // namespace Hdc
 

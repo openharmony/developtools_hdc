@@ -205,6 +205,9 @@ enum HdcCommand {
     CMD_FLASHD_ERASE,
     CMD_FLASHD_FORMAT,
     CMD_FLASHD_PROGRESS,
+
+    //Heartbeat commands
+    CMD_HEARTBEAT_MSG = 5000,
 };
 
 enum UsbProtocolOption {

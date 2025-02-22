@@ -85,9 +85,13 @@ class TestFileNoSpace:
 
     def setup_class(self):
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/it_*")
+        pid_old = get_shell_result("shell pidof hdcd")
         check_shell("shell pkill hdcd")
         time.sleep(3)
-        run_command_with_timeout(f"{GP.hdc_head} wait", 3) # reboot takes up to 30 seconds
+        run_command_with_timeout(f"{GP.hdc_head} wait", 3)
+        pid_new = get_shell_result("shell pidof hdcd")
+        time.sleep(1)
+        assert pid_old != pid_new
         self.fd_count = get_shell_result(f"shell ls -al {SEP}proc/`pidof hdcd`/fd | wc -l")
 
     @pytest.mark.L2
@@ -158,11 +162,15 @@ class TestFileReFullSpace:
         assert int(storage_size) >= 10
         gen_size = int(storage_size) - 10
         logger.info("gen size = %d", gen_size)
-        check_shell(f"shell dd if={SEP}dev/zero bs={gen_size}K count=1 of="
+        check_shell(f"shell dd if={SEP}dev/zero bs=1K count={gen_size} of="
                     f"{SEP}{MOUNT_POINT}/gen_{gen_size}.img")
+        pid_old = get_shell_result("shell pidof hdcd")
         check_shell("shell pkill hdcd")
         time.sleep(3)
         run_command_with_timeout(f"{GP.hdc_head} wait", 3)
+        pid_new = get_shell_result("shell pidof hdcd")
+        time.sleep(1)
+        assert pid_old != pid_new
         self.fd_count = get_shell_result(f"shell ls -al {SEP}proc/`pidof hdcd`/fd | wc -l")
 
     @pytest.mark.L2

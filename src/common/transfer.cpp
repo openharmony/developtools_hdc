@@ -301,9 +301,8 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
         WRITE_LOG(LOG_DEBUG, "OnFileIO finish is true.");
         return true;
     }
-    if (req->result < 0 || (!context->master && bytes != static_cast<uint64_t>(req->result))) {
+    if (!ProcressFileIOIsSuccess(req, context, bytes)) {
         context->closeNotify = true;
-        context->lastErrno = static_cast<uint32_t>(abs(ProcressFileIOCheckError(req, context, bytes)));
         if (!context->master) {
             uint8_t payload = 0;
             thisClass->CommandDispatch(CMD_FILE_FINISH, &payload, sizeof(payload));
@@ -321,15 +320,28 @@ bool HdcTransferBase::ProcressFileIO(uv_fs_t *req, CtxFile *context, HdcTransfer
     return true;
 }
 // check process file IO Error
-int HdcTransferBase::ProcressFileIOCheckError(uv_fs_t *req, CtxFile *context, uint64_t bytes)
+bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, uint64_t bytes)
 {
     if (req->result < 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_strerror_r((int)req->result, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
-        return req->result;
+        context->lastErrno = static_cast<uint32_t>(abs(req->result));
+        return false;
     }
+    if (context->master) {
+        return true;
+    }
+    if (bytes == static_cast<uint64_t>(req->result)) {
+        return true;
+    }
+    // On Unix platforms, uv_fs_write invoke the write function multiple times.
+    // req->result only retains the errno of the first failed write attempt.
+    // If the first write succeeds but a subsequent one fails,
+    // req->result will reflect the total number of bytes written.
+    // Therefore, if the expected number of bytes does not match req->result,
+    // it indicates that a write failure has occurred.
     WRITE_LOG(LOG_WARN, "OnFileIO read bytes:%llu not equal to req result:%d", bytes, req->result);
     uv_fs_t fs = {};
     int ret = uv_fs_statfs(nullptr, &fs, context->localPath.c_str(), nullptr);
@@ -337,13 +349,15 @@ int HdcTransferBase::ProcressFileIOCheckError(uv_fs_t *req, CtxFile *context, ui
         WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
             uv_strerror(ret), context->localPath.c_str());
         uv_fs_req_cleanup(&fs);
-        return ret;
+        context->lastErrno = static_cast<uint32_t>(abs(ret));
+        return false;
     }
     uv_statfs_t* statfs = static_cast<uv_statfs_t*>(fs.ptr);
     uint64_t freeBytes = statfs->f_bsize * statfs->f_bfree;
     WRITE_LOG(LOG_DEBUG, "CheckSpace, path: %s, freeBytes: %llu", context->localPath.c_str(), freeBytes);
     uv_fs_req_cleanup(&fs);
-    return (freeBytes == 0) ? ENOSPC : EIO;
+    context->lastErrno = static_cast<uint32_t>((freeBytes == 0) ? ENOSPC : EIO);
+    return false;
 }
 // return true: do io delayed
 bool HdcTransferBase::IODelayed(uv_fs_t *req)

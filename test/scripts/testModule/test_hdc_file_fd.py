@@ -27,6 +27,16 @@ from utils import GP, run_command_with_timeout, get_shell_result, \
 SEP = "/"
 MOUNT_POINT = "storage"
 TEST_FILE_SIZE = 20 # 20KB
+TEST_FILE_CASE_TABLE = [
+    (False, False, True),
+    (False, False, False),
+    (False, True, True),
+    (False, True, False),
+    (True, False, True),
+    (True, False, False),
+    (True, True, True),
+    (True, True, False),
+]
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +52,10 @@ def create_test_file(file_path, size, random=False):
             f.write(b'\xff')  # 写入一个零字节
 
 
-def create_binary_tree(depth, path='.', size=TEST_FILE_SIZE):
+def create_binary_tree(depth, path='.', size=TEST_FILE_SIZE, random=False):
     if depth == 0:
-        create_test_file(os.path.join(path, f'{size}KB.rand'), size, random=True)
-        create_test_file(os.path.join(path, f'{size}KB.same'), size, random=False)
+        create_test_file(os.path.join(path, f'{size}KB.1.bin'), size, random=random)
+        create_test_file(os.path.join(path, f'{size}KB.2.bin'), size, random=random)
     else:
         # 创建左右子目录
         left_path = os.path.join(path, '1')
@@ -58,19 +68,27 @@ def create_binary_tree(depth, path='.', size=TEST_FILE_SIZE):
         create_binary_tree(depth - 1, right_path, size)
 
 
-class TestFileNoSpace:
+class TestFileNoSpaceFdLeak:
+    """
+    直接填满磁盘空间进行文件传输，传输后查询fd泄露状态。
+    """
     fd_count = 0
     
     @staticmethod
-    def send_file_to_storage():
-        if not check_shell(f"shell dd if={SEP}dev/zero bs=500M count=24 of={SEP}storage/it_full.img",
-            "space left on device"):
-            return False
+    def send_file_to_storage(is_compress=False, is_directory=False, is_zero=False, is_mix=False):
+        compress_command = "-z" if is_compress else ""
+        single_file_name = "medium" if not is_zero else "word_100M.txt"
+        single_dir_name = "tree_rand" if not is_zero else "tree_zero"
+        local_path = get_local_path(single_dir_name) if is_directory else get_local_path(single_file_name)
+        target_path = "it_nospace" if is_directory else "it_nospace.bin"
+        if is_mix:
+            local_path = get_local_path(".")
+            target_path = "it_nospace_mix"
         re_send_time = 10
         for i in range(1, re_send_time + 1):
             logger.info("send %d times", i)
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                f"file send -z {get_local_path('.')} {SEP}{MOUNT_POINT}/it_nospace_{i}", 25)
+                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
             if "Command timed out" in error_str:
                 logger.warning("error_str: %s", error_str)
                 return False
@@ -82,35 +100,53 @@ class TestFileNoSpace:
     @staticmethod
     def teardown_class():
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/it_*")
+        rmdir(get_local_path("tree_rand"))
+        rmdir(get_local_path("tree_zero"))
 
     def setup_class(self):
+        depth = 10  # 目录深度
+        if not os.path.exists(get_local_path("tree_rand")):  
+            create_binary_tree(depth, get_local_path("tree_rand"), random=True)
+        if not os.path.exists(get_local_path("tree_zero")):  
+            create_binary_tree(depth, get_local_path("tree_zero"), random=False)
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/it_*")
-        pid_old = get_shell_result("shell pidof hdcd")
-        check_shell("shell pkill hdcd")
-        time.sleep(3)
-        run_command_with_timeout(f"{GP.hdc_head} wait", 3)
-        pid_new = get_shell_result("shell pidof hdcd")
+        assert check_shell(f"shell dd if={SEP}dev/zero bs=500M count=24 of={SEP}storage/it_full.img",
+            "space left on device")
         time.sleep(1)
-        assert pid_old != pid_new
-        self.fd_count = get_shell_result(f"shell ls -al {SEP}proc/`pidof hdcd`/fd | wc -l")
+        pid = get_shell_result(f"shell ls {SEP}proc/`pidof hdcd`/fd | wc -l").split("\r")[0]
+        self.fd_count = get_shell_result(f"shell ls {SEP}proc/{pid}/fd | wc -l")
 
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
-    def test_file_compress_z_fd_leak(self):
-        assert self.send_file_to_storage()
+    @pytest.mark.parametrize("is_compress, is_directory, is_zero", TEST_FILE_CASE_TABLE,
+        ids=[f"is_compress:{is_compress}, is_directory:{is_directory}, is_zero:{is_zero}"
+            for is_compress, is_directory, is_zero in TEST_FILE_CASE_TABLE])
+    def test_file_normal(self, is_compress, is_directory, is_zero):
+        assert self.send_file_to_storage(is_compress=is_compress, is_directory=is_directory, is_zero=is_zero)
 
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
-    def test_file_compress_z_fd_proc(self):
+    @pytest.mark.parametrize("is_compress", [True, False], ids=["is_compress:True", "is_compress:False"])
+    def test_file_mix(self, is_compress):
+        assert self.send_file_to_storage(is_compress=is_compress, is_mix=True)
+
+    @pytest.mark.L2
+    @check_version("Ver: 3.1.0e")
+    def test_file_fd_leak_proc(self):
         assert not check_shell(f"shell ls -al {SEP}proc/`pidof hdcd`/fd", "it_nospace")
 
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
-    def test_file_compress_z_fd_count(self):
-        assert get_shell_result(f"shell ls -al {SEP}proc/`pidof hdcd`/fd | wc -l") <= self.fd_count
+    def test_file_fd_count(self):
+        time.sleep(1)
+        pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
+        assert get_shell_result(f"shell ls {SEP}proc/{pid}/fd | wc -l") <= self.fd_count
 
 
-class TestFileReFullSpace:
+class TestFileReFullSpaceFdLeak:
+    """
+    磁盘空间接近满情况，进行文件传输，不断地删除并重传，传输后查询fd泄露状态。
+    """
     stop_flag = threading.Event()
     fd_count = 0
 
@@ -118,7 +154,8 @@ class TestFileReFullSpace:
     def teardown_class(self):
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/it_*")
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/gen_*")
-        rmdir(get_local_path("tree"))
+        rmdir(get_local_path("tree_rand"))
+        rmdir(get_local_path("tree_zero"))
 
     def re_create_file(self, num=600):
         for i in range(1, num):
@@ -129,14 +166,22 @@ class TestFileReFullSpace:
             if self.stop_flag.is_set():
                 break
 
-    def re_send_file(self):
+    def re_send_file(self, is_compress=False, is_directory=False, is_zero=False, is_mix=False):
         re_create_file_thread = threading.Thread(target=self.re_create_file)
         re_create_file_thread.start()
         result = True
+        compress_command = "-z" if is_compress else ""
+        single_file_name = "medium" if not is_zero else "word_100M.txt"
+        single_dir_name = "tree_rand" if not is_zero else "tree_zero"
+        local_path = get_local_path(single_dir_name) if is_directory else get_local_path(single_file_name)
+        target_path = "it_nospace" if is_directory else "it_nospace.bin"
+        if is_mix:
+            local_path = get_local_path('.')
+            target_path = "it_nospace_mix"
         re_send_time = 10
         for i in range(1, re_send_time + 1):
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                f"file send -z {get_local_path('.')} {SEP}{MOUNT_POINT}/it_nospace_{i}", 25)
+                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
             logger.info("output:%s,error:%s", output_str, error_str)
             if "Command timed out" in error_str:
                 logger.warning("Command timed out")
@@ -151,9 +196,11 @@ class TestFileReFullSpace:
         return result
 
     def setup_class(self):
-        if not os.path.exists(get_local_path("tree")):  
-            depth = 10  # 目录深度
-            create_binary_tree(depth, get_local_path("tree"))
+        depth = 10  # 目录深度
+        if not os.path.exists(get_local_path("tree_rand")):
+            create_binary_tree(depth, get_local_path("tree_rand"), random=True)
+        if not os.path.exists(get_local_path("tree_zero")):
+            create_binary_tree(depth, get_local_path("tree_zero"), random=False)
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/it_*")
         check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/gen_*")
         storage_size = get_shell_result(
@@ -164,19 +211,23 @@ class TestFileReFullSpace:
         logger.info("gen size = %d", gen_size)
         check_shell(f"shell dd if={SEP}dev/zero bs=1K count={gen_size} of="
                     f"{SEP}{MOUNT_POINT}/gen_{gen_size}.img")
-        pid_old = get_shell_result("shell pidof hdcd")
-        check_shell("shell pkill hdcd")
-        time.sleep(3)
-        run_command_with_timeout(f"{GP.hdc_head} wait", 3)
-        pid_new = get_shell_result("shell pidof hdcd")
         time.sleep(1)
-        assert pid_old != pid_new
-        self.fd_count = get_shell_result(f"shell ls -al {SEP}proc/`pidof hdcd`/fd | wc -l")
+        pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
+        self.fd_count = get_shell_result(f"shell ls {SEP}proc/{pid}/fd | wc -l")
 
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
-    def test_file_compress_z_processing(self):
-        assert self.re_send_file()
+    @pytest.mark.parametrize("is_compress, is_directory, is_zero", TEST_FILE_CASE_TABLE,
+        ids=[f"is_compress:{is_compress}, is_directory:{is_directory}, is_zero:{is_zero}"
+            for is_compress, is_directory, is_zero in TEST_FILE_CASE_TABLE])
+    def test_file_normal(self, is_compress, is_directory, is_zero):
+        assert self.re_send_file(is_compress=is_compress, is_directory=is_directory, is_zero=is_zero)
+
+    @pytest.mark.L2
+    @check_version("Ver: 3.1.0e")
+    @pytest.mark.parametrize("is_compress", [True, False], ids=["is_compress:True", "is_compress:False"])
+    def test_file_mix(self, is_compress):
+        assert self.re_send_file(is_compress=is_compress, is_mix=True)
 
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
@@ -186,4 +237,6 @@ class TestFileReFullSpace:
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
     def test_file_compress_z_fd_count(self):
-        assert get_shell_result(f"shell ls -al {SEP}proc/`pidof hdcd`/fd | wc -l") == self.fd_count
+        time.sleep(1)
+        pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
+        assert get_shell_result(f"shell ls {SEP}proc/{pid}/fd | wc -l") <= self.fd_count

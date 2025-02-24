@@ -47,7 +47,7 @@ bool FuzzForwardReadStream(const uint8_t *data, size_t size)
     if (memcpy_s(base, size, const_cast<uint8_t *>(data), size) == EOK) {
         uv_buf_t rbf = uv_buf_init(reinterpret_cast<char *>(base), size);
         forward->ReadForwardBuf(stream, (ssize_t)size, &rbf);
-    else {
+    } else {
         delete[] base;
     }
     delete ctx;

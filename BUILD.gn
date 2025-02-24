@@ -220,7 +220,6 @@ if (product_name != "ohos-sdk") {
       "//third_party/rust/crates/humantime:lib",
       "//third_party/rust/crates/libc:lib",
       "//third_party/rust/crates/log:lib",
-      "//third_party/rust/crates/rust-openssl/openssl:lib",
     ]
     features = [ "daemon" ]
     if (is_emulator && product_name != "ohos-sdk") {
@@ -228,6 +227,7 @@ if (product_name != "ohos-sdk") {
     }
     external_deps = [
       "hilog:hilog_rust",
+      "rust_rust-openssl:lib",
       "ylong_runtime:ylong_runtime",
     ]
     subsystem_name = "developtools"
@@ -280,9 +280,11 @@ template("build_hdc") {
           "//third_party/rust/crates/libc:lib",
           "//third_party/rust/crates/log:lib",
           "//third_party/rust/crates/nix:lib",
-          "//third_party/rust/crates/rust-openssl/openssl:lib",
         ]
-        external_deps = [ "hilog:hilog_rust" ]
+        external_deps = [
+          "hilog:hilog_rust",
+          "rust_rust-openssl:lib",
+        ]
 
         if (product_name != "ohos-sdk") {
           deps += [

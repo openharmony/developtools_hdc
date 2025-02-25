@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2024 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,29 +12,55 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pytest
+import os
 import time
-from utils import GP, check_hdc_cmd, get_shell_result, run_command_with_timeout, load_gp
+import pytest
+from utils import GP, check_hdc_cmd, get_shell_result, run_command_with_timeout, check_shell, get_local_path, \
+    get_remote_path, rmdir, load_gp
 
 
 class TestTcpByFport:
-    @pytest.mark.L0
-    def test_persist_hdc_mode_tcp(self):
-        assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp enable")
-        time.sleep(5)
-        run_command_with_timeout("hdc wait", 3)
-        netstat_listen = get_shell_result(f'shell "netstat -anp | grep tcp | grep hdcd"')
-        assert "LISTEN" in netstat_listen
-        assert "hdcd" in netstat_listen
-        assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp enable")
-        time.sleep(5)
-        run_command_with_timeout("hdc wait", 3)
-        netstat_listen = get_shell_result(f'shell "netstat -anp | grep tcp | grep hdcd"')
-        assert "LISTEN" in netstat_listen
-        assert "hdcd" in netstat_listen
-        assert check_hdc_cmd(f"shell param set persist.hdc.mode.tcp disable")
-        time.sleep(5)
-        run_command_with_timeout("hdc wait", 3)
-        netstat_listen = get_shell_result(f'shell "netstat -anp | grep tcp | grep hdcd"')
-        assert "LISTEN" not in netstat_listen
-        assert "hdcd" not in netstat_listen
+    daemon_port = 58710
+    address = "127.0.0.1"
+    fport_args = f"tcp:{daemon_port} tcp:{daemon_port}"
+    base_file_table = [
+        ("empty", "it_empty"),
+        ("small", "it_small"),
+        ("medium", "it_medium"),
+        ("word_100M.txt", "it_word_100M"),
+        ("problem_dir", "it_problem_dir")
+    ]
+
+    @classmethod
+    def setup_class(self):
+        assert (check_hdc_cmd(f"tmode port {self.daemon_port}"))
+        time.sleep(3) # sleep 3s to wait for the device to connect channel
+        run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
+        time.sleep(3) # sleep 3s to wait for the device to connect channel
+        run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel
+        assert check_hdc_cmd(f"shell param get persist.hdc.port", f"{self.daemon_port}")
+        assert check_hdc_cmd(f"fport {self.fport_args}", "Forwardport result:OK")
+        assert check_hdc_cmd(f"fport ls ", self.fport_args)
+        assert check_shell(f"tconn {self.address}:{self.daemon_port}", "Connect OK", head=GP.hdc_exe)
+        time.sleep(3)
+        assert check_shell("list targets", f"{self.address}:{self.daemon_port}", head=GP.hdc_exe)
+
+    @classmethod
+    def teardown_class(self):
+        check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
+        for local_path, _ in self.base_file_table:
+            if os.path.exists(get_local_path(f'{local_path}_fport_recv')):
+                rmdir(get_local_path(f'{local_path}_fport_recv'))
+        assert check_shell(f"tconn {self.address}:{self.daemon_port} -remove", head=GP.hdc_exe)
+        assert not check_shell("list targets", f"{self.address}:{self.daemon_port}", head=GP.hdc_exe)
+        assert check_hdc_cmd(f"fport rm {self.fport_args}", "Remove forward ruler success")
+        assert not check_hdc_cmd(f"fport ls ", self.fport_args)
+
+    @pytest.mark.L1
+    @pytest.mark.parametrize("local_path, remote_path", base_file_table)
+    def test_fport_file(self, local_path, remote_path):
+        tcp_head = f"{GP.hdc_exe} -t {self.address}:{self.daemon_port}"
+        assert check_hdc_cmd(f"file send {get_local_path(local_path)} "
+                             f"{get_remote_path(f'{remote_path}_fport')}", head=tcp_head)
+        assert check_hdc_cmd(f"file recv {get_remote_path(f'{remote_path}_fport')} "
+                             f"{get_local_path(f'{local_path}_fport_recv')}", head=tcp_head)

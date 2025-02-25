@@ -21,7 +21,7 @@ import pytest
 
 
 from utils import GP, run_command_with_timeout, get_shell_result, \
-    check_shell, check_version, get_local_path, rmdir, load_gp \
+    check_shell, check_version, get_local_path, rmdir, load_gp
 
 
 SEP = "/"
@@ -113,7 +113,7 @@ class TestFileNoSpaceFdLeak:
         assert check_shell(f"shell dd if={SEP}dev/zero bs=500M count=24 of={SEP}storage/it_full.img",
             "space left on device")
         time.sleep(1)
-        pid = get_shell_result(f"shell ls {SEP}proc/`pidof hdcd`/fd | wc -l").split("\r")[0]
+        pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
         self.fd_count = get_shell_result(f"shell ls {SEP}proc/{pid}/fd | wc -l")
 
     @pytest.mark.L2

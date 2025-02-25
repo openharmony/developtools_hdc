@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2024 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall,\
+from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall, \
     check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp
 
 

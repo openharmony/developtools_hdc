@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2021 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -952,12 +952,12 @@ def check_rom(baseline):
 
 def run_command_with_timeout(command, timeout):
     try:
-        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        result = subprocess.run(command.split(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
         return result.stdout.decode(), result.stderr.decode()
     except subprocess.TimeoutExpired:
-        return None, "Command timed out"
+        return "", "Command timed out"
     except subprocess.CalledProcessError as e:
-        return None, e.stderr.decode()
+        return "", e.stderr.decode()
 
 
 def check_cmd_block(command, pattern, timeout=600):

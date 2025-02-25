@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2024 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 import time
 import pytest
 
-from utils import GP, check_hdc_cmd, check_hdc_targets, check_rom, check_hdc_version, get_shell_result,\
+from utils import GP, check_hdc_cmd, check_hdc_targets, check_rom, check_hdc_version, get_shell_result, \
      run_command_with_timeout, check_shell, get_remote_path, get_local_path, load_gp
 
 
@@ -79,10 +79,11 @@ class TestTargetCommand:
     @pytest.mark.L0
     def test_target_mount(self):
         assert (check_hdc_cmd("target mount", "Mount finish" or "[Fail]Operate need running as root"))
-        remount_vendor = get_shell_result(f'shell "mount |grep /vendor |head -1"')
+        sep = "/"
+        remount_vendor = get_shell_result(f'shell "mount |grep {sep}vendor |head -1"')
         print(remount_vendor)
         assert "rw" in remount_vendor
-        remount_system = get_shell_result(f'shell "cat proc/mounts | grep /system |head -1"')
+        remount_system = get_shell_result(f'shell "cat proc/mounts | grep {sep}system |head -1"')
         print(remount_system)
         assert "rw" in remount_system
 

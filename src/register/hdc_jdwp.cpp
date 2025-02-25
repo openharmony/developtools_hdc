@@ -247,6 +247,10 @@ bool HdcJdwpSimulator::Connect()
         b = Send2Jdwp();
         if (!b) {
             HILOG_WARN(LOG_CORE, "Send2Jdwp failed cfd:%{public}d", cfd_);
+            if (cfd_ > -1) {
+                close(cfd_);
+                cfd_ = -1;
+            }
             continue;
         }
         ReadFromJdwp();

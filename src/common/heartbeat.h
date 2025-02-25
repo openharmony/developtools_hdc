@@ -30,7 +30,7 @@ public:
 private:
     std::atomic<uint64_t> heartbeatCount = 0;
     std::atomic<uint64_t> messageCount = 0;
-    bool supportHeartbeat;
+    bool supportHeartbeat = false;
 };
 }
 

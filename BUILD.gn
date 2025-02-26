@@ -397,6 +397,13 @@ ohos_executable("hdc") {
     "openssl:libcrypto_static",
   ]
 
+  if (is_ohos) {
+    sources += [ "src/common/password.cpp" ]
+    sources += [ "src/common/hdc_huks.cpp" ]
+    defines += [ "HDC_HOST_OHOS" ]
+    external_deps += [ "huks:libhukssdk" ]
+  }
+
   deps += [ ":hdc_hash_gen" ]
 
   if (!(is_mingw || is_mac) && build_selinux) {

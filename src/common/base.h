@@ -292,6 +292,7 @@ namespace Base {
     bool IsSupportFeature(const HdcFeatureSet& features, std::string feature);
     void UpdateHeartbeatSwitchCache();
     bool GetheartbeatSwitch();
+    bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode);
 }  // namespace base
 }  // namespace Hdc
 

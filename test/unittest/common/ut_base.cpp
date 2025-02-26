@@ -14,6 +14,7 @@
  */
 
 #include "common.h"
+#include <ctime>
 
 namespace Hdc {
     namespace Base {
@@ -29,6 +30,11 @@ namespace Hdc {
                 return;
             }
             printf("%s\n", buf);
+        }
+
+        unsigned int GetSecureRandom() // just for ut test
+        {
+            return static_cast<unsigned int>(time(nullptr));
         }
     }
 }

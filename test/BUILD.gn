@@ -401,14 +401,18 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   fuzz_config_file = "${hdc_path}/test/fuzztest/forwardreadstream_fuzzer"
   configs = [ ":hdc_test_config" ]
   cflags = fuzz_cflags
-  external_deps = [
-    "hilog:libhilog",
-    "libuv:uv",
-  ]
   sources = [ "fuzztest/forwardreadstream_fuzzer/ForwardReadStream_fuzzer.cpp" ]
   deps = [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"
+  external_deps = [
+    "hilog:libhilog",
+    "libuv:uv",
+  ]
+  public_external_deps = [
+    "bounds_checking_function:libsec_static",
+    "libuv:uv",
+  ]
 }
 
 group("hdc_fuzztest") {

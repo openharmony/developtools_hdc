@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2024 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -47,7 +47,7 @@ def check_exist_file():
                   "操作完成该步骤后重新执行prepare.py脚本。")
             print("Please download from the url below and unzip package.zip to resource directory,"
                   "please rerun after operation.")
-            print("url: " + url)
+            print(f"url: {url}")
             exit(1)
 
 

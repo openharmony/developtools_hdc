@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2024 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,12 +23,22 @@ def clear_env():
 
 class TestShellPerformance:
     @pytest.mark.L0
-    def test_shell_cmd_timecost(self):
+    def test_shell_cmd_timecost_param_p(self):
+        check_hdc_cmd("shell \"ps -ef | grep hdcd\"")
+        assert check_cmd_time(
+            cmd="-p shell \"ps -ef | grep hdcd\"",
+            pattern="hdcd",
+            duration=None,
+            times=50)
+
+    @pytest.mark.L0
+    def test_shell_cmd_timecost_param_none(self):
+        check_hdc_cmd("shell \"ps -ef | grep hdcd\"")
         assert check_cmd_time(
             cmd="shell \"ps -ef | grep hdcd\"",
             pattern="hdcd",
             duration=None,
-            times=10)
+            times=20)
 
     @pytest.mark.L0
     def test_shell_huge_cat(self):
@@ -47,4 +57,3 @@ class TestFilePerformance:
         clear_env()
         assert check_rate(f"file send {get_local_path('large')} {get_remote_path('it_large')}", 18000)
         assert check_rate(f"file recv {get_remote_path('it_large')} {get_local_path('large_recv')}", 18000)
-    

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2024 Huawei Device Co., Ltd.
+# Copyright (C) 2025 Huawei Device Co., Ltd.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 import os
 import pytest
 
-from utils import GP, check_hdc_cmd, check_hdc_targets, check_soft_local, check_soft_remote,\
+from utils import GP, check_hdc_cmd, check_hdc_targets, check_soft_local, check_soft_remote, \
     check_shell, rmdir, check_version, get_local_path, get_remote_path, make_multiprocess_file, load_gp
 
 
@@ -56,7 +56,7 @@ class TestFileBase:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     @pytest.mark.parametrize("local_path, remote_path", base_file_table)
-    def test_empty_file(self, local_path, remote_path):
+    def test_file_normal(self, local_path, remote_path):
         clear_env()
         assert check_hdc_cmd(f"file send {get_local_path(local_path)} {get_remote_path(remote_path)}")
         assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")   
@@ -249,59 +249,70 @@ class TestFileBundleOptionError:
     data_storage_el2_path = "data/storage/el2/base" 
     error_table = [
         # 测试空文件夹发送和接收
-        (f"file send -b {GP.debug_app} {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}",
-        "the source folder is empty"),
-        
+        ("Sending and receiving an empty folder",
+         f"file send -b {GP.debug_app} {get_local_path('empty_dir')} {get_remote_path('it_empty_dir')}",
+         "the source folder is empty"),
+
         # 测试缺少本地和远程路径
-        (f"file send -b {GP.debug_app}", "There is no local and remote path"),
-        (f"file recv -b {GP.debug_app}", "There is no local and remote path"),
-        
+        ("Missing local and remote paths for send", f"file send -b {GP.debug_app}", "There is no local and remote path"),
+        ("Missing local and remote paths for recv", f"file recv -b {GP.debug_app}", "There is no local and remote path"),
+
         # 测试错误优先级
-        (f"file send -b ./{GP.debug_app}", "There is no local and remote path"),
-        (f"file recv -b ./{GP.debug_app}", "There is no local and remote path"),
-        
+        ("Error priority for send", f"file send -b ./{GP.debug_app}", "There is no local and remote path"),
+        ("Error priority for recv", f"file recv -b ./{GP.debug_app}", "There is no local and remote path"),
+
         # 测试缺少 bundle 参数
-        (f"file recv -b", "[E005003]"),
-        (f"file send -b", "[E005003]"),
-        
+        ("Missing bundle parameter for recv", f"file recv -b", "[E005003]"),
+        ("Missing bundle parameter for send", f"file send -b", "[E005003]"),
+
         # 测试本地和远程路径错误
-        (f"file send -b ./{GP.debug_app} {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
-        (f"file recv -b ./{GP.debug_app} {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
-        
+        ("Incorrect local and remote paths for send",
+         f"file send -b ./{GP.debug_app} {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
+        ("Incorrect local and remote paths for recv",
+         f"file recv -b ./{GP.debug_app} {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
+
         # 测试无效的 bundle 参数
-        (f"file send -b ./{GP.debug_app} {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
-        (f"file send -b com.AAAA {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
-        (f"file send -b 1 {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
-        (f"file send -b {get_local_path('small')} {get_remote_path('it_small')}", "There is no remote path"),
-        
+        ("invalid bundle parameter for send",
+         f"file send -b ./{GP.debug_app} {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
+        ("invalid bundle parameter with valid name for send",
+         f"file send -b com.AAAA {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
+        ("invalid bundle parameter with number for send",
+         f"file send -b 1 {get_local_path('small')} {get_remote_path('it_small')}", "[E005101]"),
+        ("Missing remote path for send",
+         f"file send -b {get_local_path('small')} {get_remote_path('it_small')}", "There is no remote path"),
+
         # 测试远程路径错误
-        (f"file recv -b ./{GP.debug_app} {get_remote_path('it_small')} {get_local_path('small_recv')}", "[E005101]"),
-        
+        ("Incorrect remote path for recv",
+         f"file recv -b ./{GP.debug_app} {get_remote_path('it_small')} {get_local_path('small_recv')}", "[E005101]"),
+
         # 测试路径逃逸
-        (f"file send -b {GP.debug_app} {get_local_path('small')} ../../../it_small", "[E005102]"),
-        (f"file recv -b {GP.debug_app} ../../../it_small {get_local_path('small_recv')}", "[E005102]"),
+        ("Path escaping for send",
+         f"file send -b {GP.debug_app} {get_local_path('small')} ../../../it_small", "[E005102]"),
+        ("Path escaping for recv",
+         f"file recv -b {GP.debug_app} ../../../it_small {get_local_path('small_recv')}", "[E005102]"),
     ]
     outside_error = "[E005102]"
     outside_table = [
         # bundle根目录 逃逸
-        ("..", True),
-        ("../..", True),
-        ("../../..", True),
-        ("../../../..", True),
-        ("../.", True),
-        ("./..", True),
-        ("../", True),
-        (f"../{GP.debug_app}_extra/{data_storage_el2_path}/", True),
-        (f"../{GP.debug_app}_notexsit/{data_storage_el2_path}/", True),
-        (f"../{GP.debug_app}_notexsit/", True),
-        (f"./../../../../../../../../../../aa", True),
-        
+        ("Escape to parent directory", "..", True),
+        ("Escape two levels up", "../..", True),
+        ("Escape three levels up", "../../..", True),
+        ("Escape four levels up", "../../../..", True),
+        ("Escape to parent directory with current directory", "../.", True),
+        ("Escape to parent directory from current directory", "./..", True),
+        ("Escape to parent directory with slash", "../", True),
+        (f"Escape to extra app directory", f"../{GP.debug_app}_extra/{data_storage_el2_path}/", True),
+        (f"Escape to non-existent app directory", f"../{GP.debug_app}_notexsit/{data_storage_el2_path}/", True),
+        (f"Escape to non-existent app directory", f"../{GP.debug_app}_notexsit/", True),
+        (f"Escape far beyond root", "./../../../../../../../../../../aa", True),
+
         # bundle根目录 未逃逸
-        (".", False),
-        ("./", False),
-        ("./.", False),
-        ("...", False),
-        (f"../../../../../../../../../../../mnt/debug/100/debug_hap/{GP.debug_app}/", False),
+        ("Stays in the current directory", ".", False),
+        ("Stays in the current directory with slash", "./", False),
+        ("Stays in the current directory with current directory", "./.", False),
+        ("Stays in the current directory with ellipsis", "...", False),
+        (f"Stays at root and return bundle",
+            f"../../../../../../../../../../../mnt/debug/100/debug_hap/{GP.debug_app}/", False),
     ]
 
     @classmethod
@@ -317,14 +328,16 @@ class TestFileBundleOptionError:
 
     @pytest.mark.L0
     @check_version("Ver: 3.1.0e")
-    @pytest.mark.parametrize("command, expected", error_table)
-    def test_file_option_bundle_error_parametrized(self, command, expected):
+    @pytest.mark.parametrize("test_name, command, expected", error_table,
+                             ids=[name for name, _, _ in error_table])
+    def test_file_option_bundle_error_(self, test_name, command, expected):
         assert check_shell(command, expected)
 
-    @pytest.mark.parametrize("remote_path, is_outside", outside_table)
+    @pytest.mark.parametrize("test_name, remote_path, is_outside", outside_table,
+                             ids=[name for name, _, _ in outside_table])
     @pytest.mark.L0
     @check_version("Ver: 3.1.0e")
-    def test_file_option_bundle_check_outside_parametrized(self, remote_path, is_outside):
+    def test_file_option_bundle_check_outside(self, test_name, remote_path, is_outside):
         if is_outside:
             assert check_shell(f"file send -b {GP.debug_app} {get_local_path('small')} {remote_path}",
                                self.outside_error)

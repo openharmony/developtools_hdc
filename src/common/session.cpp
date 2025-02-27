@@ -474,7 +474,12 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     }
     (void)memset_s(hSession->pollHandle[STREAM_WORK], handleSize, 0, handleSize);
     (void)memset_s(hSession->pollHandle[STREAM_MAIN], handleSize, 0, handleSize);
+    pollHandleMain->loop = nullptr;
     uv_poll_init_socket(&loopMain, pollHandleMain, hSession->ctrlFd[STREAM_MAIN]);
+    if (pollHandleMain->loop == nullptr) {
+        WRITE_LOG(LOG_FATAL, "MallocSession init pollHandleMain->loop failed");
+        _exit(0);
+    }
     uv_poll_start(pollHandleMain, UV_READABLE, ReadCtrlFromSession);
     hSession->pollHandle[STREAM_MAIN]->data = hSession;
     hSession->pollHandle[STREAM_WORK]->data = hSession;
@@ -1360,7 +1365,12 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
 
     uv_poll_t *pollHandle = hSession->pollHandle[STREAM_WORK];
     pollHandle->data = hSession;
+    pollHandle->loop = nullptr;
     uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
+    if (pollHandle->loop == nullptr) {
+        WRITE_LOG(LOG_FATAL, "SessionWorkThread init pollHandle->loop failed");
+        _exit(0);
+    }
     uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
     // start heartbeat rimer
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;

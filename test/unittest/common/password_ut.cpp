@@ -55,7 +55,8 @@ namespace Hdc {
 
     HWTEST_F(HdcPasswordTest, TestGetEncryptPwdLength, TestSize.Level0)
     {
-        #define ENCRYPT_LENGTH 76 // (12 + 10 + 16) * 2
+        // (12 bytes nonce value  + 10 bytes pwd length  + 16 bytes tag length ) * 2 (byte to hex)
+        #define ENCRYPT_LENGTH 76
         HdcPassword pwd(TEST_KEY_ALIAS);
         int len = pwd.GetEncryptPwdLength();
         ASSERT_EQ(len, ENCRYPT_LENGTH);

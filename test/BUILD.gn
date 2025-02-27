@@ -321,7 +321,7 @@ ohos_unittest("hdc_base_unittest") {
   sources += [ "unittest/common/password_ut.cpp" ]
   sources += [ "unittest/common/hdc_huks_ut.cpp" ]
   external_deps += [ "huks:libhukssdk" ]
-  defines = [ "HDC_HOST_OHOS" ]
+  defines = [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
 }
 
 group("HdcJdwpTest") {

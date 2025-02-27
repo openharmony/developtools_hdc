@@ -14,6 +14,9 @@
  */
 
 #include "common.h"
+#include "hdc_huks.h"
+#include "hks_param.h"
+#include "hks_api.h"
 #include <ctime>
 
 namespace Hdc {
@@ -34,7 +37,10 @@ namespace Hdc {
 
         unsigned int GetSecureRandom() // just for ut test
         {
-            return static_cast<unsigned int>(time(nullptr));
+            int tmp;
+            struct HksBlob nonceBlob = { sizeof(tmp), reinterpret_cast<uint8_t*>(&tmp) };
+            HksGenerateRandom(nullptr, &nonceBlob);
+            return tmp;
         }
     }
 }

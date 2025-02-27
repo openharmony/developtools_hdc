@@ -20,7 +20,7 @@
 #include <openssl/sha.h>
 #include <openssl/err.h>
 #include <fstream>
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 #include "password.h"
 #endif
 
@@ -177,7 +177,7 @@ int WritePublicKeyfile(RSA *private_key, const char *private_key_path)
 
 bool GenerateKey(const char *file)
 {
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     Base::PrintMessage("[E002105] Unsupport command]");
     return false;
 #endif
@@ -571,7 +571,7 @@ static bool WritePublicFile(const std::string& fileName, EVP_PKEY *evp)
     return true;
 }
 
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 static bool WritePrivatePwdFile(const std::string& fileName, const std::string& encryptPwd)
 {
     return Base::WriteToFile(fileName, encryptPwd, std::ios::out | std::ios::trunc);
@@ -581,7 +581,7 @@ static bool WritePrivatePwdFile(const std::string& fileName, const std::string& 
 static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
 {
     FILE *fp = nullptr;
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
     pwd.GeneratePassword();
     if (!pwd.ResetPwdKey()) {
@@ -599,7 +599,7 @@ static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
         WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
         return false;
     }
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     if (!PEM_write_PrivateKey(fp, evp, EVP_aes_256_cbc(), pwdValue.first, pwdValue.second, nullptr, nullptr)) {
 #else
     if (!PEM_write_PrivateKey(fp, evp, nullptr, nullptr, 0, nullptr, nullptr)) {
@@ -609,7 +609,7 @@ static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
         return false;
     }
     (void)fclose(fp);
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     if (!WritePrivatePwdFile(fileName + ".key", pwd.GetEncryptPassword())) {
         WRITE_LOG(LOG_FATAL, "write private key pwd failed");
         return false;
@@ -768,7 +768,7 @@ bool GetPublicKeyinfo(string &pubkey_info)
     return true;
 }
 
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 bool ReadEncryptKeyFile(const std::string& privateKeyFile, std::vector<uint8_t>& fileData, int needFileLength)
 {
     std::string privateKeyKeyFile = privateKeyFile + ".key";
@@ -820,7 +820,7 @@ static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **
     bool ret = false;
     *rsa = nullptr;
     *evp = nullptr;
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     char *pwd = reinterpret_cast<char*>(GetPlainPwd(prikey_filename));
     if (pwd == nullptr) {
         return false;
@@ -832,7 +832,7 @@ static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **
             WRITE_LOG(LOG_FATAL, "open file %s failed", prikey_filename.c_str());
             break;
         }
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
         *evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, pwd);
 #else
         *evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, NULL);
@@ -846,7 +846,7 @@ static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **
         WRITE_LOG(LOG_FATAL, "load prikey success");
     } while (0);
 
-#ifdef HDC_HOST_OHOS
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     memset_s(pwd, strlen(pwd), 0, strlen(pwd));
     delete[] pwd;
 #endif

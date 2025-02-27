@@ -489,6 +489,10 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
                    0, sizeof(uv_tcp_t));
     ++hSession->uvHandleRef;
     Base::CreateSocketPair(hSession->dataFd);
+    if (hSession->dataFd[STREAM_WORK] == 0) {
+        WRITE_LOG(LOG_FATAL, "MallocSession init dataFd failed");
+        _exit(0);
+    }
     uv_tcp_open(&hSession->dataPipe[STREAM_MAIN], hSession->dataFd[STREAM_MAIN]);
     hSession->dataPipe[STREAM_MAIN].data = hSession;
     hSession->dataPipe[STREAM_WORK].data = hSession;

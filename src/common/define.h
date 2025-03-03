@@ -26,7 +26,11 @@ constexpr size_t SIZE_THREAD_POOL_MIN = 16;
 constexpr size_t SIZE_THREAD_POOL_MAX = 256;
 constexpr uint8_t GLOBAL_TIMEOUT = 30;
 constexpr uint16_t DEFAULT_PORT = 8710;
+#ifdef FEATURE_HOST_LOG_COMPRESS
 constexpr uint16_t MAX_LOG_FILE_COUNT = 300;
+#else
+constexpr uint16_t MAX_LOG_FILE_COUNT = 30;
+#endif
 constexpr uint64_t MAX_LOG_FILE_SIZE = static_cast<uint64_t>(100) * 1024 * 1024; // 100MB
 constexpr uint64_t MAX_LOG_DIR_SIZE = static_cast<uint64_t>(3) * 1024 * 1024 * 1024; // 3GB
 constexpr bool ENABLE_IO_CHECKSUM = false;

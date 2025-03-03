@@ -238,6 +238,11 @@ void HdcJdwpSimulator::ReadFromJdwp()
 bool HdcJdwpSimulator::Connect()
 {
     while (!disconnectFlag_) {
+        if (cfd_ > -1) {
+            HILOG_INFO(LOG_CORE, "close cfd:%{public}d", cfd_);
+            close(cfd_);
+            cfd_ = -1;
+        }
         bool b = Connect2Jdwp();
         if (!b) {
             HILOG_INFO(LOG_CORE, "Connect2Jdwp failed cfd:%{public}d", cfd_);

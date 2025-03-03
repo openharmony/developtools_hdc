@@ -130,10 +130,18 @@ class TestFileNoExist:
         local_unexist_path = get_local_path(f'{(os.path.join("recv_no_exist", "deep_test_dir", f"recv_{test_item}"))}')
         if os.path.exists(get_local_path('recv_no_exist')):
             rmdir(get_local_path('recv_no_exist'))
-        assert check_hdc_cmd(f"file send "
-                            f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/it_{test_item}")
-        assert check_hdc_cmd(f"file recv {self.remote_unexist_path}/it_{test_item} "
-                            f"{local_unexist_path}")
+        if test_item in ['empty', 'medium', 'small']:
+            assert check_shell(f"file send "
+                               f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/it_{test_item}",
+                               "no such file or directory")
+            assert check_shell(f"file recv {self.remote_unexist_path}/it_{test_item} "
+                               f"{local_unexist_path}",
+                               "no such file or directory")
+        else:
+            assert check_hdc_cmd(f"file send "
+                                f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/it_{test_item}")
+            assert check_hdc_cmd(f"file recv {self.remote_unexist_path}/it_{test_item} "
+                                f"{local_unexist_path}")
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -143,15 +151,17 @@ class TestFileNoExist:
         local_unexist_path = get_local_path(f'{(os.path.join("recv_no_exist", "deep_test_dir"))}')
         if os.path.exists(get_local_path('recv_no_exist')):
             rmdir(get_local_path('recv_no_exist'))
-        assert check_hdc_cmd(f"file send "
-                            f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/")
-        assert check_hdc_cmd(f"file recv {self.remote_unexist_path}/{test_item} "
-                            f"{local_unexist_path}{os.sep}")
+        assert check_shell(f"file send "
+                           f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/",
+                           "no such file or directory")
+        assert check_shell(f"file recv {self.remote_unexist_path}/{test_item} "
+                           f"{local_unexist_path}{os.sep}",
+                           "no such file or directory")
 
 
 class TestFileNoExistBundelPath:
-    remote_unexist_path = f"{get_remote_path('it_no_exist/deep_test_dir/')}"
     data_storage_el2_path = "data/storage/el2/base"
+    remote_unexist_path = f"{data_storage_el2_path}/it_no_exist/deep_test_dir/"
 
     @classmethod
     def setup_class(self):
@@ -171,10 +181,18 @@ class TestFileNoExistBundelPath:
         assert check_hdc_cmd(f"shell -b {GP.debug_app} ls {self.data_storage_el2_path}/it_no_exist",
                             "No such file or directory")
         assert not os.path.exists(get_local_path('recv_no_exist'))
-        assert check_hdc_cmd(f"file send -b {GP.debug_app} "
-                            f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/it_{test_item}")
-        assert check_hdc_cmd(f"file recv  -b {GP.debug_app} {self.remote_unexist_path}/it_{test_item} "
-                            f"{local_unexist_path}")
+        if test_item in ['empty', 'medium', 'small']:
+            assert check_shell(f"file send -b {GP.debug_app} "
+                               f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/it_{test_item}",
+                               "no such file or directory")
+            assert check_shell(f"file recv  -b {GP.debug_app} {self.remote_unexist_path}/it_{test_item} "
+                               f"{local_unexist_path}",
+                               "no such file or directory")
+        else:
+            assert check_hdc_cmd(f"file send -b {GP.debug_app} "
+                                f"{get_local_path(f'{test_item}')} {self.remote_unexist_path}/it_{test_item}")
+            assert check_hdc_cmd(f"file recv  -b {GP.debug_app} {self.remote_unexist_path}/it_{test_item} "
+                                f"{local_unexist_path}")
 
 
 class TestFileExtend:

@@ -647,10 +647,10 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
     // If optName show this is directory mode, check localPath and try create each layer
     WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s", localPath.c_str(), optName.c_str());
     if ((optName.find('/') == string::npos) && (optName.find('\\') == string::npos)) {
-        WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s", optName.c_str());
-    } else {
-        ctxNow.isDir = true;
-    }
+        WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s, return", optName.c_str());
+        return true;
+    } // when transfer single file, slaver will not create each layer directory.
+    ctxNow.isDir = true;
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     mode_t mode = req.statbuf.st_mode;

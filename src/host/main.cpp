@@ -476,7 +476,9 @@ int main(int argc, const char *argv[])
     }
     Base::InitProcess();
     if (g_isServerMode) {
+#ifdef FEATURE_HOST_LOG_COMPRESS
         Base::CreateLogDir();
+#endif
         // -m server.Run alone in the background, no -s will be listen loopback address
         Hdc::RunServerMode(g_serverListenString);
     } else if (g_isPcDebugRun) {

@@ -256,6 +256,7 @@ namespace Base {
         return overCount;
     }
 
+#ifdef FEATURE_HOST_LOG_COMPRESS
     static void ThreadCompressLog(string bakName)
     {
         string bakPath = GetLogDirName() + bakName;
@@ -270,6 +271,7 @@ namespace Base {
         WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
         unlink(bakPath.c_str());
     }
+#endif
 
 #ifdef _WIN32
     bool CompressLogFile(string fileName)
@@ -481,7 +483,11 @@ namespace Base {
 
     inline string GetLogDirName()
     {
+#ifdef FEATURE_HOST_LOG_COMPRESS
         return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
+#else
+        return GetTmpDir();
+#endif
     }
 
     string GetLogNameWithTime()
@@ -501,6 +507,7 @@ namespace Base {
         }
         // Sort file names by time, with newer ones coming first
         sort(files.begin(), files.end(), CompareLogFileName);
+#ifdef FEATURE_HOST_LOG_COMPRESS
         uint32_t deleteCount = GetLogOverCount(files, MAX_LOG_DIR_SIZE);
         WRITE_LOG(LOG_INFO, "log file count: %u, logLimit: %u", files.size(), logLimitSize);
         if (deleteCount == 0 || files.size() < deleteCount) {
@@ -508,6 +515,11 @@ namespace Base {
         }
         WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
         uint32_t beginCount = files.size() - deleteCount;
+#else
+        uint32_t deleteCount = files.size() - static_cast<uint32_t>(logLimitSize);
+        WRITE_LOG(LOG_INFO, "will delete log file, count: %u", deleteCount);
+        uint32_t beginCount = files.size() - deleteCount;
+#endif
         for (auto name = files.begin() + beginCount; name != files.end(); name++) {
             string deleteFile = GetLogDirName() + *name;
             WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
@@ -559,8 +571,10 @@ namespace Base {
         }
         uv_fs_req_cleanup(&fs);
         // creat thread
+#ifdef FEATURE_HOST_LOG_COMPRESS
         std::thread compressDirThread(CompressLogFiles);
         compressDirThread.detach();
+#endif
         RemoveOlderLogFiles();
     }
 
@@ -2163,8 +2177,10 @@ static void EchoLog(string &buf)
             if (rename(cachePath.c_str(), path.c_str()) != 0) {
                 WRITE_LOG(LOG_FATAL, "rename log cache file failed.");
             }
+#ifdef FEATURE_HOST_LOG_COMPRESS
             std::thread compressThread(ThreadCompressLog, bakName);
             compressThread.detach();
+#endif
             g_logCache = false;
             std::thread removeThread(RemoveOlderLogFiles);
             removeThread.detach();

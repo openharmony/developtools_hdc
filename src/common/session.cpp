@@ -474,7 +474,11 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     }
     (void)memset_s(hSession->pollHandle[STREAM_WORK], handleSize, 0, handleSize);
     (void)memset_s(hSession->pollHandle[STREAM_MAIN], handleSize, 0, handleSize);
-    uv_poll_init_socket(&loopMain, pollHandleMain, hSession->ctrlFd[STREAM_MAIN]);
+    int initResult = uv_poll_init_socket(&loopMain, pollHandleMain, hSession->ctrlFd[STREAM_MAIN]);
+    if (initResult != 0) {
+        WRITE_LOG(LOG_FATAL, "MallocSession init pollHandleMain->loop failed");
+        _exit(0);
+    }
     uv_poll_start(pollHandleMain, UV_READABLE, ReadCtrlFromSession);
     hSession->pollHandle[STREAM_MAIN]->data = hSession;
     hSession->pollHandle[STREAM_WORK]->data = hSession;
@@ -483,7 +487,11 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     (void)memset_s(&hSession->dataPipe[STREAM_WORK], sizeof(hSession->dataPipe[STREAM_WORK]),
                    0, sizeof(uv_tcp_t));
     ++hSession->uvHandleRef;
-    Base::CreateSocketPair(hSession->dataFd);
+    int createResult = Base::CreateSocketPair(hSession->dataFd);
+    if (createResult < 0) {
+        WRITE_LOG(LOG_FATAL, "MallocSession init dataFd failed");
+        _exit(0);
+    }
     uv_tcp_open(&hSession->dataPipe[STREAM_MAIN], hSession->dataFd[STREAM_MAIN]);
     hSession->dataPipe[STREAM_MAIN].data = hSession;
     hSession->dataPipe[STREAM_WORK].data = hSession;
@@ -1360,7 +1368,11 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
 
     uv_poll_t *pollHandle = hSession->pollHandle[STREAM_WORK];
     pollHandle->data = hSession;
-    uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
+    int initResult = uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
+    if (initResult != 0) {
+        WRITE_LOG(LOG_FATAL, "SessionWorkThread init pollHandle->loop failed");
+        _exit(0);
+    }
     uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
     // start heartbeat rimer
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;

@@ -501,7 +501,11 @@ namespace Base {
     void RemoveOlderLogFiles()
     {
         vector<string> files = GetDirFileName();
+#ifdef FEATURE_HOST_LOG_COMPRESS
         uint16_t logLimitSize = GetLogLimitFileCount();
+#else
+        uint16_t logLimitSize = MAX_LOG_FILE_COUNT;
+#endif
         if (files.size() <= logLimitSize) {
             return;
         }

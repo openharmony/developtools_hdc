@@ -841,6 +841,7 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
         }
 #endif
         default:
+            delete[] bufPtr;
             break;
     }
     return ret;

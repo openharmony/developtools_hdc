@@ -262,7 +262,10 @@ def check_shell_any_device(cmd, pattern=None, fetch=False):
     print(f"\nexecuting command: {cmd}")
     if pattern: # check output valid
         print("pattern case")
-        output = subprocess.check_output(cmd.split()).decode()
+        try:
+            output = subprocess.check_output(cmd.split()).decode('utf-8')
+        except UnicodeDecodeError:
+            output = subprocess.check_output(cmd.split()).decode('gbk')
         res = pattern in output
         print(f"--> output: {output}")
         print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")

@@ -297,7 +297,7 @@ class TestFileNoSpaceFdFullCrash:
                     break
                 if int(self.fd_count) < last_fd_count:
                     run_command_with_timeout(f"{GP.hdc_head} kill", 3)
-                    return True
+                    return
                 last_fd_count = int(self.fd_count)
                 logger.warning("fd count is:%s", self.fd_count)
             except ValueError:

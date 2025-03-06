@@ -18,6 +18,7 @@ import threading
 import time
 import logging
 import pytest
+import multiprocessing
 
 
 from utils import GP, run_command_with_timeout, get_shell_result, \
@@ -27,6 +28,7 @@ from utils import GP, run_command_with_timeout, get_shell_result, \
 SEP = "/"
 MOUNT_POINT = "storage"
 TEST_FILE_SIZE = 20 # 20KB
+SEND_FILE_PROCESS_COUNT = 21
 TEST_FILE_CASE_TABLE = [
     (False, False, True),
     (False, False, False),
@@ -240,3 +242,72 @@ class TestFileReFullSpaceFdLeak:
         time.sleep(1)
         pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
         assert get_shell_result(f"shell ls {SEP}proc/{pid}/fd | wc -l") <= self.fd_count
+
+
+class TestFileNoSpaceFdFullCrash:
+    fd_count = 0
+    pid = "0"
+
+    def setup_class(self):
+        depth = 10
+        if not os.path.exists(get_local_path("tree")):
+            create_binary_tree(depth, get_local_path("tree"), random=True)
+        check_shell(f"shell rm -rf {SEP}{MOUNT_POINT}/it_*")
+        check_shell(f"shell dd if={SEP}dev/zero bs=1K count=10 of={SEP}storage/smallfile")
+        check_shell(f"shell dd if={SEP}dev/zero bs=1M of={SEP}storage/largefile")
+        check_shell(f"shell df /storage")
+        check_shell(f"shell rm -rf /storage/smallfile")
+        check_shell(f"shell rm /data/log/faultlog/faultlogger/cppcrash*hdcd*")
+        time.sleep(1)
+        tree_path = get_local_path("tree")
+        check_shell(f"file send {tree_path} /storage/tree_1")
+        check_shell(f"shell ls")
+        self.pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
+        self.fd_count = get_shell_result(f"shell ls {SEP}proc/{self.pid}/fd | wc -l")
+
+    def new_process_run(self, cmd):
+        with open(os.devnull, 'w') as devnull:
+            old_stdout = os.dup2(devnull.fileno(), 1)
+            old_stderr = os.dup2(devnull.fileno(), 2)
+            try:
+                check_shell(f"{cmd}")
+            finally:
+                os.dup2(old_stdout, 1)
+                os.dup2(old_stderr, 2)
+
+    @pytest.mark.L2
+    @check_version("Ver: 3.1.0e")
+    def test_file_fd_full_no_crash(self):
+        plist = list()
+        for i in range(1, SEND_FILE_PROCESS_COUNT):
+            cmd = "file send " + get_local_path("tree") + " /storage/it_tree"
+            p = multiprocessing.Process(target=self.new_process_run, args=(cmd, ))
+            p.start()
+            plist.append(p)
+
+        last_fd_count = 0
+        while True:
+            self.fd_count = get_shell_result(f"shell ls {SEP}proc/{self.pid}/fd | wc -l")
+            try:
+                if int(self.fd_count) >= 32768:
+                    break
+                if int(self.fd_count) < last_fd_count:
+                    assert True
+                last_fd_count = int(self.fd_count)
+                logger.info("fd count is:%s", self.fd_count)
+            except ValueError:
+                logger.info("ValueError")
+                break
+
+        run_command_with_timeout(f"{GP.hdc_head} kill", 3)
+        run_command_with_timeout(f"{GP.hdc_head} kill", 3)
+
+        for p in plist:
+            p.join()
+
+        run_command_with_timeout(f"{GP.hdc_head} wait", 3)
+        time.sleep(3)
+
+        assert not check_shell("shell ls /data/log/faultlog/faultlogger/", "-hdcd-")
+        new_pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
+        assert not self.pid == new_pid

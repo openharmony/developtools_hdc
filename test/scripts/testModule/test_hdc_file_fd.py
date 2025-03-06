@@ -26,7 +26,7 @@ from utils import GP, run_command_with_timeout, get_shell_result, \
 SEP = "/"
 MOUNT_POINT = "storage"
 TEST_FILE_SIZE = 20  # 20KB
-SEND_FILE_PROCESS_COUNT = 21
+SEND_FILE_PROCESS_COUNT = 25
 TEST_FILE_CASE_TABLE = [
     (False, False, True),
     (False, False, False),
@@ -247,6 +247,12 @@ class TestFileReFullSpaceFdLeak:
 class TestFileNoSpaceFdFullCrash:
     fd_count = "0"
     pid = "0"
+    plist = list()
+
+    @staticmethod
+    def teardown_class(self):
+        for p in self.plist:
+            p.join()
 
     def setup_class(self):
         depth = 10
@@ -278,12 +284,11 @@ class TestFileNoSpaceFdFullCrash:
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
     def test_file_fd_full_no_crash(self):
-        plist = list()
         for i in range(1, SEND_FILE_PROCESS_COUNT):
             cmd = "file send " + get_local_path("tree") + f" {SEP}storage/it_tree"
             p = multiprocessing.Process(target=self.new_process_run, args=(cmd,))
             p.start()
-            plist.append(p)
+            self.plist.append(p)
 
         last_fd_count = 0
         while True:
@@ -300,9 +305,7 @@ class TestFileNoSpaceFdFullCrash:
                 logger.warning("ValueError")
                 break
         run_command_with_timeout(f"{GP.hdc_head} kill", 3)
-
-        for p in plist:
-            p.join()
+        run_command_with_timeout(f"{GP.hdc_head} kill", 3)
 
         run_command_with_timeout(f"{GP.hdc_head} wait", 3)
         time.sleep(3)

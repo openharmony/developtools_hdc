@@ -275,12 +275,13 @@ class TestFileNoSpaceFdFullCrash:
                 os.dup2(old_stdout, 1)
                 os.dup2(old_stderr, 2)
 
+
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
     def test_file_fd_full_no_crash(self):
         plist = list()
         for i in range(1, SEND_FILE_PROCESS_COUNT):
-            cmd = "file send " + get_local_path("tree") + " /storage/it_tree"
+            cmd = "file send " + get_local_path("tree") + f" {SEP}storage/it_tree"
             p = multiprocessing.Process(target=self.new_process_run, args=(cmd, ))
             p.start()
             plist.append(p)
@@ -292,22 +293,26 @@ class TestFileNoSpaceFdFullCrash:
                 if int(self.fd_count) >= 32768:
                     break
                 if int(self.fd_count) < last_fd_count:
-                    return True
+                    break
                 last_fd_count = int(self.fd_count)
                 logger.info("fd count is:%s", self.fd_count)
             except ValueError:
-                logger.warning("ValueError")
+                logger.info("ValueError")
                 break
 
-        run_command_with_timeout(f"{GP.hdc_head} kill", 3)
-        run_command_with_timeout(f"{GP.hdc_head} kill", 3)
+        if int(self.fd_count) < last_fd_count:
+            assert True
 
-        for p in plist:
-            p.join()
+        else:
+            run_command_with_timeout(f"{GP.hdc_head} kill", 3)
+            run_command_with_timeout(f"{GP.hdc_head} kill", 3)
 
-        run_command_with_timeout(f"{GP.hdc_head} wait", 3)
-        time.sleep(3)
+            for p in plist:
+                p.join()
 
-        assert not check_shell("shell ls /data/log/faultlog/faultlogger/", "-hdcd-")
-        new_pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
-        assert not self.pid == new_pid
+            run_command_with_timeout(f"{GP.hdc_head} wait", 3)
+            time.sleep(3)
+
+            assert not check_shell(f"shell ls {SEP}data/log/faultlog/faultlogger/", "-hdcd-")
+            new_pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
+            assert not self.pid == new_pid

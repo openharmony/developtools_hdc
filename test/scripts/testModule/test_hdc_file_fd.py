@@ -266,7 +266,6 @@ class TestFileNoSpaceFdFullCrash:
         check_shell(f"shell rm /data/log/faultlog/faultlogger/cppcrash*hdcd*")
         time.sleep(1)
         tree_path = get_local_path("tree")
-        # check_shell(f"file send {tree_path} /storage/tree_1")
         check_shell(f"shell ls")
         self.pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
         self.fd_count = get_shell_result(f"shell ls {SEP}proc/{self.pid}/fd | wc -l")

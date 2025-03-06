@@ -266,6 +266,7 @@ class TestFileNoSpaceFdFullCrash:
         check_shell(f"shell rm /data/log/faultlog/faultlogger/cppcrash*hdcd*")
         time.sleep(1)
         tree_path = get_local_path("tree")
+        # check_shell(f"file send {tree_path} /storage/tree_1")
         check_shell(f"shell ls")
         self.pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
         self.fd_count = get_shell_result(f"shell ls {SEP}proc/{self.pid}/fd | wc -l")
@@ -290,6 +291,7 @@ class TestFileNoSpaceFdFullCrash:
             self.plist.append(p)
 
         last_fd_count = 0
+        loop_count = 0
         while True:
             self.fd_count = get_shell_result(f"shell ls {SEP}proc/{self.pid}/fd | wc -l")
             try:
@@ -299,9 +301,11 @@ class TestFileNoSpaceFdFullCrash:
                     run_command_with_timeout(f"{GP.hdc_head} kill", 3)
                     return
                 last_fd_count = int(self.fd_count)
-                logger.warning("fd count is:%s", self.fd_count)
+                loop_count += 1
+                if loop_count % 5 == 0:
+                    logger.warning("fd count is:%s", self.fd_count)
             except ValueError:
-                logger.warning("ValueError")
+                logger.warning("ValueError, last count:%d", last_fd_count)
                 break
         run_command_with_timeout(f"{GP.hdc_head} kill", 3)
         run_command_with_timeout(f"{GP.hdc_head} kill", 3)

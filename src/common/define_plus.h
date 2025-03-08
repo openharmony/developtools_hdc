@@ -216,6 +216,7 @@ struct HdcSession {
     uint8_t uvChildRef;   // libuv handle ref -- just main thread now
     bool childCleared;
     std::map<uint32_t, HTaskInfo> *mapTask;
+    std::atomic<uint32_t> clearTaskTimes;
     // class ptr
     void *classInstance;  //  HdcSessionBase instance, HdcServer or HdcDaemon
     void *classModule;    //  Communicate module, TCP or USB instance,HdcDaemonUSB HdcDaemonTCP etc...
@@ -278,6 +279,7 @@ struct HdcSession {
         uvChildRef = 0;
         childCleared = false;
         mapTask = nullptr;
+        clearTaskTimes = 0;
         classInstance = nullptr;
         classModule = nullptr;
         bufSize = 0;

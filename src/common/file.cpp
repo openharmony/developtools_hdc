@@ -554,8 +554,7 @@ void HdcFile::TransferNext(CtxFile *context)
 
 bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
-    HdcTransferBase::CommandDispatch(command, payload, payloadSize);
-    bool ret = true;
+    bool ret = HdcTransferBase::CommandDispatch(command, payload, payloadSize);
     StartTraceScope("HdcFile::CommandDispatch");
     switch (command) {
         case CMD_FILE_INIT: {  // initial

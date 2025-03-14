@@ -210,10 +210,22 @@ class TestFileExtend:
     @pytest.mark.L2
     @pytest.mark.repeat(2)
     def test_soft_link(self):
+        if not os.path.exists(get_local_path('soft_small')):
+            pytest.skip("创建软链接失败，请使用管理员权限执行[python prepare.py -s]重新配置资源。")
         assert check_soft_local(get_local_path('small'), get_local_path('soft_small'), 
                                 get_remote_path('it_small_soft'))
         assert check_soft_remote('it_small_soft', get_remote_path('it_soft_small'),
                                 get_local_path('recv_soft_small'))
+
+    @pytest.mark.L2
+    @pytest.mark.repeat(2)
+    def test_soft_dir(self):
+        if not os.path.exists(get_local_path('soft_dir')):
+            pytest.skip("创建软链接失败，请使用管理员权限执行[python prepare.py -s]重新配置资源。")
+        assert check_hdc_cmd(f"file send {get_local_path('small')} {get_remote_path('recv_small')}")
+        assert check_hdc_cmd(f"file recv {get_remote_path('recv_small')} "
+                               f"{os.path.join(get_local_path('soft_dir'), 'd2', 'it_recv_small')}")
+        rmdir(os.path.join(get_local_path('soft_dir'), 'd2', 'it_recv_small'))
 
 
 class TestFileError:

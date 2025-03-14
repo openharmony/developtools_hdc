@@ -16,6 +16,7 @@
 import subprocess
 import zipfile
 import hashlib
+import argparse
 import os
 
 
@@ -121,9 +122,15 @@ def download_and_extract_zip(url, extract_to='.', expected_md5=None):
     return True
 
 
-def prepare():
-    install_dependencies("requirements.txt")
-    from testModule.utils import GP, gen_package_dir, update_source, prepare_source
+def prepare(args=None):
+    if args is None or args.requirements:
+        install_dependencies("requirements.txt")
+    from testModule.utils import GP, gen_package_dir, update_source, prepare_source, rmdir
+    if args is not None:
+        if args.source:
+            rmdir(os.path.join(GP.local_path, "version"))
+        if args.config:
+            rmdir(os.path.join(".hdctester.conf"))
     test_path = os.path.join(os.getcwd(), "testModule")
     if not os.path.exists(test_path):
         print("testModule not exist")
@@ -136,4 +143,9 @@ def prepare():
 
 
 if __name__ == "__main__":
-    prepare()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source', '-s', action='store_true', help='source update')
+    parser.add_argument('--config', '-c', action='store_true', help='config update')
+    parser.add_argument('--requirements', '-r', action='store_true', help='requirements install')
+    args = parser.parse_args()
+    prepare(args)

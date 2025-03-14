@@ -605,7 +605,11 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         // Turn off TCP to prevent continuing writing
         WRITE_LOG(LOG_INFO, "FreeSessionContinue start close hWorkTCP, sid:%u", hSession->sessionId);
         Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP, true, closeSessionTCPHandle);
+#ifdef _WIN32
+        closesocket(hSession->dataFd[STREAM_WORK]);
+#else
         Base::CloseFd(hSession->dataFd[STREAM_WORK]);
+#endif
     }
     hSession->availTailIndex = 0;
     if (hSession->ioBuf) {

@@ -2611,5 +2611,22 @@ void CloseOpenFd(void)
         return g_heartbeatSwitch;
     }
 
+    bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode)
+    {
+        std::ofstream fileStream(fileName.c_str(), mode);
+        if (!fileStream.is_open()) {
+            WRITE_LOG(LOG_FATAL, "open %s error", fileName.c_str());
+            return false;
+        }
+        bool ret = true;
+        fileStream.write(content.data(), content.length());
+        if (fileStream.fail()) {
+            WRITE_LOG(LOG_FATAL, "write %s error", fileName.c_str());
+            ret = false;
+        }
+        fileStream.flush();
+        fileStream.close();
+        return ret;
+    }
 } // namespace Base
 } // namespace Hdc

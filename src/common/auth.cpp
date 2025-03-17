@@ -19,9 +19,14 @@
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 #include <openssl/err.h>
+#include <fstream>
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+#include "password.h"
+#endif
 
 using namespace Hdc;
 #define BIGNUMTOBIT 32
+#define HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS "hdc_private_key_file_pwd_key_alias"
 
 namespace HdcAuth {
 // ---------------------------------------Cheat compiler---------------------------------------------------------
@@ -172,6 +177,10 @@ int WritePublicKeyfile(RSA *private_key, const char *private_key_path)
 
 bool GenerateKey(const char *file)
 {
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    Base::PrintMessage("[E002105] Unsupport command]");
+    return false;
+#endif
     EVP_PKEY *publicKey = EVP_PKEY_new();
     BIGNUM *exponent = BN_new();
     RSA *rsa = RSA_new();
@@ -544,11 +553,74 @@ EVP_PKEY *GenerateNewKey(void)
 
     return nullptr;
 }
+
+static bool WritePublicFile(const std::string& fileName, EVP_PKEY *evp)
+{
+    FILE *fp = nullptr;
+    fp = Base::Fopen(fileName.c_str(), "w");
+    if (fp == nullptr) {
+        WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
+        return false;
+    }
+    if (!PEM_write_PUBKEY(fp, evp)) {
+        WRITE_LOG(LOG_FATAL, "write public key file %s failed", fileName.c_str());
+        (void)fclose(fp);
+        return false;
+    }
+    (void)fclose(fp);
+    return true;
+}
+
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+static bool WritePrivatePwdFile(const std::string& fileName, const std::string& encryptPwd)
+{
+    return Base::WriteToFile(fileName, encryptPwd, std::ios::out | std::ios::trunc);
+}
+#endif
+
+static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
+{
+    FILE *fp = nullptr;
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
+    pwd.GeneratePassword();
+    if (!pwd.ResetPwdKey()) {
+        WRITE_LOG(LOG_FATAL, "reset pwd key failed");
+        return false;
+    }
+    if (!pwd.EncryptPwd()) {
+        WRITE_LOG(LOG_FATAL, "encrypt pwd failed");
+        return false;
+    }
+    std::pair<uint8_t*, int> pwdValue = pwd.GetPassword();
+#endif
+    fp = Base::Fopen(fileName.c_str(), "w");
+    if (fp == nullptr) {
+        WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
+        return false;
+    }
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    if (!PEM_write_PrivateKey(fp, evp, EVP_aes_256_cbc(), pwdValue.first, pwdValue.second, nullptr, nullptr)) {
+#else
+    if (!PEM_write_PrivateKey(fp, evp, nullptr, nullptr, 0, nullptr, nullptr)) {
+#endif
+        WRITE_LOG(LOG_FATAL, "write private key failed");
+        (void)fclose(fp);
+        return false;
+    }
+    (void)fclose(fp);
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    if (!WritePrivatePwdFile(fileName + ".key", pwd.GetEncryptPassword())) {
+        WRITE_LOG(LOG_FATAL, "write private key pwd failed");
+        return false;
+    }
+#endif
+    return true;
+}
+
 bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filename)
 {
     bool ret = false;
-    FILE *file_prikey = nullptr;
-    FILE *file_pubkey = nullptr;
     EVP_PKEY *evp = nullptr;
     mode_t old_mask = umask(077);  // 077:permission
 
@@ -559,22 +631,11 @@ bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filenam
             break;
         }
 
-        file_prikey = Base::Fopen(prikey_filename.c_str(), "w");
-        if (!file_prikey) {
-            WRITE_LOG(LOG_FATAL, "open %s failed", prikey_filename.c_str());
+        if (!WritePublicFile(pubkey_filename, evp)) {
             break;
         }
-        if (!PEM_write_PrivateKey(file_prikey, evp, nullptr, nullptr, 0, nullptr, nullptr)) {
-            WRITE_LOG(LOG_FATAL, "write private key failed");
-            break;
-        }
-        file_pubkey = Base::Fopen(pubkey_filename.c_str(), "w");
-        if (!file_pubkey) {
-            WRITE_LOG(LOG_FATAL, "open %s failed", pubkey_filename.c_str());
-            break;
-        }
-        if (!PEM_write_PUBKEY(file_pubkey, evp)) {
-            WRITE_LOG(LOG_FATAL, "write public key file failed");
+
+        if (!WritePrivateFile(prikey_filename, evp)) {
             break;
         }
         WRITE_LOG(LOG_INFO, "generate key pair success");
@@ -582,14 +643,10 @@ bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filenam
         break;
     }
 
-    if (evp)
+    if (evp) {
         EVP_PKEY_free(evp);
-    if (file_prikey)
-        fclose(file_prikey);
-    if (file_pubkey)
-        fclose(file_pubkey);
+    }
     umask(old_mask);
-
     return ret;
 }
 
@@ -711,20 +768,75 @@ bool GetPublicKeyinfo(string &pubkey_info)
     return true;
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+bool ReadEncryptKeyFile(const std::string& privateKeyFile, std::vector<uint8_t>& fileData, int needFileLength)
+{
+    std::string privateKeyKeyFile = privateKeyFile + ".key";
+    std::ifstream inFile(privateKeyKeyFile.c_str(), std::ios::binary);
+    if (!inFile) {
+        WRITE_LOG(LOG_FATAL, "open file %s failed", privateKeyKeyFile.c_str());
+        return false;
+    }
+    fileData.resize(needFileLength);
+    inFile.read(reinterpret_cast<char*>(fileData.data()), needFileLength);
+    if (inFile.eof() || inFile.fail()) {
+        WRITE_LOG(LOG_FATAL, "read file %s failed", privateKeyKeyFile.c_str());
+        inFile.close();
+        return false;
+    }
+    inFile.close();
+    return true;
+}
+
+static uint8_t* GetPlainPwd(const std::string& privateKeyFile)
+{
+    std::vector<uint8_t> encryptPwd;
+    Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
+
+    if (!ReadEncryptKeyFile(privateKeyFile, encryptPwd, pwd.GetEncryptPwdLength())) {
+        return nullptr;
+    }
+    if (!pwd.DecryptPwd(encryptPwd)) {
+        return nullptr;
+    }
+    std::pair<uint8_t*, int> plainPwd = pwd.GetPassword();
+    if (plainPwd.first == nullptr) {
+        return nullptr;
+    }
+    uint8_t *localPwd = new(std::nothrow)uint8_t[plainPwd.second + 1];
+    if (localPwd == nullptr) {
+        WRITE_LOG(LOG_FATAL, "out of mem %d", plainPwd.second);
+        return nullptr;
+    }
+    memcpy_s(localPwd, plainPwd.second, plainPwd.first, plainPwd.second);
+    localPwd[plainPwd.second] = '\0';
+    return localPwd;
+}
+#endif
+
 static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **evp)
 {
     FILE *file_prikey = nullptr;
     bool ret = false;
-
     *rsa = nullptr;
     *evp = nullptr;
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    char *pwd = reinterpret_cast<char*>(GetPlainPwd(prikey_filename));
+    if (pwd == nullptr) {
+        return false;
+    }
+#endif
     do {
         file_prikey = Base::Fopen(prikey_filename.c_str(), "r");
         if (!file_prikey) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", prikey_filename.c_str());
             break;
         }
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+        *evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, pwd);
+#else
         *evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, NULL);
+#endif
         if (*evp == nullptr) {
             WRITE_LOG(LOG_FATAL, "read prikey from %s failed", prikey_filename.c_str());
             break;
@@ -734,6 +846,10 @@ static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **
         WRITE_LOG(LOG_FATAL, "load prikey success");
     } while (0);
 
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    memset_s(pwd, strlen(pwd), 0, strlen(pwd));
+    delete[] pwd;
+#endif
     if (file_prikey) {
         fclose(file_prikey);
         file_prikey = nullptr;

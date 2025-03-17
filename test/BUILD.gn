@@ -314,6 +314,14 @@ ohos_unittest("hdc_base_unittest") {
     "init:libbegetutil",
     "libuv:uv",
   ]
+
+  # add for password_ut
+  sources += [ "${hdc_path}/src/common/password.cpp" ]
+  sources += [ "${hdc_path}/src/common/hdc_huks.cpp" ]
+  sources += [ "unittest/common/password_ut.cpp" ]
+  sources += [ "unittest/common/hdc_huks_ut.cpp" ]
+  external_deps += [ "huks:libhukssdk" ]
+  defines = [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
 }
 
 group("HdcJdwpTest") {

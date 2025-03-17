@@ -41,7 +41,8 @@
         "os_account",
         "user_auth_framework",
         "pin_auth",
-        "rust_rust-openssl"
+        "rust_rust-openssl",
+	"huks"
       ],
       "third_party": []
     },

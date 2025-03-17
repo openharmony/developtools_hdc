@@ -14,6 +14,10 @@
  */
 
 #include "common.h"
+#include "hdc_huks.h"
+#include "hks_param.h"
+#include "hks_api.h"
+#include <ctime>
 
 namespace Hdc {
     namespace Base {
@@ -29,6 +33,14 @@ namespace Hdc {
                 return;
             }
             printf("%s\n", buf);
+        }
+
+        unsigned int GetSecureRandom() // just for ut test
+        {
+            int tmp;
+            struct HksBlob nonceBlob = { sizeof(tmp), reinterpret_cast<uint8_t*>(&tmp) };
+            HksGenerateRandom(nullptr, &nonceBlob);
+            return tmp;
         }
     }
 }

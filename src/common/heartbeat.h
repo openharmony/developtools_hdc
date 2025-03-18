@@ -16,21 +16,24 @@
 #define HDC_HEARTBEAT_H
 #include <string>
 #include <atomic>
+#include <chrono>
 
 namespace Hdc {
 class HdcHeartbeat {
 public:
+    HdcHeartbeat(void);
     void AddHeartbeatCount(void);
-    void AddMessageCount(void);
+    bool HandleMessageCount(void);
     void SetSupportHeartbeat(bool heartbeatStatus);
     bool GetSupportHeartbeat();
     uint64_t GetHeartbeatCount(void) const;
     std::string ToString(void) const;
     std::string HandleRecvHeartbeatMsg(uint8_t *payload, int payloadSize);
 private:
-    std::atomic<uint64_t> heartbeatCount = 0;
-    std::atomic<uint64_t> messageCount = 0;
-    bool supportHeartbeat = false;
+    std::atomic<uint64_t> heartbeatCount;
+    std::atomic<uint64_t> messageCount;
+    bool supportHeartbeat;
+    std::chrono::time_point<std::chrono::steady_clock> lastTime;
 };
 }
 

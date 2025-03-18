@@ -17,14 +17,28 @@
 #include "heartbeat.h"
 #include "serial_struct.h"
 namespace Hdc {
+HdcHeartbeat::HdcHeartbeat(void)
+{
+    heartbeatCount = 0;
+    messageCount = 0;
+    supportHeartbeat = false;
+    lastTime = std::chrono::steady_clock::now();
+}
+
 void HdcHeartbeat::AddHeartbeatCount(void)
 {
     heartbeatCount++;
 }
 
-void HdcHeartbeat::AddMessageCount(void)
+bool HdcHeartbeat::HandleMessageCount(void)
 {
     messageCount++;
+    auto nowTime = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(nowTime - lastTime);
+    if (duration.count() > 3600) {   //3600: seconds
+        return false;
+    }
+    return true;
 }
 
 uint64_t HdcHeartbeat::GetHeartbeatCount(void) const
@@ -44,6 +58,7 @@ std::string HdcHeartbeat::HandleRecvHeartbeatMsg(uint8_t *payload, int payloadSi
     if (payloadSize <= 0) {
         return "invalid heartbeat message";
     }
+    lastTime = std::chrono::steady_clock::now();
     string s = string(reinterpret_cast<char *>(payload), payloadSize);
     HdcSessionBase::HeartbeatMsg heartbeat;
     SerialStruct::ParseFromString(heartbeat, s);

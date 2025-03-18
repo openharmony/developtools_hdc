@@ -45,6 +45,9 @@ using namespace std::chrono;
 
 namespace Hdc {
 namespace Base {
+#ifdef _WIN32
+    UINT g_oldConsoleOutputCP = 0;
+#endif
     bool g_isBackgroundServer = false;
     string g_tempDir = "";
     uint16_t g_logFileCount = MAX_LOG_FILE_COUNT;
@@ -2628,5 +2631,15 @@ void CloseOpenFd(void)
         fileStream.close();
         return ret;
     }
+
+#ifdef _WIN32
+    void RestoreConsoleOutputCP(UINT outputCP)
+    {
+        if (outputCP == 0) {
+            return;
+        }
+        SetConsoleOutputCP(outputCP);
+    }
+#endif
 } // namespace Base
 } // namespace Hdc

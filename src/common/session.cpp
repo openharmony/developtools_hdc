@@ -987,7 +987,11 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
         WRITE_LOG(LOG_FATAL, "FetchIOBuf read io failed,%s", buf);
         return ERR_IO_FAIL;
     }
-    hSession->heartbeat.AddMessageCount();
+    if (hSession->heartbeat.GetSupportHeartbeat() && !hSession->heartbeat.HandleMessageCount()) {
+        WRITE_LOG(LOG_FATAL, "Rehandshake is required because no heartbeat message is received for a long time");
+        FreeSession(hSession->sessionId);
+        return ERR_IO_FAIL;
+    }
     hSession->stat.dataRecvBytes += read;
     hSession->availTailIndex += read;
     while (!hSession->isDead && hSession->availTailIndex > static_cast<int>(sizeof(PayloadHead))) {

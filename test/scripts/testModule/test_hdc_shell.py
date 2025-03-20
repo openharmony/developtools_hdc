@@ -15,13 +15,19 @@
 import os
 import time
 import multiprocessing
+import logging
 import pytest
 
-from utils import GP, check_hdc_cmd, check_shell, check_version, get_shell_result, run_command_with_timeout, load_gp
+from utils import GP, check_hdc_cmd, check_shell, check_version, get_shell_result, run_command_with_timeout, load_gp, \
+    get_hdcd_pss, get_end_symbol
+
+
+logger = logging.getLogger(__name__)
 
 
 class TestShellHilog:
     #子进程执行函数
+    @staticmethod
     def new_process_run(self, cmd):
         # 重定向 stdout 和 stderr 到 /dev/null
         with open(os.devnull, 'w') as devnull:
@@ -42,7 +48,7 @@ class TestShellHilog:
         p.start()
         time.sleep(1)
         hilog_pid = get_shell_result(f'shell pidof hilog')
-        hilog_pid = hilog_pid.replace("\r\n", "")
+        hilog_pid = hilog_pid.replace(get_end_symbol(), "")
         assert hilog_pid.isdigit()
         assert check_hdc_cmd(f'kill', "Kill server finish")
         assert check_hdc_cmd("start")
@@ -54,6 +60,7 @@ class TestShellHilog:
 
 
 class TestShellBundleOption:
+    pss = 0
     a_long = "a" * 129
     a_short = "a" * 8
     data_storage_el2_path = "data/storage/el2/base"
@@ -101,11 +108,14 @@ class TestShellBundleOption:
             "test03: No such file or directory", True),
     ]
 
-    @classmethod
     def setup_class(self):
         data_storage_el2_path = "data/storage/el2/base"
         check_shell(f"shell mkdir -p mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}")
         check_shell(f"shell rm -rf -p mnt/debug/100/debug_hap/{GP.debug_app}/{data_storage_el2_path}/it_*")
+        self.pss = get_hdcd_pss()
+        if self.pss == 0:
+            logger.error("get hdcd mem pss failed")
+
 
     @pytest.mark.L0
     @check_version("Ver: 3.1.0e")
@@ -120,6 +130,35 @@ class TestShellBundleOption:
     @pytest.mark.parametrize("test_name, command, expected_output, assert_bool", test_bundle_normal_data,
                              ids=[name for name, _, _, _ in test_bundle_normal_data])
     def test_shell_option_bundle_normal(self, test_name, command, expected_output, assert_bool):
+        if assert_bool:
+            assert check_shell(f"{command}", expected_output)
+        else:
+            assert not check_shell(f"{command}", expected_output)
+    
+    @pytest.mark.L0
+    @check_version("Ver: 3.1.0e")
+    def test_shell_pss_leak(self):
+        pss_now = get_hdcd_pss()
+        if self.pss == 0 or pss_now == 0:
+            logger.error("get hdcd mem pss failed")
+            assert False
+        if pss_now > (self.pss + 50):
+            logger.warning("hdcd mem pss leak, original value %d, now value %d", self.pss, pss_now)
+            assert False
+
+
+class TestShellNormalFuction:
+    end_symbol_data = get_end_symbol()
+    test_bundle_fail_data = [
+        ("shell echo test1", "shell echo test", f"test{end_symbol_data}", True),
+        ("shell echo test2", "shell echo 测试", f"测试{end_symbol_data}", True),
+        ("shell echo test3", "shell echo test 测试", f"test 测试{end_symbol_data}", True),
+    ]
+
+    @pytest.mark.L0
+    @pytest.mark.parametrize("test_name, command, expected_output, assert_bool", test_bundle_fail_data,
+                             ids=[name for name, _, _, _ in test_bundle_fail_data])
+    def test_shell_end(self, test_name, command, expected_output, assert_bool):
         if assert_bool:
             assert check_shell(f"{command}", expected_output)
         else:

@@ -449,6 +449,14 @@ def check_app_uninstall_multi(tables, args=""):
     return True
 
 
+def check_app_not_exist(app, bundle, args=""):
+    app = os.path.join(GP.local_path, app)
+    install_cmd = f"install {args} {app}"
+    if (args == "-s" and app.endswith(".hap")) or (args == "" and app.endswith(".hsp")):
+        return check_shell(install_cmd, "Error opening file")
+    return False
+
+
 def check_hdc_cmd(cmd, pattern=None, head=None, is_single_dir=True, **args):
     if head is None:
         head = GP.hdc_head

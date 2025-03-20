@@ -14,7 +14,7 @@
 # limitations under the License.
 import pytest
 from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall, \
-    check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp
+    check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp, check_app_not_exist
 
 
 class TestInstallBase:
@@ -101,3 +101,17 @@ class TestInstallBase:
         hap_name_default_default = "com.example.aacommand07"
         assert check_app_install(package_haps_dir, hap_name_default_default)
         assert check_app_uninstall(hap_name_default_default)
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_install_hsp_not_exist(self):
+        package_haps_dir = "not_exist.hsp"
+        hap_name_default_default = "com.not.exist.hsp"
+        assert check_app_not_exist(package_haps_dir, hap_name_default_default)
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_install_hap_not_exist(self):
+        package_haps_dir = "not_exist.hap"
+        hap_name_default_default = "com.not.exist.hap"
+        assert check_app_not_exist(package_haps_dir, hap_name_default_default, "-s")

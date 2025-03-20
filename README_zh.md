@@ -1,6 +1,6 @@
-# HDC-OpenHarmony设备连接器<a name="ZH-CN_TOPIC_0000001149090043"></a>
+# hdc-OpenHarmony设备连接器<a name="ZH-CN_TOPIC_0000001149090043"></a>
 
-- [HDC-OpenHarmony设备连接器<a name="ZH-CN_TOPIC_0000001149090043"></a>](#)
+- [hdc-OpenHarmony设备连接器<a name="ZH-CN_TOPIC_0000001149090043"></a>](#)
   - [简介<a name="section662115419449"></a>](#简介)
   - [架构<a name="section15908143623714"></a>](#架构)
   - [目录<a name="section161941989596"></a>](#目录)
@@ -13,7 +13,7 @@
 
 ## 简介<a name="section662115419449"></a>
 
-HDC（OpenHarmony Device Connector） 是为开发人员提供的用于设备连接调试的命令行工具，pc端开发机使用命令行工具hdc，该工具需支持部署在Windows/Linux/Mac等系统上与OpenHarmony设备（或模拟器）进行连接调试通信。PC端hdc工具需要针对以上开发机操作系统平台分别发布相应的版本，设备端hdc daemon需跟随设备镜像发布包括对模拟器进行支持。下文将介绍hdc的常用命令及使用举例。
+hdc（OpenHarmony Device Connector） 是为开发人员提供的用于设备连接调试的命令行工具，pc端开发机使用命令行工具hdc，该工具需支持部署在Windows/Linux/Mac等系统上与OpenHarmony设备（或模拟器）进行连接调试通信。PC端hdc工具需要针对以上开发机操作系统平台分别发布相应的版本，设备端hdc daemon需跟随设备镜像发布包括对模拟器进行支持。下文将介绍hdc的常用命令及使用举例。
 
 ## 架构<a name="section15908143623714"></a>
 

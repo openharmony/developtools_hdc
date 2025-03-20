@@ -20,7 +20,7 @@ namespace TranslateCommand {
     string Usage()
     {
         string ret = "";
-        ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
+        ret = "\n                         OpenHarmony device connector(hdc) ...\n\n"
               "---------------------------------global commands:----------------------------------\n"
               " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
               " -v/version                            - Print hdc version\n"
@@ -99,7 +99,7 @@ namespace TranslateCommand {
 
     string Verbose()
     {
-        string ret = "\n                         OpenHarmony device connector(HDC) ...\n\n"
+        string ret = "\n                         OpenHarmony device connector(hdc) ...\n\n"
             "---------------------------------global commands:----------------------------------\n"
             " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
             " -v/version                            - Print hdc version\n"

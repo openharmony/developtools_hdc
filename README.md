@@ -1,6 +1,6 @@
-# HDC-OpenHarmony Device Connector<a name="EN-US_TOPIC_0000001149090043"></a>
+# hdc-OpenHarmony Device Connector<a name="EN-US_TOPIC_0000001149090043"></a>
 
-- [HDC-OpenHarmony Device Connector<a name="EN-US_TOPIC_0000001149090043"></a>](#hdc-OpenHarmony-Device-Connector)
+- [hdc-OpenHarmony Device Connector<a name="EN-US_TOPIC_0000001149090043"></a>](#hdc-OpenHarmony-Device-Connector)
   - [Introduction<a name="section662115419449"></a>](#introduction)
   - [Architecture<a name="section15908143623714"></a>](#architecture)
   - [Table of Contents<a name="section161941989596"></a>](#table-of-contents)
@@ -10,11 +10,11 @@
 
 ## Introduction<a name="section662115419449"></a>
 
-HDC (OpenHarmony Device Connector) is a command-line tool for developers to connect and debug the device. The PC-side development machine uses the command-line tool hdc (for convenience, collectively referred to as hdc below). This tool needs to support deployment on Windows/Linux /Mac and other systems to connect and debug communication with OpenHarmony devices (or simulators). The PC-side hdc tool needs to release corresponding versions for the above development machine operating system platforms, and the device-side hdc daemon needs to follow the device image release including support for the simulator. The following will introduce the commonly used commands and usage examples of hdc.
+hdc (OpenHarmony Device Connector) is a command-line tool for developers to connect and debug the device. The PC-side development machine uses the command-line tool hdc (for convenience, collectively referred to as hdc below). This tool needs to support deployment on Windows/Linux /Mac and other systems to connect and debug communication with OpenHarmony devices (or simulators). The PC-side hdc tool needs to release corresponding versions for the above development machine operating system platforms, and the device-side hdc daemon needs to follow the device image release including support for the simulator. The following will introduce the commonly used commands and usage examples of hdc.
 
 ## Architecture<a name="section15908143623714"></a>
 
-HDC mainly consists of three parts:
+hdc mainly consists of three parts:
 
 1. The hdc client part: the client running on the development machine, the user can request to execute the corresponding hdc command under the command terminal of the development machine (windows cmd/linux shell), running on the development machine, other terminal debugging IDEs also include hdc client .
 

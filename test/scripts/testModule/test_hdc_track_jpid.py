@@ -25,10 +25,11 @@ class TestHdcTrackJpid:
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
-    def test_hdc_track_jpid_a(self):
+    def test_hdc_track_jpid(self):
         package_hap = "AACommand07.hap"
         bundle_name = "com.example.aacommand07"
         assert check_app_install(package_hap, bundle_name)
         assert check_shell(f"shell aa start -b {bundle_name} -a MainAbility")
+        assert check_cmd_block(f"{GP.hdc_exe} track-jpid -p", f"{bundle_name}", timeout=2)
         assert check_cmd_block(f"{GP.hdc_exe} track-jpid -a", f"{bundle_name}", timeout=2)
         assert check_app_uninstall(bundle_name)

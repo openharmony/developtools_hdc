@@ -457,6 +457,12 @@ def check_app_not_exist(app, bundle, args=""):
     return False
 
 
+def check_app_dir_not_exist(app, bundle, args=""):
+    app = os.path.join(GP.local_path, app)
+    install_cmd = f"install {args} {app}"
+    return check_shell(install_cmd, "Not any installation package was found")
+
+
 def check_hdc_cmd(cmd, pattern=None, head=None, is_single_dir=True, **args):
     if head is None:
         head = GP.hdc_head

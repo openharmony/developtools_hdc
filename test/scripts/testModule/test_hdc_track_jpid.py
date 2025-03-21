@@ -14,7 +14,7 @@
 # limitations under the License.
 import pytest
 from utils import GP, check_app_install, check_app_uninstall, check_cmd_block, \
-    check_hdc_cmd, check_shell
+    check_hdc_cmd, check_shell, load_gp
 
 
 class TestHdcTrackJpid:

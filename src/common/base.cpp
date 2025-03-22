@@ -2601,7 +2601,7 @@ void CloseOpenFd(void)
     void UpdateHeartbeatSwitchCache()
     {
         char *env = getenv(ENV_SERVER_HEARTBEAT.c_str());
-        if (!env) {
+        if (!env || strlen(env) > 1) {
             g_heartbeatSwitch = true;
             return;
         }

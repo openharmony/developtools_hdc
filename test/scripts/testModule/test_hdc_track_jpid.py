@@ -33,16 +33,12 @@ class TestHdcTrackJpid:
 
     @pytest.mark.L0
     def test_hdc_jpid(self):
-        pidstr = get_shell_result(f'shell "pidof {self.bundle_name}"')
-        if pidstr:
-            pidstr = pidstr.replace("\r\n", "")
+        pidstr = get_shell_result(f'shell "pidof {self.bundle_name}"').split("\r")[0]
         assert check_hdc_cmd(f"jpid", pidstr)
 
     @pytest.mark.L0
     def test_hdc_track_jpid(self):
-        pidstr = get_shell_result(f'shell "pidof {self.bundle_name}"')
-        if pidstr:
-            pidstr = pidstr.replace("\r\n", "")
+        pidstr = get_shell_result(f'shell "pidof {self.bundle_name}"').split("\r")[0]
         track_cmd_p = f"{GP.hdc_exe} -t {GP.device_name} track-jpid -p"
         pattern_p = f"{pidstr} {self.bundle_name}"
         assert check_cmd_block(track_cmd_p, pattern_p, timeout=2)

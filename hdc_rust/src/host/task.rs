@@ -241,10 +241,7 @@ async fn channel_forward_list(task_info: TaskInfo, forward_or_reverse: bool) -> 
 async fn channel_jdwp_task(task_info: TaskInfo) -> io::Result<()> {
     let session_id =
         get_valid_session_id(task_info.connect_key.clone(), task_info.channel_id).await?;
-    let mut payload = Vec::<u8>::new();
-    if task_info.params.len() >= 2 && task_info.params[1].starts_with('-') && task_info.params[1].len() >= 2 {
-        payload = task_info.params[1][1..].as_bytes().to_vec();
-    }
+    let payload = task_info.params.join(" ").into_bytes();
     transfer::put(
         session_id,
         TaskMessage {
@@ -315,7 +312,14 @@ async fn channel_file_task(task_info: TaskInfo) -> io::Result<()> {
                     ));
                 }
             }
-            let _ = host_app::command_dispatch(session_id, task_info.channel_id, task_info.command, &payload) .await;
+            let _ = host_app::command_dispatch(
+                session_id,
+                task_info.channel_id,
+                task_info.command,
+                &payload,
+                payload.len() as u16,
+            )
+            .await;
         }
 
         HdcCommand::FileCheck | HdcCommand::FileInit => {
@@ -683,6 +687,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
                 task_message.channel_id,
                 task_message.command,
                 &task_message.payload,
+                task_message.payload.len() as u16,
             )
             .await;
             return Ok(());
@@ -763,6 +768,7 @@ async fn session_file_task(task_message: TaskMessage, session_id: u32) -> io::Re
 }
 
 pub async fn session_channel_close(task_message: TaskMessage, session_id: u32) -> io::Result<()> {
+    HostAppTaskMap::remove(session_id, task_message.channel_id).await;
     if task_message.payload[0] > 0 {
         let message = TaskMessage {
             channel_id: task_message.channel_id,

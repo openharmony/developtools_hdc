@@ -29,14 +29,12 @@ use crate::config::{self, ConnectType};
 use crate::serializer;
 #[allow(unused)]
 use crate::utils::hdc_log::*;
-#[cfg(not(feature = "host"))]
 use crate::daemon_lib::task_manager;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 use std::sync::Once;
 use std::mem::MaybeUninit;
-use crate::transfer::usb::usb_write_all;
 use std::time::Duration;
 
 #[cfg(feature = "host")]
@@ -184,7 +182,6 @@ impl TcpMap {
 
 pub struct UsbMap {
     map: std::sync::Mutex<HashMap<u32, UsbWriter>>,
-    lock: std::sync::Mutex<i32>,
 }
 impl UsbMap {
     pub(crate)  fn get_instance() -> &'static UsbMap {
@@ -194,8 +191,7 @@ impl UsbMap {
         unsafe {
             ONCE.call_once(|| {
                 let global = UsbMap {
-                    map: std::sync::Mutex::new(HashMap::new()),
-                    lock: std::sync::Mutex::new(0)
+                    map: std::sync::Mutex::new(HashMap::new())
                 };
                 USB_MAP = MaybeUninit::new(global);
             });
@@ -208,28 +204,22 @@ impl UsbMap {
         if DiedSession::get(session_id).await {
             return Err(Error::new(ErrorKind::NotFound, "session already died"));;
         }
-        let mut fd = 0;
-        {
-            let instance = Self::get_instance();
-            let mut map = instance.map.lock().unwrap();
-            let Some(arc_wr) = map.get(&session_id) else {
-                return Err(Error::new(ErrorKind::NotFound, "session not found"));
-            };
-            fd =arc_wr.fd;
-        }
+        let instance = Self::get_instance();
         let body = serializer::concat_pack(data);
         let head = usb::build_header(session_id, 1, body.len());
-        let instance = Self::get_instance();
-        let _guard = instance.lock.lock().unwrap();
         let mut child_ret = 0;
-        match usb_write_all(fd, head) {
+        let mut map = instance.map.lock().unwrap();
+        let Some(wr) = map.get(&session_id) else {
+            return Err(Error::new(ErrorKind::NotFound, "session not found"));
+        };
+        match wr.write_all(head) {
             Ok(_) => {}
             Err(e) => {
                 return Err(Error::new(ErrorKind::Other, "Error writing head"));
             }
         }
 
-        match usb_write_all(fd, body) {
+        match wr.write_all(body) {
             Ok(ret) => {
                 child_ret = ret;
             }
@@ -242,7 +232,7 @@ impl UsbMap {
             let tail = usb::build_header(session_id, 0, 0);
             // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
             // so, we send dummy packet to prevent zero packet generate
-            match usb_write_all(fd, tail) {
+            match wr.write_all(tail) {
                 Ok(_) => {}
                 Err(e) => {
                     return Err(Error::new(ErrorKind::Other, "Error writing tail"));
@@ -346,7 +336,6 @@ pub async fn put(session_id: u32, data: TaskMessage) {
         Some(ConnectType::Usb(_mount_point)) => {
             if let Err(e) = UsbMap::put(session_id, data).await {
                 crate::error!("{e:?}");
-                #[cfg(not(feature = "host"))]
                 task_manager::free_session(session_id).await;
             }
         }

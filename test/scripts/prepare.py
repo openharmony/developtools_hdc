@@ -123,7 +123,7 @@ def download_and_extract_zip(url, extract_to='.', expected_md5=None):
 
 
 def prepare(args=None):
-    if args is None or args.requirements:
+    if vars(args) == vars(parser.parse_args([])) or args.requirements:
         install_dependencies("requirements.txt")
     from testModule.utils import GP, gen_package_dir, update_source, prepare_source, rmdir
     if args is not None:

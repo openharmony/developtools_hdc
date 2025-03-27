@@ -1017,3 +1017,31 @@ def load_gp(request):
 class ConfigFileNotFoundException(Exception):
     """配置文件未找到异常"""
     pass
+
+
+def get_hdcd_pss():
+    mem_string = get_shell_result("shell hidumper --mem `pidof hdcd`")
+    print(f"--> hdcd mem: \n{mem_string}")
+    pss_string = get_shell_result("shell hidumper --mem `pidof hdcd` | grep Total")
+    if "Total" in pss_string:
+        pss_value = int(re.sub(r"\s+", " ", pss_string.split('\n')[1]).split(' ')[2])
+    else:
+        print("error: can't get pss value, message:%s", pss_string)
+        pss_value = 0
+    return pss_value
+
+
+def get_hdcd_fd_count():
+    sep = '/'
+    fd_string = get_shell_result(f"shell ls {sep}proc/`pidof hdcd`/fd | wc -l")
+    print(f"--> hdcd fd cound: {fd_string}")
+    try:
+        end_symbol = get_end_symbol()
+        fd_value = int(fd_string.split(end_symbol)[0])
+    except ValueError:
+        fd_value = 0
+    return fd_value
+
+
+def get_end_symbol():
+    return sys.platform == 'win32' and "\r\n" or '\n'

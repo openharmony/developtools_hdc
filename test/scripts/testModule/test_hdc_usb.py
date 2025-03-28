@@ -19,6 +19,7 @@ from utils import GP, check_hdc_cmd, check_hdc_targets, check_shell_any_device, 
 
 class TestUsbConnect:
     @pytest.mark.L0
+    @pytest.mark.repeat(10)
     def test_usb_disconnect(self):
         # 注意：断连后需要等待一段时间才能重新连接
     
@@ -29,6 +30,7 @@ class TestUsbConnect:
         assert check_hdc_targets()
 
     @pytest.mark.L0
+    @pytest.mark.repeat(10)
     def test_list_targets_multi_usb_device(self):
         devices_str = check_shell_any_device(f"{GP.hdc_exe} list targets", None, True)
         time.sleep(3) # sleep 3s to wait for the device to connect channel

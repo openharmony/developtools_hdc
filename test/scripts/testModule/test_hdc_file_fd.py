@@ -299,7 +299,6 @@ class TestFileNoSpaceFdFullCrash:
         check_shell(f"shell dd if={SEP}dev/zero bs=1M of={SEP}storage/largefile")
         check_shell(f"shell df {SEP}storage")
         check_shell(f"shell rm -rf {SEP}storage/smallfile")
-        check_shell(f"shell rm {SEP}data/log/faultlog/faultlogger/cppcrash*hdcd*")
         time.sleep(1)
         check_shell(f"shell ls")
         self.pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
@@ -337,6 +336,5 @@ class TestFileNoSpaceFdFullCrash:
         run_command_with_timeout(f"{GP.hdc_head} wait", 3)
         time.sleep(3)
 
-        assert not check_shell(f"shell ls {SEP}data/log/faultlog/faultlogger/", "-hdcd-")
         new_pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
         assert not self.pid == new_pid

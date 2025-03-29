@@ -30,7 +30,7 @@ use crate::utils::hdc_log::*;
 #[cfg(not(target_os = "windows"))]
 use std::ffi::{CStr, CString};
 use std::io::{self, Error, ErrorKind};
-#[cfg(not(feature = "host"))]
+
 use libc::{fcntl, F_SETFD, FD_CLOEXEC};
 
 #[repr(C)]
@@ -98,7 +98,7 @@ pub fn usb_init() -> io::Result<(i32, i32, i32)> {
     if bulkout_fd < 0 {
         return Err(utils::error_other("cannot open usb ep2".to_string()));
     }
-    #[cfg(not(feature = "host"))]
+
     unsafe{
         // cannot open with O_CLOEXEC, must fcntl
         fcntl(config_fd, F_SETFD, FD_CLOEXEC);
@@ -176,23 +176,9 @@ impl base::Reader for UsbReader {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn usb_write_all(fd: i32, data: Vec<u8>) -> io::Result<i32> {
-    let buf = SerializedBuffer {
-        ptr: data.as_ptr() as *const libc::c_char,
-        size: data.len() as u64,
-    };
-    let ret = unsafe { WriteUsbDevEx(fd, buf) } as i32;
-    if ret < 0 {
-        Err(utils::error_other("usb write failed".to_string()))
-    } else {
-        Ok(ret)
-    }
-}
 impl base::Writer for UsbWriter {
     // 屏蔽window编译报错
     #[cfg(not(target_os = "windows"))]
-    #[allow(unused)]
     fn write_all(&self, data: Vec<u8>) -> io::Result<i32> {
         let buf = SerializedBuffer {
             ptr: data.as_ptr() as *const libc::c_char,

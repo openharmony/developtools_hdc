@@ -41,10 +41,10 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize) : loo
     setenv(uvThreadEnv.c_str(), uvThreadVal.c_str(), 1);
 #endif
     uv_loop_init(&loopMain);
+    loopMainStatus.StartReportTimer();
     WRITE_LOG(LOG_DEBUG, "loopMain init");
     uv_rwlock_init(&mainAsync);
 #ifndef FUZZ_TEST
-    loopMainStatus.StartReportTimer();
     uv_async_init(&loopMain, &asyncMainLoop, MainAsyncCallback);
 #endif
     uv_rwlock_init(&lockMapSession);

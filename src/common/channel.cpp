@@ -191,7 +191,6 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
     --hChannel->ref;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     if (status < 0) {
-        WRITE_LOG(LOG_WARN, "WriteCallback status:%d", status);
         hChannel->writeFailedTimes++;
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hChannel->isDead && !hChannel->ref) {

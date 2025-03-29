@@ -130,7 +130,6 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         if (ioContext != nullptr) {
             delete ioContext;
             ioContext = nullptr;
-            WRITE_LOG(LOG_WARN, "SimpleFileIO ret=false, delete context.");
         }
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
@@ -831,7 +830,6 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
             break;
         }
         if (SimpleFileIO(context, pld.index, clearBuf, clearSize) < 0) {
-            WRITE_LOG(LOG_WARN, "RecvIOPayload SimpleFileIO fail.");
             break;
         }
         ret = true;

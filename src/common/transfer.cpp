@@ -107,7 +107,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             break;
         }
         uv_fs_t *req = &ioContext->fs;
-        ioContext->bytes = static_cast<uint64_t>(bytes);
+        ioContext->bytes = bytes;
         ioContext->bufIO = buf + payloadPrefixReserve;
         ioContext->context = context;
         req->data = ioContext;
@@ -345,7 +345,7 @@ bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, ui
     WRITE_LOG(LOG_WARN, "OnFileIO read bytes:%llu not equal to req result:%d", bytes, req->result);
     uv_fs_t fs = {};
     int ret = uv_fs_statfs(nullptr, &fs, context->localPath.c_str(), nullptr);
-    if (ret < 0 || (!fs.ptr)) {
+    if (ret < 0) {
         WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
             uv_strerror(ret), context->localPath.c_str());
         uv_fs_req_cleanup(&fs);

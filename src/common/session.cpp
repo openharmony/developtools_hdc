@@ -376,7 +376,6 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
     switch (hSession->connType) {
         case CONN_TCP: {
             uv_tcp_init(&loopMain, &hSession->hWorkTCP);
-            WRITE_LOG(LOG_INFO, "MallocSessionByConnectType init hWorkTCP sid:%u", hSession->sessionId);
             ++hSession->uvHandleRef;
             hSession->hWorkTCP.data = hSession;
             break;
@@ -596,14 +595,12 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
         if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
-            WRITE_LOG(LOG_INFO, "closeSessionTCPHandle CloseSocketPair ctrlFd, sid:%u", hSession->sessionId);
             Base::CloseSocketPair(hSession->ctrlFd);
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };
     if (hSession->connType == CONN_TCP) {
         // Turn off TCP to prevent continuing writing
-        WRITE_LOG(LOG_INFO, "FreeSessionContinue start close hWorkTCP, sid:%u", hSession->sessionId);
         Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP, true, closeSessionTCPHandle);
 #ifdef _WIN32
         closesocket(hSession->dataFd[STREAM_WORK]);
@@ -1128,7 +1125,6 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
             WRITE_LOG(LOG_WARN, "HdcSessionBase SessionCtrl failed 1");
             return false;
         }
-        WRITE_LOG(LOG_INFO, "start tcp open fdChildWorkTCP, sid:%u", hSession->sessionId);
         if ((childRet = uv_tcp_open(&hSession->hChildWorkTCP, hSession->fdChildWorkTCP)) < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
@@ -1157,7 +1153,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         WorkThreadInitSession(hSession, handshake);
         string hs = SerialStruct::SerializeToString(handshake);
 #ifdef HDC_SUPPORT_UART
-        WRITE_LOG(LOG_INFO, "WorkThreadStartSession session %u auth %u send handshake hs: %s",
+        WRITE_LOG(LOG_DEBUG, "WorkThreadStartSession session %u auth %u send handshake hs: %s",
                   hSession->sessionId, handshake.authType, hs.c_str());
 #endif
         Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
@@ -1211,8 +1207,6 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
                     free(hSession->pollHandle[STREAM_WORK]);
                 }
                 if (--hSession->uvChildRef == 0) {
-                    WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand uv stop childLoop sessionId:%u",
-                        hSession->sessionId);
                     uv_stop(&hSession->childLoop);
                 };
             };
@@ -1220,7 +1214,6 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
             hSession->uvChildRef += uvChildRefOffset;
             if (hSession->connType == CONN_TCP && hSession->hChildWorkTCP.loop) {  // maybe not use it
                 ++hSession->uvChildRef;
-                WRITE_LOG(LOG_INFO, "Dispatch MainThreadCommand try close hChildWorkTCP, sid:%u", hSession->sessionId);
                 Base::TryCloseHandle((uv_handle_t *)&hSession->hChildWorkTCP, true, closeSessionChildThreadTCPHandle);
             }
             Base::TryCloseHandle((uv_handle_t *)hSession->pollHandle[STREAM_WORK], true,

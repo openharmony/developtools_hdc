@@ -282,7 +282,6 @@ namespace Base {
         TAG_SHELL_BUNDLE,
         TAG_SHELL_CMD,
     };
-    bool CanPrintCmd(const uint16_t command);
     void UpdateEnvCache();
     #define FEATURE_HEARTBEAT "heartbeat"
     using HdcFeatureSet = std::vector<std::string>;

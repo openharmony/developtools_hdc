@@ -78,7 +78,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     bool ret = false;
     while (true) {
         if (nread == UV_ENOBUFS) {
-            WRITE_LOG(LOG_WARN, "Session IOBuf max, sid:%u", hSession->sessionId);
+            WRITE_LOG(LOG_DEBUG, "Session IOBuf max");
             break;
         } else if (nread < 0) {
             // I originally in the IO main thread, no need to send asynchronous messages, close the socket as soon as
@@ -86,11 +86,11 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
             uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
-            WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%u", buffer, hSession->sessionId);
+            WRITE_LOG(LOG_DEBUG, "HdcTCPBase::ReadStream < 0 %s", buffer);
             break;
         }
         if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
-            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd", nread);
             break;
         }
         ret = true;

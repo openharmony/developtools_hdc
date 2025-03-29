@@ -19,7 +19,7 @@
 #include "serial_struct.h"
 
 namespace Hdc {
-HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize) : loopMainStatus(&loopMain, "MainLoop")
+HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize)
 {
     // print version pid
     WRITE_LOG(LOG_INFO, "Program running. %s Pid:%u", Base::GetVersion().c_str(), getpid());
@@ -41,7 +41,6 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize) : loo
     setenv(uvThreadEnv.c_str(), uvThreadVal.c_str(), 1);
 #endif
     uv_loop_init(&loopMain);
-    loopMainStatus.StartReportTimer();
     WRITE_LOG(LOG_DEBUG, "loopMain init");
     uv_rwlock_init(&mainAsync);
 #ifndef FUZZ_TEST
@@ -297,7 +296,6 @@ void HdcSessionBase::AsyncMainLoopTask(uv_idle_t *handle)
 {
     AsyncParam *param = (AsyncParam *)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)param->thisClass;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcSessionBase::AsyncMainLoopTask");
     switch (param->method) {
         case ASYNC_FREE_SESSION:
             // Destruction is unified in the main thread
@@ -320,7 +318,6 @@ void HdcSessionBase::AsyncMainLoopTask(uv_idle_t *handle)
 void HdcSessionBase::MainAsyncCallback(uv_async_t *handle)
 {
     HdcSessionBase *thisClass = (HdcSessionBase *)handle->data;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcSessionBase::MainAsyncCallback");
     list<void *>::iterator i;
     list<void *> &lst = thisClass->lstMainThreadOP;
     uv_rwlock_wrlock(&thisClass->mainAsync);
@@ -365,7 +362,6 @@ void HdcSessionBase::PushAsyncMessage(const uint32_t sessionId, const uint8_t me
 
 void HdcSessionBase::WorkerPendding()
 {
-    StartLoopMonitor();
     uv_run(&loopMain, UV_RUN_DEFAULT);
     ClearInstanceResource();
 }
@@ -456,7 +452,6 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
         return nullptr;
     }
     uv_loop_init(&hSession->childLoop);
-    hSession->childLoopStatus.StartReportTimer();
     hSession->uvHandleRef = 0;
     // pullup child
     WRITE_LOG(LOG_INFO, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",
@@ -664,7 +659,6 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
 void HdcSessionBase::FreeSession(const uint32_t sessionId)
 {
     StartTraceScope("HdcSessionBase::FreeSession");
-    DispAllLoopStatus("FreeSession-" + std::to_string(sessionId));
     Base::AddDeletedSessionId(sessionId);
     if (threadSessionMain != uv_thread_self()) {
         PushAsyncMessage(sessionId, ASYNC_FREE_SESSION, nullptr, 0);
@@ -1063,7 +1057,6 @@ bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8
 void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events)
 {
     HSession hSession = (HSession)poll->data;
-    CALLSTAT_GUARD(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromSession");
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     const int size = Base::GetMaxBufSizeStable();
     char *buf = reinterpret_cast<char *>(new uint8_t[size]());
@@ -1248,7 +1241,6 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
 void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
 {
     HSession hSession = (HSession)poll->data;
-    CALLSTAT_GUARD(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromMain");
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     int formatCommandSize = sizeof(CtrlStruct);
     int index = 0;
@@ -1450,7 +1442,6 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo->channelId = channelId;
             hTaskInfo->sessionId = hSession->sessionId;
             hTaskInfo->runLoop = &hSession->childLoop;
-            hTaskInfo->runLoopStatus = &hSession->childLoopStatus;
             hTaskInfo->serverOrDaemon = serverOrDaemon;
             hTaskInfo->masterSlave = masterTask;
             hTaskInfo->closeRetryCount = 0;

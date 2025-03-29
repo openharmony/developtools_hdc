@@ -15,12 +15,10 @@
 #include "channel.h"
 namespace Hdc {
 HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn)
-    : loopMainStatus(loopMainIn, "ChannelBaseMainLoop")
 {
     SetChannelTCPString(addrString);
     isServerOrClient = serverOrClient;
     loopMain = loopMainIn;
-    loopMainStatus.StartReportTimer();
     threadChanneMain = uv_thread_self();
     uv_rwlock_init(&mainAsync);
     uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
@@ -120,7 +118,6 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
     HChannel hChannel = (HChannel)tcp->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     uint32_t channelId = hChannel->channelId;
-    CALLSTAT_GUARD(*(hChannel->loopStatus), tcp->loop, "HdcChannelBase::ReadStream");
 
     if (nread == UV_ENOBUFS) {
         WRITE_LOG(LOG_FATAL, "ReadStream nobufs channelId:%u", channelId);
@@ -193,7 +190,6 @@ void HdcChannelBase::WriteCallback(uv_write_t *req, int status)
     HChannel hChannel = (HChannel)req->handle->data;
     --hChannel->ref;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
-    CALLSTAT_GUARD(*(hChannel->loopStatus), req->handle->loop, "HdcChannelBase::WriteCallback");
     if (status < 0) {
         WRITE_LOG(LOG_WARN, "WriteCallback status:%d", status);
         hChannel->writeFailedTimes++;
@@ -210,7 +206,7 @@ void HdcChannelBase::AsyncMainLoopTask(uv_idle_t *handle)
 {
     AsyncParam *param = (AsyncParam *)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)param->thisClass;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcChannelBase::AsyncMainLoopTask");
+
     switch (param->method) {
         case ASYNC_FREE_CHANNEL: {
             // alloc/release should pair in main thread.
@@ -233,7 +229,6 @@ void HdcChannelBase::AsyncMainLoopTask(uv_idle_t *handle)
 void HdcChannelBase::MainAsyncCallback(uv_async_t *handle)
 {
     HdcChannelBase *thisClass = (HdcChannelBase *)handle->data;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcChannelBase::MainAsyncCallback");
     if (uv_is_closing((uv_handle_t *)thisClass->loopMain)) {
         WRITE_LOG(LOG_WARN, "MainAsyncCallback uv_is_closing loopMain");
         return;
@@ -421,7 +416,6 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     hChannel->hWorkTCP.data = hChannel;
     hChannel->clsChannel = this;
     hChannel->channelId = channelId;
-    hChannel->loopStatus = &loopMainStatus;
     (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
     AdminChannel(OP_ADD, channelId, hChannel);
     *hOutChannel = hChannel;

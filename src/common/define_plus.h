@@ -21,7 +21,6 @@
 #include "hitrace_meter.h"
 #endif
 #include "define_enum.h"
-#include "uv_status.h"
 #include "heartbeat.h"
 
 namespace Hdc {
@@ -91,7 +90,6 @@ struct TaskInformation {
     bool serverOrDaemon; // true is server, false is daemon
     bool masterSlave;
     uv_loop_t *runLoop;
-    LoopStatus *runLoopStatus;
     void *taskClass;
     void *ownerSessionClass;
     uint32_t closeRetryCount;
@@ -230,7 +228,6 @@ struct HdcSession {
     std::string tokenRSA;  // SHA_DIGEST_LENGTH+1==21
     // child work
     uv_loop_t childLoop;  // run in work thread
-    LoopStatus childLoopStatus;
     // pipe0 in main thread(hdc server mainloop), pipe1 in work thread
     uv_poll_t *pollHandle[2];  // control channel
     int ctrlFd[2];         // control channel socketpair
@@ -268,8 +265,7 @@ struct HdcSession {
         return oss.str();
     }
 
-    HdcSession() : serverOrDaemon(false), handshakeOK(false), isDead(false),
-                   voteReset(false), childLoopStatus(&childLoop, "ChildLoop")
+    HdcSession():serverOrDaemon(false), handshakeOK(false), isDead(false), voteReset(false)
     {
         connectKey = "";
         connType = CONN_USB;
@@ -342,7 +338,6 @@ struct HdcChannel {
     // child work
     uv_tcp_t hChildWorkTCP;  // work channel for server, no use in client
     uv_os_sock_t fdChildWorkTCP;
-    LoopStatus *loopStatus;
     // read io cache
     int bufSize;         // total buffer size
     int availTailIndex;  // buffer available data size

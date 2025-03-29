@@ -16,6 +16,17 @@
 #define DEFINE_ENUM_H
 
 namespace Hdc {
+enum HdcLogLevel {
+    LOG_OFF,
+    LOG_FATAL,
+    LOG_WARN,
+    LOG_INFO,  // default
+    LOG_DEBUG,
+    LOG_ALL,
+    LOG_VERBOSE,
+    LOG_LAST = LOG_VERBOSE,  // tail, not use
+};
+
 enum MessageLevel {
     MSG_FAIL,
     MSG_INFO,

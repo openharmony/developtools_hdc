@@ -395,7 +395,6 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     CtxFileIO *contextIO = reinterpret_cast<CtxFileIO *>(req->data);
     CtxFile *context = reinterpret_cast<CtxFile *>(contextIO->context);
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
-    CALLSTAT_GUARD(*(thisClass->loopTaskStatus), req->loop, "HdcTransferBase::OnFileIO");
     uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
     context->ioFinish = ProcressFileIO(req, context, thisClass, contextIO->bytes);
@@ -448,11 +447,10 @@ void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, const std::stri
 
 void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 {
-    StartTraceScope("HdcTransferBase::OnFileOpen");
     std::unique_ptr<uv_fs_t> uptrReq(req);
     CtxFile *context = (CtxFile *)req->data;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
-    CALLSTAT_GUARD(*(thisClass->loopTaskStatus), req->loop, "HdcTransferBase::OnFileOpen");
+    StartTraceScope("HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
     WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
         context->localPath.c_str(), thisClass->taskInfo->channelId, req->result);

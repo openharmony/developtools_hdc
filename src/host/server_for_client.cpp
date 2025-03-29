@@ -48,7 +48,6 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
 {
     uv_tcp_t *pServTCP = (uv_tcp_t *)server;
     HdcServerForClient *thisClass = (HdcServerForClient *)pServTCP->data;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptClient");
     HChannel hChannel = nullptr;
     uint32_t uid = thisClass->MallocChannel(&hChannel);
     if (!hChannel) {

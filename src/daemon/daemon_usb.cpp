@@ -58,7 +58,7 @@ HdcDaemonUSB::~HdcDaemonUSB()
 
 void HdcDaemonUSB::Stop()
 {
-    WRITE_LOG(LOG_INFO, "HdcDaemonUSB Stop");
+    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB Stop");
     // Here only clean up the IO-related resources, session related resources clear reason to clean up the session
     // module
     modRunning = false;
@@ -106,10 +106,10 @@ int HdcDaemonUSB::Initial()
 {
     // after Linux-3.8，kernel switch to the USB Function FS
     // Implement USB hdc function in user space
-    WRITE_LOG(LOG_INFO, "HdcDaemonUSB init");
+    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB init");
     basePath = GetDevPath(USB_FFS_BASE);
     if (access((basePath + "/ep0").c_str(), F_OK) != 0) {
-        WRITE_LOG(LOG_FATAL,"Only support usb-ffs, make sure kernel3.8+ and usb-ffs enabled, "
+        WRITE_LOG(LOG_DEBUG,"Only support usb-ffs, make sure kernel3.8+ and usb-ffs enabled, "
                   "usbmode disabled: errno: %d, basePath: %s ", errno, basePath.c_str());
         return ERR_API_FAIL;
     }
@@ -160,7 +160,7 @@ int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
             // After the control port sends the instruction, the device is initialized by the device to the HOST host,
             // which can be found for USB devices. Do not send initialization to the EP0 control port, the USB
             // device will not be initialized by Host
-            WRITE_LOG(LOG_INFO, "Begin send to control(EP0) for usb descriptor init");
+            WRITE_LOG(LOG_DEBUG, "Begin send to control(EP0) for usb descriptor init");
             string ep0Path = basePath + "/ep0";
             if ((controlEp = open(ep0Path.c_str(), O_RDWR)) < 0) {
                 WRITE_LOG(LOG_WARN, "%s: cannot open control endpoint: errno=%d", ep0Path.c_str(), errno);
@@ -196,7 +196,7 @@ int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
         fcntl(hUSB->bulkIn, F_SETFD, FD_CLOEXEC);
         hUSB->wMaxPacketSizeSend = GetMaxPacketSize(hUSB->bulkIn);
 
-        WRITE_LOG(LOG_INFO, "New bulk in\\out open bulkout:%d bulkin:%d", hUSB->bulkOut, hUSB->bulkIn);
+        WRITE_LOG(LOG_DEBUG, "New bulk in\\out open bulkout:%d bulkin:%d", hUSB->bulkOut, hUSB->bulkIn);
         ret = RET_SUCCESS;
         break;
     }
@@ -285,10 +285,10 @@ int HdcDaemonUSB::CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop)
     ctx->thisClass = this;
     isAlive = false;
     bulkInOut ? ctx->thisClass->usbHandle.isBulkInClosing = true : ctx->thisClass->usbHandle.isBulkOutClosing = true;
-    WRITE_LOG(LOG_INFO, "CloseBulkEp bulkFd:%d", bulkFd);
+    WRITE_LOG(LOG_DEBUG, "CloseBulkEp bulkFd:%d", bulkFd);
     uv_fs_close(loop, req, bulkFd, [](uv_fs_t *req) {
         auto ctx = (CtxCloseBulkEp *)req->data;
-        WRITE_LOG(LOG_INFO, "Try to abort blukin write callback %s", ctx->bulkInOut ? "bulkin" : "bulkout");
+        WRITE_LOG(LOG_DEBUG, "Try to abort blukin write callback %s", ctx->bulkInOut ? "bulkin" : "bulkout");
         if (ctx->bulkInOut) {
             ctx->thisClass->usbHandle.bulkIn = -1;
             ctx->thisClass->usbHandle.isBulkInClosing = false;
@@ -351,8 +351,8 @@ int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     int ret = SendUSBIOSync(hSession, &usbHandle, data, length);
     --hSession->ref;
     if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "SendUSBRaw SendUSBIOSync failed, try to freesession sid:%u", sessionId);
         daemon->FreeSession(hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "SendUSBRaw try to freesession");
     }
     return ret;
 }

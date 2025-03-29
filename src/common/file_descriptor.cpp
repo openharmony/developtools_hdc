@@ -97,7 +97,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
         }
 
         if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
-            WRITE_LOG(LOG_FATAL, "FileIOOnThread buf memset_s fail.");
+            WRITE_LOG(LOG_DEBUG, "FileIOOnThread buf memset_s fail.");
             bFinish = true;
             break;
         }

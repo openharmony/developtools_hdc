@@ -67,8 +67,6 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     openReq->data = context;
     do {
         ++refCount;
-        WRITE_LOG_DAEMON(LOG_INFO, "BeginTransfer cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
         uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         context->master = true;
         ret = true;
@@ -516,8 +514,6 @@ bool HdcFile::BeginFileOperations()
     memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = &ctxNow;
     ++refCount;
-    WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-        taskInfo->sessionId, ctxNow.localPath.c_str(), ctxNow.remotePath.c_str());
     uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (ctxNow.transferDirBegin == 0) {
@@ -544,8 +540,6 @@ void HdcFile::TransferNext(CtxFile *context)
     openReq->data = context;
     do {
         ++refCount;
-        WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
         uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
     } while (false);
 

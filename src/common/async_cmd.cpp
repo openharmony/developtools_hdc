@@ -61,11 +61,10 @@ void AsyncCmd::DoRelease()
     if (childShell != nullptr) {
         childShell->StopWorkOnThread(false, nullptr);
     }
-    int rc = 0;
     if (pid > 0) {
-        rc = uv_kill(pid, SIGTERM);
+        uv_kill(pid, SIGTERM);
     }
-    WRITE_LOG(LOG_INFO, "DoRelease rc:%d pid:%d", rc, pid);
+    WRITE_LOG(LOG_INFO, "DoRelease pid:%d", pid);
 }
 
 bool AsyncCmd::Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint32_t optionsIn)

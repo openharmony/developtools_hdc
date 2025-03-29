@@ -78,7 +78,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
 #endif
     if (buf == nullptr) {
-        WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr cid:%u sid:%u", taskInfo->channelId, taskInfo->sessionId);
+        WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr");
         return -1;
     }
     CtxFileIO *ioContext = new(std::nothrow) CtxFileIO();
@@ -88,7 +88,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 #else
         delete[] buf;
 #endif
-        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr cid:%u sid:%u", taskInfo->channelId, taskInfo->sessionId);
+        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr");
         return -1;
     }
     bool ret = false;
@@ -97,13 +97,11 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             static_cast<size_t>(Base::GetUsbffsBulkSizeStable() - payloadPrefixReserve) :
             static_cast<size_t>(Base::GetUsbffsBulkSize() - payloadPrefixReserve);
         if (bytes < 0 || static_cast<size_t>(bytes) > bufMaxSize) {
-            WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed cid:%u sid:%u", taskInfo->channelId,
-                taskInfo->sessionId);
+            WRITE_LOG(LOG_DEBUG, "SimpleFileIO param check failed");
             break;
         }
         if (context->ioFinish) {
-            WRITE_LOG(LOG_DEBUG, "SimpleFileIO to closed IOStream cid:%u sid:%u", taskInfo->channelId,
-                taskInfo->sessionId);
+            WRITE_LOG(LOG_DEBUG, "SimpleFileIO to closed IOStream");
             break;
         }
         uv_fs_t *req = &ioContext->fs;
@@ -119,8 +117,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
             if (bytes > 0 && memcpy_s(ioContext->bufIO, bufMaxSize, sendBuf, bytes) != EOK) {
-                WRITE_LOG(LOG_WARN, "SimpleFileIO memcpy error cid:%u sid:%u", taskInfo->channelId,
-                    taskInfo->sessionId);
+                WRITE_LOG(LOG_WARN, "SimpleFileIO memcpy error");
                 break;
             }
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
@@ -133,8 +130,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         if (ioContext != nullptr) {
             delete ioContext;
             ioContext = nullptr;
-            WRITE_LOG(LOG_WARN, "SimpleFileIO ret=false, delete context, cid:%u sid:%u", taskInfo->channelId,
-                taskInfo->sessionId);
+            WRITE_LOG(LOG_WARN, "SimpleFileIO ret=false, delete context.");
         }
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);

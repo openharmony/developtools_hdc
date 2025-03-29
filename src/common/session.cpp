@@ -514,7 +514,7 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
 
 void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
 {
-    WRITE_LOG(LOG_INFO, "FreeSessionByConnectType %s", hSession->ToDebugString().c_str());
+    WRITE_LOG(LOG_DEBUG, "FreeSessionByConnectType %s", hSession->ToDebugString().c_str());
 
     if (hSession->connType == CONN_USB) {
         // ibusb All context is applied for sub-threaded, so it needs to be destroyed in the subline
@@ -786,14 +786,14 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
             mapTask[channelId] = hInput;
             hRet = hInput;
 
-            WRITE_LOG(LOG_INFO, "AdminTask add task type:%u cid:%u sid:%u mapsize:%zu",
-                      hInput->taskType, channelId, hSession->sessionId, mapTask.size());
+            WRITE_LOG(LOG_WARN, "AdminTask add session %u, channelId %u, mapTask size: %zu",
+                      hSession->sessionId, channelId, mapTask.size());
 
             break;
         case OP_REMOVE:
             mapTask.erase(channelId);
-            WRITE_LOG(LOG_INFO, "AdminTask rm cid:%u sid:%u mapsize:%zu",
-                      channelId, hSession->sessionId, mapTask.size());
+            WRITE_LOG(LOG_DEBUG, "AdminTask rm session %u, channelId %u, mapTask size: %zu",
+                      hSession->sessionId, channelId, mapTask.size());
             break;
         case OP_QUERY:
             if (mapTask.count(channelId)) {
@@ -1036,7 +1036,7 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
             status, hSession->sessionId, hSession->isDead, uint32_t(hSession->ref));
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hSession->isDead && !hSession->ref) {
-            WRITE_LOG(LOG_INFO, "FinishWriteSessionTCP freesession:%u", hSession->sessionId);
+            WRITE_LOG(LOG_DEBUG, "FinishWriteSessionTCP freesession :%u", hSession->sessionId);
             thisClass->FreeSession(hSession->sessionId);
         }
     }
@@ -1125,7 +1125,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         HdcTCPBase *pTCPBase = (HdcTCPBase *)hSession->classModule;
         hSession->hChildWorkTCP.data = hSession;
         if (uv_tcp_init(&hSession->childLoop, &hSession->hChildWorkTCP) < 0) {
-            WRITE_LOG(LOG_FATAL, "WorkThreadStartSession uv_tcp_init failed sid:%u", hSession->sessionId);
+            WRITE_LOG(LOG_WARN, "HdcSessionBase SessionCtrl failed 1");
             return false;
         }
         WRITE_LOG(LOG_INFO, "start tcp open fdChildWorkTCP, sid:%u", hSession->sessionId);
@@ -1133,8 +1133,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(childRet, buf, bufSize);
-            WRITE_LOG(LOG_FATAL, "WorkThreadStartSession uv_tcp_open failed fd:%d str:%s sid:%u",
-                hSession->fdChildWorkTCP, buf, hSession->sessionId);
+            WRITE_LOG(LOG_WARN, "SessionCtrl failed 2,fd:%d,str:%s", hSession->fdChildWorkTCP, buf);
             return false;
         }
         Base::SetTcpOptions((uv_tcp_t *)&hSession->hChildWorkTCP);
@@ -1143,12 +1142,12 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
 #ifdef HDC_SUPPORT_UART
     } else if (hSession->connType == CONN_SERIAL) { // UART
         HdcUARTBase *pUARTBase = (HdcUARTBase *)hSession->classModule;
-        WRITE_LOG(LOG_INFO, "UART ReadyForWorkThread sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "UART ReadyForWorkThread");
         regOK = pUARTBase->ReadyForWorkThread(hSession);
 #endif
     } else {  // USB
         HdcUSBBase *pUSBBase = (HdcUSBBase *)hSession->classModule;
-        WRITE_LOG(LOG_INFO, "USB ReadyForWorkThread sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "USB ReadyForWorkThread");
         regOK = pUSBBase->ReadyForWorkThread(hSession);
     }
 
@@ -1374,14 +1373,14 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     // start heartbeat rimer
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     hSessionBase->StartHeartbeatWork(hSession);
-    WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sid:%u instance:%s", hSession->sessionId,
+    WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sessionId:%u instance:%s", hSession->sessionId,
               thisClass->serverOrDaemon ? "server" : "daemon");
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);  // work pendding
-    WRITE_LOG(LOG_INFO, "!!!Workthread run again, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_DEBUG, "!!!Workthread run again, sessionId:%u", hSession->sessionId);
     // main loop has exit
     thisClass->ReChildLoopForSessionClear(hSession);  // work pending again
     hSession->childCleared = true;
-    WRITE_LOG(LOG_INFO, "!!!Workthread run finish, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_WARN, "!!!Workthread run finish, sessionId:%u", hSession->sessionId);
 }
 
 // clang-format off
@@ -1449,7 +1448,7 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
     while (true) {
         // Some basic commands do not have a local task constructor. example: Interactive shell, some uinty commands
         if (NeedNewTaskInfo(command, masterTask)) {
-            WRITE_LOG(LOG_INFO, "New HTaskInfo cid:%u sid:%u command:%u", channelId, hSession->sessionId, command);
+            WRITE_LOG(LOG_DEBUG, "New HTaskInfo channelId:%u command:%u", channelId, command);
             hTaskInfo = new(std::nothrow) TaskInformation();
             if (hTaskInfo == nullptr) {
                 WRITE_LOG(LOG_FATAL, "DispatchTaskData new hTaskInfo failed");
@@ -1488,7 +1487,7 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo = AdminTask(OP_QUERY, hSession, channelId, nullptr);
         }
         if (!hTaskInfo || hTaskInfo->taskStop || hTaskInfo->taskFree) {
-            WRITE_LOG(LOG_WARN, "hTaskInfo null cid:%u sid:%u command:%u", channelId, hSession->sessionId, command);
+            WRITE_LOG(LOG_ALL, "Dead HTaskInfo, ignore, channelId:%u command:%u", channelId, command);
             break;
         }
         ret = RedirectToTask(hTaskInfo, hSession, channelId, command, payload, payloadSize);
@@ -1500,7 +1499,7 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
 void HdcSessionBase::PostStopInstanceMessage(bool restart)
 {
     PushAsyncMessage(0, ASYNC_STOP_MAINLOOP, nullptr, 0);
-    WRITE_LOG(LOG_INFO, "StopDaemon has sended restart %d", restart);
+    WRITE_LOG(LOG_DEBUG, "StopDaemon has sended restart %d", restart);
     wantRestart = restart;
 }
 

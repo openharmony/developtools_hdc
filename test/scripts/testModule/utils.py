@@ -210,7 +210,7 @@ class GP(object):
     
     @classmethod
     def get_version(cls):
-        version = f"v1.0.6a"
+        version = f"v1.0.5a"
         return version
 
 
@@ -231,7 +231,7 @@ def pytest_run():
 def rmdir(path):
     try:
         if sys.platform == "win32":
-            if os.path.isfile(path) or os.path.islink(path):
+            if os.path.isfile(path):
                 os.remove(path)
             else:
                 shutil.rmtree(path)
@@ -262,10 +262,7 @@ def check_shell_any_device(cmd, pattern=None, fetch=False):
     print(f"\nexecuting command: {cmd}")
     if pattern: # check output valid
         print("pattern case")
-        try:
-            output = subprocess.check_output(cmd.split()).decode('utf-8')
-        except UnicodeDecodeError:
-            output = subprocess.check_output(cmd.split()).decode('gbk')
+        output = subprocess.check_output(cmd.split()).decode()
         res = pattern in output
         print(f"--> output: {output}")
         print(f"--> pattern [{pattern}] {'FOUND' if res else 'NOT FOUND'} in output")
@@ -581,24 +578,12 @@ def create_file_with_size(path, size):
 
 def gen_soft_link():
     print("generating soft link ...")
-    depth_1_path = os.path.join(GP.local_path, "d1")
-    depth_2_path = os.path.join(GP.local_path, "d1", "d2")
-    if not os.path.exists(os.path.join(GP.local_path, "d1")):
-        os.mkdir(depth_1_path)
-        os.mkdir(depth_2_path)
-        copy_file(os.path.join(GP.local_path, "small"), depth_2_path)
     try:
         os.symlink("small", os.path.join(GP.local_path, "soft_small"))
     except FileExistsError:
         print("soft_small already exists")
     except OSError:
         print("生成soft_small失败，需要使用管理员权限用户执行软链接生成")
-    try:
-        os.symlink("d1", os.path.join(GP.local_path, "soft_dir"))
-    except FileExistsError:
-        print("soft_dir already exists")
-    except OSError:
-        print("生成soft_dir失败，需要使用管理员权限用户执行软链接生成")
 
 
 def gen_file_set():

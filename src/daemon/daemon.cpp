@@ -1091,6 +1091,7 @@ void HdcDaemon::DeleteSessionAuthStatus(uint32_t sessionid)
 HdcSessionBase::AuthType HdcDaemon::GetSessionAuthStatus(uint32_t sessionid)
 {
     HdcDaemonAuthInfo info;
+    info.authtype = AUTH_NONE;
 
     mapAuthStatusMutex.lock();
     if (mapAuthStatus.count(sessionid) > 0) {

@@ -438,15 +438,18 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
         uint8_t *buf = new(std::nothrow) uint8_t[size];
         if (buf == nullptr) {
             WRITE_LOG(LOG_FATAL, "out of memory size:%u", size);
+            Base::CloseFd(fd);
             return false;
         }
         if (memcpy_s(buf, sizeof(int32_t), &fd, sizeof(int32_t)) != EOK) {
             WRITE_LOG(LOG_WARN, "From fd Create buf failed, fd:%d", fd);
+            Base::CloseFd(fd);
             delete[] buf;
             return false;
         }
         if (memcpy_s(buf + sizeof(int32_t), str.size(), str.c_str(), str.size()) != EOK) {
             WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
+            Base::CloseFd(fd);
             delete[] buf;
             return false;
         }

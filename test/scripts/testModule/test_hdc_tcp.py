@@ -16,7 +16,7 @@ import os
 import time
 import pytest
 from utils import GP, check_hdc_cmd, get_shell_result, run_command_with_timeout, check_shell, get_local_path, \
-    get_remote_path, rmdir, load_gp
+    get_remote_path, rmdir, load_gp, check_cmd_block
 
 
 class TestTcpByFport:
@@ -64,3 +64,11 @@ class TestTcpByFport:
                              f"{get_remote_path(f'{remote_path}_fport')}", head=tcp_head)
         assert check_hdc_cmd(f"file recv {get_remote_path(f'{remote_path}_fport')} "
                              f"{get_local_path(f'{local_path}_fport_recv')}", head=tcp_head)
+
+    @pytest.mark.L1
+    def test_no_install_with_multi_device(self):
+        package_hap = "AACommand07.hap"
+        app = os.path.join(GP.local_path, package_hap)
+        install_cmd = f"install {app}"
+        patten = f"please confirm a device by help info"
+        assert check_cmd_block(f"{GP.hdc_exe} {install_cmd}", f"{patten}", timeout=3)

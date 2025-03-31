@@ -1093,7 +1093,9 @@ HdcSessionBase::AuthType HdcDaemon::GetSessionAuthStatus(uint32_t sessionid)
     HdcDaemonAuthInfo info;
 
     mapAuthStatusMutex.lock();
-    info = mapAuthStatus[sessionid];
+    if (mapAuthStatus.count(sessionid) > 0) {
+        info = mapAuthStatus[sessionid];
+    }
     mapAuthStatusMutex.unlock();
 
     return info.authtype;
@@ -1103,7 +1105,9 @@ string HdcDaemon::GetSessionAuthToken(uint32_t sessionid)
     HdcDaemonAuthInfo info;
 
     mapAuthStatusMutex.lock();
-    info = mapAuthStatus[sessionid];
+    if (mapAuthStatus.count(sessionid) > 0) {
+        info = mapAuthStatus[sessionid];
+    }
     mapAuthStatusMutex.unlock();
 
     return info.token;
@@ -1113,7 +1117,9 @@ string HdcDaemon::GetSessionAuthPubkey(uint32_t sessionid)
     HdcDaemonAuthInfo info;
 
     mapAuthStatusMutex.lock();
-    info = mapAuthStatus[sessionid];
+    if (mapAuthStatus.count(sessionid) > 0) {
+        info = mapAuthStatus[sessionid];
+    }
     mapAuthStatusMutex.unlock();
 
     return info.pubkey;
@@ -1123,7 +1129,9 @@ string HdcDaemon::GetSessionAuthmsg(uint32_t sessionid)
     HdcDaemonAuthInfo info;
 
     mapAuthStatusMutex.lock();
-    info = mapAuthStatus[sessionid];
+    if (mapAuthStatus.count(sessionid) > 0) {
+        info = mapAuthStatus[sessionid];
+    }
     mapAuthStatusMutex.unlock();
 
     return info.authmsg;

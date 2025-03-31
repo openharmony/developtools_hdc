@@ -45,7 +45,7 @@ void HdcDaemonTCP::Stop()
 {
     Base::TryCloseHandle((const uv_handle_t *)&servUDP);
     Base::TryCloseHandle((const uv_handle_t *)&servTCP);
-    WRITE_LOG(LOG_INFO, "Stop tcpListenPort:%u", tcpListenPort);
+    WRITE_LOG(LOG_DEBUG, "Stop tcpListenPort:%u", tcpListenPort);
 }
 
 void HdcDaemonTCP::TransmitConfig(const sockaddr *addrSrc, uv_udp_t *handle)
@@ -70,7 +70,6 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
     HdcDaemonTCP *thisClass = (HdcDaemonTCP *)pServTCP->data;
     HdcSessionBase *ptrConnect = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
     HdcSessionBase *daemon = reinterpret_cast<HdcSessionBase *>(thisClass->clsMainBase);
-    CALLSTAT_GUARD(daemon->loopMainStatus, server->loop, "HdcDaemonTCP::AcceptClient");
     const uint16_t maxWaitTime = UV_DEFAULT_INTERVAL;
     auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
     HSession hSession = ptrConnect->MallocSession(false, CONN_TCP, thisClass);
@@ -144,7 +143,7 @@ int HdcDaemonTCP::SetTCPListen()
 
 int HdcDaemonTCP::Initial()
 {
-    WRITE_LOG(LOG_INFO, "HdcDaemonTCP init");
+    WRITE_LOG(LOG_DEBUG, "HdcDaemonTCP init");
     SetUDPListen();
     if (SetTCPListen() != RET_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "TCP listen failed");

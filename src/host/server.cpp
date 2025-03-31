@@ -587,8 +587,8 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
     HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
     if (command == CMD_KERNEL_HANDSHAKE) {
         ret = ServerSessionHandshake(hSession, payload, payloadSize);
-        WRITE_LOG(LOG_INFO, "Session handshake %s connType:%d sid:%u", ret ? "successful" : "failed",
-                  hSession->connType, hSession->sessionId);
+        WRITE_LOG(LOG_DEBUG, "Session handshake %s connType:%d", ret ? "successful" : "failed",
+                  hSession->connType);
         return ret;
     }
     if (command == CMD_HEARTBEAT_MSG) {
@@ -626,12 +626,11 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             MessageLevel level = static_cast<MessageLevel>(*payload);
             string s(reinterpret_cast<char *>(payload + 1), payloadSize - 1);
             sfc->EchoClient(hChannel, level, s.c_str());
-            WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d cid:%u sid:%u", payloadSize - 1, channelId,
-                hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d channelId:%u", payloadSize - 1, channelId);
             break;
         }
         case CMD_KERNEL_CHANNEL_CLOSE: {
-            WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%u", channelId, hSession->sessionId);
+            WRITE_LOG(LOG_DEBUG, "CMD_KERNEL_CHANNEL_CLOSE channelid:%u", channelId);
             // Forcibly closing the tcp handle here may result in incomplete data reception on the client side
             ClearOwnTasks(hSession, channelId);
             // crossthread free
@@ -779,7 +778,6 @@ void HdcServer::UsbPreConnect(uv_timer_t *handle)
     HSession hSession = (HSession)handle->data;
     bool stopLoop = false;
     HdcServer *hdcServer = (HdcServer *)hSession->classInstance;
-    CALLSTAT_GUARD(hdcServer->loopMainStatus, handle->loop, "HdcServer::UsbPreConnect");
     while (true) {
         WRITE_LOG(LOG_DEBUG, "HdcServer::UsbPreConnect");
         HDaemonInfo pDi = nullptr;
@@ -935,7 +933,6 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     }
     uv_tcp_init(&hSession->childLoop, &hChannel->hChildWorkTCP);
     hChannel->hChildWorkTCP.data = hChannel;
-    hChannel->loopStatus = &hSession->childLoopStatus;
     hChannel->targetSessionId = hSession->sessionId;
     if ((ret = uv_tcp_open((uv_tcp_t *)&hChannel->hChildWorkTCP, hChannel->fdChildWorkTCP)) < 0) {
         constexpr int bufSize = 1024;

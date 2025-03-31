@@ -194,7 +194,6 @@ bool HdcClient::KillServer(const string &cmd)
 void HdcClient::DoCtrlServiceWork(uv_check_t *handle)
 {
     HdcClient *thisClass = (HdcClient *)handle->data;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcClient::DoCtrlServiceWork");
     string &strCmd = thisClass->command;
     if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
         thisClass->StartServer(strCmd);
@@ -508,7 +507,6 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
 {
     const uint16_t maxWaitRetry = 1200; // client socket try 12s
     HdcClient *thisClass = (HdcClient *)handle->data;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcClient::CommandWorker");
     if (++thisClass->debugRetryCount > maxWaitRetry) {
         uv_timer_stop(handle);
         uv_stop(thisClass->loopMain);
@@ -565,7 +563,6 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
     HChannel hChannel = (HChannel)stream->data;
     HdcClient *thisClass = (HdcClient *)hChannel->clsChannel;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, stream->loop, "HdcClient::ReadStd");
     if (!hChannel->handshakeOK) {
         WRITE_LOG(LOG_WARN, "ReadStd handshake not ready");
         return; // if not handshake, do not send the cmd input to server.
@@ -635,7 +632,6 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
 {
     WRITE_LOG(LOG_DEBUG, "Enter Connect, status:%d", status);
     HdcClient *thisClass = (HdcClient *)connection->data;
-    CALLSTAT_GUARD(thisClass->loopMainStatus, connection->handle->loop, "HdcClient::Connect");
     delete connection;
     HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
     if (uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
@@ -668,7 +664,6 @@ void HdcClient::RetryTcpConnectWorker(uv_timer_t *handle)
 {
     HdcClient *thisClass = (HdcClient *)handle->data;
     HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
-    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcClient::RetryTcpConnectWorker");
     uv_connect_t *connection = new(std::nothrow) uv_connect_t();
     if (connection == nullptr) {
         WRITE_LOG(LOG_FATAL, "RetryTcpConnectWorker new conn failed");
@@ -899,7 +894,6 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     HTaskInfo hTaskInfo = new TaskInformation();
     hTaskInfo->channelId = hChannel->channelId;
     hTaskInfo->runLoop = loopMain;
-    hTaskInfo->runLoopStatus = &loopMainStatus;
     hTaskInfo->serverOrDaemon = true;
     hTaskInfo->channelTask = true;
     hTaskInfo->channelClass = this;

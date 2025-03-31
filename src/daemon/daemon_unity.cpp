@@ -27,7 +27,7 @@ HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
 
 HdcDaemonUnity::~HdcDaemonUnity()
 {
-    WRITE_LOG(LOG_INFO, "~HdcDaemonUnity cid:%u sid:%u", taskInfo->channelId, taskInfo->sessionId);
+    WRITE_LOG(LOG_DEBUG, "~HdcDaemonUnity channelId:%u", taskInfo->channelId);
 }
 
 void HdcDaemonUnity::StopTask()
@@ -396,8 +396,9 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
     HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
     // Both are not executed, do not need to be detected 'childReady'
     string strPayload = string(reinterpret_cast<char *>(payload), payloadSize);
-    WRITE_LOG(LOG_INFO, "Unity CommandDispatch command:%d cid:%u sid:%u", command, taskInfo->channelId,
-        taskInfo->sessionId);
+#ifdef HDC_DEBUG
+    WRITE_LOG(LOG_DEBUG, "CommandDispatch command:%d", command);
+#endif // HDC_DEBUG
     switch (command) {
         case CMD_UNITY_EXECUTE: {
             ExecuteShell(const_cast<char *>(strPayload.c_str()));
@@ -468,8 +469,9 @@ bool HdcDaemonUnity::CommandDispatch(const uint16_t command, uint8_t *payload, c
         default:
             break;
     }
-    WRITE_LOG(LOG_INFO, "Unity CommandDispatch command:%d finish cid:%u sid:%u", command, taskInfo->channelId,
-        taskInfo->sessionId);
+#ifdef HDC_DEBUG
+    WRITE_LOG(LOG_DEBUG, "CommandDispatch command:%d finish.", command);
+#endif // HDC_LOCAL_DEBUG
     return ret;
 };
 }  // namespace Hdc

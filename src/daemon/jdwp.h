@@ -20,7 +20,7 @@
 namespace Hdc {
 class HdcJdwp {
 public:
-    HdcJdwp(uv_loop_t *loopIn, LoopStatus *loopStatus);
+    HdcJdwp(uv_loop_t *loopIn);
     virtual ~HdcJdwp();
     int Initial();
     void Stop();
@@ -99,7 +99,6 @@ private:
     void DrainAwakenPollThread() const;
     void WakePollThread();
     uv_loop_t *loop;
-    LoopStatus *loopStatus;
     uv_pipe_t listenPipe = {};
     uint32_t refCount;
     int32_t awakenPollFd;

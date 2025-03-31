@@ -43,6 +43,7 @@ namespace Base {
     extern uint8_t g_logLevel;
     void SetLogLevel(const uint8_t logLevel);
     uint8_t GetLogLevelByEnv();
+    void PrintLogEx(const char *functionName, int line, uint8_t logLevel, const char *msg, ...);
     void PrintMessage(const char *fmt, ...);
     void PrintMessageAndWriteLog(const char *fmt, ...);
     // tcpHandle can't be const as it's passed into uv_tcp_keepalive
@@ -282,7 +283,6 @@ namespace Base {
         TAG_SHELL_BUNDLE,
         TAG_SHELL_CMD,
     };
-    bool CanPrintCmd(const uint16_t command);
     void UpdateEnvCache();
     #define FEATURE_HEARTBEAT "heartbeat"
     using HdcFeatureSet = std::vector<std::string>;

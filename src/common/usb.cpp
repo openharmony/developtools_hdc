@@ -31,7 +31,6 @@ void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
     StartTraceScope("HdcUSBBase::ReadUSB");
     HSession hSession = (HSession)stream->data;
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
-    CALLSTAT_GUARD(hSession->childLoopStatus, stream->loop, "HdcUSBBase::ReadUSB");
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
         WRITE_LOG(LOG_FATAL, "ReadUSB FetchIOBuf error sessionId:%u", hSession->sessionId);
         hSessionBase->FreeSession(hSession->sessionId);
@@ -42,25 +41,24 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
 {
     // Server-end USB IO is handed over to each sub-thread, only the daemon is still read by the main IO to distribute
     // to each sub-thread by DataPipe.
-    uv_tcp_t *stream = &hSession->dataPipe[STREAM_WORK];
-    if (uv_tcp_init(&hSession->childLoop, stream) ||
-        uv_tcp_open(stream, hSession->dataFd[STREAM_WORK])) {
-        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed, sid:%u", hSession->sessionId);
+    if (uv_tcp_init(&hSession->childLoop, &hSession->dataPipe[STREAM_WORK]) ||
+        uv_tcp_open(&hSession->dataPipe[STREAM_WORK], hSession->dataFd[STREAM_WORK])) {
+        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed");
         return false;
     }
-    stream->data = hSession;
+    hSession->dataPipe[STREAM_WORK].data = hSession;
     HdcSessionBase *pSession = (HdcSessionBase *)hSession->classInstance;
 #ifdef HDC_HOST
-    Base::SetTcpOptions(stream, HOST_SOCKETPAIR_SIZE);
+    Base::SetTcpOptions(&hSession->dataPipe[STREAM_WORK], HOST_SOCKETPAIR_SIZE);
 #else
-    Base::SetTcpOptions(stream);
+    Base::SetTcpOptions(&hSession->dataPipe[STREAM_WORK]);
 #endif
-    if (uv_read_start((uv_stream_t *)stream, pSession->AllocCallback, ReadUSB)) {
-        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed, sid:%u", hSession->sessionId);
+    if (uv_read_start((uv_stream_t *)&hSession->dataPipe[STREAM_WORK], pSession->AllocCallback, ReadUSB)) {
+        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed");
         return false;
     }
-    WRITE_LOG(LOG_INFO, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d, sid:%u",
-        hSession->dataFd[STREAM_WORK], hSession->sessionId);
+    WRITE_LOG(LOG_DEBUG, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d",
+        hSession->dataFd[STREAM_WORK]);
     return true;
 };
 

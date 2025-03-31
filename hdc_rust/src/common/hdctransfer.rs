@@ -224,9 +224,10 @@ pub fn check_local_path(
                 match create_dir_all_with_permission((transfer.local_path[0..index]).to_string(), 0o750) {
                     Ok(_) => {
                         match File::create(transfer.local_path.clone()) {
-                            Ok(_) => {
-                                set_file_permission(transfer.local_path.clone(), 0o644)?;
-                                Ok(true)
+                    Ok(_) => {
+                        #[cfg(not(target_os = "windows"))]
+                        set_file_permission(transfer.local_path.clone(), 0o644)?;
+                        Ok(true)
                             },
                     Err(error) => {
                         crate::error!("file create failed, error:{}", &error);
@@ -242,9 +243,10 @@ pub fn check_local_path(
             }
             None => {
                 match File::create(transfer.local_path.clone()) {
-                    Ok(_) => {
-                        set_file_permission(transfer.local_path.clone(), 0o644)?;
-                        Ok(true)
+                Ok(_) => {
+                    #[cfg(not(target_os = "windows"))]
+                    set_file_permission(transfer.local_path.clone(), 0o644)?;
+                    Ok(true)
                     },
                 Err(error) => {
                     crate::error!("file create failed, error:{}", &error);

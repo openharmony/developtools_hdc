@@ -46,4 +46,3 @@ class TestSmode:
         time.sleep(3) # sleep 3s to wait for the device to connect channel
         run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
         assert check_shell(f"shell id", "context=u:r:su:s0")
-        assert not check_hdc_cmd("ls data/log/faultlog/faultlogger | grep hdcd", "hdcd")

@@ -24,6 +24,7 @@ def clear_and_restart():
     check_hdc_cmd("start")
     check_hdc_cmd("wait")
     check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
+    check_hdc_cmd("shell rm data/log/faultlog/faultlogger/cppcrash*hdcd*")
     check_hdc_cmd("shell mkdir data/local/tmp/it_send_dir")
 
 

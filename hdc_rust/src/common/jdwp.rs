@@ -321,8 +321,7 @@ impl Jdwp {
                         if let Some(vec) = socketpair_map_lock.remove(&pid) {
                             let lock = vec.lock().await;
                             for (fd0, fd1) in lock.iter() {
-                                UdsServer::wrap_close(*fd0);
-                                UdsServer::wrap_close(*fd1);
+                                //此处close socketpair,会导致hdcd和aa之间的pipe异常，hdcd读取不到aa force-stop的返回结果
                                 crate::info!("start_data_looper close pid:{}, socketpair_fd:({},{})", pid, fd0, fd1);
                             }
                         }

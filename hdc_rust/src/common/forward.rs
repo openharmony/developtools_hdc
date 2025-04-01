@@ -35,9 +35,6 @@ use crate::common::hdctransfer::{self, HdcTransferBase};
 use crate::common::jdwp::Jdwp;
 #[cfg(not(target_os = "windows"))]
 use crate::common::uds::{UdsAddr, UdsClient, UdsServer};
-use crate::common::context::ContextMap;
-use crate::{config, utils};
-use crate::config::ContextType;
 use crate::config::HdcCommand;
 use crate::config::MessageLevel;
 use crate::config::TaskMessage;
@@ -327,7 +324,6 @@ impl ForwardTaskMap {
         let map = Self::get_instance();
         let mut map = map.lock().await;
         map.insert((session_id, channel_id), value.clone());
-        ContextMap::put(session_id, channel_id, ContextType::Forward).await;
     }
 
     pub async fn remove(session_id: u32, channel_id: u32) {

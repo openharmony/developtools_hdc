@@ -834,9 +834,6 @@ bool HdcClient::WaitFor(const string &str)
             std::this_thread::sleep_for(std::chrono::seconds(timeout));
             wait = true;
         } else {
-#ifdef _WIN32
-            Base::RestoreConsoleOutputCP(Base::g_oldConsoleOutputCP);
-#endif
             _exit(0);
         }
     }

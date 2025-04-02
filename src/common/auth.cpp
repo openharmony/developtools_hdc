@@ -261,7 +261,7 @@ bool GetUserKeyPath(string &path)
     if (path.empty()) {
         path = dir;
     } else {
-        path += Base::GetPathSep(); // bugfix for unix platform create key file not in dir.
+        path += Base::GetPathSep();
     }
     if (stat(path.c_str(), &status)) {
         uv_fs_t req;

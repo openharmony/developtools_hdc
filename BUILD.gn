@@ -220,9 +220,8 @@ if (product_name != "ohos-sdk") {
       "//third_party/rust/crates/libc:lib",
       "//third_party/rust/crates/log:lib",
     ]
-    features = [ "daemon" ]
     if (is_emulator && product_name != "ohos-sdk") {
-      features += [ "emulator" ]
+      features = [ "emulator" ]
     }
     external_deps = [
       "hilog:hilog_rust",
@@ -292,6 +291,7 @@ template("build_hdc") {
           ]
           external_deps += [ "ylong_runtime:ylong_runtime" ]
         }
+
         if (!defined(ohos_lite)) {
           external_deps += [ "faultloggerd:panic_handler" ]
         }

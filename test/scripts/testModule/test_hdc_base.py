@@ -82,6 +82,7 @@ class TestTargetCommand:
         sep = "/"
         remount_vendor = get_shell_result(f'shell "mount |grep {sep}vendor |head -1"')
         print(remount_vendor)
+        sep = "/"
         assert "rw" in remount_vendor
         remount_system = get_shell_result(f'shell "cat proc/mounts | grep {sep}system |head -1"')
         print(remount_system)

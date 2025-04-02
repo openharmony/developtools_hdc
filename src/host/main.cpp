@@ -444,7 +444,6 @@ int main(int argc, const char *argv[])
 {
     Base::UpdateEnvCache();
 #ifdef _WIN32
-    Base::g_oldConsoleOutputCP = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
 #endif
     string options;
@@ -459,9 +458,6 @@ int main(int argc, const char *argv[])
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
     if (cmdOptionResult) {
-#ifdef _WIN32
-    Base::RestoreConsoleOutputCP(Base::g_oldConsoleOutputCP);
-#endif
         return 0;
     }
     Base::InitProcess();
@@ -481,9 +477,6 @@ int main(int argc, const char *argv[])
         if (!ExtClient::SharedLibraryExist()) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
             Hdc::Base::RemoveLogCache();
-#ifdef _WIN32
-            Base::RestoreConsoleOutputCP(Base::g_oldConsoleOutputCP);
-#endif
             _exit(0);
         }
         string str = "list targets";
@@ -531,9 +524,6 @@ int main(int argc, const char *argv[])
     }
     WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main");
     Hdc::Base::RemoveLogCache();
-#ifdef _WIN32
-    Base::RestoreConsoleOutputCP(Base::g_oldConsoleOutputCP);
-#endif
     return 0;
 }
 #endif  // no UNIT_TEST

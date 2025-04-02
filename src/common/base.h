@@ -38,9 +38,6 @@
 
 namespace Hdc {
 namespace Base {
-#ifdef _WIN32
-    extern UINT g_oldConsoleOutputCP;
-#endif
     uint8_t GetLogLevel();
     extern bool g_isBackgroundServer;
     extern uint8_t g_logLevel;
@@ -296,9 +293,6 @@ namespace Base {
     void UpdateHeartbeatSwitchCache();
     bool GetheartbeatSwitch();
     bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode);
-#ifdef _WIN32
-    void RestoreConsoleOutputCP(UINT outputCP);
-#endif
 }  // namespace base
 }  // namespace Hdc
 

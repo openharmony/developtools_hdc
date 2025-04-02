@@ -438,23 +438,12 @@ void RunExternalClient(string &str, string &connectKey, string &containerInOut)
 
 #ifndef UNIT_TEST
 
-#ifdef _WIN32
-static void RestoreConsoleOutputCP(UINT outputCP)
-{
-    if (outputCP == 0) {
-        return;
-    }
-    SetConsoleOutputCP(outputCP);
-}
-#endif
-
 // hdc -l4 -m -s ip:port|hdc -l4 -m
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])
 {
     Base::UpdateEnvCache();
 #ifdef _WIN32
-    UINT oldOutputCP = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
 #endif
     string options;
@@ -469,9 +458,6 @@ int main(int argc, const char *argv[])
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
     if (cmdOptionResult) {
-#ifdef _WIN32
-    RestoreConsoleOutputCP(oldOutputCP);
-#endif
         return 0;
     }
     Base::InitProcess();
@@ -491,9 +477,6 @@ int main(int argc, const char *argv[])
         if (!ExtClient::SharedLibraryExist()) {
             Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
             Hdc::Base::RemoveLogCache();
-#ifdef _WIN32
-            RestoreConsoleOutputCP(oldOutputCP);
-#endif
             _exit(0);
         }
         string str = "list targets";
@@ -541,9 +524,6 @@ int main(int argc, const char *argv[])
     }
     WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main");
     Hdc::Base::RemoveLogCache();
-#ifdef _WIN32
-    RestoreConsoleOutputCP(oldOutputCP);
-#endif
     return 0;
 }
 #endif  // no UNIT_TEST

@@ -27,21 +27,29 @@ bool FuzzForwardReadStream(const uint8_t *data, size_t size)
     HTaskInfo hTaskInfo = new TaskInformation();
     HdcSessionBase *daemon = new HdcSessionBase(false);
     hTaskInfo->ownerSessionClass = daemon;
-    auto forward = new(std::nothrow) HdcForwardBase(hTaskInfo);
+    HdcForwardBase *forward = new(std::nothrow) HdcForwardBase(hTaskInfo);
     if (forward == nullptr) {
+        delete daemon;
+        delete hTaskInfo;
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream forward is null");
         return false;
     }
     HdcForwardBase::HCtxForward ctx = (HdcForwardBase::HCtxForward)forward->MallocContext(true);
     if (ctx == nullptr) {
+        delete daemon;
+        delete forward;
+        delete hTaskInfo;
         WRITE_LOG(LOG_FATAL, "FuzzForwardReadStream ctx is null");
         return false;
     }
     uv_stream_t *stream = (uv_stream_t *)&ctx->tcp;
     uint8_t *base = new uint8_t[size];
-    (void)memcpy_s(base, size, const_cast<uint8_t *>(data), size);
-    uv_buf_t rbf = uv_buf_init(reinterpret_cast<char *>(base), size);
-    forward->ReadForwardBuf(stream, (ssize_t)size, &rbf);
+    if (memcpy_s(base, size, const_cast<uint8_t *>(data), size) == EOK) {
+        uv_buf_t rbf = uv_buf_init(reinterpret_cast<char *>(base), size);
+        forward->ReadForwardBuf(stream, (ssize_t)size, &rbf);
+    } else {
+        delete[] base;
+    }
     delete ctx;
     delete daemon;
     delete forward;

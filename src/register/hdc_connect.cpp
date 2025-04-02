@@ -20,6 +20,7 @@
 namespace Hdc {
 
 std::unique_ptr<ConnectManagement> g_connectManagement = nullptr;
+static std::atomic<bool> g_jdwpSimulatorFree = false;
 static HdcJdwpSimulator *g_clsHdcJdwpSimulator = nullptr;
 
 void ConnectManagement::SetProcessName(const std::string &processName)
@@ -86,12 +87,17 @@ static bool IsDeveloperMode()
 
 void FreeInstance()
 {
+    if (g_jdwpSimulatorFree) {
+        return;
+    }
     if (g_clsHdcJdwpSimulator == nullptr) {
         return;
     }
+    g_jdwpSimulatorFree = true;
     g_clsHdcJdwpSimulator->Disconnect();
     delete g_clsHdcJdwpSimulator;
     g_clsHdcJdwpSimulator = nullptr;
+    g_jdwpSimulatorFree = false;
 }
 
 void Stop(int signo)

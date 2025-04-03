@@ -1358,7 +1358,7 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     // start heartbeat rimer
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     hSessionBase->StartHeartbeatWork(hSession);
-    WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sessionId:%u instance:%s", hSession->sessionId,
+    WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sid:%u instance:%s", hSession->sessionId,
               thisClass->serverOrDaemon ? "server" : "daemon");
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);  // work pendding
     WRITE_LOG(LOG_DEBUG, "!!!Workthread run again, sessionId:%u", hSession->sessionId);

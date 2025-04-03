@@ -622,7 +622,11 @@ bool GenerateKeyPair(const string& prikey_filename, const string& pubkey_filenam
 {
     bool ret = false;
     EVP_PKEY *evp = nullptr;
+#ifdef __OHOS__
+    mode_t old_mask = umask(027);  // 027:permission
+#else
     mode_t old_mask = umask(077);  // 077:permission
+#endif
 
     while (true) {
         evp = GenerateNewKey();

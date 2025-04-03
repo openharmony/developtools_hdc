@@ -353,7 +353,6 @@ int main(int argc, const char *argv[])
     if (debugMode == "1") {
         if (!NeedDropRootPrivileges()) {
             Base::PrintMessageAndWriteLog("DropRootPrivileges fail, EXITING...");
-            WRITE_LOG(LOG_FATAL, "DropRootPrivileges fail, EXITING...");
             return -1;
         }
         WRITE_LOG(LOG_INFO, "HdcDaemon run as root mode.");

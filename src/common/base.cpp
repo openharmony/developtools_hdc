@@ -54,7 +54,7 @@ namespace Base {
     {
         return g_logLevel;
     }
-#ifndef  HDC_HILOG
+#ifndef HDC_HILOG
     std::atomic<bool> g_logCache = true;
 #endif
     uint8_t g_logLevel = LOG_DEBUG;  // tmp set,now debugmode.LOG_OFF when release;;
@@ -146,7 +146,7 @@ namespace Base {
         }
     }
 
-#ifndef  HDC_HILOG
+#ifndef HDC_HILOG
     void LogToPath(const char *path, const char *str)
     {
         // logfile, not thread-safe
@@ -596,7 +596,7 @@ namespace Base {
     }
 #endif
 
-#ifndef  HDC_HILOG
+#ifndef HDC_HILOG
 static void EchoLog(string &buf)
 {
     if (g_isBackgroundServer) {
@@ -629,19 +629,19 @@ static void EchoLog(string &buf)
             case static_cast<int>(LOG_DEBUG):
                 // Info level log can be printed default in hilog, debug can't
                 HDC_LOG_INFO("[%{public}s:%{public}d] %{public}s",
-                          filePath.c_str(), line, buf);
+                    filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_INFO):
                 HDC_LOG_INFO("[%{public}s:%{public}d] %{public}s",
-                         filePath.c_str(), line, buf);
+                    filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_WARN):
                 HDC_LOG_WARN("[%{public}s:%{public}d] %{public}s",
-                         filePath.c_str(), line, buf);
+                    filePath.c_str(), line, buf);
                 break;
             case static_cast<int>(LOG_FATAL):
                 HDC_LOG_FATAL("[%{public}s:%{public}d] %{public}s",
-                          filePath.c_str(), line, buf);
+                    filePath.c_str(), line, buf);
                 break;
             default:
                 break;
@@ -2162,7 +2162,7 @@ static void EchoLog(string &buf)
         return g_tempDir;
     }
 
-#ifndef  HDC_HILOG
+#ifndef HDC_HILOG
     void SetLogCache(bool enable)
     {
         g_logCache = enable;

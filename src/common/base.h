@@ -181,7 +181,7 @@ namespace Base {
     string GetFileNameAny(string &path);
     string GetCwd();
     string GetTmpDir();
-#ifndef  HDC_HILOG
+#ifndef HDC_HILOG
     void SetLogCache(bool enable);
     void RemoveLogFile();
     void RemoveLogCache();

@@ -111,10 +111,14 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         ioContext->bufIO = buf + payloadPrefixReserve;
         ioContext->context = context;
         req->data = ioContext;
-        ++refCount;
         if (context->master) {  // master just read, and slave just write.when master/read, sendBuf can be nullptr
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
-            uv_fs_read(context->loop, req, context->openFd, &iov, 1, index, context->cb);
+            int rc = uv_fs_read(context->loop, req, context->openFd, &iov, 1, index, context->cb);
+            if (rc < 0) {
+                WRITE_LOG(LOG_WARN, "uv_fs_read failed rc:%d", rc);
+            } else {
+                ++refCount;
+            }
         } else {
             // The US_FS_WRITE here must be brought into the actual file offset, which cannot be incorporated with local
             // accumulated index because UV_FS_WRITE will be executed multiple times and then trigger a callback.
@@ -124,7 +128,12 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
                 break;
             }
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
-            uv_fs_write(context->loop, req, context->openFd, &iov, 1, index, context->cb);
+            int rc = uv_fs_write(context->loop, req, context->openFd, &iov, 1, index, context->cb);
+            if (rc < 0) {
+                WRITE_LOG(LOG_WARN, "uv_fs_write failed rc:%d", rc);
+            } else {
+                ++refCount;
+            }
         }
         ret = true;
         break;
@@ -151,6 +160,8 @@ void HdcTransferBase::OnFileClose(CtxFile *context)
     StartTraceScope("HdcTransferBase::OnFileClose");
     context->closeReqSubmitted = false;
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
+    WRITE_LOG(LOG_DEBUG, "OnFileClose channelId:%u closeNotify:%d",
+              thisClass->taskInfo->channelId, context->closeNotify);
     if (context->closeNotify) {
         // close-step2
         // maybe successful finish or failed finish

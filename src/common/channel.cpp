@@ -299,11 +299,13 @@ void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t comman
 
     if (memcpy_s(data, size + sizeof(commandFlag), &commandFlag, sizeof(commandFlag))) {
         delete[] data;
+        WRITE_LOG(LOG_WARN, "memcpy_s failed commandFlag:%u", commandFlag);
         return;
     }
 
     if (size > 0 && memcpy_s(data + sizeof(commandFlag), size, bufPtr, size)) {
         delete[] data;
+        WRITE_LOG(LOG_WARN, "memcpy_s bufPtr failed size:%d", size);
         return;
     }
 
@@ -336,11 +338,13 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
     auto data = new uint8_t[sizeNewBuf]();
     if (!data) {
+        WRITE_LOG(LOG_WARN, "new data nullptr sizeNewBuf:%d", sizeNewBuf);
         return;
     }
     *reinterpret_cast<uint32_t *>(data) = htonl(size);  // big endian
     if (memcpy_s(data + DWORD_SERIALIZE_SIZE, sizeNewBuf - DWORD_SERIALIZE_SIZE, bufPtr, size)) {
         delete[] data;
+        WRITE_LOG(LOG_WARN, "memcpy_s failed size:%d", size);
         return;
     }
     if (hChannel->hWorkThread == uv_thread_self()) {

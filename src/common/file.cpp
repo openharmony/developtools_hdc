@@ -69,7 +69,10 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         ++refCount;
         WRITE_LOG_DAEMON(LOG_INFO, "BeginTransfer cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
             taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
-        uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
+        int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
+        if (rc < 0) {
+            WRITE_LOG(LOG_WARN, "uv_fs_open rdonly rc:%d localPath:%s", rc, context->localPath.c_str());
+        }
         context->master = true;
         ret = true;
     } while (false);
@@ -518,8 +521,11 @@ bool HdcFile::BeginFileOperations()
     ++refCount;
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
         taskInfo->sessionId, ctxNow.localPath.c_str(), ctxNow.remotePath.c_str());
-    uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
-               S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
+    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
+                        S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
+    if (rc < 0) {
+        WRITE_LOG(LOG_WARN, "uv_fs_open create rc:%d %s", rc, ctxNow.localPath.c_str());
+    }
     if (ctxNow.transferDirBegin == 0) {
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
     }
@@ -546,7 +552,10 @@ void HdcFile::TransferNext(CtxFile *context)
         ++refCount;
         WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
             taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
-        uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
+        int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
+        if (rc < 0) {
+            WRITE_LOG(LOG_WARN, "next uv_fs_open rc:%d localPath:%s", rc, context->localPath.c_str());
+        }
     } while (false);
 
     return;

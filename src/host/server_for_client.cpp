@@ -497,7 +497,6 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         }
         case CMD_SERVICE_START: {
             PrintLastError(hChannel);
-            EchoClient(hChannel, MSG_OK, "Start server finish");
             ret = false;
             break;
         }

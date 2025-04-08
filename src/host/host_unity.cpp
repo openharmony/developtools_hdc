@@ -108,7 +108,7 @@ bool HdcHostUnity::AppendLocalLog(const char *bufLog, const int sizeLog)
 {
     auto buf = new uint8_t[sizeLog];
     auto contextIO = new CtxUnityIO();
-    if (!buf || !contextIO) {
+    if (!buf || !contextIO || memcpy_s(buf, sizeLog, bufLog, sizeLog) != EOK) {
         if (buf) {
             delete[] buf;
         }
@@ -123,8 +123,6 @@ bool HdcHostUnity::AppendLocalLog(const char *bufLog, const int sizeLog)
     req->data = contextIO;
     ++refCount;
 
-    if (memcpy_s(buf, sizeLog, bufLog, sizeLog)) {
-    }
     uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(buf), sizeLog);
     uv_fs_write(loopTask, req, opContext.fileLog, &iov, 1, opContext.fileBufIndex, OnFileIO);
     opContext.fileBufIndex += sizeLog;

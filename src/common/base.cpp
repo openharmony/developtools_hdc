@@ -917,8 +917,13 @@ static void EchoLog(string &buf)
             delete[] pDynBuf;
             return ERR_BUF_COPY;
         }
-        return SendToStreamEx(handleStream, pDynBuf, bufLen, nullptr,
-                              reinterpret_cast<void *>(SendCallback), reinterpret_cast<void *>(pDynBuf));
+        int rc = SendToStreamEx(handleStream, pDynBuf, bufLen, nullptr,
+                                reinterpret_cast<void *>(SendCallback), reinterpret_cast<void *>(pDynBuf));
+        if (rc < 0) {
+            WRITE_LOG(LOG_WARN, "SendToStreamEx failed rc:%d bufLen:%d", rc, bufLen);
+            delete[] pDynBuf;
+        }
+        return rc;
     }
 
     // handleSend is used for pipe thread sending, set nullptr for tcp, and dynamically allocated by malloc when buf

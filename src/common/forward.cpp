@@ -814,6 +814,8 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         if (nRet < 0) {
             WRITE_LOG(LOG_WARN, "SendForwardBuf SendToStreamEx ret:%d, size:%d ctxId:%u type:%d",
                 nRet, size, ctx->id, ctx->type);
+            delete[] pDynBuf;
+            delete ctxIO;
         }
     }
     return nRet;

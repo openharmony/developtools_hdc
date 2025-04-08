@@ -646,8 +646,8 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         hUSB->hostBulkIn.isShutdown = true;
         if (server != nullptr && server->clsServerForClient != nullptr) {
             HdcServerForClient *sfc = (HdcServerForClient *)server->clsServerForClient;
-            const string msg("[Fail][E001003] USB communication abnormal, please check the USB communication link.");
-            sfc->EchoToAllChannelsViaSessionId(hSession->sessionId, msg);
+            WRITE_LOG(LOG_FATAL,
+                "[Fail][E001003] USB communication abnormal, please check the USB communication link.");
         }
         server->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);

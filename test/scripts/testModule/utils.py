@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tempfile
 import functools
 
 import pytest
@@ -1059,3 +1060,16 @@ def get_hdcd_fd_count():
 
 def get_end_symbol():
     return sys.platform == 'win32' and "\r\n" or '\n'
+
+
+def get_server_pid_from_file():
+    tmp_dir_path = tempfile.gettempdir()
+    pid_file = os.path.join(tmp_dir_path, ".HDCServer.pid")
+    with open(pid_file, "r") as f:
+        pid = f.read()
+    try:
+        pid = int(pid)
+    except ValueError:
+        pid = 0
+    print(f"--> pid of hdcserver is {pid}")
+    return pid

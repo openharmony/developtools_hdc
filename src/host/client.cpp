@@ -131,22 +131,20 @@ bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
     Initial(connectKey);
     // server is not running, "hdc start [-r]" and "hdc kill -r" will start server directly.
     if (serverStatus == 0) {
-        ChannelCtrlServerStart(channelHostPort.c_str());
+        HdcServer::PullupServer(channelHostPort.c_str());
         return true;
     }
     // server is running
     if (isRestart) { // "hdc start -r": kill and restart server.
-        if (!KillMethodByUv()) {
+        if (!KillMethodByUv(true)) {
             return false;
         }
-        ChannelCtrlServerStart(channelHostPort.c_str());
-    } else { // "hdc start": ignore and print message.
-        Base::PrintMessage("[E002203]hdc server process already exists");
+        HdcServer::PullupServer(channelHostPort.c_str());
     }
     return true;
 }
 
-bool HdcClient::KillMethodByUv()
+bool HdcClient::KillMethodByUv(bool isStart)
 {
     uint32_t pid = GetLastPID();
     if (pid == 0) {
@@ -154,6 +152,9 @@ bool HdcClient::KillMethodByUv()
         return false;
     }
     int rc = uv_kill(pid, SIGKILL);
+    if (isStart) {
+        return true;
+    }
     if (rc == 0) {
         Base::PrintMessage("Kill server finish");
     } else {
@@ -175,18 +176,15 @@ bool HdcClient::KillServer(const string &cmd)
     }
 
     // server is running
-    if (serverStatus != 0 && !KillMethodByUv()) {
+    if (serverStatus != 0 && !KillMethodByUv(false)) {
         return false;
     }
 
     // server need to restart
     if (cmd.find(" -r") != std::string::npos) {
         string connectKey;
-        Base::PrintMessage("hdc start server, listening: %s", channelHostPort.c_str());
         HdcServer::PullupServer(channelHostPort.c_str());
-        uv_sleep(START_CMD_WAIT_TIME);
-        Initial(connectKey);
-        ExecuteCommand(CMDSTR_SERVICE_START.c_str());
+        uv_sleep(START_SERVER_FOR_CLIENT_TIME);
     }
     return true;
 }

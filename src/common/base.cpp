@@ -1030,16 +1030,13 @@ static void EchoLog(string &buf)
         do {
             if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, 0)) {
                 if (GetLastError() != NTE_BAD_KEYSET) {
-                    WRITE_LOG(LOG_FATAL, "CryptAcquireContext first failed %x", GetLastError());
                     break;
                 }
                 if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET)) {
-                    WRITE_LOG(LOG_FATAL, "CryptAcquireContext second failed %x", GetLastError());
                     break;
                 }
             }
             if (!CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
-                WRITE_LOG(LOG_FATAL, "CryptGenRandom failed %x", GetLastError());
             }
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
@@ -1050,7 +1047,6 @@ static void EchoLog(string &buf)
         std::ifstream randomFile("/dev/random", std::ios::binary);
         do {
             if (!randomFile.is_open()) {
-                WRITE_LOG(LOG_FATAL, "open /dev/random failed");
                 break;
             }
             randomFile.read(reinterpret_cast<char*>(&result), sizeof(result));

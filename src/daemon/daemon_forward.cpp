@@ -118,12 +118,7 @@ bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
         return ret;
     }
     // fd[0] for forward, fd[1] for ark
-    int rc = Base::CreateSocketPair(fds);
-    if (rc < 0) {
-        WRITE_LOG(LOG_WARN, "CreateSocketPair failed rc:%d", rc);
-        delete[] buf;
-        return ret;
-    }
+    Base::CreateSocketPair(fds);
     buf[0] = SP_ARK_NEWFD;
     if (memcpy_s(buf + 1, sizeof(int32_t), &fds[1], sizeof(int32_t)) ||
         memcpy_s(buf + 1 + sizeof(int32_t), str.size(), str.c_str(), str.size())) {

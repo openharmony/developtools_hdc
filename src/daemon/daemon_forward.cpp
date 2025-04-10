@@ -109,22 +109,33 @@ bool HdcDaemonForward::SetupArkPoint(HCtxForward ctxPoint)
         return false;
     }
     // do slave connect
-    // fd[0] for forward, fd[1] for ark
     ret = false;
-    Base::CreateSocketPair(fds);
     std::string str = ark + ":" + svr;
     uint32_t size = 1 + sizeof(int32_t) + str.size();
-    uint8_t buf[size];
+    uint8_t *buf = new(std::nothrow) uint8_t[size];
+    if (buf == nullptr) {
+        WRITE_LOG(LOG_WARN, "new failed size:%u", size);
+        return ret;
+    }
+    // fd[0] for forward, fd[1] for ark
+    int rc = Base::CreateSocketPair(fds);
+    if (rc < 0) {
+        WRITE_LOG(LOG_WARN, "CreateSocketPair failed rc:%d", rc);
+        delete[] buf;
+        return ret;
+    }
     buf[0] = SP_ARK_NEWFD;
     if (memcpy_s(buf + 1, sizeof(int32_t), &fds[1], sizeof(int32_t)) ||
         memcpy_s(buf + 1 + sizeof(int32_t), str.size(), str.c_str(), str.size())) {
         Base::CloseSocketPair(fds);
+        delete[] buf;
         return ret;
     }
     // buf: SP_ARK_NEWFD | fd[1] | pid@tid@Debugger
     if (ThreadCtrlCommunicate(buf, size) > 0) {
         ret = true;
     }
+    delete[] buf;
     WRITE_LOG(LOG_DEBUG, "SetupArkPoint Finish,ret:%d fd0:%d fd1:%d", ret, fds[0], fds[1]);
     if (!ret) {
         Base::CloseSocketPair(fds);

@@ -43,7 +43,6 @@ HdcTransferBase::~HdcTransferBase()
         
         if (ctxNow.lastErrno != 0 || (ctxNow.openFd > 0 && !ctxNow.ioFinish)) {
             CloseCtxFd(&ctxNow);
-            ctxNow.isFdOpen = false;
         }
     } else {
         WRITE_LOG(LOG_DEBUG, "~HdcTransferBase channelId:%u lastErrno:%u ioFinish:%d",
@@ -88,7 +87,8 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 #else
         delete[] buf;
 #endif
-        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr cid:%u sid:%u", taskInfo->channelId, taskInfo->sessionId);
+        WRITE_LOG(LOG_FATAL, "SimpleFileIO ioContext nullptr cid:%u sid:%u",
+            taskInfo->channelId, taskInfo->sessionId);
         return -1;
     }
     bool ret = false;
@@ -637,7 +637,6 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
         out->push_back(currentDirname + Base::GetPathSep() + fileName);
     }
     uv_fs_req_cleanup(&req);
-    WRITE_LOG(LOG_DEBUG, "GetSubFiles end.");
     return retNum;
 }
 

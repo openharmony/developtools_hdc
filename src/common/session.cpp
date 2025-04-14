@@ -1306,7 +1306,7 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
             return;
         }
         if (hSession->clearTaskTimes >= 50) {   //50: 50 * 120ms = 6s
-            WRITE_LOG(LOG_INFO, "ReChildLoopForSessionClear exited due to timeout of 6s");
+            WRITE_LOG(LOG_FATAL, "ReChildLoopForSessionClear exited due to timeout of 6s");
         }
         // all task has been free
         uv_close((uv_handle_t *)handle, Base::CloseTimerCallback);

@@ -31,6 +31,9 @@ class TestCommonSupport:
         process = subprocess.Popen(cmd, shell=True)
         self.subprocess_pid = process.pid
 
+    def is_hmos(self):
+        return check_shell(f"shell uname -a", "HongMeng Kernel")
+
     @staticmethod
     def kill_process(pid):
         cmd = f"taskkill /F /PID {pid}"
@@ -84,11 +87,15 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_is_hongmeng_os(self):
+        if not self.is_hmos():
+            return True
         assert check_shell(f"shell uname -a", "HongMeng Kernel")
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_support_ftp(self):
+        if not self.is_hmos():
+            return True
         assert not check_shell(f"shell ls -d /system/bin/bftpd", "No such file or directory")
 
     @pytest.mark.L0
@@ -104,6 +111,8 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_support_tsan(self):
+        if not self.is_hmos():
+            return True
         assert not check_shell(f"shell ls -d system/lib64/libclang_rt.tsan.so", "No such file or directory")
 
     @pytest.mark.L0
@@ -126,6 +135,8 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_support_screenrecorder(self):
+        if not self.is_hmos():
+            return True
         check_shell(f"shell aa start -b com.huawei.hmos.screenrecorder"
                     f" -a com.huawei.hmos.screenrecorder.ServiceExtAbility"
                     f" --ps 'CustomizedFileName' 'test.mp4'")

@@ -12,24 +12,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
-import os
+import re
 import subprocess
 import time
-
 import pytest
 import logging
 import multiprocessing
 
-from utils import GP, check_hdc_cmd, check_hdc_targets, check_soft_local, check_soft_remote, \
-    check_shell, rmdir, check_version, get_local_path, get_remote_path, make_multiprocess_file, \
-    load_gp, run_command_with_timeout, get_end_symbol, get_shell_result
+from utils import GP, check_hdc_cmd, check_shell, run_command_with_timeout, get_end_symbol, get_shell_result
 
 logger = logging.getLogger(__name__)
 
 
 class TestCommonSupport:
     subprocess_pid = 0
+
+    def new_process_run(self, cmd):
+        process = subprocess.Popen(cmd, shell=True)
+        self.subprocess_pid = process.pid
+
+    @staticmethod
+    def kill_process(pid):
+        cmd = f"taskkill /F /PID {pid}"
+        subprocess.Popen(cmd, shell=False)
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -67,6 +72,14 @@ class TestCommonSupport:
     def test_check_daemon_support_bundle_file(self):
         daemon_version = get_shell_result(f"shell param get const.hdc.version")
         assert daemon_version >= "Ver: 3.1.0e"
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_check_software_version(self):
+        software_version = get_shell_result(f"shell param get const.product.software.version")
+        pattern = r'[A-Za-z0-9-]+ \d+.\d+.\d+.\d+([A-Za-z0-9]+)'
+        match = re.search(pattern, software_version)
+        assert match is not None
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -124,28 +137,6 @@ class TestCommonSupport:
 
         check_shell(f"hdc shell aa start -b com.huawei.hmos.screenrecorder "
                     f"-a com.huawei.hmos.screenrecorder.ServiceExtAbility")
-
-    def new_process_run(self, cmd):
-        process = subprocess.Popen(cmd, shell=True)
-        self.subprocess_pid = process.pid
-
-    @staticmethod
-    def kill_process(pid):
-        cmd = f"taskkill /F /PID {pid}"
-        subprocess.Popen(cmd, shell=True)
-
-    @staticmethod
-    def get_file_size(file_path):
-        try:
-            # 获取文件大小（字节）
-            file_size = os.path.getsize(file_path)
-            return file_size
-        except FileNotFoundError:
-            print(f"文件 {file_path} 不存在")
-            return None
-        except Exception as e:
-            print(f"获取文件大小时发生错误: {e}")
-            return None
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)

@@ -15,24 +15,41 @@
 import re
 import subprocess
 import time
-import pytest
 import logging
 import multiprocessing
+import pytest
+import threading
 
 from utils import GP, check_hdc_cmd, check_shell, run_command_with_timeout, get_end_symbol, get_shell_result
+from enum import Enum
+
+
+class OS_VALUE(Enum):
+    UNKNOWN = 1
+    HMOS = 2
+    OTHER = 3
+
 
 logger = logging.getLogger(__name__)
+lock = threading.Lock()
 
 
 class TestCommonSupport:
     subprocess_pid = 0
+    os_value = OS_VALUE.UNKNOWN
 
     def new_process_run(self, cmd):
         process = subprocess.Popen(cmd, shell=True)
         self.subprocess_pid = process.pid
 
     def is_hmos(self):
-        return check_shell(f"shell uname -a", "HongMeng Kernel")
+        with lock:
+            if self.os_value != OS_VALUE.UNKNOWN:
+                return self.os_value == OS_VALUE.HMOS
+            if check_shell(f"shell uname -a", "HongMeng Kernel"):
+                self.os_value = OS_VALUE.HMOS
+            else:
+                self.os_value = OS_VALUE.OTHER
 
     @staticmethod
     def kill_process(pid):
@@ -123,7 +140,7 @@ class TestCommonSupport:
     def test_check_support_faultlog_with_ms(self):
         output = get_shell_result(f"shell hidumper -s 1201 -a '-p Faultlogger -LogSuffixWithMs'")
         assert "HiviewService" in output
-        assert not "Unknown command" in output
+        assert "Unknown command" not in output
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -153,9 +170,7 @@ class TestCommonSupport:
         check_shell(f"hdc shell aa start -b com.huawei.hmos.screenrecorder "
                     f"-a com.huawei.hmos.screenrecorder.ServiceExtAbility")
 
-    @pytest.mark.L0
-    @pytest.mark.repeat(2)
-    def test_check_track_jpid(self):
+    def check_track_jpid(self):
         track_file = f"track_jpid_{time.time()}.log"
         cmd = f"hdc track-jpid -a > {track_file}"
         p = multiprocessing.Process(target=self.new_process_run, args=(cmd,))
@@ -186,4 +201,9 @@ class TestCommonSupport:
                     line = line.replace("\n", "")
                     content_size = content_size + int(line, 16)
 
-        assert size == first_line_size + content_size
+        return size == first_line_size + content_size
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_check_track_jpid(self):
+        assert self.check_track_jpid()

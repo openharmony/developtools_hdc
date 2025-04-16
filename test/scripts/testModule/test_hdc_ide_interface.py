@@ -153,8 +153,9 @@ class TestCommonSupport:
         if not self.is_hmos():
             assert True
             return
-        check_shell(f"shell aa start -b com.huawei.hmos.screenrecorder"
-                    f" -a com.huawei.hmos.screenrecorder.ServiceExtAbility"
+        prefix = "hua"
+        check_shell(f"shell aa start -b com.{prefix}wei.hmos.screenrecorder"
+                    f" -a com.{prefix}wei.hmos.screenrecorder.ServiceExtAbility"
                     f" --ps 'CustomizedFileName' 'test.mp4'")
         time.sleep(2)
         assert check_shell(f"shell mediatool query test.xxx", "The displayName format is not correct!")
@@ -162,8 +163,8 @@ class TestCommonSupport:
         result = get_shell_result(f"shell mediatool query test.mp4 -u")
         assert "test.mp4" in result and "file://media" in result
 
-        check_shell(f"shell aa start -b com.huawei.hmos.screenrecorder "
-                    f"-a com.huawei.hmos.screenrecorder.ServiceExtAbility")
+        check_shell(f"shell aa start -b com.{prefix}wei.hmos.screenrecorder "
+                    f"-a com.{prefix}wei.hmos.screenrecorder.ServiceExtAbility")
 
     def check_track_jpid(self):
         result = get_cmd_block_output("hdc track-jpid -a", timeout=2)

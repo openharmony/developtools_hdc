@@ -46,6 +46,7 @@ class TestCommonSupport:
     def new_process_run(self, cmd):
         process = subprocess.Popen(cmd, shell=True)
         self.subprocess_pid = process.pid
+
     def is_hmos(self):  # 此项依赖toybox和实际的OS
         with lock:
             if self.os_value != OsValue.UNKNOWN:

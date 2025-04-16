@@ -140,6 +140,7 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
             delete hTask;
             hTask = nullptr;
         }
+        thisClass->taskCount--;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
     };
     Base::TimerUvTask(hTask->runLoop, hTask, taskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
@@ -159,6 +160,7 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
     StartTraceScope("HdcSessionBase::ClearOwnTasks");
     hSession->mapTaskMutex.lock();
     map<uint32_t, HTaskInfo>::iterator iter;
+    taskCount = hSession->mapTask->size();
     for (iter = hSession->mapTask->begin(); iter != hSession->mapTask->end();) {
         uint32_t channelId = iter->first;
         HTaskInfo hTask = iter->second;
@@ -1275,23 +1277,13 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
     WRITE_LOG(LOG_INFO, "ReChildLoopForSessionClear sessionId:%u", hSession->sessionId);
     auto clearTaskForSessionFinish = [](uv_timer_t *handle) -> void {
         HSession hSession = (HSession)handle->data;
-        for (auto v : *hSession->mapTask) {
-            HTaskInfo hTask = (HTaskInfo)v.second;
-            uint8_t level;
-            if (hTask->closeRetryCount < GLOBAL_TIMEOUT / 2) {
-                level = LOG_DEBUG;
-            } else {
-                level = LOG_WARN;
-            }
-            WRITE_LOG(level, "wait task free retry %d/%d, channelId:%u, sessionId:%u",
-                      hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->channelId, hTask->sessionId);
-            if (hTask->closeRetryCount++ >= GLOBAL_TIMEOUT) {
-                HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
-                hSession = thisClass->AdminSession(OP_QUERY, hTask->sessionId, nullptr);
-                thisClass->AdminTask(OP_VOTE_RESET, hSession, hTask->channelId, nullptr);
-            }
-            if (!hTask->taskFree)
-                return;
+        hSession->clearTaskTimes++;
+        HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
+        if (thisClass->taskCount && (hSession->clearTaskTimes < 50)) {    //50: 50 * 120ms = 6s
+            return;
+        }
+        if (hSession->clearTaskTimes >= 50) {   //50: 50 * 120ms = 6s
+            WRITE_LOG(LOG_INFO, "ReChildLoopForSessionClear exited due to timeout of 6s");
         }
         // all task has been free
         uv_close((uv_handle_t *)handle, Base::CloseTimerCallback);

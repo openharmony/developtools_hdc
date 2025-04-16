@@ -16,8 +16,8 @@ import re
 import subprocess
 import time
 import logging
-import pytest
 import threading
+import pytest
 
 from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result
 from enum import Enum
@@ -35,6 +35,29 @@ lock = threading.Lock()
 
 class TestCommonSupport:
     os_value = OsValue.UNKNOWN
+
+    @staticmethod
+    def check_track_jpid():
+        result = get_cmd_block_output("hdc track-jpid -a", timeout=2)
+        result = result.split('\n')
+        content_size = 0  # 所有表示长度的加起来
+        first_line_size = 0  # 所有表示长度的内容长度之和
+        size = 0
+        for line in result:
+            size = size + len(line) + 1
+
+            if " " in line:  # 数据行
+                print("data row, line size all size ", content_size, size)
+            elif len(line) == 0:  # 最后一行
+                size = size - 1
+                print("last row", size)
+            else:
+                first_line_size = first_line_size + len(line) + 1
+                line = line.replace(get_end_symbol(), "")
+                line = line.replace("\n", "")
+                content_size = content_size + int(line, 16)
+
+        return size == first_line_size + content_size
 
     @staticmethod
     def kill_process(pid):
@@ -165,28 +188,6 @@ class TestCommonSupport:
 
         check_shell(f"shell aa start -b com.{prefix}wei.hmos.screenrecorder "
                     f"-a com.{prefix}wei.hmos.screenrecorder.ServiceExtAbility")
-
-    def check_track_jpid(self):
-        result = get_cmd_block_output("hdc track-jpid -a", timeout=2)
-        result = result.split('\n')
-        content_size = 0  # 所有表示长度的加起来
-        first_line_size = 0  # 所有表示长度的内容长度之和
-        size = 0
-        for line in result:
-            size = size + len(line) + 1
-
-            if " " in line:  # 数据行
-                print("data row, line size all size ", content_size, size)
-            elif len(line) == 0:  # 最后一行
-                size = size - 1
-                print("last row", size)
-            else:
-                first_line_size = first_line_size + len(line) + 1
-                line = line.replace(get_end_symbol(), "")
-                line = line.replace("\n", "")
-                content_size = content_size + int(line, 16)
-
-        return size == first_line_size + content_size
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)

@@ -16,11 +16,10 @@ import re
 import subprocess
 import time
 import logging
-import multiprocessing
 import pytest
 import threading
 
-from utils import GP, check_hdc_cmd, check_shell, run_command_with_timeout, get_end_symbol, get_shell_result
+from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result
 from enum import Enum
 
 
@@ -35,17 +34,12 @@ lock = threading.Lock()
 
 
 class TestCommonSupport:
-    subprocess_pid = 0
     os_value = OsValue.UNKNOWN
 
     @staticmethod
     def kill_process(pid):
         cmd = f"taskkill /F /PID {pid}"
         subprocess.Popen(cmd, shell=False)
-
-    def new_process_run(self, cmd):
-        process = subprocess.Popen(cmd, shell=True)
-        self.subprocess_pid = process.pid
 
     def is_hmos(self):  # 此项依赖toybox和实际的OS
         with lock:
@@ -168,39 +162,28 @@ class TestCommonSupport:
         result = get_shell_result(f"shell mediatool query test.mp4 -u")
         assert "test.mp4" in result and "file://media" in result
 
-        check_shell(f"hdc shell aa start -b com.huawei.hmos.screenrecorder "
+        check_shell(f"shell aa start -b com.huawei.hmos.screenrecorder "
                     f"-a com.huawei.hmos.screenrecorder.ServiceExtAbility")
 
     def check_track_jpid(self):
-        track_file = f"track_jpid_{time.time()}.log"
-        cmd = f"hdc track-jpid -a > {track_file}"
-        p = multiprocessing.Process(target=self.new_process_run, args=(cmd,))
-        p.start()
-
-        time.sleep(2)
-        self.kill_process(p.pid)
-        check_hdc_cmd("kill")
-        p.join()
-        p.close()
-
-        # 读取track-jpid.log 解析 验证内容是否ok
+        result = get_cmd_block_output("hdc track-jpid -a", timeout=2)
+        result = result.split('\n')
         content_size = 0  # 所有表示长度的加起来
         first_line_size = 0  # 所有表示长度的内容长度之和
-
         size = 0
-        with open(track_file, 'r') as file:
-            for line in file.readlines():
-                size = size + len(line)
+        for line in result:
+            size = size + len(line) + 1
 
-                if " " in line:  # 数据行
-                    print("data row")
-                elif line == "\n":  # 最后一行
-                    print("last row")
-                else:
-                    first_line_size = first_line_size + len(line)
-                    line = line.replace(get_end_symbol(), "")
-                    line = line.replace("\n", "")
-                    content_size = content_size + int(line, 16)
+            if " " in line:  # 数据行
+                print("data row, line size all size ", content_size, size)
+            elif len(line) == 0:  # 最后一行
+                size = size - 1
+                print("last row", size)
+            else:
+                first_line_size = first_line_size + len(line) + 1
+                line = line.replace(get_end_symbol(), "")
+                line = line.replace("\n", "")
+                content_size = content_size + int(line, 16)
 
         return size == first_line_size + content_size
 

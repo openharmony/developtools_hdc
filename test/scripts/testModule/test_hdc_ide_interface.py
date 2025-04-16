@@ -24,7 +24,7 @@ from utils import GP, check_hdc_cmd, check_shell, run_command_with_timeout, get_
 from enum import Enum
 
 
-class OS_VALUE(Enum):
+class OsValue(Enum):
     UNKNOWN = 1
     HMOS = 2
     OTHER = 3
@@ -36,25 +36,25 @@ lock = threading.Lock()
 
 class TestCommonSupport:
     subprocess_pid = 0
-    os_value = OS_VALUE.UNKNOWN
-
-    def new_process_run(self, cmd):
-        process = subprocess.Popen(cmd, shell=True)
-        self.subprocess_pid = process.pid
-
-    def is_hmos(self):  # 此项依赖toybox和实际的OS
-        with lock:
-            if self.os_value != OS_VALUE.UNKNOWN:
-                return self.os_value == OS_VALUE.HMOS
-            if check_shell(f"shell uname -a", "HongMeng Kernel"):
-                self.os_value = OS_VALUE.HMOS
-            else:
-                self.os_value = OS_VALUE.OTHER
+    os_value = OsValue.UNKNOWN
 
     @staticmethod
     def kill_process(pid):
         cmd = f"taskkill /F /PID {pid}"
         subprocess.Popen(cmd, shell=False)
+
+    def new_process_run(self, cmd):
+        process = subprocess.Popen(cmd, shell=True)
+        self.subprocess_pid = process.pid
+    def is_hmos(self):  # 此项依赖toybox和实际的OS
+        with lock:
+            if self.os_value != OsValue.UNKNOWN:
+                return self.os_value == OsValue.HMOS
+            if check_shell(f"shell uname -a", "HongMeng Kernel"):
+                self.os_value = OsValue.HMOS
+            else:
+                self.os_value = OsValue.OTHER
+        return self.os_value == OsValue.HMOS
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)

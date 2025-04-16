@@ -1073,3 +1073,22 @@ def get_server_pid_from_file():
         pid = 0
     print(f"--> pid of hdcserver is {pid}")
     return pid
+
+
+def get_cmd_block_output(command, timeout=600):
+    # 启动子进程
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # 用于存储子进程的输出
+    output = ""
+
+    try:
+        # 读取子进程的输出
+        output, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.terminate()
+        process.kill()
+        output, _ = process.communicate(timeout=timeout)
+
+    print(f"--> output: {output}")
+    return output

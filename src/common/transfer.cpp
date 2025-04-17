@@ -115,7 +115,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
             int rc = uv_fs_read(context->loop, req, context->openFd, &iov, 1, index, context->cb);
             if (rc < 0) {
-                WRITE_LOG(LOG_WARN, "uv_fs_read failed rc:%d", rc);
+                WRITE_LOG(LOG_DEBUG, "uv_fs_read failed rc:%d", rc);
                 break;
             } else {
                 ++refCount;
@@ -131,7 +131,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
             uv_buf_t iov = uv_buf_init(reinterpret_cast<char *>(ioContext->bufIO), bytes);
             int rc = uv_fs_write(context->loop, req, context->openFd, &iov, 1, index, context->cb);
             if (rc < 0) {
-                WRITE_LOG(LOG_WARN, "uv_fs_write failed rc:%d", rc);
+                WRITE_LOG(LOG_DEBUG, "uv_fs_write failed rc:%d", rc);
                 break;
             } else {
                 ++refCount;

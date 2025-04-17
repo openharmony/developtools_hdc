@@ -71,7 +71,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
             taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_WARN, "uv_fs_open rdonly rc:%d localPath:%s", rc, context->localPath.c_str());
+            WRITE_LOG(LOG_DEBUG, "uv_fs_open rdonly rc:%d localPath:%s", rc, context->localPath.c_str());
         }
         context->master = true;
         ret = true;
@@ -524,7 +524,7 @@ bool HdcFile::BeginFileOperations()
     int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                         S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {
-        WRITE_LOG(LOG_WARN, "uv_fs_open create rc:%d %s", rc, ctxNow.localPath.c_str());
+        WRITE_LOG(LOG_DEBUG, "uv_fs_open create rc:%d %s", rc, ctxNow.localPath.c_str());
     }
     if (ctxNow.transferDirBegin == 0) {
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
@@ -554,7 +554,7 @@ void HdcFile::TransferNext(CtxFile *context)
             taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_WARN, "next uv_fs_open rc:%d localPath:%s", rc, context->localPath.c_str());
+            WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, context->localPath.c_str());
         }
     } while (false);
 

@@ -133,7 +133,7 @@ class TestCommonSupport:
         if not self.is_hmos():
             assert True
             return
-        assert not check_shell(f"shell ls -d /system/bin/bftpd", "No such file or directory")
+        assert not check_shell(f"shell ls -d system/bin/bftpd", "No such file or directory")
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -163,7 +163,7 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_screenshot_with_png_format(self):
-        assert check_shell(f"shell snapshot_display -f /data/local/tmp/example.png -t png", "success")
+        assert check_shell(f"shell snapshot_display -f data/local/tmp/example.png -t png", "success")
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)

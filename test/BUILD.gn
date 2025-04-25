@@ -293,13 +293,13 @@ ohos_unittest("hdc_base_unittest") {
   use_exceptions = true
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
-  sources = [
-    "${hdc_path}/src/common/heartbeat.cpp",
-    "${hdc_path}/src/common/tlv.cpp",
-    "${hdc_path}/src/common/uv_status.cpp",
+  sources = hdc_common_sources
+  sources += [
+    "${hdc_path}/src/common/uart.cpp",
     "unittest/common/heartbeat_ut.cpp",
+    "unittest/common/transfer_ut.cpp",
+    "unittest/common/file_ut.cpp",
     "unittest/common/tlv_ut.cpp",
-    "unittest/common/ut_base.cpp",
     "unittest/common/uv_status_ut.cpp",
   ]
 

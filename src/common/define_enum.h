@@ -68,7 +68,8 @@ enum OperateID {
     OP_INIT,
     OP_GET_ONLY,
     OP_VOTE_RESET,
-    OP_WAIT_FOR_ANY
+    OP_WAIT_FOR_ANY,
+    OP_PRINT
 };
 
 enum RetErrCode {

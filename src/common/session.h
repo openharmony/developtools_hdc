@@ -96,6 +96,9 @@ public:
     virtual HSession MallocSession(bool serverOrDaemon, const ConnType connType, void *classModule,
                                    uint32_t sessionId = 0);
     virtual void FreeSession(const uint32_t sessionId);
+#ifdef HDC_HOST
+    void PrintAllSessionConnection(const uint32_t sessionId);
+#endif
     void WorkerPendding();
     int OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen);
     int Send(const uint32_t sessionId, const uint32_t channelId, const uint16_t commandFlag, const uint8_t *data,
@@ -149,6 +152,10 @@ protected:
         uint32_t dataSize;
     } __attribute__((packed));
     void ClearSessions();
+#ifdef HDC_HOST
+    void PrintSession(const uint32_t sessionId);
+#endif
+    HSession VoteReset(const uint32_t sessionId);
     virtual void JdwpNewFileDescriptor(const uint8_t *buf, const int bytesIO)
     {
     }

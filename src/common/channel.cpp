@@ -124,6 +124,11 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
 
     if (nread == UV_ENOBUFS) {
         WRITE_LOG(LOG_FATAL, "ReadStream nobufs channelId:%u", channelId);
+#ifdef HDC_HOST
+        char buffer[BUF_SIZE_DEFAULT] = { 0 };
+        uv_strerror_r(nread, buffer, BUF_SIZE_DEFAULT);
+        thisClass->FillChannelResult(hChannel, false, buffer);
+#endif
         return;
     } else if (nread == 0) {
         // maybe just after accept, second client req
@@ -135,6 +140,11 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         char buffer[bufSize] = { 0 };
         uv_err_name_r(nread, buffer, bufSize);
         WRITE_LOG(LOG_DEBUG, "ReadStream channelId:%u failed:%s", channelId, buffer);
+
+#ifdef HDC_HOST
+        thisClass->FillChannelResult(hChannel, false, buffer);
+#endif
+
         needExit = true;
         goto Finish;
     } else {
@@ -144,6 +154,10 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         size = ntohl(*reinterpret_cast<uint32_t *>(hChannel->ioBuf + indexBuf));  // big endian
         if (size <= 0 || static_cast<uint32_t>(size) > HDC_BUF_MAX_BYTES) {
             WRITE_LOG(LOG_FATAL, "ReadStream size:%d channelId:%u", size, channelId);
+#ifdef HDC_HOST
+            thisClass->FillChannelResult(hChannel, false,
+                "parse error: size field of the package header is too big");
+#endif
             needExit = true;
             break;
         }
@@ -175,6 +189,10 @@ Finish:
     if (needExit) {
         thisClass->FreeChannel(hChannel->channelId);
         WRITE_LOG(LOG_DEBUG, "Read Stream needExit, FreeChannel finish channelId:%u", channelId);
+    } else {
+#ifdef HDC_HOST
+        hChannel->isSuccess = hChannel->faultInfo.size() == 0;
+#endif
     }
 }
 
@@ -452,6 +470,12 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
         return;
     }
     thisClass->NotifyInstanceChannelFree(hChannel);
+#ifdef HDC_HOST
+    hChannel->endTime = Base::GetRuntimeMSec();
+    if (hChannel->serverOrClient) {
+        thisClass->AdminChannel(OP_PRINT, hChannel->channelId, nullptr);
+    }
+#endif
     thisClass->AdminChannel(OP_REMOVE, hChannel->channelId, nullptr);
 
     if (!hChannel->serverOrClient) {
@@ -550,10 +574,30 @@ void HdcChannelBase::FreeChannel(const uint32_t channelId)
     } while (false);
 }
 
+#ifdef HDC_HOST
+void HdcChannelBase::PrintChannel(const uint32_t channelId)
+{
+    uv_rwlock_rdlock(&lockMapChannel);
+    for (auto v : mapChannel) {
+        HChannel hChannel = (HChannel)v.second;
+        if (hChannel->channelId == channelId) {
+            auto str = hChannel->ToDisplayChannelStr();
+            WRITE_LOG(LOG_INFO, "%s", str.c_str());
+        }
+    }
+    uv_rwlock_rdunlock(&lockMapChannel);
+}
+#endif
+
 HChannel HdcChannelBase::AdminChannel(const uint8_t op, const uint32_t channelId, HChannel hInput)
 {
     HChannel hRet = nullptr;
     switch (op) {
+        case OP_PRINT:
+#ifdef HDC_HOST
+            PrintChannel(channelId);
+#endif
+            break;
         case OP_ADD:
             uv_rwlock_wrlock(&lockMapChannel);
             mapChannel[channelId] = hInput;

@@ -79,6 +79,10 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     while (true) {
         if (nread == UV_ENOBUFS) {
             WRITE_LOG(LOG_WARN, "Session IOBuf max, sid:%u", hSession->sessionId);
+#ifdef HDC_HOST
+            hSession->isRunningOk = false;
+            hSession->faultInfo = "io buffer overflow";
+#endif
             break;
         } else if (nread < 0) {
             // I originally in the IO main thread, no need to send asynchronous messages, close the socket as soon as
@@ -86,11 +90,19 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
             constexpr int bufSize = 1024;
             char buffer[bufSize] = { 0 };
             uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
+#ifdef HDC_HOST
+            hSession->isRunningOk = false;
+            hSession->faultInfo = buffer;
+#endif
             WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%u", buffer, hSession->sessionId);
             break;
         }
         if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
             WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+#ifdef HDC_HOST
+            hSession->isRunningOk = false;
+            hSession->faultInfo = "package parse error";
+#endif
             break;
         }
         ret = true;

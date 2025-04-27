@@ -103,6 +103,10 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     auto ctrl = ptrConnect->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
     if (status < 0) {
         WRITE_LOG(LOG_FATAL, "Connect status:%d", status);
+        hSession->isRunningOk = false;
+        char buffer[BUF_SIZE_DEFAULT] = { 0 };
+        uv_strerror_r(status, buffer, BUF_SIZE_DEFAULT);
+        hSession->faultInfo += buffer;
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {
@@ -142,6 +146,7 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
     }
     hSession->isCheck = isCheck;
     hSession->connectKey = connectKey;
+    ptrConnect->PrintAllSessionConnection(hSession->sessionId);
     struct sockaddr_in dest;
     uv_ip4_addr(ip, port, &dest);
     uv_connect_t *conn = new(std::nothrow) uv_connect_t();

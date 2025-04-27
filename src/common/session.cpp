@@ -512,6 +512,13 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     return hSession;
 }
 
+#ifdef HDC_HOST
+void HdcSessionBase::PrintAllSessionConnection(const uint32_t sessionId)
+{
+    AdminSession(OP_PRINT, sessionId, nullptr);
+}
+#endif
+
 void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
 {
     WRITE_LOG(LOG_INFO, "FreeSessionByConnectType %s", hSession->ToDebugString().c_str());
@@ -578,6 +585,9 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     }
     // Notify Server or Daemon, just UI or display commandline
     thisClass->NotifyInstanceSessionFree(hSession, true);
+#ifdef HDC_HOST
+    thisClass->AdminSession(OP_PRINT, hSession->sessionId, nullptr);
+#endif
     // all hsession uv handle has been clear
     thisClass->AdminSession(OP_REMOVE, hSession->sessionId, nullptr);
     WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%u finish", hSession->sessionId);
@@ -690,6 +700,59 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
     } while (false);
 }
 
+#ifdef HDC_HOST
+void HdcSessionBase::PrintSession(const uint32_t sessionId)
+{
+        uv_rwlock_rdlock(&lockMapSession);
+        int count = 0;
+        for (auto v : mapSession) {
+            HSession hSession = (HSession)v.second;
+            auto str = hSession->ToDisplayConnectionStr();
+            if (hSession->sessionId == sessionId) {
+                str = str + " (Current)";
+                WRITE_LOG(LOG_INFO, "%s", str.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "%s", str.c_str());
+            }
+            if (hSession->isRunningOk) {
+                count++;
+            }
+        }
+        WRITE_LOG(LOG_INFO, "alive session count:%d", count);
+        uv_rwlock_rdunlock(&lockMapSession);
+}
+#endif
+
+HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
+{
+    HSession hRet = nullptr;
+    bool needReset;
+    if (serverOrDaemon) {
+        uv_rwlock_wrlock(&lockMapSession);
+        hRet = mapSession[sessionId];
+        hRet->voteReset = true;
+        needReset = true;
+        for (auto &kv : mapSession) {
+            if (sessionId == kv.first) {
+                continue;
+            }
+            WRITE_LOG(LOG_DEBUG, "session:%u vote reset, session %u is %s",
+                sessionId, kv.first, kv.second->voteReset ? "YES" : "NO");
+            if (!kv.second->voteReset) {
+                needReset = false;
+            }
+        }
+        uv_rwlock_wrunlock(&lockMapSession);
+    } else {
+        needReset = true;
+    }
+    if (needReset) {
+        WRITE_LOG(LOG_FATAL, "!! session:%u vote reset, passed unanimously !!", sessionId);
+        abort();
+    }
+    return hRet;
+}
+
 HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput)
 {
     HSession hRet = nullptr;
@@ -711,6 +774,11 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
             }
             uv_rwlock_rdunlock(&lockMapSession);
             break;
+        case OP_PRINT:
+#ifdef HDC_HOST
+            PrintSession(sessionId);
+#endif
+            break;
         case OP_QUERY_REF:
             uv_rwlock_wrlock(&lockMapSession);
             if (mapSession.count(sessionId)) {
@@ -730,30 +798,7 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
             if (mapSession.count(sessionId) == 0) {
                 break;
             }
-            bool needReset;
-            if (serverOrDaemon) {
-                uv_rwlock_wrlock(&lockMapSession);
-                hRet = mapSession[sessionId];
-                hRet->voteReset = true;
-                needReset = true;
-                for (auto &kv : mapSession) {
-                    if (sessionId == kv.first) {
-                        continue;
-                    }
-                    WRITE_LOG(LOG_DEBUG, "session:%u vote reset, session %u is %s",
-                              sessionId, kv.first, kv.second->voteReset ? "YES" : "NO");
-                    if (!kv.second->voteReset) {
-                        needReset = false;
-                    }
-                }
-                uv_rwlock_wrunlock(&lockMapSession);
-            } else {
-                needReset = true;
-            }
-            if (needReset) {
-                WRITE_LOG(LOG_FATAL, "!! session:%u vote reset, passed unanimously !!", sessionId);
-                abort();
-            }
+            hRet = VoteReset(sessionId);
             break;
         default:
             break;

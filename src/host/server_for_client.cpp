@@ -897,6 +897,13 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
 
         WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s command:%s", hChannel->channelId,
             hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
+        if (Hdc::Base::g_cmdlogSwitch) {
+            string timeStr;
+            Base::GetTimeString(timeStr);
+            string logBuf = Base::StringFormat("[%s] %u %s\n", timeStr.c_str(), hChannel->targetSessionId, bufPtr);
+            WRITE_LOG(LOG_INFO, "PrintCmdLogEx:%s", bufPtr);
+            ptrServer->PrintCmdLogEx(logBuf);
+        }
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             return -10;  //  -10 error formatCommand

@@ -203,6 +203,8 @@ namespace TranslateCommand {
 #ifdef _WIN32
             "\%OHOS_HDC_SERVER_PORT\%                - Set hdc server listen port(range 1~65535, default 8710)\n"
             "\%OHOS_HDC_LOG_LEVEL\%                  - Set hdc server log level(range 0~5, default 5)\n"
+            "$OHOS_HDC_CMD_RECORD                    - Set whether the hdc command record function is enabled\n"
+            "                                         (1: enabled, other: disabled, default: disabled)\n"
 #ifdef FEATURE_HOST_LOG_COMPRESS
             "\%OHOS_HDC_LOG_LIMIT\%                  - Set the number of logs that trigger the total"
             " log file size statistics (default 300 (files))\n"
@@ -210,6 +212,8 @@ namespace TranslateCommand {
 #else
             "$OHOS_HDC_SERVER_PORT                  - Set hdc server listen port(range 1~65535, default 8710)\n"
             "$OHOS_HDC_LOG_LEVEL                    - Set hdc server log level(range 0~5, default 5)\n"
+            "$OHOS_HDC_CMD_RECORD                   - Set whether the hdc command record function is enabled\n"
+            "                                         (1: enabled, other: disabled, default: disabled)\n"
 #ifdef FEATURE_HOST_LOG_COMPRESS
             "$OHOS_HDC_LOG_LIMIT                    - Set the number of logs that trigger the total"
             " log file size statistics (default 300 (files))\n"

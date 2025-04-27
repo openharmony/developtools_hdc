@@ -31,12 +31,15 @@ HWTEST_F(HdcHeartbeatTest, TestAddHeartbeatCount, TestSize.Level0)
     ASSERT_EQ(heartbeat.heartbeatCount, count + 1);
 }
 
-HWTEST_F(HdcHeartbeatTest, TestAddMessageCount, TestSize.Level0)
+HWTEST_F(HdcHeartbeatTest, TestHandleMessageCount, TestSize.Level0)
 {
     HdcHeartbeat heartbeat;
     int count = heartbeat.messageCount;
-    heartbeat.AddMessageCount();
+    ASSERT_EQ(heartbeat.HandleMessageCount(), true);
     ASSERT_EQ(heartbeat.messageCount, count + 1);
+    auto now = std::chrono::steady_clock::now();
+    heartbeat.lastTime = now - std::chrono::hours(2);
+    ASSERT_EQ(heartbeat.HandleMessageCount(), false);
 }
 
 HWTEST_F(HdcHeartbeatTest, TestGetHeartbeatCount, TestSize.Level0)
@@ -67,6 +70,10 @@ HWTEST_F(HdcHeartbeatTest, TestHandleRecvHeartbeatMsg, TestSize.Level0)
     std::stringstream ss;
     ss << "heartbeat count is " << count;
     ASSERT_EQ(str, ss.str());
+
+    std::string strError = heartbeat.HandleRecvHeartbeatMsg(
+        reinterpret_cast<uint8_t *>(const_cast<char *>(s.c_str())), 0);
+    ASSERT_EQ("invalid heartbeat message", strError);
 }
 
 HWTEST_F(HdcHeartbeatTest, TestSupportHeartbeat, TestSize.Level0)

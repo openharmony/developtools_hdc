@@ -15,6 +15,7 @@
 #ifndef HDC_SERVER_H
 #define HDC_SERVER_H
 #include "host_common.h"
+#include "server_cmd_log.h"
 
 namespace Hdc {
 class HdcServer : public HdcSessionBase {
@@ -45,7 +46,8 @@ public:
 #endif
     void *clsServerForClient;
     std::atomic<uint32_t> lastErrorNum;
-
+    void PrintCmdLogEx(const string &cmdStr);
+    
 private:
     void ClearInstanceResource() override;
     void BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string &out);

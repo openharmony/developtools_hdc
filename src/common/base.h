@@ -189,6 +189,7 @@ namespace Base {
     void RemoveLogFile();
     void RemoveLogCache();
     void RollLogFile(const char *path);
+    void GetTimeString(string &timeString);
     void ChmodLogFile();
     bool CreateLogDir();
     bool CompressLogFile(string fileName);
@@ -299,6 +300,12 @@ namespace Base {
 #ifdef _WIN32
     void RestoreConsoleOutputCP(UINT outputCP);
 #endif
+    void UpdateCmdLogSwitch();
+    extern bool g_cmdlogSwitch;
+    extern std::vector<std::string> g_cmdLogsFilesStrings;
+    void ProcessCmdLogs();
+    extern std::mutex g_threadCompressCmdLogsMutex;
+    extern std::shared_ptr<std::thread> compressCmdLogsThread;
 }  // namespace base
 }  // namespace Hdc
 

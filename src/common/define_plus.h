@@ -395,6 +395,11 @@ struct HdcChannel {
         oss << " channelId:" << channelId;
         oss << " connectKey:" << Hdc::MaskString(connectKey);
         oss << " command flag:" << commandFlag;
+        int i = commandParameters.size() - 1;
+        while(i >= 0 && commandParameters.size() > 0 && commandParameters[i] == '\0') {
+            commandParameters[i] = ' ';
+            i--;
+        }
         oss << " command parameters:" << commandParameters;
         oss << " command result:" << isSuccess;
         oss << " command take time:" << (endTime - startTime) << "ms";

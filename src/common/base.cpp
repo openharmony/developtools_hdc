@@ -3010,5 +3010,12 @@ void CloseOpenFd(void)
             g_compressCmdLogsThread->join();
         }
     }
+    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string &cmdStr)
+    {
+        string timeStr;
+        GetTimeString(timeStr);
+        string logBuf = StringFormat("[%s] %u %s\n", timeStr.c_str(), targetSessionId, cmdStr.c_str());
+        return logBuf;
+    }
 } // namespace Base
 } // namespace Hdc

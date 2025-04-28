@@ -300,6 +300,7 @@ namespace Base {
     void RestoreConsoleOutputCP(UINT outputCP);
 #endif
     void UpdateCmdLogSwitch();
+    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string &cmdStr);
     extern bool g_cmdlogSwitch;
     extern std::vector<std::string> g_cmdLogsFilesStrings;
     void ProcessCmdLogs();

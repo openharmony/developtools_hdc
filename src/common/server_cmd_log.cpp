@@ -14,9 +14,6 @@
  */
 #include "server_cmd_log.h"
 #include <sstream>
-#include <string>
-#include <queue>
-#include <mutex>
 #include <unistd.h>
 #include "log.h"
 

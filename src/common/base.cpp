@@ -2905,7 +2905,7 @@ void CloseOpenFd(void)
             return;
         }
         //delete old files
-        ControlFilesByRegex(path, 
+        ControlFilesByRegex(path,
                             CMD_LOG_COMPRESS_FILE_NAME_PREFIX,
                             CMD_LOG_COMPRESS_FILE_NAME_SUFFIX,
                             MAX_COMPRESS_LOG_FILE_COUNT);

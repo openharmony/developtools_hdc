@@ -300,12 +300,9 @@ namespace Base {
     void RestoreConsoleOutputCP(UINT outputCP);
 #endif
     void UpdateCmdLogSwitch();
+    bool GetCmdLogSwitch();
     std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string &cmdStr);
-    extern bool g_cmdlogSwitch;
-    extern std::vector<std::string> g_cmdLogsFilesStrings;
     void ProcessCmdLogs();
-    extern std::mutex g_threadCompressCmdLogsMutex;
-    extern std::shared_ptr<std::thread> g_compressCmdLogsThread;
 }  // namespace base
 }  // namespace Hdc
 

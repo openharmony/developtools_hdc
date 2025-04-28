@@ -896,7 +896,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
 
         WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s command:%s", hChannel->channelId,
             hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
-        if (Hdc::Base::g_cmdlogSwitch) {
+        if (Hdc::Base::GetCmdLogSwitch()) {
             string logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, (reinterpret_cast<char *>(bufPtr)));
             ptrServer->PrintCmdLogEx(logBuf);
         }

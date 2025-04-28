@@ -2648,6 +2648,7 @@ void CloseOpenFd(void)
         SetConsoleOutputCP(outputCP);
     }
 #endif
+
     void UpdateCmdLogSwitch()
     {
         char *env = getenv(ENV_SERVER_CMD_LOG.c_str());
@@ -2660,7 +2661,7 @@ void CloseOpenFd(void)
             g_cmdlogSwitch = false;
             return;
         }
-        size_t maxLen = 1;
+        constexpr size_t maxLen = 1;
         if ((maxLen == envLen) && (strncmp(env, "1", maxLen) == 0)) {
             g_cmdlogSwitch = true;
             return;
@@ -2683,6 +2684,7 @@ void CloseOpenFd(void)
         WRITE_LOG(LOG_FATAL, "Timeout occurred!");
         exit(1);
     }
+
     #ifdef _WIN32
     // according to *.tgz format compression
     bool CompressLogFile(const std::string& filePath,
@@ -2783,9 +2785,9 @@ void CloseOpenFd(void)
     }
     #endif
 
-    bool CompressCmdLogAndRemove(const std::string pathName,
-                                 const std::string fileName,
-                                 const std::string targetFileName)
+    bool CompressCmdLogAndRemove(const std::string& pathName,
+                                 const std::string& fileName,
+                                 const std::string& targetFileName)
     {
         std::string sourceFileName = pathName + fileName;
         if (sourceFileName.empty()) {
@@ -2804,7 +2806,7 @@ void CloseOpenFd(void)
         return true;
     }
 
-    bool IsFileSizeLessThan(std::string fileName, const size_t fileMaxSize)
+    bool IsFileSizeLessThan(const std::string& fileName, const size_t fileMaxSize)
     {
         uv_fs_t fs;
         int value = uv_fs_stat(nullptr, &fs, fileName.c_str(), nullptr);
@@ -2823,9 +2825,9 @@ void CloseOpenFd(void)
         return false;
     }
 
-    vector<string> GetDirFileNameFromPath(const std::string path,
-                                          const std::string matchPreStr,
-                                          const std::string matchSufStr)
+    vector<string> GetDirFileNameFromPath(const std::string& path,
+                                          const std::string& matchPreStr,
+                                          const std::string& matchSufStr)
     {
         g_cmdLogsFilesStrings.clear();
     #ifdef _WIN32
@@ -2863,9 +2865,9 @@ void CloseOpenFd(void)
         return g_cmdLogsFilesStrings;
     }
     
-    void ControlFilesByRegex(const std::string path,
-                             const std::string matchPreStr,
-                             const std::string matchSufStr,
+    void ControlFilesByRegex(const std::string& path,
+                             const std::string& matchPreStr,
+                             const std::string& matchSufStr,
                              int maxFiles)
     {
         vector<string> files = GetDirFileNameFromPath(path, matchPreStr, matchSufStr);
@@ -2911,7 +2913,7 @@ void CloseOpenFd(void)
                             MAX_COMPRESS_LOG_FILE_COUNT);
     }
 
-    void SaveLogToPath(const std::string path, const std::string str)
+    void SaveLogToPath(const std::string& path, const std::string& str)
     {
         int flags = UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_APPEND;
         uv_fs_t req;
@@ -3001,21 +3003,20 @@ void CloseOpenFd(void)
 
     void ThreadProcessCmdLogsExit()
     {
+        std::unique_lock<std::mutex> lock(g_threadCompressCmdLogsMutex);
         Hdc::ServerCmdLog::GetInstance().SetRunningStatus(false);
         if (g_compressCmdLogsThread == nullptr) {
             return;
         }
-        std::unique_lock<std::mutex> lock(g_threadCompressCmdLogsMutex);
         if (g_compressCmdLogsThread->joinable()) {
             g_compressCmdLogsThread->join();
         }
     }
-    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string &cmdStr)
+    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string& cmdStr)
     {
         string timeStr;
         GetTimeString(timeStr);
-        string logBuf = StringFormat("[%s] %u %s\n", timeStr.c_str(), targetSessionId, cmdStr.c_str());
-        return logBuf;
+        return StringFormat("[%s] %u %s\n", timeStr.c_str(), targetSessionId, cmdStr.c_str());
     }
 } // namespace Base
 } // namespace Hdc

@@ -14,10 +14,6 @@
  */
 #ifndef HDC_CMD_LOG_H
 #define HDC_CMD_LOG_H
-#include <queue>
-#include <mutex>
-#include <condition_variable>
-#include <thread>
 
 namespace Hdc {
 class ServerCmdLog {

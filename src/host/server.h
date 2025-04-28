@@ -15,7 +15,6 @@
 #ifndef HDC_SERVER_H
 #define HDC_SERVER_H
 #include "host_common.h"
-#include "server_cmd_log.h"
 
 namespace Hdc {
 class HdcServer : public HdcSessionBase {

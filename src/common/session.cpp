@@ -703,35 +703,34 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
 #ifdef HDC_HOST
 void HdcSessionBase::PrintSession(const uint32_t sessionId)
 {
-        uv_rwlock_rdlock(&lockMapSession);
-        int count = 0;
-        for (auto v : mapSession) {
-            HSession hSession = (HSession)v.second;
-            auto str = hSession->ToDisplayConnectionStr();
-            if (hSession->sessionId == sessionId) {
-                str = str + " (Current)";
-                WRITE_LOG(LOG_INFO, "%s", str.c_str());
-            } else {
-                WRITE_LOG(LOG_DEBUG, "%s", str.c_str());
-            }
-            if (hSession->isRunningOk) {
-                count++;
-            }
+    uv_rwlock_rdlock(&lockMapSession);
+    int count = 0;
+    for (auto v : mapSession) {
+        HSession hSession = (HSession)v.second;
+        auto str = hSession->ToDisplayConnectionStr();
+        if (hSession->sessionId == sessionId) {
+            str = str + " (Current)";
+            WRITE_LOG(LOG_INFO, "%s", str.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "%s", str.c_str());
         }
-        WRITE_LOG(LOG_INFO, "alive session count:%d", count);
-        uv_rwlock_rdunlock(&lockMapSession);
+        if (hSession->isRunningOk) {
+            count++;
+        }
+    }
+    WRITE_LOG(LOG_INFO, "alive session count:%d", count);
+    uv_rwlock_rdunlock(&lockMapSession);
 }
 #endif
 
 HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
 {
     HSession hRet = nullptr;
-    bool needReset;
+    bool needReset = true;
     if (serverOrDaemon) {
         uv_rwlock_wrlock(&lockMapSession);
         hRet = mapSession[sessionId];
         hRet->voteReset = true;
-        needReset = true;
         for (auto &kv : mapSession) {
             if (sessionId == kv.first) {
                 continue;
@@ -743,8 +742,6 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
             }
         }
         uv_rwlock_wrunlock(&lockMapSession);
-    } else {
-        needReset = true;
     }
     if (needReset) {
         WRITE_LOG(LOG_FATAL, "!! session:%u vote reset, passed unanimously !!", sessionId);

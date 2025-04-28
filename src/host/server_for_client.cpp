@@ -387,6 +387,7 @@ bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
         ptrServer->AdminForwardMap(OP_REMOVE, forwardKey, hfi);
         return true;
     }
+    hSession->commandCount++;
     ptrServer->ClearOwnTasks(hSession, hfi->channelId);
     FreeChannel(hfi->channelId);
     hfi = nullptr;

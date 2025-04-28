@@ -81,7 +81,9 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
             WRITE_LOG(LOG_WARN, "Session IOBuf max, sid:%u", hSession->sessionId);
 #ifdef HDC_HOST
             hSession->isRunningOk = false;
-            hSession->faultInfo = "io buffer overflow";
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r(static_cast<int>(nread), buffer, BUF_SIZE_DEFAULT);
+            hSession->faultInfo = buffer;
 #endif
             break;
         } else if (nread < 0) {

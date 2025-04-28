@@ -156,7 +156,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
             WRITE_LOG(LOG_FATAL, "ReadStream size:%d channelId:%u", size, channelId);
 #ifdef HDC_HOST
             thisClass->FillChannelResult(hChannel, false,
-                "parse error: size field of the package header is too big");
+                "parse error: size field is too big");
 #endif
             needExit = true;
             break;
@@ -191,7 +191,7 @@ Finish:
         WRITE_LOG(LOG_DEBUG, "Read Stream needExit, FreeChannel finish channelId:%u", channelId);
     } else {
 #ifdef HDC_HOST
-        hChannel->isSuccess = hChannel->faultInfo.size() == 0;
+        hChannel->isSuccess = (hChannel->faultInfo.size() == 0);
 #endif
     }
 }
@@ -583,6 +583,7 @@ void HdcChannelBase::PrintChannel(const uint32_t channelId)
         if (hChannel->channelId == channelId) {
             auto str = hChannel->ToDisplayChannelStr();
             WRITE_LOG(LOG_INFO, "%s", str.c_str());
+            break;
         }
     }
     uv_rwlock_rdunlock(&lockMapChannel);

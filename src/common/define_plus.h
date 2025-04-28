@@ -396,7 +396,7 @@ struct HdcChannel {
         oss << " connectKey:" << Hdc::MaskString(connectKey);
         oss << " command flag:" << commandFlag;
         int i = commandParameters.size() - 1;
-        while(i >= 0 && commandParameters.size() > 0 && commandParameters[i] == '\0') {
+        while (i >= 0 && commandParameters[i] == '\0') {
             commandParameters[i] = ' ';
             i--;
         }

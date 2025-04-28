@@ -35,8 +35,8 @@ public:
 private:
     bool running_ = false;
     std::chrono::system_clock::time_point lastFlushTime = std::chrono::system_clock::now();
-    std::mutex PushCmdLogStrRecordMutex;
-    std::queue<std::string> PushCmdLogStrQueue;
+    std::mutex pushCmdLogStrRecordMutex;
+    std::queue<std::string> pushCmdLogStrQueue;
 };
 } // namespace Hdc
 #endif // HDC_CMD_LOG_H

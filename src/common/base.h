@@ -184,12 +184,20 @@ namespace Base {
     string GetFileNameAny(string &path);
     string GetCwd();
     string GetTmpDir();
+    inline string GetTarToolName()
+    {
+        return LOG_COMPRESS_TOOL_NAME;
+    }
+    inline string GetTarParams()
+    {
+        return LOG_COMPRESS_TOOL_PARAMS;
+    }
+    void GetTimeString(string &timeString);
 #ifndef  HDC_HILOG
     void SetLogCache(bool enable);
     void RemoveLogFile();
     void RemoveLogCache();
     void RollLogFile(const char *path);
-    void GetTimeString(string &timeString);
     void ChmodLogFile();
     bool CreateLogDir();
     bool CompressLogFile(string fileName);
@@ -200,10 +208,6 @@ namespace Base {
     uint32_t GetLogOverCount(vector<string> files, uint64_t limitDirSize);
     string GetLogDirName();
     string GetLogNameWithTime();
-    inline string GetTarToolName()
-    {
-        return LOG_COMPRESS_TOOL_NAME;
-    }
     inline string GetTarBinFile()
     {
 #ifdef _WIN32
@@ -211,11 +215,6 @@ namespace Base {
 #else
         return LOG_COMPRESS_TOOL_BIN_UNIX;
 #endif
-    }
-
-    inline string GetTarParams()
-    {
-        return LOG_COMPRESS_TOOL_PARAMS;
     }
 #endif
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
@@ -305,7 +304,7 @@ namespace Base {
     extern std::vector<std::string> g_cmdLogsFilesStrings;
     void ProcessCmdLogs();
     extern std::mutex g_threadCompressCmdLogsMutex;
-    extern std::shared_ptr<std::thread> compressCmdLogsThread;
+    extern std::shared_ptr<std::thread> g_compressCmdLogsThread;
 }  // namespace base
 }  // namespace Hdc
 

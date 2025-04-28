@@ -14,6 +14,7 @@
  */
 #include "server.h"
 #include "host_updater.h"
+#include "server_cmd_log.h"
 
 
 namespace Hdc {

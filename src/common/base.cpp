@@ -2756,7 +2756,9 @@ void CloseOpenFd(void)
         chdir(filePath.c_str());
         if (pc < 0) {
             WRITE_LOG(LOG_WARN, "fork subprocess failed");
-        } else if (!pc) {
+        } else if (pc == 0) {
+            signal(SIGALRM, TimeoutHandler);
+            alarm(MAX_PROCESS_TIMEOUT);
             if ((execlp(GetTarToolName().c_str(),
                         GetTarToolName().c_str(),
                         GetTarParams().c_str(),
@@ -2766,8 +2768,6 @@ void CloseOpenFd(void)
                 WRITE_LOG(LOG_WARN, "CompressLogFile execlp failed ");
             }
         } else {
-            signal(SIGALRM, TimeoutHandler);
-            alarm(MAX_PROCESS_TIMEOUT);
             int status = 0;
             waitpid(pc, &status, 0);
             if (WIFEXITED(status)) {

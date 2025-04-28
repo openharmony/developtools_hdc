@@ -32,8 +32,8 @@ class TestSessionLifeCycle:
         for item in target_list:
             if source_line.find(item) >= 0:
                 target_list.remove(item)
-                return (True, target_lines)
-        return (False, list())
+                return (True, target_list)
+        return (False, target_list)
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -69,10 +69,8 @@ class TestSessionLifeCycle:
         hdc_log_path = f"{tmp_path}{os.sep}hdc.log"
         with open(hdc_log_path, 'r') as file:
             for line in file.readlines():
-                (ret, _target_lines1) = self.remove(line, target_lines)
+                (_ret, _target_lines1) = self.remove(line, target_lines)
                 target_lines = _target_lines1
-                if ret:
-                    break
         p.join()
         assert len(target_lines) == 0
 
@@ -113,9 +111,10 @@ class TestSessionLifeCycle:
         for i in range(3):
             target_lines.append(ls_result_line)
             check_shell(f"-t 127.0.0.1:{fport_tcp_host_port + 3} shell ls")
-        
+
         for i in range(4):
-            assert check_shell(f"fport rm tcp:{fport_tcp_host_port + i} tcp:{fport_tcp_port}", "Remove forward ruler success")
+            assert check_shell(f"fport rm tcp:{fport_tcp_host_port + i} tcp:{fport_tcp_port}",
+                               "Remove forward ruler success")
         time.sleep(5)
         check_shell(f"kill")
         # 检查serverOutput是否包含上述字符串
@@ -123,9 +122,8 @@ class TestSessionLifeCycle:
         hdc_log_path = f"{tmp_path}{os.sep}hdc.log"
         with open(hdc_log_path, 'r') as file:
             for line in file.readlines():
-                (ret, _target_lines1) = self.remove(line, target_lines)
+                (_ret, _target_lines1) = self.remove(line, target_lines)
                 target_lines = _target_lines1
-                if ret:
-                    break
+
         p.join()
         assert len(target_lines) == 0

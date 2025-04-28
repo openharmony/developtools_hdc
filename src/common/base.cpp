@@ -2686,8 +2686,8 @@ void CloseOpenFd(void)
     #ifdef _WIN32
     // according to *.tgz format compression
     bool CompressLogFile(const std::string& filePath,
-                        const std::string& sourceFileName,
-                        const std::string& targetFileName)
+                         const std::string& sourceFileName,
+                         const std::string& targetFileName)
     {
         bool retVal = false;
         string sourceFileNameFull = filePath + sourceFileName;
@@ -2735,18 +2735,18 @@ void CloseOpenFd(void)
     }
     #else
     bool CompressLogFile(const std::string& filePath,
-                        const std::string& sourceFileName,
-                        const std::string& targetFileName)
+                         const std::string& sourceFileName,
+                         const std::string& targetFileName)
     {
         bool retVal = false;
         string sourceFileNameFull = filePath + sourceFileName;
         if (access(sourceFileNameFull.c_str(), F_OK) != 0) {
-        WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
-        return retVal;
+            WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
+            return retVal;
         }
         if (targetFileName.empty()) {
-        WRITE_LOG(LOG_FATAL, "file %s is empty", targetFileName.c_str());
-        return retVal;
+            WRITE_LOG(LOG_FATAL, "file %s is empty", targetFileName.c_str());
+            return retVal;
         }
         char currentDir[BUF_SIZE_DEFAULT] = { 0 };
         getcwd(currentDir, sizeof(currentDir));
@@ -2774,8 +2774,8 @@ void CloseOpenFd(void)
                 retVal = true;
             } else {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile failed, soiurceFileNameFull:%s, error:%s",
-                        sourceFileNameFull.c_str(),
-                        strerror(errno));
+                          sourceFileNameFull.c_str(),
+                          strerror(errno));
             }
         }
         chdir(currentDir);
@@ -2784,8 +2784,8 @@ void CloseOpenFd(void)
     #endif
 
     bool CompressCmdLogAndRemove(const std::string pathName,
-                                const std::string fileName,
-                                const std::string targetFileName)
+                                 const std::string fileName,
+                                 const std::string targetFileName)
     {
         std::string sourceFileName = pathName + fileName;
         if (sourceFileName.empty()) {
@@ -2824,8 +2824,8 @@ void CloseOpenFd(void)
     }
 
     vector<string> GetDirFileNameFromPath(const std::string path,
-                                        const std::string matchPreStr,
-                                        const std::string matchSufStr)
+                                          const std::string matchPreStr,
+                                          const std::string matchSufStr)
     {
         g_cmdLogsFilesStrings.clear();
     #ifdef _WIN32
@@ -2864,9 +2864,9 @@ void CloseOpenFd(void)
     }
     
     void ControlFilesByRegex(const std::string path,
-                            const std::string matchPreStr,
-                            const std::string matchSufStr,
-                            int maxFiles)
+                             const std::string matchPreStr,
+                             const std::string matchSufStr,
+                             int maxFiles)
     {
         vector<string> files = GetDirFileNameFromPath(path, matchPreStr, matchSufStr);
         if (files.size() <= static_cast<size_t>(maxFiles)) {
@@ -2908,8 +2908,7 @@ void CloseOpenFd(void)
         ControlFilesByRegex(path, 
                             CMD_LOG_COMPRESS_FILE_NAME_PREFIX,
                             CMD_LOG_COMPRESS_FILE_NAME_SUFFIX,
-                            MAX_COMPRESS_LOG_FILE_COUNT
-                        );
+                            MAX_COMPRESS_LOG_FILE_COUNT);
     }
 
     void SaveLogToPath(const std::string path, const std::string str)
@@ -2983,7 +2982,7 @@ void CloseOpenFd(void)
             auto lastFlushTime = Hdc::ServerCmdLog::GetInstance().GetLastFlushTime();
             size_t compareTime = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now() - lastFlushTime).count();
-            if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) ||(compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)){
+            if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) || (compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)) {
                 SaveCmdLogsToFile();
                 ThreadProcessCmdLogs();
             }

@@ -1094,7 +1094,7 @@ void HdcServer::EchoToClientsForSession(uint32_t targetSessionId, const string &
     WRITE_LOG(LOG_INFO, "%s:%u %s", __FUNCTION__, targetSessionId, echo.c_str());
     hSfc->EchoToAllChannelsViaSessionId(targetSessionId, echo);
 }
-void HdcServer::PrintCmdLogEx(const string &cmdStr)
+void HdcServer::PrintCmdLogEx(const string& cmdStr)
 {
     if (cmdStr.empty()) {
         return;

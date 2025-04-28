@@ -12,11 +12,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "server_cmd_log.h"
 #include <sstream>
 #include <string>
+#include <queue>
+#include <mutex>
 #include <unistd.h>
-#include <pthread.h>
-#include "server_cmd_log.h"
 #include "log.h"
 
 namespace Hdc {
@@ -66,11 +67,7 @@ bool ServerCmdLog::GetRunningStatus()
 
 void ServerCmdLog::SetRunningStatus(bool running)
 {
-    if (running == true) {
-        running_ = true;
-    } else {
-        running_ = false;
-    }
+    running_ = running;
 }
 
 std::chrono::system_clock::time_point ServerCmdLog::GetLastFlushTime()

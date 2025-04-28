@@ -37,26 +37,26 @@ ServerCmdLog::~ServerCmdLog()
 }
 void ServerCmdLog::PushCmdLogStr(const std::string& cmdLogStr)
 {
-    std::unique_lock<std::mutex> lock(PushCmdLogStrRecordMutex);
-    PushCmdLogStrQueue.push(cmdLogStr);
+    std::unique_lock<std::mutex> lock(pushCmdLogStrRecordMutex);
+    pushCmdLogStrQueue.push(cmdLogStr);
 }
 
 std::string ServerCmdLog::PopCmdLogStr()
 {
-    std::unique_lock<std::mutex> lock(PushCmdLogStrRecordMutex);
-    if (PushCmdLogStrQueue.empty()) {
+    std::unique_lock<std::mutex> lock(pushCmdLogStrRecordMutex);
+    if (pushCmdLogStrQueue.empty()) {
         return "";
     }
-    std::string cmdLogStr = PushCmdLogStrQueue.front();
-    PushCmdLogStrQueue.pop();
+    std::string cmdLogStr = pushCmdLogStrQueue.front();
+    pushCmdLogStrQueue.pop();
     lastFlushTime = std::chrono::system_clock::now();
     return cmdLogStr;
 }
 
 size_t ServerCmdLog::CmdLogStrSize()
 {
-    std::unique_lock<std::mutex> lock(PushCmdLogStrRecordMutex);
-    return PushCmdLogStrQueue.size();
+    std::unique_lock<std::mutex> lock(pushCmdLogStrRecordMutex);
+    return pushCmdLogStrQueue.size();
 }
 
 bool ServerCmdLog::GetRunningStatus()

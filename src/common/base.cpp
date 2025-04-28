@@ -54,10 +54,11 @@ namespace Base {
     uint16_t g_logFileCount = MAX_LOG_FILE_COUNT;
     bool g_heartbeatSwitch = true;
     constexpr int DEF_FILE_PERMISSION = 0750;
+    constexpr int DEF_FILE_PERMISSION_PUBLIC = 0755;
     bool g_cmdlogSwitch = false;
     std::vector<std::string> g_cmdLogsFilesStrings;
     std::mutex g_threadCompressCmdLogsMutex;
-    std::shared_ptr<std::thread> compressCmdLogsThread;
+    std::shared_ptr<std::thread> g_compressCmdLogsThread;
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -154,6 +155,29 @@ namespace Base {
         }
     }
 
+    bool CompareLogFileName(const string &a, const string &b)
+    {
+        return strcmp(a.c_str(), b.c_str()) > 0;
+    }
+
+    void GetTimeString(string &timeString)
+    {
+        system_clock::time_point timeNow = system_clock::now();
+        system_clock::duration sinceUnix0 = timeNow.time_since_epoch(); // since 1970
+        time_t sinceUnix0Time = duration_cast<seconds>(sinceUnix0).count();
+        std::tm *timeTm = std::localtime(&sinceUnix0Time);
+
+        const auto sinceUnix0Rest = duration_cast<milliseconds>(sinceUnix0).count() % TIME_BASE;
+        string msTimeSurplus = StringFormat("%03llu", sinceUnix0Rest);
+        timeString = msTimeSurplus;
+        if (timeTm != nullptr) {
+            char buffer[TIME_BUF_SIZE] = {0};
+            if (strftime(buffer, TIME_BUF_SIZE, "%Y%m%d-%H%M%S", timeTm) > 0) {
+                timeString = StringFormat("%s%s", buffer, msTimeSurplus.c_str());
+            }
+        }
+    }
+
 #ifndef  HDC_HILOG
     void LogToPath(const char *path, const char *str)
     {
@@ -189,29 +213,6 @@ namespace Base {
         uv_fs_write(nullptr, &req, fd, &wbf, 1, -1, nullptr);
         uv_fs_close(nullptr, &req, fd, nullptr);
 #endif
-    }
-
-    void GetTimeString(string &timeString)
-    {
-        system_clock::time_point timeNow = system_clock::now();
-        system_clock::duration sinceUnix0 = timeNow.time_since_epoch(); // since 1970
-        time_t sinceUnix0Time = duration_cast<seconds>(sinceUnix0).count();
-        std::tm *timeTm = std::localtime(&sinceUnix0Time);
-
-        const auto sinceUnix0Rest = duration_cast<milliseconds>(sinceUnix0).count() % TIME_BASE;
-        string msTimeSurplus = StringFormat("%03llu", sinceUnix0Rest);
-        timeString = msTimeSurplus;
-        if (timeTm != nullptr) {
-            char buffer[TIME_BUF_SIZE] = {0};
-            if (strftime(buffer, TIME_BUF_SIZE, "%Y%m%d-%H%M%S", timeTm) > 0) {
-                timeString = StringFormat("%s%s", buffer, msTimeSurplus.c_str());
-            }
-        }
-    }
-
-    bool CompareLogFileName(const string &a, const string &b)
-    {
-        return strcmp(a.c_str(), b.c_str()) > 0;
     }
 
     bool CreateLogDir()
@@ -2654,13 +2655,13 @@ void CloseOpenFd(void)
             g_cmdlogSwitch = false;
             return;
         }
-        size_t env_len = strlen(env);
-        if (env_len > 1) {
+        size_t envLen = strlen(env);
+        if (envLen > 1) {
             g_cmdlogSwitch = false;
             return;
         }
         size_t maxLen = 1;
-        if ((maxLen == env_len) && (0 == strncmp(env, "1", maxLen))) {
+        if ((maxLen == envLen) && (strncmp(env, "1", maxLen) == 0)) {
             g_cmdlogSwitch = true;
             return;
         }
@@ -2677,16 +2678,16 @@ void CloseOpenFd(void)
         return GetTmpDir() + CMD_LOG_DIR_NAME + GetPathSep();
     }
 
-    void timeout_handler(int signum) {
+    void TimeoutHandler(int signum)
+    {
         WRITE_LOG(LOG_FATAL, "Timeout occurred!");
         exit(1);
     }
-
+    #ifdef _WIN32
     // according to *.tgz format compression
-    bool CompressLogFile(const std::string& filePath, 
-                        const std::string& sourceFileName, 
-                        const std::string& targetFileName
-                    )
+    bool CompressLogFile(const std::string& filePath,
+                        const std::string& sourceFileName,
+                        const std::string& targetFileName)
     {
         bool retVal = false;
         string sourceFileNameFull = filePath + sourceFileName;
@@ -2700,7 +2701,6 @@ void CloseOpenFd(void)
         }
         char currentDir[BUF_SIZE_DEFAULT] = { 0 };
         getcwd(currentDir, sizeof(currentDir));
- #ifdef _WIN32
         char buf[BUF_SIZE_SMALL] = { 0 };
         if (sprintf_s(buf, sizeof(buf) - 1, "tar czfp %s %s", targetFileName.c_str(), sourceFileName.c_str()) < 0) {
             WRITE_LOG(LOG_FATAL, "sprintf_s failed");
@@ -2729,15 +2729,34 @@ void CloseOpenFd(void)
             }
             CloseHandle(pi.hProcess);
             CloseHandle(pi.hThread);
-            }
-#else
+        }
+        chdir(currentDir);
+        return retVal;
+    }
+    #else
+    bool CompressLogFile(const std::string& filePath,
+                        const std::string& sourceFileName,
+                        const std::string& targetFileName)
+    {
+        bool retVal = false;
+        string sourceFileNameFull = filePath + sourceFileName;
+        if (access(sourceFileNameFull.c_str(), F_OK) != 0) {
+        WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
+        return retVal;
+        }
+        if (targetFileName.empty()) {
+        WRITE_LOG(LOG_FATAL, "file %s is empty", targetFileName.c_str());
+        return retVal;
+        }
+        char currentDir[BUF_SIZE_DEFAULT] = { 0 };
+        getcwd(currentDir, sizeof(currentDir));
         pid_t pc = fork(); // create process
         chdir(filePath.c_str());
-        if (pc < 0 ) {
+        if (pc < 0) {
             WRITE_LOG(LOG_WARN, "fork subprocess failed");
         } else if (!pc) {
-            if ((execlp(GetTarToolName().c_str(), 
-                        GetTarToolName().c_str(), 
+            if ((execlp(GetTarToolName().c_str(),
+                        GetTarToolName().c_str(),
                         GetTarParams().c_str(),
                         targetFileName.c_str(),
                         sourceFileName.c_str(),
@@ -2745,7 +2764,7 @@ void CloseOpenFd(void)
                 WRITE_LOG(LOG_WARN, "CompressLogFile execlp failed ");
             }
         } else {
-            signal(SIGALRM, timeout_handler);
+            signal(SIGALRM, TimeoutHandler);
             alarm(MAX_PROCESS_TIMEOUT);
             int status = 0;
             waitpid(pc, &status, 0);
@@ -2754,18 +2773,19 @@ void CloseOpenFd(void)
                 WRITE_LOG(LOG_DEBUG, "subprocess exited withe status: %d", exitCode);
                 retVal = true;
             } else {
-                WRITE_LOG(LOG_FATAL, "CompressLogFile failed, soiurceFileNameFull:%s, error:%s", sourceFileNameFull.c_str(), strerror(errno));
+                WRITE_LOG(LOG_FATAL, "CompressLogFile failed, soiurceFileNameFull:%s, error:%s",
+                        sourceFileNameFull.c_str(),
+                        strerror(errno));
             }
         }
-#endif
         chdir(currentDir);
         return retVal;
     }
+    #endif
 
-    bool CompressCmdLogAndRemove(const std::string pathName, 
-                                const std::string fileName, 
-                                const std::string targetFileName
-                            )
+    bool CompressCmdLogAndRemove(const std::string pathName,
+                                const std::string fileName,
+                                const std::string targetFileName)
     {
         std::string sourceFileName = pathName + fileName;
         if (sourceFileName.empty()) {
@@ -2803,10 +2823,9 @@ void CloseOpenFd(void)
         return false;
     }
 
-    vector<string> GetDirFileNameFromPath(const std::string path, 
-                                        const std::string matchPreStr, 
-                                        const std::string matchSufStr
-                                    )
+    vector<string> GetDirFileNameFromPath(const std::string path,
+                                        const std::string matchPreStr,
+                                        const std::string matchSufStr)
     {
         g_cmdLogsFilesStrings.clear();
     #ifdef _WIN32
@@ -2819,7 +2838,7 @@ void CloseOpenFd(void)
             return ;
         }
         do {
-            if((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+            if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
                 SetErrorMode(SEM_FAILCRITICALERRORS);
                 g_cmdLogsFilesStrings.push_back(findData.cFileName);
             }
@@ -2847,8 +2866,7 @@ void CloseOpenFd(void)
     void ControlFilesByRegex(const std::string path,
                             const std::string matchPreStr,
                             const std::string matchSufStr,
-                            int maxFiles
-                        )
+                            int maxFiles)
     {
         vector<string> files = GetDirFileNameFromPath(path, matchPreStr, matchSufStr);
         if (files.size() <= static_cast<size_t>(maxFiles)) {
@@ -2888,9 +2906,10 @@ void CloseOpenFd(void)
         }
         //delete old files
         ControlFilesByRegex(path, 
-                            CMD_LOG_COMPRESS_FILE_NAME_PREFIX, 
-                            CMD_LOG_COMPRESS_FILE_NAME_SUFFIX, 
-                            MAX_COMPRESS_LOG_FILE_COUNT);
+                            CMD_LOG_COMPRESS_FILE_NAME_PREFIX,
+                            CMD_LOG_COMPRESS_FILE_NAME_SUFFIX,
+                            MAX_COMPRESS_LOG_FILE_COUNT
+                        );
     }
 
     void SaveLogToPath(const std::string path, const std::string str)
@@ -2912,7 +2931,8 @@ void CloseOpenFd(void)
         uv_fs_close(nullptr, &req, fd, nullptr);
     }
 
-    bool ensureDirectoryExists(const std::string& directoryPath) {
+    bool EnsureDirectoryExists(const std::string& directoryPath)
+    {
         uv_fs_t req;
         int result = uv_fs_stat(nullptr, &req, directoryPath.c_str(), nullptr);
         if (result == 0) {
@@ -2920,7 +2940,7 @@ void CloseOpenFd(void)
             return true;
         } else if (result == UV_ENOENT) {
             uv_fs_req_cleanup(&req);
-            result = uv_fs_mkdir(nullptr, &req, directoryPath.c_str(), 0755, nullptr);
+            result = uv_fs_mkdir(nullptr, &req, directoryPath.c_str(), DEF_FILE_PERMISSION_PUBLIC, nullptr);
             if (result == 0) {
                 WRITE_LOG(LOG_INFO, "Directory created: %s", directoryPath.c_str());
                 return true;
@@ -2939,11 +2959,11 @@ void CloseOpenFd(void)
         std::string pathNames = GetCmdLogDirName();
         std::string cmdLogFileName = pathNames + CMD_LOG_FILE_NAME;
         std::string cmdLog = "";
-        if (!ensureDirectoryExists(pathNames)) {
-            WRITE_LOG(LOG_FATAL, "ensureDirectoryExists failed");
+        if (!EnsureDirectoryExists(pathNames)) {
+            WRITE_LOG(LOG_FATAL, "EnsureDirectoryExists failed");
             return false;
         }
-        while(Hdc::ServerCmdLog::GetInstance().CmdLogStrSize() != 0) {
+        while (Hdc::ServerCmdLog::GetInstance().CmdLogStrSize() != 0) {
             cmdLog = Hdc::ServerCmdLog::GetInstance().PopCmdLogStr();
             WRITE_LOG(LOG_INFO, "cmdLog:%s", cmdLog.c_str());
             if (!cmdLog.empty()) {
@@ -2963,9 +2983,7 @@ void CloseOpenFd(void)
             auto lastFlushTime = Hdc::ServerCmdLog::GetInstance().GetLastFlushTime();
             size_t compareTime = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now() - lastFlushTime).count();
-            if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) || 
-                (compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)
-             ) {
+            if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) ||(compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)){
                 SaveCmdLogsToFile();
                 ThreadProcessCmdLogs();
             }
@@ -2979,18 +2997,18 @@ void CloseOpenFd(void)
             return;
         }
         std::unique_lock<std::mutex> lock(g_threadCompressCmdLogsMutex);
-        compressCmdLogsThread = std::make_shared<std::thread>(ThreadCmdStrAndCmdLogs);
+        g_compressCmdLogsThread = std::make_shared<std::thread>(ThreadCmdStrAndCmdLogs);
     }
 
     void ThreadProcessCmdLogsExit()
     {
         Hdc::ServerCmdLog::GetInstance().SetRunningStatus(false);
-        if (compressCmdLogsThread == nullptr) {
+        if (g_compressCmdLogsThread == nullptr) {
             return;
         }
         std::unique_lock<std::mutex> lock(g_threadCompressCmdLogsMutex);
-        if (compressCmdLogsThread->joinable()) {
-            compressCmdLogsThread->join();
+        if (g_compressCmdLogsThread->joinable()) {
+            g_compressCmdLogsThread->join();
         }
     }
 } // namespace Base

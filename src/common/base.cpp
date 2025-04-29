@@ -2662,7 +2662,7 @@ void CloseOpenFd(void)
             return;
         }
         constexpr size_t maxLen = 1;
-        if ((envLen == maxLen) && (0 == strncmp(env, "1", maxLen))) {
+        if ((maxLen == envLen) && (0 == strncmp(env, "1", maxLen))) {
             g_cmdlogSwitch = true;
             return;
         }

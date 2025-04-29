@@ -255,6 +255,24 @@ struct HdcSession {
     uv_timer_t heartbeatTimer;
 
     HdcSessionStat stat;
+#ifdef HDC_HOST
+    bool isRunningOk;
+    std::string faultInfo;
+    uint64_t commandCount = 0;
+    std::string ToDisplayConnectionStr()
+    {
+        std::ostringstream oss;
+        oss << "HdcServer [";
+        oss << " sessionId:" << sessionId;
+        oss << " connectKey:" << Hdc::MaskString(connectKey);
+        oss << " connType:" << unsigned(connType);
+        oss << " connect state:" << isRunningOk;
+        oss << " faultInfo:" << faultInfo;
+        oss << " commandCount:" << commandCount;
+        oss << " ]";
+        return oss.str();
+    }
+#endif
     std::string ToDebugString()
     {
         std::ostringstream oss;
@@ -302,6 +320,10 @@ struct HdcSession {
 #endif
         verifyType = AuthVerifyType::RSA_3072_SHA512;
         isSoftReset = false;
+#ifdef HDC_HOST
+        isRunningOk = true;
+        faultInfo = "";
+#endif
     }
 
     ~HdcSession()
@@ -358,6 +380,34 @@ struct HdcChannel {
     bool connectLocalDevice = false;
     bool isStableBuf = false;
     std::atomic<uint32_t> writeFailedTimes;
+#ifdef HDC_HOST
+    uint64_t startTime = 0;
+    uint64_t endTime = 0;
+    bool isSuccess = false;
+    std::string faultInfo = "";
+    uint16_t commandFlag = 0;
+    std::string commandParameters = "";
+
+    std::string ToDisplayChannelStr()
+    {
+        std::ostringstream oss;
+        oss << "HdcServerForClient [";
+        oss << " channelId:" << channelId;
+        oss << " connectKey:" << Hdc::MaskString(connectKey);
+        oss << " command flag:" << commandFlag;
+        int i = commandParameters.size() - 1;
+        while (i >= 0 && commandParameters[i] == '\0') {
+            commandParameters[i] = ' ';
+            i--;
+        }
+        oss << " command parameters:" << commandParameters;
+        oss << " command result:" << isSuccess;
+        oss << " command take time:" << (endTime - startTime) << "ms";
+        oss << " faultInfo:" << faultInfo;
+        oss << " ]";
+        return oss.str();
+    }
+#endif
 };
 using HChannel = struct HdcChannel *;
 

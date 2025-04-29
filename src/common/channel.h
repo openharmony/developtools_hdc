@@ -55,6 +55,14 @@ protected:
     {
         return true;  // just server use
     }
+#ifdef HDC_HOST
+    void PrintChannel(const uint32_t channelId);
+    inline void FillChannelResult(HChannel channel, bool isSuccess, const char *faultInfo)
+    {
+        channel->isSuccess = isSuccess;
+        channel->faultInfo += faultInfo;
+    }
+#endif
 
     string channelHostPort;
     string channelHost;

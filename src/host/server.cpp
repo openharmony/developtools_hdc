@@ -938,6 +938,7 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     hChannel->hChildWorkTCP.data = hChannel;
     hChannel->loopStatus = &hSession->childLoopStatus;
     hChannel->targetSessionId = hSession->sessionId;
+    hSession->commandCount++;
     if ((ret = uv_tcp_open((uv_tcp_t *)&hChannel->hChildWorkTCP, hChannel->fdChildWorkTCP)) < 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };

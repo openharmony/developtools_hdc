@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class TestShellHilog:
     #子进程执行函数
     @staticmethod
-    def new_process_run(self, cmd):
+    def new_process_run(cmd):
         # 重定向 stdout 和 stderr 到 /dev/null
         with open(os.devnull, 'w') as devnull:
             old_stdout = os.dup2(devnull.fileno(), 1)  # 重定向 stdout

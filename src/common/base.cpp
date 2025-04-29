@@ -2891,7 +2891,6 @@ void CloseOpenFd(void)
         string path = GetCmdLogDirName();
         string logFileName = path + CMD_LOG_FILE_NAME;
         if (IsFileSizeLessThan(logFileName, MAX_COMPRESS_LOG_FILE_SIZE)) {
-            WRITE_LOG(LOG_INFO, "file %s size is less than", logFileName.c_str());
             return;
         }
         string timeStr;
@@ -2937,7 +2936,6 @@ void CloseOpenFd(void)
         uv_fs_t req;
         int result = uv_fs_stat(nullptr, &req, directoryPath.c_str(), nullptr);
         if (result == 0) {
-            WRITE_LOG(LOG_INFO, "Directory already exists: %s", directoryPath.c_str());
             return true;
         } else if (result == UV_ENOENT) {
             uv_fs_req_cleanup(&req);
@@ -2966,7 +2964,6 @@ void CloseOpenFd(void)
         }
         while (Hdc::ServerCmdLog::GetInstance().CmdLogStrSize() != 0) {
             cmdLog = Hdc::ServerCmdLog::GetInstance().PopCmdLogStr();
-            WRITE_LOG(LOG_INFO, "cmdLog:%s", cmdLog.c_str());
             if (!cmdLog.empty()) {
                 SaveLogToPath(cmdLogFileName, cmdLog);
             }
@@ -2982,8 +2979,9 @@ void CloseOpenFd(void)
             size_t cmdLogCount = 0;
             cmdLogCount = Hdc::ServerCmdLog::GetInstance().CmdLogStrSize();
             auto lastFlushTime = Hdc::ServerCmdLog::GetInstance().GetLastFlushTime();
-            size_t compareTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            size_t compareTime = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::system_clock::now() - lastFlushTime).count();
+            WRITE_LOG(LOG_INFO, "ThreadCmdStrAndCmdLogs:cmdLogCount%d:compareTime:%d", cmdLogCount, compareTime);
             if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) || (compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)) {
                 SaveCmdLogsToFile();
                 ThreadProcessCmdLogs();

@@ -36,9 +36,10 @@ ServerCmdLog::~ServerCmdLog()
 
 void ServerCmdLog::PushCmdLogStr(const std::string& cmdLogStr)
 {
+    constexpr int size_t queueSizeMax = 1500;
     std::unique_lock<std::mutex> lock(pushCmdLogStrRecordMutex);
     size_t pushCmdLogStrQueueSize = pushCmdLogStrQueue.size();
-    if (pushCmdLogStrQueueSize >= 1500) {
+    if (pushCmdLogStrQueueSize >= queueSizeMax) {
         WRITE_LOG(LOG_INFO, "!!!pushCmdLogStrQueue exceeds threshold:%zu,Do not save CmdLog.", pushCmdLogStrQueueSize);
         return;
     }

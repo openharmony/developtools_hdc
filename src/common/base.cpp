@@ -54,7 +54,6 @@ namespace Base {
     uint16_t g_logFileCount = MAX_LOG_FILE_COUNT;
     bool g_heartbeatSwitch = true;
     constexpr int DEF_FILE_PERMISSION = 0750;
-    constexpr int DEF_FILE_PERMISSION_PUBLIC = 0755;
     bool g_cmdlogSwitch = false;
     std::vector<std::string> g_cmdLogsFilesStrings;
     std::mutex g_threadCompressCmdLogsMutex;
@@ -2943,7 +2942,7 @@ void CloseOpenFd(void)
             return true;
         } else if (result == UV_ENOENT) {
             uv_fs_req_cleanup(&req);
-            result = uv_fs_mkdir(nullptr, &req, directoryPath.c_str(), DEF_FILE_PERMISSION_PUBLIC, nullptr);
+            result = uv_fs_mkdir(nullptr, &req, directoryPath.c_str(), DEF_FILE_PERMISSION, nullptr);
             if (result == 0) {
                 WRITE_LOG(LOG_INFO, "Directory created: %s", directoryPath.c_str());
                 return true;
@@ -2966,12 +2965,16 @@ void CloseOpenFd(void)
             WRITE_LOG(LOG_FATAL, "EnsureDirectoryExists failed");
             return false;
         }
+        size_t loopCount = 0;
         while (Hdc::ServerCmdLog::GetInstance().CmdLogStrSize() != 0) {
+            if (loopCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) {
+                break;
+            }
+            loopCount++;
             cmdLog = Hdc::ServerCmdLog::GetInstance().PopCmdLogStr();
             if (!cmdLog.empty()) {
                 SaveLogToPath(cmdLogFileName, cmdLog);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(MIN_SLEPP_TIME));
         }
         return true;
     }

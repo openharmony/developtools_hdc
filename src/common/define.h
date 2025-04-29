@@ -230,6 +230,6 @@ const uint64_t MAX_COMPRESS_LOG_FILE_SIZE = (50) * 1024 * 1024; // 50MB
 const size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
 const size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
 const size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
-const size_t MIN_SLEPP_TIME = 100; // 100ms
+const size_t MIN_SLEPP_TIME = 1; // 1ms
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

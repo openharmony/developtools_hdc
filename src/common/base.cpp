@@ -2662,7 +2662,7 @@ void CloseOpenFd(void)
             return;
         }
         constexpr size_t maxLen = 1;
-        if ((maxLen == envLen) && (strncmp(env, "1", maxLen) == 0)) {
+        if ((maxLen == envLen) && (0 == strncmp(env, "1", maxLen))) {
             g_cmdlogSwitch = true;
             return;
         }
@@ -2999,17 +2999,6 @@ void CloseOpenFd(void)
         g_compressCmdLogsThread = std::make_shared<std::thread>(ThreadCmdStrAndCmdLogs);
     }
 
-    void ThreadProcessCmdLogsExit()
-    {
-        std::unique_lock<std::mutex> lock(g_threadCompressCmdLogsMutex);
-        Hdc::ServerCmdLog::GetInstance().SetRunningStatus(false);
-        if (g_compressCmdLogsThread == nullptr) {
-            return;
-        }
-        if (g_compressCmdLogsThread->joinable()) {
-            g_compressCmdLogsThread->join();
-        }
-    }
     std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string& cmdStr)
     {
         string timeStr;

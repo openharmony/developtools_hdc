@@ -18,8 +18,6 @@
 #include <queue>
 #include <mutex>
 
-#define MAX_CMD_LOG_QUEUE_SIZE 1500
-
 namespace Hdc {
 class ServerCmdLog {
 public:

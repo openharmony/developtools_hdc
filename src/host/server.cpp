@@ -324,6 +324,7 @@ void HdcServer::AdminDaemonMapForWait(const string &connectKey, HDaemonInfo &hDa
 
 string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaemonInfo &hDaemonInfoInOut)
 {
+    StartTraceScope("HdcServer::AdminDaemonMap");
     string sRet;
     switch (opType) {
         case OP_ADD: {

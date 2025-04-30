@@ -205,6 +205,8 @@ namespace TranslateCommand {
             "\%OHOS_HDC_LOG_LEVEL\%                  - Set hdc server log level(range 0~5, default 5)\n"
             "\%OHOS_HDC_HEARTBEAT\%                  - Set whether the hdc heartbeat function is disabled\n"
             "                                          (1: disabled, other: enabled, default: enabled)\n"
+            "\%OHOS_HDC_CMD_RECORD\%                 - Set whether the hdc command record function is enabled\n"
+            "                                         (1: enabled, other: disabled, default: disabled)\n"
 #ifdef FEATURE_HOST_LOG_COMPRESS
             "\%OHOS_HDC_LOG_LIMIT\%                  - Set the number of logs that trigger the total"
             " log file size statistics (default 300 (files))\n"
@@ -214,6 +216,8 @@ namespace TranslateCommand {
             "$OHOS_HDC_LOG_LEVEL                    - Set hdc server log level(range 0~5, default 5)\n"
             "$OHOS_HDC_HEARTBEAT                    - Set whether the hdc heartbeat function is disabled\n"
             "                                         (1: disabled, other: enabled, default: enabled)\n"
+            "$OHOS_HDC_CMD_RECORD                   - Set whether the hdc command record function is enabled\n"
+            "                                         (1: enabled, other: disabled, default: disabled)\n"
 #ifdef FEATURE_HOST_LOG_COMPRESS
             "$OHOS_HDC_LOG_LIMIT                    - Set the number of logs that trigger the total"
             " log file size statistics (default 300 (files))\n"

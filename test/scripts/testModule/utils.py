@@ -1092,3 +1092,25 @@ def get_cmd_block_output(command, timeout=600):
 
     print(f"--> output: {output}")
     return output
+
+
+def get_cmd_block_output_and_error(command, timeout=600):
+    print(f"cmd: {command}")
+    # 启动子进程
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # 用于存储子进程的输出
+    output = ""
+    error = ""
+
+    try:
+        # 读取子进程的输出
+        output, error = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.terminate()
+        process.kill()
+        output, error = process.communicate(timeout=timeout)
+
+    print(f"--> output: {output}")
+    print(f"--> error: {error}")
+    return output, error

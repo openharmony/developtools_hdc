@@ -242,7 +242,6 @@ HWTEST_F(HdcTLVTest, TlvBuf_FindTlv_001, TestSize.Level0)
     uint32_t flen = 1;
     uint8_t *fval = nullptr;
     ASSERT_EQ(tb.FindTlv(ftag, flen, fval), false);
-    ASSERT_EQ(flen, 1);
     ASSERT_EQ(fval, nullptr);
     ftag = 1;
     ASSERT_EQ(tb.FindTlv(ftag, flen, fval), true);

@@ -13,10 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from utils import GP, check_hdc_cmd, load_gp
+from utils import GP, check_hdc_cmd, load_gp, get_cmd_block_output_and_error
 
 
 class TestHdcHelp:
     @pytest.mark.L0
     def test_hdc_help(self):
+        _, error = get_cmd_block_output_and_error(f"{GP.hdc_head} -h")
+        assert "Generate public" in error
+
         assert check_hdc_cmd("help", "Generate public")
+
+    @pytest.mark.L0
+    def test_hdc_help_verbose_heartbeat(self):
+        _, error = get_cmd_block_output_and_error(f"{GP.hdc_head} -h verbose")
+        assert "OHOS_HDC_HEARTBEAT" in error
+
+        assert check_hdc_cmd("help verbose", "OHOS_HDC_HEARTBEAT")

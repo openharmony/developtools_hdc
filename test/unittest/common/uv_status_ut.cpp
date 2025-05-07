@@ -75,13 +75,13 @@ HWTEST_F(HandleTest, Handle_NoHungTest_001, TestSize.Level0)
 {
     mCycles = 5;
     mCallDuration = MS_PER_SEC / 2;
-    uv_run(&mLoop, UV_RUN_DEFAULT);
+    ASSERT_NO_FATAL_FAILURE(uv_run(&mLoop, UV_RUN_DEFAULT));
 }
 HWTEST_F(HandleTest, Handle_HungTest_001, TestSize.Level0)
 {
     mCycles = 1;
     mCallDuration = 6 * MS_PER_SEC;
-    uv_run(&mLoop, UV_RUN_DEFAULT);
+    ASSERT_NO_FATAL_FAILURE(uv_run(&mLoop, UV_RUN_DEFAULT));
 }
 
 } // namespace Hdc

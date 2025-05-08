@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+
+-- coding: utf-8 --
+Copyright (C) 2025 Huawei Device Co., Ltd.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+import logging
+import re
+import time
+import pytest
+
+from utils import GP, get_shell_result,
+run_command_with_timeout, check_shell, get_remote_path, get_local_path
+
+logger = logging.getLogger(name)
+
+class TestHdcReturnValue:
+"""
+hdc help命令的输出与hdc.log文件内容非空行逐行比较，全部相等则成功
+"""
+
+@pytest.mark.L0
+def test_hdc_help(self):
+    result = get_shell_result(f"help")
+    result_lines = result.split(f"\r\n")
+    help_file = f"help.log"
+    index = 0
+    with open(help_file, 'r') as file:
+        for line in file.readlines():
+            line = line.replace("\n", "")
+            while len(result_lines[index]) == 0:
+                index = index + 1
+                if index >= len(result_lines):
+                    return
+            if line:
+                if line != result_lines[index]:
+                    logger.warning(f"line:{line}, result line:{result_lines[index]}")
+                    assert False
+                    return
+                index = index + 1
+    return
+
+"""
+格式形如：    Ver: 3.1.0e
+"""
+@pytest.mark.L0
+def test_hdc_version(self):
+    result = get_shell_result(f"-v")
+    result = result.replace(f"\r\n", "")
+    pattern = r'Ver: \d+.\d+.\d+([A-Za-z]+)'
+    match = re.match(pattern, result)
+    assert match is not None
+
+"""
+hdc list targets
+返回值格式如下：
+1）无设备， 返回[Empty]
+2) 有设备, 分行显示 usb/uart设备是常规字符串 tcp设备是ip地址：port端口号
+"""
+
+@pytest.mark.L0
+def test_hdc_list_targets(self):
+    result = get_shell_result(f"list targets")
+    result = result.split(f"\r\n")
+    if result[0] == "[Empty]":
+        return
+    for item in result:
+        if item:
+            pattern = r'([A-Za-z0-9]+)'
+            match_usb = re.fullmatch(pattern, item)
+            pattern_tcp = r'\d+.\d+.\d+.\d+:\d+'
+            match_tcp = re.fullmatch(pattern_tcp, item)
+            assert match_usb is not None or match_tcp is not None
+
+"""
+hdc start [-r]
+无返回
+"""
+
+@pytest.mark.L0
+def test_hdc_start(self):
+    assert check_shell(f"start", "")
+    assert check_shell(f"start -r", "")
+
+"""
+hdc target mount
+返回 Mount finish
+"""
+
+@pytest.mark.L0
+def test_hdc_target_mount(self):
+    ret1 = check_shell(f"target mount", "Mount finish")
+    ret2 = check_shell(f"target mount", "[Fail]Operate need running as root")
+    assert ret1 or ret2
+
+"""
+hdc wait
+返回 空
+"""
+
+@pytest.mark.L0
+def test_hdc_wait(self):
+    check_shell(f"kill")
+    assert check_shell(f"{GP.hdc_head} wait", "")
+
+"""
+hdc target boot [-bootloader] [-recovery]
+返回 空
+"""
+
+@pytest.mark.L0
+def test_hdc_target_boot(self):
+    assert check_shell(f"target boot", "")
+    time.sleep(20)
+    # run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    # assert check_shell(f"target boot -bootloader", "")
+    # run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    # assert check_shell(f"target boot -recovery", "")
+
+"""
+hdc smode [-r]
+返回 空
+"""
+
+@pytest.mark.L0
+def test_hdc_smode(self):
+    run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    assert check_shell(f"smode -r", "")
+    run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    assert check_shell(f"smode", "")
+
+"""
+hdc tmode [usb] | [port XXXX]
+返回 空
+"""
+
+@pytest.mark.L0
+def test_hdc_tmode(self):
+    time.sleep(10)
+    run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    assert check_shell(f"tmode usb", "[Fail][E001000]For USB debugging, please set it on the device's Settings UI")
+    assert check_shell(f"tmode port 11111", "Set device run mode successful.")
+
+"""
+hdc file send [local_path] [remote_path]
+"""
+
+@pytest.mark.L0
+def test_hdc_file(self):
+    run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    result = get_shell_result(f"file send {get_local_path('small')} {get_remote_path('test')}")
+    result = result.replace("\r\n", "")
+    pattern = r'FileTransfer finish, Size:(\d+), File count = (\d+), time:(\d+)ms rate:(\d+.\d+)kB/s'
+    match_send = re.match(pattern, result)
+    assert match_send is not None
+
+"""
+hdc fport tcp:xxxx tcp:xxxx
+"""
+
+@pytest.mark.L0
+def test_hdc_fport(self):
+    run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    assert check_shell(f"fport tcp:12345 tcp:23456", "Forwardport result:OK")
+    assert check_shell(f"fport tcp:12345 tcp:23456", "[Fail]TCP Port listen failed at 12345")
+    assert check_shell(f"fport ls", f"{GP.device_name}    tcp:12345 tcp:23456    [Forward]")
+    assert check_shell(f"fport rm tcp:12345 tcp:23456", "Remove forward ruler success, ruler:tcp:12345 tcp:23456")
+
+    assert check_shell(f"rport tcp:12345 tcp:23456", "Forwardport result:OK")
+    assert check_shell(f"rport tcp:12345 tcp:23456", "[Fail]TCP Port listen failed at 12345")
+    assert check_shell(f"fport ls", f"{GP.device_name}    tcp:12345 tcp:23456    [Reverse]")
+    assert check_shell(f"fport rm tcp:12345 tcp:23456", "Remove forward ruler success, ruler:tcp:12345 tcp:23456")
+
+"""
+hdc install xxx.hap
+"""
+
+@pytest.mark.L0
+def test_hdc_install(self):
+    run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+    result = get_shell_result(f"install {get_local_path('AACommandpackage.hap')}")
+    result = result.replace("\r\n", "")
+    pattern = r'\[Info\]App install path:(.*)AACommandpackage\.hap msg:install bundle successfully\. AppMod finish'
+    match_install = re.match(pattern, result)
+    assert match_install is not None
+
+    result = get_shell_result(f"uninstall com.example.actsaacommandtestatest")
+    result = result.replace("\r\n", "")
+    result = result.replace("\r", "")
+    pattern = r'\[Info\]App uninstall path: msg:uninstall bundle successfully\. AppMod finish'
+    match_uninstall = re.match(pattern, result)
+    assert match_uninstall is not None

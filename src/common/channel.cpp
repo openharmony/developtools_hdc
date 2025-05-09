@@ -470,9 +470,17 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
             hChannel->channelId, hChannel->targetSessionId);
     }
 #ifdef HDC_HOST
-    Base::TryCloseHandle((const uv_handle_t *)&hChannel->hChildWorkTCP);
-#endif
+    auto deleteChannel = [](uv_handle_t *handle) -> void {
+        if (handle->data == nullptr) {
+            return;
+        }
+        HChannel hChannel = reinterpret_cast<HChannel>(handle->data);
+        delete hChannel;
+    };
+    Base::TryCloseHandle((const uv_handle_t *)&hChannel->hChildWorkTCP, true, deleteChannel);
+#else
     delete hChannel;
+#endif
     Base::TryCloseHandle((const uv_handle_t *)handle, Base::CloseIdleCallback);
 }
 

@@ -14,6 +14,7 @@
  */
 #include "server.h"
 #include "host_updater.h"
+#include "server_cmd_log.h"
 
 
 namespace Hdc {
@@ -119,6 +120,7 @@ bool HdcServer::Initial(const char *listenString)
             break;
         }
 #endif
+        Base::ProcessCmdLogs();
         ret = true;
     } while (0);
     if (!ret) {
@@ -1093,4 +1095,13 @@ void HdcServer::EchoToClientsForSession(uint32_t targetSessionId, const string &
     WRITE_LOG(LOG_INFO, "%s:%u %s", __FUNCTION__, targetSessionId, echo.c_str());
     hSfc->EchoToAllChannelsViaSessionId(targetSessionId, echo);
 }
+
+void HdcServer::PrintCmdLogEx(const string& cmdStr)
+{
+    if (cmdStr.empty()) {
+        return;
+    }
+    Hdc::ServerCmdLog::GetInstance().PushCmdLogStr(cmdStr);
+}
+
 }  // namespace Hdc

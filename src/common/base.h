@@ -181,6 +181,15 @@ namespace Base {
     string GetFileNameAny(string &path);
     string GetCwd();
     string GetTmpDir();
+    inline string GetTarToolName()
+    {
+        return LOG_COMPRESS_TOOL_NAME;
+    }
+    inline string GetTarParams()
+    {
+        return LOG_COMPRESS_TOOL_PARAMS;
+    }
+    void GetTimeString(string &timeString);
 #ifndef HDC_HILOG
     void SetLogCache(bool enable);
     void RemoveLogFile();
@@ -196,10 +205,6 @@ namespace Base {
     uint32_t GetLogOverCount(vector<string> files, uint64_t limitDirSize);
     string GetLogDirName();
     string GetLogNameWithTime();
-    inline string GetTarToolName()
-    {
-        return LOG_COMPRESS_TOOL_NAME;
-    }
     inline string GetTarBinFile()
     {
 #ifdef _WIN32
@@ -207,11 +212,6 @@ namespace Base {
 #else
         return LOG_COMPRESS_TOOL_BIN_UNIX;
 #endif
-    }
-
-    inline string GetTarParams()
-    {
-        return LOG_COMPRESS_TOOL_PARAMS;
     }
 #endif
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
@@ -293,6 +293,10 @@ namespace Base {
     void UpdateHeartbeatSwitchCache();
     bool GetheartbeatSwitch();
     bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode);
+    void UpdateCmdLogSwitch();
+    bool GetCmdLogSwitch();
+    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string &cmdStr);
+    void ProcessCmdLogs();
 }  // namespace base
 }  // namespace Hdc
 

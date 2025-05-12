@@ -38,6 +38,7 @@ hdc_common_sources = [
   "src/common/forward.cpp",
   "src/common/header.cpp",
   "src/common/heartbeat.cpp",
+  "src/common/server_cmd_log.cpp",
   "src/common/session.cpp",
   "src/common/task.cpp",
   "src/common/tcp.cpp",

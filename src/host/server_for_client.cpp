@@ -861,7 +861,6 @@ void HdcServerForClient::ReportServerVersion(HChannel hChannel)
 // Here is Server to get data, the source is the SERVER's ChildWork to send data
 int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
-    int ret = 0;
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }

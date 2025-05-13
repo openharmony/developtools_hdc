@@ -37,6 +37,7 @@ hdc_common_sources = [
   "${hdc_path}/src/common/transfer.cpp",
   "${hdc_path}/src/common/usb.cpp",
   "${hdc_path}/src/common/uv_status.cpp",
+  "${hdc_path}/src/common/define_test.cpp",
 ]
 
 hdc_daemon_sources = [

@@ -176,6 +176,7 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
         return false;
     }
     hSession->connectKey = hUSB->serialNumber;
+    hdcServer->PrintAllSessionConnection(hSession->sessionId);
     uv_timer_t *waitTimeDoCmd = new(std::nothrow) uv_timer_t;
     if (waitTimeDoCmd == nullptr) {
         WRITE_LOG(LOG_FATAL, "DetectMyNeed new waitTimeDoCmd failed");
@@ -594,12 +595,18 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
         childRet = libusb_submit_transfer(ep->transfer);
         hUSB->lockDeviceHandle.unlock();
         if (childRet < 0) {
+            hSession->isRunningOk = false;
+            hSession->faultInfo += libusb_error_name(ep->transfer->status);
+            hSession->faultInfo += " ";
             WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, sid:%u ret:%d",
                 hSession->sessionId, childRet);
             break;
         }
         ep->cv.wait(lock, [ep]() { return ep->isComplete; });
         if (ep->transfer->status != 0) {
+            hSession->isRunningOk = false;
+            hSession->faultInfo += libusb_error_name(ep->transfer->status);
+            hSession->faultInfo += " ";
             WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, sid:%u status:%d",
                 hSession->sessionId, ep->transfer->status);
             break;

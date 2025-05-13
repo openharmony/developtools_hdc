@@ -51,6 +51,7 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptClient");
     HChannel hChannel = nullptr;
     uint32_t uid = thisClass->MallocChannel(&hChannel);
+    hChannel->startTime = Base::GetRuntimeMSec();
     if (!hChannel) {
         WRITE_LOG(LOG_FATAL, "AcceptClient hChannel is nullptr");
         return;
@@ -386,6 +387,7 @@ bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
         ptrServer->AdminForwardMap(OP_REMOVE, forwardKey, hfi);
         return true;
     }
+    hSession->commandCount++;
     ptrServer->ClearOwnTasks(hSession, hfi->channelId);
     FreeChannel(hfi->channelId);
     hfi = nullptr;
@@ -487,28 +489,33 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
     switch (formatCommand->cmdFlag) {
         case CMD_KERNEL_TARGET_DISCOVER: {
             OrderFindTargets(hChannel);
+            hChannel->isSuccess = true;
             ret = false;
             break;
         }
         case CMD_KERNEL_TARGET_LIST: {
             GetTargetList(hChannel, formatCommandInput);
+            hChannel->isSuccess = true;
             ret = false;
             break;
         }
         case CMD_SERVICE_START: {
             PrintLastError(hChannel);
+            hChannel->isSuccess = true;
             ret = false;
             break;
         }
         case CMD_CHECK_SERVER: {
             WRITE_LOG(LOG_DEBUG, "CMD_CHECK_SERVER command");
             ReportServerVersion(hChannel);
+            hChannel->isSuccess = true;
             ret = false;
             break;
         }
         case CMD_WAIT_FOR: {
             WRITE_LOG(LOG_DEBUG, "CMD_WAIT_FOR command");
             ret = !WaitForAny(hChannel);
+            hChannel->isSuccess = true;
             break;
         }
         case CMD_KERNEL_TARGET_ANY: {
@@ -516,6 +523,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_ANY %s", __FUNCTION__, formatCommand->parameters.c_str());
 #endif
             ret = GetAnyTarget(hChannel);
+            hChannel->isSuccess = ret;
             break;
         }
         case CMD_KERNEL_TARGET_CONNECT: {
@@ -523,6 +531,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             WRITE_LOG(LOG_DEBUG, "%s CMD_KERNEL_TARGET_CONNECT %s", __FUNCTION__, formatCommand->parameters.c_str());
 #endif
             ret = NewConnectTry(ptrServer, hChannel, formatCommand->parameters.c_str());
+            hChannel->isSuccess = ret;
             break;
         }
         case CMD_CHECK_DEVICE: {
@@ -530,10 +539,12 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             hChannel->isCheck = true;
             hChannel->key = formatCommand->parameters.c_str();
             ret = NewConnectTry(ptrServer, hChannel, formatCommand->parameters.c_str(), true);
+            hChannel->isSuccess = ret;
             break;
         }
         case CMD_KERNEL_TARGET_DISCONNECT: {
             CommandRemoveSession(hChannel, formatCommand->parameters.c_str());
+            hChannel->isSuccess = true;
             break;
         }
         // task will be global task，Therefore, it can only be controlled in the global session.
@@ -544,20 +555,24 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
                 echo = EMPTY_ECHO;
             }
             EchoClient(hChannel, MSG_OK, const_cast<char *>(echo.c_str()));
+            hChannel->isSuccess = true;
             break;
         }
         case CMD_FORWARD_REMOVE: {
             RemoveForward(hChannel, formatCommand->parameters.c_str());
+            hChannel->isSuccess = true;
             break;
         }
         case CMD_KERNEL_ENABLE_KEEPALIVE: {
             // just use for 'list targets' now
             hChannel->keepAlive = true;
             ret = true;
+            hChannel->isSuccess = true;
             break;
         }
         default: {
             EchoClient(hChannel, MSG_FAIL, "ExecuteCommand need connect-key? please confirm a device by help info");
+            FillChannelResult(hChannel, false, "found no devices");
             break;
         }
     }
@@ -704,6 +719,8 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
     if (!hChannel->hChildWorkTCP.loop ||
         formatCommand->cmdFlag == CMD_FORWARD_REMOVE ||
         formatCommand->cmdFlag == CMD_SERVICE_START) {
+        hChannel->commandFlag = formatCommand->cmdFlag;
+        hChannel->commandParameters = formatCommand->parameters;
         // Main thread command, direct Listen main thread
         ret = DoCommandLocal(hChannel, formatCommandInput);
     } else {  // CONNECT DAEMON's work thread command, non-primary thread
@@ -712,6 +729,10 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
             WRITE_LOG(LOG_WARN, "unsupport cmdFlag: %d, due to daemon feature dismatch", formatCommand->cmdFlag);
             EchoClient(hChannel, MSG_FAIL, "[E002105] Unsupport command");
             return false;
+        }
+        if (formatCommand->cmdFlag != CMD_SHELL_DATA) {
+            hChannel->commandFlag = formatCommand->cmdFlag;
+            hChannel->commandParameters = formatCommand->parameters;
         }
         ret = DoCommandRemote(hChannel, formatCommandInput);
     }
@@ -727,22 +748,26 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
     ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
     if (!hdi) {
         WRITE_LOG(LOG_WARN, "Not match target founded cid:%u", hChannel->channelId);
+        FillChannelResult(hChannel, false, "no match targets found");
         EchoClient(hChannel, MSG_FAIL, "Not match target founded, check connect-key please");
         return nullptr;
     }
     if (hdi->connStatus != STATUS_CONNECTED) {
         WRITE_LOG(LOG_WARN, "Device not found or connected cid:%u", hChannel->channelId);
+        FillChannelResult(hChannel, false, "device not found or connected");
         EchoClient(hChannel, MSG_FAIL, "[E001005] Device not found or connected");
         return nullptr;
     }
     if (hdi->hSession == nullptr || hdi->hSession->isDead) {
         WRITE_LOG(LOG_WARN, "Bind tartget session is null or dead cid:%u", hChannel->channelId);
+        FillChannelResult(hChannel, false, "bind tartget session is null or dead");
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }
     if (!hdi->hSession->handshakeOK) {
         WRITE_LOG(LOG_WARN, "hSession handShake is false sid:%u cid:%u",
             hdi->hSession->sessionId, hChannel->channelId);
+        FillChannelResult(hChannel, false, "handshake is not ready");
         const string errMsg = "[E000004]:The communication channel is being established.\r\n"\
             "Please wait for several seconds and try again.";
         EchoClient(hChannel, MSG_FAIL, errMsg.c_str());

@@ -54,7 +54,7 @@ class TestHdcReturnValue:
     @pytest.mark.L0
     def test_hdc_help(self):
         result = get_shell_result(f"help")
-        result_lines = result.split(f"\r\n")
+        result_lines = re.split("\r|\n", result)
         help_file = f"help.log"
         index = 0
         with open(help_file, 'r') as file:
@@ -79,7 +79,7 @@ class TestHdcReturnValue:
     @pytest.mark.L0
     def test_hdc_version(self):
         result = get_shell_result(f"-v")
-        result = result.replace(f"\r\n", "")
+        result = re.sub("[\r\n]", "", result)
         pattern = r'Ver: \d+.\d+.\d+([A-Za-z]+)'
         match = re.match(pattern, result)
         assert match is not None
@@ -94,7 +94,7 @@ class TestHdcReturnValue:
     @pytest.mark.L0
     def test_hdc_list_targets(self):
         result = get_shell_result(f"list targets")
-        result = result.split(f"\r\n")
+        result = re.split("\r|\n", result)
         if result[0] == "[Empty]":
             return
         for item in result:
@@ -182,7 +182,7 @@ class TestHdcReturnValue:
     def test_hdc_file(self):
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"file send {get_local_path('small')} {get_remote_path('test')}")
-        result = result.replace("\r\n", "")
+        result = re.sub("[\r\n]", "", result)
         pattern = r'FileTransfer finish, Size:(\d+), File count = (\d+), time:(\d+)ms rate:(\d+.\d+)kB/s'
         match_send = re.match(pattern, result)
         assert match_send is not None
@@ -192,7 +192,7 @@ class TestHdcReturnValue:
                            "[Fail]Error opening file: read-only file system, path:abc")
 
         result = get_shell_result(f"file send {get_local_path('small_no_exsit')} {get_remote_path('test')}")
-        result = result.split("\r\n")
+        result = re.split("\r|\n", result)
         pattern = r'\[Fail\]Error opening file: no such file or directory, path:(.*)small_no_exsit'
         match = re.match(pattern, result[0])
         assert match is not None
@@ -242,20 +242,20 @@ class TestHdcReturnValue:
     def test_hdc_install(self):
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"install {get_local_path('AACommandpackage.hap')}")
-        result = result.replace("\r\n", "")
+        result = re.sub("[\r\n]", "", result)
         pattern = r'\[Info\]App install path:(.*)AACommandpackage\.hap msg:install bundle successfully\. AppMod finish'
         match_install = re.match(pattern, result)
         assert match_install is not None
 
         result = get_shell_result(f"uninstall com.example.actsaacommandtestatest")
-        result = result.replace("\r\n", "")
+        result = re.sub("[\r\n]", "", result)
         result = result.replace("\r", "")
         pattern = r'\[Info\]App uninstall path: msg:uninstall bundle successfully\. AppMod finish'
         match_uninstall = re.match(pattern, result)
         assert match_uninstall is not None
 
         result = get_shell_result(f"install {get_local_path('hap_no_exsit.hap')} {get_remote_path('test')}")
-        result = result.split("\r\n")
+        result = re.split("\r|\n", result)
         pattern = r'\[Fail\]Error opening file: no such file or directory, path:(.*)hap_no_exsit.hap'
         match = re.match(pattern, result[0])
         assert match is not None
@@ -265,7 +265,7 @@ class TestHdcReturnValue:
         assert match is not None
 
         result = get_shell_result(f"uninstall com.example.not_exsit")
-        result = result.replace("\r\n", "")
+        result = re.sub("[\r\n]", "", result)
         result = result.replace("\r", "")
         pattern = r'\[Info\]App uninstall path: msg:error: failed to uninstall bundle\. code:9568386 error: uninstall ' \
                   r'missing installed bundle\. AppMod finish'
@@ -284,7 +284,7 @@ class TestHdcReturnValue:
         assert self.check_track_jpid()
 
         result = get_shell_result(f"jpid")
-        result = result.split("\r\n")
+        result = re.split("\r|\n", result)
         for item in result:
             if item:
                 item = item.replace("\r", "")
@@ -298,11 +298,11 @@ class TestHdcReturnValue:
     @pytest.mark.L0
     def test_hdc_shell(self):
         result = get_shell_result(f"shell ls")
-        result = result.split("\r\n")
+        result = re.split("\r|\n", result)
         assert len(result) > 5
 
         result = get_cmd_block_output(f"{GP.hdc_head} shell", 10)
-        result = result.replace("\r\n", "")
+        result = re.sub("[\r\n]", "", result)
         assert result.find("#") > 0
 
     """

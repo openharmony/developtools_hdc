@@ -478,6 +478,7 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
 
 void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 {
+    StartTraceScope("HdcChannelBase::FreeChannelContinue");
     auto closeChannelHandle = [](uv_handle_t *handle) -> void {
         if (handle->data == nullptr) {
             WRITE_LOG(LOG_DEBUG, "FreeChannelContinue handle->data is nullptr");
@@ -506,6 +507,7 @@ void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 
 void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
 {
+    StartTraceScope("HdcChannelBase::FreeChannelOpeate");
     HChannel hChannel = (HChannel)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
     if (hChannel->ref > 0) {
@@ -540,6 +542,7 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
 
 void HdcChannelBase::FreeChannel(const uint32_t channelId)
 {
+    StartTraceScope("HdcChannelBase::FreeChannel");
     if (threadChanneMain != uv_thread_self()) {
         PushAsyncMessage(channelId, ASYNC_FREE_CHANNEL, nullptr, 0);
         WRITE_LOG(LOG_INFO, "FreeChannel not uv_thread_self channelid:%u", channelId);
@@ -559,6 +562,7 @@ void HdcChannelBase::FreeChannel(const uint32_t channelId)
 
 HChannel HdcChannelBase::AdminChannel(const uint8_t op, const uint32_t channelId, HChannel hInput)
 {
+    StartTraceScope("HdcChannelBase::AdminChannel");
     HChannel hRet = nullptr;
     switch (op) {
         case OP_ADD:

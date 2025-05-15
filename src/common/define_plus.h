@@ -23,6 +23,11 @@
 #include "define_enum.h"
 #include "uv_status.h"
 #include "heartbeat.h"
+#include "securec.h"
+#ifdef HDC_HOST
+#include <libusb.h>
+#endif
+#include <list>
 
 namespace Hdc {
     
@@ -131,7 +136,7 @@ struct HostUSBEndpoint {
     uint32_t sizeEpBuf;
     std::mutex mutexIo;
     std::mutex mutexCb;
-    condition_variable cv;
+    std::condition_variable cv;
     libusb_transfer *transfer;
 };
 #endif

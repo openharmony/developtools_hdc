@@ -42,7 +42,7 @@
         "user_auth_framework",
         "pin_auth",
         "rust_rust-openssl",
-	"huks"
+        "huks"
       ],
       "third_party": []
     },
@@ -65,7 +65,10 @@
             }
         }
       ],
-      "test": [ "//developtools/hdc/test:hdc_fuzztest" ]
+      "test": [
+         "//developtools/hdc/test:hdc_fuzztest",
+         "//developtools/hdc/test:hdc_unittest"
+      ]
     }
   }
 }

@@ -18,4 +18,5 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include "daemon_uart.h"
+#include "daemon.h"
 #endif // HDC_DAEMON_UART_TEST_H

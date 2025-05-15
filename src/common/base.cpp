@@ -2973,8 +2973,7 @@ void CloseOpenFd(void)
             cmdLogCount = Hdc::ServerCmdLog::GetInstance().CmdLogStrSize();
             auto lastFlushTime = Hdc::ServerCmdLog::GetInstance().GetLastFlushTime();
             size_t compareTime = std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::system_clock::now() - lastFlushTime).count();
-            WRITE_LOG(LOG_INFO, "ThreadCmdStrAndCmdLogs:cmdLogCount%d:compareTime:%d", cmdLogCount, compareTime);
+                std::chrono::system_clock::now() - lastFlushTime).count(); 
             if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) || (compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)) {
                 SaveCmdLogsToFile();
                 ThreadProcessCmdLogs();

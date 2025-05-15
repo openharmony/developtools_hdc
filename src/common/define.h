@@ -225,10 +225,10 @@ const string CMD_LOG_DIR_NAME = "hdc_cmd";
 const string CMD_LOG_FILE_TYPE = ".log";
 const string CMD_LOG_COMPRESS_FILE_NAME_PREFIX = "hdc-cmd-";
 const string CMD_LOG_COMPRESS_FILE_NAME_SUFFIX = ".tgz";
-const uint16_t MAX_COMPRESS_LOG_FILE_COUNT = 47;
-const uint64_t MAX_COMPRESS_LOG_FILE_SIZE = (50) * 1024 * 1024; // 50MB
-const size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
-const size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
-const size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
+constexpr uint16_t MAX_COMPRESS_LOG_FILE_COUNT = 47;
+constexpr uint64_t MAX_COMPRESS_LOG_FILE_SIZE = (50) * 1024 * 1024; // 50MB
+constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
+constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
+constexpr size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

@@ -14,9 +14,9 @@
  */
 #ifndef HDC_CMD_LOG_H
 #define HDC_CMD_LOG_H
-#include <string>
-#include <queue>
 #include <mutex>
+#include <queue>
+#include <string>
 
 namespace Hdc {
 class ServerCmdLog {
@@ -27,12 +27,9 @@ public:
     void PushCmdLogStr(const std::string& cmdLogStr);
     std::string PopCmdLogStr();
     size_t CmdLogStrSize();
-    bool GetRunningStatus();
-    void SetRunningStatus(bool running);
     std::chrono::system_clock::time_point GetLastFlushTime();
 
 private:
-    bool running_ = false;
     std::chrono::system_clock::time_point lastFlushTime = std::chrono::system_clock::now();
     std::mutex pushCmdLogStrRecordMutex;
     std::queue<std::string> pushCmdLogStrQueue;

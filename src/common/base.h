@@ -189,7 +189,7 @@ namespace Base {
     {
         return LOG_COMPRESS_TOOL_PARAMS;
     }
-    void GetTimeString(string &timeString);
+    void GetTimeString(string& timeString);
 #ifndef HDC_HILOG
     void SetLogCache(bool enable);
     void RemoveLogFile();
@@ -295,7 +295,7 @@ namespace Base {
     bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode);
     void UpdateCmdLogSwitch();
     bool GetCmdLogSwitch();
-    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string &cmdStr);
+    std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string& cmdStr);
     void ProcessCmdLogs();
 }  // namespace base
 }  // namespace Hdc

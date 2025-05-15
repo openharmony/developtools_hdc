@@ -2968,8 +2968,7 @@ void CloseOpenFd(void)
 
     void ThreadCmdStrAndCmdLogs()
     {
-        bool running = Hdc::ServerCmdLog::GetInstance().GetRunningStatus();
-        while (running) {
+        while (true) {
             size_t cmdLogCount = 0;
             cmdLogCount = Hdc::ServerCmdLog::GetInstance().CmdLogStrSize();
             auto lastFlushTime = Hdc::ServerCmdLog::GetInstance().GetLastFlushTime();

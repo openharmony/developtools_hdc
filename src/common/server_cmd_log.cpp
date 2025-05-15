@@ -27,7 +27,6 @@ ServerCmdLog& ServerCmdLog::GetInstance()
 ServerCmdLog::ServerCmdLog()
 {
     lastFlushTime = std::chrono::system_clock::now();
-    running_ = true;
 }
 
 ServerCmdLog::~ServerCmdLog()
@@ -62,16 +61,6 @@ size_t ServerCmdLog::CmdLogStrSize()
 {
     std::unique_lock<std::mutex> lock(pushCmdLogStrRecordMutex);
     return pushCmdLogStrQueue.size();
-}
-
-bool ServerCmdLog::GetRunningStatus()
-{
-    return running_;
-}
-
-void ServerCmdLog::SetRunningStatus(bool running)
-{
-    running_ = running;
 }
 
 std::chrono::system_clock::time_point ServerCmdLog::GetLastFlushTime()

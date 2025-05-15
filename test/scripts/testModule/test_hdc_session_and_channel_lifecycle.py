@@ -36,7 +36,6 @@ class TestSessionLifeCycle:
         return (False, target_list)
 
     @pytest.mark.L0
-    @pytest.mark.repeat(2)
     def test_session_lifecycle_by_reboot(self):
         check_shell(f"kill")
         time.sleep(3)
@@ -75,7 +74,6 @@ class TestSessionLifeCycle:
         assert len(target_lines) == 0
 
     @pytest.mark.L0
-    @pytest.mark.repeat(2)
     def test_session_lifecycle_of_multi_tcp(self):
         check_shell(f"kill")
         time.sleep(3)

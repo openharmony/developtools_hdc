@@ -775,6 +775,7 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
 #ifdef HDC_HOST
             PrintSession(sessionId);
 #endif
+            break;
         case OP_QUERY_REF:
             uv_rwlock_wrlock(&lockMapSession);
             if (mapSession.count(sessionId)) {

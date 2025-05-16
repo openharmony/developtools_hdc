@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,19 +14,28 @@
  */
 #include <cstdlib>
 #include <cstring>
-#include "server_cmd_log_ut.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "securec.h"
 #include "serial_struct.h"
 #include "server_cmd_log.h"
 
-
 using namespace testing::ext;
+using namespace testing;
+
 namespace Hdc {
+class ServerCmdLogTest : public ::testing::Test {
+    private:
+        static void SetUpTestCase(void);
+        static void TearDownTestCase(void);
+        void SetUp();
+        void TearDown();
+};
 void ServerCmdLogTest::SetUpTestCase() {}
 void ServerCmdLogTest::TearDownTestCase() {}
 void ServerCmdLogTest::SetUp() {}
 void ServerCmdLogTest::TearDown() {}
-
 
 HWTEST_F(ServerCmdLogTest, PushCmdLogStrTest, TestSize.Level0)
 {
@@ -34,7 +43,7 @@ HWTEST_F(ServerCmdLogTest, PushCmdLogStrTest, TestSize.Level0)
     log.PushCmdLogStr("Test Command 1");
     log.PushCmdLogStr("Test Command 2");
 
-    ASSERT_EQ(log.CmdLogStrSize(), 2);
+    EXPECT_EQ(log.CmdLogStrSize(), 2);
 }
 
 HWTEST_F(ServerCmdLogTest, PopCmdLogStrTest, TestSize.Level0)
@@ -46,9 +55,9 @@ HWTEST_F(ServerCmdLogTest, PopCmdLogStrTest, TestSize.Level0)
     std::string cmd1 = log.PopCmdLogStr();
     std::string cmd2 = log.PopCmdLogStr();
 
-    ASSERT_EQ(cmd1, "Test Command 1");
-    ASSERT_EQ(cmd2, "Test Command 2");
-    ASSERT_EQ(log.CmdLogStrSize(), 0);
+    EXPECT_EQ(cmd1, "Test Command 1");
+    EXPECT_EQ(cmd2, "Test Command 2");
+    EXPECT_EQ(log.CmdLogStrSize(), 0);
 }
 
 HWTEST_F(ServerCmdLogTest, PopCmdLogStrEmptyQueueTest, TestSize.Level0)
@@ -56,7 +65,7 @@ HWTEST_F(ServerCmdLogTest, PopCmdLogStrEmptyQueueTest, TestSize.Level0)
     ServerCmdLog log;
     std::string cmd = log.PopCmdLogStr();
 
-    ASSERT_EQ(cmd, "");
+    EXPECT_EQ(cmd, "");
 }
 
 HWTEST_F(ServerCmdLogTest, LastFlushTimeTest, TestSize.Level0)
@@ -69,21 +78,19 @@ HWTEST_F(ServerCmdLogTest, LastFlushTimeTest, TestSize.Level0)
     log.PopCmdLogStr();
     auto afterPopTime = log.GetLastFlushTime();
 
-    ASSERT_GT(afterPopTime, beforePopTime);
+    EXPECT_GT(afterPopTime, beforePopTime);
 }
 
 HWTEST_F(ServerCmdLogTest, PushCmdLogStrQueueLimitTest, TestSize.Level0)
 {
     ServerCmdLog log;
-    for (size_t i = 0; i < 10; ++i) {
+    for (size_t i = 0; i < 1500; ++i) {
         log.PushCmdLogStr("Command " + std::to_string(i));
     }
+    EXPECT_GT(log.CmdLogStrSize(), 0);
 
-    ASSERT_GT(log.CmdLogStrSize(), 0);
-
-    // Attempt to push beyond the limit
     log.PushCmdLogStr("Exceeding Command");
-    ASSERT_GT(log.CmdLogStrSize(), 0);
+    EXPECT_GT(log.CmdLogStrSize(), 0);
 }
 
-} // Hdc
+} // namespace Hdc

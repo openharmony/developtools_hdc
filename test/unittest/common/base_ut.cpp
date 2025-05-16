@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,15 +12,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <gtest/gtest.h>
 #include <cstring>
-#include "base_ut.h"
+#include <string>
+#include <unistd.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "base.h"
 #include "define.h"
 
 using namespace testing::ext;
+using namespace testing;
+
 namespace Hdc {
-void UpdateCmdLogSwitchTest::SetUpTestCase() {
-}
+class UpdateCmdLogSwitchTest : public ::testing::Test {
+    private:
+        static void SetUpTestCase(void);
+        static void TearDownTestCase(void);
+        void SetUp();
+        void TearDown();
+};
+
+void UpdateCmdLogSwitchTest::SetUpTestCase() {}
 void UpdateCmdLogSwitchTest::TearDownTestCase() {}
 void UpdateCmdLogSwitchTest::SetUp() {}
 void UpdateCmdLogSwitchTest::TearDown() {}
@@ -28,30 +41,31 @@ void UpdateCmdLogSwitchTest::TearDown() {}
 HWTEST_F(UpdateCmdLogSwitchTest, UpdateCmdLogSwitch_12, TestSize.Level0) {
     setenv(ENV_SERVER_CMD_LOG.c_str(), "12", 1);
     Base::UpdateCmdLogSwitch();
-    ASSERT_FALSE(Base::GetCmdLogSwitch());
+    EXPECT_FALSE(Base::GetCmdLogSwitch());
 }
 
 HWTEST_F(UpdateCmdLogSwitchTest, UpdateCmdLogSwitch_, TestSize.Level0) {
     setenv(ENV_SERVER_CMD_LOG.c_str(), "", 1);
     Base::UpdateCmdLogSwitch();
-    ASSERT_FALSE(Base::GetCmdLogSwitch());
+    EXPECT_FALSE(Base::GetCmdLogSwitch());
 }
 
 HWTEST_F(UpdateCmdLogSwitchTest, UpdateCmdLogSwitch_1, TestSize.Level0) {
     setenv(ENV_SERVER_CMD_LOG.c_str(), "1", 1);
     Base::UpdateCmdLogSwitch();
-    ASSERT_TRUE(Base::GetCmdLogSwitch());
+    EXPECT_TRUE(Base::GetCmdLogSwitch());
 }
 
 HWTEST_F(UpdateCmdLogSwitchTest, UpdateCmdLogSwitch_0, TestSize.Level0) {
     setenv(ENV_SERVER_CMD_LOG.c_str(), "0", 1);
     Base::UpdateCmdLogSwitch();
-    ASSERT_FALSE(Base::GetCmdLogSwitch());
+    EXPECT_FALSE(Base::GetCmdLogSwitch());
 }
 
 HWTEST_F(UpdateCmdLogSwitchTest, UpdateCmdLogSwitch_a, TestSize.Level0) {
     setenv(ENV_SERVER_CMD_LOG.c_str(), "a", 1);
     Base::UpdateCmdLogSwitch();
-    ASSERT_FALSE(Base::GetCmdLogSwitch());
+    EXPECT_FALSE(Base::GetCmdLogSwitch());
 }
+
 } // namespace Hdc

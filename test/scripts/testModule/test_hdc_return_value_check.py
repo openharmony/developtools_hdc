@@ -324,7 +324,7 @@ class TestHdcReturnValue:
         while True:
             if check_shell(f"fport tcp:{12345 + n} tcp:7777", "Forwardport result:OK"):
                 assert check_shell(f"tconn 127.0.0.1:{12345 + n}", "Connect OK")
-                assert check_shell(f"list targets", "127.0.0.1:12345")
+                assert check_shell(f"list targets", "127.0.0.1:{12345 + n}")
                 assert check_shell(f"kill")
                 break
             else:

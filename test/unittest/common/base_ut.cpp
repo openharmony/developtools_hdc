@@ -13,10 +13,10 @@
  * limitations under the License.
  */
 #include <cstring>
-#include <string>
-#include <unistd.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <string>
+#include <unistd.h>
 
 #include "base.h"
 #include "define.h"

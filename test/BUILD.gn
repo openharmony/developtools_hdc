@@ -295,8 +295,11 @@ ohos_unittest("hdc_base_unittest") {
   resource_config_file = "unittest/resource/ohos_test.xml"
   sources = hdc_common_sources
   sources += [
+    "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
+    "unittest/common/base_ut.cpp",
     "unittest/common/heartbeat_ut.cpp",
+    "unittest/common/server_cmd_log_ut.cpp",
     "unittest/common/transfer_ut.cpp",
     "unittest/common/file_ut.cpp",
     "unittest/common/tlv_ut.cpp",

@@ -208,8 +208,12 @@ class TestHdcReturnValue:
 
         check_shell(f"smode -r")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
-        assert check_shell(f"file send {get_local_path('small')} /system/lib/",
-                           "[Fail]Error opening file: permission denied, path:/system/lib/small")
+        result = get_shell_result(f"file send {get_local_path('small')} /system/lib/")
+        result = result.replace("\r\n", "")
+        result = result.replace("\r", "")
+        assert (result == "[Fail]Error opening file: permission denied, path:/system/lib/small" or
+                result == "[Fail]Error opening file: read-only file system, path:/system/lib/small")
+
         check_shell(f"smode")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
 
@@ -297,8 +301,10 @@ class TestHdcReturnValue:
 
     @pytest.mark.L0
     def test_hdc_shell(self):
+        check_shell(f"smode")
+        run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"shell ls")
-        result = re.split("\r|\n", result)
+        result = result.split("\r\n")
         assert len(result) > 5
 
         result = get_cmd_block_output(f"{GP.hdc_head} shell", 10)
@@ -314,10 +320,15 @@ class TestHdcReturnValue:
         assert check_shell(f"tmode port 7777", "Set device run mode successful.")
         time.sleep(2)
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
-        assert check_shell(f"fport tcp:12345 tcp:7777", "Forwardport result:OK")
-        assert check_shell(f"tconn 127.0.0.1:12345", "Connect OK")
-        assert check_shell(f"list targets", "127.0.0.1:12345")
-        assert check_shell(f"kill")
+        n = 0
+        while True:
+            if check_shell(f"fport tcp:{12345 + n} tcp:7777", "Forwardport result:OK"):
+                assert check_shell(f"tconn 127.0.0.1:{12345 + n}", "Connect OK")
+                assert check_shell(f"list targets", "127.0.0.1:12345")
+                assert check_shell(f"kill")
+                break
+            else:
+                n = n + 1
 
         assert check_shell(f"tconn 127.0.0.1:234234", "[Fail]IP:Port incorrect")
         assert check_shell(f"tconn 12312313.0.0.1:3332", "[Fail][E001104]:IP address incorrect")

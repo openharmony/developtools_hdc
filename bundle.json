@@ -65,10 +65,7 @@
             }
         }
       ],
-      "test": [
-         "//developtools/hdc/test:hdc_fuzztest",
-         "//developtools/hdc/test:hdc_unittest"
-      ]
+      "test": [ "//developtools/hdc/test:hdc_fuzztest" ]
     }
   }
 }

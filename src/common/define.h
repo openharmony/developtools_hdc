@@ -219,5 +219,16 @@ const string TERMINAL_HDC_PROCESS_FAILED = "[E002101]:Terminal hdc process faile
         char buf[1024] = { 0 };  \
         strerror_r(errno, buf, 1024)
 #endif
+const string ENV_SERVER_CMD_LOG = "OHOS_HDC_CMD_RECORD";
+const string CMD_LOG_FILE_NAME = "hdc-cmd.log";
+const string CMD_LOG_DIR_NAME = "hdc_cmd";
+const string CMD_LOG_FILE_TYPE = ".log";
+const string CMD_LOG_COMPRESS_FILE_NAME_PREFIX = "hdc-cmd-";
+const string CMD_LOG_COMPRESS_FILE_NAME_SUFFIX = ".tgz";
+constexpr uint16_t MAX_COMPRESS_LOG_FILE_COUNT = 47;
+constexpr uint64_t MAX_COMPRESS_LOG_FILE_SIZE = (50) * 1024 * 1024; // 50MB
+constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
+constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
+constexpr size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

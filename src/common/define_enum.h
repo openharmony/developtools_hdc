@@ -23,7 +23,7 @@ enum MessageLevel {
 };
 
 enum ConnType { CONN_USB = 0, CONN_TCP, CONN_SERIAL, CONN_BT, CONN_UNKNOWN };
-const string conTypeDetail[] = { "USB", "TCP", "UART", "BT", "UNKNOWN" };
+const std::string conTypeDetail[] = { "USB", "TCP", "UART", "BT", "UNKNOWN" };
 
 #ifdef HDC_SUPPORT_UART
 enum UartTimeConst {
@@ -51,7 +51,7 @@ enum UartSetSerialNStop {
 };
 #endif
 enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
-const string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
+const std::string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
 
 enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, UNKNOWN = 100 };
 
@@ -68,7 +68,8 @@ enum OperateID {
     OP_INIT,
     OP_GET_ONLY,
     OP_VOTE_RESET,
-    OP_WAIT_FOR_ANY
+    OP_WAIT_FOR_ANY,
+    OP_PRINT
 };
 
 enum RetErrCode {

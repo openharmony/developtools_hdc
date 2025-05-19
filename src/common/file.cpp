@@ -48,7 +48,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         }
         return false;
     }
-    if (!SetMasterParameters(context, command.c_str(), argc, argv)) {
+    if (!SetMasterParameters(context, argc, argv)) {
         delete[](reinterpret_cast<char *>(argv));
         return false;
     }
@@ -123,7 +123,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             // ls -al --full-time
             context->transferConfig.holdTimestamp = true;
             ++srcArgvIndex;
-        } else if (argv[i] == CMD_OPTION_CLIENTCWD) {
+        } else if (argv[i] == CMD_OPTION_CLIENTCWD && argv[i + 1] != nullptr) {
             context->transferConfig.clientCwd = argv[i + 1];
             srcArgvIndex += CMD_ARG1_COUNT;  // skip 2args
         } else if (argv[i] == cmdOptionModeSync) {
@@ -133,7 +133,7 @@ bool HdcFile::ParseMasterParameters(CtxFile *context, int argc, char **argv, int
             ++srcArgvIndex;
         } else if (argv[i] == cmdBundleName) {
             context->sandboxMode = true;
-            if (argc == srcArgvIndex + 1) {
+            if (argc == srcArgvIndex + 1 || argv[i + 1] == nullptr) {
                 LogMsg(MSG_FAIL, "[E005003] The parameter is missing, correct your input by referring below:\n%s",
                     taskInfo->serverOrDaemon ? "Usage: hdc file send [-b bundlename] local remote" :
                     "Usage: hdc file recv [-b bundlename] remote local");
@@ -242,7 +242,7 @@ string HdcFile::PathSimplify(const string &path)
     return (outPath.size() != 0) ? outPath : string(1, Base::GetPathSep());
 }
 
-bool HdcFile::SetMasterParameters(CtxFile *context, const char *command, int argc, char **argv)
+bool HdcFile::SetMasterParameters(CtxFile *context, int argc, char **argv)
 {
     int srcArgvIndex = 0;
     string errStr;

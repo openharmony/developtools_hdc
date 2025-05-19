@@ -46,6 +46,7 @@ uint16_t HdcServerForClient::GetTCPListenPort()
 
 void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
 {
+    StartTraceScope("HdcServerForClient::AcceptClient");
     uv_tcp_t *pServTCP = (uv_tcp_t *)server;
     HdcServerForClient *thisClass = (HdcServerForClient *)pServTCP->data;
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptClient");
@@ -168,6 +169,7 @@ int HdcServerForClient::Initial()
 
 void HdcServerForClient::EchoClient(HChannel hChannel, MessageLevel level, const char *msg, ...)
 {
+    StartTraceScope("HdcServerForClient::EchoClient");
     string logInfo = "";
     switch (level) {
         case MSG_FAIL:
@@ -207,6 +209,7 @@ void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint
 
 bool HdcServerForClient::SendToDaemon(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int bufSize)
 {
+    StartTraceScope("HdcServerForClient::SendToDaemon");
     HDaemonInfo hdi = nullptr;
     bool ret = false;
     HdcServer *ptrServer = (HdcServer *)clsServer;
@@ -367,6 +370,7 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
 
 bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
 {
+    StartTraceScope("HdcServerForClient::CommandRemoveForward");
     bool ret = RemoveFportkey("0|" + forwardKey);
     ret |= RemoveFportkey("1|" + forwardKey);
     return ret;
@@ -374,6 +378,7 @@ bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
 
 bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
 {
+    StartTraceScope("HdcServerForClient::RemoveFportkey");
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HForwardInfo hfi = nullptr;
     ptrServer->AdminForwardMap(OP_QUERY, forwardKey, hfi);
@@ -454,6 +459,7 @@ bool HdcServerForClient::WaitForAny(HChannel hChannel)
 
 bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterString)
 {
+    StartTraceScope("HdcServerForClient::RemoveForward");
     HdcServer *ptrServer = (HdcServer *)clsServer;
     if (parameterString == nullptr) {  // remove all
         HForwardInfo hfi = nullptr;    // dummy
@@ -482,6 +488,7 @@ bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterS
 
 bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandInput)
 {
+    StartTraceScope("HdcServerForClient::DoCommandLocal");
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
     HdcServer *ptrServer = (HdcServer *)clsServer;
     bool ret = false;
@@ -581,6 +588,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
 
 bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput)
 {
+    StartTraceScope("HdcServerForClient::TaskCommand");
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
     HdcServer *ptrServer = (HdcServer *)clsServer;
     string cmdFlag;
@@ -641,6 +649,7 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
 
 void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, RemoteType flag)
 {
+    StartTraceScope("HdcServerForClient::HandleRemote");
     hChannel->remote = flag;
     int argc = 0;
     char **argv = Base::SplitCommandToArgs(parameters.c_str(), &argc);
@@ -663,6 +672,7 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
 
 bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
 {
+    StartTraceScope("HdcServerForClient::DoCommandRemote");
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
     bool ret = false;
     int sizeSend = formatCommand->parameters.size();
@@ -714,6 +724,7 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
 // Do not specify Target's operations no longer need to put it in the thread.
 bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, HDaemonInfo &hdi)
 {
+    StartTraceScope("HdcServerForClient::DoCommand");
     bool ret = false;
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
     if (!hChannel->hChildWorkTCP.loop ||
@@ -742,6 +753,7 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
 // just call from BindChannelToSession
 HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChannel)
 {
+    StartTraceScope("HdcServerForClient::FindAliveSessionFromDaemonMap");
     HSession hSession = nullptr;
     HDaemonInfo hdi = nullptr;
     HdcServer *ptrServer = (HdcServer *)clsServer;
@@ -779,6 +791,7 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
 
 int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
+    StartTraceScope("HdcServerForClient::BindChannelToSession");
     if (FindAliveSessionFromDaemonMap(hChannel) == nullptr) {
         WRITE_LOG(LOG_FATAL, "Find no alive session channelId:%u", hChannel->channelId);
         return ERR_SESSION_NOFOUND;
@@ -842,6 +855,7 @@ bool HdcServerForClient::CheckAutoFillTarget(HChannel hChannel)
 
 int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
+    StartTraceScope("HdcServerForClient::ChannelHandShake");
     vector<uint8_t> rebuildHandshake;
     rebuildHandshake.insert(rebuildHandshake.end(), bufPtr, bufPtr + bytesIO);
     rebuildHandshake.push_back(0x00);
@@ -886,7 +900,7 @@ void HdcServerForClient::ReportServerVersion(HChannel hChannel)
 // Here is Server to get data, the source is the SERVER's ChildWork to send data
 int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
-    int ret = 0;
+    StartTraceScope("HdcServerForClient::ReadChannel");
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
@@ -903,7 +917,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         if (!SendToDaemon(hChannel, command, bufPtr + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
             WRITE_LOG(LOG_FATAL, "Client ReadChannel : direct send to daemon failed");
         }
-        return ret;
+        return 0;
     }
     struct TranslateCommand::FormatCommand formatCommand = { 0 };
     if (!hChannel->interactiveShellMode) {
@@ -921,6 +935,10 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
 
         WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s command:%s", hChannel->channelId,
             hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
+        if (Hdc::Base::GetCmdLogSwitch()) {
+            string logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, (reinterpret_cast<char *>(bufPtr)));
+            ptrServer->PrintCmdLogEx(logBuf);
+        }
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             return -10;  //  -10 error formatCommand
@@ -932,13 +950,13 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!DoCommand(hChannel, &formatCommand, hdi)) {
         return -3;  // -3: error or want close
     }
-    ret = bytesIO;
-    return ret;
+    return bytesIO;
 };
 
 // avoid session dead
 HSession HdcServerForClient::FindAliveSession(uint32_t sessionId)
 {
+    StartTraceScope("HdcServerForClient::FindAliveSession");
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HSession hSession = ptrServer->AdminSession(OP_QUERY, sessionId, nullptr);
     if (!hSession || hSession->isDead) {
@@ -985,6 +1003,7 @@ string HdcServerForClient::GetErrorString(uint32_t errorCode)
 
 bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi)
 {
+    StartTraceScope("HdcServerForClient::CommandMatchDaemonFeature");
     string cmdFlagStr = std::to_string(cmdFlag);
     if (FEATURE_CHECK_SET.find(cmdFlag) == FEATURE_CHECK_SET.end()) { // not need check
         return true;

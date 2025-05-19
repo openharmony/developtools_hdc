@@ -752,6 +752,7 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
 
 HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput)
 {
+    StartTraceScope("HdcSessionBase::AdminSession");
     HSession hRet = nullptr;
     switch (op) {
         case OP_ADD:

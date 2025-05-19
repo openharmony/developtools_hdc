@@ -56,7 +56,7 @@ static string MaskString(const string &str)
 
 // hitrace will increase ipc thread to upper hdcd memory
 // IPC function SetMaxWorkThreadNum can limit thread num, default 16 threads
-#ifdef HDC_TRACE_TEST // default close, change to open by HDC_TRACE
+#if defined(HDC_TRACE_TEST) && defined(__OHOS__) // default close, change to open by HDC_TRACE
 #define StartTracePoint(value) StartTrace(HITRACE_TAG_HDCD, value)
 #define FinishTracePoint()     FinishTrace(HITRACE_TAG_HDCD)
 #define StartTraceScope(value) HITRACE_METER_NAME(HITRACE_TAG_HDCD, value)

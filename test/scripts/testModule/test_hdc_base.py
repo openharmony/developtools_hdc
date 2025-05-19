@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
 import time
 import pytest
 
@@ -58,8 +59,8 @@ class TestVersion:
 class TestTargetKey:
     @pytest.mark.L0
     def test_target_key(self):
-        device_key = get_shell_result(f"list targets").split("\r\n")[0]
-        hdcd_pid = get_shell_result(f"-t {device_key} shell pgrep -x hdcd").split("\r\n")[0]
+        device_key = re.split("\r|\n", get_shell_result(f"list targets"))[0]
+        hdcd_pid = re.split("\r|\n", get_shell_result(f"-t {device_key} shell pgrep -x hdcd"))[0]
         assert hdcd_pid.isdigit()
 
 
@@ -80,10 +81,14 @@ class TestTargetCommand:
     @pytest.mark.L0
     def test_target_mount(self):
         assert (check_hdc_cmd("target mount", "Mount finish" or "[Fail]Operate need running as root"))
+        uname = get_shell_result("shell uname")
         sep = "/"
         remount_vendor = get_shell_result(f'shell "mount |grep {sep}vendor |head -1"')
         print(remount_vendor)
-        assert "rw" in remount_vendor
+        if uname == "Linux":
+            assert "rw" in remount_vendor
+        else:
+            assert "ro" in remount_vendor
         remount_system = get_shell_result(f'shell "cat proc/mounts | grep {sep}system |head -1"')
         print(remount_system)
         assert "rw" in remount_system

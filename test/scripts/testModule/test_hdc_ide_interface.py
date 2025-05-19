@@ -77,8 +77,8 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_target_key(self):
-        device_key = get_shell_result(f"list targets").split("\r\n")[0]
-        hdcd_pid = get_shell_result(f"-t {device_key} shell pgrep -x hdcd").split("\r\n")[0]
+        device_key = re.split("\r|\n", get_shell_result(f"list targets"))[0]
+        hdcd_pid = re.split("\r|\n", get_shell_result(f"-t {device_key} shell pgrep -x hdcd"))[0]
         assert hdcd_pid.isdigit()
 
     @pytest.mark.L0

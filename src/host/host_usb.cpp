@@ -542,6 +542,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
 
 void LIBUSB_CALL HdcHostUSB::USBBulkCallback(struct libusb_transfer *transfer)
 {
+    StartTraceScope("HdcHostUSB::USBBulkCallback");
     auto *ep = reinterpret_cast<HostUSBEndpoint *>(transfer->user_data);
     std::unique_lock<std::mutex> lock(ep->mutexIo);
     bool retrySumit = false;
@@ -573,6 +574,7 @@ void LIBUSB_CALL HdcHostUSB::USBBulkCallback(struct libusb_transfer *transfer)
 
 int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, int bufSize)
 {
+    StartTraceScope("HdcHostUSB::SubmitUsbBio");
     HUSB hUSB = hSession->hUSB;
     int timeout = 0;
     int childRet = 0;
@@ -694,6 +696,7 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
 
 int HdcHostUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
 {
+    StartTraceScope("HdcHostUSB::SendUSBRaw");
     int ret = ERR_GENERIC;
     HdcSessionBase *server = reinterpret_cast<HdcSessionBase *>(hSession->classInstance);
     ++hSession->ref;

@@ -29,8 +29,9 @@ std::unique_ptr<HdcJdwp> HdcJdwpTest::InstanceHdcJdwp()
 {
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
+    LoopStatus ls(&loopMain, "not support");
     // Base::SetLogLevel(Hdc::LOG_FULL);
-    return std::make_unique<HdcJdwp>(&loopMain);
+    return std::make_unique<HdcJdwp>(&loopMain, &ls);
 }
 
 /*
@@ -85,7 +86,7 @@ HWTEST_F(HdcJdwpTest, TestReadStream, TestSize.Level1)
     mJdwpTest->ReadStream(stream, (HdcJdwp::JS_PKG_MIN_SIZE - 1), nullptr);
     ASSERT_EQ(mJdwpTest->mapCtxJdwp.size(), 0u) << "Instanse HdcJdwp fail.";
     // invalid nread > max
-    mJdwpTest->ReadStream(stream, (HdcJdwp::JS_PKG_MX_SIZE + 1), nullptr);
+    mJdwpTest->ReadStream(stream, (HdcJdwp::JS_PKG_MAX_SIZE + 1), nullptr);
     ASSERT_EQ(mJdwpTest->mapCtxJdwp.size(), 0u) << "Instanse HdcJdwp fail.";
 
     // valid parameters

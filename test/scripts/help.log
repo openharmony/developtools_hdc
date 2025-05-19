@@ -1,0 +1,75 @@
+
+                         OpenHarmony device connector(hdc) ...
+
+---------------------------------global commands:----------------------------------
+ -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds
+ -v/version                            - Print hdc version
+ -t connectkey                         - Use device with given connect key
+
+---------------------------------component commands:-------------------------------
+session commands(on server):
+ list targets [-v]                     - List all devices status, -v for detail
+ start [-r]                            - Start server. If with '-r', will be restart server
+ kill [-r]                             - Kill server. If with '-r', will be restart server
+
+service commands(on daemon):
+ target mount                          - Set /system /vendor partition read-write
+ wait                                  - Wait for the device to become available
+ target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\recovery.
+ target boot [MODE]                    - Reboot the into MODE.
+ smode [-r]                            - Restart daemon with root permissions, '-r' to cancel root
+                                         permissions
+ tmode usb                             - Reboot the device, listening on USB
+ tmode port [port]                     - Reboot the device, listening on TCP port
+
+---------------------------------task commands:-------------------------------------
+file commands:
+ file send [option] local remote       - Send file to device
+ file recv [option] remote local       - Recv file from device
+                                         option is -a|-s|-z
+                                         -a: hold target file timestamp
+                                         -sync: just update newer file
+                                         -z: compress transfer, not improve transmission efficiency
+                                         for compressed files
+                                         -m: mode sync
+                                         -b: send/receive file to debug application directory
+
+forward commands:
+ fport localnode remotenode            - Forward local traffic to remote device
+ rport remotenode localnode            - Reserve remote traffic to local host
+                                         node config name format 'schema:content'
+                                         examples are below:
+                                         tcp:<port>
+                                         localfilesystem:<unix domain socket name>
+                                         localreserved:<unix domain socket name>
+                                         localabstract:<unix domain socket name>
+                                         dev:<device name>
+                                         jdwp:<pid> (remote only)
+                                         ark:pid@tid@Debugger
+ fport ls                              - Display forward/reverse tasks
+ fport rm taskstr                      - Remove forward/reverse task by taskstring
+
+app commands:
+ install [-r|-s] src                   - Send package(s) to device and install them
+                                         src examples: single or multiple packages and directories
+                                         (.hap .hsp)
+                                         -r: replace existing application
+                                         -s: install shared bundle for multi-apps
+ uninstall [-k] [-s] package           - Remove application package from device
+                                         -k: keep the data and cache directories
+                                         -s: remove shared bundle
+
+debug commands:
+ hilog [-h]                            - Show device log, -h for detail
+ shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)
+                                         -b: run command in specified debug application bundle path
+                                             bundle parameter only support non-interactive shell
+ bugreport [FILE]                      - Return all information from the device, stored in file if FILE is specified
+ jpid                                  - List PIDs of processes hosting a JDWP transport
+ track-jpid [-a|-p]                    - Track PIDs of debug processes hosting a JDWP transport
+                                         -a: include debug and release processes
+                                         -p: don't display debug and release tags
+
+security commands:
+ keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub
+

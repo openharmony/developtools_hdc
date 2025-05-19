@@ -392,7 +392,6 @@ group("hdc_unittest") {
     ":hdc_jdwp_unittest",
     ":hdc_register_unittest",
     ":hdc_uart_unittest",
-    ":hdc_uart_unittest(${host_toolchain})",
     ":hdc_host_base_unittest",
   ]
 }

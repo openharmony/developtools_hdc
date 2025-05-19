@@ -876,7 +876,6 @@ void HdcServerForClient::ReportServerVersion(HChannel hChannel)
 int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
     StartTraceScope("HdcServerForClient::ReadChannel");
-    int ret = 0;
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
@@ -893,7 +892,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         if (!SendToDaemon(hChannel, command, bufPtr + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
             WRITE_LOG(LOG_FATAL, "Client ReadChannel : direct send to daemon failed");
         }
-        return ret;
+        return 0;
     }
     struct TranslateCommand::FormatCommand formatCommand = { 0 };
     if (!hChannel->interactiveShellMode) {
@@ -911,6 +910,10 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
 
         WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s command:%s", hChannel->channelId,
             hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
+        if (Hdc::Base::GetCmdLogSwitch()) {
+            string logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, (reinterpret_cast<char *>(bufPtr)));
+            ptrServer->PrintCmdLogEx(logBuf);
+        }
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             return -10;  //  -10 error formatCommand
@@ -922,8 +925,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!DoCommand(hChannel, &formatCommand, hdi)) {
         return -3;  // -3: error or want close
     }
-    ret = bytesIO;
-    return ret;
+    return bytesIO;
 };
 
 // avoid session dead

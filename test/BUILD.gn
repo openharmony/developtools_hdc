@@ -99,7 +99,7 @@ config("hdc_ut_config") {
 }
 
 config("hdc_common_config") {
-  defines = []
+  defines = [ "HDC_UT" ]
   include_dirs = [
     "${hdc_path}/src/common",
     "${hdc_path}/src/daemon",
@@ -110,8 +110,6 @@ config("hdc_common_config") {
   if (hdc_support_uart) {
     defines += [ "HDC_SUPPORT_UART" ]
   }
-
-  defines += [ "HDC_UT" ]
 }
 
 config("hdc_host_common_config") {
@@ -129,8 +127,8 @@ ohos_source_set("hdc_common") {
   if (hdc_support_uart) {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
   }
-  public_external_deps = common_external_deps
-  external_deps = [ "init:libbegetutil" ]
+  external_deps = common_external_deps
+  external_deps += [ "init:libbegetutil" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -149,35 +147,48 @@ ohos_source_set("hdc_daemon") {
   use_exceptions = true
   sources = hdc_common_sources
   sources += hdc_daemon_sources
+  subsystem_name = "developtools"
+  part_name = "hdc"
   if (hdc_support_uart) {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
     sources += [ "${hdc_path}/src/daemon/daemon_uart.cpp" ]
   }
-  public_external_deps = common_external_deps
-  external_deps = [ "init:libbegetutil" ]
+  external_deps = common_external_deps
+  external_deps += [
+    "init:libbegetutil",
+    "c_utils:utils",
+  ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
   ]
-  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+  defines = [
+    "HARMONY_PROJECT",
+    "OPENSSL_SUPPRESS_DEPRECATED",
+  ]
 }
 
 ohos_source_set("hdc_host") {
   use_exceptions = true
   sources = hdc_common_sources
   sources += hdc_host_sources
+  subsystem_name = "developtools"
+  part_name = "hdc"
   if (hdc_support_uart) {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
     sources += [ "${hdc_path}/src/host/host_uart.cpp" ]
   }
-  public_external_deps = common_external_deps
-  public_external_deps += [ "libusb:libusb" ]
+  external_deps = common_external_deps
+  external_deps += [ "libusb:libusb" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_host_common_config",
     ":hdc_ut_config",
   ]
-  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+  defines = [
+    "HARMONY_PROJECT",
+    "OPENSSL_SUPPRESS_DEPRECATED",
+  ]
 }
 
 ohos_source_set("hdc_daemon_platform") {
@@ -202,14 +213,12 @@ ohos_source_set("hdc_daemon_platform") {
     "${hdc_path}/src/daemon/jdwp.cpp",
   ]
 
-  public_external_deps = [
+  external_deps = [
     "bounds_checking_function:libsec_static",
     "googletest:gtest",
     "libuv:uv",
     "openssl:libcrypto_static",
   ]
-
-  external_deps = [ "init:libbegetutil" ]
 
   include_dirs = [ "${hdc_path}/daemon" ]
 }
@@ -229,7 +238,10 @@ ohos_unittest("hdc_jdwp_unittest") {
   }
   public_deps = [ ":hdc_daemon_platform" ]
 
-  sources = [ "unittest/common/HdcJdwpTest.cpp" ]
+  sources = [
+    "${hdc_path}/src/daemon/system_depend.cpp",
+    "unittest/common/HdcJdwpTest.cpp",
+  ]
   deps = [ ":hdc_common" ]
 
   include_dirs = [
@@ -237,34 +249,45 @@ ohos_unittest("hdc_jdwp_unittest") {
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/common",
   ]
-  external_deps = [ "googletest:gmock_main" ]
+
+  external_deps = common_external_deps
+  external_deps += [
+    "googletest:gmock_main",
+    "init:libbegetutil",
+    "hilog:libhilog",
+  ]
 
   if (is_linux) {
     static_link = false
   }
   subsystem_name = "developtools"
   defines += [ "OPENSSL_SUPPRESS_DEPRECATED" ]
-  external_deps += [
-    "bounds_checking_function:libsec_static",
-    "libuv:uv",
-  ]
 }
 
 ohos_unittest("hdc_uart_unittest") {
   use_exceptions = true
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
+  public_configs = [ ":hdc_ut_config" ]
   sources = [
+    "${hdc_path}/src/common/header.cpp",
+    "${hdc_path}/src/common/entry.cpp",
+    "${hdc_path}/src/common/decompress.cpp",
     "unittest/common/daemon_uart_test.cpp",
     "unittest/common/uart_test.cpp",
   ]
 
-  configs = [ ":hdc_common_config" ]
-  configs += [ ":hdc_ut_code_flag" ]
+  configs = [
+    ":hdc_common_config",
+    ":hdc_ut_code_flag",
+    ":hdc_ut_config",
+  ]
   deps = [ ":hdc_daemon" ]
-  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
-
-  external_deps = [ "googletest:gmock_main" ]
+  external_deps = common_external_deps
+  external_deps += [
+    "libusb:libusb",
+    "googletest:gmock_main",
+  ]
 }
 
 ohos_unittest("hdc_host_uart_unittest") {
@@ -272,6 +295,9 @@ ohos_unittest("hdc_host_uart_unittest") {
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
   sources = [
+    "${hdc_path}/src/common/header.cpp",
+    "${hdc_path}/src/common/entry.cpp",
+    "${hdc_path}/src/common/compress.cpp",
     "unittest/common/host_uart_test.cpp",
     "unittest/common/uart_test.cpp",
   ]
@@ -285,8 +311,11 @@ ohos_unittest("hdc_host_uart_unittest") {
   deps = [ ":hdc_host" ]
 
   defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
-
-  external_deps = [ "googletest:gmock_main" ]
+  external_deps = common_external_deps
+  external_deps += [
+    "libusb:libusb",
+    "googletest:gmock_main",
+  ]
 }
 
 ohos_unittest("hdc_base_unittest") {
@@ -297,9 +326,13 @@ ohos_unittest("hdc_base_unittest") {
   sources += [
     "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
+    "${hdc_path}/src/common/password.cpp",
+    "${hdc_path}/src/common/hdc_huks.cpp",
     "unittest/common/base_ut.cpp",
     "unittest/common/file_ut.cpp",
     "unittest/common/heartbeat_ut.cpp",
+    "unittest/common/hdc_huks_ut.cpp",
+    "unittest/common/password_ut.cpp",
     "unittest/common/server_cmd_log_ut.cpp",
     "unittest/common/transfer_ut.cpp",
     "unittest/common/tlv_ut.cpp",
@@ -311,19 +344,12 @@ ohos_unittest("hdc_base_unittest") {
     ":hdc_ut_code_flag",
     ":hdc_ut_config",
   ]
-  public_external_deps = common_external_deps
-  external_deps = [
+  external_deps = common_external_deps
+  external_deps += [
     "googletest:gmock_main",
     "init:libbegetutil",
-    "libuv:uv",
+    "huks:libhukssdk",
   ]
-
-  # add for password_ut
-  sources += [ "${hdc_path}/src/common/password.cpp" ]
-  sources += [ "${hdc_path}/src/common/hdc_huks.cpp" ]
-  sources += [ "unittest/common/password_ut.cpp" ]
-  sources += [ "unittest/common/hdc_huks_ut.cpp" ]
-  external_deps += [ "huks:libhukssdk" ]
   defines = [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
 }
 
@@ -337,11 +363,9 @@ group("hdc_unittest") {
   deps = [
     ":hdc_base_unittest",
     ":hdc_host_uart_unittest",
-    ":hdc_host_uart_unittest(${host_toolchain})",
     ":hdc_jdwp_unittest",
     ":hdc_register_unittest",
     ":hdc_uart_unittest",
-    ":hdc_uart_unittest(${host_toolchain})",
   ]
 }
 
@@ -404,14 +428,11 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
     "fuzztest/jdwpreadstream_fuzzer/JdwpReadStream_fuzzer.cpp",
   ]
   deps = [ ":hdc_common" ]
-  external_deps = [
+  external_deps = common_external_deps
+  external_deps += [
     "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
-  ]
-  public_external_deps = [
-    "bounds_checking_function:libsec_static",
-    "libuv:uv",
   ]
 }
 
@@ -424,14 +445,8 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   deps = [ ":hdc_common" ]
   subsystem_name = "developtools"
   part_name = "hdc"
-  external_deps = [
-    "hilog:libhilog",
-    "libuv:uv",
-  ]
-  public_external_deps = [
-    "bounds_checking_function:libsec_static",
-    "libuv:uv",
-  ]
+  external_deps = common_external_deps
+  external_deps += [ "hilog:libhilog" ]
 }
 
 group("hdc_fuzztest") {
@@ -445,7 +460,8 @@ group("hdc_fuzztest") {
 ohos_unittest("hdc_register_unittest") {
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
-
+  subsystem_name = "developtools"
+  part_name = "hdc"
   sources = [
     "${hdc_path}/src/register/hdc_connect.cpp",
     "${hdc_path}/src/register/hdc_jdwp.cpp",
@@ -455,16 +471,12 @@ ohos_unittest("hdc_register_unittest") {
   include_dirs = [ "${hdc_path}/src/register/" ]
 
   configs = [ ":hdc_register_config" ]
-
-  external_deps = [
+  external_deps = common_external_deps
+  external_deps += [
     "c_utils:utils",
     "googletest:gmock_main",
     "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
-    "libuv:uv",
   ]
-
-  subsystem_name = "developtools"
-  part_name = "hdc"
 }

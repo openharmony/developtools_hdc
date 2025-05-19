@@ -12,11 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cstring>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <string>
-#include <unistd.h>
 
 #include "base.h"
 #include "define.h"

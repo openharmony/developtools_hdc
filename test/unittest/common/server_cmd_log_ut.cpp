@@ -12,12 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cstdlib>
-#include <cstring>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "securec.h"
 #include "serial_struct.h"
 #include "server_cmd_log.h"
 

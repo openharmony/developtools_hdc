@@ -122,9 +122,7 @@ template("hdcd_source_set") {
     }
     configs = [ ":hdc_config" ]
 
-    deps = []
-
-    deps += [
+    deps = [
       ":hdc_hash_gen",
       "src/daemon/etc:daemon_etc",
     ]
@@ -388,8 +386,6 @@ ohos_executable("hdc") {
     sources += [ "src/host/host_uart.cpp" ]
   }
 
-  deps = []
-
   external_deps = [
     "bounds_checking_function:libsec_static",
     "libusb:libusb",
@@ -405,7 +401,7 @@ ohos_executable("hdc") {
     external_deps += [ "huks:libhukssdk" ]
   }
 
-  deps += [ ":hdc_hash_gen" ]
+  deps = [ ":hdc_hash_gen" ]
 
   if (!(is_mingw || is_mac) && build_selinux) {
     external_deps += [ "selinux:libselinux" ]
@@ -497,7 +493,6 @@ config("hdc_register_config") {
 }
 
 ohos_shared_library("hdc_register") {
-  deps = []
   defines = [
     "JS_JDWP_CONNECT",
     "HDC_HILOG",
@@ -533,7 +528,6 @@ config("hdc_updater_config") {
 
 ohos_static_library("hdc_updater") {
   sources = []
-  deps = []
   defines = []
 
   public_configs = [ ":hdc_updater_config" ]

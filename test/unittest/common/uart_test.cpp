@@ -151,7 +151,7 @@ bool HdcUARTBaseTest::MakeDemoData(std::vector<uint8_t> &data, uint32_t sessionI
     UartHead head;
     head.option = PKG_OPTION_TAIL;
     head.sessionId = sessionId;
-    head.packageIndex = packageIndex;
+    head.packageIndex = PACKAGE_INDEX;
 
     data.resize(sizeof(UartHead) + testString.size());
     head.dataSize = testString.size();

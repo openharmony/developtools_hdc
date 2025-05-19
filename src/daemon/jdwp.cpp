@@ -146,7 +146,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 #ifdef JS_JDWP_CONNECT
             // pid isDebug pkgName/processName
             struct JsMsgHeader *jsMsg = reinterpret_cast<struct JsMsgHeader *>(p);
-            if (jsMsg->msgLen == nread) {
+            if (jsMsg->msgLen == static_cast<uint32_t>(nread)) {
                 pid = jsMsg->pid;
                 string pkgName = string((char *)p + sizeof(JsMsgHeader), jsMsg->msgLen - sizeof(JsMsgHeader));
                 ctxJdwp->pkgName = pkgName;

@@ -79,7 +79,7 @@ void CircleBuffer::Free(const uint8_t *buf)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     uint64_t key = reinterpret_cast<uint64_t>(buf);
-    if (buffers_.count(key) == 0) {
+    if (buffers_.find(key) == buffers_.end()) {
         WRITE_LOG(LOG_FATAL, "Free data not found.");
         return;
     }

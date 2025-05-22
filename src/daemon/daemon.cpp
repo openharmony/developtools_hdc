@@ -297,9 +297,11 @@ bool HdcDaemon::ShowPermitDialog()
         setpgid(pid, pid);
 
         int ret = execl("/system/bin/hdcd_user_permit", "hdcd_user_permit", NULL);
-        // if execl failed need return false
-        WRITE_LOG(LOG_FATAL, "start user_permit failed %d: %s", ret, strerror(errno));
-        return false;
+        if (ret < 0) {
+            // if execl failed need return false
+            WRITE_LOG(LOG_FATAL, "start user_permit failed %d: %s", ret, strerror(errno));
+            return false;
+        }
     } else {
             Base::CloseFd(fds[1]);
             waitpid(pid, nullptr, 0);

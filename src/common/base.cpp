@@ -2672,7 +2672,7 @@ void CloseOpenFd(void)
     void TimeoutHandler(int signum)
     {
         WRITE_LOG(LOG_FATAL, "Timeout occurred!");
-        exit(1);
+        _exit(1);
     }
 
     #ifdef _WIN32
@@ -2972,8 +2972,8 @@ void CloseOpenFd(void)
             size_t cmdLogCount = 0;
             cmdLogCount = Hdc::ServerCmdLog::GetInstance().CmdLogStrSize();
             auto lastFlushTime = Hdc::ServerCmdLog::GetInstance().GetLastFlushTime();
-            size_t compareTime = std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::system_clock::now() - lastFlushTime).count(); 
+            size_t compareTime = static_cast<size_t>(std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now() - lastFlushTime).count());
             if ((cmdLogCount > MAX_SAVE_CMD_LOG_TO_FILE_COUNTS) || (compareTime > MAX_SAVE_CMD_LOG_TO_FILE_CYCLE)) {
                 SaveCmdLogsToFile();
                 ThreadProcessCmdLogs();

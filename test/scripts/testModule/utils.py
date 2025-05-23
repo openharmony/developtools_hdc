@@ -883,7 +883,7 @@ def check_hdc_version(cmd, version):
         return int(hex_version, 16)
     
     expected_version = _convert_version_to_hex(version)
-    cmd = f"{GP.hdc_head} -v"
+    cmd = f"{GP.hdc_head} {cmd}"
     print(f"\nexecuting command: {cmd}")
     if version is not None: # check output valid
         output = subprocess.check_output(cmd.split()).decode().replace("\r", "").replace("\n", "")

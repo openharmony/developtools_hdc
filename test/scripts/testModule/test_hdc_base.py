@@ -53,7 +53,31 @@ class TestVersion:
         version = "Ver: 3.1.0a"
         assert check_hdc_version("-v", version)
         assert check_hdc_version("version", version)
-        assert check_hdc_version("checkserver", version)
+
+    @pytest.mark.L0
+    def test_version_match(self):
+        """
+        Check that the version numbers of each program are the same
+        1. client
+        2. server
+        3. daemon program
+        4. device param
+        """
+        daemon_param_version = get_shell_result("shell param get const.hdc.version").strip()
+        print(f"param version:{daemon_param_version}")
+        daemon_version = get_shell_result("shell hdcd -v").strip()
+        print(f"daemon version:{daemon_version}")
+        client_version = get_shell_result("-v").strip()
+        print(f"client version:{client_version}")
+        server_version = get_shell_result("version").strip()
+        print(f"server version:{server_version}")
+        client_server_version = get_shell_result("checkserver").strip()
+        print(f"checkserver version:{client_server_version}")
+
+        assert(daemon_param_version == daemon_version)
+        assert(daemon_param_version == client_version)
+        assert(daemon_param_version == server_version)
+        assert(client_server_version.count(daemon_param_version) == 2)
 
 
 class TestTargetKey:

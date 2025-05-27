@@ -150,7 +150,11 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
     char *env = nullptr;
     if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
     }
-    execl(cmd, cmd, arg0, arg1, nullptr);
+    int ret = execl(cmd, cmd, arg0, arg1, nullptr);
+    if (ret < 0) {
+        WRITE_LOG(LOG_DEBUG, "execl failed, %s", strerror(errno));
+        return -1;
+    }
     return 0;
 }
 

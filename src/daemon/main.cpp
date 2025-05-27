@@ -38,7 +38,11 @@ bool RestartDaemon(bool forkchild)
     char path[256] = "";
     size_t nPathSize = 256;
     uv_exepath(path, &nPathSize);
-    execl(path, "hdcd", forkchild ? "-forkchild" : nullptr, nullptr);
+    int ret = execl(path, "hdcd", forkchild ? "-forkchild" : nullptr, nullptr);
+    if (ret == -1) {
+        WRITE_LOG(LOG_FATAL, "execl failed, %s", strerror(errno));
+        return false;
+    }
     return true;
 }
 

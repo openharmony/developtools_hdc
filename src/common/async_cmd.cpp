@@ -240,15 +240,15 @@ void *AsyncCmd::Popen(void *arg)
         SetSelinuxLabel(isRoot);
 #endif
         string shellPath = Base::GetShellPath();
-        int execl_ret = 0;
+        int execlRet = 0;
         if (!params.optionPath.empty() && chdir(params.optionPath.c_str()) != 0) {
             string cmdEcho = "echo \"[E003006] Internal error: AsyncCmd chdir failed:" + params.optionPath + "\"";
-            execl_ret = execl(shellPath.c_str(), shellPath.c_str(), "-c", cmdEcho.c_str(), NULL);
+            execlRet = execl(shellPath.c_str(), shellPath.c_str(), "-c", cmdEcho.c_str(), NULL);
         } else {
-            execl_ret = execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
+            execlRet = execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
         }
-        if (execl_ret < 0) {
-            WRITE_LOG(LOG_FATAL, "start shell failed %d: %s", execl_ret, strerror(errno));
+        if (execlRet < 0) {
+            WRITE_LOG(LOG_FATAL, "start shell failed %d: %s", execlRet, strerror(errno));
         }
     } else {
         if (readWrite) {

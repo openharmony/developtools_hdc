@@ -2671,7 +2671,6 @@ void CloseOpenFd(void)
 
     void TimeoutHandler(int signum)
     {
-        WRITE_LOG(LOG_FATAL, "Timeout occurred!");
         _exit(1);
     }
 

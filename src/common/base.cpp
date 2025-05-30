@@ -2620,7 +2620,13 @@ void CloseOpenFd(void)
 
     bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode)
     {
-        std::ofstream fileStream(fileName.c_str(), mode);
+        char resolvedPath[PATH_MAX + 1] = {0};
+        
+        if (realpath(fileName.c_str(), resolvedPath) == nullptr) {
+            WRITE_LOG(LOG_FATAL, "realpath %s failed", fileName.c_str());
+            return false;
+        }
+        std::ofstream fileStream(resolvedPath, mode);
         if (!fileStream.is_open()) {
             WRITE_LOG(LOG_FATAL, "open %s error", fileName.c_str());
             return false;

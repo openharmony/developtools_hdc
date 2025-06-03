@@ -24,9 +24,13 @@ import sys
 import time
 import tempfile
 import functools
+import logging
+import socket
 
 import pytest
 import importlib
+
+logger = logging.getLogger(__name__)
 
 
 class GP(object):
@@ -1114,3 +1118,164 @@ def get_cmd_block_output_and_error(command, timeout=600):
     print(f"--> output: {output}")
     print(f"--> error: {error}")
     return output, error
+
+
+def send_file(conn, file_name):
+    """
+    socket收发数据相关的功能函数，用于socket收发数据测试
+    文件发送端发送文件到接收端
+    1. Sender send file size(bytes string) to receiver
+    2. The sender waits for the receiver to send back the file size
+    3. The sender cyclically sends file data to the receiver
+    """
+    logger.info(f"send_file enter:{file_name}")
+    file_path = os.path.join(GP.local_path, file_name)
+    logger.info(f"send_file file full name:{file_path}")
+    file_size = os.path.getsize(file_path)
+    logger.info(f"send_file file size:{file_size}")
+
+    # send size
+    conn.send(str(file_size).encode('utf-8'))
+
+    # recv file size for check
+    logger.info(f"send_file: start recv check size")
+    size_raw = conn.recv(1024)
+    logger.info(f"send_file: check size_raw {size_raw}")
+    if len(size_raw) == 0:
+        logger.error(f"send_file: recv check size len is 0, exit")
+        return
+    file_size_recv = int(size_raw.decode('utf-8'))
+    if file_size_recv != file_size:
+        logger.error(f"send_file: check size failed, file_size_recv:{file_size_recv} file size:{file_size}")
+        return
+
+    logger.info(f"send_file start send file data")
+    index = 0
+    with open(file_path, 'rb') as f:
+        while True:
+            one_block = f.read(4096)
+            if not one_block:
+                logger.info(f"send_file index:{index} read 0 block")
+                break
+            conn.send(one_block)
+            index = index + 1
+
+
+def process_conn(conn, addr):
+    """
+    socket收发数据相关的功能函数，用于socket收发数据测试
+    Server client interaction description:
+    1. client send "get [file_name]" to server
+    2. server send file size(string) to client
+    3. client send back size to server
+    4. server send file data to client
+    """
+    conn.settimeout(5)  # timeout 5 second
+    try:
+        logger.info(f"server accept, addr:{str(addr)}")
+        message = conn.recv(1024)
+        message_str = message.decode('utf-8')
+        logger.info(f"conn recv msg [{len(message_str)}] {message_str}")
+        if len(message) == 0:
+            conn.close()
+            logger.info(f"conn msg len is 0, close {conn} addr:{addr}")
+            return
+        cmds = message_str.split()
+        logger.info(f"conn cmds:{cmds}")
+        cmd = cmds[0]
+        if cmd == "get":  # ['get', 'xxxx']
+            logger.info(f"conn cmd is get, file name:{cmds[1]}")
+            file_name = cmds[1]
+            send_file(conn, file_name)
+        logger.info(f"conn normal close")
+    except socket.timeout:
+        logger.info(f"conn:{conn} comm timeout, addr:{addr}")
+    except ConnectionResetError:
+        logger.info(f"conn:{conn} ConnectionResetError, addr:{addr}")
+    conn.close()
+
+
+def server_loop(port_num):
+    """
+    socket收发数据相关的功能函数，用于socket收发数据测试
+    服务端，每次监听，接入连接，收发数据结束后关闭监听
+    """
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('localhost', port_num))
+    server_socket.listen()
+    logger.info(f"server start listen {port_num}")
+    server_socket.settimeout(10)  # timeout 10 second
+
+    try:
+        conn, addr = server_socket.accept()
+        process_conn(conn, addr)
+    except socket.timeout:
+        logger.error(f"server accept timeout, port:{port_num}")
+
+    server_socket.close()
+    logger.info(f"server exit, port:{port_num}")
+
+
+def recv_file_data(client_socket, file_path, file_size):
+    """
+    socket收发数据相关的功能函数，用于socket收发数据测试
+    """
+    logger.info(f"client: start recv file data, file size:{file_size}, file path:{file_path}")
+    with open(file_path, 'wb') as f:
+        recv_size = 0
+        while recv_size < file_size:
+            one_block = client_socket.recv(4096)
+            if not one_block:
+                logger.info(f"client: read block size 0, exit")
+                break
+            f.write(one_block)
+            recv_size += len(one_block)
+    logger.info(f"client: recv file data finished, recv size:{recv_size}")
+
+
+def client_get_file(port_num, file_name, file_save_name):
+    """
+    socket收发数据相关的功能函数，用于socket收发数据测试
+    """
+    logger.info(f"client: connect port:{port_num}")
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.settimeout(10)  # timeout 10 second
+    try:
+        client_socket.connect(('localhost', port_num))
+    except socket.timeout:
+        logger.info(f"client connect timeout, port:{port_num}")
+        return
+
+    try:
+        cmd = f"get {file_name}"
+        logger.info(f"client: send cmd:{cmd}")
+        client_socket.send(cmd.encode('utf-8'))
+
+        # recv file size
+        size_raw = client_socket.recv(1024)
+        logger.info(f"client: recv size_raw {size_raw}")
+        if len(size_raw) == 0:
+            logger.info(f"client: cmd:{cmd} recv size_raw len is 0, exit")
+            return
+        file_size = int(size_raw.decode('utf-8'))
+        logger.info(f"client: file size {file_size}")
+
+        file_path = os.path.join(GP.local_path, file_save_name)
+        if os.path.exists(file_path):
+            logger.info(f"client: file {file_path} exist, delete")
+            try:
+                os.remove(file_path)
+            except OSError as error:
+                logger.info(f"delete {file_path} failed: {error.strerror}")
+
+        # send size msg to client for check
+        logger.info(f"client: Send back file size:{size_raw}")
+        client_socket.send(size_raw)
+        recv_file_data(client_socket, file_path, file_size)
+    except socket.timeout:
+        logger.error(f"client communication timeout, port:{port_num}")
+        return
+    finally:
+        logger.info("client socket close")
+        client_socket.close()
+    logger.info("client exit")

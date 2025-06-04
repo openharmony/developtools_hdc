@@ -108,13 +108,18 @@ bool HdcHostUnity::AppendLocalLog(const char *bufLog, const int sizeLog)
 {
     auto buf = new uint8_t[sizeLog];
     auto contextIO = new CtxUnityIO();
-    if (!buf || !contextIO || memcpy_s(buf, sizeLog, bufLog, sizeLog) != EOK) {
+    if (!buf || !contextIO) {
         if (buf) {
             delete[] buf;
         }
         if (contextIO) {
             delete contextIO;
         }
+        return false;
+    }
+    if (memcpy_s(buf, sizeLog, bufLog, sizeLog) != EOK) {
+        delete contextIO;
+        delete[] buf;
         return false;
     }
     uv_fs_t *req = &contextIO->fs;

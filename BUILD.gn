@@ -217,7 +217,6 @@ if (product_name != "ohos-sdk") {
     deps = [
       ":serialize_structs",
       "//third_party/rust/crates/humantime:lib",
-      "//third_party/rust/crates/libc:lib",
       "//third_party/rust/crates/log:lib",
     ]
     if (is_emulator && product_name != "ohos-sdk") {
@@ -227,6 +226,7 @@ if (product_name != "ohos-sdk") {
       "hilog:hilog_rust",
       "rust_rust-openssl:lib",
       "ylong_runtime:ylong_runtime",
+      "rust_libc:lib",
     ]
     subsystem_name = "developtools"
     part_name = "hdc"

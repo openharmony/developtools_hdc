@@ -142,6 +142,12 @@ pytest testModule/test_hdc_base.py::TestClassExample
 pytest testModule/test_hdc_base.py::TestClassExample::test_example
 ```
 
+- 执行稳定性用例
+
+```shell
+pytest -m ST
+```
+
 ## 测试报告
 
 执行python main.py后，会在reports目录下生成测试报告

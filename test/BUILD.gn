@@ -25,10 +25,14 @@ hdc_common_sources = [
   "${hdc_path}/src/common/base.cpp",
   "${hdc_path}/src/common/channel.cpp",
   "${hdc_path}/src/common/circle_buffer.cpp",
+  "${hdc_path}/src/common/compress.cpp",
   "${hdc_path}/src/common/debug.cpp",
+  "${hdc_path}/src/common/decompress.cpp",
+  "${hdc_path}/src/common/entry.cpp",
   "${hdc_path}/src/common/file.cpp",
   "${hdc_path}/src/common/file_descriptor.cpp",
   "${hdc_path}/src/common/forward.cpp",
+  "${hdc_path}/src/common/header.cpp",
   "${hdc_path}/src/common/heartbeat.cpp",
   "${hdc_path}/src/common/session.cpp",
   "${hdc_path}/src/common/task.cpp",
@@ -124,6 +128,8 @@ config("hdc_host_common_config") {
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/host",
     "${hdc_path}/test/unittest/common/include",
+    "${hdc_path}/test/unittest/daemon/include",
+    "${hdc_path}/test/unittest/host/include",
   ]
 }
 
@@ -303,7 +309,13 @@ ohos_unittest("hdc_host_base_unittest") {
   resource_config_file = "unittest/resource/ohos_test.xml"
   defines = [ "HDC_HOST" ]
   sources = hdc_common_sources
-  sources += [ "unittest/common/define_test.cpp" ]
+  sources += [
+    "${hdc_path}/src/daemon/daemon_app.cpp",
+    "${hdc_path}/src/host/host_app.cpp",
+    "unittest/daemon/daemon_app_test.cpp",
+    "unittest/common/define_test.cpp",
+    "unittest/host/host_app_test.cpp",
+  ]
 
   configs = [
     ":hdc_host_common_config",

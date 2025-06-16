@@ -368,7 +368,13 @@ namespace TranslateCommand {
             }
         } else if (!strncmp(input.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
             outCmd->cmdFlag = CMD_SERVICE_START;
-        } else if (!strncmp(input.c_str(), CMDSTR_CHECK_SERVER.c_str(), CMDSTR_CHECK_SERVER.size())) {
+        }
+#ifdef HOST_OHOS
+        else if (!strncmp(input.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
+            outCmd->cmdFlag = CMD_SERVER_KILL;
+        }
+#endif
+        else if (!strncmp(input.c_str(), CMDSTR_CHECK_SERVER.c_str(), CMDSTR_CHECK_SERVER.size())) {
             outCmd->cmdFlag = CMD_CHECK_SERVER;
         } else if (!strncmp(input.c_str(), CMDSTR_CHECK_DEVICE.c_str(), CMDSTR_CHECK_DEVICE.size())) {
             outCmd->parameters = input.c_str() + CMDSTR_CHECK_DEVICE.size() + 1;  // with ' '

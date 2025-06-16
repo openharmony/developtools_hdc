@@ -550,6 +550,97 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
     AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+// host(  ) ---(TLS handshake client hello )--> hdcd(  ) step 1
+// host(  ) <--(TLS handshake server hello )--- hdcd(  ) step 2
+// host(ok) ---(TLS handshake change cipher)--> hdcd(  ) step 3
+// host(ok) <--(TLS handshake change cipher)--- hdcd(ok) step 4
+// host(ok) ---(encrypted: CHANNEL_CLOSE   )--> hdcd(ok) step 5
+// host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
+bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payloadSize)
+{
+    if (hSession->classSSL == nullptr) {
+        WRITE_LOG(LOG_DEBUG, "ssl is nullptr");
+        return false;
+    }
+    HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+    if (hssl == nullptr) {
+        WRITE_LOG(LOG_WARN, "hssl is null");
+        return false;
+    }
+    if (payloadSize > 0) {
+        int retw = hssl->DoBIOWrite(payload, payloadSize);
+        if (retw != payloadSize) {
+            WRITE_LOG(LOG_DEBUG, "BIO_write failed");
+            return false;
+        }
+    }
+    vector<uint8_t> buf;
+    int ret = hssl->PerformHandshake(buf);
+    if (ret == RET_SUCCESS) { // SSL handshake step 1 and step 3
+        if (buf.size() == 0) { // no handshake data
+            WRITE_LOG(LOG_WARN, "SSL PerformHandshake failed, buffer data size is 0");
+            return false;
+        }
+        Send(hssl->sessionId, 0, CMD_SSL_HANDSHAKE, buf.data(), buf.size());
+    }
+    if (ret == 1) { // SSL handshake step 5
+        hssl->SetHandshakeLabel(hSession);
+        uint8_t count = 1;
+        WRITE_LOG(LOG_DEBUG, "ssl hs ok  set true");
+        Send(hssl->sessionId, 0, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+        if (!hssl->ClearPsk()) {
+            WRITE_LOG(LOG_WARN, "clear Pre Shared Key failed");
+            ret = ERR_GENERIC;
+        }
+    }
+    fill(buf.begin(), buf.end(), 0);
+    return (ret >= RET_SUCCESS);
+}
+
+bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int payloadSize)
+{
+    if (payloadSize < 32) {
+        WRITE_LOG(LOG_WARN, "Encrypted Pre-Shared-Key payloadSize is %d", payloadSize);
+        return false;
+    }
+    unsigned char *out =  new (std::nothrow) unsigned char[BUF_SIZE_DEFAULT2];
+    if (out == nullptr) {
+        WRITE_LOG(LOG_WARN, "new buffer failed");
+        return false;
+    }
+    if (memset_s(out, BUF_SIZE_DEFAULT2, 0, BUF_SIZE_DEFAULT2) != EOK) {
+        WRITE_LOG(LOG_WARN, "memset_s failed");
+        return false;
+    }
+    HSSLInfo hSSLInfo = new (std::nothrow) HdcSSLInfo();
+    HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
+    hSession->classSSL = new (std::nothrow) HdcHostSSL(hSSLInfo);
+    HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+    if (hssl == nullptr) {
+        WRITE_LOG(LOG_WARN, "new HdcHostSSL failed");
+        return false;
+    }
+    int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload), payloadSize, out);
+    if (outLen <= 0) {
+        WRITE_LOG(LOG_WARN, "RsaPrivatekeyDecrypt failed, sid:%d", hSession->sessionId);
+    }
+    if (!hssl->InputPsk(out, outLen)) {
+        WRITE_LOG(LOG_WARN, "InputPsk failed, sid:%d", hSession->sessionId);
+    }
+    delete[] out;
+    out = nullptr;
+    int initRet = hssl->InitSSL();
+    if (initRet != RET_SUCCESS) {
+        WRITE_LOG(LOG_WARN, "InitSSL failed");
+        return false;
+    }
+    uint8_t count = 1;
+    ServerSSLHandshake(hSession, &count, 0);
+    return true;
+}
+#endif
+
 bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize)
 {
     // session handshake step3
@@ -594,6 +685,18 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
                   hSession->connType, hSession->sessionId);
         return ret;
     }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (command == CMD_SSL_HANDSHAKE) {
+        WRITE_LOG(LOG_INFO, "Session get ssl handshake, sid:%u", hSession->sessionId);
+        ret = ServerSSLHandshake(hSession, payload, payloadSize);
+        return ret;
+    }
+    if (command == CMD_PSK_MSG) {
+        WRITE_LOG(LOG_INFO, "Session get psk message, sid:%u", hSession->sessionId);
+        ret = ServerSessionSSLInit(hSession, payload, payloadSize);
+        return ret;
+    }
+#endif
     if (command == CMD_HEARTBEAT_MSG) {
         // heartbeat msg
         std::string str = hSession->heartbeat.HandleRecvHeartbeatMsg(payload, payloadSize);

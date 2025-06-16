@@ -69,6 +69,55 @@ void HdcTCPBase::SendUDPFinish(uv_udp_send_t *req, int status)
     delete req;
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+void HdcTCPBase::ReadStreamAutoBIO(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)
+{
+    HSession hSession = (HSession)tcp->data;
+    HdcTCPBase *thisClass = (HdcTCPBase *)hSession->classModule;
+    HdcSessionBase *hSessionBase = (HdcSessionBase *)thisClass->clsMainBase;
+    CALLSTAT_GUARD(hSession->childLoopStatus, tcp->loop, "HdcTCPBase::ReadStreamAutoBIO");
+    
+    bool ret = false;
+    while (true) {
+        if (nread < 0) {
+            break;
+        }
+        if (hSession->sslHandshake) {
+            HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+            int sslRet = (hssl != nullptr) ? hssl->Decrypt(nread, 
+                hSession->bufSize, hSession->ioBuf, hSession->availTailIndex) : ERR_GENERIC;
+            ret = (sslRet != ERR_GENERIC); // for the SSL_ERR_WANT_READ branch, do next read.
+            if (sslRet == RET_SUCCESS && hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, 0) < 0) {
+                WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+                ret = false;
+            }
+            break;
+        }
+
+        if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+            break;
+        }
+        ret = true;
+        break;
+    }
+    if (!ret) {
+        char buffer[BUF_SIZE_DEFAULT] = { 0 };
+        if (nread < 0) {
+            uv_strerror_r(static_cast<int>(nread), buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%u", buffer, hSession->sessionId);
+        }
+#ifdef HDC_HOST
+        hSession->isRunningOk = false;
+        hSession->faultInfo = (nread < 0) ? buffer : "package parse error";
+#endif
+        // The first time is closed first, prevent the write function from continuing to write
+        Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(tcp));
+        hSessionBase->FreeSession(hSession->sessionId);
+    }
+}
+#endif
+
 void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)
 {
     HSession hSession = (HSession)tcp->data;
@@ -117,11 +166,36 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     }
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+bool HdcTCPBase::WriteUvSslFd(uv_tcp_t *tcp, uint8_t *buf, int size, int &cnt)
+{
+    HSession hSession = reinterpret_cast<HSession>(tcp->data);
+    if (hSession->sslHandshake) {
+        HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+        if (hssl != nullptr) {
+            cnt = hssl->Encrypt(size, buf);
+            if (cnt < 0) {
+                WRITE_LOG(LOG_FATAL, "WriteSSL error, cnt:%d", cnt);
+                delete[] buf;
+                return false;
+            }
+            return true;
+        }
+    }
+    return true;
+}
+#endif
+
 int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 {
     std::lock_guard<std::mutex> lock(writeTCPMutex);
     uint8_t *data = buf;
     int cnt = size;
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (!WriteUvSslFd(tcp, buf, size, cnt)) {
+        return ERR_GENERIC;
+    }
+#endif
     uv_os_fd_t uvfd;
     uv_fileno(reinterpret_cast<uv_handle_t*>(tcp), &uvfd);
 #ifdef _WIN32

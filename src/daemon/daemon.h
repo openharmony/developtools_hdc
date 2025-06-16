@@ -85,6 +85,8 @@ private:
     bool HandDaemonAuthInit(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
+    bool DaemonSendPsk(HSession hSession, const uint32_t channelId);
+    bool DaemonSSLHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);
 // deprecated, remove later
 #ifdef HDC_SUPPORT_FLASHD
 // null

@@ -209,7 +209,7 @@ struct HdcSessionStat {
 
 struct HdcSession {
     bool serverOrDaemon;  // instance of daemon or server, true is server, false is daemon
-    bool handshakeOK;     // Is an expected peer side
+    bool handshakeOK = false;     // Is an expected peer side
     bool isDead;
     bool voteReset;
     bool isCheck = false;
@@ -246,6 +246,8 @@ struct HdcSession {
     uv_os_sock_t fdChildWorkTCP;
     // usb handle
     HUSB hUSB;
+    bool sslHandshake = false;
+    void *classSSL = nullptr;
 #ifdef HDC_SUPPORT_UART
     HUART hUART = nullptr;
 #endif
@@ -257,6 +259,7 @@ struct HdcSession {
     AuthVerifyType verifyType;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
     HdcHeartbeat heartbeat;
+    bool supportEncrypt;
     uv_timer_t heartbeatTimer;
 
     HdcSessionStat stat;
@@ -448,5 +451,14 @@ struct HdcSessionInfo {
     void *classModule = nullptr;    //  Communicate module, TCP or USB instance,HdcDaemonUSB HdcDaemonTCP etc...
 };
 using HSessionInfo = struct HdcSessionInfo *;
+
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+struct HdcSSLInfo {
+    bool isDaemon;
+    uint32_t sessionId;
+    std::string cipher;
+};
+using HSSLInfo = struct HdcSSLInfo *;
+#endif
 }
 #endif

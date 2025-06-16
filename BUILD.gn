@@ -40,6 +40,7 @@ hdc_common_sources = [
   "src/common/heartbeat.cpp",
   "src/common/server_cmd_log.cpp",
   "src/common/session.cpp",
+  "src/common/hdc_ssl.cpp",
   "src/common/task.cpp",
   "src/common/tcp.cpp",
   "src/common/tlv.cpp",
@@ -81,6 +82,7 @@ template("hdcd_source_set") {
       "src/daemon/daemon_app.cpp",
       "src/daemon/daemon_bridge.cpp",
       "src/daemon/daemon_forward.cpp",
+      "src/daemon/daemon_ssl.cpp",
       "src/daemon/daemon_tcp.cpp",
       "src/daemon/daemon_unity.cpp",
       "src/daemon/daemon_usb.cpp",
@@ -97,6 +99,7 @@ template("hdcd_source_set") {
       "SIZE_THREAD_POOL=$hdcd_uv_thread_size",
       "HDC_HILOG",
       "OPENSSL_SUPPRESS_DEPRECATED",
+      "HDC_SUPPORT_ENCRYPT_TCP",
     ]
 
     if (hdc_debug) {
@@ -140,6 +143,7 @@ template("hdcd_source_set") {
       "libuv:uv",
       "lz4:liblz4_static",
       "openssl:libcrypto_shared",
+      "openssl:libssl_shared",
     ]
 
     if (build_selinux) {
@@ -358,6 +362,7 @@ ohos_executable("hdc") {
     "USE_CONFIG_UV_THREADS",
     "SIZE_THREAD_POOL=$hdc_uv_thread_size",
     "OPENSSL_SUPPRESS_DEPRECATED",
+    "HDC_SUPPORT_ENCRYPT_TCP",
   ]
   if (is_mac) {
     defines += [ "HOST_MAC" ]
@@ -371,6 +376,7 @@ ohos_executable("hdc") {
     "src/host/host_app.cpp",
     "src/host/host_forward.cpp",
     "src/host/host_shell_option.cpp",
+    "src/host/host_ssl.cpp",
     "src/host/host_tcp.cpp",
     "src/host/host_unity.cpp",
     "src/host/host_updater.cpp",
@@ -392,6 +398,7 @@ ohos_executable("hdc") {
     "libuv:uv_static",
     "lz4:liblz4_static",
     "openssl:libcrypto_static",
+    "openssl:libssl_static",
   ]
 
   if (is_ohos) {

@@ -988,5 +988,97 @@ bool RsaSignAndBase64(string &buf, AuthVerifyType type)
     
     return signResult;
 }
-#endif
+
+int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out)
+{
+    RSA *rsa = nullptr;
+    EVP_PKEY *evp = nullptr;
+    string prikeyFileName;
+    int outLen = -1;
+    do {
+        if (!GetUserKeyPath(prikeyFileName)) {
+            WRITE_LOG(LOG_FATAL, "get key path failed");
+            break;
+        }
+        if (!LoadPrivateKey(prikeyFileName, &rsa, &evp)) {
+            WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikeyFileName.c_str());
+            break;
+        }
+        unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
+
+        if (inLen > BUF_SIZE_DEFAULT2) {
+            WRITE_LOG(LOG_FATAL, "invalid encryptToken, length is %d", inLen);
+            break;
+        }
+        int tbytes = EVP_DecodeBlock(tokenDecode, in, inLen);
+        if (tbytes <= 0) {
+            WRITE_LOG(LOG_FATAL, "base64 decode PreShared Key failed");
+            break;
+        }
+        // out = new(std::nothrow) unsigned char[BUF_SIZE_DEFAULT];
+        outLen = RSA_private_decrypt(tbytes, tokenDecode, out, rsa, RSA_PKCS1_PADDING);
+        if (outLen < 0) {
+            WRITE_LOG(LOG_FATAL, "RSA_private_decrypt failed(%lu)", ERR_get_error());
+            break;
+        }
+    } while (0);
+    if (!rsa) {
+        RSA_free(rsa);
+    }
+    if (!evp) {
+        EVP_PKEY_free(evp);
+    }
+    return outLen;
+}
+
+#else // DAEMON
+int RsaPubkeyEncrypt(const uint32_t sessionId, 
+    const unsigned char* in, int inLen, unsigned char* out, const string& pubkey)
+{
+    BIO *bio = nullptr;
+    RSA *rsa = nullptr;
+    int outLen = -1;
+    const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
+    do {
+        bio = BIO_new(BIO_s_mem());
+        if (bio == nullptr) {
+            WRITE_LOG(LOG_FATAL, "bio failed for session %u", sessionId);
+            break;
+        }
+        int wbytes = BIO_write(bio, pubkeyp, pubkey.length());
+        if (wbytes <= 0) {
+            WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, sessionId);
+            break;
+        }
+        rsa = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+        if (rsa == nullptr) {
+            WRITE_LOG(LOG_FATAL, "rsa failed for session %u", sessionId);
+            break;
+        }
+        unsigned char signOri[BUF_SIZE_DEFAULT2] = { 0 };
+        int signOriSize = RSA_public_encrypt(inLen, in, signOri, rsa, RSA_PKCS1_PADDING);
+        if (signOriSize <= 0) {
+            WRITE_LOG(LOG_FATAL, "encrypt PreShared Key failed");
+            break;
+        }
+        if (out == nullptr) {
+            WRITE_LOG(LOG_FATAL, "alloc mem failed");
+            break;
+        }
+        outLen = EVP_EncodeBlock(out, signOri, signOriSize);
+        if (outLen <= 0) {
+            WRITE_LOG(LOG_FATAL, "base64 encode PreShared Key failed");
+            break;
+        }
+    } while (0);
+
+    if (bio) {
+        BIO_free(bio);
+    }
+    if (rsa) {
+        RSA_free(rsa);
+    }
+    return outLen;
+}
+#endif // HDC_HOST
 }

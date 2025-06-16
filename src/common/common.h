@@ -35,6 +35,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <unordered_set>
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+#include <openssl/err.h>
+#include <openssl/crypto.h>
+#include <openssl/ssl.h>
+#include <openssl/rand.h>
 #ifdef CONFIG_USE_JEMALLOC_DFX_INIF
 #include <malloc.h>
 #endif
@@ -73,6 +82,9 @@ using std::vector;
 #include "debug.h"
 #include "base.h"
 #include "task.h"
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+#include "hdc_ssl.h"
+#endif
 #include "channel.h"
 #include "session.h"
 #include "auth.h"

@@ -111,6 +111,8 @@ enum RetErrCode {
     ERR_THREAD_MUTEX_FAIL = -20000,
     ERR_PROCESS_SUB_FAIL = -21000,
     ERR_PRIVELEGE_NEED = -22000,
+    ERR_ENCRYPT = -23000,
+    ERR_DECRYPT,
 };
 
 // Flags shared by multiple modules
@@ -147,6 +149,7 @@ enum HdcCommand {
     CMD_WAIT_FOR,
     CMD_SERVER_KILL,  // channel kill, not use
     CMD_SERVICE_START = 17,
+    CMD_SSL_HANDSHAKE = 20,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,
@@ -209,6 +212,7 @@ enum HdcCommand {
 
     //Heartbeat commands
     CMD_HEARTBEAT_MSG = 5000,
+    CMD_PSK_MSG = 5001,
 };
 
 enum UsbProtocolOption {

@@ -26,6 +26,9 @@
 
 #include "host_tcp.h"
 #include "host_usb.h"
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+#include "host_ssl.h"
+#endif
 #ifdef HDC_SUPPORT_UART
 #include "host_uart.h"
 #endif

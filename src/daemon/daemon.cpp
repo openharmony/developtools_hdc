@@ -790,6 +790,79 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
     GetServerCapability(hSession, handshake);
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+// host(  ) ---(TLS handshake client hello )--> hdcd(  ) step 1
+// host(  ) <--(TLS handshake server hello )--- hdcd(  ) step 2
+// host(ok) ---(TLS handshake change cipher)--> hdcd(  ) step 3
+// host(ok) <--(TLS handshake change cipher)--- hdcd(ok) step 4
+// host(ok) ---(encrypted: CHANNEL_CLOSE   )--> hdcd(ok) step 5
+// host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
+bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize)
+{
+    if (hSession->classSSL == nullptr) {
+        WRITE_LOG(LOG_WARN, "DaemonSSLHandshake classSSL is nullptr");
+        return false;
+    }
+    HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+    if (hssl == nullptr) {
+        WRITE_LOG(LOG_WARN, "hssl is null");
+        return false;
+    }
+    if (payloadSize > 0) {
+        int retw = hssl->DoBIOWrite(payload, payloadSize);
+        if (retw != payloadSize) {
+            WRITE_LOG(LOG_WARN, "BIO_write failed, payloadsize is %d", payloadSize);
+            return false;
+        }
+    }
+    vector<uint8_t> buf;
+    int ret = hssl->PerformHandshake(buf);
+    if (ret == RET_SUCCESS) { // SSL handshake step 2 and step 4
+        if (buf.size() == 0) { // no handshake data
+            WRITE_LOG(LOG_WARN, "SSL PerformHandshake failed, buffer data size is 0");
+            return false;
+        }
+        Send(hSession->sessionId, channelId, CMD_SSL_HANDSHAKE, buf.data(), buf.size());
+    }
+    if (hssl->SetHandshakeLabel(hSession) && !hssl->ClearPsk()) {
+        WRITE_LOG(LOG_WARN, "clear Pre Shared Key failed");
+        ret = ERR_GENERIC;
+    }
+    fill(buf.begin(), buf.end(), 0);
+    return (ret >= RET_SUCCESS);
+}
+
+bool HdcDaemon::DaemonSendPsk(HSession hSession, const uint32_t channelId)
+{
+    if (hSession->classSSL == nullptr) {
+        HSSLInfo hSSLInfo = new (std::nothrow) HdcSSLInfo();
+        HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
+        hSession->classSSL = new (std::nothrow) HdcDaemonSSL(hSSLInfo); // long lifetime with session.
+    }
+    HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+    if (hssl == nullptr) {
+        WRITE_LOG(LOG_WARN, "hssl is null");
+        return false;
+    }
+    if (!hssl->GenPsk()) {
+        WRITE_LOG(LOG_WARN, "gen psk failed");
+        return false;
+    }
+    string pubkey = GetSessionAuthPubkey(hSession->sessionId);
+    unsigned char* payload = new (std::nothrow) unsigned char[BUF_SIZE_DEFAULT2]; // psk can not save into string
+    int payloadSize = hssl->GetPskEncrypt(payload, BUF_SIZE_DEFAULT2, pubkey);
+    if (payloadSize <= 0) {
+        WRITE_LOG(LOG_WARN, "RsaPubkeyEncrpt failed");
+        return false;
+    }
+    Send(hSession->sessionId, channelId, CMD_PSK_MSG, reinterpret_cast<const uint8_t*>(payload), payloadSize);
+    hssl->InitSSL();
+    (void)memset_s(payload, payloadSize, 0, payloadSize);
+    delete[] payload;
+    return true;
+}
+#endif
+
 bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize)
 {
     StartTraceScope("HdcDaemon::DaemonSessionHandshake");
@@ -837,6 +910,12 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     // handshake auth OK.Can append the sending device information to HOST
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_INFO, "session %u handshakeOK send back CMD_KERNEL_HANDSHAKE", hSession->sessionId);
+#endif
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (handshake.authType == AUTH_SIGNATURE && hSession->connType == CONN_TCP && hSession->supportEncrypt) {
+        WRITE_LOG(LOG_INFO, "server support encrypt tcp status: %d",hSession->supportEncrypt);
+        DaemonSendPsk(hSession, channelId);
+    }
 #endif
     hSession->handshakeOK = true;
     return true;
@@ -950,6 +1029,16 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
             WRITE_LOG(LOG_INFO, "recv %s for session %u", str.c_str(), hSession->sessionId);
             break;
         }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+        case CMD_PSK_MSG: {
+            WRITE_LOG(LOG_WARN, "recv unsupport command CMD_PSK_MSG for session %u,", hSession->sessionId);
+            break;
+        }
+        case CMD_SSL_HANDSHAKE: {
+            ret = DaemonSSLHandshake(hSession, channelId, payload, payloadSize);
+            break;
+        }
+#endif
         default:
             ret = true;
             if (CheckControl(command)) {
@@ -1162,8 +1251,17 @@ void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
     string bufString = SerialStruct::SerializeToString(handshake);
     Send(sessionid, channelid, CMD_KERNEL_HANDSHAKE,
             reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    HSession hSession = AdminSession(OP_QUERY_REF, sessionid, nullptr);
+    if (hSession->connType != CONN_TCP || !hSession->supportEncrypt) {
+        uint8_t count = 1;
+        Send(sessionid, channelid, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+    }
+    --hSession->ref;
+#else
     uint8_t count = 1;
     Send(sessionid, channelid, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+#endif
 }
 void HdcDaemon::SendAuthSignMsg(SessionHandShake &handshake,
         uint32_t channelId, uint32_t sessionid, string pubkey, string token)

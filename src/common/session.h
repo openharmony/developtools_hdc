@@ -225,7 +225,7 @@ private:
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
     void StartHeartbeatWork(HSession hSession);
-    void SetHeartbeatFeature(SessionHandShake &handshake);
+    void SetFeature(SessionHandShake &handshake);
     void StopHeartbeatWork(HSession hSession);
 
     map<uint32_t, HSession> mapSession;

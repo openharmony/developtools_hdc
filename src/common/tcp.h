@@ -22,7 +22,13 @@ public:
     HdcTCPBase(const bool serverOrDaemonIn, void *ptrMainBase);
     virtual ~HdcTCPBase();
     static void ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
+    static void ReadStreamAutoBIO(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
+    bool WriteUvSslFd(uv_tcp_t *tcp, uint8_t *buf, int size, int &cnt);
     int WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size);
+    inline static int GetSSLBufLen(const int bufLen)
+    {
+        return (bufLen + (((bufLen - 1) / BUF_SIZE_DEFAULT16) + 1) * BUF_SIZE_SSL_HEAD);
+    }
 
 protected:
     virtual void RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf)

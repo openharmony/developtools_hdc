@@ -47,6 +47,7 @@ using namespace std::chrono;
 namespace Hdc {
 namespace Base {
     bool g_isBackgroundServer = false;
+    bool g_encryptTCPSwitch = false;
     string g_tempDir = "";
     uint16_t g_logFileCount = MAX_LOG_FILE_COUNT;
     bool g_heartbeatSwitch = true;
@@ -2567,6 +2568,7 @@ void CloseOpenFd(void)
 #endif
         UpdateHeartbeatSwitchCache();
         UpdateCmdLogSwitch();
+        UpdateEncrpytTCPCache();
     }
 
     const HdcFeatureSet& GetSupportFeature(void)
@@ -2616,6 +2618,22 @@ void CloseOpenFd(void)
     {
         WRITE_LOG(LOG_WARN, "turn %s heartbeatSwitch", g_heartbeatSwitch ? "On" : "Off");
         return g_heartbeatSwitch;
+    }
+
+    void UpdateEncrpytTCPCache()
+    {
+        char *envValue = getenv(ENV_ENCRYPT_CHANNEL.c_str());
+        if (!envValue || strlen(envValue) > 1) {
+            g_encryptTCPSwitch = false;
+            return;
+        }
+        g_encryptTCPSwitch = !strncmp(envValue, "1", 1);
+    }
+
+    bool GetEncrpytTCPSwitch()
+    {
+        WRITE_LOG(LOG_WARN, "turn %s encryptTCPSwitch", g_encryptTCPSwitch ? "On" : "Off");
+        return g_encryptTCPSwitch;
     }
 
     bool WriteToFile(const std::string& fileName, const std::string &content, std::ios_base::openmode mode)

@@ -2330,12 +2330,23 @@ void CloseOpenFd(void)
         DWORD bytesRead = 0;
         OVERLAPPED ov = {};
         SOCKET s = fd;
-        BOOL bWriteStat = ReadFile((HANDLE)s, buf, count, &bytesRead, &ov);
-        if (bWriteStat) {
+        BOOL bRead = ReadFile((HANDLE)s, buf, count, &bytesRead, &ov);
+        if (bRead) {
             return bytesRead;
-        } else {
+        }
+        DWORD error = GetLastError();
+        if (error != ERROR_IO_PENDING) {
+            WRITE_LOG(LOG_DEBUG, "ReadFile error:%d", error);
             return -1;
         }
+        constexpr int ms = 3000;
+        bRead = GetOverlappedResultEx((HANDLE)s, &ov, &bytesRead, ms, FALSE);
+        if (bRead) {
+            return bytesRead;
+        }
+        error = GetLastError();
+        WRITE_LOG(LOG_DEBUG, "read GetOverlappedResult error:%d", error);
+        return -1;
 #else
         return TEMP_FAILURE_RETRY(read(fd, buf, count));
 #endif
@@ -2347,12 +2358,23 @@ void CloseOpenFd(void)
         DWORD bytesWrite = 0;
         OVERLAPPED ov = {};
         SOCKET s = fd;
-        BOOL bWriteStat = WriteFile((HANDLE)s, buf, count, &bytesWrite, &ov);
-        if (bWriteStat) {
+        BOOL bWrite = WriteFile((HANDLE)s, buf, count, &bytesWrite, &ov);
+        if (bWrite) {
             return 1;
-        } else {
+        }
+        DWORD error = GetLastError();
+        if (error != ERROR_IO_PENDING) {
+            WRITE_LOG(LOG_DEBUG, "WriteFile error:%d", error);
             return -1;
         }
+        constexpr int ms = 3000;
+        bWrite = GetOverlappedResultEx((HANDLE)s, &ov, &bytesWrite, ms, FALSE);
+        if (bWrite) {
+            return 1;
+        }
+        error = GetLastError();
+        WRITE_LOG(LOG_DEBUG, "write GetOverlappedResult error:%d", error);
+        return -1;
 #else
         return TEMP_FAILURE_RETRY(write(fd, buf, count));
 #endif

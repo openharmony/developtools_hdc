@@ -73,6 +73,7 @@ enum OperateID {
 };
 
 enum RetErrCode {
+    RET_SSL_HANDSHAKE_FINISHED = 1,
     RET_SUCCESS = 0,
     ERR_GENERIC = -1,
     ERR_NO_SUPPORT = -2,

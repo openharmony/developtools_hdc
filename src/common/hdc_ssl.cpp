@@ -19,8 +19,7 @@ namespace Hdc {
 HdcSSLBase::HdcSSLBase(HSSLInfo hSSLInfo)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L
-    if (OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL) == 0)
-    {
+    if (OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL) == 0) {
         WRITE_LOG(LOG_FATAL, "OPENSSL_init_ssl");
     }
     ERR_clear_error();
@@ -37,23 +36,20 @@ HdcSSLBase::HdcSSLBase(HSSLInfo hSSLInfo)
 HdcSSLBase::~HdcSSLBase()
 {
     if (isInited) {
-        WRITE_LOG(LOG_DEBUG, "free ssl start");
-        if (SSL_shutdown(ssl)!= 1)
-        {
-            int err = SSL_get_error(ssl, SSL_shutdown(ssl));
+        if (SSL_shutdown(ssl)!= 1) {
+            SSL_get_error(ssl, SSL_shutdown(ssl));
             uint8_t buf[BUF_SIZE_DEFAULT];
             BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
-            BIO_reset(outBIO);
-            BIO_reset(inBIO);
-            WRITE_LOG(LOG_DEBUG, "SSL shutdown error %d ", err);
         }
+        BIO_reset(outBIO);
+        BIO_reset(inBIO);
         SSL_free(ssl);
         inBIO = nullptr;
         outBIO = nullptr;
         ssl = nullptr;
         SSL_CTX_free(sslCtx);
         sslCtx = nullptr;
-        WRITE_LOG(LOG_DEBUG, "SSL free finished for sid:%u", sessionId);
+        WRITE_LOG(LOG_INFO, "SSL free finished for sid:%u", sessionId);
         isInited = false;
     }
 }
@@ -67,8 +63,7 @@ void HdcSSLBase::SetSSLInfo(HSSLInfo hSSLInfo, HSession hSession)
 
 int HdcSSLBase::InitSSL()
 {
-    const SSL_METHOD *method;
-    method = SetSSLMethod();
+    const SSL_METHOD *method = SetSSLMethod();
     sslCtx = SSL_CTX_new(method);
     if (sslCtx == nullptr) {
         WRITE_LOG(LOG_FATAL, "SSL_CTX_new failed");
@@ -92,7 +87,7 @@ int HdcSSLBase::InitSSL()
 
 int HdcSSLBase::DoSSLWrite(const int bufLen, uint8_t *bufPtr)
 {
-    int retSSL = SSL_write(ssl, bufPtr, bufLen); 
+    int retSSL = SSL_write(ssl, bufPtr, bufLen);
     if (retSSL < 0) {
         WRITE_LOG(LOG_WARN, "SSL write error, ret:%d", retSSL);
         int err = SSL_get_error(ssl, retSSL);
@@ -117,7 +112,7 @@ int HdcSSLBase::Encrypt(const int bufLen, uint8_t *bufPtr)
     return retBIO;
 }
 
-int HdcSSLBase::DoSSLRead(const int bufLen, int& index, uint8_t *bufPtr)
+int HdcSSLBase::DoSSLRead(const int bufLen, int &index, uint8_t *bufPtr)
 {
     if (static_cast<int>(index + BUF_SIZE_DEFAULT16) > bufLen) {
         WRITE_LOG(LOG_FATAL, "DoSSLRead failed, buffer overwrite index: %d", index);
@@ -127,7 +122,7 @@ int HdcSSLBase::DoSSLRead(const int bufLen, int& index, uint8_t *bufPtr)
     if (nSSLRead < 0) {
         int err = SSL_get_error(ssl, nSSLRead);
         if (err == SSL_ERROR_WANT_READ) {
-            DEBUG_LOG("SSL_ERROR_WANT_READ, availTailIndex,%d ", index);
+            DEBUG_LOG("SSL_ERROR_WANT_READ, availTailIndex: %d", index);
             if (index > static_cast<int>(BUF_SIZE_DEFAULT16)) {
                 return RET_SUCCESS;
             }
@@ -192,13 +187,13 @@ bool HdcSSLBase::ClearPsk()
 {
     // NOTE: 32 is the max length of psk
     if (memset_s(preSharedKey, sizeof(preSharedKey), 0, sizeof(preSharedKey)) != EOK) {
-        WRITE_LOG(LOG_FATAL, "memset_s failed");
+        WRITE_LOG(LOG_FATAL, "ClearPsk memset_s failed");
         return false;
     }
     return true;
 }
 
-bool HdcSSLBase::InputPsk(unsigned char* psk, int pskLen)
+bool HdcSSLBase::InputPsk(unsigned char *psk, int pskLen)
 {
     if (pskLen > BUF_SIZE_PSK) {
         WRITE_LOG(LOG_FATAL, "pskLen is too long, pskLen = %d", pskLen);
@@ -221,10 +216,10 @@ bool HdcSSLBase::GenPsk()
     return true;
 }
 
-int HdcSSLBase::GetPskEncrypt(unsigned char* bufPtr, const int bufLen, const string& pubkey)
+int HdcSSLBase::GetPskEncrypt(unsigned char *bufPtr, const int bufLen, const string &pubkey)
 {
     if (bufLen < BUF_SIZE_PSK) {
-        WRITE_LOG(LOG_FATAL, "bufLen is too short, bufLen = %d", bufLen); 
+        WRITE_LOG(LOG_FATAL, "bufLen is too short, bufLen = %d", bufLen);
         return ERR_GENERIC;
     }
     unsigned char* buf = preSharedKey;
@@ -270,7 +265,7 @@ unsigned int HdcSSLBase::PskServerCallback(SSL *ssl, const char *identity, unsig
         return 0;
     }
     if (memcpy_s(psk, maxPskLen, pskInput, keyLen) != EOK) {
-        WRITE_LOG(LOG_FATAL, "memcpy failed, maxpsklen = %d, keyLen=%d ",maxPskLen,keyLen);
+        WRITE_LOG(LOG_FATAL, "memcpy failed, maxpsklen = %d, keyLen=%d", maxPskLen, keyLen);
         return 0;
     }
     return keyLen;
@@ -295,14 +290,14 @@ unsigned int HdcSSLBase::PskClientCallback(SSL *ssl, const char *hint, char *ide
         return 0;
     }
     if (memcpy_s(psk, maxPskLen, pskInput, keyLen) != EOK) {
-        WRITE_LOG(LOG_INFO, "memcpy failed, maxpsklen = %d,keyLen=%d ", maxPskLen, keyLen);
+        WRITE_LOG(LOG_INFO, "memcpy failed, maxpsklen = %d, keyLen=%d ", maxPskLen, keyLen);
         return 0;
     }
 
     return keyLen;
 }
 
-int HdcSSLBase::RsaPrikeyDecrypt(const unsigned char* inBuf, int inLen, unsigned char* outBuf)
+int HdcSSLBase::RsaPrikeyDecrypt(const unsigned char *inBuf, int inLen, unsigned char *outBuf)
 {
     int outLen = -1;
 #ifdef HDC_HOST
@@ -311,8 +306,8 @@ int HdcSSLBase::RsaPrikeyDecrypt(const unsigned char* inBuf, int inLen, unsigned
     return outLen;
 }
 
-int HdcSSLBase::RsaPubkeyEncrypt(const uint32_t sessionId, 
-    const unsigned char* inBuf, int inLen, unsigned char* outBuf, const string& pubkey)
+int HdcSSLBase::RsaPubkeyEncrypt(const uint32_t sessionId,
+    const unsigned char *inBuf, int inLen, unsigned char *outBuf, const string &pubkey)
 {
     int outLen = -1;
 #ifndef HDC_HOST
@@ -324,7 +319,7 @@ int HdcSSLBase::RsaPubkeyEncrypt(const uint32_t sessionId,
 int HdcSSLBase::PerformHandshake(vector<uint8_t> &outBuf)
 {
     if (IsHandshakeFinish()) {
-        return 1;
+        return RET_SSL_HANDSHAKE_FINISHED;
     }
     DoHandshake();
     int nread = GetOutPending();
@@ -350,5 +345,5 @@ bool HdcSSLBase::SetHandshakeLabel(HSession hSession)
     hSession->sslHandshake = true;
     return true;
 }
-} // Hdc
+} // namespace Hdc
 #endif // HDC_SUPPORT_ENCRYPT_TCP

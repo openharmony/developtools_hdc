@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (c) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,18 +12,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef HDC_DAEMON_SSL_H
-#define HDC_DAEMON_SSL_H
+#ifndef HDC_SSL_UT_H
+#define HDC_SSL_UT_H
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include "hdc_ssl.h"
+#include "host_ssl.h"
+#include "daemon_ssl.h"
 
 namespace Hdc {
-class HdcDaemonSSL : public HdcSSLBase {
+class HdcSSLTest : public testing::Test {
+protected:
+    HdcSSLTest();
+    ~HdcSSLTest() override;
+    void SetUp() override;
+    void TearDown() override;
 public:
-    explicit HdcDaemonSSL(HSSLInfo hSSLInfo);
-    ~HdcDaemonSSL();
-    const SSL_METHOD *SetSSLMethod() override;
-    bool SetPskCallback() override;
-    void SetSSLState() override;
+    static void SetUpTestCase(void);
+    static void TearDownTestCase(void);
 };
+
 } // namespace Hdc
-#endif // HDC_DAEMON_SSL_H
+#endif // HDC_SSL_UT_H

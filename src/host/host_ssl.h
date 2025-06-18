@@ -19,12 +19,11 @@
 namespace Hdc {
 class HdcHostSSL : public HdcSSLBase {
 public:
-    HdcHostSSL(HSSLInfo hSSLInfo);
+    explicit HdcHostSSL(HSSLInfo hSSLInfo);
     ~HdcHostSSL();
     const SSL_METHOD *SetSSLMethod() override;
-    void SetPskCallback() override;
+    bool SetPskCallback() override;
     void SetSSLState() override;
 };
-}
-
+} // namespace Hdc
 #endif // HDC_HOST_SSL_H

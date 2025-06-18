@@ -1015,37 +1015,35 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out)
             WRITE_LOG(LOG_FATAL, "base64 decode PreShared Key failed");
             break;
         }
-        // out = new(std::nothrow) unsigned char[BUF_SIZE_DEFAULT];
         outLen = RSA_private_decrypt(tbytes, tokenDecode, out, rsa, RSA_PKCS1_PADDING);
         if (outLen < 0) {
             WRITE_LOG(LOG_FATAL, "RSA_private_decrypt failed(%lu)", ERR_get_error());
             break;
         }
     } while (0);
-    if (!rsa) {
+    if (rsa != nullptr) {
         RSA_free(rsa);
     }
-    if (!evp) {
+    if (evp != nullptr) {
         EVP_PKEY_free(evp);
     }
     return outLen;
 }
 
 #else // DAEMON
-int RsaPubkeyEncrypt(const uint32_t sessionId, 
+int RsaPubkeyEncrypt(const uint32_t sessionId,
     const unsigned char* in, int inLen, unsigned char* out, const string& pubkey)
 {
     BIO *bio = nullptr;
     RSA *rsa = nullptr;
     int outLen = -1;
-    const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
     do {
         bio = BIO_new(BIO_s_mem());
         if (bio == nullptr) {
             WRITE_LOG(LOG_FATAL, "bio failed for session %u", sessionId);
             break;
         }
-        int wbytes = BIO_write(bio, pubkeyp, pubkey.length());
+        int wbytes = BIO_write(bio, reinterpret_cast<const unsigned char *>(pubkey.c_str()), pubkey.length());
         if (wbytes <= 0) {
             WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, sessionId);
             break;
@@ -1072,10 +1070,10 @@ int RsaPubkeyEncrypt(const uint32_t sessionId,
         }
     } while (0);
 
-    if (bio) {
+    if (bio != nullptr) {
         BIO_free(bio);
     }
-    if (rsa) {
+    if (rsa != nullptr) {
         RSA_free(rsa);
     }
     return outLen;

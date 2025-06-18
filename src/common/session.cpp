@@ -923,7 +923,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     int finalBufSize = sizeof(PayloadHead) + s.size() + dataSize;
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
     uint8_t *finayBuf = (hSession->connType == CONN_TCP && hSession->sslHandshake) ?
-        new(std::nothrow) uint8_t[HdcTCPBase::GetSSLBufLen(finalBufSize) + 1]() :
+        new(std::nothrow) uint8_t[HdcSSLBase::GetSSLBufLen(finalBufSize) + 1]() :
         new(std::nothrow) uint8_t[finalBufSize]();
 #else
     uint8_t *finayBuf = new(std::nothrow) uint8_t[finalBufSize]();
@@ -1070,6 +1070,28 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
     return indexBuf;
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool isEncrypt)
+{
+    if (isEncrypt) {
+        HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+        int ret = (hssl != nullptr) ? hssl->Decrypt(read,
+            hSession->bufSize, hSession->ioBuf, hSession->availTailIndex) : ERR_GENERIC;
+        if (ret == -SSL_ERROR_WANT_READ) {
+            return RET_SUCCESS;
+        }
+        // for the SSL_ERR_WANT_READ branch, do next read.
+        if (ret == RET_SUCCESS && FetchIOBuf(hSession, hSession->ioBuf, 0) < 0) {
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", read, hSession->sessionId);
+            ret = ERR_GENERIC;
+        }
+        return ret;
+    } else {
+        return FetchIOBuf(hSession, hSession->ioBuf, read);
+    }
+}
+#endif
+
 void HdcSessionBase::AllocCallback(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
 {
     HSession context = (HSession)handle->data;
@@ -1200,11 +1222,7 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
             return false;
         }
         Base::SetTcpOptions((uv_tcp_t *)&hSession->hChildWorkTCP);
-#ifdef HDC_SUPPORT_ENCRYPT_TCP
-        uv_read_start((uv_stream_t *)&hSession->hChildWorkTCP, AllocCallback, pTCPBase->ReadStreamAutoBIO);
-#else
         uv_read_start((uv_stream_t *)&hSession->hChildWorkTCP, AllocCallback, pTCPBase->ReadStream);
-#endif
         regOK = true;
 #ifdef HDC_SUPPORT_UART
     } else if (hSession->connType == CONN_SERIAL) { // UART

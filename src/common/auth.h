@@ -29,7 +29,7 @@ bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type);
 bool GetPublicKeyinfo(string &pubkey_info);
 int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out);
 #else
-int RsaPubkeyEncrypt(const uint32_t sessionId, 
+int RsaPubkeyEncrypt(const uint32_t sessionId,
     const unsigned char* in, int inLen, unsigned char* out, const string& pubkey);
 #endif
 

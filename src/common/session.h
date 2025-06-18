@@ -106,6 +106,9 @@ public:
     int SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo = false);
     virtual HSession AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput);
     virtual int FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read);
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    virtual int FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool isEncrypted);
+#endif
     virtual void PushAsyncMessage(const uint32_t sessionId, const uint8_t method, const void *data, const int dataSize);
     HTaskInfo AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput);
     bool DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,

@@ -2575,7 +2575,8 @@ void CloseOpenFd(void)
     {
         //hdc support feature lists
         static HdcFeatureSet feature {
-            FEATURE_HEARTBEAT
+            FEATURE_HEARTBEAT,
+            FEATURE_ENCRYPT_TCP,
         };
 
         return feature;

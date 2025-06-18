@@ -28,10 +28,13 @@ const SSL_METHOD *HdcDaemonSSL::SetSSLMethod()
     return TLS_server_method();
 }
 
-void HdcDaemonSSL::SetPskCallback()
+bool HdcDaemonSSL::SetPskCallback()
 {
-    SSL_CTX_set_ex_data(sslCtx, 0, preSharedKey);
+    if (SSL_CTX_set_ex_data(sslCtx, 0, preSharedKey) != 1) {
+        return false;
+    }
     SSL_CTX_set_psk_server_callback(sslCtx, PskServerCallback);
+    return true;
 }
 
 void HdcDaemonSSL::SetSSLState()

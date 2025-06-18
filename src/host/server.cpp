@@ -584,7 +584,7 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payl
         }
         Send(hssl->sessionId, 0, CMD_SSL_HANDSHAKE, buf.data(), buf.size());
     }
-    if (ret == 1) { // SSL handshake step 5
+    if (ret == RET_SSL_HANDSHAKE_FINISHED) { // SSL handshake step 5
         hssl->SetHandshakeLabel(hSession);
         uint8_t count = 1;
         WRITE_LOG(LOG_DEBUG, "ssl hs ok  set true");
@@ -595,41 +595,40 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payl
         }
     }
     fill(buf.begin(), buf.end(), 0);
-    return (ret >= RET_SUCCESS);
+    return ret >= RET_SUCCESS;
 }
 
 bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int payloadSize)
 {
-    if (payloadSize < 32) {
+    if (payloadSize < BUF_SIZE_PSK) {
         WRITE_LOG(LOG_WARN, "Encrypted Pre-Shared-Key payloadSize is %d", payloadSize);
         return false;
     }
-    unsigned char *out =  new (std::nothrow) unsigned char[BUF_SIZE_DEFAULT2];
-    if (out == nullptr) {
+    std::unique_ptr<unsigned char[]> out(std::make_unique<unsigned char[]>(BUF_SIZE_DEFAULT2));
+    if (!out) {
         WRITE_LOG(LOG_WARN, "new buffer failed");
         return false;
     }
-    if (memset_s(out, BUF_SIZE_DEFAULT2, 0, BUF_SIZE_DEFAULT2) != EOK) {
-        WRITE_LOG(LOG_WARN, "memset_s failed");
+    if (memset_s(out.get(), BUF_SIZE_DEFAULT2, 0, BUF_SIZE_DEFAULT2) != EOK) {
+        WRITE_LOG(LOG_WARN, "ServerSessionSSLInit memset_s failed");
         return false;
     }
     HSSLInfo hSSLInfo = new (std::nothrow) HdcSSLInfo();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     hSession->classSSL = new (std::nothrow) HdcHostSSL(hSSLInfo);
     HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
-    if (hssl == nullptr) {
+    if (!hssl) {
         WRITE_LOG(LOG_WARN, "new HdcHostSSL failed");
         return false;
     }
-    int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload), payloadSize, out);
+    int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload), payloadSize, out.get());
     if (outLen <= 0) {
         WRITE_LOG(LOG_WARN, "RsaPrivatekeyDecrypt failed, sid:%d", hSession->sessionId);
     }
-    if (!hssl->InputPsk(out, outLen)) {
+    if (!hssl->InputPsk(out.get(), outLen)) {
         WRITE_LOG(LOG_WARN, "InputPsk failed, sid:%d", hSession->sessionId);
+        return false;
     }
-    delete[] out;
-    out = nullptr;
     int initRet = hssl->InitSSL();
     if (initRet != RET_SUCCESS) {
         WRITE_LOG(LOG_WARN, "InitSSL failed");

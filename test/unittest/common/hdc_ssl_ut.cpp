@@ -125,7 +125,7 @@ int RsaPrikeyDecrypt(const unsigned char* in, int inLen, unsigned char* out, EVP
         WRITE_LOG(LOG_WARN, "Error: EVP_PKEY_get1_RSA failed %s", errbuf);
         return 0;
     }
-    int outLen = RSA_private_decrypt(inLen, in, out, rsa, RSA_PKCS1_PADDING);
+    int outLen = RSA_private_decrypt(inLen, in, out, rsa, RSA_PKCS1_OAEP_PADDING);
     RSA_free(rsa);
     return outLen;
 }
@@ -435,7 +435,7 @@ HWTEST_F(HdcSSLTest, RsaPrikeyDecryptTest001, TestSize.Level0)
     unsigned char in[BUF_SIZE_DEFAULT2] = "test data";
     int inLen = strlen((char*)in);
     unsigned char out[BUF_SIZE_DEFAULT2];
-    int ret = sslBase->RsaPrikeyDecrypt(in, inLen, out);
+    int ret = sslBase->RsaPrikeyDecrypt(in, inLen, out, BUF_SIZE_DEFAULT2);
     ASSERT_EQ(ret, ERR_GENERIC);
 }
 

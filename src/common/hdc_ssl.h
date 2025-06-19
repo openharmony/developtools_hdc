@@ -25,7 +25,7 @@ public:
     int Encrypt(const int bufLen, uint8_t *bufPtr);
     int Decrypt(const int nread, const int bufLen, uint8_t *bufPtr, int &index);
     int InitSSL();
-    static int RsaPrikeyDecrypt(const unsigned char *inBuf, int inLen, unsigned char *outBuf);
+    static int RsaPrikeyDecrypt(const unsigned char *inBuf, int inLen, unsigned char *outBuf, int outBufLen);
     uint32_t sessionId;
     int DoBIOWrite(uint8_t *bufPtr, const int nread) const;
     int DoBIORead(uint8_t *bufPtr, const int bufLen) const;
@@ -62,7 +62,7 @@ protected:
     virtual bool SetPskCallback() = 0;
     virtual void SetSSLState() = 0;
     virtual const SSL_METHOD *SetSSLMethod() = 0;
-    unsigned char preSharedKey[32]; // pre-shared key for TLS 1.3, TLS_AES_128_GCM_SHA256(password)
+    unsigned char preSharedKey[BUF_SIZE_PSK]; // pre-shared key for TLS 1.3, TLS_AES_128_GCM_SHA256(password)
     string cipher;
     SSL_CTX *sslCtx;
     SSL *ssl;

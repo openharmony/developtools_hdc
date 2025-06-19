@@ -989,7 +989,7 @@ bool RsaSignAndBase64(string &buf, AuthVerifyType type)
     return signResult;
 }
 
-int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out)
+int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize)
 {
     RSA *rsa = nullptr;
     EVP_PKEY *evp = nullptr;
@@ -1004,6 +1004,10 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out)
             WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikeyFileName.c_str());
             break;
         }
+        if (outBufSize < PSK_MAX_PSK_LEN) {
+            WRITE_LOG(LOG_FATAL, "out buffer is too small");
+            return -1;
+        }
         unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
 
         if (inLen > BUF_SIZE_DEFAULT2) {
@@ -1015,7 +1019,7 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out)
             WRITE_LOG(LOG_FATAL, "base64 decode PreShared Key failed");
             break;
         }
-        outLen = RSA_private_decrypt(tbytes, tokenDecode, out, rsa, RSA_PKCS1_PADDING);
+        outLen = RSA_private_decrypt(tbytes, tokenDecode, out, rsa, RSA_PKCS1_OAEP_PADDING);
         if (outLen < 0) {
             WRITE_LOG(LOG_FATAL, "RSA_private_decrypt failed(%lu)", ERR_get_error());
             break;
@@ -1031,9 +1035,13 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out)
 }
 
 #else // DAEMON
-int RsaPubkeyEncrypt(const uint32_t sessionId,
+int RsaPubkeyEncryptPsk(const uint32_t sessionId,
     const unsigned char* in, int inLen, unsigned char* out, const string& pubkey)
 {
+    if (out == nullptr) {
+        WRITE_LOG(LOG_FATAL, "out buf is alloc failed");
+        return -1;
+    }
     BIO *bio = nullptr;
     RSA *rsa = nullptr;
     int outLen = -1;
@@ -1053,17 +1061,13 @@ int RsaPubkeyEncrypt(const uint32_t sessionId,
             WRITE_LOG(LOG_FATAL, "rsa failed for session %u", sessionId);
             break;
         }
-        unsigned char signOri[BUF_SIZE_DEFAULT2] = { 0 };
-        int signOriSize = RSA_public_encrypt(inLen, in, signOri, rsa, RSA_PKCS1_PADDING);
-        if (signOriSize <= 0) {
+        unsigned char encryptedBuf[BUF_SIZE_DEFAULT2] = { 0 };
+        int encryptedBufSize = RSA_public_encrypt(inLen, in, encryptedBuf, rsa, RSA_PKCS1_OAEP_PADDING);
+        if (encryptedBufSize <= 0) {
             WRITE_LOG(LOG_FATAL, "encrypt PreShared Key failed");
             break;
         }
-        if (out == nullptr) {
-            WRITE_LOG(LOG_FATAL, "alloc mem failed");
-            break;
-        }
-        outLen = EVP_EncodeBlock(out, signOri, signOriSize);
+        outLen = EVP_EncodeBlock(out, encryptedBuf, encryptedBufSize);
         if (outLen <= 0) {
             WRITE_LOG(LOG_FATAL, "base64 encode PreShared Key failed");
             break;

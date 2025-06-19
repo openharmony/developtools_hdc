@@ -24,7 +24,7 @@ enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_
 
 class HdcSessionBase {
 public:
-    enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK, AUTH_FAIL };
+    enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK, AUTH_FAIL, AUTH_SSL_TLS_PSK };
     struct SessionHandShake {
         string banner; // must first index
         // auth none

@@ -85,8 +85,7 @@ private:
     bool HandDaemonAuthInit(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
-    bool DaemonSendPsk(HSession hSession, const uint32_t channelId);
-    bool DaemonSSLHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize);
+    bool DaemonSSLHandshake(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
 // deprecated, remove later
 #ifdef HDC_SUPPORT_FLASHD
 // null
@@ -97,6 +96,10 @@ private:
     bool HandDaemonAuthBypass(void);
     void SendAuthSignMsg(SessionHandShake &handshake,
             uint32_t channelId, uint32_t sessionid, string pubkey, string token);
+    void SendAuthMsg(SessionHandShake &handshake, const uint32_t channelId,
+            HSession &hSession, string pubkey);
+    void SendAuthEncryptPsk(SessionHandShake &handshake, const uint32_t channelid,
+            HSession &hSession, string pubkey);
     void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
                        uint32_t sessionid, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
     void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);

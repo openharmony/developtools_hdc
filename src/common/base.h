@@ -285,7 +285,7 @@ namespace Base {
     bool CanPrintCmd(const uint16_t command);
     void UpdateEnvCache();
     #define FEATURE_HEARTBEAT "heartbeat"
-    #define FEATURE_ENCRYPT_TCP "encrypt tcp"
+    #define FEATURE_ENCRYPT_TCP "encrypt_tcp"
     using HdcFeatureSet = std::vector<std::string>;
     const HdcFeatureSet& GetSupportFeature(void);
     std::string FeatureToString(const HdcFeatureSet& feature);

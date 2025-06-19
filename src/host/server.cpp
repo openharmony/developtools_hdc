@@ -495,6 +495,13 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             WRITE_LOG(LOG_INFO, "response auth signture success");
             return true;
         }
+        case AUTH_SSL_TLS_PSK: {
+            if (hSession->classSSL == nullptr && !ServerSessionSSLInit(hSession, handshake)) {
+                WRITE_LOG(LOG_FATAL, "SSL init failed");
+                return false;
+            }
+            return ServerSSLHandshake(hSession, handshake);
+        }
         default:
             WRITE_LOG(LOG_FATAL, "invalid auth type %d", handshake.authType);
             return false;
@@ -557,7 +564,7 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
 // host(ok) <--(TLS handshake change cipher)--- hdcd(ok) step 4
 // host(ok) ---(encrypted: CHANNEL_CLOSE   )--> hdcd(ok) step 5
 // host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
-bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payloadSize)
+bool HdcServer::ServerSSLHandshake(HSession hSession, SessionHandShake &handshake)
 {
     if (hSession->classSSL == nullptr) {
         WRITE_LOG(LOG_DEBUG, "ssl is nullptr");
@@ -568,7 +575,9 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payl
         WRITE_LOG(LOG_WARN, "hssl is null");
         return false;
     }
-    if (payloadSize > 0) {
+    if (handshake.buf.size() != 0) {
+        uint8_t *payload = reinterpret_cast<uint8_t*>(handshake.buf.data());
+        int payloadSize = handshake.buf.size();
         int retw = hssl->DoBIOWrite(payload, payloadSize);
         if (retw != payloadSize) {
             WRITE_LOG(LOG_DEBUG, "BIO_write failed");
@@ -582,7 +591,10 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payl
             WRITE_LOG(LOG_WARN, "SSL PerformHandshake failed, buffer data size is 0");
             return false;
         }
-        Send(hssl->sessionId, 0, CMD_SSL_HANDSHAKE, buf.data(), buf.size());
+        handshake.buf.assign(buf.begin(), buf.end());
+        string bufString = SerialStruct::SerializeToString(handshake);
+        Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
+             reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
     }
     if (ret == RET_SSL_HANDSHAKE_FINISHED) { // SSL handshake step 5
         hssl->SetHandshakeLabel(hSession);
@@ -598,8 +610,11 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payl
     return ret >= RET_SUCCESS;
 }
 
-bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int payloadSize)
+bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handshake)
 {
+    WRITE_LOG(LOG_INFO, "ServerSession SSL Init");
+    int payloadSize = handshake.buf.size();
+    uint8_t *payload = reinterpret_cast<uint8_t*>(handshake.buf.data());
     if (payloadSize < BUF_SIZE_PSK) {
         WRITE_LOG(LOG_WARN, "Encrypted Pre-Shared-Key payloadSize is %d", payloadSize);
         return false;
@@ -625,7 +640,8 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int pa
         WRITE_LOG(LOG_WARN, "new HdcHostSSL failed");
         return false;
     }
-    int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload), payloadSize, out.get());
+    int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload),
+        payloadSize, out.get(), BUF_SIZE_DEFAULT2);
     if (outLen <= 0) {
         WRITE_LOG(LOG_WARN, "RsaPrivatekeyDecrypt failed, sid:%d", hSession->sessionId);
         return false;
@@ -639,8 +655,7 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int pa
         WRITE_LOG(LOG_WARN, "InitSSL failed");
         return false;
     }
-    uint8_t count = 1;
-    ServerSSLHandshake(hSession, &count, 0);
+    handshake.buf.clear();
     return true;
 }
 #endif
@@ -689,18 +704,6 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
                   hSession->connType, hSession->sessionId);
         return ret;
     }
-#ifdef HDC_SUPPORT_ENCRYPT_TCP
-    if (command == CMD_SSL_HANDSHAKE) {
-        WRITE_LOG(LOG_INFO, "Session get ssl handshake, sid:%u", hSession->sessionId);
-        ret = ServerSSLHandshake(hSession, payload, payloadSize);
-        return ret;
-    }
-    if (command == CMD_PSK_MSG) {
-        WRITE_LOG(LOG_INFO, "Session get psk message, sid:%u", hSession->sessionId);
-        ret = ServerSessionSSLInit(hSession, payload, payloadSize);
-        return ret;
-    }
-#endif
     if (command == CMD_HEARTBEAT_MSG) {
         // heartbeat msg
         std::string str = hSession->heartbeat.HandleRecvHeartbeatMsg(payload, payloadSize);

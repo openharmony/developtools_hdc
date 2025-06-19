@@ -53,7 +53,7 @@ enum UartSetSerialNStop {
 enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
 const std::string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
 
-enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, UNKNOWN = 100 };
+enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, PSK_TLS_AES_128_GCM_SHA256 = 2, UNKNOWN = 100 };
 
 enum OperateID {
     OP_ADD,
@@ -113,7 +113,8 @@ enum RetErrCode {
     ERR_PROCESS_SUB_FAIL = -21000,
     ERR_PRIVELEGE_NEED = -22000,
     ERR_ENCRYPT = -23000,
-    ERR_DECRYPT,
+    ERR_DECRYPT = -23001,
+    ERR_DECRYPT_WANT_READ = -23002,
 };
 
 // Flags shared by multiple modules
@@ -213,7 +214,6 @@ enum HdcCommand {
 
     //Heartbeat commands
     CMD_HEARTBEAT_MSG = 5000,
-    CMD_PSK_MSG = 5001,
 };
 
 enum UsbProtocolOption {

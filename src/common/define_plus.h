@@ -259,7 +259,7 @@ struct HdcSession {
     AuthVerifyType verifyType;
     bool isSoftReset; // for daemon, Used to record whether a reset command has been received
     HdcHeartbeat heartbeat;
-    bool supportEncrypt;
+    bool supportEncrypt = false;
     uv_timer_t heartbeatTimer;
 
     HdcSessionStat stat;

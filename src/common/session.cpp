@@ -1077,7 +1077,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool
         HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
         int ret = (hssl != nullptr) ? hssl->Decrypt(read,
             hSession->bufSize, hSession->ioBuf, hSession->availTailIndex) : ERR_GENERIC;
-        if (ret == -SSL_ERROR_WANT_READ) {
+        if (ret == ERR_DECRYPT_WANT_READ) {
             return RET_SUCCESS;
         }
         // for the SSL_ERR_WANT_READ branch, do next read.

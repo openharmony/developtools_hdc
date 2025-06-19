@@ -60,6 +60,7 @@ constexpr uint8_t FEATURE_FLAG_MAX_SIZE = 8;
 constexpr uint16_t TIME_BUF_SIZE = 32;
 constexpr uint16_t BUF_SIZE_SSL_HEAD = 22; // 22: SSL head size
 constexpr uint16_t BUF_SIZE_PSK = 32; // 32: PreShared Key size
+constexpr uint16_t BUF_SIZE_PSK_ENCRYPTED = 512;
 constexpr uint16_t BUF_SIZE_MICRO = 16;
 constexpr uint16_t BUF_SIZE_TINY = 64;
 constexpr uint16_t BUF_SIZE_SMALL = 256;

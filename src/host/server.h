@@ -63,8 +63,8 @@ private:
     string GetDaemonMapList(uint8_t opType);
     void UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, HSession &hSession);
     bool ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize);
-    bool ServerSSLHandshake(HSession hSession, uint8_t *payload, int payloadSize);
-    bool ServerSessionSSLInit(HSession hSession, uint8_t *payload, int payloadSize);
+    bool ServerSSLHandshake(HSession hSession, SessionHandShake &handshake);
+    bool ServerSessionSSLInit(HSession hSession, SessionHandShake &handshake);
     void GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut);
     void TryStopInstance();
     static bool PullupServerWin32(const char *path, const char *listenString);

@@ -19,7 +19,7 @@
 namespace Hdc {
 class HdcSSLBase {
 public:
-    explicit HdcSSLBase(HSSLInfo hSSLInfo);
+    explicit HdcSSLBase(const HSSLInfo &hSSLInfo);
     HdcSSLBase(const HdcSSLBase&) = delete;
     virtual ~HdcSSLBase();
     int Encrypt(const int bufLen, uint8_t *bufPtr);

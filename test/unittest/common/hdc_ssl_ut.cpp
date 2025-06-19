@@ -25,7 +25,7 @@ public:
     MOCK_METHOD0(IsHandshakeFinish, bool());
     MOCK_METHOD0(ShowSSLInfo, void());
 public:
-    explicit MockHdcSSLBase(HSSLInfo hSSLInfo) : HdcSSLBase(hSSLInfo)
+    explicit MockHdcSSLBase(const HSSLInfo &hSSLInfo) : HdcSSLBase(hSSLInfo)
     {
     }
 
@@ -118,6 +118,13 @@ EVP_PKEY* ReadPrivateKeyFromString(const std::string& privateKeyPEM)
 int RsaPrikeyDecrypt(const unsigned char* in, int inLen, unsigned char* out, EVP_PKEY* priKey)
 {
     RSA *rsa = EVP_PKEY_get1_RSA(priKey);
+    if (!rsa) {
+        unsigned long err = ERR_get_error();
+        char errbuf[120];
+        ERR_error_string_n(err, errbuf, sizeof(errbuf));
+        WRITE_LOG(LOG_WARN, "Error: EVP_PKEY_get1_RSA failed %s", errbuf);
+        return 0;
+    }
     int outLen = RSA_private_decrypt(inLen, in, out, rsa, RSA_PKCS1_PADDING);
     RSA_free(rsa);
     return outLen;
@@ -369,6 +376,9 @@ HWTEST_F(HdcSSLTest, PskServerCallbackTest001, TestSize.Level0)
     unsigned int validLen = 0; // 无效的keyLen
     ASSERT_EQ(HdcSSLBase::PskServerCallback(ssl, STR_PSK_IDENTITY.c_str(), psk, validLen), 0);
     ASSERT_EQ(HdcSSLBase::PskServerCallback(ssl, identityValid, psk, maxPskLen), 0);
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    SSL_CTX_free(sslCtx);
 }
 
 /**
@@ -527,7 +537,7 @@ HWTEST_F(HdcSSLTest, SetHandshakeLabelTest002, TestSize.Level0)
 
 /**
  * @tc.name: GetPskEncryptTest001
- * @tc.desc: test GetPskEncrypt function return payloadSiz
+ * @tc.desc: test GetPskEncrypt function using generated public key and private key
  * @tc.type: FUNC
  */
 HWTEST_F(HdcSSLTest, GetPskEncryptTest001, TestSize.Level0)
@@ -547,6 +557,7 @@ HWTEST_F(HdcSSLTest, GetPskEncryptTest001, TestSize.Level0)
     unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
     std::unique_ptr<unsigned char[]> out(std::make_unique<unsigned char[]>(BUF_SIZE_DEFAULT2));
     int tbytes = EVP_DecodeBlock(tokenDecode, payload.get(), payloadSize);
+    ASSERT_TRUE(tbytes > 0);
     EVP_PKEY *priKey = ReadPrivateKeyFromString(privateKey);
     int outLen = RsaPrikeyDecrypt(tokenDecode, tbytes, out.get(), priKey);
     ASSERT_EQ(outLen, BUF_SIZE_PSK);

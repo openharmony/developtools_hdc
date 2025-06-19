@@ -587,7 +587,7 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, uint8_t *payload, int payl
     if (ret == RET_SSL_HANDSHAKE_FINISHED) { // SSL handshake step 5
         hssl->SetHandshakeLabel(hSession);
         uint8_t count = 1;
-        WRITE_LOG(LOG_DEBUG, "ssl hs ok  set true");
+        WRITE_LOG(LOG_DEBUG, "ssl handshake finished, SetHandshakeLabel");
         Send(hssl->sessionId, 0, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
         if (!hssl->ClearPsk()) {
             WRITE_LOG(LOG_WARN, "clear Pre Shared Key failed");
@@ -614,6 +614,10 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int pa
         return false;
     }
     HSSLInfo hSSLInfo = new (std::nothrow) HdcSSLInfo();
+    if (!hSSLInfo) {
+        WRITE_LOG(LOG_WARN, "new HSSLInfo failed");
+        return false;
+    }
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     hSession->classSSL = new (std::nothrow) HdcHostSSL(hSSLInfo);
     HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
@@ -624,6 +628,7 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, uint8_t *payload, int pa
     int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload), payloadSize, out.get());
     if (outLen <= 0) {
         WRITE_LOG(LOG_WARN, "RsaPrivatekeyDecrypt failed, sid:%d", hSession->sessionId);
+        return false;
     }
     if (!hssl->InputPsk(out.get(), outLen)) {
         WRITE_LOG(LOG_WARN, "InputPsk failed, sid:%d", hSession->sessionId);

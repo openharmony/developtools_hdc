@@ -15,7 +15,7 @@
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
 #include "host_ssl.h"
 namespace Hdc {
-HdcHostSSL::HdcHostSSL(HSSLInfo hSSLInfo) : HdcSSLBase(hSSLInfo)
+HdcHostSSL::HdcHostSSL(const HSSLInfo &hSSLInfo) : HdcSSLBase(hSSLInfo)
 {
 }
 

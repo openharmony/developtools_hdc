@@ -16,7 +16,7 @@
 #include "hdc_ssl.h"
 
 namespace Hdc {
-HdcSSLBase::HdcSSLBase(HSSLInfo hSSLInfo)
+HdcSSLBase::HdcSSLBase(const HSSLInfo &hSSLInfo)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L
     if (OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL) == 0) {
@@ -96,7 +96,6 @@ int HdcSSLBase::DoSSLWrite(const int bufLen, uint8_t *bufPtr)
         } else {
             WRITE_LOG(LOG_WARN, "SSL write error, ret:%d, err:%d", retSSL, err);
         }
-        return retSSL;
     }
     return retSSL;
 }
@@ -260,12 +259,12 @@ unsigned int HdcSSLBase::PskServerCallback(SSL *ssl, const char *identity, unsig
         return 0;
     }
     unsigned int keyLen = BUF_SIZE_PSK;
-    if (keyLen <= 0 || keyLen > maxPskLen) {
-        WRITE_LOG(LOG_FATAL, "Server PSK key length invalid, keyLen = %d", keyLen);
+    if (keyLen > maxPskLen) {
+        WRITE_LOG(LOG_FATAL, "Server PSK key length invalid, maxpsklen = %d, keyLen = %d", maxPskLen, keyLen);
         return 0;
     }
     if (memcpy_s(psk, maxPskLen, pskInput, keyLen) != EOK) {
-        WRITE_LOG(LOG_FATAL, "memcpy failed, maxpsklen = %d, keyLen=%d", maxPskLen, keyLen);
+        WRITE_LOG(LOG_FATAL, "memcpy failed, maxpsklen = %d, keyLen = %d", maxPskLen, keyLen);
         return 0;
     }
     return keyLen;
@@ -276,7 +275,7 @@ unsigned int HdcSSLBase::PskClientCallback(SSL *ssl, const char *hint, char *ide
 {
     SSL_CTX *sslctx = SSL_get_SSL_CTX(ssl);
     unsigned char *pskInput = reinterpret_cast<unsigned char*>(SSL_CTX_get_ex_data(sslctx, 0));
-    if (sizeof(STR_PSK_IDENTITY) >= maxIdentityLen) {
+    if (STR_PSK_IDENTITY.size() >= maxIdentityLen) {
         WRITE_LOG(LOG_FATAL, "Client identity buffer too small, maxIdentityLen = %d", maxIdentityLen);
         return 0;
     }
@@ -285,12 +284,12 @@ unsigned int HdcSSLBase::PskClientCallback(SSL *ssl, const char *hint, char *ide
         return 0;
     }
     unsigned int keyLen = BUF_SIZE_PSK;
-    if (keyLen <= 0 || keyLen > maxPskLen) {
-        WRITE_LOG(LOG_FATAL, "Client PSK key length invalid, keyLen = %d", keyLen);
+    if (keyLen > maxPskLen) {
+        WRITE_LOG(LOG_FATAL, "Client PSK key length invalid, maxpsklen = %d, keyLen = %d", maxPskLen, keyLen);
         return 0;
     }
     if (memcpy_s(psk, maxPskLen, pskInput, keyLen) != EOK) {
-        WRITE_LOG(LOG_INFO, "memcpy failed, maxpsklen = %d, keyLen=%d ", maxPskLen, keyLen);
+        WRITE_LOG(LOG_INFO, "memcpy failed, maxpsklen = %d, keyLen = %d", maxPskLen, keyLen);
         return 0;
     }
 
@@ -332,6 +331,18 @@ int HdcSSLBase::PerformHandshake(vector<uint8_t> &outBuf)
     if (outLen < 0) {
         WRITE_LOG(LOG_WARN, "BIO_read failed");
         return ERR_GENERIC;
+    }
+    while (outLen < nread) {
+        int tempLen = DoBIORead(outBuf.data() + outLen, nread - outLen);
+        if (tempLen > 0) {
+            outLen += tempLen;
+            WRITE_LOG(LOG_WARN, "PerformHandshake BIO_read left data size %d", tempLen);
+        } else if (tempLen == 0) {
+            break;
+        } else {
+            WRITE_LOG(LOG_FATAL, "DoBIORead failed");
+            return ERR_GENERIC;
+        }
     }
     return RET_SUCCESS;
 }

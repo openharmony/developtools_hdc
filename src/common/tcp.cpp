@@ -110,14 +110,13 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     }
 }
 
-#ifdef HDC_SUPPORT_ENCRYPT_TCP
 bool HdcTCPBase::WriteUvSslFd(uv_tcp_t *tcp, uint8_t *buf, int size, int &cnt)
 {
     if (!tcp || !buf || size < 0 ||cnt < 0) {
         WRITE_LOG(LOG_FATAL, "WriteUvSslFd error, input parameter abnormal.");
         return false;
     }
-
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
     HSession hSession = reinterpret_cast<HSession>(tcp->data);
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "WriteUvSslFd error, hSession is null.");
@@ -139,22 +138,19 @@ bool HdcTCPBase::WriteUvSslFd(uv_tcp_t *tcp, uint8_t *buf, int size, int &cnt)
         WRITE_LOG(LOG_FATAL, "WriteSSL error, cnt:%d", cnt);
         return false;
     }
-
+#endif
     return true;
 }
-#endif
 
 int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
 {
     std::lock_guard<std::mutex> lock(writeTCPMutex);
     uint8_t *data = buf;
     int cnt = size;
-#ifdef HDC_SUPPORT_ENCRYPT_TCP
     if (!WriteUvSslFd(tcp, buf, size, cnt)) {
         delete[] buf;
         return ERR_GENERIC;
     }
-#endif
     uv_os_fd_t uvfd;
     uv_fileno(reinterpret_cast<uv_handle_t*>(tcp), &uvfd);
 #ifdef _WIN32

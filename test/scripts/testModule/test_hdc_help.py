@@ -28,5 +28,6 @@ class TestHdcHelp:
     def test_hdc_help_verbose_heartbeat(self):
         _, error = get_cmd_block_output_and_error(f"{GP.hdc_head} -h verbose")
         assert "OHOS_HDC_HEARTBEAT" in error
+        assert "OHOS_HDC_ENCRYPT_CHANNEL" in error
 
         assert check_hdc_cmd("help verbose", "OHOS_HDC_HEARTBEAT")

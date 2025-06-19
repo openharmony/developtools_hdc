@@ -790,7 +790,6 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
     GetServerCapability(hSession, handshake);
 }
 
-#ifdef HDC_SUPPORT_ENCRYPT_TCP
 // host(  ) ---(TLS handshake client hello )--> hdcd(  ) step 1
 // host(  ) <--(TLS handshake server hello )--- hdcd(  ) step 2
 // host(ok) ---(TLS handshake change cipher)--> hdcd(  ) step 3
@@ -799,6 +798,7 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
 // host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
 bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, uint8_t *payload, int payloadSize)
 {
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
     if (!hSession->classSSL) {
         WRITE_LOG(LOG_WARN, "DaemonSSLHandshake classSSL is nullptr");
         return false;
@@ -829,9 +829,14 @@ bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, 
         ret = ERR_GENERIC;
     }
     fill(buf.begin(), buf.end(), 0);
-    return ret >= RET_SUCCESS;
+    return ret == RET_SUCCESS;
+#else
+    WRITE_LOG(LOG_WARN, "DaemonSSLHandshake not support");
+    return false;
+#endif
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
 bool HdcDaemon::DaemonSendPsk(HSession hSession, const uint32_t channelId)
 {
     if (!hSession->classSSL) {
@@ -1030,12 +1035,10 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
             WRITE_LOG(LOG_INFO, "recv %s for session %u", str.c_str(), hSession->sessionId);
             break;
         }
-#ifdef HDC_SUPPORT_ENCRYPT_TCP
         case CMD_SSL_HANDSHAKE: {
             ret = DaemonSSLHandshake(hSession, channelId, payload, payloadSize);
             break;
         }
-#endif
         default:
             ret = true;
             if (CheckControl(command)) {

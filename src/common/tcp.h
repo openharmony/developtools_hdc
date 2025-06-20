@@ -22,6 +22,7 @@ public:
     HdcTCPBase(const bool serverOrDaemonIn, void *ptrMainBase);
     virtual ~HdcTCPBase();
     static void ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
+    bool WriteUvSslFd(uv_tcp_t *tcp, uint8_t *buf, int size, int &cnt);
     int WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size);
 
 protected:

@@ -20,24 +20,33 @@
 #include <atomic>
 #include <cctype>
 #include <cinttypes>
+#include <condition_variable>
 #include <cstdarg>
 #include <ctime>
-#include <condition_variable>
 #include <fcntl.h>
 #include <functional>
 #include <list>
-#include <map>
-#include <mutex>
-#include <queue>
-#include <set>
-#include <string>
-#include <stdio.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <unordered_set>
 #ifdef CONFIG_USE_JEMALLOC_DFX_INIF
 #include <malloc.h>
 #endif
+#include <map>
+#include <mutex>
+#include <openssl/crypto.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/pem.h>
+#include <openssl/rand.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+#include <openssl/ssl.h>
+#include <queue>
+#include <set>
+#include <stdio.h>
+#include <string>
+#include <sys/types.h>
+#include <unistd.h>
+#include <unordered_set>
 #include <vector>
 
 using std::condition_variable;
@@ -73,6 +82,9 @@ using std::vector;
 #include "debug.h"
 #include "base.h"
 #include "task.h"
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+#include "hdc_ssl.h"
+#endif
 #include "channel.h"
 #include "session.h"
 #include "auth.h"

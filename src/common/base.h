@@ -285,6 +285,7 @@ namespace Base {
     bool CanPrintCmd(const uint16_t command);
     void UpdateEnvCache();
     #define FEATURE_HEARTBEAT "heartbeat"
+    #define FEATURE_ENCRYPT_TCP "encrypt_tcp"
     using HdcFeatureSet = std::vector<std::string>;
     const HdcFeatureSet& GetSupportFeature(void);
     std::string FeatureToString(const HdcFeatureSet& feature);
@@ -297,6 +298,8 @@ namespace Base {
     bool GetCmdLogSwitch();
     std::string CmdLogStringFormat(uint32_t targetSessionId, const std::string& cmdStr);
     void ProcessCmdLogs();
+    void UpdateEncrpytTCPCache();
+    bool GetEncrpytTCPSwitch();
 }  // namespace base
 }  // namespace Hdc
 

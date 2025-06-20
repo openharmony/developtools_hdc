@@ -24,7 +24,7 @@ enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_
 
 class HdcSessionBase {
 public:
-    enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK, AUTH_FAIL };
+    enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK, AUTH_FAIL, AUTH_SSL_TLS_PSK };
     struct SessionHandShake {
         string banner; // must first index
         // auth none
@@ -106,6 +106,9 @@ public:
     int SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo = false);
     virtual HSession AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput);
     virtual int FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read);
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    virtual int FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool isEncrypted);
+#endif
     virtual void PushAsyncMessage(const uint32_t sessionId, const uint8_t method, const void *data, const int dataSize);
     HTaskInfo AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput);
     bool DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
@@ -225,7 +228,7 @@ private:
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
     void StartHeartbeatWork(HSession hSession);
-    void SetHeartbeatFeature(SessionHandShake &handshake);
+    void SetFeature(SessionHandShake &handshake);
     void StopHeartbeatWork(HSession hSession);
 
     map<uint32_t, HSession> mapSession;

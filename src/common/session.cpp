@@ -921,7 +921,13 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     payloadHead.headSize = htons(s.size());
     payloadHead.dataSize = htonl(dataSize);
     int finalBufSize = sizeof(PayloadHead) + s.size() + dataSize;
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    uint8_t *finayBuf = (hSession->connType == CONN_TCP && hSession->sslHandshake) ?
+        new(std::nothrow) uint8_t[HdcSSLBase::GetSSLBufLen(finalBufSize) + 1]() :
+        new(std::nothrow) uint8_t[finalBufSize]();
+#else
     uint8_t *finayBuf = new(std::nothrow) uint8_t[finalBufSize]();
+#endif
     if (finayBuf == nullptr) {
         WRITE_LOG(LOG_WARN, "send allocmem err");
         --hSession->ref;
@@ -1066,6 +1072,28 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
     return indexBuf;
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool isEncrypt)
+{
+    if (isEncrypt) {
+        HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+        int ret = (hssl != nullptr) ? hssl->Decrypt(read,
+            hSession->bufSize, hSession->ioBuf, hSession->availTailIndex) : ERR_GENERIC;
+        if (ret == ERR_DECRYPT_WANT_READ) {
+            return RET_SUCCESS;
+        }
+        // for the SSL_ERR_WANT_READ branch, do next read.
+        if (ret == RET_SUCCESS && FetchIOBuf(hSession, hSession->ioBuf, 0) < 0) {
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", read, hSession->sessionId);
+            ret = ERR_GENERIC;
+        }
+        return ret;
+    } else {
+        return FetchIOBuf(hSession, hSession->ioBuf, read);
+    }
+}
+#endif
+
 void HdcSessionBase::AllocCallback(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
 {
     HSession context = (HSession)handle->data;
@@ -1141,13 +1169,22 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
     delete[] buf;
 }
 
-void HdcSessionBase::SetHeartbeatFeature(SessionHandShake &handshake)
+void HdcSessionBase::SetFeature(SessionHandShake &handshake)
 {
-    if (!Base::GetheartbeatSwitch()) {
+    Base::HdcFeatureSet feature = {};
+    if (Base::GetheartbeatSwitch()) {
+        feature.push_back(FEATURE_HEARTBEAT);
+    }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (Base::GetEncrpytTCPSwitch()) {
+        feature.push_back(FEATURE_ENCRYPT_TCP);
+    }
+#endif
+    // told daemon, we support features
+    if (feature.size() == 0) {
         return;
     }
-    // told daemon, we support features
-    Base::TlvAppend(handshake.buf, TAG_SUPPORT_FEATURE, Base::FeatureToString(Base::GetSupportFeature()));
+    Base::TlvAppend(handshake.buf, TAG_SUPPORT_FEATURE, Base::FeatureToString(feature));
 }
 
 void HdcSessionBase::WorkThreadInitSession(HSession hSession, SessionHandShake &handshake)
@@ -1163,7 +1200,7 @@ void HdcSessionBase::WorkThreadInitSession(HSession hSession, SessionHandShake &
     // told daemon, we support RSA_3072_SHA512 auth
     Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
-    hSessionBase->SetHeartbeatFeature(handshake);
+    hSessionBase->SetFeature(handshake);
 }
 
 bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
@@ -1566,6 +1603,9 @@ void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::
             tlvMap[TAG_SUPPORT_FEATURE].c_str(), hSession->sessionId);
         Base::SplitString(tlvMap[TAG_SUPPORT_FEATURE], ",", features);
         hSession->heartbeat.SetSupportHeartbeat(Base::IsSupportFeature(features, FEATURE_HEARTBEAT));
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+        hSession->supportEncrypt = Base::IsSupportFeature(features, FEATURE_ENCRYPT_TCP);
+#endif
     }
 }
 }  // namespace Hdc

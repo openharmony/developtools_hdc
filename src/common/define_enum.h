@@ -53,7 +53,7 @@ enum UartSetSerialNStop {
 enum ConnStatus { STATUS_UNKNOW = 0, STATUS_READY, STATUS_CONNECTED, STATUS_OFFLINE, STATUS_UNAUTH };
 const std::string conStatusDetail[] = { "Unknown", "Ready", "Connected", "Offline", "Unauthorized" };
 
-enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, UNKNOWN = 100 };
+enum AuthVerifyType { RSA_ENCRYPT = 0, RSA_3072_SHA512 = 1, PSK_TLS_AES_128_GCM_SHA256 = 2, UNKNOWN = 100 };
 
 enum OperateID {
     OP_ADD,
@@ -73,6 +73,7 @@ enum OperateID {
 };
 
 enum RetErrCode {
+    RET_SSL_HANDSHAKE_FINISHED = 1,
     RET_SUCCESS = 0,
     ERR_GENERIC = -1,
     ERR_NO_SUPPORT = -2,
@@ -111,6 +112,9 @@ enum RetErrCode {
     ERR_THREAD_MUTEX_FAIL = -20000,
     ERR_PROCESS_SUB_FAIL = -21000,
     ERR_PRIVELEGE_NEED = -22000,
+    ERR_ENCRYPT = -23000,
+    ERR_DECRYPT = -23001,
+    ERR_DECRYPT_WANT_READ = -23002,
 };
 
 // Flags shared by multiple modules
@@ -147,6 +151,7 @@ enum HdcCommand {
     CMD_WAIT_FOR,
     CMD_SERVER_KILL,  // channel kill, not use
     CMD_SERVICE_START = 17,
+    CMD_SSL_HANDSHAKE = 20,
     // One-pass simple commands
     CMD_UNITY_COMMAND_HEAD = 1000,  // not use
     CMD_UNITY_EXECUTE,

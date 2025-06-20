@@ -77,44 +77,69 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     CALLSTAT_GUARD(hSession->childLoopStatus, tcp->loop, "HdcTCPBase::ReadStream");
     bool ret = false;
     while (true) {
-        if (nread == UV_ENOBUFS) {
-            WRITE_LOG(LOG_WARN, "Session IOBuf max, sid:%u", hSession->sessionId);
-#ifdef HDC_HOST
-            hSession->isRunningOk = false;
-            char buffer[BUF_SIZE_DEFAULT] = { 0 };
-            uv_strerror_r(static_cast<int>(nread), buffer, BUF_SIZE_DEFAULT);
-            hSession->faultInfo = buffer;
-#endif
-            break;
-        } else if (nread < 0) {
-            // I originally in the IO main thread, no need to send asynchronous messages, close the socket as soon as
-            // possible
-            constexpr int bufSize = 1024;
-            char buffer[bufSize] = { 0 };
-            uv_strerror_r(static_cast<int>(nread), buffer, bufSize);
-#ifdef HDC_HOST
-            hSession->isRunningOk = false;
-            hSession->faultInfo = buffer;
-#endif
-            WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%u", buffer, hSession->sessionId);
+        if (nread < 0) {
             break;
         }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+        if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread, hSession->sslHandshake) < 0) {
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+            break;
+        }
+#else
         if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
             WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
-#ifdef HDC_HOST
-            hSession->isRunningOk = false;
-            hSession->faultInfo = "package parse error";
-#endif
             break;
         }
+#endif
         ret = true;
         break;
     }
     if (!ret) {
+        char buffer[BUF_SIZE_DEFAULT] = { 0 };
+        if (nread < 0) {
+            uv_strerror_r(static_cast<int>(nread), buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%u", buffer, hSession->sessionId);
+        }
+#ifdef HDC_HOST
+        hSession->isRunningOk = false;
+        hSession->faultInfo = (nread < 0) ? buffer : "package parse error";
+#endif
         // The first time is closed first, prevent the write function from continuing to write
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(tcp));
         hSessionBase->FreeSession(hSession->sessionId);
     }
+}
+
+bool HdcTCPBase::WriteUvSslFd(uv_tcp_t *tcp, uint8_t *buf, int size, int &cnt)
+{
+    if (!tcp || !buf || size < 0 ||cnt < 0) {
+        WRITE_LOG(LOG_FATAL, "WriteUvSslFd error, input parameter abnormal.");
+        return false;
+    }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    HSession hSession = reinterpret_cast<HSession>(tcp->data);
+    if (!hSession) {
+        WRITE_LOG(LOG_FATAL, "WriteUvSslFd error, hSession is null.");
+        return false;
+    }
+
+    if (!hSession->sslHandshake) { // plaintext tcp transfer.
+        return true;
+    }
+
+    HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+    if (!hssl) {
+        WRITE_LOG(LOG_FATAL, "WriteUvSslFd error, hssl is null.");
+        return false;
+    }
+
+    cnt = hssl->Encrypt(size, buf);
+    if (cnt < 0) {
+        WRITE_LOG(LOG_FATAL, "WriteSSL error, cnt:%d", cnt);
+        return false;
+    }
+#endif
+    return true;
 }
 
 int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
@@ -122,6 +147,10 @@ int HdcTCPBase::WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size)
     std::lock_guard<std::mutex> lock(writeTCPMutex);
     uint8_t *data = buf;
     int cnt = size;
+    if (!WriteUvSslFd(tcp, buf, size, cnt)) {
+        delete[] buf;
+        return ERR_GENERIC;
+    }
     uv_os_fd_t uvfd;
     uv_fileno(reinterpret_cast<uv_handle_t*>(tcp), &uvfd);
 #ifdef _WIN32

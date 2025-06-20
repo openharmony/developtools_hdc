@@ -41,6 +41,9 @@ const string ENV_SERVER_PORT = "OHOS_HDC_SERVER_PORT";
 const string ENV_SERVER_LOG = "OHOS_HDC_LOG_LEVEL";
 const string ENV_SERVER_LOG_LIMIT = "OHOS_HDC_LOG_LIMIT";
 const string ENV_SERVER_HEARTBEAT = "OHOS_HDC_HEARTBEAT"; // 1: turn off heartbeat
+const string ENV_ENCRYPT_CHANNEL = "OHOS_HDC_ENCRYPT_CHANNEL"; // 1: turn on encrypt channel
+const string STR_PSK_IDENTITY = "Client_identity";
+const string TLS_AES_128_GCM_SHA256 = "TLS_AES_128_GCM_SHA256";
 
 // ################################ macro define ###################################
 constexpr uint8_t MINOR_TIMEOUT = 5;
@@ -55,6 +58,9 @@ constexpr uint8_t STREAM_WORK = 1;  // work at work thread
 constexpr uint8_t STREAM_SIZE = 2;
 constexpr uint8_t FEATURE_FLAG_MAX_SIZE = 8;
 constexpr uint16_t TIME_BUF_SIZE = 32;
+constexpr uint16_t BUF_SIZE_SSL_HEAD = 22; // 22: SSL head size
+constexpr uint16_t BUF_SIZE_PSK = 32; // 32: PreShared Key size
+constexpr uint16_t BUF_SIZE_PSK_ENCRYPTED = 512;
 constexpr uint16_t BUF_SIZE_MICRO = 16;
 constexpr uint16_t BUF_SIZE_TINY = 64;
 constexpr uint16_t BUF_SIZE_SMALL = 256;
@@ -62,6 +68,7 @@ constexpr uint16_t BUF_SIZE_MEDIUM = 512;
 constexpr uint16_t BUF_SIZE_DEFAULT = 1024;
 constexpr uint16_t BUF_SIZE_DEFAULT2 = BUF_SIZE_DEFAULT * 2;
 constexpr uint16_t BUF_SIZE_DEFAULT4 = BUF_SIZE_DEFAULT * 4;
+constexpr uint32_t BUF_SIZE_DEFAULT16 = BUF_SIZE_DEFAULT * 16;
 constexpr uint16_t MAX_IP_PORT = 65535;
 constexpr uint16_t MAX_CONNECTKEY_SIZE = 32;  // usb sn/tcp ipport
 constexpr uint16_t TIME_BASE = 1000;          // time unit conversion base value

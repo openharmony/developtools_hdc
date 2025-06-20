@@ -207,6 +207,11 @@ namespace TranslateCommand {
             "                                         (1: disabled, other: enabled, default: enabled)\n"
             "OHOS_HDC_CMD_RECORD                    - Set whether the hdc command record function is enabled\n"
             "                                         (1: enabled, other: disabled, default: disabled)\n"
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+            "OHOS_HDC_ENCRYPT_CHANNEL               - Set whether to use an encrypted channel "
+            "when using a TCP connection\n"
+            "                                         (1: enabled, other: disabled, default: disabled)\n"
+#endif
 #ifdef FEATURE_HOST_LOG_COMPRESS
             "OHOS_HDC_LOG_LIMIT                     - Set the number of logs that trigger the total"
             " log file size statistics (default 300 (files))\n"
@@ -218,6 +223,11 @@ namespace TranslateCommand {
             "                                         (1: disabled, other: enabled, default: enabled)\n"
             "$OHOS_HDC_CMD_RECORD                   - Set whether the hdc command record function is enabled\n"
             "                                         (1: enabled, other: disabled, default: disabled)\n"
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+            "$OHOS_HDC_ENCRYPT_CHANNEL              - Set whether to use an encrypted channel "
+            "when using a TCP connection\n"
+            "                                         (1: enabled, other: disabled, default: disabled)\n"
+#endif
 #ifdef FEATURE_HOST_LOG_COMPRESS
             "$OHOS_HDC_LOG_LIMIT                    - Set the number of logs that trigger the total"
             " log file size statistics (default 300 (files))\n"

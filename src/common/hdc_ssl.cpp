@@ -38,8 +38,9 @@ HdcSSLBase::~HdcSSLBase()
     if (!isInited) {
         return;
     }
-    if (SSL_shutdown(ssl)!= 1) {
-        SSL_get_error(ssl, SSL_shutdown(ssl));
+    int ret = SSL_shutdown(ssl);
+    if (ret != 1) {
+        SSL_get_error(ssl, ret);
         uint8_t buf[BUF_SIZE_DEFAULT];
         BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
     }
@@ -55,7 +56,7 @@ HdcSSLBase::~HdcSSLBase()
     isInited = false;
 }
 
-void HdcSSLBase::SetSSLInfo(HSSLInfo hSSLInfo, HSession hSession)
+void HdcSSLBase::SetSSLInfo(const HSSLInfo &hSSLInfo, HSession hSession)
 {
     hSSLInfo->cipher = TLS_AES_128_GCM_SHA256;
     hSSLInfo->isDaemon = !hSession->serverOrDaemon;
@@ -223,8 +224,8 @@ int HdcSSLBase::GetPskEncrypt(unsigned char *bufPtr, const int bufLen, const str
         return ERR_GENERIC;
     }
     unsigned char* buf = preSharedKey;
-    int payloadSize = RsaPubkeyEncrypt(sessionId, buf, BUF_SIZE_PSK, bufPtr, pubkey);
-    WRITE_LOG(LOG_INFO, "RsaPubkeyEncrypt payloadSize = %d", payloadSize);
+    int payloadSize = RsaPubkeyEncrypt(buf, BUF_SIZE_PSK, bufPtr, bufLen, pubkey);
+    WRITE_LOG(LOG_INFO, "RsaPubkeyEncrypt payloadSize = %d, sid: %u", payloadSize, sessionId);
     return payloadSize; // return the size of encrypted psk
 }
 
@@ -307,12 +308,12 @@ int HdcSSLBase::RsaPrikeyDecrypt(const unsigned char *inBuf, int inLen, unsigned
     return outLen;
 }
 
-int HdcSSLBase::RsaPubkeyEncrypt(const uint32_t sessionId,
-    const unsigned char *inBuf, int inLen, unsigned char *outBuf, const string &pubkey)
+int HdcSSLBase::RsaPubkeyEncrypt(const unsigned char *inBuf, int inLen,
+    unsigned char *outBuf, int outBufSize, const string &pubkey)
 {
     int outLen = -1;
 #ifndef HDC_HOST
-    outLen = HdcAuth::RsaPubkeyEncryptPsk(sessionId, inBuf, inLen, outBuf, pubkey);
+    outLen = HdcAuth::RsaPubkeyEncryptPsk(inBuf, inLen, outBuf, outBufSize, pubkey);
 #endif
     return outLen;
 }

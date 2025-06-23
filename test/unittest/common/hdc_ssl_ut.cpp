@@ -20,8 +20,8 @@ namespace Hdc {
 typedef size_t rsize_t;
 class MockHdcSSLBase : public HdcSSLBase {
 public:
-    MOCK_METHOD5(RsaPubkeyEncrypt, int(const uint32_t sessionId, const unsigned char* in, int inLen,
-        unsigned char* out, const std::string& pubkey));
+    MOCK_METHOD5(RsaPubkeyEncrypt, int(const unsigned char* in, int inLen,
+        unsigned char* out, int outBufSize, const std::string& pubkey));
     MOCK_METHOD0(IsHandshakeFinish, bool());
     MOCK_METHOD0(ShowSSLInfo, void());
 public:
@@ -450,7 +450,6 @@ HWTEST_F(HdcSSLTest, RsaPubkeyEncryptTest001, TestSize.Level0)
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     MockHdcSSLBase *sslBase = new (std::nothrow) MockHdcSSLBase(hSSLInfo);
-    uint32_t sessionId = 12345;
     unsigned char in[BUF_SIZE_DEFAULT2] = "test data";
     int inLen = strlen((char*)in);
     unsigned char out[BUF_SIZE_DEFAULT2];
@@ -459,7 +458,7 @@ HWTEST_F(HdcSSLTest, RsaPubkeyEncryptTest001, TestSize.Level0)
     EXPECT_CALL(*sslBase, RsaPubkeyEncrypt(testing::_, testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return(inLen));
 
-    int ret = sslBase->RsaPubkeyEncrypt(sessionId, in, inLen, out, pubkey);
+    int ret = sslBase->RsaPubkeyEncrypt(in, inLen, out, BUF_SIZE_DEFAULT2, pubkey);
     ASSERT_EQ(ret, inLen);
     delete sslBase;
     delete hSSLInfo;

@@ -12,14 +12,227 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "password.h"
-#include "securec.h"
 #include "base.h"
 #include "common.h"
+#include "password.h"
+#include "securec.h"
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+#include "sys/socket.h"
+#endif
+
 namespace Hdc {
 static const char* SPECIAL_CHARS = "~!@#$%^&*()-_=+\\|[{}];:'\",<.>/?";
 static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+bool Hdcpassword::isNumeric(const std::string& str)
+{
+    if (str.empty()) {
+        return false;
+    }
+    size_t i = 0;
+    for (; i < str.size(); ++i) {
+        if (!std::isdigit(str[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+int Hdcpassword::StripLeadingZeros(const std::string &input)
+{
+    if (input.empty() || input == "0") {
+        return 0;
+    }
+    size_t firstNonZero = input.find_first_not_of('0');
+    if (firstNonZero == std::string::npos) {
+        return 0;
+    }
+
+    std::string numberStr = input.substr(firstNonZero);
+    if (!IsNumeric(numberStr)) {
+        WRITE_LOG(LOG_FATAL, "stripLeadingZeros: invalid numeric string.");
+        return -1;
+    }
+    return std::stoi(input.substr(firstNonZero));
+}
+
+bool Hdcpassword::IsInRange(int value, int min, int max)
+{
+    return (value >= min && value <= max);
+}
+
+CredentialMessage Hdcpassword::ParseMessage(const std::string &messageStr)
+{
+    if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
+        WRITE_LOG(LOG_FATAL, "ParseMessage: messageStr is empty or too short.messageStr is:%s", messageStr.c_str());
+        return CredetialMessage();
+    }
+
+    CredetialMessage messageStruct;
+    int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
+    if (!IsInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
+        WRITE_LOG(LOG_FATAL, "ParseMessage: Invalid message version %d.", versionInt);
+        return CredetialMessage();
+    }
+
+    messageStruct.messageVersion = versionInt;
+    std::string messageMethodStr = messageStr.substr(MESSAGE_METHOD_POS, MESSAGE_METHOD_LEN);
+    messageStruct.messageMethodType = StripLeadingZeros(messageMethodStr);
+
+    std::string messageLengthStr = messageStr.substr(MESSAGE_LENGTH_POS, MESSAGE_LENGTH_LEN);
+    char *end = nullptr;
+    size_t bodyLength = strtol(messageLengthStr.c_str(), &end, 10);
+    if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
+        WRITE_LOG(LOG_FATAL, "ParseMessage: Invalid message length %s.", messageLengthStr.c_str());
+        return CredetialMessage();
+    }
+
+    if (messageStr.length() < MESSAGE_BODY_POS + bodyLength) {
+        WRITE_LOG(LOG_FATAL, "ParseMessage: messageStr is too short for the body length.");
+        return CredetialMessage();
+    }
+
+    messageStruct.messageBodyLen = bodyLength;
+    messageStruct.messageBody = messageStr.substr(MESSAGE_BODY_POS, bodyLength);
+    
+    return messageStruct;
+}
+
+std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr)
+{
+    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+        return "";
+    }
+
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socketPath, sizeof(addr.sun_path) - 1);
+
+    if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
+        close(sockfd);
+        return "";
+    }
+
+    ssize_t bytesSend = send(sockfd, messageStr.c_str(), messageStr.size(), 0);
+    if (bytesSend < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to send message.");
+        close(sockfd);
+        return "";
+    }
+
+    std::string response;
+    char buffer[MESSAGE_STR_MAX_LEN] = {0};
+    ssize_t bytesRead = 0;
+    while ((bytesRead = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
+        response.append(buffer, bytesRead);
+        memset(buffer, 0, sizeof(buffer));
+    }
+    if (bytesRead < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
+        close(sockfd);
+        return "";
+    }
+    
+    close(sockfd);
+    return response;
+}
+
+std::vector<uint8_t> HdcPassword::String2Uint8(const std::string &str, size_t len)
+{
+    std::vector<uint8_t> byteData(len);
+    for (size_t i = 0; i < len; i++) {
+        byteData[i] = static_cast<uint8_t>(str[i]);
+    }
+    return byteData;
+}
+
+std::string HdcPassword::ConvertInt(int len, int max_len)
+{
+    std::ostringstream ss;
+    oss << std::setfill('0') << std::setw(max_len) << len;
+
+    return ss.str();
+}
+
+std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t type)
+{
+    std::ostringstream oss;
+    oss << ConvertInt(METHOD_VERSION_V1, 1) // version
+
+    std:string messageMethodStr = ConvertInt(type, MESSAGE_METHOD_LEN);
+    if (messageMethodStr.length() != MESSAGE_METHOD_LEN) {
+        WRITE_LOG(LOG_FATAL, "messageMethodStr length must be:%d,now is:%s", MESSAGE_METHOD_LEN, messageMethodStr.c_str());
+        return "";
+    }
+    oss << messageMethodStr;
+
+    std::string messageBodyLen = std::to_string(str.length());
+    if (messageBodyLen.length() > MESSAGE_LENGTH_LEN) {
+        WRITE_LOG(LOG_FATAL, "messageBodyLen length must be:%d,now is:%s", MESSAGE_LENGTH_LEN, messageBodyLen.c_str());
+        return "";
+    }
+    oss << ConvertInt(str.length(), MESSAGE_LENGTH_LEN);
+    oss << str;
+    
+    std::string messageStr = oss.str();
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx messageStr is:%s", messageStr.c_str());
+    return messageStr;
+    // return oss.str();
+}
+
+std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
+{
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, pwd is:%s, pwdLen is:%d", std::string(reinterpret_cast<char*>(pwd)).c_str(), pwdLen);
+    std::string pwdStr(reinterpret_cast<const char*>(pwd), pwdLen);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, pwdStr is:%s", pwdStr.c_str());
+    std::string sendStr = SplicMessageStr(pwdStr, METHOD_ENCRYPT);
+    std::string recvStr = SendToUnixSocketAndRecvStr(CREDENTIAL_SOCKET_PATH, sendStr.c_str());
+    if (recvStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "recvStr is empty.");
+        return std::vector<uint8_t>();
+    }
+
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, recvStr is:%s", recvStr.c_str());
+    CredetialMessage messageStruct = ParseMessage(recvStr);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, messageBodyLen is:%d", messageStruct.messageBodyLen);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, messageBody is:%s", messageStruct.messageBody.c_str());
+    if (messageStruct.messageBodyLen > 0) {
+        return String2Uint8(messageStruct.messageBody, messageStruct.messageBodyLen);
+    } else {
+        WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
+        return {};
+    }
+}
+
+std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encryptData)
+{
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptGetPwdValue, encryptData is:%s", encryptData.c_str());
+    std::string sendStr = SplicMessageStr(encryptData, METHOD_DECRYPT);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptGetPwdValue, sendStr is:%s", sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(CREDENTIAL_SOCKET_PATH, sendStr.c_str());
+    WRITE_LOG
+    if (recvStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "recvStr is empty.");
+        return std::make_pair(nullptr, 0);
+    }
+
+    CredetialMessage messageStruct = ParseMessage(recvStr);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptGetPwdValue, messageBodyLen is:%d", messageStruct.messageBodyLen);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptGetPwdValue, messageBody is:%s", messageStruct.messageBody.c_str());
+    if (messageStruct.messageBodyLen > 0) {
+        uint8_t *pwd = new uint8_t[messageStruct.messageBodyLen];
+        memcpy_s(pwd, messageStruct.messageBodyLen, messageStruct.messageBody.data(), messageStruct.messageBodyLen);
+        return std::make_pair(pwd, messageStruct.messageBodyLen);
+    } else {
+        WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
+        return std::make_pair(nullptr, 0);
+    }
+}
+#endif
 HdcPassword::HdcPassword(const std::string &pwdKeyAlias):hdcHuks(pwdKeyAlias)
 {
     memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
@@ -115,7 +328,11 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
     if (!HexToByte(encryptData)) {
         return false;
     }
+    #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    std::pair<uint8_t*, int> result = DecryptGetPwdValue(encryptPwd);
+    #else
     std::pair<uint8_t*, int> result = hdcHuks.AesGcmDecrypt(encryptPwd);
+    #endif
     if (result.first == nullptr) {
         return false;
     }
@@ -141,10 +358,14 @@ bool HdcPassword::EncryptPwd(void)
 {
     std::vector<uint8_t> encryptData;
     ClearEncryptPwd();
+    #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    encryptData = EncryptGetPwdValue(pwd, PASSWORD_LENGTH);
+    #else
     bool encryptResult = hdcHuks.AesGcmEncrypt(pwd, PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
         return false;
     }
+    #endif
     ByteToHex(encryptData);
     return true;
 }

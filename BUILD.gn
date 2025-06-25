@@ -450,6 +450,45 @@ ohos_executable("hdc") {
   part_name = "hdc"
 }
 
+ohos_executable("hdc_credential") {
+  use_exceptions = true
+  ldflags = [
+    "-Wl,--whole-archive",
+    "-ldl",
+    "-lrt",
+    "-Wl,--no-whole-archive",
+  ]
+  libs = []
+  defines = []
+  configs = [ ":hdc_config" ]
+
+  if (hdc_debug) {
+    defines += [ "HDC_DEBUG" ]
+  }
+  sources = [
+    "src/credential/main.cpp",
+  ]
+
+  external_deps = [
+    "openssl:libcrypto_static",
+    "bounds_checking_function:libsec_static",
+  ]
+  if (is_ohos) {
+    sources += [ "src/credential/password.cpp" ]
+    sources += [ "src/credential/hdc_huks.cpp" ]
+    sources += [ "src/credential/base.cpp" ]
+    defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
+    external_deps += [ "huks:libhukssdk" ]
+    external_deps += [ "hilog:libhilog" ]
+    install_images = [ "system" ]
+  }
+
+  deps += [ ":hdc_hash_gen" ]
+
+  subsystem_name = "developtools"
+  part_name = "hdc"
+}
+
 group("hdc_target") {
   deps = [
     ":hdc",

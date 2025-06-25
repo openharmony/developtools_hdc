@@ -22,6 +22,31 @@
 namespace Hdc {
 #define PASSWORD_LENGTH 10
 
+constexpr char* CREDENTIAL_SOCKET_PATH = "/data/hdc_credential_socket";
+struct CredetialMessage {
+    int messageVersion;
+    int messageMethodType;
+    int messageBodyLen;
+    std::string messageBody;
+};
+constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
+constexpr size_t MESSAGE_VERSION_POS = 0;
+constexpr size_t MESSAGE_METHOD_POS = 1;
+constexpr size_t MESSAGE_METHOD_LEN = 3;
+constexpr size_t MESSAGE_LENGTH_POS = 4;
+constexpr size_t MESSAGE_LENGTH_LEN = 4;
+constexpr size_t MESSAGE_BODY_POS = 8;
+
+enum V1MethodID {
+    METHOD_ENCRYPT = 1,
+    METHOD_DECRYPT,
+};
+
+enum MethodVersion {
+    METHOD_VERSION_V1 = 1,
+    METHOD_VERSION_MAX = 9,
+};
+
 class HdcPassword {
 public:
     ~HdcPassword();

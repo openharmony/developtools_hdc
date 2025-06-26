@@ -1062,7 +1062,7 @@ int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
         }
         unsigned char encryptedBuf[BUF_SIZE_DEFAULT2] = { 0 };
         int encryptedBufSize = RSA_public_encrypt(inLen, in, encryptedBuf, rsa, RSA_PKCS1_OAEP_PADDING);
-        if (encryptedBufSize <= 0 || (outBufSize < ((encryptedBufSize * 4 + 2) / 3))) { // (x*4+2)/3 base64 encode size
+        if (encryptedBufSize <= 0 || (outBufSize < ((encryptedBufSize + 2) / 3 * 4))) { // (x+2)/3*4 base64 encode size
             WRITE_LOG(LOG_FATAL, "encrypt PreShared Key failed, encryptedBufSize: %d", encryptedBufSize);
             break;
         }

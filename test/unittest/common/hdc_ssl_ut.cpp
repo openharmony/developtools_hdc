@@ -25,7 +25,7 @@ public:
     MOCK_METHOD0(IsHandshakeFinish, bool());
     MOCK_METHOD0(ShowSSLInfo, void());
 public:
-    explicit MockHdcSSLBase(const HSSLInfo &hSSLInfo) : HdcSSLBase(hSSLInfo)
+    explicit MockHdcSSLBase(SSLInfoPtr hSSLInfo) : HdcSSLBase(hSSLInfo)
     {
     }
 
@@ -153,7 +153,7 @@ void SSLHandShakeEmulate(HdcSSLBase *sslClient, HdcSSLBase *sslServer)
  */
 HWTEST_F(HdcSSLTest, SetSSLInfoTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     hSession->serverOrDaemon = false;
     hSession->sessionId = 123;
@@ -172,7 +172,7 @@ HWTEST_F(HdcSSLTest, SetSSLInfoTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, InitSSLTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     HdcSSLBase *sslBase = new (std::nothrow) HdcDaemonSSL(hSSLInfo);
@@ -194,7 +194,7 @@ HWTEST_F(HdcSSLTest, InitSSLTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, InitSSLTest002, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     HdcSSLBase *sslBase = new (std::nothrow) HdcHostSSL(hSSLInfo);
@@ -216,7 +216,7 @@ HWTEST_F(HdcSSLTest, InitSSLTest002, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, ClearSSLTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     HdcSSLBase *sslBase = new (std::nothrow) HdcHostSSL(hSSLInfo);
@@ -240,7 +240,7 @@ HWTEST_F(HdcSSLTest, ClearSSLTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, ClearSSLTest002, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     HdcSSLBase *sslBase = new (std::nothrow) HdcDaemonSSL(hSSLInfo);
@@ -266,12 +266,10 @@ HWTEST_F(HdcSSLTest, ClearSSLTest002, TestSize.Level0)
 // host(  ) <--(TLS handshake server hello )--- hdcd(  ) step 2
 // host(ok) ---(TLS handshake change cipher)--> hdcd(  ) step 3
 // host(ok) <--(TLS handshake change cipher)--- hdcd(ok) step 4
-// host(ok) ---(encrypted: CHANNEL_CLOSE   )--> hdcd(ok) step 5
-// host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
 HWTEST_F(HdcSSLTest, DoSSLHandshakeTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfoDaemon = new HdcSSLInfo();
-    HSSLInfo hSSLInfoHost = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfoDaemon = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfoHost = new HdcSSLInfo();
     HSession hSessionDaemon = new HdcSession();
     HSession hSessionHost = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfoDaemon, hSessionDaemon);
@@ -320,7 +318,7 @@ HWTEST_F(HdcSSLTest, DoSSLHandshakeTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, InputPskTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     HdcSSLBase *sslClient = new (std::nothrow) HdcHostSSL(hSSLInfo);
@@ -382,6 +380,31 @@ HWTEST_F(HdcSSLTest, PskServerCallbackTest001, TestSize.Level0)
 }
 
 /**
+ * @tc.name: PskServerCallbackTest002
+ * @tc.desc: test PskServerCallback function with no pskInput
+ * @tc.type: FUNC
+ */
+HWTEST_F(HdcSSLTest, PskServerCallbackTest002, TestSize.Level0)
+{
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    SSL *ssl;
+    SSL_CTX *sslCtx;
+    const SSL_METHOD *method;
+    method = TLS_server_method();
+    sslCtx = SSL_CTX_new(method);
+    ssl = SSL_new(sslCtx);
+    SSL_set_accept_state(ssl);
+    unsigned char psk[BUF_SIZE_PSK];
+    unsigned int maxPskLen = BUF_SIZE_PSK;
+    ASSERT_EQ(HdcSSLBase::PskServerCallback(ssl, STR_PSK_IDENTITY.c_str(), psk, maxPskLen), 0);
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    SSL_CTX_free(sslCtx);
+}
+
+/**
  * @tc.name: PskClientCallbackTest001
  * @tc.desc: test PskClientCallback function with normal and error input.
  * @tc.type: FUNC
@@ -419,6 +442,39 @@ HWTEST_F(HdcSSLTest, PskClientCallbackTest001, TestSize.Level0)
     ASSERT_EQ(HdcSSLBase::PskClientCallback(ssl, hint, identity, maxIdentityLen, psk, validLen), 0);
     ASSERT_EQ(HdcSSLBase::PskClientCallback(ssl, hint, identity, validLen, psk, maxPskLen), 0);
     ASSERT_EQ(HdcSSLBase::PskClientCallback(ssl, hint, identity, validLen, pskValid, maxPskLen), 0);
+    ASSERT_EQ(HdcSSLBase::PskClientCallback(ssl, hint, identity, STR_PSK_IDENTITY.size(), pskValid, maxPskLen), 0);
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    SSL_CTX_free(sslCtx);
+}
+
+/**
+ * @tc.name: PskClientCallbackTest001
+ * @tc.desc: test PskClientCallback function with no pskInput.
+ * @tc.type: FUNC
+ */
+HWTEST_F(HdcSSLTest, PskClientCallbackTest002, TestSize.Level0)
+{
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    SSL *ssl;
+    SSL_CTX *sslCtx;
+    const SSL_METHOD *method;
+    method = TLS_client_method();
+    sslCtx = SSL_CTX_new(method);
+    ssl = SSL_new(sslCtx);
+    SSL_set_connect_state(ssl);
+    const char* hint = STR_PSK_IDENTITY.c_str();
+    char identity[BUF_SIZE_PSK];
+    unsigned int maxIdentityLen = BUF_SIZE_PSK;
+    unsigned char psk[BUF_SIZE_PSK];
+    unsigned int maxPskLen = BUF_SIZE_PSK;
+    unsigned int ret = HdcSSLBase::PskClientCallback(ssl, hint, identity, maxIdentityLen, psk, maxPskLen);
+    ASSERT_EQ(ret, 0);
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    SSL_CTX_free(sslCtx);
 }
 
 /**
@@ -428,7 +484,7 @@ HWTEST_F(HdcSSLTest, PskClientCallbackTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, RsaPrikeyDecryptTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     MockHdcSSLBase *sslBase = new (std::nothrow) MockHdcSSLBase(hSSLInfo);
@@ -446,7 +502,7 @@ HWTEST_F(HdcSSLTest, RsaPrikeyDecryptTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, RsaPubkeyEncryptTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     MockHdcSSLBase *sslBase = new (std::nothrow) MockHdcSSLBase(hSSLInfo);
@@ -472,8 +528,8 @@ HWTEST_F(HdcSSLTest, RsaPubkeyEncryptTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, SetHandshakeLabelTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfoDaemon = new HdcSSLInfo();
-    HSSLInfo hSSLInfoHost = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfoDaemon = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfoHost = new HdcSSLInfo();
     HSession hSessionDaemon = new HdcSession();
     HSession hSessionHost = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfoDaemon, hSessionDaemon);
@@ -508,8 +564,8 @@ HWTEST_F(HdcSSLTest, SetHandshakeLabelTest001, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, SetHandshakeLabelTest002, TestSize.Level0)
 {
-    HSSLInfo hSSLInfoDaemon = new HdcSSLInfo();
-    HSSLInfo hSSLInfoHost = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfoDaemon = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfoHost = new HdcSSLInfo();
     HSession hSessionDaemon = new HdcSession();
     HSession hSessionHost = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfoDaemon, hSessionDaemon);
@@ -541,7 +597,7 @@ HWTEST_F(HdcSSLTest, SetHandshakeLabelTest002, TestSize.Level0)
  */
 HWTEST_F(HdcSSLTest, GetPskEncryptTest001, TestSize.Level0)
 {
-    HSSLInfo hSSLInfo = new HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new HdcSSLInfo();
     HSession hSession = new HdcSession();
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     hSSLInfo->isDaemon = false;

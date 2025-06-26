@@ -16,7 +16,7 @@
 #include "hdc_ssl.h"
 
 namespace Hdc {
-HdcSSLBase::HdcSSLBase(const HSSLInfo &hSSLInfo)
+HdcSSLBase::HdcSSLBase(SSLInfoPtr hSSLInfo)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L
     if (OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL) == 0) {
@@ -56,7 +56,7 @@ HdcSSLBase::~HdcSSLBase()
     isInited = false;
 }
 
-void HdcSSLBase::SetSSLInfo(const HSSLInfo &hSSLInfo, HSession hSession)
+void HdcSSLBase::SetSSLInfo(SSLInfoPtr hSSLInfo, HSession hSession)
 {
     hSSLInfo->cipher = TLS_AES_128_GCM_SHA256;
     hSSLInfo->isDaemon = !hSession->serverOrDaemon;
@@ -115,11 +115,7 @@ int HdcSSLBase::Encrypt(const int bufLen, uint8_t *bufPtr)
 
 int HdcSSLBase::DoSSLRead(const int bufLen, int &index, uint8_t *bufPtr)
 {
-    if (static_cast<int>(index + BUF_SIZE_DEFAULT16) > bufLen) {
-        WRITE_LOG(LOG_FATAL, "DoSSLRead failed, buffer overwrite index: %d", index);
-        return ERR_GENERIC;
-    }
-    int nSSLRead = SSL_read(ssl, bufPtr + index, BUF_SIZE_DEFAULT16);
+    int nSSLRead = SSL_read(ssl, bufPtr + index, std::min(static_cast<int>(BUF_SIZE_DEFAULT16), bufLen - index));
     if (nSSLRead < 0) {
         int err = SSL_get_error(ssl, nSSLRead);
         if (err == SSL_ERROR_WANT_READ) {
@@ -256,7 +252,12 @@ int HdcSSLBase::Decrypt(const int nread, const int bufLen, uint8_t *bufPtr, int 
 unsigned int HdcSSLBase::PskServerCallback(SSL *ssl, const char *identity, unsigned char *psk, unsigned int maxPskLen)
 {
     SSL_CTX *sslctx = SSL_get_SSL_CTX(ssl);
-    unsigned char *pskInput = reinterpret_cast<unsigned char*>(SSL_CTX_get_ex_data(sslctx, 0));
+    void *exData = SSL_CTX_get_ex_data(sslctx, 0);
+    if (exData == nullptr) {
+        WRITE_LOG(LOG_FATAL, "exData is null");
+        return 0;
+    }
+    unsigned char *pskInput = reinterpret_cast<unsigned char*>(exData);
     if (strcmp(identity, STR_PSK_IDENTITY.c_str()) != 0) {
         WRITE_LOG(LOG_FATAL, "identity not same");
         return 0;
@@ -277,8 +278,13 @@ unsigned int HdcSSLBase::PskClientCallback(SSL *ssl, const char *hint, char *ide
     unsigned char *psk, unsigned int maxPskLen)
 {
     SSL_CTX *sslctx = SSL_get_SSL_CTX(ssl);
-    unsigned char *pskInput = reinterpret_cast<unsigned char*>(SSL_CTX_get_ex_data(sslctx, 0));
-    if (STR_PSK_IDENTITY.size() >= maxIdentityLen) {
+    void *exData = SSL_CTX_get_ex_data(sslctx, 0);
+    if (exData == nullptr) {
+        WRITE_LOG(LOG_FATAL, "exData is null");
+        return 0;
+    }
+    unsigned char *pskInput = reinterpret_cast<unsigned char*>(exData);
+    if (STR_PSK_IDENTITY.size() + 1 > maxIdentityLen) {
         WRITE_LOG(LOG_FATAL, "Client identity buffer too small, maxIdentityLen = %d", maxIdentityLen);
         return 0;
     }

@@ -19,7 +19,7 @@
 namespace Hdc {
 class HdcSSLBase {
 public:
-    explicit HdcSSLBase(const HSSLInfo &hSSLInfo);
+    explicit HdcSSLBase(SSLInfoPtr hSSLInfo);
     HdcSSLBase(const HdcSSLBase&) = delete;
     virtual ~HdcSSLBase();
     int Encrypt(const int bufLen, uint8_t *bufPtr);
@@ -38,7 +38,7 @@ public:
     bool GenPsk();
     bool InputPsk(unsigned char *psk, int pskLen);
     int GetPskEncrypt(unsigned char *bufPtr, const int bufLen, const string &pubkey);
-    static void SetSSLInfo(const HSSLInfo &hSSLInfo, HSession hsession);
+    static void SetSSLInfo(SSLInfoPtr hSSLInfo, HSession hsession);
     int PerformHandshake(vector<uint8_t> &outBuf);
     bool SetHandshakeLabel(HSession hSession);
     inline static int GetSSLBufLen(const int bufLen)

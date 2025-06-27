@@ -132,7 +132,10 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
         success = true;
     } while (0);
 
-    memset_s(result.first, result.second, 0, result.second);
+    if (memset_s(result.first, result.second, 0, PASSWORD_LENGTH) != EOK) {
+        WRITE_LOG(LOG_FATAL, "memset_s failed");
+        success = false;
+    }
     delete[] result.first;
     return success;
 }

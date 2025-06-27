@@ -670,7 +670,35 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
     delete[](reinterpret_cast<char *>(argv));
 }
 
-bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
+#ifdef __OHOS__
+bool HdcServerForClient::IsServerTransfer(uint16_t cmdFlag, HChannel hChannel, string &parameters)
+{
+    if (cmdFlag == CMD_FILE_INIT) {
+        HandleRemote(hChannel, parameters, RemoteType::REMOTE_FILE);
+        if (!hChannel->fromClient) {
+            EchoClient(hChannel, MSG_FAIL, "[E005200] Unsupport file command");
+            return false;
+        }
+    }
+    return true;
+}
+#endif
+
+bool HdcServerForClient::DoCommandJdwp(HChannel hChannel,
+    TranslateCommand::FormatCommand *formatCommand)
+{
+    if (!SendToDaemon(hChannel, formatCommand->cmdFlag,
+        reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())), sizeSend)) {
+        return false;        
+    }
+    if (formatCommand->cmdFlag == CMD_SHELL_INIT) {
+        hChannel->interactiveShellMode = true;
+    }
+    return true;
+}
+
+bool HdcServerForClient::DoCommandRemote(HChannel hChannel,
+    void *formatCommandInput)
 {
     StartTraceScope("HdcServerForClient::DoCommandRemote");
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
@@ -689,17 +717,16 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         case CMD_UNITY_ROOTRUN:
         case CMD_JDWP_TRACK:
         case CMD_JDWP_LIST: {
-            if (!SendToDaemon(hChannel, formatCommand->cmdFlag,
-                reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())), sizeSend)) {
-                break;
-            }
-            ret = true;
-            if (formatCommand->cmdFlag == CMD_SHELL_INIT) {
-                hChannel->interactiveShellMode = true;
-            }
+            ret = DoCommandJdwp(hChannel, formatCommand);
             break;
         }
-        case CMD_FILE_INIT:
+        case CMD_FILE_INIT: {
+#ifdef __OHOS__
+            if (!IsServerTransfer(formatCommand->cmdFlag, hChannel, formatCommand->parameters)) {
+                return false;
+            }
+#endif
+        }
         case CMD_FORWARD_INIT:
         case CMD_APP_INIT:
         case CMD_APP_UNINSTALL:

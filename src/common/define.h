@@ -102,6 +102,7 @@ constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
 constexpr uint16_t BUNDLE_MIN_SIZE = 7;
 constexpr uint16_t BUNDLE_MAX_SIZE = 128;
 constexpr uint16_t HEARTBEAT_INTERVAL = 5000; // 5 seconds
+constexpr uint16_t SSL_HANDSHAKE_FINISHED_WAIT_TIME = 300; // 300 ms
 #ifdef HDC_HOST
 constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 32;
 #else
@@ -237,5 +238,8 @@ constexpr uint64_t MAX_COMPRESS_LOG_FILE_SIZE = (50) * 1024 * 1024; // 50MB
 constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
 constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
 constexpr size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
+#ifdef __OHOS__
+const string HISHELL_SELINUX_LABEL = "u:r:hishell_hap:s0";
+#endif
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

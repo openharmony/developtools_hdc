@@ -19,7 +19,7 @@
 namespace Hdc {
 class HdcSSLBase {
 public:
-    explicit HdcSSLBase(const HSSLInfo &hSSLInfo);
+    explicit HdcSSLBase(SSLInfoPtr hSSLInfo);
     HdcSSLBase(const HdcSSLBase&) = delete;
     virtual ~HdcSSLBase();
     int Encrypt(const int bufLen, uint8_t *bufPtr);
@@ -38,7 +38,7 @@ public:
     bool GenPsk();
     bool InputPsk(unsigned char *psk, int pskLen);
     int GetPskEncrypt(unsigned char *bufPtr, const int bufLen, const string &pubkey);
-    static void SetSSLInfo(HSSLInfo hSSLInfo, HSession hsession);
+    static void SetSSLInfo(SSLInfoPtr hSSLInfo, HSession hsession);
     int PerformHandshake(vector<uint8_t> &outBuf);
     bool SetHandshakeLabel(HSession hSession);
     inline static int GetSSLBufLen(const int bufLen)
@@ -47,8 +47,8 @@ public:
     }
 
 private:
-    static int RsaPubkeyEncrypt(const uint32_t sessionId,
-        const unsigned char *inBuf, int inLen, unsigned char *outBuf, const string &pubkey);
+    static int RsaPubkeyEncrypt(const unsigned char *inBuf, int inLen,
+        unsigned char *outBuf, int outBufSize, const string &pubkey);
     int DoSSLWrite(const int bufLen, uint8_t *bufPtr);
     int DoSSLRead(const int bufLen, int &index, uint8_t *bufPtr);
     bool isDaemon;

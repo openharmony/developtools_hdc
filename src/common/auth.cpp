@@ -1035,11 +1035,10 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
 }
 
 #else // DAEMON
-int RsaPubkeyEncryptPsk(const uint32_t sessionId,
-    const unsigned char* in, int inLen, unsigned char* out, const string& pubkey)
+int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize, const string& pubkey)
 {
     if (out == nullptr) {
-        WRITE_LOG(LOG_FATAL, "out buf is alloc failed");
+        WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk out buf is alloc failed");
         return -1;
     }
     BIO *bio = nullptr;
@@ -1048,23 +1047,23 @@ int RsaPubkeyEncryptPsk(const uint32_t sessionId,
     do {
         bio = BIO_new(BIO_s_mem());
         if (bio == nullptr) {
-            WRITE_LOG(LOG_FATAL, "bio failed for session %u", sessionId);
+            WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk create bio failed");
             break;
         }
         int wbytes = BIO_write(bio, reinterpret_cast<const unsigned char *>(pubkey.c_str()), pubkey.length());
         if (wbytes <= 0) {
-            WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, sessionId);
+            WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk bio write failed %d ", wbytes);
             break;
         }
         rsa = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
         if (rsa == nullptr) {
-            WRITE_LOG(LOG_FATAL, "rsa failed for session %u", sessionId);
+            WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk rsa failed");
             break;
         }
         unsigned char encryptedBuf[BUF_SIZE_DEFAULT2] = { 0 };
         int encryptedBufSize = RSA_public_encrypt(inLen, in, encryptedBuf, rsa, RSA_PKCS1_OAEP_PADDING);
-        if (encryptedBufSize <= 0) {
-            WRITE_LOG(LOG_FATAL, "encrypt PreShared Key failed");
+        if (encryptedBufSize <= 0 || (outBufSize < ((encryptedBufSize + 2) / 3 * 4))) { // (x+2)/3*4 base64 encode size
+            WRITE_LOG(LOG_FATAL, "encrypt PreShared Key failed, encryptedBufSize: %d", encryptedBufSize);
             break;
         }
         outLen = EVP_EncodeBlock(out, encryptedBuf, encryptedBufSize);

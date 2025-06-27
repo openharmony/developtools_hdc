@@ -562,8 +562,6 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
 // host(  ) <--(TLS handshake server hello )--- hdcd(  ) step 2
 // host(ok) ---(TLS handshake change cipher)--> hdcd(  ) step 3
 // host(ok) <--(TLS handshake change cipher)--- hdcd(ok) step 4
-// host(ok) ---(encrypted: CHANNEL_CLOSE   )--> hdcd(ok) step 5
-// host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
 bool HdcServer::ServerSSLHandshake(HSession hSession, SessionHandShake &handshake)
 {
     if (hSession->classSSL == nullptr) {
@@ -596,11 +594,9 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, SessionHandShake &handshak
         Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
              reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
     }
-    if (ret == RET_SSL_HANDSHAKE_FINISHED) { // SSL handshake step 5
+    if (ret == RET_SSL_HANDSHAKE_FINISHED) {
         hssl->SetHandshakeLabel(hSession);
-        uint8_t count = 1;
         WRITE_LOG(LOG_DEBUG, "ssl handshake finished, SetHandshakeLabel");
-        Send(hssl->sessionId, 0, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
         if (!hssl->ClearPsk()) {
             WRITE_LOG(LOG_WARN, "clear Pre Shared Key failed");
             ret = ERR_GENERIC;
@@ -628,13 +624,14 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handsh
         WRITE_LOG(LOG_WARN, "ServerSessionSSLInit memset_s failed");
         return false;
     }
-    HSSLInfo hSSLInfo = new (std::nothrow) HdcSSLInfo();
+    SSLInfoPtr hSSLInfo = new (std::nothrow) HdcSSLInfo();
     if (!hSSLInfo) {
-        WRITE_LOG(LOG_WARN, "new HSSLInfo failed");
+        WRITE_LOG(LOG_WARN, "new SSLInfoPtr failed");
         return false;
     }
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     hSession->classSSL = new (std::nothrow) HdcHostSSL(hSSLInfo);
+    delete hSSLInfo;
     HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
     if (!hssl) {
         WRITE_LOG(LOG_WARN, "new HdcHostSSL failed");

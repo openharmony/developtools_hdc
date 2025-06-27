@@ -798,8 +798,6 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
 // host(  ) <--(TLS handshake server hello )--- hdcd(  ) step 2
 // host(ok) ---(TLS handshake change cipher)--> hdcd(  ) step 3
 // host(ok) <--(TLS handshake change cipher)--- hdcd(ok) step 4
-// host(ok) ---(encrypted: CHANNEL_CLOSE   )--> hdcd(ok) step 5
-// host(ok) <--(encrypted: CHANNEL_CLOSE   )--- hdcd(ok) step 6
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
 bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
@@ -834,6 +832,7 @@ bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, 
              reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
     }
     if (hssl->SetHandshakeLabel(hSession)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(SSL_HANDSHAKE_FINISHED_WAIT_TIME));
         UpdateSessionAuthOk(hSession->sessionId);
         SendAuthOkMsg(handshake, channelId, hSession->sessionId);
         if (!hssl->ClearPsk()) {
@@ -1249,9 +1248,18 @@ void HdcDaemon::SendAuthEncryptPsk(SessionHandShake &handshake, const uint32_t c
     UpdateSessionAuthPubkey(hSession->sessionId, pubkey);
     handshake.authType = AUTH_SSL_TLS_PSK;
     if (!hSession->classSSL) {
-        HSSLInfo hSSLInfo = new (std::nothrow) HdcSSLInfo();
+        SSLInfoPtr hSSLInfo = new (std::nothrow) HdcSSLInfo();
+        if (!hSSLInfo) {
+            WRITE_LOG(LOG_FATAL, "SendAuthEncryptPsk new HdcSSLInfo failed");
+            return;
+        }
         HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
         hSession->classSSL = new (std::nothrow) HdcDaemonSSL(hSSLInfo); // long lifetime with session.
+        delete hSSLInfo;
+        if (!hSession->classSSL) {
+            WRITE_LOG(LOG_FATAL, "SendAuthEncryptPsk new HdcDaemonSSL failed");
+            return;
+        }
     }
     HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
     if (!hssl) {

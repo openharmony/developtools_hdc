@@ -458,7 +458,7 @@ struct HdcSSLInfo {
     uint32_t sessionId;
     std::string cipher;
 };
-using HSSLInfo = struct HdcSSLInfo *;
+using SSLInfoPtr = struct HdcSSLInfo *;
 #endif
 }
 #endif

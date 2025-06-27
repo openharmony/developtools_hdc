@@ -311,6 +311,9 @@ void HdcForwardBase::ConnectTarget(uv_connect_t *connection, int status)
 
 bool HdcForwardBase::CheckNodeInfo(const char *nodeInfo, string as[2])
 {
+    if (nodeInfo == nullptr) {
+        return false;
+    }
     string str = nodeInfo;
     size_t strLen = str.size();
     if (strLen < 1) {

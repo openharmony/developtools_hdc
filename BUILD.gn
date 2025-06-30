@@ -470,8 +470,8 @@ ohos_executable("hdc_credential") {
   ]
 
   external_deps = [
-    "openssl:libcrypto_static",
-    "bounds_checking_function:libsec_static",
+    "openssl:libcrypto_shared",
+    "bounds_checking_function:libsec_shared",
   ]
   if (is_ohos) {
     sources += [ "src/credential/password.cpp" ]

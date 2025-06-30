@@ -23,7 +23,7 @@ namespace Hdc {
 #define PASSWORD_LENGTH 10
 
 constexpr char* hdcCredentialSocket = "/data/hdc_credential_socket";
-struct CredetialMessage {
+struct CredentialMessage {
     int messageVersion;
     int messageMethodType;
     int messageBodyLen;

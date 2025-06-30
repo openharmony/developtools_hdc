@@ -24,10 +24,6 @@ std::string convertInt(int len, int maxLen)
 {
     std::ostringstream oss;
     oss << std::setw(maxLen) << std::setfill('0') << len;
-    if (oss.str().length() > maxLen) {
-        WRITE_LOG(LOG_FATAL, "convertInt: length exceeds max length");
-        return "";
-    }
     return oss.str();
 }
 
@@ -71,7 +67,7 @@ bool isInRange(int value, int min, int max)
 Hdc::HdcHuks hdc_huks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 
-bool ResetHuksKey(void)
+bool ResetPwdKey(void)
 {
     return hdc_huks.ResetHuksKey();
 }
@@ -79,7 +75,7 @@ bool ResetHuksKey(void)
 std::string BytetoHex(const uint8_t* byteDate, size_t length)
 {
     uint8_t tmp;
-    std:string encrypePwd;
+    std::string encryptPwd;
 
     for (size_t i = 0; i < length; i++) {
         tmp = byteDate[i];
@@ -127,8 +123,8 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptPwd: messageStr = %s", messageStr.c_str());
 
     uint8_t pwd[PASSWORD_LENGTH] = {0};
-    std::pair<std::string, size_t> decryptPwd = hdc_huks.AesGcmDecrypt(messageStr);
-    if (decryptPwd.first.empty()) {
+    std::pair<uint8_t*, int> decryptPwd = hdc_huks.AesGcmDecrypt(messageStr);
+    if (decryptPwd.first == nullptr) {
         WRITE_LOG(LOG_FATAL, "AesGcmDecrypt failed.");
         return std::make_pair(std::string(), 0);
     }
@@ -153,20 +149,20 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     return std::make_pair(pwd_str, pwd_str.size());
 }
 
-CredentailMessage ParseMessage(const std::string& messageStr)
+CredentialMessage ParseMessage(const std::string& messageStr)
 {
     if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
         WRITE_LOG(LOG_FATAL, "messageStr is empty or too short.messageStr is:%s", messageStr.c_str());
-        return CredentailMessage();
+        return CredentialMessage();
     }
 
     int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
     if (!isInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
         WRITE_LOG(LOG_FATAL, "Invalid message version %d.", versionInt);
-        return CredentailMessage();
+        return CredentialMessage();
     }
 
-    CredentailMessage messageStruct;
+    CredentialMessage messageStruct;
     messageStruct.messageVersion = versionInt;
     std::string messageMethodStr = messageStr.substr(MESSAGE_METHOD_POS, MESSAGE_METHOD_LEN);
     messageStruct.messageMethodType = stripLeadingZeros(messageMethodStr);
@@ -176,12 +172,12 @@ CredentailMessage ParseMessage(const std::string& messageStr)
     size_t bodyLength = strtol(messageLengthStr.c_str(), &end, 10);
     if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "Invalid message length.");
-        return CredentailMessage();
+        return CredentialMessage();
     }
 
     if (messageStr.length() < MESSAGE_BODY_POS + bodyLength) {
         WRITE_LOG(LOG_FATAL, "messageStr is too short.messageStr is:%s", messageStr.c_str());
-        return CredentailMessage();
+        return CredentialMessage();
     }
 
     messageStruct.messageBodyLen = static_cast<int>(bodyLength);
@@ -190,7 +186,7 @@ CredentailMessage ParseMessage(const std::string& messageStr)
     return messageStruct;
 }
 
-std::string ConstructMessage(const CredentailMessage& messageStruct)
+std::string ConstructMessage(const CredentialMessage& messageStruct)
 {
     std::ostringstream messageStream; 
 
@@ -224,9 +220,9 @@ std::string ConstructMessage(const CredentailMessage& messageStruct)
 /*解析字符串，加密，再返回新的字符串*/
 std::string ParseAndProcessMessageStr(const std::string& messageStr)
 {
-    CredetialMessage messageStruct = ParseMessage(messageStr);
+    CredentialMessage messageStruct = ParseMessage(messageStr);
     if (messageStruct.messageBody.empty() || messageStruct.messageVersion != METHOD_VERSION_V1) {
-        WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.",);
+        WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.");
         return "";
     }
     std::pair<std::string, size_t> processMessageValue;
@@ -294,7 +290,7 @@ int main(void)
         return -1;
     }
 
-    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Listening on socket: %s", hdcCredentialSocket.c_str());
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Listening on socket: %s", hdcCredentialSocket);
 
     while (true) { 
         int connfd = accept(sockfd, nullptr, nullptr);
@@ -329,7 +325,7 @@ int main(void)
         close(connfd);
 
     } // Keep the server running indefinitely
-    close(listenfd);
+    close(sockfd);
     unlink(hdcCredentialSocket);
     return 0;
 }

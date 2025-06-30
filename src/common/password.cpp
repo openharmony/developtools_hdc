@@ -65,14 +65,14 @@ CredentialMessage Hdcpassword::ParseMessage(const std::string &messageStr)
 {
     if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
         WRITE_LOG(LOG_FATAL, "ParseMessage: messageStr is empty or too short.messageStr is:%s", messageStr.c_str());
-        return CredetialMessage();
+        return CredentialMessage();
     }
 
-    CredetialMessage messageStruct;
+    CredentialMessage messageStruct;
     int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
     if (!IsInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
         WRITE_LOG(LOG_FATAL, "ParseMessage: Invalid message version %d.", versionInt);
-        return CredetialMessage();
+        return CredentialMessage();
     }
 
     messageStruct.messageVersion = versionInt;
@@ -84,12 +84,12 @@ CredentialMessage Hdcpassword::ParseMessage(const std::string &messageStr)
     size_t bodyLength = strtol(messageLengthStr.c_str(), &end, 10);
     if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "ParseMessage: Invalid message length %s.", messageLengthStr.c_str());
-        return CredetialMessage();
+        return CredentialMessage();
     }
 
     if (messageStr.length() < MESSAGE_BODY_POS + bodyLength) {
         WRITE_LOG(LOG_FATAL, "ParseMessage: messageStr is too short for the body length.");
-        return CredetialMessage();
+        return CredentialMessage();
     }
 
     messageStruct.messageBodyLen = bodyLength;
@@ -197,7 +197,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
     }
 
     WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, recvStr is:%s", recvStr.c_str());
-    CredetialMessage messageStruct = ParseMessage(recvStr);
+    CredentialMessage messageStruct = ParseMessage(recvStr);
     WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, messageBodyLen is:%d", messageStruct.messageBodyLen);
     WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, messageBody is:%s", messageStruct.messageBody.c_str());
     if (messageStruct.messageBodyLen > 0) {
@@ -220,7 +220,7 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
         return std::make_pair(nullptr, 0);
     }
 
-    CredetialMessage messageStruct = ParseMessage(recvStr);
+    CredentialMessage messageStruct = ParseMessage(recvStr);
     WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptGetPwdValue, messageBodyLen is:%d", messageStruct.messageBodyLen);
     WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptGetPwdValue, messageBody is:%s", messageStruct.messageBody.c_str());
     if (messageStruct.messageBodyLen > 0) {

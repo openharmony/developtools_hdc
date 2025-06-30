@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-#include "hdc_credential.h"
+#include "common.h"
+#include "password.h"
+
+constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
 using namespace Hdc;
 
@@ -103,7 +106,7 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
 
 std::pair<std::string, size_t> EncryptPwd(const std::string& messageStr)
 {
-    std::cout << "EncryptPwd: messageStr = " << messageStr << std::endl;
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptPwd: messageStr = %s", messageStr.c_str());
 
     if (!ResetPwdKey()) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: ResetPwdKey failed.");
@@ -121,23 +124,23 @@ std::pair<std::string, size_t> EncryptPwd(const std::string& messageStr)
 
 std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
 {
-    std::cout << "DecryptPwd: encryptPwd = " << encryptPwd << std::endl;
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptPwd: messageStr = %s", messageStr.c_str());
 
     uint8_t pwd[PASSWORD_LENGTH] = {0};
     std::pair<std::string, size_t> decryptPwd = hdc_huks.AesGcmDecrypt(messageStr);
     if (decryptPwd.first.empty()) {
-        WRITE_LOG(LOG_FATAL, "DecryptPwd: AesGcmDecrypt failed.");
+        WRITE_LOG(LOG_FATAL, "AesGcmDecrypt failed.");
         return std::make_pair(std::string(), 0);
     }
 
     do {
         if (decryptPwd.second != PASSWORD_LENGTH) {
-            WRITE_LOG(LOG_FATAL, "DecryptPwd: decryptPwd.second != PASSWORD_LENGTH.");
+            WRITE_LOG(LOG_FATAL, "Invalid pwd len %d", decryptPwd.second);
             break;
         }
         int ret = memcpy_s(pwd, PASSWORD_LENGTH, decryptPwd.first, decryptPwd.second);
         if (ret != EOK) {
-            WRITE_LOG(LOG_FATAL, "DecryptPwd: memcpy_s failed.");
+            WRITE_LOG(LOG_FATAL, "Copy failed.ret is %d", ret);
             break;
         }
     } while (0);
@@ -146,25 +149,24 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     delete[] decryptPwd.first;
 
     std::string pwd_str(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
+
     return std::make_pair(pwd_str, pwd_str.size());
 }
 
 CredentailMessage ParseMessage(const std::string& messageStr)
 {
     if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
-        std::cerr << "ParseMessage: messageStr is empty or too short.messageStr is:" << messageStr.c_str() << std::endl;
-        WRITE_LOG(LOG_FATAL, "ParseMessage: messageStr is empty or too short..messageStr is:%s", messageStr.c_str());
+        WRITE_LOG(LOG_FATAL, "messageStr is empty or too short.messageStr is:%s", messageStr.c_str());
+        return CredentailMessage();
+    }
+
+    int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
+    if (!isInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
+        WRITE_LOG(LOG_FATAL, "Invalid message version %d.", versionInt);
         return CredentailMessage();
     }
 
     CredentailMessage messageStruct;
-    int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
-    if (!isInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
-        std::cerr << "ParseMessage: Invalid message version is: " << versionInt << std::endl;
-        WRITE_LOG(LOG_FATAL, "ParseMessage: Invalid message version %d.", versionInt);
-        return CredentailMessage();
-    }
-
     messageStruct.messageVersion = versionInt;
     std::string messageMethodStr = messageStr.substr(MESSAGE_METHOD_POS, MESSAGE_METHOD_LEN);
     messageStruct.messageMethodType = stripLeadingZeros(messageMethodStr);
@@ -173,14 +175,12 @@ CredentailMessage ParseMessage(const std::string& messageStr)
     char *end = nullptr;
     size_t bodyLength = strtol(messageLengthStr.c_str(), &end, 10);
     if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
-        std::cerr << "ParseMessage: Invalid message length is: " << messageLengthStr << std::endl;
-        WRITE_LOG(LOG_FATAL, "ParseMessage: Invalid message length %s.", messageLengthStr.c_str());
+        WRITE_LOG(LOG_FATAL, "Invalid message length.");
         return CredentailMessage();
     }
 
     if (messageStr.length() < MESSAGE_BODY_POS + bodyLength) {
-        std::cerr << "ParseMessage: messageStr is too short for the body length." << std::endl;
-        WRITE_LOG(LOG_FATAL, "ParseMessage: messageStr is too short for the body length.");
+        WRITE_LOG(LOG_FATAL, "messageStr is too short.messageStr is:%s", messageStr.c_str());
         return CredentailMessage();
     }
 
@@ -194,31 +194,30 @@ std::string ConstructMessage(const CredentailMessage& messageStruct)
 {
     std::ostringstream messageStream; 
 
-    std::cout << "ConstructMessage: messageStruct.messageVersion = " << messageStruct.messageVersion << std::endl;
-    std::cout << "ConstructMessage: messageStruct.messageMethodType = " << messageStruct.messageMethodType << std::endl;
-    std::cout << "ConstructMessage: messageStruct.messageBodyLen = " << messageStruct.messageBodyLen << std::endl;
-    std::cout << "ConstructMessage: messageStruct.messageBody = " << messageStruct.messageBody << std::endl;
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageVersion = %d", messageStruct.messageVersion);
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageMethodType = %d", messageStruct.messageMethodType);
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageBodyLen = %d", messageStruct.messageBodyLen);
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageBody = %s", messageStruct.messageBody.c_str());
 
     messageStream << messageStruct.messageVersion;
 
     std::string messageMethodTypeStr = convertInt(messageStruct.messageMethodType, MESSAGE_METHOD_LEN);
     if (messageMethodTypeStr.size() != MESSAGE_METHOD_LEN) {
-        std::cerr << "ConstructMessage: messageMethodTypeStr size is not equal to " << MESSAGE_METHOD_LEN << std::endl;
-        WRITE_LOG(LOG_FATAL, "ConstructMessage: messageMethodTypeStr size is not equal to %d.", MESSAGE_METHOD_LEN);
+        WRITE_LOG(LOG_FATAL, "messageMethod length Error!");
         return "";
     }
     messageStream << messageMethodTypeStr;
 
     std::string messageLengthStr = std::to_string(messageStruct.messageBodyLen);
-    if (messageLengthStr.size() > MESSAGE_LENGTH_LEN) {
-        std::cerr << "ConstructMessage: messageLengthStr size exceeds " << MESSAGE_LENGTH_LEN << std::endl;
-        WRITE_LOG(LOG_FATAL, "ConstructMessage: messageLengthStr size exceeds %d.", MESSAGE_LENGTH_LEN);
+    if (messageLengthStr.length() > MESSAGE_LENGTH_LEN) {
+        WRITE_LOG(LOG_FATAL, "messageLength must be:%d,now is:%d",
+            MESSAGE_LENGTH_LEN, messageLengthStr.length());
         return "";
     }
-    messageStream << convertInt(messageLengthStr.size(), MESSAGE_LENGTH_LEN);
+    messageStream << convertInt(messageStruct.messageBodyLen, MESSAGE_LENGTH_LEN);
     messageStream << messageStruct.messageBody;
 
-    std::cout << "ConstructMessage: Final message = " << messageStream.str() << std::endl;
+    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx Final message = %s", messageStream.str().c_str());
     return messageStream.str();
 }
 
@@ -227,8 +226,7 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
 {
     CredetialMessage messageStruct = ParseMessage(messageStr);
     if (messageStruct.messageBody.empty() || messageStruct.messageVersion != METHOD_VERSION_V1) {
-        std::cerr << "Error: Invalid message structure.And Version is:" << messageStruct.messageVersion << std::endl;
-        WRITE_LOG(LOG_FATAL, "Error: Invalid message structure. and Version is: %d", messageStruct.messageVersion);
+        WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.",);
         return "";
     }
     std::pair<std::string, size_t> processMessageValue;
@@ -255,8 +253,7 @@ int create_and_bind_socket(const std::string& socketPath)
 {
     int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        std::cerr << "create_and_bind_socket: Failed to create socket." << std::endl;
-        WRITE_LOG(LOG_FATAL, "create_and_bind_socket: Failed to create socket.");
+        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
         return -1;
     }
 
@@ -267,66 +264,65 @@ int create_and_bind_socket(const std::string& socketPath)
 
     int optval = 1;
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
-        std::cerr << "create_and_bind_socket: Failed to set socket options." << std::endl;
-        std::cerr << "Error: " << strerror(errno) << std::endl;
-        WRITE_LOG(LOG_FATAL, "Error: Failed to set socket options, message: %s.", strerror(errno));
+        WRITE_LOG(LOG_FATAL, "Failed to set socket options, message: %s.", strerror(errno));
         close(sockfd);
         return -1;
     }
+
     unlink(socketPath.c_str()); // Remove the socket file if it already exists
 
     if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        std::cerr << "create_and_bind_socket: Failed to bind socket." << std::endl;
-        std::cerr << "Error: " << strerror(errno) << std::endl;
-        WRITE_LOG(LOG_FATAL, "Error: Failed to bind socket, message: %s.", strerror(errno));
+        WRITE_LOG(LOG_FATAL, "Failed to bind socket, message: %s.", strerror(errno));
         close(sockfd);
         return -1;
     }
 
+    if (chmod(addr.sun_path, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to chmod socket file, message: %s.", strerror(errno));
+        close(sockfd);
+        return -1;
+    }
     return sockfd;
 }
 
 int main(void)
 {
-    int sockfd = create_and_bind_socket(CREDENTIAL_SOCKET_PATH);
+    int sockfd = create_and_bind_socket(hdcCredentialSocket);
     if (listen(sockfd, SOCKET_CLIENT_NUMS) < 0) {
-        std::cerr << "main: Failed to listen on socket." << std::endl;
-        WRITE_LOG(LOG_FATAL, "Error: Failed to listen on socket.");
+        WRITE_LOG(LOG_FATAL, "Failed to listen on socket.");
         close(sockfd);
         return -1;
     }
 
-    std::cout << "main: Listening on socket: " << CREDENTIAL_SOCKET_PATH << std::endl;
-    WRITE_LOG(LOG_INFO, "Listening on socket: %s", CREDENTIAL_SOCKET_PATH.c_str());
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Listening on socket: %s", hdcCredentialSocket.c_str());
 
     while (true) { 
         int connfd = accept(sockfd, nullptr, nullptr);
         if (connfd < 0) {
-            std::cerr << "main: Failed to accept connection." << std::endl;
-            WRITE_LOG(LOG_FATAL, "Error: Failed to accept connection.");
+            WRITE_LOG(LOG_FATAL, "Failed to accept connection!");
             continue;
         }
 
         char buffer[MESSAGE_STR_MAX_LEN] = {0};
         ssize_t bytesRead = read(connfd, buffer, sizeof(buffer) - 1);
         if (bytesRead < 0) {
-            std::cerr << "main: Failed to read from socket." << std::endl;
             WRITE_LOG(LOG_FATAL, "Error: Failed to read from socket.");
             close(connfd);
             continue;
         }
-        std::cout << "Received message: " << buffer << std::endl;
+        WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Received message: %s", buffer);
         std::string sendBuf = ParseAndProcessMessageStr(std::string(buffer, bytesRead));
         if (sendBuf.empty()) {
-            std::cerr << "main: Processed message is empty." << std::endl;
             WRITE_LOG(LOG_FATAL, "Error: Processed message is empty.");
             close(connfd);
             continue;
         }
+        WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Send message: %s", sendBuf.c_str());
+        WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Send message length: %zu", sendBuf.size());
+
         size_t bytesSend = write(connfd, sendBuf.c_str(), sendBuf.size());
         if (bytesSend != sendBuf.size()) {
-            std::cerr << "main: Failed to send message." << std::endl;
-            WRITE_LOG(LOG_FATAL, "Error: Failed to send message.");
+            WRITE_LOG(LOG_FATAL, "Failed to send message.");
             close(connfd);
         }
         memset_s(buffer, sizeof(buffer), 0, sizeof(buffer)); // Clear the buffer
@@ -334,6 +330,6 @@ int main(void)
 
     } // Keep the server running indefinitely
     close(listenfd);
-    unlink(SERVER_SOCKET_PATH);
+    unlink(hdcCredentialSocket);
     return 0;
 }

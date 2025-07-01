@@ -31,6 +31,12 @@ public:
     bool Initial(const char *listenString);
     void AttachChannel(HSession hSession, const uint32_t channelId) override;
     void DeatchChannel(HSession hSession, const uint32_t channelId) override;
+    void AttachChannelInnerForTcp(HSession hSession, const uint32_t channelId);
+    void DeatchChannelInnerForTcp(HSession hSession, const uint32_t channelId);
+#ifdef HOST_OHOS
+    void AttachChannelInnerForUds(HSession hSession, const uint32_t channelId);
+    void DeatchChannelInnerForUds(HSession hSession, const uint32_t channelId);
+#endif
     virtual void EchoToClientsForSession(uint32_t targetSessionId, const string &echo);
     static bool PullupServer(const char *listenString);
     static void UsbPreConnect(uv_timer_t *handle);

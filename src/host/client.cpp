@@ -18,6 +18,9 @@
 #endif
 #include "host_updater.h"
 #include "server.h"
+#ifdef __OHOS__
+#include <sys/un.h>
+#endif
 #include "file.h"
 
 std::map<std::string, std::string> g_lists;
@@ -28,6 +31,13 @@ bool g_terminalStateChange = false;
 HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
+#ifdef __OHOS__
+    serverAddress = addrString;
+#endif
+    channel = new HdcChannel();
+#ifdef __OHOS__
+    channel->isUds = (serverAddress.empty() || serverAddress == UDS_STR);
+#endif
     MallocChannel(&channel);  // free by logic
     debugRetryCount = 0;
 #ifndef _WIN32
@@ -427,9 +437,11 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     uint16_t port = 0;
     int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {
+#ifndef __OHOS__
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort %s failed with %d",
                   channelHostPort.c_str(), ret);
         return -1;
+#endif
     }
 
     if (!strncmp(commandIn.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size()) &&
@@ -448,7 +460,19 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     }
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
+#ifdef __OHOS__
+    if (serverAddress.empty() || serverAddress == UDS_STR) {
+        channel->isUds = true;
+        AdminChannel(OP_UPDATE, channel->channelId, channel);
+        ConnectUdsServerForClient();
+    } else {
+        channel->isUds = false;
+        AdminChannel(OP_UPDATE, channel->channelId, channel);
+        ConnectServerForClient(ip, port);
+    }
+#else
     ConnectServerForClient(ip, port);
+#endif
     uv_timer_init(loopMain, &waitTimeDoCmd);
     waitTimeDoCmd.data = this;
     uv_timer_start(&waitTimeDoCmd, CommandWorker, UV_START_TIMEOUT, UV_START_REPEAT);
@@ -460,11 +484,36 @@ int HdcClient::Initial(const string &connectKeyIn)
 {
     connectKey = connectKeyIn;
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
+#ifndef __OHOS__
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
+#endif
         return ERR_PARM_FAIL;
     }
     return 0;
 }
+
+#ifdef __OHOS__
+int HdcClient::ConnectUdsServerForClient()
+{
+    if (uv_is_closing((const uv_handle_t *)&channel->hWorkUds)) {
+        WRITE_LOG(LOG_FATAL, "ConnectServerForClient uv_is_closing");
+        return ERR_SOCKET_FAIL;
+    }
+    WRITE_LOG(LOG_DEBUG, "Try to connect uds");
+    uv_connect_t *conn = new(std::nothrow) uv_connect_t();
+    if (conn == nullptr) {
+        WRITE_LOG(LOG_FATAL, "ConnectServerForClient new conn failed");
+        return ERR_GENERIC;
+    }
+    conn->data = this;
+    udsConnectRetryCount = 0;
+    uv_timer_init(loopMain, &retryUdsConnTimer);
+    retryUdsConnTimer.data = this;
+    
+    uv_pipe_connect(conn, (uv_pipe_t *)&channel->hWorkUds, UDS_PATH.c_str(), ConnectUds);
+    return 0;
+}
+#endif
 
 int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
 {
@@ -629,6 +678,41 @@ void HdcClient::BindLocalStd(HChannel hChannel)
     }
 }
 
+#ifdef __OHOS__
+void HdcClient::ConnectUds(uv_connect_t *connection, int status)
+{
+    WRITE_LOG(LOG_DEBUG, "Enter ConnectUds, status:%d", status);
+    HdcClient *thisClass = (HdcClient *)connection->data;
+    CALLSTAT_GUARD(thisClass->loopMainStatus, connection->handle->loop, "HdcClient::Connect");
+    delete connection;
+    HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
+    if (uv_is_closing((const uv_handle_t *)&hChannel->hWorkUds)) {
+        WRITE_LOG(LOG_DEBUG, "uv_is_closing...");
+        thisClass->FreeChannel(hChannel->channelId);
+        return;
+    }
+
+    // connect success
+    if (status == 0) {
+        thisClass->BindLocalStd(hChannel);
+        Base::SetUdsOptions((uv_pipe_t *)&hChannel->hWorkUds);
+        WRITE_LOG(LOG_DEBUG, "uv_read_start");
+        uv_read_start((uv_stream_t *)&hChannel->hWorkUds, AllocCallback, ReadStream);
+        return;
+    }
+
+    // connect failed, start timer and retry
+    WRITE_LOG(LOG_DEBUG, "retry count:%d", thisClass->udsConnectRetryCount);
+    if (thisClass->udsConnectRetryCount >= TCP_CONNECT_MAX_RETRY_COUNT) {
+        WRITE_LOG(LOG_DEBUG, "stop retry for connect");
+        thisClass->FreeChannel(hChannel->channelId);
+        return;
+    }
+    thisClass->udsConnectRetryCount++;
+    uv_timer_start(&(thisClass->retryUdsConnTimer), thisClass->RetryUdsConnectWorker, TCP_CONNECT_RETRY_TIME_MS, 0);
+}
+#endif
+
 void HdcClient::Connect(uv_connect_t *connection, int status)
 {
     WRITE_LOG(LOG_DEBUG, "Enter Connect, status:%d", status);
@@ -661,6 +745,24 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
     thisClass->tcpConnectRetryCount++;
     uv_timer_start(&(thisClass->retryTcpConnTimer), thisClass->RetryTcpConnectWorker, TCP_CONNECT_RETRY_TIME_MS, 0);
 }
+
+#ifdef __OHOS__
+void HdcClient::RetryUdsConnectWorker(uv_timer_t *handle)
+{
+    HdcClient *thisClass = (HdcClient *)handle->data;
+    HChannel hChannel = reinterpret_cast<HChannel>(thisClass->channel);
+    CALLSTAT_GUARD(thisClass->loopMainStatus, handle->loop, "HdcClient::RetryUdsConnectWorker");
+    uv_connect_t *connection = new(std::nothrow) uv_connect_t();
+    if (connection == nullptr) {
+        WRITE_LOG(LOG_FATAL, "RetryUdsConnectWorker new conn failed");
+        thisClass->FreeChannel(hChannel->channelId);
+        return;
+    }
+    connection->data = thisClass;
+    WRITE_LOG(LOG_DEBUG, "RetryUdsConnectWorker start tcp connect");
+    uv_pipe_connect(connection, &(thisClass->channel->hWorkUds), UDS_PATH.c_str(), thisClass->ConnectUds);
+}
+#endif
 
 void HdcClient::RetryTcpConnectWorker(uv_timer_t *handle)
 {

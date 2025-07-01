@@ -158,9 +158,11 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
 
 int RunServerMode(string &serverListenString)
 {
+#ifndef __OHOS__
     if (serverListenString.empty()) {
         return -1;
     }
+#endif
     /*
      * Notice !!!!!!
      * For hdc server, all setenv must befor Base::RemoveLogFile()
@@ -232,6 +234,13 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
 
 bool ParseServerListenString(string &serverListenString, char *optarg)
 {
+#ifdef __OHOS__
+    string temp = optarg;
+    if (temp == UDS_STR) {
+        serverListenString = temp;
+        return true;
+    }
+#endif
     if (strlen(optarg) > strlen("0000::0000:0000:0000:0000%interfacename:65535")) {
         Base::PrintMessage("Unknown content of parament '-s'");
         return false;
@@ -453,8 +462,9 @@ int main(int argc, const char *argv[])
     int optArgc = 0;
     char **optArgv = Base::SplitCommandToArgs(options.c_str(), &optArgc);
     bool cmdOptionResult;
-
+#ifndef __OHOS__
     InitServerAddr();
+#endif
     cmdOptionResult = GetCommandlineOptions(optArgc, const_cast<const char **>(optArgv));
     delete[](reinterpret_cast<char*>(optArgv));
     if (cmdOptionResult) {
@@ -470,6 +480,11 @@ int main(int argc, const char *argv[])
     } else if (g_isPcDebugRun) {
         Hdc::RunPcDebugMode(g_isPullServer, g_isTCPorUSB, g_isTestMethod);
     } else {
+#ifdef __OHOS__
+        if (g_serverListenString.empty()) {
+            g_serverListenString = UDS_STR;
+        }
+#endif
         if (!g_isCustomLoglevel) {
             Base::SetLogLevel(LOG_INFO);
         }

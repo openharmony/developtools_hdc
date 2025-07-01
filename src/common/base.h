@@ -47,6 +47,9 @@ namespace Base {
     void PrintMessageAndWriteLog(const char *fmt, ...);
     // tcpHandle can't be const as it's passed into uv_tcp_keepalive
     void SetTcpOptions(uv_tcp_t *tcpHandle, int bufMaxSize = HDC_SOCKETPAIR_SIZE);
+#ifdef HOST_OHOS
+    void SetUdsOptions(uv_pipe_t *udsHandle, int bufMaxSize = HDC_SOCKETPAIR_SIZE);
+#endif
     // Realloc need to update origBuf&origSize which can't be const
     void ReallocBuf(uint8_t **origBuf, int *nOrigSize, size_t sizeWanted);
     // handle&sendHandle must keep sync with uv_write
@@ -215,6 +218,9 @@ namespace Base {
     }
 #endif
     uv_os_sock_t DuplicateUvSocket(uv_tcp_t *tcp);
+#ifdef HOST_OHOS
+    uv_os_sock_t DuplicateUvPipe(uv_pipe_t *pipe);
+#endif
     bool IsRoot();
     char GetPathSep();
     string GetHdcAbsolutePath();

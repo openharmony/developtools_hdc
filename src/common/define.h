@@ -44,6 +44,10 @@ const string ENV_SERVER_HEARTBEAT = "OHOS_HDC_HEARTBEAT"; // 1: turn off heartbe
 const string ENV_ENCRYPT_CHANNEL = "OHOS_HDC_ENCRYPT_CHANNEL"; // 1: turn on encrypt channel
 const string STR_PSK_IDENTITY = "Client_identity";
 const string TLS_AES_128_GCM_SHA256 = "TLS_AES_128_GCM_SHA256";
+#ifdef __OHOS__
+const string UDS_PATH = "/data/hdc/hdc_debug/hdc_server";
+const string UDS_STR = "uds";
+#endif
 
 // ################################ macro define ###################################
 constexpr uint8_t MINOR_TIMEOUT = 5;
@@ -155,6 +159,10 @@ const char HUGE_BUF_TAG = 'H';                // support huge buffer
 const size_t BANNER_FEATURE_TAG_OFFSET = 11;
 const char WAIT_DEVICE_TAG = 'W';
 const size_t WAIT_TAG_OFFSET = 11;
+#ifdef __OHOS__
+const size_t SERVICE_KILL_OFFSET = 10;
+const char SERVICE_KILL_TAG = 'K';
+#endif
 // input command
 const string CMDSTR_SOFTWARE_VERSION = "version";
 const string CMDSTR_SOFTWARE_HELP = "help";

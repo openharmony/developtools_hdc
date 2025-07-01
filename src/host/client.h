@@ -40,6 +40,11 @@ private:
     static void ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
     static void CommandWorker(uv_timer_t *handle);
     static void RetryTcpConnectWorker(uv_timer_t *handle);
+#ifdef __OHOS__
+    static void RetryUdsConnectWorker(uv_timer_t *handle);
+    static void ConnectUds(uv_connect_t *connection, int status);
+    int ConnectUdsServerForClient();
+#endif
     int ConnectServerForClient(const char *ip, uint16_t port);
     int ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO) override;
     int PreHandshake(HChannel hChannel, const uint8_t *buf);
@@ -88,6 +93,11 @@ private:
     struct sockaddr_in6 dest;
     uv_timer_t retryTcpConnTimer;
     uint16_t tcpConnectRetryCount = 0;
+#ifdef __OHOS__
+    string serverAddress;
+    uv_timer_t retryUdsConnTimer;
+    uint16_t udsConnectRetryCount = 0;
+#endif
 };
 }  // namespace Hdc
 #endif

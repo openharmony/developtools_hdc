@@ -17,10 +17,16 @@
 #include "hdc_hash_gen.h"
 #endif
 #include "server.h"
+#ifdef __OHOS__
+#include <sys/un.h>
+#endif
 #include "host_shell_option.h"
 namespace Hdc {
 static const int MAX_RETRY_COUNT = 500;
 static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
+#ifdef __OHOS__
+static const int MAX_CONNECTIONS_COUNT = 16;
+#endif
 
 HdcServerForClient::HdcServerForClient(const bool serverOrClient, const string &addrString, void *pClsServer,
                                        uv_loop_t *loopMainIn)
@@ -37,6 +43,9 @@ HdcServerForClient::~HdcServerForClient()
 void HdcServerForClient::Stop()
 {
     Base::TryCloseHandle((uv_handle_t *)&tcpListen);
+#ifdef __OHOS__
+    Base::TryCloseHandle((uv_handle_t *)&udsListen);
+#endif
 }
 
 uint16_t HdcServerForClient::GetTCPListenPort()
@@ -44,13 +53,68 @@ uint16_t HdcServerForClient::GetTCPListenPort()
     return channelPort;
 }
 
+#ifdef __OHOS__
+void HdcServerForClient::AcceptUdsClient(uv_stream_t *server, int status)
+{
+    StartTraceScope("HdcServerForClient::AcceptUdsClient");
+    HdcServerForClient *thisClass = (HdcServerForClient *)(((uv_pipe_t *)server)->data);
+    CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptUdsClient");
+    HChannel hChannel = new HdcChannel();
+    hChannel->isUds = true;
+    uint32_t uid = thisClass->MallocChannel(&hChannel);
+    hChannel->startTime = Base::GetRuntimeMSec();
+    int rc = 0;
+    if ((rc = uv_accept(server, (uv_stream_t *)&hChannel->hWorkUds)) < 0) {
+        WRITE_LOG(LOG_FATAL, "AcceptUdsClient uv_accept error rc:%d uid:%u", rc, uid);
+        thisClass->FreeChannel(uid);
+        return;
+    }
+    WRITE_LOG(LOG_DEBUG, "AcceptUdsClient uid:%u", uid);
+    // limit first recv
+    int bufMaxSize = 0;
+    uv_recv_buffer_size((uv_handle_t *)&hChannel->hWorkUds, &bufMaxSize);
+    auto funcChannelHeaderAlloc = [](uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf) -> void {
+        HChannel context = (HChannel)handle->data;
+        Base::ReallocBuf(&context->ioBuf, &context->bufSize, Base::GetMaxBufSize() * BUF_EXTEND_SIZE);
+        buf->base = (char *)context->ioBuf + context->availTailIndex;
+#ifdef HDC_VERSION_CHECK
+        buf->len = sizeof(struct ChannelHandShake) + DWORD_SERIALIZE_SIZE;  // only recv static size
+#else
+        buf->len = offsetof(struct ChannelHandShake, version) + DWORD_SERIALIZE_SIZE;
+#endif
+    };
+    // first packet static size, after this packet will be dup for normal recv
+    uv_read_start((uv_stream_t *)&hChannel->hWorkUds, funcChannelHeaderAlloc, ReadStream);
+    // channel handshake step1
+    struct ChannelHandShake handShake = {};
+    if (EOK == strcpy_s(handShake.banner, sizeof(handShake.banner), HANDSHAKE_MESSAGE.c_str())) {
+        handShake.banner[BANNER_FEATURE_TAG_OFFSET] = HUGE_BUF_TAG; // set feature tag for huge buf size
+        handShake.banner[SERVICE_KILL_OFFSET] = SERVICE_KILL_TAG;
+        handShake.channelId = htonl(hChannel->channelId);
+        string ver = Base::GetVersion() + HDC_MSG_HASH;
+        WRITE_LOG(LOG_DEBUG, "Server ver:%s", ver.c_str());
+        if (EOK != strcpy_s(handShake.version, sizeof(handShake.version), ver.c_str())) {
+            WRITE_LOG(LOG_FATAL, "strcpy_s failed");
+            return;
+        }
+#ifdef HDC_VERSION_CHECK
+    thisClass->Send(hChannel->channelId, (uint8_t *)&handShake, sizeof(struct ChannelHandShake));
+#else
+    // do not send version message if check feature disable
+    thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(&handShake),
+                    offsetof(struct ChannelHandShake, version));
+#endif
+    }
+}
+#endif
+
 void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
 {
     StartTraceScope("HdcServerForClient::AcceptClient");
     uv_tcp_t *pServTCP = (uv_tcp_t *)server;
     HdcServerForClient *thisClass = (HdcServerForClient *)pServTCP->data;
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptClient");
-    HChannel hChannel = nullptr;
+    HChannel hChannel = new HdcChannel();
     uint32_t uid = thisClass->MallocChannel(&hChannel);
     hChannel->startTime = Base::GetRuntimeMSec();
     if (!hChannel) {
@@ -99,6 +163,40 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
 #endif
     }
 }
+
+#ifdef __OHOS__
+bool HdcServerForClient::SetUdsListen()
+{
+    udsListen.data = this;
+    int ret = -1;
+    ret = uv_pipe_init(loopMain, &udsListen, 0);
+
+    unlink(UDS_PATH.c_str());
+
+    if ((ret = uv_pipe_bind(&udsListen, UDS_PATH.c_str())) != 0) {
+        WRITE_LOG(LOG_WARN, "bind uds addr fail! ret:%d", ret);
+        return false;
+    }
+
+    uv_fs_t req = {};
+    ret = uv_fs_chmod(nullptr, &req, UDS_PATH.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
+        nullptr);
+    if (ret < 0) {
+        char buffer[BUF_SIZE_DEFAULT] = { 0 };
+        uv_strerror_r(ret, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_WARN, "uv_fs_chmod uds failed %s", buffer);
+        uv_fs_req_cleanup(&req);
+        return -1;
+    }
+    uv_fs_req_cleanup(&req);
+
+    if ((ret = uv_listen((uv_stream_t *)&udsListen, MAX_CONNECTIONS_COUNT, AcceptUdsClient)) != 0) {
+        WRITE_LOG(LOG_WARN, "uds listen fail! ret:%d", ret);
+        return false;
+    }
+    return true;
+}
+#endif
 
 bool HdcServerForClient::SetTCPListen()
 {
@@ -154,16 +252,35 @@ int HdcServerForClient::Initial()
         WRITE_LOG(LOG_FATAL, "Module client initial failed");
         return -1;
     }
+#ifndef __OHOS__
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
         return -2;  // -2:err for Listen initial failed
+    } else {
+        bool b = SetTCPListen();
+        if (!b) {
+            WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
+            int listenError = -3;  // -3:error for SetTCPListen failed
+            return listenError;
+        }
     }
-    bool b = SetTCPListen();
-    if (!b) {
-        WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
-        int listenError = -3;  // -3:error for SetTCPListen failed
+#else
+    if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
+        WRITE_LOG(LOG_FATAL, "Listen string initial failed");
+    } else {
+        bool b = SetTCPListen();
+        if (!b) {
+            WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
+        }
+    }
+    bool ret = SetUdsListen();
+    if (!ret) {
+        WRITE_LOG(LOG_FATAL, "SetUdsListen failed");
+        int listenError = -3;
         return listenError;
     }
+#endif
+    
     return 0;
 }
 
@@ -727,7 +844,11 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
     StartTraceScope("HdcServerForClient::DoCommand");
     bool ret = false;
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
+#ifdef __OHOS__
+    if ((!hChannel->hChildWorkTCP.loop && !hChannel->hChildWorkUds.loop) ||
+#else
     if (!hChannel->hChildWorkTCP.loop ||
+#endif
         formatCommand->cmdFlag == CMD_FORWARD_REMOVE ||
         formatCommand->cmdFlag == CMD_SERVICE_START) {
         hChannel->commandFlag = formatCommand->cmdFlag;
@@ -789,6 +910,57 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
     return hSession;
 }
 
+#ifdef __OHOS__
+int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
+{
+    StartTraceScope("HdcServerForClient::BindChannelToSession");
+    if (FindAliveSessionFromDaemonMap(hChannel) == nullptr) {
+        WRITE_LOG(LOG_FATAL, "Find no alive session channelId:%u", hChannel->channelId);
+        return ERR_SESSION_NOFOUND;
+    }
+    bool isClosing = false;
+    if (!hChannel->isUds) {
+        isClosing = uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP);
+        if (!isClosing && (hChannel->fdChildWorkTCP = Base::DuplicateUvSocket(&hChannel->hWorkTCP)) < 0) {
+            WRITE_LOG(LOG_FATAL, "Duplicate socket failed channelId:%u", hChannel->channelId);
+            return ERR_SOCKET_DUPLICATE;
+        }
+    } else {
+        isClosing = uv_is_closing((const uv_handle_t *)&hChannel->hWorkUds);
+        if (!isClosing && (hChannel->fdChildWorkTCP = Base::DuplicateUvPipe(&hChannel->hWorkUds)) < 0) {
+            WRITE_LOG(LOG_FATAL, "Duplicate pipe failed channelId:%u", hChannel->channelId);
+            return ERR_SOCKET_DUPLICATE;
+        }
+    }
+
+    uv_close_cb funcWorkTcpClose = [](uv_handle_t *handle) -> void {
+        HChannel hChannel = (HChannel)handle->data;
+        --hChannel->ref;
+    };
+    ++hChannel->ref;
+    if (!isClosing) {
+        if (!hChannel->isUds) {
+            uv_close((uv_handle_t *)&hChannel->hWorkTCP, funcWorkTcpClose);
+        } else {
+            uv_close((uv_handle_t *)&hChannel->hWorkUds, funcWorkTcpClose);
+        }
+    }
+    Base::DoNextLoop(loopMain, hChannel, [](const uint8_t flag, string &msg, const void *data) {
+        // Thread message can avoid using thread lock and improve program efficiency
+        // If not next loop call, ReadStream will thread conflict
+        HChannel hChannel = (HChannel)data;
+        auto thisClass = (HdcServerForClient *)hChannel->clsChannel;
+        HSession hSession = nullptr;
+        if ((hSession = thisClass->FindAliveSessionFromDaemonMap(hChannel)) == nullptr) {
+            WRITE_LOG(LOG_FATAL, "hSession nullptr channelId:%u", hChannel->channelId);
+            return;
+        }
+        auto ctrl = HdcSessionBase::BuildCtrlString(SP_ATTACH_CHANNEL, hChannel->channelId, nullptr, 0);
+        Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
+    });
+    return RET_SUCCESS;
+}
+#else
 int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
     StartTraceScope("HdcServerForClient::BindChannelToSession");
@@ -801,6 +973,7 @@ int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr,
         WRITE_LOG(LOG_FATAL, "Duplicate socket failed channelId:%u", hChannel->channelId);
         return ERR_SOCKET_DUPLICATE;
     }
+
     uv_close_cb funcWorkTcpClose = [](uv_handle_t *handle) -> void {
         HChannel hChannel = (HChannel)handle->data;
         --hChannel->ref;
@@ -824,6 +997,7 @@ int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr,
     });
     return RET_SUCCESS;
 }
+#endif
 
 bool HdcServerForClient::CheckAutoFillTarget(HChannel hChannel)
 {

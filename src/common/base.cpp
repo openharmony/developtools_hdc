@@ -718,6 +718,20 @@ static void EchoLog(string &buf)
         return tmpString;
     }
 
+#ifdef HOST_OHOS
+    void SetUdsOptions(uv_pipe_t *udsHandle, int bufMaxSize)
+    {
+        if (!udsHandle) {
+            return;
+        }
+        // if MAX_SIZE_IOBUF==5k,bufMaxSize at least 40k. It must be set to io 8 times is more appropriate,
+        // otherwise asynchronous IO is too fast, a lot of IO is wasted on IOloop, transmission speed will decrease
+
+        uv_recv_buffer_size((uv_handle_t *)udsHandle, &bufMaxSize);
+        uv_send_buffer_size((uv_handle_t *)udsHandle, &bufMaxSize);
+    }
+#endif
+
     void SetTcpOptions(uv_tcp_t *tcpHandle, int bufMaxSize)
     {
         if (!tcpHandle) {
@@ -2111,6 +2125,19 @@ static void EchoLog(string &buf)
 #endif
         return dupFd;
     }
+
+#ifdef HOST_OHOS
+    uv_os_sock_t DuplicateUvPipe(uv_pipe_t *pipe)
+    {
+        uv_os_sock_t dupFd = -1;
+        uv_os_fd_t fdOs;
+        if (uv_fileno((const uv_handle_t *)pipe, &fdOs) < 0) {
+            return ERR_API_FAIL;
+        }
+        dupFd = dup(uv_open_osfhandle(fdOs));
+        return dupFd;
+    }
+#endif
 
     string GetCwd()
     {

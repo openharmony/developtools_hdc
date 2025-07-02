@@ -18,11 +18,15 @@
 #include <string>
 #include <memory>
 #include <utility>
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+#include <iomanip>
+#endif
 #include "hdc_huks.h"
 namespace Hdc {
 #define PASSWORD_LENGTH 10
 
-constexpr char* hdcCredentialSocket = "/data/service/el1/public/hdc_huks/hdc_credential.socket";
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+constexpr const char* hdcCredentialSocket = "/data/service/el1/public/hdc_huks/hdc_credential.socket";
 struct CredentialMessage {
     int messageVersion;
     int messageMethodType;
@@ -46,7 +50,7 @@ enum MethodVersion {
     METHOD_VERSION_V1 = 1,
     METHOD_VERSION_MAX = 9,
 };
-
+#endif
 class HdcPassword {
 public:
     ~HdcPassword();
@@ -59,10 +63,12 @@ public:
     bool ResetPwdKey();
     int GetEncryptPwdLength();
     char GetHexChar(uint8_t data);
-    bool Hdcpassword::IsNumeric(const std::string& str);
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    bool IsNumeric(const std::string& str);
     int StripLeadingZeros(const std::string &input);
     bool IsInRange(int value, int min, int max);
     CredentialMessage ParseMessage(const std::string &messageStr);
+#endif
 private:
     uint8_t pwd[PASSWORD_LENGTH];
     std::string encryptPwd;
@@ -71,12 +77,14 @@ private:
     bool HexToByte(std::vector<uint8_t>& hexData);
     uint8_t HexCharToInt(uint8_t data);
     void ClearEncryptPwd(void);
-    std::string convertInt(int len, int maxLen);
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    std::string ConvertInt(int len, int maxLen);
     std::string SplicMessageStr(const std::string &str, const size_t type);
     std::vector<uint8_t> String2Uint8(const std::string &str, size_t len);
     std::string SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr);
-    std::vector<uint8_t> EncryptGetPwdValue(uint8_t *pwd, size_t length);
+    std::vector<uint8_t> EncryptGetPwdValue(uint8_t *pwd, int pwdLen);
     std::pair<uint8_t*, int> DecryptGetPwdValue(const std::string &encryptData);
+#endif
 };
 } // namespace Hdc
 #endif // HDC_PASSWORD_H

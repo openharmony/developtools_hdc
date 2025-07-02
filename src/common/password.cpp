@@ -26,7 +26,7 @@ static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 
-bool Hdcpassword::IsNumeric(const std::string& str)
+bool HdcPassword::IsNumeric(const std::string& str)
 {
     if (str.empty()) {
         return false;
@@ -40,7 +40,7 @@ bool Hdcpassword::IsNumeric(const std::string& str)
     return true;
 }
 
-int Hdcpassword::StripLeadingZeros(const std::string &input)
+int HdcPassword::StripLeadingZeros(const std::string &input)
 {
     if (input.empty() || input == "0") {
         return 0;
@@ -55,15 +55,15 @@ int Hdcpassword::StripLeadingZeros(const std::string &input)
         WRITE_LOG(LOG_FATAL, "stripLeadingZeros: invalid numeric string.");
         return -1;
     }
-    return static_cast<int>(strtol(input.substr(firstNonZero), nullptr, 10));
+    return std::stoi(numberStr);
 }
 
-inline bool Hdcpassword::IsInRange(int value, int min, int max)
+inline bool HdcPassword::IsInRange(int value, int min, int max)
 {
     return (value >= min && value <= max);
 }
 
-CredentialMessage Hdcpassword::ParseMessage(const std::string &messageStr)
+CredentialMessage HdcPassword::ParseMessage(const std::string &messageStr)
 {
     if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
         WRITE_LOG(LOG_FATAL, "messageStr is too short.messageStr is:%s", messageStr.c_str());
@@ -156,7 +156,7 @@ std::vector<uint8_t> HdcPassword::String2Uint8(const std::string &str, size_t le
 std::string HdcPassword::ConvertInt(int len, int max_len)
 {
     std::ostringstream ss;
-    oss << std::setfill('0') << std::setw(max_len) << len;
+    ss << std::setw(max_len) << std::setfill('0') << len;
 
     return ss.str();
 }
@@ -164,9 +164,9 @@ std::string HdcPassword::ConvertInt(int len, int max_len)
 std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t type)
 {
     std::ostringstream oss;
-    oss << ConvertInt(METHOD_VERSION_V1, 1) // version
+    oss << ConvertInt(METHOD_VERSION_V1, 1); // version
 
-    std:string messageMethodTypeStr = ConvertInt(type, MESSAGE_METHOD_LEN);
+    std::string messageMethodTypeStr = ConvertInt(type, MESSAGE_METHOD_LEN);
     if (messageMethodTypeStr.length() != MESSAGE_METHOD_LEN) {
         WRITE_LOG(LOG_FATAL, "messageMethodTypeStr length must be:%d,now is:%s", MESSAGE_METHOD_LEN, messageMethodTypeStr.c_str());
         return "";
@@ -194,7 +194,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(CREDENTIAL_SOCKET_PATH, sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(hdcCredentialSocket, sendStr.c_str());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");
         return std::vector<uint8_t>();
@@ -218,7 +218,7 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(CREDENTIAL_SOCKET_PATH, sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(hdcCredentialSocket, sendStr.c_str());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");
         return std::make_pair(nullptr, 0);

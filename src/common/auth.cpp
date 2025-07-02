@@ -26,7 +26,6 @@
 
 using namespace Hdc;
 #define BIGNUMTOBIT 32
-#define HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS "hdc_private_key_file_pwd_key_alias"
 
 namespace HdcAuth {
 // ---------------------------------------Cheat compiler---------------------------------------------------------

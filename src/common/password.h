@@ -22,7 +22,7 @@
 namespace Hdc {
 #define PASSWORD_LENGTH 10
 
-constexpr char* hdcCredentialSocket = "/data/hdc_credential_socket";
+constexpr char* hdcCredentialSocket = "/data/service/el1/public/hdc_huks/hdc_credential.socket";
 struct CredentialMessage {
     int messageVersion;
     int messageMethodType;
@@ -58,15 +58,25 @@ public:
     std::string GetEncryptPassword(void);
     bool ResetPwdKey();
     int GetEncryptPwdLength();
+    char GetHexChar(uint8_t data);
+    bool Hdcpassword::IsNumeric(const std::string& str);
+    int StripLeadingZeros(const std::string &input);
+    bool IsInRange(int value, int min, int max);
+    CredentialMessage ParseMessage(const std::string &messageStr);
 private:
     uint8_t pwd[PASSWORD_LENGTH];
     std::string encryptPwd;
     HdcHuks hdcHuks;
-    char GetHexChar(uint8_t data);
     void ByteToHex(std::vector<uint8_t>& byteData);
     bool HexToByte(std::vector<uint8_t>& hexData);
     uint8_t HexCharToInt(uint8_t data);
     void ClearEncryptPwd(void);
+    std::string convertInt(int len, int maxLen);
+    std::string SplicMessageStr(const std::string &str, const size_t type);
+    std::vector<uint8_t> String2Uint8(const std::string &str, size_t len);
+    std::string SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr);
+    std::vector<uint8_t> EncryptGetPwdValue(uint8_t *pwd, size_t length);
+    std::pair<uint8_t*, int> DecryptGetPwdValue(const std::string &encryptData);
 };
 } // namespace Hdc
 #endif // HDC_PASSWORD_H

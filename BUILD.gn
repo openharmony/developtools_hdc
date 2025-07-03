@@ -472,14 +472,15 @@ ohos_executable("hdc_credential") {
   external_deps = [
     "openssl:libcrypto_shared",
     "bounds_checking_function:libsec_shared",
+    "libuv:uv"
   ]
   if (is_ohos) {
-    sources += [ "src/credential/password.cpp" ]
-    sources += [ "src/credential/hdc_huks.cpp" ]
-    sources += [ "src/credential/base.cpp" ]
-    defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
+    sources += [ "src/common/password.cpp" ]
+    sources += [ "src/common/hdc_huks.cpp" ]
+    sources += [ "src/common/base.cpp" ]
     external_deps += [ "huks:libhukssdk" ]
     external_deps += [ "hilog:libhilog" ]
+    defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
     install_images = [ "system" ]
   }
 

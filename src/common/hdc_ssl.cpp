@@ -35,25 +35,24 @@ HdcSSLBase::HdcSSLBase(SSLInfoPtr hSSLInfo)
 
 HdcSSLBase::~HdcSSLBase()
 {
-    if (!isInited) {
-        return;
+    if (isInited) {
+        int ret = SSL_shutdown(ssl);
+        if (ret != 1) {
+            SSL_get_error(ssl, ret);
+            uint8_t buf[BUF_SIZE_DEFAULT];
+            BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
+        }
+        BIO_reset(outBIO);
+        BIO_reset(inBIO);
+        SSL_free(ssl);
+        inBIO = nullptr;
+        outBIO = nullptr;
+        ssl = nullptr;
+        SSL_CTX_free(sslCtx);
+        sslCtx = nullptr;
+        isInited = false;
     }
-    int ret = SSL_shutdown(ssl);
-    if (ret != 1) {
-        SSL_get_error(ssl, ret);
-        uint8_t buf[BUF_SIZE_DEFAULT];
-        BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
-    }
-    BIO_reset(outBIO);
-    BIO_reset(inBIO);
-    SSL_free(ssl);
-    inBIO = nullptr;
-    outBIO = nullptr;
-    ssl = nullptr;
-    SSL_CTX_free(sslCtx);
-    sslCtx = nullptr;
     WRITE_LOG(LOG_INFO, "SSL free finished for sid:%u", sessionId);
-    isInited = false;
 }
 
 void HdcSSLBase::SetSSLInfo(SSLInfoPtr hSSLInfo, HSession hSession)
@@ -207,7 +206,7 @@ bool HdcSSLBase::GenPsk()
 {
     unsigned char* buf = preSharedKey;
     if (RAND_priv_bytes(buf, BUF_SIZE_PSK) != 1) {
-        WRITE_LOG(LOG_FATAL, "RAND_pri_bytes failed");
+        WRITE_LOG(LOG_FATAL, "RAND_priv_bytes failed");
         return false;
     }
     return true;

@@ -502,7 +502,7 @@ group("hdc_target") {
     ":hdc_register",
     ":hdcd_system",
     ":hdcd_updater",
-    "hdc_credentials",
+    ":hdc_credential",
   ]
 }
 

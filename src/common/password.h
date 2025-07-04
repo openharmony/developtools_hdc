@@ -26,7 +26,8 @@ namespace Hdc {
 #define PASSWORD_LENGTH 10
 
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
-constexpr const char* hdcCredentialSocket = "/data/service/el1/public/hdc_huks/hdc_credential.socket";
+constexpr const char* hdcCredentialSocketSandboxPath = "/data/hdc/hdc_huks/hdc_credential.socket";
+constexpr const char* hdcCredentialSocketRealPath = "/data/service/el1/public/hdc_server/hdc_common/hdc_credential.socket";
 struct CredentialMessage {
     int messageVersion;
     int messageMethodType;

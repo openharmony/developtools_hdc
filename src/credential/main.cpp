@@ -13,13 +13,77 @@
  * limitations under the License.
  */
 
-#include "common.h"
-#include "password.h"
+#include "hdc_credential.h"
 
 constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
 using namespace Hdc;
+using namespace OHOS;
 
+ReminderEventManager::ReminderEventSubscriber::ReminderEventSubscriber(
+    const EventFwk::CommonEventSubscribeInfo &subscriberInfo)
+    : CommonEventSubscriber(subscriberInfo)
+{
+}
+
+void ReminderEventManager::ReminderEventSubscriber::OnReceiveEvent(
+    const EventFwk::CommonEventData &data)
+{
+    AAFwk::Want want = data.GetWant();
+    std::string action = want.GetAction();
+    std::string accountUserId = std::to_string(data.GetCode());
+    std::string path = std::string("/data/service/el1/public/hdc_server/") +
+        accountUserId.c_str();
+    mode_t mode = (S_IRWXU | S_IRWXG);
+
+    if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_ADDED) {
+        if (::mkdir(path.c_str(), mode) != 0) {
+            WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));
+            return;
+        }
+        if (::chmod(path.c_str(), mode) != 0) {
+            WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
+            return;
+        }
+    }
+    if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_REMOVED) {
+        Base::RemovePath(path.c_str());
+    }
+    return;
+}
+
+ReminderEventManager::ReminderEventManager()
+{
+    Init();
+}
+
+void ReminderEventManager::Init()
+{
+    EventFwk::MatchingSkills customMatchingSkills; 
+    customMatchingSkills.AddEvent(EventFwk::COMMON_EVENT_USER_ADDED);
+    customMatchingSkills.AddEvent(EventFwk::COMMON_EVENT_USER_REMOVED);
+
+    EventFwk::CommonEventSubscribeInfo customSubscriberInfo(customMatchingSkills);
+    customSubscriberInfo.SetThreadMode(EventFwk::CommonEventSubscribeInfo::COMMON);
+    customSubscriber = std::make_shared<ReminderEventSubscriber>(customSubscriberInfo);
+
+    const int MAX_RETRY = 10;
+    int retryCount = 0;
+
+    while (retryCount < MAX_RETRY &&
+        !EventFwk::CommonEventManager::SubscribeCommonEvent(customSubscriber)) {
+        ++retryCount;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent fail %d/%d", retryCount, MAX_RETRY);
+    }
+
+    if (retryCount < MAX_RETRY) {
+        WRITE_LOG(LOG_ERROR, "SubscribeCommonEvent success.");
+    } else {
+        WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent failed after %d retries.", MAX_RETRY);
+    }
+    return;
+}
 std::string convertInt(int len, int maxLen)
 {
     std::ostringstream oss;
@@ -283,14 +347,15 @@ int create_and_bind_socket(const std::string& socketPath)
 
 int main(void)
 {
-    int sockfd = create_and_bind_socket(hdcCredentialSocket);
+    ReminderEventManager reminderEventManager;
+    int sockfd = create_and_bind_socket(hdcCredentialSocketRealPath);
     if (listen(sockfd, SOCKET_CLIENT_NUMS) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to listen on socket.");
         close(sockfd);
         return -1;
     }
 
-    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Listening on socket: %s", hdcCredentialSocket);
+    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Listening on socket: %s", hdcCredentialSocketRealPath);
 
     while (true) { 
         int connfd = accept(sockfd, nullptr, nullptr);
@@ -326,6 +391,6 @@ int main(void)
 
     } // Keep the server running indefinitely
     close(sockfd);
-    unlink(hdcCredentialSocket);
+    unlink(hdcCredentialSocketRealPath);
     return 0;
 }

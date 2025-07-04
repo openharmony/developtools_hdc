@@ -59,9 +59,9 @@ ReminderEventManager::ReminderEventManager()
 
 void ReminderEventManager::Init()
 {
-    EventFwk::MatchingSkills customMatchingSkills; 
-    customMatchingSkills.AddEvent(EventFwk::COMMON_EVENT_USER_ADDED);
-    customMatchingSkills.AddEvent(EventFwk::COMMON_EVENT_USER_REMOVED);
+    EventFwk::MatchingSkills customMatchingSkills;
+    customMatchingSkills.AddEvent(EventFwk::CommonEventSupport::COMMON_EVENT_USER_ADDED);
+    customMatchingSkills.AddEvent(EventFwk::CommonEventSupport::COMMON_EVENT_USER_REMOVED);
 
     EventFwk::CommonEventSubscribeInfo customSubscriberInfo(customMatchingSkills);
     customSubscriberInfo.SetThreadMode(EventFwk::CommonEventSubscribeInfo::COMMON);
@@ -74,13 +74,13 @@ void ReminderEventManager::Init()
         !EventFwk::CommonEventManager::SubscribeCommonEvent(customSubscriber)) {
         ++retryCount;
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent fail %d/%d", retryCount, MAX_RETRY);
+        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent fail %d/%d", retryCount, MAX_RETRY);
     }
 
     if (retryCount < MAX_RETRY) {
-        WRITE_LOG(LOG_ERROR, "SubscribeCommonEvent success.");
+        WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent success.");
     } else {
-        WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent failed after %d retries.", MAX_RETRY);
+        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent failed after %d retries.", MAX_RETRY);
     }
     return;
 }

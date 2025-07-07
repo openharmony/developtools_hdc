@@ -21,6 +21,16 @@
 #include "common_event_support.h"
 #include "password.h"
 
+#ifdef HDC_HILOG
+#ifdef LOG_DOMAIN
+#undef LOG_DOMAIN
+#endif // LOG_DOMAIN
+
+#define LOG_DOMAIN 0xD002D13
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif // LOG_TAG
+
 class ReminderEventManager {
 public:
     ReminderEventManager();

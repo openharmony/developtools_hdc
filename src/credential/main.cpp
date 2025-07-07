@@ -36,6 +36,7 @@ void ReminderEventManager::ReminderEventSubscriber::OnReceiveEvent(
         accountUserId.c_str();
     mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 
+    WRITE_LOG(LOG_DEBUG, "Recv Event is : %s", action.c_str());
     if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_ADDED) {
         if (::mkdir(path.c_str(), mode) != 0) {
             WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));
@@ -223,17 +224,11 @@ int create_and_bind_socket(const std::string& socketPath)
         close(sockfd);
         return -1;
     }
-    if (access(filename, F_OK) == 0) {
-        if (remove(filename) < 0) {
+    if (access(socketPath.c_str(), F_OK) == 0) {
+        if (remove(socketPath.c_str() ) < 0) {
             WRITE_LOG(LOG_FATAL, "Failed to remove existing socket file, message: %s.", strerror(errno));
             return -1;
         }
-    }
-
-    if (unlink(socketPath.c_str()) != 0) { // Remove the socket file if it already exists
-        WRITE_LOG(LOG_FATAL, "Failed to unlink socket file, message: %s.", strerror(errno));
-        close(sockfd);
-        return -1;
     }
 
     if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {

@@ -34,7 +34,7 @@ void ReminderEventManager::ReminderEventSubscriber::OnReceiveEvent(
     std::string accountUserId = std::to_string(data.GetCode());
     std::string path = std::string("/data/service/el1/public/hdc_server/") +
         accountUserId.c_str();
-    mode_t mode = (S_IRWXU | S_IRWXG);
+    mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 
     if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_ADDED) {
         if (::mkdir(path.c_str(), mode) != 0) {

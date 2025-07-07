@@ -474,11 +474,15 @@ ohos_executable("hdc_credential") {
     "openssl:libcrypto_shared",
     "bounds_checking_function:libsec_shared",
     "libuv:uv",
-    "ability_base:want",
-    "ability_runtime:ability_manager",
-    "ability_runtime:app_manager",
-    "common_event_service:cesfwk_innerkits",
   ]
+  if (product_name != "ohos-sdk") {
+    external_deps += [
+      "ability_base:want",
+      "ability_runtime:ability_manager",
+      "ability_runtime:app_manager",
+      "common_event_service:cesfwk_innerkits",
+    ]
+  }
   if (is_ohos) {
     sources += [ "src/common/password.cpp" ]
     sources += [ "src/common/hdc_huks.cpp" ]

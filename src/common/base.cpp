@@ -3038,6 +3038,7 @@ void CloseOpenFd(void)
         return StringFormat("[%s] %u %s\n", timeStr.c_str(), targetSessionId, cmdStr.c_str());
     }
 
+#ifndef HDC_HOST
     int RemoveDir(const string &dir)
     {
         DIR *pdir = opendir(dir.c_str());
@@ -3093,6 +3094,7 @@ void CloseOpenFd(void)
             WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
         }
     }
+#endif // !HDC_HOST
 
 } // namespace Base
 } // namespace Hdc

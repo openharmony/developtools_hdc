@@ -245,11 +245,11 @@ bool IsHiShellLabel()
 
     const char* attrName = "security.selinux";
     // get attribute size
-    size_t attrSize = getxattr(pathBuf, attrName, nullptr, 0);
-    if (attrSize == 0 || attrSize == (size_t) - 1) {
+    ssize_t attrSize = getxattr(pathBuf, attrName, nullptr, 0);
+    if (attrSize == 0 || attrSize == - 1) {
         return false;
     }
-    char* attrValue = new(std::nothrow) char[attrSize + 1];
+    char* attrValue = new(std::nothrow) char[attrSize];
     if (attrValue == nullptr) {
         return false;
     }
@@ -258,9 +258,9 @@ bool IsHiShellLabel()
         delete []attrValue;
         return false;
     }
-    string label(attrValue, attrSize);
+    string label(attrValue, attrSize - 1);
     delete []attrValue;
-    return label == HISHELL_SELINUX_LABEL;
+    return label == "u:r:hishell_hap:s0";
 }
 #endif
 

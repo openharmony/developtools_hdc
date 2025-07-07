@@ -671,7 +671,7 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
 }
 
 #ifdef __OHOS__
-bool HdcServerForClient::IsServerTransfer(uint16_t cmdFlag, HChannel hChannel, string &parameters)
+bool HdcServerForClient::IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters)
 {
     if (cmdFlag == CMD_FILE_INIT) {
         HandleRemote(hChannel, parameters, RemoteType::REMOTE_FILE);
@@ -684,21 +684,20 @@ bool HdcServerForClient::IsServerTransfer(uint16_t cmdFlag, HChannel hChannel, s
 }
 #endif
 
-bool HdcServerForClient::DoCommandJdwp(HChannel hChannel,
-    TranslateCommand::FormatCommand *formatCommand)
+bool HdcServerForClient::HandleCommandJdwp(HChannel hChannel, uint16_t cmdFlag,
+    string &parameters, int size)
 {
-    if (!SendToDaemon(hChannel, formatCommand->cmdFlag,
-        reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())), sizeSend)) {
-        return false;        
+    if (!SendToDaemon(hChannel, cmdFlag,
+        reinterpret_cast<uint8_t *>(const_cast<char *>(parameters.c_str())), size)) {
+        return false;
     }
-    if (formatCommand->cmdFlag == CMD_SHELL_INIT) {
+    if (cmdFlag == CMD_SHELL_INIT) {
         hChannel->interactiveShellMode = true;
     }
     return true;
 }
 
-bool HdcServerForClient::DoCommandRemote(HChannel hChannel,
-    void *formatCommandInput)
+bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
 {
     StartTraceScope("HdcServerForClient::DoCommandRemote");
     TranslateCommand::FormatCommand *formatCommand = (TranslateCommand::FormatCommand *)formatCommandInput;
@@ -717,12 +716,12 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel,
         case CMD_UNITY_ROOTRUN:
         case CMD_JDWP_TRACK:
         case CMD_JDWP_LIST: {
-            ret = DoCommandJdwp(hChannel, formatCommand);
+            ret = HandleCommandJdwp(hChannel, formatCommand->cmdFlag, formatCommand->parameters, sizeSend);
             break;
         }
         case CMD_FILE_INIT: {
 #ifdef __OHOS__
-            if (!IsServerTransfer(formatCommand->cmdFlag, hChannel, formatCommand->parameters)) {
+            if (!IsServerTransfer(hChannel, formatCommand->cmdFlag, formatCommand->parameters)) {
                 return false;
             }
 #endif

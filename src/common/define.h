@@ -238,8 +238,5 @@ constexpr uint64_t MAX_COMPRESS_LOG_FILE_SIZE = (50) * 1024 * 1024; // 50MB
 constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
 constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
 constexpr size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
-#ifdef __OHOS__
-const string HISHELL_SELINUX_LABEL = "u:r:hishell_hap:s0";
-#endif
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

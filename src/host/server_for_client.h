@@ -62,9 +62,9 @@ private:
     void PrintLastError(HChannel HChannel);
     bool CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi);
 #ifdef __OHOS__
-    bool IsServerTransfer(uint16_t cmdFlag, HChannel hChannel, string &parameters);
+    bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
 #endif
-    bool DoCommandJdwp(HChannel hChannel, TranslateCommand::FormatCommand *formatCommand);
+    bool HandleCommandJdwp(HChannel hChannel, uint16_t cmdFlag, string &parameters, int size);
 
     uv_tcp_t tcpListen;
     void *clsServer;

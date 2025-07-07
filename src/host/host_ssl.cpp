@@ -21,6 +21,7 @@ HdcHostSSL::HdcHostSSL(SSLInfoPtr hSSLInfo) : HdcSSLBase(hSSLInfo)
 
 HdcHostSSL::~HdcHostSSL()
 {
+    WRITE_LOG(LOG_DEBUG, "~HdcHostSSL");
 }
 
 const SSL_METHOD *HdcHostSSL::SetSSLMethod()

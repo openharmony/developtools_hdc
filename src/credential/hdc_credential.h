@@ -30,6 +30,8 @@
 #ifdef LOG_TAG
 #undef LOG_TAG
 #endif // LOG_TAG
+#define LOG_TAG "HDC_LOG"
+#endif // HDC_HILOG
 
 class ReminderEventManager {
 public:

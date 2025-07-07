@@ -45,9 +45,11 @@ void ReminderEventManager::ReminderEventSubscriber::OnReceiveEvent(
             WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
             return;
         }
+        WRITE_LOG(LOG_DEBUG, "Directory created successfully: %s", path.c_str());
     }
     if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_REMOVED) {
         Base::RemovePath(path.c_str());
+        WRITE_LOG(LOG_DEBUG, "Directory removed successfully: %s", path.c_str());
     }
     return;
 }
@@ -83,49 +85,6 @@ void ReminderEventManager::Init()
         WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent failed after %d retries.", MAX_RETRY);
     }
     return;
-}
-std::string convertInt(int len, int maxLen)
-{
-    std::ostringstream oss;
-    oss << std::setw(maxLen) << std::setfill('0') << len;
-    return oss.str();
-}
-
-bool isNumeric(const std::string& str)
-{
-    if (str.empty()) {
-        return false;
-    }
-    size_t i = 0;
-    for (; i < str.size(); ++i) {
-        if (!std::isdigit(str[i])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-int stripLeadingZeros(const std::string& input)
-{
-    if (input.empty() || input == "0") {
-        return 0;
-    }
-    size_t firstNonZero = input.find_first_not_of('0');
-    if (firstNonZero == std::string::npos) {
-        return 0;
-    }
-
-    std::string numberStr = input.substr(firstNonZero);
-    if (!isNumeric(numberStr)) {
-        WRITE_LOG(LOG_FATAL, "stripLeadingZeros: invalid numeric string.");
-        return -1;
-    }
-    return std::stoi(input.substr(firstNonZero));
-}
-
-bool isInRange(int value, int min, int max)
-{
-    return value >= min && value <= max;
 }
 
 Hdc::HdcHuks hdc_huks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
@@ -213,123 +172,63 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     return std::make_pair(pwd_str, pwd_str.size());
 }
 
-CredentialMessage ParseMessage(const std::string& messageStr)
-{
-    if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
-        WRITE_LOG(LOG_FATAL, "messageStr is empty or too short.messageStr is:%s", messageStr.c_str());
-        return CredentialMessage();
-    }
-
-    int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
-    if (!isInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
-        WRITE_LOG(LOG_FATAL, "Invalid message version %d.", versionInt);
-        return CredentialMessage();
-    }
-
-    CredentialMessage messageStruct;
-    messageStruct.messageVersion = versionInt;
-    std::string messageMethodStr = messageStr.substr(MESSAGE_METHOD_POS, MESSAGE_METHOD_LEN);
-    messageStruct.messageMethodType = stripLeadingZeros(messageMethodStr);
-
-    std::string messageLengthStr = messageStr.substr(MESSAGE_LENGTH_POS, MESSAGE_LENGTH_LEN);
-    char *end = nullptr;
-    size_t bodyLength = strtol(messageLengthStr.c_str(), &end, 10);
-    if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
-        WRITE_LOG(LOG_FATAL, "Invalid message length.");
-        return CredentialMessage();
-    }
-
-    if (messageStr.length() < MESSAGE_BODY_POS + bodyLength) {
-        WRITE_LOG(LOG_FATAL, "messageStr is too short.messageStr is:%s", messageStr.c_str());
-        return CredentialMessage();
-    }
-
-    messageStruct.messageBodyLen = static_cast<int>(bodyLength);
-    messageStruct.messageBody = messageStr.substr(MESSAGE_BODY_POS, bodyLength);
-
-    return messageStruct;
-}
-
-std::string ConstructMessage(const CredentialMessage& messageStruct)
-{
-    std::ostringstream messageStream; 
-
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageVersion = %d", messageStruct.messageVersion);
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageMethodType = %d", messageStruct.messageMethodType);
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageBodyLen = %d", messageStruct.messageBodyLen);
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx messageStruct.messageBody = %s", messageStruct.messageBody.c_str());
-
-    messageStream << messageStruct.messageVersion;
-
-    std::string messageMethodTypeStr = convertInt(messageStruct.messageMethodType, MESSAGE_METHOD_LEN);
-    if (messageMethodTypeStr.size() != MESSAGE_METHOD_LEN) {
-        WRITE_LOG(LOG_FATAL, "messageMethod length Error!");
-        return "";
-    }
-    messageStream << messageMethodTypeStr;
-
-    std::string messageLengthStr = std::to_string(messageStruct.messageBodyLen);
-    if (messageLengthStr.length() > MESSAGE_LENGTH_LEN) {
-        WRITE_LOG(LOG_FATAL, "messageLength must be:%d,now is:%d",
-            MESSAGE_LENGTH_LEN, messageLengthStr.length());
-        return "";
-    }
-    messageStream << convertInt(messageStruct.messageBodyLen, MESSAGE_LENGTH_LEN);
-    messageStream << messageStruct.messageBody;
-
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxx Final message = %s", messageStream.str().c_str());
-    return messageStream.str();
-}
-
 /*解析字符串，加密，再返回新的字符串*/
 std::string ParseAndProcessMessageStr(const std::string& messageStr)
 {
-    CredentialMessage messageStruct = ParseMessage(messageStr);
-    if (messageStruct.messageBody.empty() || messageStruct.messageVersion != METHOD_VERSION_V1) {
+    CredentialMessage messageStruct(messageStr);
+    if (messageStruct.GetMessageBody().empty() || 
+        messageStruct.GetMessageVersion() != METHOD_VERSION_V1) {
         WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.");
         return "";
     }
     std::pair<std::string, size_t> processMessageValue;
-    switch (messageStruct.messageMethodType) {
+    switch (messageStruct.GetMessageMethodType()) {
         case METHOD_ENCRYPT: {
-            processMessageValue = EncryptPwd(messageStruct.messageBody);
+            processMessageValue = EncryptPwd(messageStruct.GetMessageBody());
             break;
         }
         case METHOD_DECRYPT: {
-            processMessageValue = DecryptPwd(messageStruct.messageBody);
+            processMessageValue = DecryptPwd(messageStruct.GetMessageBody());
             break;
         }
         default:
             break;
     }
 
-    messageStruct.messageBody = processMessageValue.first;
-    messageStruct.messageBodyLen = processMessageValue.second;
+    messageStruct.SetMessageBody(processMessageValue.first);
+    messageStruct.SetMessageBodyLen(processMessageValue.second);
 
-    return ConstructMessage(messageStruct);
+    return messageStruct.Construct();
 }
 
 int create_and_bind_socket(const std::string& socketPath)
 {
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create socket.");
         return -1;
     }
 
     struct sockaddr_un addr;
-    memset(&addr, 0, sizeof(addr));
+    memset_s(&addr, sizeof(addr), 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
+    size_t buf_size = socketPath.length() + 1;
+    memcpy_s(addr.sun_path, buf_size, socketPath.c_str(), buf_size);
 
-    int optval = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &timeout, sizeof(timeout)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to set socket options, message: %s.", strerror(errno));
         close(sockfd);
         return -1;
     }
 
-    unlink(socketPath.c_str()); // Remove the socket file if it already exists
+    if (unlink(socketPath.c_str()) != 0) { // Remove the socket file if it already exists
+        WRITE_LOG(LOG_FATAL, "Failed to unlink socket file, message: %s.", strerror(errno));
+        close(sockfd);
+        return -1;
+    }
 
     if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to bind socket, message: %s.", strerror(errno));
@@ -349,6 +248,10 @@ int main(void)
 {
     ReminderEventManager reminderEventManager;
     int sockfd = create_and_bind_socket(hdcCredentialSocketRealPath);
+    if (sockfd < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");
+        return -1;
+    }
     if (listen(sockfd, SOCKET_CLIENT_NUMS) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to listen on socket.");
         close(sockfd);

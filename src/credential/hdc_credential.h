@@ -13,24 +13,24 @@
  * limitations under the License.
  */
 
- #ifndef HDC_CREDENTIAL_H
- #define HDC_CREDENTIAL_H
+#ifndef HDC_CREDENTIAL_H
+#define HDC_CREDENTIAL_H
 
- #include "common.h"
- #include "common_event_manager.h"
- #include "common_event_support.h"
- #include "password.h"
+#include "common.h"
+#include "common_event_manager.h"
+#include "common_event_support.h"
+#include "password.h"
 
- class ReminderEventManager {
-    public:
-        ReminderEventManager();
-        void Init();
-        class ReminderEventSubscriber : public OHOS::EventFwk::CommonEventSubscriber {
-            public:
-                ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
-                virtual void OnReceiveEvent(const OHOS::EventFwk::CommonEventData &data);
-        };
-        std::shared_ptr<ReminderEventSubscriber> customSubscriber;
- };
+class ReminderEventManager {
+public:
+    ReminderEventManager();
+    void Init();
+    class ReminderEventSubscriber : public OHOS::EventFwk::CommonEventSubscriber {
+        public:
+            ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
+            virtual void OnReceiveEvent(const OHOS::EventFwk::CommonEventData &data);
+    };
+    std::shared_ptr<ReminderEventSubscriber> customSubscriber;
+};
 
- #endif // HDC_CREDENTIAL_H
+#endif // HDC_CREDENTIAL_H

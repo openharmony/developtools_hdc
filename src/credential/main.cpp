@@ -223,6 +223,12 @@ int create_and_bind_socket(const std::string& socketPath)
         close(sockfd);
         return -1;
     }
+    if (access(filename, F_OK) == 0) {
+        if (remove(filename) < 0) {
+            WRITE_LOG(LOG_FATAL, "Failed to remove existing socket file, message: %s.", strerror(errno));
+            return -1;
+        }
+    }
 
     if (unlink(socketPath.c_str()) != 0) { // Remove the socket file if it already exists
         WRITE_LOG(LOG_FATAL, "Failed to unlink socket file, message: %s.", strerror(errno));

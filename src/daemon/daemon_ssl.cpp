@@ -21,6 +21,7 @@ HdcDaemonSSL::HdcDaemonSSL(SSLInfoPtr hSSLInfo) : HdcSSLBase(hSSLInfo)
 
 HdcDaemonSSL::~HdcDaemonSSL()
 {
+    WRITE_LOG(LOG_DEBUG, "~HdcDaemonSSL");
 }
 
 const SSL_METHOD *HdcDaemonSSL::SetSSLMethod()

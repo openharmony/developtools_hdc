@@ -38,12 +38,6 @@ HdcSSLBase::~HdcSSLBase()
     if (!isInited) {
         return;
     }
-    int ret = SSL_shutdown(ssl);
-    if (ret != 1) {
-        SSL_get_error(ssl, ret);
-        uint8_t buf[BUF_SIZE_DEFAULT];
-        BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
-    }
     BIO_reset(outBIO);
     BIO_reset(inBIO);
     SSL_free(ssl);
@@ -207,7 +201,7 @@ bool HdcSSLBase::GenPsk()
 {
     unsigned char* buf = preSharedKey;
     if (RAND_priv_bytes(buf, BUF_SIZE_PSK) != 1) {
-        WRITE_LOG(LOG_FATAL, "RAND_pri_bytes failed");
+        WRITE_LOG(LOG_FATAL, "RAND_priv_bytes failed");
         return false;
     }
     return true;

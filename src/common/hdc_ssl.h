@@ -51,7 +51,7 @@ private:
         unsigned char *outBuf, int outBufSize, const string &pubkey);
     int DoSSLWrite(const int bufLen, uint8_t *bufPtr);
     int DoSSLRead(const int bufLen, int &index, uint8_t *bufPtr);
-    bool isDaemon;
+    bool isDaemon = false;
     bool isInited = false;
 
 protected:
@@ -64,10 +64,10 @@ protected:
     virtual const SSL_METHOD *SetSSLMethod() = 0;
     unsigned char preSharedKey[BUF_SIZE_PSK]; // pre-shared key for TLS 1.3, TLS_AES_128_GCM_SHA256(password)
     string cipher;
-    SSL_CTX *sslCtx;
-    SSL *ssl;
-    BIO *inBIO; // SSL decrypt: BIO_write from buffer to "in" , then SSL read from "in" to another buffer.
-    BIO *outBIO; // SSL encrypt: SSL_write form buffer, then BIO_read from "out" to another buffer.
+    SSL_CTX *sslCtx = nullptr;
+    SSL *ssl = nullptr;
+    BIO *inBIO = nullptr; // SSL decrypt: BIO_write from buffer to "in" , then SSL read from "in" to another buffer.
+    BIO *outBIO = nullptr; // SSL encrypt: SSL_write form buffer, then BIO_read from "out" to another buffer.
 };
 } // namespace Hdc
 #endif // HDC_SSL_H

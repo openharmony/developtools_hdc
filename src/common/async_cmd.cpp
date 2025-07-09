@@ -249,6 +249,7 @@ void *AsyncCmd::Popen(void *arg)
         }
         if (execlRet < 0) {
             WRITE_LOG(LOG_FATAL, "start shell failed %d: %s", execlRet, strerror(errno));
+            _exit(0);
         }
     } else {
         if (readWrite) {

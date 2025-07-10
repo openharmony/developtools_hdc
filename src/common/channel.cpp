@@ -730,6 +730,7 @@ HChannel HdcChannelBase::AdminChannel(const uint8_t op, const uint32_t channelId
 #ifdef HDC_HOST
             PrintChannel(channelId);
 #endif
+        break;
         case OP_ADD:
             uv_rwlock_wrlock(&lockMapChannel);
             mapChannel[channelId] = hInput;

@@ -260,13 +260,12 @@ int HdcServerForClient::Initial()
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
         return -2;  // -2:err for Listen initial failed
-    } else {
-        bool b = SetTCPListen();
-        if (!b) {
-            WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
-            int listenError = -3;  // -3:error for SetTCPListen failed
-            return listenError;
-        }
+    }
+    bool b = SetTCPListen();
+    if (!b) {
+        WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
+        int listenError = -3;  // -3:error for SetTCPListen failed
+        return listenError;
     }
 #else
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {

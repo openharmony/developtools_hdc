@@ -481,10 +481,13 @@ int HdcClient::ExecuteCommand(const string &commandIn)
 int HdcClient::Initial(const string &connectKeyIn)
 {
     connectKey = connectKeyIn;
-    if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
-#ifndef __OHOS__
-        WRITE_LOG(LOG_FATAL, "Listen string initial failed");
+#ifdef __OHOS__
+    if (serverAddress.empty() || serverAddress == UDS_STR) {
+        return 0;
+    }
 #endif
+    if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
+        WRITE_LOG(LOG_FATAL, "Listen string initial failed");
         return ERR_PARM_FAIL;
     }
     return 0;

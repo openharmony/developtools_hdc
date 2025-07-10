@@ -102,6 +102,7 @@ constexpr uint16_t CMD_FILE_PENULT_PARAM = 2;
 constexpr uint16_t BUNDLE_MIN_SIZE = 7;
 constexpr uint16_t BUNDLE_MAX_SIZE = 128;
 constexpr uint16_t HEARTBEAT_INTERVAL = 5000; // 5 seconds
+constexpr uint16_t SSL_HANDSHAKE_FINISHED_WAIT_TIME = 300; // 300 ms
 #ifdef HDC_HOST
 constexpr uint16_t MAX_DELETED_SESSION_ID_RECORD_COUNT = 32;
 #else

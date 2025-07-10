@@ -15,12 +15,13 @@
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
 #include "host_ssl.h"
 namespace Hdc {
-HdcHostSSL::HdcHostSSL(const HSSLInfo &hSSLInfo) : HdcSSLBase(hSSLInfo)
+HdcHostSSL::HdcHostSSL(SSLInfoPtr hSSLInfo) : HdcSSLBase(hSSLInfo)
 {
 }
 
 HdcHostSSL::~HdcHostSSL()
 {
+    WRITE_LOG(LOG_DEBUG, "~HdcHostSSL");
 }
 
 const SSL_METHOD *HdcHostSSL::SetSSLMethod()

@@ -16,7 +16,7 @@
 #include "hdc_ssl.h"
 
 namespace Hdc {
-HdcSSLBase::HdcSSLBase(const HSSLInfo &hSSLInfo)
+HdcSSLBase::HdcSSLBase(SSLInfoPtr hSSLInfo)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L
     if (OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG, NULL) == 0) {
@@ -38,11 +38,6 @@ HdcSSLBase::~HdcSSLBase()
     if (!isInited) {
         return;
     }
-    if (SSL_shutdown(ssl)!= 1) {
-        SSL_get_error(ssl, SSL_shutdown(ssl));
-        uint8_t buf[BUF_SIZE_DEFAULT];
-        BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
-    }
     BIO_reset(outBIO);
     BIO_reset(inBIO);
     SSL_free(ssl);
@@ -55,7 +50,7 @@ HdcSSLBase::~HdcSSLBase()
     isInited = false;
 }
 
-void HdcSSLBase::SetSSLInfo(HSSLInfo hSSLInfo, HSession hSession)
+void HdcSSLBase::SetSSLInfo(SSLInfoPtr hSSLInfo, HSession hSession)
 {
     hSSLInfo->cipher = TLS_AES_128_GCM_SHA256;
     hSSLInfo->isDaemon = !hSession->serverOrDaemon;
@@ -114,11 +109,7 @@ int HdcSSLBase::Encrypt(const int bufLen, uint8_t *bufPtr)
 
 int HdcSSLBase::DoSSLRead(const int bufLen, int &index, uint8_t *bufPtr)
 {
-    if (static_cast<int>(index + BUF_SIZE_DEFAULT16) > bufLen) {
-        WRITE_LOG(LOG_FATAL, "DoSSLRead failed, buffer overwrite index: %d", index);
-        return ERR_GENERIC;
-    }
-    int nSSLRead = SSL_read(ssl, bufPtr + index, BUF_SIZE_DEFAULT16);
+    int nSSLRead = SSL_read(ssl, bufPtr + index, std::min(static_cast<int>(BUF_SIZE_DEFAULT16), bufLen - index));
     if (nSSLRead < 0) {
         int err = SSL_get_error(ssl, nSSLRead);
         if (err == SSL_ERROR_WANT_READ) {
@@ -210,7 +201,7 @@ bool HdcSSLBase::GenPsk()
 {
     unsigned char* buf = preSharedKey;
     if (RAND_priv_bytes(buf, BUF_SIZE_PSK) != 1) {
-        WRITE_LOG(LOG_FATAL, "RAND_pri_bytes failed");
+        WRITE_LOG(LOG_FATAL, "RAND_priv_bytes failed");
         return false;
     }
     return true;
@@ -223,8 +214,8 @@ int HdcSSLBase::GetPskEncrypt(unsigned char *bufPtr, const int bufLen, const str
         return ERR_GENERIC;
     }
     unsigned char* buf = preSharedKey;
-    int payloadSize = RsaPubkeyEncrypt(sessionId, buf, BUF_SIZE_PSK, bufPtr, pubkey);
-    WRITE_LOG(LOG_INFO, "RsaPubkeyEncrypt payloadSize = %d", payloadSize);
+    int payloadSize = RsaPubkeyEncrypt(buf, BUF_SIZE_PSK, bufPtr, bufLen, pubkey);
+    WRITE_LOG(LOG_INFO, "RsaPubkeyEncrypt payloadSize = %d, sid: %u", payloadSize, sessionId);
     return payloadSize; // return the size of encrypted psk
 }
 
@@ -255,7 +246,12 @@ int HdcSSLBase::Decrypt(const int nread, const int bufLen, uint8_t *bufPtr, int 
 unsigned int HdcSSLBase::PskServerCallback(SSL *ssl, const char *identity, unsigned char *psk, unsigned int maxPskLen)
 {
     SSL_CTX *sslctx = SSL_get_SSL_CTX(ssl);
-    unsigned char *pskInput = reinterpret_cast<unsigned char*>(SSL_CTX_get_ex_data(sslctx, 0));
+    void *exData = SSL_CTX_get_ex_data(sslctx, 0);
+    if (exData == nullptr) {
+        WRITE_LOG(LOG_FATAL, "exData is null");
+        return 0;
+    }
+    unsigned char *pskInput = reinterpret_cast<unsigned char*>(exData);
     if (strcmp(identity, STR_PSK_IDENTITY.c_str()) != 0) {
         WRITE_LOG(LOG_FATAL, "identity not same");
         return 0;
@@ -276,8 +272,13 @@ unsigned int HdcSSLBase::PskClientCallback(SSL *ssl, const char *hint, char *ide
     unsigned char *psk, unsigned int maxPskLen)
 {
     SSL_CTX *sslctx = SSL_get_SSL_CTX(ssl);
-    unsigned char *pskInput = reinterpret_cast<unsigned char*>(SSL_CTX_get_ex_data(sslctx, 0));
-    if (STR_PSK_IDENTITY.size() >= maxIdentityLen) {
+    void *exData = SSL_CTX_get_ex_data(sslctx, 0);
+    if (exData == nullptr) {
+        WRITE_LOG(LOG_FATAL, "exData is null");
+        return 0;
+    }
+    unsigned char *pskInput = reinterpret_cast<unsigned char*>(exData);
+    if (STR_PSK_IDENTITY.size() + 1 > maxIdentityLen) {
         WRITE_LOG(LOG_FATAL, "Client identity buffer too small, maxIdentityLen = %d", maxIdentityLen);
         return 0;
     }
@@ -307,12 +308,12 @@ int HdcSSLBase::RsaPrikeyDecrypt(const unsigned char *inBuf, int inLen, unsigned
     return outLen;
 }
 
-int HdcSSLBase::RsaPubkeyEncrypt(const uint32_t sessionId,
-    const unsigned char *inBuf, int inLen, unsigned char *outBuf, const string &pubkey)
+int HdcSSLBase::RsaPubkeyEncrypt(const unsigned char *inBuf, int inLen,
+    unsigned char *outBuf, int outBufSize, const string &pubkey)
 {
     int outLen = -1;
 #ifndef HDC_HOST
-    outLen = HdcAuth::RsaPubkeyEncryptPsk(sessionId, inBuf, inLen, outBuf, pubkey);
+    outLen = HdcAuth::RsaPubkeyEncryptPsk(inBuf, inLen, outBuf, outBufSize, pubkey);
 #endif
     return outLen;
 }

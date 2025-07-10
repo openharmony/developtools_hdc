@@ -279,12 +279,12 @@ template("build_hdc") {
         deps = [
           "//third_party/rust/crates/env_logger:lib",
           "//third_party/rust/crates/humantime:lib",
-          "//third_party/rust/crates/libc:lib",
           "//third_party/rust/crates/log:lib",
           "//third_party/rust/crates/nix:lib",
         ]
         external_deps = [
           "hilog:hilog_rust",
+          "rust_libc:lib",
           "rust_rust-openssl:lib",
         ]
 

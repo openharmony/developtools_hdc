@@ -212,4 +212,122 @@ HWTEST_F(RegisterTest, CastToRegisterTest007, TestSize.Level1)
     delete g_hdcJdwpSimulator;
     g_hdcJdwpSimulator = nullptr;
 }
+
+HWTEST_F(RegisterTest, TestSProcessNameMethod_1, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetProcessName("");
+    EXPECT_EQ(connectManagement->GetProcessName(), "");
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestSProcessNameMethod_2, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetProcessName("test_process_name");
+    EXPECT_EQ(connectManagement->GetProcessName(), "test_process_name");
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestPkgNameMethod_1, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetPkgName("");
+    EXPECT_EQ(connectManagement->GetPkgName(), "");
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestPkgNameMethod_2, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetPkgName("test_pkg_name");
+    EXPECT_EQ(connectManagement->GetPkgName(), "test_pkg_name");
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestDebugMethod_1, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetPkgName("");
+    EXPECT_EQ(connectManagement->GetPkgName(), "");
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestDebugMethod_2, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetPkgName("test_pkg_name");
+    EXPECT_EQ(connectManagement->GetPkgName(), "test_pkg_name");
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestCallbackMethod, TestSize.Level1)
+{
+    ConnectManagement* connectManagement = new (std::nothrow) ConnectManagement();
+    ASSERT_NE(connectManagement, nullptr);
+
+    connectManagement->SetCallback(nullptr);
+    EXPECT_EQ(connectManagement->GetCallback(), nullptr);
+
+    delete connectManagement;
+}
+
+HWTEST_F(RegisterTest, TestHdcJdwpSimulator, TestSize.Level0)
+{
+    HdcJdwpSimulator* hdcJdwpSimulator =
+        new (std::nothrow) HdcJdwpSimulator("test_process_name", "test_pkg_name", true, nullptr);
+    ASSERT_NE(hdcJdwpSimulator, nullptr);
+
+    EXPECT_EQ(hdcJdwpSimulator->processName_, "test_process_name");
+    EXPECT_EQ(hdcJdwpSimulator->pkgName_, "test_pkg_name");
+    EXPECT_TRUE(hdcJdwpSimulator->isDebug_);
+    EXPECT_EQ(hdcJdwpSimulator->cfd_, -1);
+    EXPECT_FALSE(hdcJdwpSimulator->disconnectFlag_);
+    EXPECT_FALSE(hdcJdwpSimulator->notified_);
+
+    delete hdcJdwpSimulator;
+}
+
+HWTEST_F(RegisterTest, TestSendBuf_1, TestSize.Level0)
+{
+    HdcJdwpSimulator* hdcJdwpSimulator =
+        new (std::nothrow) HdcJdwpSimulator("test_process_name", "test_pkg_name", true, nullptr);
+    ASSERT_NE(hdcJdwpSimulator, nullptr);
+
+    uint8_t testBuffer[] = {0x01, 0x02, 0x03, 0x04};
+    int bufLen = sizeof(testBuffer);
+    EXPECT_FALSE(hdcJdwpSimulator->SendBuf(testBuffer, bufLen));
+    delete hdcJdwpSimulator;
+}
+
+HWTEST_F(RegisterTest, TestSendBuf_2, TestSize.Level0)
+{
+    HdcJdwpSimulator* hdcJdwpSimulator =
+        new (std::nothrow) HdcJdwpSimulator("test_process_name", "test_pkg_name", true, nullptr);
+    ASSERT_NE(hdcJdwpSimulator, nullptr);
+
+    const uint8_t *nullBuf = nullptr;
+    const int bufLen = 10;
+    EXPECT_FALSE(hdcJdwpSimulator->SendBuf(nullBuf, bufLen));
+
+    delete hdcJdwpSimulator;
+}
 } // namespace Hdc

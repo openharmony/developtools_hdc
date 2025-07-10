@@ -506,17 +506,15 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     if (rc < 0) {
         WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
     }
-    hChannel->hWorkTCP.data = hChannel;
-    (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
+
     ++hChannel->uvHandleRef;
     hChannel->hWorkThread = uv_thread_self();
+    hChannel->hWorkTCP.data = hChannel;
     hChannel->clsChannel = this;
     hChannel->channelId = channelId;
     hChannel->loopStatus = &loopMainStatus;
+    (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
     AdminChannel(OP_ADD, channelId, hChannel);
-    if (*hOutChannel != nullptr) {
-        delete *hOutChannel;
-    }
     *hOutChannel = hChannel;
     WRITE_LOG(isServerOrClient ? LOG_INFO : LOG_DEBUG, "Mallocchannel:%u", channelId);
     return channelId;

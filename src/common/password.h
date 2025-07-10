@@ -18,35 +18,16 @@
 #include <string>
 #include <memory>
 #include <utility>
-#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 #include <iomanip>
-#endif
+
+#include "credential_message.h"
 #include "hdc_huks.h"
 namespace Hdc {
 #define PASSWORD_LENGTH 10
 
-#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 constexpr const char* hdcCredentialSocketSandboxPath = "/data/hdc/hdc_huks/hdc_credential.socket";
 constexpr const char* hdcCredentialSocketRealPath = "/data/service/el1/public/hdc_server/hdc_common/hdc_credential.socket";
 
-constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
-constexpr size_t MESSAGE_VERSION_POS = 0;
-constexpr size_t MESSAGE_METHOD_POS = 1;
-constexpr size_t MESSAGE_METHOD_LEN = 3;
-constexpr size_t MESSAGE_LENGTH_POS = 4;
-constexpr size_t MESSAGE_LENGTH_LEN = 4;
-constexpr size_t MESSAGE_BODY_POS = 8;
-
-enum V1MethodID {
-    METHOD_ENCRYPT = 1,
-    METHOD_DECRYPT,
-};
-
-enum MethodVersion {
-    METHOD_VERSION_V1 = 1,
-    METHOD_VERSION_MAX = 9,
-};
-#endif
 class HdcPassword {
 public:
     ~HdcPassword();
@@ -59,12 +40,6 @@ public:
     bool ResetPwdKey();
     int GetEncryptPwdLength();
     char GetHexChar(uint8_t data);
-#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
-    static bool IsNumeric(const std::string& str);
-    static int StripLeadingZeros(const std::string &input);
-    static bool IsInRange(int value, int min, int max);
-    static std::string ConvertInt(int len, int maxLen);
-#endif
 private:
     uint8_t pwd[PASSWORD_LENGTH];
     std::string encryptPwd;
@@ -75,40 +50,11 @@ private:
     void ClearEncryptPwd(void);
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     std::string SplicMessageStr(const std::string &str, const size_t type);
-    std::vector<uint8_t> String2Uint8(const std::string &str, size_t len);
     std::string SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr);
     std::vector<uint8_t> EncryptGetPwdValue(uint8_t *pwd, int pwdLen);
     std::pair<uint8_t*, int> DecryptGetPwdValue(const std::string &encryptData);
 #endif
 };
-
-#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
-class CredentialMessage {
-public:
-    CredentialMessage() = default;
-    explicit CredentialMessage(const std::string& messageStr);
-    ~CredentialMessage();
-    int GetMessageVersion() const { return messageVersion; }
-    int GetMessageMethodType() const { return messageMethodType; }
-    int GetMessageBodyLen() const { return messageBodyLen; }
-    const std::string& GetMessageBody() const { return messageBody; }
-
-    void SetMessageVersion(int version) { messageVersion = version; }
-    void SetMessageMethodType(int type) { messageMethodType = type; }
-    void SetMessageBodyLen(int len) { messageBodyLen = len; }
-    void SetMessageBody(const std::string& body) {
-        messageBody = body;
-        messageBodyLen = static_cast<int>(messageBody.size());
-    }
-    std::string Construct() const;
-
-private:
-    int messageVersion = 0;
-    int messageMethodType = 0;
-    int messageBodyLen = 0;
-    std::string messageBody;
-};
-#endif // HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 
 } // namespace Hdc
 #endif // HDC_PASSWORD_H

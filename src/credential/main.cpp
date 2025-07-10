@@ -12,81 +12,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "credential_message.h"
+#include "password.h"
+#include "reminder_event_manager.h"
 
-#include "hdc_credential.h"
+#ifdef HDC_HILOG
+#ifdef LOG_DOMAIN
+#undef LOG_DOMAIN
+#endif // LOG_DOMAIN
 
+#define LOG_DOMAIN 0xD002D13
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif // LOG_TAG
+#define LOG_TAG "HDC_LOG"
+#endif // HDC_HILOG
+
+// 0x10000000 is 1.0.01
+constexpr uint32_t CREDENTIAL_VERSION_NUMBER = 0x10000000;
 constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
 using namespace Hdc;
-using namespace OHOS;
-
-ReminderEventManager::ReminderEventSubscriber::ReminderEventSubscriber(
-    const EventFwk::CommonEventSubscribeInfo &subscriberInfo)
-    : CommonEventSubscriber(subscriberInfo)
-{
-}
-
-void ReminderEventManager::ReminderEventSubscriber::OnReceiveEvent(
-    const EventFwk::CommonEventData &data)
-{
-    AAFwk::Want want = data.GetWant();
-    std::string action = want.GetAction();
-    std::string accountUserId = std::to_string(data.GetCode());
-    std::string path = std::string("/data/service/el1/public/hdc_server/") +
-        accountUserId.c_str();
-    mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
-
-    WRITE_LOG(LOG_DEBUG, "Recv Event is : %s", action.c_str());
-    if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_ADDED) {
-        if (::mkdir(path.c_str(), mode) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));
-            return;
-        }
-        if (::chmod(path.c_str(), mode) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
-            return;
-        }
-        WRITE_LOG(LOG_DEBUG, "Directory created successfully: %s", path.c_str());
-    }
-    if (action == EventFwk::CommonEventSupport::COMMON_EVENT_USER_REMOVED) {
-        Base::RemovePath(path.c_str());
-        WRITE_LOG(LOG_DEBUG, "Directory removed successfully: %s", path.c_str());
-    }
-    return;
-}
-
-ReminderEventManager::ReminderEventManager()
-{
-    Init();
-}
-
-void ReminderEventManager::Init()
-{
-    EventFwk::MatchingSkills customMatchingSkills;
-    customMatchingSkills.AddEvent(EventFwk::CommonEventSupport::COMMON_EVENT_USER_ADDED);
-    customMatchingSkills.AddEvent(EventFwk::CommonEventSupport::COMMON_EVENT_USER_REMOVED);
-
-    EventFwk::CommonEventSubscribeInfo customSubscriberInfo(customMatchingSkills);
-    customSubscriberInfo.SetThreadMode(EventFwk::CommonEventSubscribeInfo::COMMON);
-    customSubscriber = std::make_shared<ReminderEventSubscriber>(customSubscriberInfo);
-
-    const int MAX_RETRY = 10;
-    int retryCount = 0;
-
-    while (retryCount < MAX_RETRY &&
-        !EventFwk::CommonEventManager::SubscribeCommonEvent(customSubscriber)) {
-        ++retryCount;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent fail %d/%d", retryCount, MAX_RETRY);
-    }
-
-    if (retryCount < MAX_RETRY) {
-        WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent success.");
-    } else {
-        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent failed after %d retries.", MAX_RETRY);
-    }
-    return;
-}
 
 Hdc::HdcHuks hdc_huks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
@@ -103,7 +49,7 @@ std::string BytetoHex(const uint8_t* byteDate, size_t length)
 
     for (size_t i = 0; i < length; i++) {
         tmp = byteDate[i];
-        encryptPwd.push_back(pwd.GetHexChar(tmp >> 4));
+        encryptPwd.push_back(pwd.GetHexChar(tmp >> 4)); // 4 get high 4 bits
         encryptPwd.push_back(pwd.GetHexChar(tmp & 0x0F));
     }
     return encryptPwd;
@@ -126,8 +72,6 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
 
 std::pair<std::string, size_t> EncryptPwd(const std::string& messageStr)
 {
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptPwd: messageStr = %s", messageStr.c_str());
-
     if (!ResetPwdKey()) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: ResetPwdKey failed.");
         return std::make_pair(std::string(), 0);
@@ -144,8 +88,6 @@ std::pair<std::string, size_t> EncryptPwd(const std::string& messageStr)
 
 std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
 {
-    WRITE_LOG(LOG_DEBUG, "xxxxxxxxxxxxxxxxxxxxxxxx DecryptPwd: messageStr = %s", messageStr.c_str());
-
     uint8_t pwd[PASSWORD_LENGTH] = {0};
     std::pair<uint8_t*, int> decryptPwd = hdc_huks.AesGcmDecrypt(messageStr);
     if (decryptPwd.first == nullptr) {
@@ -173,11 +115,10 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     return std::make_pair(pwd_str, pwd_str.size());
 }
 
-/*解析字符串，加密，再返回新的字符串*/
 std::string ParseAndProcessMessageStr(const std::string& messageStr)
 {
     CredentialMessage messageStruct(messageStr);
-    if (messageStruct.GetMessageBody().empty() || 
+    if (messageStruct.GetMessageBody().empty() ||
         messageStruct.GetMessageVersion() != METHOD_VERSION_V1) {
         WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.");
         return "";
@@ -197,7 +138,6 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
     }
 
     messageStruct.SetMessageBody(processMessageValue.first);
-    messageStruct.SetMessageBodyLen(processMessageValue.second);
 
     return messageStruct.Construct();
 }
@@ -224,8 +164,9 @@ int create_and_bind_socket(const std::string& socketPath)
         close(sockfd);
         return -1;
     }
+
     if (access(socketPath.c_str(), F_OK) == 0) {
-        if (remove(socketPath.c_str() ) < 0) {
+        if (remove(socketPath.c_str()) < 0) {
             WRITE_LOG(LOG_FATAL, "Failed to remove existing socket file, message: %s.", strerror(errno));
             return -1;
         }
@@ -245,8 +186,55 @@ int create_and_bind_socket(const std::string& socketPath)
     return sockfd;
 }
 
-int main(void)
+string CredentialUsage()
 {
+    string ret = "";
+    ret = "\n                         Harmony device connector (HDC) credential process \n\n"
+          "Usage: hdc_credential [options]...\n\n"
+          "\n"
+          "general options:\n"
+          " -h                            - Print help\n"
+          " -v                            - Print version information\n";
+    return ret;
+}
+
+string GetVersion()
+{
+    const uint8_t a = 'a';
+    uint8_t major = (CREDENTIAL_VERSION_NUMBER >> 28) & 0xff;
+    uint8_t minor = (CREDENTIAL_VERSION_NUMBER << 4 >> 24) & 0xff;
+    uint8_t version = (CREDENTIAL_VERSION_NUMBER << 12 >> 24) & 0xff;
+    uint8_t fix = (CREDENTIAL_VERSION_NUMBER << 20 >> 28) & 0xff;  // max 16, tail is p
+    string ver = StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
+    return "Ver: " + ver;
+}
+
+bool SplitCommandToArgs(int argc, const char **argc)
+{
+    if (argc == CMD_ARG1_COUNT) {
+        if (!strcmp(argv[1], "-h")) {
+            string ret = CredentialUsage();
+            fprintf(stderr, "%s\n", ret.c_str());
+            return false;
+        } else if (!strcmp(argv[1], "-v")) {
+            string ret = GetVersion();
+            fprintf(stderr, "%s\n", ret.c_str());
+            return false;
+        }
+    }
+    if (argc != 1) {
+        fprintf(stderr, "Invalid input parameters,please recheck.\n");
+        string ret = CredentialUsage();
+        fprintf(stderr, "%s\n", ret.c_str());
+        return false;
+    }
+    return true;
+}
+int main(int argc, char *argv[])
+{
+    if (!SplitCommandToArgs(argc, argv)) {
+        return 0;
+    }
     ReminderEventManager reminderEventManager;
     int sockfd = create_and_bind_socket(hdcCredentialSocketRealPath);
     if (sockfd < 0) {
@@ -259,7 +247,7 @@ int main(void)
         return -1;
     }
 
-    WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Listening on socket: %s", hdcCredentialSocketRealPath);
+    WRITE_LOG(LOG_INFO, "Listening on socket: %s", hdcCredentialSocketRealPath);
 
     while (true) { 
         int connfd = accept(sockfd, nullptr, nullptr);
@@ -275,15 +263,12 @@ int main(void)
             close(connfd);
             continue;
         }
-        WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Received message: %s", buffer);
         std::string sendBuf = ParseAndProcessMessageStr(std::string(buffer, bytesRead));
         if (sendBuf.empty()) {
             WRITE_LOG(LOG_FATAL, "Error: Processed message is empty.");
             close(connfd);
             continue;
         }
-        WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Send message: %s", sendBuf.c_str());
-        WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxx Send message length: %zu", sendBuf.size());
 
         size_t bytesSend = write(connfd, sendBuf.c_str(), sendBuf.size());
         if (bytesSend != sendBuf.size()) {
@@ -292,7 +277,6 @@ int main(void)
         }
         memset_s(buffer, sizeof(buffer), 0, sizeof(buffer)); // Clear the buffer
         close(connfd);
-
     } // Keep the server running indefinitely
     close(sockfd);
     unlink(hdcCredentialSocketRealPath);

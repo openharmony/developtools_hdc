@@ -402,8 +402,9 @@ ohos_executable("hdc") {
   ]
 
   if (is_ohos) {
-    sources += [ "src/common/password.cpp" ]
+    sources += [ "src/common/credential_message.cpp" ]
     sources += [ "src/common/hdc_huks.cpp" ]
+    sources += [ "src/common/password.cpp" ]
     defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
     external_deps += [ "huks:libhukssdk" ]
   }
@@ -484,9 +485,11 @@ ohos_executable("hdc_credential") {
     ]
   }
   if (is_ohos) {
-    sources += [ "src/common/password.cpp" ]
-    sources += [ "src/common/hdc_huks.cpp" ]
     sources += [ "src/common/base.cpp" ]
+    sources += [ "src/common/credential_message.cpp" ]
+    sources += [ "src/common/hdc_huks.cpp" ]
+    sources += [ "src/common/password.cpp" ]
+    sources += [ "src/credential/reminder_event_manager.cpp" ]
     external_deps += [ "huks:libhukssdk" ]
     external_deps += [ "hilog:libhilog" ]
     defines += [ 

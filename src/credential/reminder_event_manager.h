@@ -12,26 +12,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#ifndef HDC_CREDENTIAL_H
-#define HDC_CREDENTIAL_H
+#ifndef HDC_REMINDER_EVENT_MANAGER_H
+#define HDC_REMINDER_EVENT_MANAGER_H 
 
 #include "common.h"
 #include "common_event_manager.h"
 #include "common_event_support.h"
-#include "password.h"
-
-#ifdef HDC_HILOG
-#ifdef LOG_DOMAIN
-#undef LOG_DOMAIN
-#endif // LOG_DOMAIN
-
-#define LOG_DOMAIN 0xD002D13
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif // LOG_TAG
-#define LOG_TAG "HDC_LOG"
-#endif // HDC_HILOG
 
 class ReminderEventManager {
 public:
@@ -45,4 +31,4 @@ public:
     std::shared_ptr<ReminderEventSubscriber> customSubscriber;
 };
 
-#endif // HDC_CREDENTIAL_H
+#endif // HDC_REMINDER_EVENT_MANAGER_H

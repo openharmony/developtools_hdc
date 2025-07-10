@@ -459,13 +459,10 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
 #ifdef __OHOS__
-    if (serverAddress.empty() || serverAddress == UDS_STR) {
-        channel->isUds = true;
-        AdminChannel(OP_UPDATE, channel->channelId, channel);
+    AdminChannel(OP_UPDATE, channel->channelId, channel);
+    if (channel->isUds) {
         ConnectUdsServerForClient();
     } else {
-        channel->isUds = false;
-        AdminChannel(OP_UPDATE, channel->channelId, channel);
         ConnectServerForClient(ip, port);
     }
 #else

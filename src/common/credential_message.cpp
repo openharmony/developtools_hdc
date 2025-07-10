@@ -19,12 +19,12 @@ using namespace Hdc;
 CredentialMessage::CredentialMessage(const std::string& messageStr)
 {
     if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
-        WRITE_LOG(LOG_FATAL, "messageStr is too short: %s", messageStr.c_str());
+        WRITE_LOG(LOG_FATAL, "messageStr is too short!");
         return;
     }
 
     int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
-    if (!HdcPassword::IsInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
+    if (!IsInRange(versionInt, METHOD_VERSION_V1, METHOD_VERSION_MAX)) {
         WRITE_LOG(LOG_FATAL, "Invalid message version %d.", versionInt);
         return;
     }
@@ -32,7 +32,7 @@ CredentialMessage::CredentialMessage(const std::string& messageStr)
     messageVersion = versionInt;
 
     std::string messageMethodStr = messageStr.substr(MESSAGE_METHOD_POS, MESSAGE_METHOD_LEN);
-    messageMethodType = HdcPassword::StripLeadingZeros(messageMethodStr);
+    messageMethodType = StripLeadingZeros(messageMethodStr);
 
     std::string messageLengthStr = messageStr.substr(MESSAGE_LENGTH_POS, MESSAGE_LENGTH_LEN);
     char* end = nullptr;
@@ -49,8 +49,6 @@ CredentialMessage::CredentialMessage(const std::string& messageStr)
 
     messageBodyLen = static_cast<int>(bodyLength);
     messageBody = messageStr.substr(MESSAGE_BODY_POS, bodyLength);
-
-    std::fill(const_cast<char*>(messageStr.data()), const_cast<char*>(messageStr.data()) + messageStr.size(), '\0');
 }
 CredentialMessage::~CredentialMessage()
 {
@@ -76,14 +74,15 @@ std::string CredentialMessage::Construct() const
 
     std::string messageBodyLenStr = ConvertInt(messageBodyLen, MESSAGE_LENGTH_LEN);
     if (messageBodyLenStr.size() > MESSAGE_LENGTH_LEN) {
-        WRITE_LOG(LOG_FATAL, "messageBodyLenStr must be:%d,now is:%d",
+        WRITE_LOG(LOG_FATAL, "messageBodyLen length must be:%d,now is:%s",
             MESSAGE_LENGTH_LEN, messageBodyLenStr.c_str());
         return "";
     }
     
     std::vector<char> newBuffer(totalLength + 1, '\0');
     if (snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", ('0' + messageVersion),
-                   messageMethodTypeStr.c_str(), messageBodyLenStr.c_str(), messageBody.c_str()) < 0) {
+        messageMethodTypeStr.c_str(), messageBodyLenStr.c_str(), messageBody.c_str())
+        < 0) {
         WRITE_LOG(LOG_FATAL, "Construct Error!");
         return "";
     }

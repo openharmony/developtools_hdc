@@ -89,7 +89,8 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
 
     std::vector<char> newBuffer(totalLength + 1, '\0');
     if (snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", ('0' + METHOD_VERSION_V1),
-                   messageMethodTypeStr.c_str(), messageBodyLen.c_str(), str.data()) < 0) {
+        messageMethodTypeStr.c_str(), messageBodyLen.c_str(), str.data())
+        < 0) {
         WRITE_LOG(LOG_FATAL, "SplicMessage Error!");
         return "";
     }
@@ -269,7 +270,7 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
 
     if (memset_s(result.first, result.second, 0, PASSWORD_LENGTH) != EOK) {
         WRITE_LOG(LOG_FATAL, "memset_s failed.");
-        return false;
+        success = false;
     }
     delete[] result.first;
     return success;

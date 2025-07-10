@@ -24,9 +24,9 @@ public:
     ReminderEventManager();
     void Init();
     class ReminderEventSubscriber : public OHOS::EventFwk::CommonEventSubscriber {
-        public:
-            ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
-            virtual void OnReceiveEvent(const OHOS::EventFwk::CommonEventData &data);
+    public:
+        ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
+        virtual void OnReceiveEvent(const OHOS::EventFwk::CommonEventData &data);
     };
     std::shared_ptr<ReminderEventSubscriber> customSubscriber;
 };

@@ -28,7 +28,7 @@
 #define LOG_TAG "HDC_LOG"
 #endif // HDC_HILOG
 
-// 0x10000000 is 1.0.01
+// 0x10000000 is 1.0.0a
 constexpr uint32_t CREDENTIAL_VERSION_NUMBER = 0x10000000;
 constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
@@ -190,7 +190,7 @@ string CredentialUsage()
 {
     string ret = "";
     ret = "\n                         Harmony device connector (HDC) credential process \n\n"
-          "Usage: hdc_credential [options]...\n\n"
+          "Usage: hdc_credential [options]...\n"
           "\n"
           "general options:\n"
           " -h                            - Print help\n"
@@ -198,14 +198,14 @@ string CredentialUsage()
     return ret;
 }
 
-string GetVersion()
+string CredentialVersion()
 {
     const uint8_t a = 'a';
     uint8_t major = (CREDENTIAL_VERSION_NUMBER >> 28) & 0xff;
     uint8_t minor = (CREDENTIAL_VERSION_NUMBER << 4 >> 24) & 0xff;
     uint8_t version = (CREDENTIAL_VERSION_NUMBER << 12 >> 24) & 0xff;
     uint8_t fix = (CREDENTIAL_VERSION_NUMBER << 20 >> 28) & 0xff;  // max 16, tail is p
-    string ver = StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
+    string ver = Base::StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
     return "Ver: " + ver;
 }
 
@@ -213,24 +213,24 @@ bool SplitCommandToArgs(int argc, const char **argc)
 {
     if (argc == CMD_ARG1_COUNT) {
         if (!strcmp(argv[1], "-h")) {
-            string ret = CredentialUsage();
-            fprintf(stderr, "%s\n", ret.c_str());
+            string usage = CredentialUsage();
+            fprintf(stderr, "%s\n", usage.c_str());
             return false;
         } else if (!strcmp(argv[1], "-v")) {
-            string ret = GetVersion();
-            fprintf(stderr, "%s\n", ret.c_str());
+            string ver = CredentialVersion();
+            fprintf(stderr, "%s\n", ver.c_str());
             return false;
         }
     }
     if (argc != 1) {
         fprintf(stderr, "Invalid input parameters,please recheck.\n");
-        string ret = CredentialUsage();
-        fprintf(stderr, "%s\n", ret.c_str());
+        string usage = CredentialUsage();
+        fprintf(stderr, "%s\n", usage.c_str());
         return false;
     }
     return true;
 }
-int main(int argc, char *argv[])
+int main(int argc, const char *argv[])
 {
     if (!SplitCommandToArgs(argc, argv)) {
         return 0;
@@ -246,10 +246,8 @@ int main(int argc, char *argv[])
         close(sockfd);
         return -1;
     }
-
     WRITE_LOG(LOG_INFO, "Listening on socket: %s", hdcCredentialSocketRealPath);
-
-    while (true) { 
+    while (true) {
         int connfd = accept(sockfd, nullptr, nullptr);
         if (connfd < 0) {
             WRITE_LOG(LOG_FATAL, "Failed to accept connection!");

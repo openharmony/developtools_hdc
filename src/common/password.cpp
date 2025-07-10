@@ -264,7 +264,6 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
 {
     WRITE_LOG(LOG_INFO, "xxxxxxxxxxxxxxxxxxxxxxxx EncryptGetPwdValue, pwd is:%s, pwdLen is:%d", std::string(reinterpret_cast<char*>(pwd)).c_str(), pwdLen);
     std::string pwdStr(reinterpret_cast<const char*>(pwd), pwdLen);
-    memset_s(pwd, pwdLen, 0, pwdLen); // Clear the password data
     std::string sendStr = SplicMessageStr(pwdStr, METHOD_ENCRYPT);
     memset_s(pwdStr.data(), pwdStr.size(), 0, pwdStr.size());
     if (sendStr.empty()) {

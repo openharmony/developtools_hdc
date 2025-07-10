@@ -209,12 +209,12 @@ string CredentialVersion()
     return "Ver: " + ver;
 }
 
-bool SplitCommandToArgs(int argc, const char **argc)
+bool SplitCommandToArgs(int argc, const char **argv)
 {
     if (argc == CMD_ARG1_COUNT) {
         if (!strcmp(argv[1], "-h")) {
             string usage = CredentialUsage();
-            fprintf(stderr, "%s\n", usage.c_str());
+            fprintf(stderr, "%s", usage.c_str());
             return false;
         } else if (!strcmp(argv[1], "-v")) {
             string ver = CredentialVersion();
@@ -223,7 +223,7 @@ bool SplitCommandToArgs(int argc, const char **argc)
         }
     }
     if (argc != 1) {
-        fprintf(stderr, "Invalid input parameters,please recheck.\n");
+        fprintf(stderr, "Invalid input parameters, please recheck.\n");
         string usage = CredentialUsage();
         fprintf(stderr, "%s\n", usage.c_str());
         return false;

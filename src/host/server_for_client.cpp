@@ -190,7 +190,7 @@ bool HdcServerForClient::SetUdsListen()
         uv_strerror_r(ret, buffer, BUF_SIZE_DEFAULT);
         WRITE_LOG(LOG_WARN, "uv_fs_chmod uds failed %s", buffer);
         uv_fs_req_cleanup(&req);
-        return -1;
+        return false;
     }
     uv_fs_req_cleanup(&req);
 

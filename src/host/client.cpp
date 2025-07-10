@@ -479,7 +479,7 @@ int HdcClient::Initial(const string &connectKeyIn)
 {
     connectKey = connectKeyIn;
 #ifdef __OHOS__
-    if (serverAddress.empty() || serverAddress == UDS_STR) {
+    if (channel->isUds) {
         return 0;
     }
 #endif

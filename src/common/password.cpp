@@ -52,7 +52,7 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
     ssize_t bytesRead = 0;
     while ((bytesRead = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
         response.append(buffer, bytesRead);
-        if ( memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN) != EOK) {
+        if (memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN) != EOK) {
             WRITE_LOG(LOG_FATAL, "memset_s failed.");
             close(sockfd);
             return "";

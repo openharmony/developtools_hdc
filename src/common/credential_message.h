@@ -50,7 +50,7 @@ bool IsNumeric(const std::string& str);
 int StripLeadingZeros(const std::string& input);
 bool IsInRange(int value, int min, int max);
 std::string ConvertInt(int len, int maxLen);
-std::vector<uint8_t> String2Uint8(const std::string& str, size_t length);
+std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
 
 constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
 constexpr size_t MESSAGE_VERSION_POS = 0;

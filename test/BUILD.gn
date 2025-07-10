@@ -400,6 +400,7 @@ ohos_unittest("hdc_base_unittest") {
     "${hdc_path}/src/common/hdc_huks.cpp",
     "unittest/common/base_ut.cpp",
     "unittest/common/file_ut.cpp",
+    "unittest/common/forward_ut.cpp",
     "unittest/common/heartbeat_ut.cpp",
     "unittest/common/hdc_huks_ut.cpp",
     "unittest/common/password_ut.cpp",

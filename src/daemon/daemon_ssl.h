@@ -19,8 +19,8 @@
 namespace Hdc {
 class HdcDaemonSSL : public HdcSSLBase {
 public:
-    explicit HdcDaemonSSL(const HSSLInfo &hSSLInfo);
-    ~HdcDaemonSSL();
+    explicit HdcDaemonSSL(SSLInfoPtr hSSLInfo);
+    ~HdcDaemonSSL() override;
     const SSL_METHOD *SetSSLMethod() override;
     bool SetPskCallback() override;
     void SetSSLState() override;

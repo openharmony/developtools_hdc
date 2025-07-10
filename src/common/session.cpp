@@ -587,7 +587,14 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     thisClass->NotifyInstanceSessionFree(hSession, true);
 #ifdef HDC_HOST
     thisClass->AdminSession(OP_PRINT, hSession->sessionId, nullptr);
-#endif    
+#endif
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (hSession->classSSL != nullptr) {
+        HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
+        delete hssl;
+        hSession->classSSL = nullptr;
+    }
+#endif
     // all hsession uv handle has been clear
     thisClass->AdminSession(OP_REMOVE, hSession->sessionId, nullptr);
     WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%u finish", hSession->sessionId);

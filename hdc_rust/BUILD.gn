@@ -61,13 +61,13 @@ ohos_rust_executable("hdcd") {
     ":serialize_structs",
     "//third_party/rust/crates/env_logger:lib",
     "//third_party/rust/crates/humantime:lib",
-    "//third_party/rust/crates/libc:lib",
     "//third_party/rust/crates/log:lib",
     "//third_party/rust/crates/nix:lib",
     "//third_party/rust/crates/rust-openssl/openssl:lib",
   ]
   external_deps = [
     "hilog:hilog_rust",
+    "rust_libc:lib",
     "ylong_runtime:ylong_runtime",
   ]
 
@@ -153,11 +153,14 @@ ohos_rust_static_library("hdc_library_host") {
   deps = [
     ":cffi_host",
     "//third_party/rust/crates/humantime:lib",
-    "//third_party/rust/crates/libc:lib",
     "//third_party/rust/crates/log:lib",
     "//third_party/rust/crates/rust-openssl/openssl:lib",
   ]
-  external_deps = [ "ylong_runtime:ylong_runtime_static" ]
+
+  external_deps = [
+    "rust_libc:lib",
+    "ylong_runtime:ylong_runtime_static",
+  ]
 
   features = [ "host" ]
 
@@ -172,7 +175,6 @@ ohos_rust_executable("hdc_rust") {
     ":hdc_library_host",
     "//third_party/rust/crates/humantime:lib",
     "//third_party/rust/crates/lazy-static.rs:lib",
-    "//third_party/rust/crates/libc:lib",
     "//third_party/rust/crates/log:lib",
     "//third_party/rust/crates/rust-openssl/openssl:lib",
   ]
@@ -184,7 +186,10 @@ ohos_rust_executable("hdc_rust") {
   # config to link libc++.a
   rust_static_link = true
 
-  external_deps = [ "ylong_runtime:ylong_runtime_static" ]
+  external_deps = [
+    "rust_libc:lib",
+    "ylong_runtime:ylong_runtime_static",
+  ]
 
   features = [ "host" ]
   subsystem_name = "developtools"

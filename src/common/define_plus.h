@@ -359,7 +359,7 @@ struct HdcChannel {
     uint32_t channelId;
     std::string connectKey;
 #ifdef HOST_OHOS
-    bool isUds;
+    bool isUds = false;
     uv_pipe_t hWorkUds;
     uv_pipe_t hChildWorkUds;
 #endif

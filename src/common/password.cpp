@@ -33,8 +33,8 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
     addr.sun_family = AF_UNIX;
     size_t bufSize = strlen(socketPath) + 1;
     memcpy_s(addr.sun_path, bufSize, socketPath, bufSize);
-
-    if (connect(sockfd, static_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+ 
+    if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
         close(sockfd);
         return "";
@@ -52,7 +52,11 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
     ssize_t bytesRead = 0;
     while ((bytesRead = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
         response.append(buffer, bytesRead);
-        memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN);
+        if ( memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN) != EOK) {
+            WRITE_LOG(LOG_FATAL, "memset_s failed.");
+            close(sockfd);
+            return "";
+        }
     }
     if (bytesRead < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to read from socket.");

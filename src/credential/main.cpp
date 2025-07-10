@@ -111,6 +111,7 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     delete[] decryptPwd.first;
 
     std::string pwd_str(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
+    memset_s(pwd, PASSWORD_LENGTH, 0, PASSWORD_LENGTH);
 
     return std::make_pair(pwd_str, pwd_str.size());
 }
@@ -247,7 +248,8 @@ int main(int argc, const char *argv[])
         return -1;
     }
     WRITE_LOG(LOG_INFO, "Listening on socket: %s", HDC_CREDENTIAL_SOCKET_REAL_PATH);
-    while (true) {
+    bool running = true;
+    while (running) {
         int connfd = accept(sockfd, nullptr, nullptr);
         if (connfd < 0) {
             WRITE_LOG(LOG_FATAL, "Failed to accept connection!");

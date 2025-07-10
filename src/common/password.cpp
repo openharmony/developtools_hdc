@@ -31,10 +31,10 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
 
     struct sockaddr_un addr = {};
     addr.sun_family = AF_UNIX;
-    size_t buf_size = strlen(socketPath) + 1;
-    memcpy_s(addr.sun_path, buf_size, socketPath, buf_size);
+    size_t bufSize = strlen(socketPath) + 1;
+    memcpy_s(addr.sun_path, bufSize, socketPath, bufSize);
 
-    if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (connect(sockfd, static_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
         close(sockfd);
         return "";
@@ -55,7 +55,7 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
         memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN);
     }
     if (bytesRead < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to read from socket."); 
+        WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
         close(sockfd);
         return "";
     }
@@ -108,7 +108,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(hdcCredentialSocketSandboxPath, sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH, sendStr.c_str());
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");
@@ -137,7 +137,7 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(hdcCredentialSocketSandboxPath, sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH, sendStr.c_str());
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");

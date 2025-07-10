@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -47,10 +47,10 @@ private:
 };
 
 bool IsNumeric(const std::string& str);
-int StripLeadingZeros(const std::string &input);
+int StripLeadingZeros(const std::string& input);
 bool IsInRange(int value, int min, int max);
 std::string ConvertInt(int len, int maxLen);
-std::vector<uint8_t> String2Uint8(const std::string &str, size_t len);
+std::vector<uint8_t> String2Uint8(const std::string& str, size_t length);
 
 constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
 constexpr size_t MESSAGE_VERSION_POS = 0;

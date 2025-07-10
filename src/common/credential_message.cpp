@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -131,7 +131,7 @@ inline bool IsInRange(int value, int min, int max)
     return (value >= min && value <= max);
 }
 
-std::vector<uint8_t> String2Uint8(const std::string &str, size_t len)
+std::vector<uint8_t> String2Uint8(const std::string& str, size_t len)
 {
     std::vector<uint8_t> byteData(len);
     for (size_t i = 0; i < len; i++) {
@@ -140,11 +140,11 @@ std::vector<uint8_t> String2Uint8(const std::string &str, size_t len)
     return byteData;
 }
 
-std::string ConvertInt(int len, int max_len)
+std::string ConvertInt(int len, int maxLen)
 {
     std::string str = std::to_string(len);
-    if (str.length() > static_cast<size_t>(max_len)) {
+    if (str.length() > static_cast<size_t>(maxLen)) {
         return "";
     }
-    return std::string(max_len - str.length(), '0') + str;
+    return std::string(maxLen - str.length(), '0') + str;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 #ifndef HDC_REMINDER_EVENT_MANAGER_H
-#define HDC_REMINDER_EVENT_MANAGER_H 
+#define HDC_REMINDER_EVENT_MANAGER_H
 
 #include "common.h"
 #include "common_event_manager.h"
@@ -25,7 +25,7 @@ public:
     void Init();
     class ReminderEventSubscriber : public OHOS::EventFwk::CommonEventSubscriber {
     public:
-        ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
+        explicit ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
         virtual void OnReceiveEvent(const OHOS::EventFwk::CommonEventData &data);
     };
     std::shared_ptr<ReminderEventSubscriber> customSubscriber;

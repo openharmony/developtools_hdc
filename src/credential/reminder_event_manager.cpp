@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -67,20 +67,20 @@ void ReminderEventManager::Init()
     customSubscriberInfo.SetThreadMode(EventFwk::CommonEventSubscribeInfo::COMMON);
     customSubscriber = std::make_shared<ReminderEventSubscriber>(customSubscriberInfo);
 
-    const int MAX_RETRY = 10;
+    const int maxRetry = 10;
     int retryCount = 0;
 
-    while (retryCount < MAX_RETRY &&
+    while (retryCount < maxRetry &&
         !EventFwk::CommonEventManager::SubscribeCommonEvent(customSubscriber)) {
         ++retryCount;
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent fail %d/%d", retryCount, MAX_RETRY);
+        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent fail %d/%d", retryCount, maxRetry);
     }
 
-    if (retryCount < MAX_RETRY) {
+    if (retryCount < maxRetry) {
         WRITE_LOG(LOG_DEBUG, "SubscribeCommonEvent success.");
     } else {
-        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent failed after %d retries.", MAX_RETRY);
+        WRITE_LOG(LOG_FATAL, "SubscribeCommonEvent failed after %d retries.", maxRetry);
     }
     return;
 }

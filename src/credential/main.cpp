@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -236,7 +236,7 @@ int main(int argc, const char *argv[])
         return 0;
     }
     ReminderEventManager reminderEventManager;
-    int sockfd = create_and_bind_socket(hdcCredentialSocketRealPath);
+    int sockfd = create_and_bind_socket(HDC_CREDENTIAL_SOCKET_REAL_PATH);
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");
         return -1;
@@ -246,7 +246,7 @@ int main(int argc, const char *argv[])
         close(sockfd);
         return -1;
     }
-    WRITE_LOG(LOG_INFO, "Listening on socket: %s", hdcCredentialSocketRealPath);
+    WRITE_LOG(LOG_INFO, "Listening on socket: %s", HDC_CREDENTIAL_SOCKET_REAL_PATH);
     while (true) {
         int connfd = accept(sockfd, nullptr, nullptr);
         if (connfd < 0) {
@@ -277,6 +277,6 @@ int main(int argc, const char *argv[])
         close(connfd);
     } // Keep the server running indefinitely
     close(sockfd);
-    unlink(hdcCredentialSocketRealPath);
+    unlink(HDC_CREDENTIAL_SOCKET_REAL_PATH);
     return 0;
 }

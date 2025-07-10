@@ -19,7 +19,17 @@ group("daemon_etc") {
     ":hdc.para",
     ":hdc.para.dac",
     ":hdcd.cfg",
+    ":hdc_credential.cfg",
   ]
+}
+
+ohos_prebuilt_etc("hdc_credential.cfg") {
+  source = "hdc_credential.cfg"
+  relative_install_dir = "init"
+  install_images = [ "system" ]
+  output = "hdc_credential.cfg"
+  part_name = "hdc"
+  subsystem_name = "developtools"
 }
 
 ohos_prebuilt_etc("hdcd.cfg") {

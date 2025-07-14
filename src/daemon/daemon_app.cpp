@@ -120,8 +120,11 @@ bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const str
         string::size_type rindex = ctxNow.localPath.rfind(".tar");
         if (rindex != string::npos) {
             string dir = ctxNow.localPath.substr(0, rindex);
-            Base::RemovePath(dir);
-            WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s", dir.c_str());
+            if (!Base::RemovePath(dir)) {
+                WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s success!", dir.c_str());
+            } else {
+             WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s failed!", dir.c_str());
+            }
         }
     }
     asyncCommand.DoRelease();

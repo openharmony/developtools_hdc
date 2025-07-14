@@ -3077,22 +3077,24 @@ void CloseOpenFd(void)
         return 0;
     }
 
-    void RemovePath(const string &path)
+    int RemovePath(const string &path)
     {
         struct stat st;
         if (lstat(path.c_str(), &st) == -1) {
             WRITE_LOG(LOG_WARN, "lstat failed path:%s", path.c_str());
-            return;
+            return -1;
         }
         if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
             unlink(path.c_str());
         } else if (S_ISDIR(st.st_mode)) {
             if (path == "." || path == "..") {
-                return;
+                return 0;
             }
             int rc = RemoveDir(path);
             WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
+            return rc;
         }
+        return 0;
     }
 #endif // !HDC_HOST
 

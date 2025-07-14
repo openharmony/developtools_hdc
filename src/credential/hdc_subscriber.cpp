@@ -37,8 +37,11 @@ void HdcSubscriber::OnAccountsChanged(const OHOS::AccountSA::OsAccountStateData&
             WRITE_LOG(LOG_DEBUG, "Directory created successfully: %s", path.c_str());
             break;
         case OsAccountState::REMOVED:
-            Base::RemovePath(path.c_str());
-            WRITE_LOG(LOG_DEBUG, "Directory removed successfully: %s", path.c_str());
+            if (!Base::RemovePath(path.c_str())) {
+                WRITE_LOG(LOG_DEBUG, "Directory removed successfully: %s", path.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "Failed to remove directory: %s", path.c_str());
+            }
             break;
         default:
             WRITE_LOG(LOG_DEBUG, "This state is not support,state is:%d", data.state);

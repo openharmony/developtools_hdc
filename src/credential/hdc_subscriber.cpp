@@ -17,11 +17,15 @@
 using namespace Hdc;
 using namespace OHOS::AccountSA;
 
-void HdcSubscriber::OnAccountsChanged(const OHOS::AccountSA::OsAccountStateData& data)
+void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data)
 {
-    WRITE_LOG(LOG_INFO, "Recove data.state:%d", data.state);
+    WRITE_LOG(LOG_INFO, "Recv data.state:%d", data.state);
+    std::string str_id = std::to_string(data.toId);
+    if (!std::regex_match(str_id, std::regex("^\\d+$"))) {
+        WRITE_LOG(LOG_FATAL, "data.toId is not a number:%s", str_id.c_str());
+    }
     std::string path = std::string("/data/service/el1/public/hdc_server/") +
-        std::to_string(data.toId);
+        str_id.c_str();
     mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 
     switch(data.state) {
@@ -59,7 +63,7 @@ void HdcSubscriber::OnAccountsChanged(const int& id)
 
 int HdcAccountSubscriberMonitor()
 {
-    std::set<OsAccountState> states = { OsAccountState::CREATED, OsAccountState::REMOVED }
+    std::set<OsAccountState> states = { OsAccountState::CREATED, OsAccountState::REMOVED };
     OsAccountSubscribeInfo subscribeInfo(states, false);
     auto subscriber = std::make_shared<HdcSubscriber>(subscribeInfo);
 

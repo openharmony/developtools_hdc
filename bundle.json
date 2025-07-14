@@ -13,7 +13,8 @@
     "name": "hdc",
     "subsystem": "developtools",
     "features": [
-      "hdc_feature_support_sudo"
+      "hdc_feature_support_sudo",
+      "hdc_feature_support_credential"
     ],
     "adapted_system_type": [
       "standard"

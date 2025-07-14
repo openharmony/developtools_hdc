@@ -123,7 +123,7 @@ bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const str
             if (!Base::RemovePath(dir)) {
                 WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s success!", dir.c_str());
             } else {
-             WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s failed!", dir.c_str());
+                WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s failed!", dir.c_str());
             }
         }
     }

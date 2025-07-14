@@ -12,23 +12,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef HDC_REMINDER_EVENT_MANAGER_H
-#define HDC_REMINDER_EVENT_MANAGER_H
+#ifndef HDC_SUBSCRIBER_H
+#define HDC_SUBSCRIBER_H
 
 #include "common.h"
-#include "common_event_manager.h"
-#include "common_event_support.h"
+#include "os_account_manager.h"
+#include "os_account_subscriber.h"
 
-class ReminderEventManager {
+class HdcSubscriber : public OHOS::AccountSA::OsAccountSubscriber {
 public:
-    ReminderEventManager();
-    void Init();
-    class ReminderEventSubscriber : public OHOS::EventFwk::CommonEventSubscriber {
-    public:
-        explicit ReminderEventSubscriber(const OHOS::EventFwk::CommonEventSubscribeInfo &subscriberInfo);
-        virtual void OnReceiveEvent(const OHOS::EventFwk::CommonEventData &data);
-    };
-    std::shared_ptr<ReminderEventSubscriber> customSubscriber;
+    HdcSubscriber(const OHOS::AccountSA::OsAccountSubscribeInfo& info) : OHOS::AccountSA::OsAccountSubscriber(info){};
+
+    void OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data) override;
+    void OnAccountsChanged(const int& id) override;
 };
 
-#endif // HDC_REMINDER_EVENT_MANAGER_H
+int HdcAccountSubscriberMonitor();
+
+#endif // HDC_SUBSCRIBER_H

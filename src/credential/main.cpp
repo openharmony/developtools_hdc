@@ -14,7 +14,7 @@
  */
 #include "credential_message.h"
 #include "password.h"
-#include "reminder_event_manager.h"
+#include "hdc_subscriber.h"
 
 #ifdef HDC_HILOG
 #ifdef LOG_DOMAIN
@@ -236,7 +236,7 @@ int main(int argc, const char *argv[])
     if (!SplitCommandToArgs(argc, argv)) {
         return 0;
     }
-    ReminderEventManager reminderEventManager;
+    HdcAccountSubscriberMonitor();
     int sockfd = create_and_bind_socket(HDC_CREDENTIAL_SOCKET_REAL_PATH);
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");

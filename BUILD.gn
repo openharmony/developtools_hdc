@@ -451,71 +451,13 @@ ohos_executable("hdc") {
   part_name = "hdc"
 }
 
-ohos_executable("hdc_credential") {
-  if (hdc_feature_support_credential) {
-    use_exceptions = true
-    ldflags = [
-      "-Wl,--whole-archive",
-      "-ldl",
-      "-lrt",
-      "-Wl,--no-whole-archive",
-    ]
-    libs = []
-    defines = []
-    configs = [ ":hdc_config" ]
-    deps = [ ":hdc_hash_gen" ]
-
-    if (hdc_debug) {
-      defines += [ "HDC_DEBUG" ]
-    }
-    sources = [
-      "src/credential/main.cpp",
-    ]
-
-    external_deps = [
-      "openssl:libcrypto_shared",
-      "bounds_checking_function:libsec_shared",
-      "libuv:uv",
-    ]
-    if (product_name != "ohos-sdk") {
-      external_deps += [
-        "os_account:os_account_innerkits",
-        "os_account:account_iam_innerkits"
-      ]
-    }
-    if (is_ohos) {
-      sources += [ "src/common/base.cpp" ]
-      sources += [ "src/common/credential_message.cpp" ]
-      sources += [ "src/common/hdc_huks.cpp" ]
-      sources += [ "src/common/password.cpp" ]
-      sources += [ "src/credential/hdc_subscriber.cpp" ]
-      external_deps += [ "huks:libhukssdk" ]
-      external_deps += [ "hilog:libhilog" ]
-      defines += [ 
-        "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY",
-        "HDC_HILOG",
-        ]
-      install_images = [ "system" ]
-    }
-
-    subsystem_name = "developtools"
-    part_name = "hdc"
-  }
-}
-
 group("hdc_target") {
   deps = [
     ":hdc",
     ":hdc_register",
     ":hdcd_system",
     ":hdcd_updater",
-    ":hdc_credential",
   ]
-  if (hdc_feature_support_credential) {
-    deps += [
-      ":hdc_credential"
-    ]
-  }
 }
 
 group("hdc_target_all") {

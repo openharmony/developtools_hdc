@@ -13,29 +13,11 @@
  * limitations under the License.
  */
 #include "credential_message.h"
-#include "password.h"
 #include "hdc_subscriber.h"
-
-#ifdef HDC_HILOG
-#ifdef LOG_DOMAIN
-#undef LOG_DOMAIN
-#endif // LOG_DOMAIN
-
-#define LOG_DOMAIN 0xD002D13
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif // LOG_TAG
-#define LOG_TAG "HDC_LOG"
-#endif // HDC_HILOG
-
-// 0x10000000 is 1.0.0a
-constexpr uint32_t CREDENTIAL_VERSION_NUMBER = 0x10000000;
-constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
 using namespace Hdc;
 
 Hdc::HdcHuks hdc_huks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
-Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 
 bool ResetPwdKey(void)
 {

@@ -15,14 +15,29 @@
 #include "credential_base.h"
 #include "credential_message.h"
 #include "hdc_subscriber.h"
+#include "password.h"
 
 using namespace Hdc;
 
-Hdc::HdcHuks hdc_huks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
+Hdc::HdcHuks hdcHuks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
+Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
+
+std::string BytetoHex(const uint8_t* byteDate, size_t length)
+{
+    uint8_t tmp;
+    std::string encryptPwd;
+
+    for (size_t i = 0; i < length; i++) {
+        tmp = byteDate[i];
+        encryptPwd.push_back(pwd.GetHexChar(tmp >> 4)); // 4 get high 4 bits
+        encryptPwd.push_back(pwd.GetHexChar(tmp & 0x0F));
+    }
+    return encryptPwd;
+}
 
 bool ResetPwdKey(void)
 {
-    return hdc_huks.ResetHuksKey();
+    return hdcHuks.ResetHuksKey();
 }
 
 std::string CredentialEncryptPwd(const std::string& messageStr)
@@ -31,7 +46,7 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
     const char* rawCharData = messageStr.c_str();
     const uint8_t* uint8MessageStr = reinterpret_cast<const uint8_t*>(rawCharData);
 
-    bool encryptResult = hdc_huks.AesGcmEncrypt(uint8MessageStr, PASSWORD_LENGTH, encryptData);
+    bool encryptResult = hdcHuks.AesGcmEncrypt(uint8MessageStr, PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
         WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: AES GCM encryption failed.");
         return "";
@@ -59,7 +74,7 @@ std::pair<std::string, size_t> EncryptPwd(const std::string& messageStr)
 std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
 {
     uint8_t pwd[PASSWORD_LENGTH] = {0};
-    std::pair<uint8_t*, int> decryptPwd = hdc_huks.AesGcmDecrypt(messageStr);
+    std::pair<uint8_t*, int> decryptPwd = hdcHuks.AesGcmDecrypt(messageStr);
     if (decryptPwd.first == nullptr) {
         WRITE_LOG(LOG_FATAL, "AesGcmDecrypt failed.");
         return std::make_pair(std::string(), 0);
@@ -80,10 +95,10 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     memset_s(decryptPwd.first, decryptPwd.second, 0, decryptPwd.second);
     delete[] decryptPwd.first;
 
-    std::string pwd_str(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
+    std::string pwdStr(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
     memset_s(pwd, PASSWORD_LENGTH, 0, PASSWORD_LENGTH);
 
-    return std::make_pair(pwd_str, pwd_str.size());
+    return std::make_pair(pwdStr, pwdStr.size());
 }
 
 std::string ParseAndProcessMessageStr(const std::string& messageStr)

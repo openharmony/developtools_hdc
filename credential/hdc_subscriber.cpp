@@ -44,7 +44,7 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
             operationSuccess = true;
             break;
         case OsAccountState::REMOVED:
-            if (!Base::RemovePath(path.c_str())) {
+            if (!RemovePath(path.c_str())) {
                 WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
                 operationSuccess = true;
             } else {
@@ -86,9 +86,9 @@ int HdcAccountSubscriberMonitor()
         }
         
         if (retryCount < MAX_RETRY) {
-            WRITE_LOG(LOG_DEBUG, "SubscribeOsAccount success");
+            WRITE_LOG(LOG_DEBUG, "SubscribeOsAccount success.");
         } else {
-            WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed after %d retries", MAX_RETRY);
+            WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed after %d retries.", MAX_RETRY);
         }
     } else {
         WRITE_LOG(LOG_FATAL, "Already subscribed to OsAccount change.");

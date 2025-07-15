@@ -40,19 +40,19 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
                 WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
                 break;
             }
-            WRITE_LOG(LOG_DEBUG, "Directory created successfully: %s", path.c_str());
+            WRITE_LOG(LOG_DEBUG, "Directory created successfully.");
             operationSuccess = true;
             break;
         case OsAccountState::REMOVED:
             if (!Base::RemovePath(path.c_str())) {
-                WRITE_LOG(LOG_DEBUG, "Directory removed successfully: %s", path.c_str());\
+                WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
                 operationSuccess = true;
             } else {
-                WRITE_LOG(LOG_FATAL, "Failed to remove directory: %s", path.c_str());
+                WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
             }
             break;
         default:
-            WRITE_LOG(LOG_DEBUG, "This state is not support,state is:%d", data.state);
+            WRITE_LOG(LOG_FATAL, "This state is not support,state is:%d", data.state);
             break;
     }
     if (data.callback != nullptr) {
@@ -91,7 +91,7 @@ int HdcAccountSubscriberMonitor()
             WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed after %d retries", MAX_RETRY);
         }
     } else {
-        WRITE_LOG(LOG_FATAL, "Already subscribed ro OsAccount change.");
+        WRITE_LOG(LOG_FATAL, "Already subscribed to OsAccount change.");
     }
 
     return 0;

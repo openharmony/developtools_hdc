@@ -31,8 +31,14 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
 
     struct sockaddr_un addr = {};
     addr.sun_family = AF_UNIX;
-    size_t bufSize = strlen(socketPath) + 1;
-    memcpy_s(addr.sun_path, bufSize, socketPath, bufSize);
+    size_t maxPathLen = sizeof(addr.sun_path) - 1;
+    size_t pathLen = strlen(socketPath);
+    if (pathLen > maxPathLen) {
+        WRITE_LOG(LOG_FATAL, "Socket path too long.");
+        close(sockfd);
+        return "";
+    }
+    memcpy_s(addr.sun_path, maxPathLen, socketPath, pathLen);
  
     if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");

@@ -58,16 +58,16 @@ CredentialMessage::~CredentialMessage()
     }
 }
 
-void SetMessageVersion(int version)
+void CredentialMessage::SetMessageVersion(int version)
 {
     if (version >= METHOD_VERSION_V1 && version <= METHOD_VERSION_MAX) {
         messageVersion = version;
     } else {
-        WRITE_LOG(LOG_FATAL, "Invalid message version: %d", version);
+        WRITE_LOG(LOG_FATAL, "Invalid message version %d.", version);
     }
 }
 
-void SetMessageBody(const std::string& body)
+void CredentialMessage::SetMessageBody(const std::string& body)
 {
     if (body.size() > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "Message body length exceeds maximum allowed length.");
@@ -76,6 +76,7 @@ void SetMessageBody(const std::string& body)
     messageBody = body;
     messageBodyLen = static_cast<int>(messageBody.size());
 }
+
 std::string CredentialMessage::Construct() const
 {
     size_t totalLength = 0;
@@ -100,7 +101,7 @@ std::string CredentialMessage::Construct() const
     std::vector<char> newBuffer(totalLength + 1, '\0');
     int resLen = snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", ('0' + messageVersion),
         messageMethodTypeStr.c_str(), messageBodyLenStr.c_str(), messageBody.c_str());
-    if (resLen < 0 || resLen >= static_cast<int>(newBuffer.size() - 1) ){
+    if ((resLen < 0) || (resLen >= static_cast<int>(newBuffer.size() - 1))) {
         WRITE_LOG(LOG_FATAL, "Construct Error!");
         return "";
     }

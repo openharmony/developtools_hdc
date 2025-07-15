@@ -104,9 +104,10 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
             processMessageValue = DecryptPwd(messageStruct.GetMessageBody());
             break;
         }
-        default:
+        default: {
             WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
             return "";
+        }
     }
 
     messageStruct.SetMessageBody(processMessageValue.first);
@@ -177,7 +178,7 @@ std::string CredentialVersion()
     uint8_t minor = (CREDENTIAL_VERSION_NUMBER << 4 >> 24) & 0xff;
     uint8_t version = (CREDENTIAL_VERSION_NUMBER << 12 >> 24) & 0xff;
     uint8_t fix = (CREDENTIAL_VERSION_NUMBER << 20 >> 28) & 0xff;  // max 16, tail is p
-    string ver = Base::StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
+    std::string ver = StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
     return "Ver: " + ver;
 }
 

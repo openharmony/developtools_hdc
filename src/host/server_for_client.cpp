@@ -684,19 +684,6 @@ bool HdcServerForClient::IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, s
 }
 #endif
 
-bool HdcServerForClient::HandleCommandJdwp(HChannel hChannel, uint16_t cmdFlag,
-    string &parameters, int size)
-{
-    if (!SendToDaemon(hChannel, cmdFlag,
-        reinterpret_cast<uint8_t *>(const_cast<char *>(parameters.c_str())), size)) {
-        return false;
-    }
-    if (cmdFlag == CMD_SHELL_INIT) {
-        hChannel->interactiveShellMode = true;
-    }
-    return true;
-}
-
 bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
 {
     StartTraceScope("HdcServerForClient::DoCommandRemote");
@@ -716,7 +703,14 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         case CMD_UNITY_ROOTRUN:
         case CMD_JDWP_TRACK:
         case CMD_JDWP_LIST: {
-            ret = HandleCommandJdwp(hChannel, formatCommand->cmdFlag, formatCommand->parameters, sizeSend);
+            if (!SendToDaemon(hChannel, formatCommand->cmdFlag,
+                reinterpret_cast<uint8_t *>(const_cast<char *>(formatCommand->parameters.c_str())), sizeSend)) {
+                break;
+            }
+            ret = true;
+            if (formatCommand->cmdFlag == CMD_SHELL_INIT) {
+                hChannel->interactiveShellMode = true;
+            }
             break;
         }
         case CMD_FILE_INIT:

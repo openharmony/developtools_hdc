@@ -64,7 +64,6 @@ private:
 #ifdef __OHOS__
     bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
 #endif
-    bool HandleCommandJdwp(HChannel hChannel, uint16_t cmdFlag, string &parameters, int size);
 
     uv_tcp_t tcpListen;
     void *clsServer;

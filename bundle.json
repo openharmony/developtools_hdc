@@ -57,9 +57,9 @@
         "//developtools/hdc:hdcd_updater",
         "//developtools/hdc:hdc_updater",
         "//developtools/hdc/sudo:sudo",
-        "//developtools/hdc:hdc_credential"
+        "//developtools/hdc/credential:hdc_credential"
       ],
-      "inner_kits": [
+      "inner_kits": [ 
         {
             "name":"//developtools/hdc:hdc_updater",
             "header":{

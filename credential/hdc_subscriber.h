@@ -15,11 +15,8 @@
 #ifndef HDC_SUBSCRIBER_H
 #define HDC_SUBSCRIBER_H
 
-#include <regex>
-
-#include "common.h"
-#include "os_account_manager.h"
 #include "os_account_subscriber.h"
+#include "os_account_manager.h"
 
 class HdcSubscriber : public OHOS::AccountSA::OsAccountSubscriber {
 public:

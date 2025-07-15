@@ -29,14 +29,10 @@ public:
     int GetMessageBodyLen() const { return messageBodyLen; }
     const std::string& GetMessageBody() const { return messageBody; }
 
-    void SetMessageVersion(int version) { messageVersion = version; }
+    void SetMessageVersion(int version);
     void SetMessageMethodType(int type) { messageMethodType = type; }
     void SetMessageBodyLen(int len) { messageBodyLen = len; }
-    void SetMessageBody(const std::string& body)
-    {
-        messageBody = body;
-        messageBodyLen = static_cast<int>(messageBody.size());
-    }
+    void SetMessageBody(const std::string& body);
     std::string Construct() const;
 
 private:

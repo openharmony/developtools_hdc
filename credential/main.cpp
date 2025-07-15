@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "credential_base.h"
 #include "credential_message.h"
 #include "hdc_subscriber.h"
 
@@ -22,19 +23,6 @@ Hdc::HdcHuks hdc_huks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 bool ResetPwdKey(void)
 {
     return hdc_huks.ResetHuksKey();
-}
-
-std::string BytetoHex(const uint8_t* byteDate, size_t length)
-{
-    uint8_t tmp;
-    std::string encryptPwd;
-
-    for (size_t i = 0; i < length; i++) {
-        tmp = byteDate[i];
-        encryptPwd.push_back(pwd.GetHexChar(tmp >> 4)); // 4 get high 4 bits
-        encryptPwd.push_back(pwd.GetHexChar(tmp & 0x0F));
-    }
-    return encryptPwd;
 }
 
 std::string CredentialEncryptPwd(const std::string& messageStr)
@@ -117,7 +105,8 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
             break;
         }
         default:
-            break;
+            WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
+            return "";
     }
 
     messageStruct.SetMessageBody(processMessageValue.first);
@@ -169,9 +158,9 @@ int create_and_bind_socket(const std::string& socketPath)
     return sockfd;
 }
 
-string CredentialUsage()
+std::string CredentialUsage()
 {
-    string ret = "";
+    std::string ret = "";
     ret = "\n                         Harmony device connector (HDC) credential process \n\n"
           "Usage: hdc_credential [options]...\n"
           "\n"
@@ -181,7 +170,7 @@ string CredentialUsage()
     return ret;
 }
 
-string CredentialVersion()
+std::string CredentialVersion()
 {
     const uint8_t a = 'a';
     uint8_t major = (CREDENTIAL_VERSION_NUMBER >> 28) & 0xff;
@@ -196,18 +185,18 @@ bool SplitCommandToArgs(int argc, const char **argv)
 {
     if (argc == CMD_ARG1_COUNT) {
         if (!strcmp(argv[1], "-h")) {
-            string usage = CredentialUsage();
+            std::string usage = CredentialUsage();
             fprintf(stderr, "%s", usage.c_str());
             return false;
         } else if (!strcmp(argv[1], "-v")) {
-            string ver = CredentialVersion();
+            std::string ver = CredentialVersion();
             fprintf(stderr, "%s\n", ver.c_str());
             return false;
         }
     }
     if (argc != 1) {
         fprintf(stderr, "Invalid input parameters, please recheck.\n");
-        string usage = CredentialUsage();
+        std::string usage = CredentialUsage();
         fprintf(stderr, "%s\n", usage.c_str());
         return false;
     }

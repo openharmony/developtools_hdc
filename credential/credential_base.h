@@ -51,7 +51,7 @@ constexpr const char* HDC_CREDENTIAL_SOCKET_REAL_PATH =
     "/data/service/el1/public/hdc_server/hdc_common/hdc_credential.socket";
 constexpr uint8_t CMD_ARG1_COUNT = 2;
 
-int RemoveDir(const std::string& dir)
+int RemoveDir(const std::string& dir);
 int RemovePath(const std::string& path);
 const std::string StringFormat(const char* const formater, ...);
 const std::string StringFormat(const char* const formater, va_list& vaArgs);

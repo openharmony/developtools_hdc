@@ -300,8 +300,6 @@ namespace Base {
     void ProcessCmdLogs();
     void UpdateEncrpytTCPCache();
     bool GetEncrpytTCPSwitch();
-    int RemoveDir(const string &dir);
-    void RemovePath(const string &path);
 }  // namespace base
 }  // namespace Hdc
 

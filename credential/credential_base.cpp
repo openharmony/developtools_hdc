@@ -95,9 +95,9 @@ const std::string StringFormat(const char* const formater, ...)
 
 const std::string StringFormat(const char* const formater, va_list& vaArgs)
 {
-    std::vector<char> args(GetMaxBufSizeStable());
+    std::vector<char> args(MAX_SIZE_IOBUF_STABLE);
     const int retSize = vsnprintf_s(
-        args.data(), GetMaxBufSizeStable(), (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
+        args.data(), MAX_SIZE_IOBUF_STABLE, (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
     if (retSize < 0) {
         return std::string("");
     } else {

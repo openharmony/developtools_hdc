@@ -18,6 +18,7 @@
 #include <chrono>
 #include <dirent.h>
 #include <regex>
+#include <securec.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>

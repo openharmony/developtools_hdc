@@ -221,7 +221,6 @@ if (product_name != "ohos-sdk") {
     deps = [
       ":serialize_structs",
       "//third_party/rust/crates/humantime:lib",
-      "//third_party/rust/crates/libc:lib",
       "//third_party/rust/crates/log:lib",
     ]
     if (is_emulator && product_name != "ohos-sdk") {
@@ -231,6 +230,7 @@ if (product_name != "ohos-sdk") {
       "hilog:hilog_rust",
       "rust_rust-openssl:lib",
       "ylong_runtime:ylong_runtime",
+      "rust_libc:lib",
     ]
     subsystem_name = "developtools"
     part_name = "hdc"
@@ -279,13 +279,13 @@ template("build_hdc") {
         deps = [
           "//third_party/rust/crates/env_logger:lib",
           "//third_party/rust/crates/humantime:lib",
-          "//third_party/rust/crates/libc:lib",
           "//third_party/rust/crates/log:lib",
           "//third_party/rust/crates/nix:lib",
         ]
         external_deps = [
           "hilog:hilog_rust",
           "rust_rust-openssl:lib",
+          "rust_libc:lib",
         ]
 
         if (product_name != "ohos-sdk") {

@@ -79,7 +79,7 @@ int HdcAccountSubscriberMonitor()
         int retryCount = 0;
 
         while (retryCount < MAX_RETRY &&
-            !OsAccountManager::SubscribeOsAccount(subscriber)) {
+            OsAccountManager::SubscribeOsAccount(subscriber)) {
             ++retryCount;
             std::this_thread::sleep_for(std::chrono::seconds(1));
             WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed, %d/%d", retryCount, MAX_RETRY);

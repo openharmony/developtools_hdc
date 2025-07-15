@@ -285,7 +285,6 @@ template("build_hdc") {
         ]
         external_deps = [
           "hilog:hilog_rust",
-          "rust_libc:lib",
           "rust_rust-openssl:lib",
         ]
 

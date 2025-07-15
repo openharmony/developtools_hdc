@@ -25,6 +25,8 @@
 #include <thread>
 #include <unistd.h>
 
+#include "credential_message.h"
+#include "hdc_subscriber.h"
 #include "hdc_huks.h"
 #include "log.h"
 

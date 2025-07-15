@@ -21,6 +21,7 @@
 #include <iomanip>
 
 #include "credential_message.h"
+#include "hdc_huks.h"
 namespace Hdc {
 #define PASSWORD_LENGTH 10
 

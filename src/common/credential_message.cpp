@@ -101,8 +101,8 @@ std::string CredentialMessage::Construct() const
     std::vector<char> newBuffer(totalLength + 1, '\0');
     int resLen = snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", ('0' + messageVersion),
         messageMethodTypeStr.c_str(), messageBodyLenStr.c_str(), messageBody.c_str());
-    if ((resLen < 0) || (resLen >= static_cast<int>(newBuffer.size() - 1))) {
-        WRITE_LOG(LOG_FATAL, "Construct Error!");
+    if (resLen < 0) {
+        WRITE_LOG(LOG_FATAL, "Construct Error!, resLen is:%d", resLen);
         return "";
     }
 

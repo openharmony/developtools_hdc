@@ -716,7 +716,12 @@ bool TryLoadPublicKey(string &pubkey)
         return false;
     }
     string pubkey_filename = prikey_filename + ".pub";
+#ifdef _WIN32
+    string prikeyFilenameWin = Base::UnicodeToUtf8(prikey_filename.c_str(), true);
+    if (stat(prikeyFilenameWin.c_str(), &status) == -1) {
+#else
     if (stat(prikey_filename.c_str(), &status) == -1) {
+#endif
         if (!GenerateKeyPair(prikey_filename, pubkey_filename)) {
             WRITE_LOG(LOG_FATAL, "generate new key failed");
             return false;

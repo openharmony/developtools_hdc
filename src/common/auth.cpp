@@ -991,6 +991,18 @@ bool RsaSignAndBase64(string &buf, AuthVerifyType type)
 
 int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize)
 {
+    if (in == nullptr || out == nullptr) {
+        WRITE_LOG(LOG_FATAL, "RsaPrikeyDecryptPsk IO buf is alloc failed");
+        return -1;
+    }
+    if (inLen > BUF_SIZE_DEFAULT2 || inLen <= 0) {
+        WRITE_LOG(LOG_FATAL, "invalid encryptToken, length is %d", inLen);
+        return -1;
+    }
+    if (outBufSize < PSK_MAX_PSK_LEN) {
+        WRITE_LOG(LOG_FATAL, "out buffer is too small");
+        return -1;
+    }
     RSA *rsa = nullptr;
     EVP_PKEY *evp = nullptr;
     string prikeyFileName;
@@ -1004,16 +1016,7 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
             WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikeyFileName.c_str());
             break;
         }
-        if (outBufSize < PSK_MAX_PSK_LEN) {
-            WRITE_LOG(LOG_FATAL, "out buffer is too small");
-            return -1;
-        }
         unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
-
-        if (inLen > BUF_SIZE_DEFAULT2) {
-            WRITE_LOG(LOG_FATAL, "invalid encryptToken, length is %d", inLen);
-            break;
-        }
         int tbytes = EVP_DecodeBlock(tokenDecode, in, inLen);
         if (tbytes <= 0) {
             WRITE_LOG(LOG_FATAL, "base64 decode PreShared Key failed");
@@ -1037,8 +1040,8 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
 #else // DAEMON
 int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize, const string& pubkey)
 {
-    if (out == nullptr) {
-        WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk out buf is alloc failed");
+    if (in == nullptr || out == nullptr) {
+        WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk IO buf is alloc failed");
         return -1;
     }
     BIO *bio = nullptr;

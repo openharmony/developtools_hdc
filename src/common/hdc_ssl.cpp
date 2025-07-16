@@ -31,6 +31,9 @@ HdcSSLBase::HdcSSLBase(SSLInfoPtr hSSLInfo)
     cipher = hSSLInfo->cipher;
     sessionId = hSSLInfo->sessionId;
     isDaemon = hSSLInfo->isDaemon;
+    if (memset_s(preSharedKey, sizeof(preSharedKey), 0, sizeof(preSharedKey)) != EOK) {
+        WRITE_LOG(LOG_FATAL, "memset_s preSharedKey failed");
+    }
 }
 
 HdcSSLBase::~HdcSSLBase()
@@ -69,6 +72,10 @@ int HdcSSLBase::InitSSL()
     SSL_CTX_set_ciphersuites(sslCtx, cipher.c_str());
     inBIO = BIO_new(BIO_s_mem());
     outBIO = BIO_new(BIO_s_mem());
+    if (!inBIO || !outBIO) {
+        WRITE_LOG(LOG_FATAL, "BIO_new failed");
+        return ERR_GENERIC;
+    }
     ssl = SSL_new(sslCtx);
     if (ssl == nullptr) {
         WRITE_LOG(LOG_FATAL, "SSL_new failed");

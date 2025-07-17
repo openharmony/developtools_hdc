@@ -670,6 +670,20 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
     delete[](reinterpret_cast<char *>(argv));
 }
 
+#ifdef __OHOS__
+bool HdcServerForClient::IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters)
+{
+    if (cmdFlag == CMD_FILE_INIT || cmdFlag== CMD_APP_INIT) {
+        HandleRemote(hChannel, parameters, RemoteType::REMOTE_FILE);
+        if (!hChannel->fromClient) {
+            EchoClient(hChannel, MSG_FAIL, "[E005200] Unsupport file command");
+            return false;
+        }
+    }
+    return true;
+}
+#endif
+
 bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
 {
     StartTraceScope("HdcServerForClient::DoCommandRemote");
@@ -701,7 +715,13 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         }
         case CMD_FILE_INIT:
         case CMD_FORWARD_INIT:
-        case CMD_APP_INIT:
+        case CMD_APP_INIT: {
+#ifdef __OHOS__
+            if (!IsServerTransfer(hChannel, formatCommand->cmdFlag, formatCommand->parameters)) {
+                return false;
+            }
+#endif
+        }
         case CMD_APP_UNINSTALL:
         case CMD_UNITY_BUGREPORT_INIT:
         case CMD_APP_SIDELOAD:

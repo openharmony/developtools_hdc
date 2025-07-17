@@ -61,6 +61,9 @@ private:
     string GetErrorString(uint32_t errorCode);
     void PrintLastError(HChannel HChannel);
     bool CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi);
+#ifdef __OHOS__
+    bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
+#endif
 
     uv_tcp_t tcpListen;
     void *clsServer;

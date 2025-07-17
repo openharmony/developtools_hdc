@@ -21,6 +21,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#ifdef __OHOS__
+#include <sys/xattr.h>
+#endif
 
 #ifndef HARMONY_PROJECT
 #include "ut_command.h"
@@ -230,8 +233,45 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
     return 0;
 }
 
+#ifdef __OHOS__
+bool IsHiShellLabel()
+{
+    pid_t pid = getpid();
+    char pathBuf[BUF_SIZE_DEFAULT] = "";
+    if (snprintf_s(pathBuf, sizeof(pathBuf), sizeof(pathBuf) - 1, "/proc/%d/attr/current", pid) < 0) {
+        WRITE_LOG(LOG_FATAL, "get pathBuf failed, pid is %d", pid);
+        return false;
+    }
+
+    const char* attrName = "security.selinux";
+    // get attribute size
+    ssize_t attrSize = getxattr(pathBuf, attrName, nullptr, 0);
+    if (attrSize == 0 || attrSize == - 1) {
+        return false;
+    }
+    char* attrValue = new(std::nothrow) char[attrSize];
+    if (attrValue == nullptr) {
+        return false;
+    }
+    // get attribute value
+    if (getxattr(pathBuf, attrName, attrValue, attrSize) == -1) {
+        delete []attrValue;
+        return false;
+    }
+    string label(attrValue, attrSize - 1);
+    delete []attrValue;
+    return label == "u:r:hishell_hap:s0";
+}
+#endif
+
 bool ParseServerListenString(string &serverListenString, char *optarg)
 {
+#ifdef __OHOS__
+    if (!IsHiShellLabel()) {
+        Base::PrintMessage("[E001105] Unsupport option [s], please try command in HiShell.");
+        return false;
+    }
+#endif
     if (strlen(optarg) > strlen("0000::0000:0000:0000:0000%interfacename:65535")) {
         Base::PrintMessage("Unknown content of parament '-s'");
         return false;

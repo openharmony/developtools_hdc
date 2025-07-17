@@ -159,7 +159,7 @@ int CreateAndBindSocket(const std::string& socketPath)
     }
     memcpy_s(addr.sun_path, maxPathLen, socketPath.c_str(), pathLen);
 
-    if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (bind(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to bind socket, message: %s.", strerror(errno));
         close(sockfd);
         return -1;

@@ -21,12 +21,12 @@ using namespace OHOS::AccountSA;
 void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data)
 {
     WRITE_LOG(LOG_INFO, "Recv data.state:%d, data.toId:%d", data.state, data.toId);
-    std::string str_id = std::to_string(data.toId);
+    std::string strId = std::to_string(data.toId);
     std::string path = std::string("/data/service/el1/public/hdc_server/") +
-        str_id;
+        strId;
     mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 
-    switch(data.state) {
+    switch (data.state) {
         case OsAccountState::CREATED:
             if (::mkdir(path.c_str(), mode) != 0) {
                 WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));

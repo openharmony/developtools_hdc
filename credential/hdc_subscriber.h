@@ -20,8 +20,8 @@
 
 class HdcSubscriber : public OHOS::AccountSA::OsAccountSubscriber {
 public:
-    explicit HdcSubscriber(const OHOS::AccountSA::OsAccountSubscribeInfo& info) :
-        OHOS::AccountSA::OsAccountSubscriber(info){};
+    explicit HdcSubscriber(const OHOS::AccountSA::OsAccountSubscribeInfo& info)
+        : OHOS::AccountSA::OsAccountSubscriber(info){};
 
     void OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data) override;
     void OnAccountsChanged(const int& id) override;

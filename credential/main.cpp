@@ -47,9 +47,9 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
         return "";
     }
     std::vector<uint8_t> encryptData;
-    const uint8_t* uint8MessageStr = reinterpret_cast<static const uint8_t*>(messageStr.c_str());
 
-    bool encryptResult = hdcHuks.AesGcmEncrypt(uint8MessageStr, PASSWORD_LENGTH, encryptData);
+    bool encryptResult = hdcHuks.AesGcmEncrypt(reinterpret_cast<static const uint8_t*>(messageStr.c_str()),
+                                                PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
         WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: AES GCM encryption failed.");
         return "";
@@ -88,7 +88,8 @@ std::string DecryptPwd(const std::string& messageStr)
             WRITE_LOG(LOG_FATAL, "Invalid pwd len %d", decryptPwd.second);
             break;
         }
-        int ret = memcpy_s(pwd, PASSWORD_LENGTH, decryptPwd.first, decryptPwd.second);
+        int ret = memcpy_s(pwd, PASSWORD_LENGTH, decryptPwd.first,
+                    decryptPwd.second < PASSWORD_LENGTH ? decryptPwd.second : PASSWORD_LENGTH);
         if (ret != EOK) {
             WRITE_LOG(LOG_FATAL, "Copy failed.ret is %d", ret);
             break;

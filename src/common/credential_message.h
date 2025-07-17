@@ -45,7 +45,7 @@ private:
 
 bool IsNumeric(const std::string& str);
 int StripLeadingZeros(const std::string& input);
-std::string IntToStringWithPadding(int len, int maxLen);
+std::string IntToStringWithPadding(int length, int maxLen);
 std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
 
 constexpr size_t MESSAGE_STR_MAX_LEN = 1024;

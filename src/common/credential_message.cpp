@@ -103,7 +103,7 @@ std::string CredentialMessage::Construct() const
     }
     
     std::vector<char> newBuffer(totalLength + 1, '\0');
-    int resLen = snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", 
+    int resLen = snprintf_s (newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", 
         ('0' + messageVersion), messageMethodTypeStr.c_str(), messageBodyLenStr.c_str(), messageBody.c_str());
     if (resLen < 0) {
         WRITE_LOG(LOG_FATAL, "Construct Error!, resLen is:%d", resLen);
@@ -157,7 +157,7 @@ std::vector<uint8_t> String2Uint8(const std::string& str, size_t len)
     return byteData;
 }
 
-std::string IntToStringWithPadding(int len, int maxLen)
+std::string IntToStringWithPadding(int length, int maxLen)
 {
     std::string str = std::to_string(len);
     if (str.length() > static_cast<size_t>(maxLen)) {

@@ -42,9 +42,12 @@ bool ResetPwdKey(void)
 
 std::string CredentialEncryptPwd(const std::string& messageStr)
 {
+    if (messageStr.size() != PASSWORD_LENGTH) {
+        WRITE_LOG(LOG_FATAL, "Invalid input length: expected %d, got %zu", PASSWORD_LENGTH, messageStr.size());
+        return "";
+    }
     std::vector<uint8_t> encryptData;
-    const char* rawCharData = messageStr.c_str();
-    const uint8_t* uint8MessageStr = reinterpret_cast<const uint8_t*>(rawCharData);
+    const uint8_t* uint8MessageStr = reinterpret_cast<static const uint8_t*>(messageStr.c_str());
 
     bool encryptResult = hdcHuks.AesGcmEncrypt(uint8MessageStr, PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
@@ -55,29 +58,29 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
     return std::string(reinterpret_cast<const char*>(encryptData.data()), encryptData.size());
 }
 
-std::pair<std::string, size_t> EncryptPwd(const std::string& messageStr)
+std::string EncryptPwd(const std::string& messageStr)
 {
     if (!ResetPwdKey()) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: ResetPwdKey failed.");
-        return std::make_pair(std::string(), 0);
+        return "";
     }
 
     std::string encryptPwd = CredentialEncryptPwd(messageStr);
     if (encryptPwd.empty()) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: CredentialEncryptPwd failed.");
-        return std::make_pair(std::string(), 0);
+        return "";
     }
 
-    return std::make_pair(encryptPwd, encryptPwd.size());
+    return encryptPwd;
 }
 
-std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
+std::string DecryptPwd(const std::string& messageStr)
 {
     uint8_t pwd[PASSWORD_LENGTH] = {0};
     std::pair<uint8_t*, int> decryptPwd = hdcHuks.AesGcmDecrypt(messageStr);
     if (decryptPwd.first == nullptr) {
         WRITE_LOG(LOG_FATAL, "AesGcmDecrypt failed.");
-        return std::make_pair(std::string(), 0);
+        return "";
     }
 
     do {
@@ -98,7 +101,7 @@ std::pair<std::string, size_t> DecryptPwd(const std::string& messageStr)
     std::string pwdStr(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
     memset_s(pwd, PASSWORD_LENGTH, 0, PASSWORD_LENGTH);
 
-    return std::make_pair(pwdStr, pwdStr.size());
+    return pwdStr;
 }
 
 std::string ParseAndProcessMessageStr(const std::string& messageStr)
@@ -109,7 +112,7 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
         WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.");
         return "";
     }
-    std::pair<std::string, size_t> processMessageValue;
+    std::string processMessageValue;
     switch (messageStruct.GetMessageMethodType()) {
         case METHOD_ENCRYPT: {
             processMessageValue = EncryptPwd(messageStruct.GetMessageBody());
@@ -125,40 +128,36 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
         }
     }
 
-    messageStruct.SetMessageBody(processMessageValue.first);
+    messageStruct.SetMessageBody(processMessageValue);
 
     return messageStruct.Construct();
 }
 
-int create_and_bind_socket(const std::string& socketPath)
+int CreateAndBindSocket(const std::string& socketPath)
 {
-    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (sockfd < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
-        return -1;
-    }
-
-    struct sockaddr_un addr;
-    memset_s(&addr, sizeof(addr), 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    size_t buf_size = socketPath.length() + 1;
-    memcpy_s(addr.sun_path, buf_size, socketPath.c_str(), buf_size);
-
-    struct timeval timeout;
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &timeout, sizeof(timeout)) < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to set socket options, message: %s.", strerror(errno));
-        close(sockfd);
-        return -1;
-    }
-
     if (access(socketPath.c_str(), F_OK) == 0) {
         if (remove(socketPath.c_str()) < 0) {
             WRITE_LOG(LOG_FATAL, "Failed to remove existing socket file, message: %s.", strerror(errno));
             return -1;
         }
     }
+
+    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (sockfd < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+        return -1;
+    }
+
+    struct sockaddr_un addr = {};
+    addr.sun_family = AF_UNIX;
+    size_t maxPathLen = sizeof(addr.sun_path) - 1;
+    size_t pathLen = strlen(socketPath);
+    if (pathLen > sizeof(addr.sun_path) - 1) {
+        WRITE_LOG(LOG_FATAL, "Socket path too long.");
+        close(sockfd);
+        return -1;
+    }
+    memcpy_s(addr.sun_path, maxPathLen, socketPath.c_str(), pathLen);
 
     if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to bind socket, message: %s.", strerror(errno));
@@ -223,8 +222,11 @@ int main(int argc, const char *argv[])
     if (!SplitCommandToArgs(argc, argv)) {
         return 0;
     }
-    HdcAccountSubscriberMonitor();
-    int sockfd = create_and_bind_socket(HDC_CREDENTIAL_SOCKET_REAL_PATH);
+    if (HdcAccountSubscriberMonitor() != 0) {
+        WRITE_LOG(LOG_FATAL, "HdcAccountSubscriberMonitor failed");
+        return 0;
+    }
+    int sockfd = CreateAndBindSocket(HDC_CREDENTIAL_SOCKET_REAL_PATH);
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");
         return -1;
@@ -245,7 +247,7 @@ int main(int argc, const char *argv[])
 
         char buffer[MESSAGE_STR_MAX_LEN] = {0};
         ssize_t bytesRead = read(connfd, buffer, sizeof(buffer) - 1);
-        if (bytesRead < 0) {
+        if (bytesRead <= 0) {
             WRITE_LOG(LOG_FATAL, "Error: Failed to read from socket.");
             close(connfd);
             continue;
@@ -261,10 +263,12 @@ int main(int argc, const char *argv[])
         if (bytesSend != sendBuf.size()) {
             WRITE_LOG(LOG_FATAL, "Failed to send message.");
             close(connfd);
+            continue;
         }
         memset_s(buffer, sizeof(buffer), 0, sizeof(buffer)); // Clear the buffer
         close(connfd);
     } // Keep the server running indefinitely
+    WRITE_LOG(LOG_FATAL, "hdc_credential stopped.");
     close(sockfd);
     unlink(HDC_CREDENTIAL_SOCKET_REAL_PATH);
     return 0;

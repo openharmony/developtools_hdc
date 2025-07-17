@@ -23,6 +23,7 @@ class CredentialMessage {
 public:
     CredentialMessage() = default;
     explicit CredentialMessage(const std::string& messageStr);
+    Init(const std::string& messageStr);
     ~CredentialMessage();
     int GetMessageVersion() const { return messageVersion; }
     int GetMessageMethodType() const { return messageMethodType; }
@@ -44,8 +45,7 @@ private:
 
 bool IsNumeric(const std::string& str);
 int StripLeadingZeros(const std::string& input);
-bool IsInRange(int value, int min, int max);
-std::string ConvertInt(int len, int maxLen);
+std::string IntToStringWithPadding(int len, int maxLen);
 std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
 
 constexpr size_t MESSAGE_STR_MAX_LEN = 1024;

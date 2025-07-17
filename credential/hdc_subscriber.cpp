@@ -20,15 +20,11 @@ using namespace OHOS::AccountSA;
 
 void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data)
 {
-    WRITE_LOG(LOG_INFO, "Recv data.state:%d", data.state);
+    WRITE_LOG(LOG_INFO, "Recv data.state:%d, data.toId:%d", data.state, data.toId);
     std::string str_id = std::to_string(data.toId);
-    if (!std::regex_match(str_id, std::regex("^\\d+$"))) {
-        WRITE_LOG(LOG_FATAL, "data.toId is not a number:%s", str_id.c_str());
-    }
     std::string path = std::string("/data/service/el1/public/hdc_server/") +
-        str_id.c_str();
+        str_id;
     mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
-    bool operationSuccess = false;
 
     switch(data.state) {
         case OsAccountState::CREATED:
@@ -41,12 +37,10 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
                 break;
             }
             WRITE_LOG(LOG_DEBUG, "Directory created successfully.");
-            operationSuccess = true;
             break;
         case OsAccountState::REMOVED:
-            if (!RemovePath(path.c_str())) {
+            if (RemovePath(path.c_str()) == 0) {
                 WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
-                operationSuccess = true;
             } else {
                 WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
             }
@@ -54,11 +48,6 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
         default:
             WRITE_LOG(LOG_FATAL, "This state is not support,state is:%d", data.state);
             break;
-    }
-    if (data.callback != nullptr) {
-        if (operationSuccess) {
-            data.callback->OnComplete(); // 执行握手回调
-        }
     }
     return;
 }
@@ -70,28 +59,25 @@ void HdcSubscriber::OnAccountsChanged(const int& id)
 int HdcAccountSubscriberMonitor()
 {
     static std::shared_ptr<HdcSubscriber> subscriber;
-    if (subscriber == nullptr) {
-        std::set<OsAccountState> states = { OsAccountState::CREATED, OsAccountState::REMOVED };
-        OsAccountSubscribeInfo subscribeInfo(states, false);
-        subscriber = std::make_shared<HdcSubscriber>(subscribeInfo);
+    std::set<OsAccountState> states = { OsAccountState::CREATED, OsAccountState::REMOVED };
+    OsAccountSubscribeInfo subscribeInfo(states, false);
+    subscriber = std::make_shared<HdcSubscriber>(subscribeInfo);
 
-        const int MAX_RETRY = 10;
-        int retryCount = 0;
+    const int maxRetry = 10;
+    int retryCount = 0;
 
-        while (retryCount < MAX_RETRY &&
-            OsAccountManager::SubscribeOsAccount(subscriber)) {
-            ++retryCount;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed, %d/%d", retryCount, MAX_RETRY);
-        }
-        
-        if (retryCount < MAX_RETRY) {
-            WRITE_LOG(LOG_DEBUG, "SubscribeOsAccount success.");
-        } else {
-            WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed after %d retries.", MAX_RETRY);
-        }
+    while (retryCount < maxRetry &&
+        (OsAccountManager::SubscribeOsAccount(subscriber) != 0)) {
+        ++retryCount;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed, %d/%d", retryCount, maxRetry);
+    }
+    
+    if (retryCount < maxRetry) {
+        WRITE_LOG(LOG_DEBUG, "SubscribeOsAccount success.");
     } else {
-        WRITE_LOG(LOG_FATAL, "Already subscribed to OsAccount change.");
+        WRITE_LOG(LOG_FATAL, "SubscribeOsAccount failed after %d retries.", maxRetry);
+        return -1;
     }
 
     return 0;

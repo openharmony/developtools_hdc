@@ -84,15 +84,15 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
     size_t totalLength = MESSAGE_METHOD_POS + MESSAGE_METHOD_LEN +
                          MESSAGE_LENGTH_LEN + bodyLen + 1;
 
-    std::string messageMethodTypeStr = ConvertInt(type, MESSAGE_METHOD_LEN);
+    std::string messageMethodTypeStr = IntToStringWithPadding(type, MESSAGE_METHOD_LEN);
     if (messageMethodTypeStr.length() != MESSAGE_METHOD_LEN) {
         WRITE_LOG(LOG_FATAL, "messageMethodTypeStr length must be:%d,now is:%s",
             MESSAGE_METHOD_LEN, messageMethodTypeStr.c_str());
         return "";
     }
 
-    std::string messageBodyLen = ConvertInt(str.length(), MESSAGE_LENGTH_LEN);
-    if (messageBodyLen.length() > MESSAGE_LENGTH_LEN) {
+    std::string messageBodyLen = IntToStringWithPadding(str.length(), MESSAGE_LENGTH_LEN);
+    if (messageBodyLen.empty() || (messageBodyLen.length() > MESSAGE_LENGTH_LEN)) {
         WRITE_LOG(LOG_FATAL, "messageBodyLen length must be:%d,now is:%s", MESSAGE_LENGTH_LEN, messageBodyLen.c_str());
         return "";
     }
@@ -111,9 +111,7 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
 
 std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
 {
-    std::string pwdStr(reinterpret_cast<const char*>(pwd), pwdLen);
-    std::string sendStr = SplicMessageStr(pwdStr, METHOD_ENCRYPT);
-    memset_s(pwdStr.data(), pwdStr.size(), 0, pwdStr.size());
+    std::string sendStr = SplicMessageStr((reinterpret_cast<const char*>(pwd), pwdLen), METHOD_ENCRYPT);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();

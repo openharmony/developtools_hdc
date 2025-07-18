@@ -51,8 +51,8 @@ int RemoveDir(const std::string& dir)
             }
             rmdir(subpath.c_str());
         } else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
-            if (unlink (subpath.c_str()) == -1) { 
-                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink,, error is :%s", strerror(errno));
+            if (unlink(subpath.c_str()) == -1) {
+                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
             }
         } else {
             WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o subpath:%s", st.st_mode, subpath.c_str());
@@ -74,7 +74,7 @@ int RemovePath(const std::string& path)
         return -1;
     }
     if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
-        if (unlink (path.c_str()) == -1) { 
+        if (unlink(path.c_str()) == -1) { 
             WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink,, error is :%s", strerror(errno));
         }
     } else if (S_ISDIR(st.st_mode)) {

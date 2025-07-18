@@ -88,8 +88,7 @@ std::string DecryptPwd(const std::string& messageStr)
             WRITE_LOG(LOG_FATAL, "Invalid pwd len %d", decryptPwd.second);
             break;
         }
-        int ret = memcpy_s(pwd, PASSWORD_LENGTH, decryptPwd.first,
-                    decryptPwd.second < PASSWORD_LENGTH ? decryptPwd.second : PASSWORD_LENGTH);
+        int ret = memcpy_s(pwd, PASSWORD_LENGTH, decryptPwd.first, decryptPwd.second);
         if (ret != EOK) {
             WRITE_LOG(LOG_FATAL, "Copy failed.ret is %d", ret);
             break;

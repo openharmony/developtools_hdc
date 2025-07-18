@@ -120,6 +120,10 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptClient");
 #ifdef HOST_OHOS
     HChannel hChannel = new HdcChannel();
+    if (hChannel == nullptr) {
+        WRITE_LOG(LOG_FATAL, "AcceptClient new channel fail");
+        return;
+    }
 #else
     HChannel hChannel = nullptr;
 #endif

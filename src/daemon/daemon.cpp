@@ -802,7 +802,7 @@ void HdcDaemon::DaemonSessionHandshakeInit(HSession &hSession, SessionHandShake 
 bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     uint8_t *payload = reinterpret_cast<uint8_t*>(handshake.buf.data());
-    int payloadSize = handshake.buf.size();
+    int payloadSize = static_cast<int>(handshake.buf.size());
     if (!hSession->classSSL) {
         WRITE_LOG(LOG_WARN, "DaemonSSLHandshake classSSL is nullptr");
         return false;

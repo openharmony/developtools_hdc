@@ -65,13 +65,20 @@ void HdcClient::NotifyInstanceChannelFree(HChannel hChannel)
 uint32_t HdcClient::GetLastPID()
 {
     char bufPath[BUF_SIZE_MEDIUM] = "";
-    size_t size = BUF_SIZE_MEDIUM;
     char pidBuf[BUF_SIZE_TINY] = "";
     // get running pid to kill it
+    size_t size = BUF_SIZE_MEDIUM;
+#ifdef HOST_OHOS
+    if (uv_os_homedir(bufPath, &size) < 0) {
+        WRITE_LOG(LOG_FATAL, "Homepath failed");
+        return 0;
+    }
+#else
     if (uv_os_tmpdir(bufPath, &size) < 0) {
         WRITE_LOG(LOG_FATAL, "Tmppath failed");
         return 0;
     }
+#endif
     string path = Base::StringFormat("%s%c.%s.pid", bufPath, Base::GetPathSep(), SERVER_NAME.c_str());
     Base::ReadBinFile(path.c_str(), reinterpret_cast<void **>(&pidBuf), BUF_SIZE_TINY);
     int pid = atoi(pidBuf);  // pid  maybe 0
@@ -236,6 +243,9 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_VERSION);
     vecNoConnectKeyCommand.push_back(CMDSTR_SOFTWARE_HELP);
     vecNoConnectKeyCommand.push_back(CMDSTR_TARGET_DISCOVER);
+#ifdef HOST_OHOS
+    vecNoConnectKeyCommand.push_back(CMDSTR_SERVICE_KILL);
+#endif
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);
@@ -565,6 +575,14 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         return;
     }
     uv_timer_stop(handle);
+#ifdef HOST_OHOS
+    if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(),
+        CMDSTR_SERVICE_KILL.size()) && !thisClass->channel->isSupportedKillServerCmd) {
+        WRITE_LOG(LOG_DEBUG, "uv_kill server");
+        thisClass->CtrlServiceWork(CMDSTR_SERVICE_KILL.c_str());
+        return;
+    }
+#endif
     WRITE_LOG(LOG_DEBUG, "Connect server successful");
     bool closeInput = false;
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
@@ -793,8 +811,13 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         return ERR_BUF_CHECK;
     }
     hChannel->isStableBuf = (hShake->banner[BANNER_FEATURE_TAG_OFFSET] != HUGE_BUF_TAG);
-    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d",
-        hChannel->isStableBuf);
+#ifdef HOST_OHOS
+    hChannel->isSupportedKillServerCmd = (hShake->banner[SERVICE_KILL_OFFSET] == SERVICE_KILL_TAG);
+    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d, killflag:%d",
+        hChannel->isStableBuf, hChannel->isSupportedKillServerCmd);
+#else
+    WRITE_LOG(LOG_DEBUG, "Channel PreHandshake isStableBuf:%d", hChannel->isStableBuf);
+#endif
     if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {
         hShake->banner[WAIT_TAG_OFFSET] = WAIT_DEVICE_TAG;
     }
@@ -812,13 +835,11 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
         return ERR_BUF_COPY;
     }
-
 #ifdef HDC_VERSION_CHECK
     // add check version
     if (!isCheckVersionCmd) { // do not check version cause user want to get server version
         string clientVer = Base::GetVersion() + HDC_MSG_HASH;
         string serverVer(hShake->version);
-
         if (clientVer != serverVer) {
             serverVer = serverVer.substr(0, Base::GetVersion().size());
             WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());

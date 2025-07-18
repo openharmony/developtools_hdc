@@ -31,18 +31,15 @@ HdcSSLBase::HdcSSLBase(SSLInfoPtr hSSLInfo)
     cipher = hSSLInfo->cipher;
     sessionId = hSSLInfo->sessionId;
     isDaemon = hSSLInfo->isDaemon;
+    if (memset_s(preSharedKey, sizeof(preSharedKey), 0, sizeof(preSharedKey)) != EOK) {
+        WRITE_LOG(LOG_FATAL, "memset_s preSharedKey failed");
+    }
 }
 
 HdcSSLBase::~HdcSSLBase()
 {
     if (!isInited) {
         return;
-    }
-    int ret = SSL_shutdown(ssl);
-    if (ret != 1) {
-        SSL_get_error(ssl, ret);
-        uint8_t buf[BUF_SIZE_DEFAULT];
-        BIO_read(outBIO, buf, BUF_SIZE_DEFAULT);
     }
     BIO_reset(outBIO);
     BIO_reset(inBIO);
@@ -75,6 +72,10 @@ int HdcSSLBase::InitSSL()
     SSL_CTX_set_ciphersuites(sslCtx, cipher.c_str());
     inBIO = BIO_new(BIO_s_mem());
     outBIO = BIO_new(BIO_s_mem());
+    if (inBIO == nullptr || outBIO == nullptr) {
+        WRITE_LOG(LOG_FATAL, "BIO_new failed");
+        return ERR_GENERIC;
+    }
     ssl = SSL_new(sslCtx);
     if (ssl == nullptr) {
         WRITE_LOG(LOG_FATAL, "SSL_new failed");
@@ -207,7 +208,7 @@ bool HdcSSLBase::GenPsk()
 {
     unsigned char* buf = preSharedKey;
     if (RAND_priv_bytes(buf, BUF_SIZE_PSK) != 1) {
-        WRITE_LOG(LOG_FATAL, "RAND_pri_bytes failed");
+        WRITE_LOG(LOG_FATAL, "RAND_priv_bytes failed");
         return false;
     }
     return true;

@@ -151,6 +151,9 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     struct ChannelHandShake handShake = {};
     if (EOK == strcpy_s(handShake.banner, sizeof(handShake.banner), HANDSHAKE_MESSAGE.c_str())) {
         handShake.banner[BANNER_FEATURE_TAG_OFFSET] = HUGE_BUF_TAG; // set feature tag for huge buf size
+#ifdef HOST_OHOS
+        handShake.banner[SERVICE_KILL_OFFSET] = SERVICE_KILL_TAG;
+#endif
         handShake.channelId = htonl(hChannel->channelId);
         string ver = Base::GetVersion() + HDC_MSG_HASH;
         WRITE_LOG(LOG_DEBUG, "Server ver:%s", ver.c_str());
@@ -632,6 +635,15 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             ret = false;
             break;
         }
+#ifdef HOST_OHOS
+        case CMD_SERVER_KILL: {
+            WRITE_LOG(LOG_FATAL, "CMD_SERVER_KILL command");
+            ptrServer->SessionSoftReset();
+            hChannel->isSuccess  = true;
+            EchoClient(hChannel, MSG_OK, "Kill server finish");
+            _exit(0);
+        }
+#endif
         case CMD_CHECK_SERVER: {
             WRITE_LOG(LOG_DEBUG, "CMD_CHECK_SERVER command");
             ReportServerVersion(hChannel);
@@ -790,6 +802,20 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
     delete[](reinterpret_cast<char *>(argv));
 }
 
+#ifdef __OHOS__
+bool HdcServerForClient::IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters)
+{
+    if (cmdFlag == CMD_FILE_INIT || cmdFlag== CMD_APP_INIT) {
+        HandleRemote(hChannel, parameters, RemoteType::REMOTE_FILE);
+        if (!hChannel->fromClient) {
+            EchoClient(hChannel, MSG_FAIL, "[E005200] Unsupport file command");
+            return false;
+        }
+    }
+    return true;
+}
+#endif
+
 bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandInput)
 {
     StartTraceScope("HdcServerForClient::DoCommandRemote");
@@ -821,7 +847,13 @@ bool HdcServerForClient::DoCommandRemote(HChannel hChannel, void *formatCommandI
         }
         case CMD_FILE_INIT:
         case CMD_FORWARD_INIT:
-        case CMD_APP_INIT:
+        case CMD_APP_INIT: {
+#ifdef __OHOS__
+            if (!IsServerTransfer(hChannel, formatCommand->cmdFlag, formatCommand->parameters)) {
+                return false;
+            }
+#endif
+        }
         case CMD_APP_UNINSTALL:
         case CMD_UNITY_BUGREPORT_INIT:
         case CMD_APP_SIDELOAD:
@@ -853,6 +885,9 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
     if (!hChannel->hChildWorkTCP.loop ||
 #endif
         formatCommand->cmdFlag == CMD_FORWARD_REMOVE ||
+#ifdef HOST_OHOS
+        formatCommand->cmdFlag == CMD_SERVER_KILL ||
+#endif
         formatCommand->cmdFlag == CMD_SERVICE_START) {
         hChannel->commandFlag = formatCommand->cmdFlag;
         hChannel->commandParameters = formatCommand->parameters;

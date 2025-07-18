@@ -1340,4 +1340,29 @@ void HdcServer::PrintCmdLogEx(const string& cmdStr)
     Hdc::ServerCmdLog::GetInstance().PushCmdLogStr(cmdStr);
 }
 
+#ifdef HOST_OHOS
+void HdcServer::SessionSoftReset()
+{
+    uv_rwlock_rdlock(&daemonAdmin);
+    map<string, HDaemonInfo>::iterator iter;
+    for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
+        HDaemonInfo di = iter->second;
+        if (di == nullptr) {
+            continue;
+        }
+        string devname = di->devName;
+        if (devname.empty()) {
+            continue;
+        }
+        if (di->connType == CONN_USB) {
+            HSession hSession = di->hSession;
+            if (hSession == nullptr) {
+                continue;
+            }
+            clsUSBClt->SendSoftResetToDaemon(hSession, 0);
+        }
+    }
+    uv_rwlock_rdunlock(&daemonAdmin);
+}
+#endif
 }  // namespace Hdc

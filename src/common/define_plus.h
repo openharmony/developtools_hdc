@@ -388,6 +388,9 @@ struct HdcChannel {
     bool connectLocalDevice = false;
     bool isStableBuf = false;
     std::atomic<uint32_t> writeFailedTimes;
+#ifdef HOST_OHOS
+    bool isSupportedKillServerCmd = false;
+#endif
 #ifdef HDC_HOST
     uint64_t startTime = 0;
     uint64_t endTime = 0;

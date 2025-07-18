@@ -405,6 +405,7 @@ ohos_executable("hdc") {
     sources += [ "src/common/password.cpp" ]
     sources += [ "src/common/hdc_huks.cpp" ]
     defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
+    defines += [ "HOST_OHOS" ]
     external_deps += [ "huks:libhukssdk" ]
   }
 

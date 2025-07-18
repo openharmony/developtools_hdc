@@ -36,6 +36,7 @@ public:
     void RemoveIgnoreDevice(string &mountInfo);
     static libusb_log_level GetLibusbLogLevel(void);
     static void SetLibusbLogLevelEnv(libusb_log_level logLevel);
+    void SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld);
 
 private:
     enum UsbCheckStatus {
@@ -69,7 +70,6 @@ private:
     void CancelUsbIo(HSession hSession) override;
     int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     int SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, int bufSize);
-    void SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld);
 
     libusb_context *ctxUSB;
     uv_timer_t devListWatcher;

@@ -196,7 +196,12 @@ namespace Base {
 #else
         int flags = UV_FS_O_RDWR | UV_FS_O_APPEND | UV_FS_O_CREAT;
         uv_fs_t req;
-        int fd = uv_fs_open(nullptr, &req, path, flags, S_IWUSR | S_IRUSR, nullptr);
+#ifdef HOST_OHOS
+        mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+#else
+        mode_t mode = (S_IWUSR | S_IRUSR);
+#endif
+        int fd = uv_fs_open(nullptr, &req, path, flags, mode, nullptr);
         if (fd < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
@@ -663,9 +668,13 @@ static void EchoLog(string &buf)
         string debugInfo = functionName;
         GetLogDebugFunctionName(debugInfo, line, threadIdString);
         GetLogLevelAndTime(logLevel, logLevelString, timeString);
+#ifdef OHOS_HOST
+        string logBuf = StringFormat("[%s][%s][%u]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
+                                     getuid(), threadIdString.c_str(), debugInfo.c_str(), buf, sep.c_str());
+#else
         string logBuf = StringFormat("[%s][%s]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
                                      threadIdString.c_str(), debugInfo.c_str(), buf, sep.c_str());
-
+#endif
         EchoLog(logBuf);
 
         if (!g_logCache) {
@@ -1348,7 +1357,12 @@ static void EchoLog(string &buf)
             resolvedPath = CanonicalizeSpecPath(srcPath);
         }
         uv_fs_t req;
-        int fd = uv_fs_open(nullptr, &req, resolvedPath.c_str(), flags, S_IWUSR | S_IRUSR, nullptr);
+#ifdef HOST_OHOS
+        mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+#else
+        mode_t mode = (S_IWUSR | S_IRUSR);
+#endif
+        int fd = uv_fs_open(nullptr, &req, resolvedPath.c_str(), flags, mode, nullptr);
         if (fd < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
@@ -1388,10 +1402,17 @@ static void EchoLog(string &buf)
         char buf[BUF_SIZE_DEFAULT] = "";
         char pidBuf[BUF_SIZE_TINY] = "";
         size_t size = sizeof(buf);
+#ifdef HOST_OHOS
+        if (uv_os_homedir(buf, &size) < 0) {
+            WRITE_LOG(LOG_FATAL, "Homepath failed");
+            return ERR_API_FAIL;
+        }
+#else
         if (uv_os_tmpdir(buf, &size) < 0) {
             WRITE_LOG(LOG_FATAL, "Tmppath failed");
             return ERR_API_FAIL;
         }
+#endif
         if (snprintf_s(bufPath, sizeof(bufPath), sizeof(bufPath) - 1, "%s%c.%s.pid", buf, Base::GetPathSep(), procname)
             < 0) {
             return ERR_BUF_OVERFLOW;
@@ -2145,7 +2166,11 @@ static void EchoLog(string &buf)
         int value = -1;
         char path[PATH_MAX] = "";
         size_t size = sizeof(path);
+#ifdef HOST_OHOS
+        value = uv_os_homedir(path, &size);
+#else
         value = uv_os_tmpdir(path, &size);
+#endif
         if (value < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
@@ -2946,7 +2971,12 @@ void CloseOpenFd(void)
     {
         int flags = UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_APPEND;
         uv_fs_t req;
-        int fd = uv_fs_open(nullptr, &req, path.c_str(), flags, S_IWUSR | S_IRUSR, nullptr);
+#ifdef HOST_OHOS
+        mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+#else
+        mode_t mode = (S_IWUSR | S_IRUSR);
+#endif
+        int fd = uv_fs_open(nullptr, &req, path.c_str(), flags, mode, nullptr);
         if (fd < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);

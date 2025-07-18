@@ -182,7 +182,7 @@ class TestHdcReturnValue:
     def test_hdc_file(self):
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"file send {get_local_path('small')} {get_remote_path('test')}")
-        result = re.sub("[\r\n]", "", result)
+        result = result.replace(get_end_symbol(), "")
         pattern = r'FileTransfer finish, Size:(\d+), File count = (\d+), time:(\d+)ms rate:(\d+.\d+)kB/s'
         match_send = re.match(pattern, result)
         assert match_send is not None
@@ -192,7 +192,7 @@ class TestHdcReturnValue:
                            "[Fail]Error opening file: read-only file system, path:abc")
 
         result = get_shell_result(f"file send {get_local_path('small_no_exsit')} {get_remote_path('test')}")
-        result = re.split("\r|\n", result)
+        result = result.split(get_end_symbol())
         pattern = r'\[Fail\]Error opening file: no such file or directory, path:(.*)small_no_exsit'
         match = re.match(pattern, result[0])
         assert match is not None
@@ -209,7 +209,7 @@ class TestHdcReturnValue:
         check_shell(f"smode -r")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"file send {get_local_path('small')} /system/lib/")
-        result = result.replace("\r\n", "")
+        result = result.replace(get_end_symbol(), "")
         result = result.replace("\r", "")
         assert (result == "[Fail]Error opening file: permission denied, path:/system/lib/small" or
                 result == "[Fail]Error opening file: read-only file system, path:/system/lib/small")
@@ -304,7 +304,7 @@ class TestHdcReturnValue:
         check_shell(f"smode")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"shell ls")
-        result = result.split("\r\n")
+        result = result.split(get_end_symbol())
         assert len(result) > 5
 
         result = get_cmd_block_output(f"{GP.hdc_head} shell", 10)
@@ -324,7 +324,7 @@ class TestHdcReturnValue:
         while True:
             if check_shell(f"fport tcp:{12345 + n} tcp:7777", "Forwardport result:OK"):
                 assert check_shell(f"tconn 127.0.0.1:{12345 + n}", "Connect OK")
-                assert check_shell(f"list targets", "127.0.0.1:{12345 + n}")
+                assert check_shell(f"list targets", f"127.0.0.1:{12345 + n}")
                 assert check_shell(f"kill")
                 break
             else:

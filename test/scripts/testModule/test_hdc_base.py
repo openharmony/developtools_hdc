@@ -105,11 +105,11 @@ class TestTargetCommand:
     @pytest.mark.L0
     def test_target_mount(self):
         assert (check_hdc_cmd("target mount", "Mount finish" or "[Fail]Operate need running as root"))
-        uname = get_shell_result("shell uname")
+        is_linux = check_hdc_cmd("shell uname", "Linux")
         sep = "/"
         remount_vendor = get_shell_result(f'shell "mount |grep {sep}vendor |head -1"')
         print(remount_vendor)
-        if uname == "Linux":
+        if is_linux:
             assert "rw" in remount_vendor
         else:
             assert "ro" in remount_vendor

@@ -17,8 +17,9 @@ import time
 import logging
 import multiprocessing
 import pytest
+import tempfile
 
-from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_shell_result
+from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_shell_result, get_end_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class TestSessionLifeCycle:
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
 
         time.sleep(3)
-        devices = get_shell_result(f"list targets").split("\r\n")
+        devices = get_shell_result(f"list targets").split(get_end_symbol())
         target_lines = list()
         for item in devices:
             if len(item) > 0:
@@ -56,15 +57,12 @@ class TestSessionLifeCycle:
                 target_lines.append(line)
                 line = f"connectKey:{connect_key} connType:0 connect state:0 faultInfo:LIBUSB_TRANSFER_"
                 target_lines.append(line)
-        # # HdcServer [ sessionId:3315043252 connect_key:012******DEF(L:16) connType:0 connect state:1 faultInfo: ]
-        # # HdcServer [ sessionId:4181956210 connect_key:012******DEF(L:16) connType:0 connect state:0 faultInfo:LIBUSB_TRANSFER_  ]
-        #
         time.sleep(3)
         check_shell(f"shell reboot")
         time.sleep(5)
         check_shell(f"kill")
         # 检查serverOutput是否包含上述字符串
-        tmp_path = os.getenv('TMP')
+        tmp_path = tempfile.gettempdir()
         hdc_log_path = f"{tmp_path}{os.sep}hdc.log"
         with open(hdc_log_path, 'r') as file:
             for line in file.readlines():
@@ -90,7 +88,7 @@ class TestSessionLifeCycle:
         time.sleep(3)
         for i in range(4):
             assert check_shell(f"tconn 127.0.0.1:{fport_tcp_host_port + i}", "Connect OK")
-        devices = get_shell_result(f"list targets").split("\r\n")
+        devices = get_shell_result(f"list targets").split(get_end_symbol())
         target_lines = list()
         for item in devices:
             if len(item) > 0 and item.find(".") >= 0:
@@ -116,7 +114,7 @@ class TestSessionLifeCycle:
         time.sleep(5)
         check_shell(f"kill")
         # 检查serverOutput是否包含上述字符串
-        tmp_path = os.getenv('TMP')
+        tmp_path = tempfile.gettempdir()
         hdc_log_path = f"{tmp_path}{os.sep}hdc.log"
         with open(hdc_log_path, 'r') as file:
             for line in file.readlines():

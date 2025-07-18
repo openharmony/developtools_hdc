@@ -50,7 +50,7 @@ class TestShellHilog:
         hilog_pid = get_shell_result(f'shell pidof hilog')
         hilog_pid = hilog_pid.replace(get_end_symbol(), "")
         assert hilog_pid.isdigit()
-        assert check_hdc_cmd(f'kill', "Kill server finish")
+        assert check_hdc_cmd(f'-l5 kill', "Kill server finish")
         assert check_hdc_cmd("start")
         time.sleep(3) # sleep 3s to wait for the device to connect channel
         run_command_with_timeout(f"{GP.hdc_head} wait", 3) # wait 3s for the device to connect channel

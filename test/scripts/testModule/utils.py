@@ -884,7 +884,7 @@ def check_hdc_version(cmd, version):
     def _convert_version_to_hex(_version):
         parts = _version.split("Ver: ")[1].split('.')
         hex_version = ''.join(parts)
-        return int(hex_version, 16)
+        return int(hex_version, 36)
     
     expected_version = _convert_version_to_hex(version)
     cmd = f"{GP.hdc_head} {cmd}"

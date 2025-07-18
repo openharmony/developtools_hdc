@@ -32,6 +32,10 @@ public:
 
 protected:
 private:
+#ifdef __OHOS__
+    static void AcceptUdsClient(uv_stream_t *server, int status);
+    bool SetUdsListen();
+#endif
     static void AcceptClient(uv_stream_t *server, int status);
     bool SetTCPListen();
     int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO) override;
@@ -65,6 +69,9 @@ private:
     bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
 #endif
 
+#ifdef __OHOS__
+    uv_pipe_t udsListen;
+#endif
     uv_tcp_t tcpListen;
     void *clsServer;
     const std::set<uint16_t> FEATURE_CHECK_SET = {

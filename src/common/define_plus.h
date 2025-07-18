@@ -358,6 +358,11 @@ struct HdcChannel {
     void *clsChannel;  // ptr Class of serverForClient or client
     uint32_t channelId;
     std::string connectKey;
+#ifdef HOST_OHOS
+    bool isUds = false;
+    uv_pipe_t hWorkUds;
+    uv_pipe_t hChildWorkUds;
+#endif
     uv_tcp_t hWorkTCP;  // work channel for client, forward channel for server
     uv_thread_t hWorkThread;
     uint8_t uvHandleRef = 0;  // libuv handle ref -- just main thread now

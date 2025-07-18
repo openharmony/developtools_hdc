@@ -363,11 +363,28 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
         WRITE_LOG(LOG_DEBUG, "memcpy_s failed size:%d", size);
         return;
     }
+
+#ifdef HOST_OHOS
+    if (hChannel->hWorkThread == uv_thread_self()) {
+        if (!hChannel->isUds) {
+            sendStream = (uv_stream_t *)&hChannel->hWorkTCP;
+        } else {
+            sendStream = (uv_stream_t *)&hChannel->hWorkUds;
+        }
+    } else {
+        if (!hChannel->isUds) {
+            sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
+        } else {
+            sendStream = (uv_stream_t *)&hChannel->hChildWorkUds;
+        }
+    }
+#else
     if (hChannel->hWorkThread == uv_thread_self()) {
         sendStream = (uv_stream_t *)&hChannel->hWorkTCP;
     } else {
         sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
     }
+#endif
     int rc = -1;
     if (!uv_is_closing((const uv_handle_t *)sendStream) && uv_is_writable(sendStream)) {
         ++hChannel->ref;
@@ -420,6 +437,53 @@ uint32_t HdcChannelBase::GetChannelPseudoUid()
     return uid;
 }
 
+#ifdef HOST_OHOS
+uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
+{
+#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
+    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
+    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
+#endif
+    auto hChannel = new HdcChannel();
+    if (!hChannel || !(*hOutChannel)) {
+        WRITE_LOG(LOG_FATAL, "malloc channel failed");
+        return 0;
+    }
+    hChannel->isUds = (*hOutChannel)->isUds;
+    hChannel->stdinTty.data = nullptr;
+    hChannel->stdoutTty.data = nullptr;
+    uint32_t channelId = GetChannelPseudoUid();
+    if (isServerOrClient) {
+        hChannel->serverOrClient = isServerOrClient;
+        ++channelId;  // Use different value for serverForClient&client in per process
+    }
+    if (!hChannel->isUds) {
+        int rc = uv_tcp_init(loopMain, &hChannel->hWorkTCP);
+        if (rc < 0) {
+            WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
+        }
+        hChannel->hWorkTCP.data = hChannel;
+        (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
+    } else {
+        int rc = uv_pipe_init(loopMain, &hChannel->hWorkUds, 0);
+        if (rc < 0) {
+            WRITE_LOG(LOG_FATAL, "MallocChannel uv_pipe_init failed, rc:%d cid:%u", rc, channelId);
+        }
+        hChannel->hWorkUds.data = hChannel;
+        (void)memset_s(&hChannel->hChildWorkUds, sizeof(hChannel->hChildWorkUds), 0, sizeof(uv_pipe_t));
+    }
+    ++hChannel->uvHandleRef;
+    hChannel->hWorkThread = uv_thread_self();
+    hChannel->clsChannel = this;
+    hChannel->channelId = channelId;
+    hChannel->loopStatus = &loopMainStatus;
+    AdminChannel(OP_ADD, channelId, hChannel);
+    delete *hOutChannel;
+    *hOutChannel = hChannel;
+    WRITE_LOG(isServerOrClient ? LOG_INFO : LOG_DEBUG, "Mallocchannel:%u", channelId);
+    return channelId;
+}
+#else
 uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
 {
 #ifdef CONFIG_USE_JEMALLOC_DFX_INIF
@@ -442,6 +506,7 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     if (rc < 0) {
         WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
     }
+
     ++hChannel->uvHandleRef;
     hChannel->hWorkThread = uv_thread_self();
     hChannel->hWorkTCP.data = hChannel;
@@ -451,13 +516,10 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
     AdminChannel(OP_ADD, channelId, hChannel);
     *hOutChannel = hChannel;
-    if (isServerOrClient) {
-        WRITE_LOG(LOG_INFO, "Mallocchannel:%u", channelId);
-    } else {
-        WRITE_LOG(LOG_DEBUG, "Mallocchannel:%u", channelId);
-    }
+    WRITE_LOG(isServerOrClient ? LOG_INFO : LOG_DEBUG, "Mallocchannel:%u", channelId);
     return channelId;
 }
+#endif
 
 // work when libuv-handle at struct of HdcSession has all callback finished
 void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
@@ -527,14 +589,66 @@ void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
         Base::TryCloseHandle((uv_handle_t *)&hChannel->stdinTty, closeChannelHandle);
         Base::TryCloseHandle((uv_handle_t *)&hChannel->stdoutTty, closeChannelHandle);
     }
+#ifdef HOST_OHOS
+    if (!hChannel->isUds) {
+        if (uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
+            --hChannel->uvHandleRef;
+        } else {
+            Base::TryCloseHandle((uv_handle_t *)&hChannel->hWorkTCP, closeChannelHandle);
+        }
+    } else {
+        if (uv_is_closing((const uv_handle_t *)&hChannel->hWorkUds)) {
+            --hChannel->uvHandleRef;
+        } else {
+            Base::TryCloseHandle((uv_handle_t *)&hChannel->hWorkUds, closeChannelHandle);
+        }
+    }
+#else
     if (uv_is_closing((const uv_handle_t *)&hChannel->hWorkTCP)) {
         --hChannel->uvHandleRef;
     } else {
         Base::TryCloseHandle((uv_handle_t *)&hChannel->hWorkTCP, closeChannelHandle);
     }
+#endif
     Base::IdleUvTask(loopMain, hChannel, FreeChannelFinally);
 }
 
+#ifdef HOST_OHOS
+void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
+{
+    StartTraceScope("HdcChannelBase::FreeChannelOpeate");
+    HChannel hChannel = (HChannel)handle->data;
+    HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
+    if (hChannel->ref > 0) {
+        return;
+    }
+    thisClass->DispMntnInfo(hChannel);
+    if (hChannel->hChildWorkTCP.loop || hChannel->hChildWorkUds.loop) {
+        auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
+        bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
+        if (!ret) {
+            WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u",
+                hChannel->channelId, hChannel->targetSessionId);
+            hChannel->childCleared = true;
+        }
+        auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
+            HChannel hChannel = (HChannel)handle->data;
+            HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
+            if (!hChannel->childCleared) {
+                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
+                    hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
+                return;
+            }
+            Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
+            thisClass->FreeChannelContinue(hChannel);
+        };
+        Base::TimerUvTask(thisClass->loopMain, hChannel, callbackCheckFreeChannelContinue);
+    } else {
+        thisClass->FreeChannelContinue(hChannel);
+    }
+    Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
+}
+#else
 void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
 {
     StartTraceScope("HdcChannelBase::FreeChannelOpeate");
@@ -569,6 +683,7 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
     }
     Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
 }
+#endif
 
 void HdcChannelBase::FreeChannel(const uint32_t channelId)
 {
@@ -615,6 +730,7 @@ HChannel HdcChannelBase::AdminChannel(const uint8_t op, const uint32_t channelId
 #ifdef HDC_HOST
             PrintChannel(channelId);
 #endif
+            break;
         case OP_ADD:
             uv_rwlock_wrlock(&lockMapChannel);
             mapChannel[channelId] = hInput;

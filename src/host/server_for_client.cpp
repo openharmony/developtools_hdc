@@ -128,11 +128,11 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
     HChannel hChannel = nullptr;
 #endif
     uint32_t uid = thisClass->MallocChannel(&hChannel);
-    hChannel->startTime = Base::GetRuntimeMSec();
     if (!hChannel) {
         WRITE_LOG(LOG_FATAL, "AcceptClient hChannel is nullptr");
         return;
     }
+    hChannel->startTime = Base::GetRuntimeMSec();
     int rc = uv_accept(server, (uv_stream_t *)&hChannel->hWorkTCP);
     if (rc < 0) {
         WRITE_LOG(LOG_FATAL, "AcceptClient uv_accept error rc:%d uid:%u", rc, uid);

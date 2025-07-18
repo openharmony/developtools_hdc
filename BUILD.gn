@@ -284,8 +284,8 @@ template("build_hdc") {
         ]
         external_deps = [
           "hilog:hilog_rust",
-          "rust_rust-openssl:lib",
           "rust_libc:lib",
+          "rust_rust-openssl:lib",
         ]
 
         if (product_name != "ohos-sdk") {

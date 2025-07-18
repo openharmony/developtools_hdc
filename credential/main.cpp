@@ -51,7 +51,7 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
     std::vector<uint8_t> encryptData;
 
     bool encryptResult = hdcHuks.AesGcmEncrypt(reinterpret_cast<const uint8_t*>(messageStr.c_str()),
-                                                PASSWORD_LENGTH, encryptData);
+        PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
         WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: AES GCM encryption failed.");
         return "";

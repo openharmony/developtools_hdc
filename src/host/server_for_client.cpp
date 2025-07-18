@@ -272,8 +272,7 @@ int HdcServerForClient::Initial()
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
         return -2;  // -2:err for Listen initial failed
     }
-    bool b = SetTCPListen();
-    if (!b) {
+    if (!SetTCPListen()) {
         WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
         int listenError = -3;  // -3:error for SetTCPListen failed
         return listenError;
@@ -282,15 +281,13 @@ int HdcServerForClient::Initial()
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
     } else {
-        bool b = SetTCPListen();
-        if (!b) {
+        if (!SetTCPListen()) {
             WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
         }
     }
-    bool ret = SetUdsListen();
-    if (!ret) {
+    if (!SetUdsListen()) {
         WRITE_LOG(LOG_FATAL, "SetUdsListen failed");
-        int listenError = -3;
+        int listenError = -3; // -3:error for SetUdsListen failed
         return listenError;
     }
 #endif

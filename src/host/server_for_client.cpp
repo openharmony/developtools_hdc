@@ -60,6 +60,10 @@ void HdcServerForClient::AcceptUdsClient(uv_stream_t *server, int status)
     HdcServerForClient *thisClass = (HdcServerForClient *)(((uv_pipe_t *)server)->data);
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptUdsClient");
     HChannel hChannel = new HdcChannel();
+    if (hChannel == nullptr) {
+        WRITE_LOG(LOG_FATAL, "AcceptUdsClient new channel fail");
+        return;
+    }
     hChannel->isUds = true;
     uint32_t uid = thisClass->MallocChannel(&hChannel);
     hChannel->startTime = Base::GetRuntimeMSec();

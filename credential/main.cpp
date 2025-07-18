@@ -12,8 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <sys/socket.h>
 #include "credential_base.h"
 #include "credential_message.h"
+#include "hdc_huks.h"
 #include "hdc_subscriber.h"
 #include "password.h"
 

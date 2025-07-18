@@ -17,16 +17,10 @@
 
 #include <chrono>
 #include <dirent.h>
-#include <regex>
 #include <securec.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include <thread>
 
-#include "credential_message.h"
-#include "hdc_subscriber.h"
-#include "hdc_huks.h"
 #include "log.h"
 
 #ifdef HDC_HILOG

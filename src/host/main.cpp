@@ -290,14 +290,14 @@ bool IsHiShellLabel()
 bool ParseServerListenString(string &serverListenString, char *optarg)
 {
 #ifdef __OHOS__
-    if (!IsHiShellLabel()) {
-        Base::PrintMessage("[E001105] Unsupport option [s], please try command in HiShell.");
-        return false;
-    }
     string temp = optarg;
     if (temp == UDS_STR) {
         serverListenString = temp;
         return true;
+    }
+    if (!IsHiShellLabel()) {
+        Base::PrintMessage("[E001105] Unsupport option [s], please try command in HiShell.");
+        return false;
     }
 #endif
     if (strlen(optarg) > strlen("0000::0000:0000:0000:0000%interfacename:65535")) {

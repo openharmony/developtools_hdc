@@ -12,14 +12,158 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "password.h"
-#include "securec.h"
 #include "base.h"
 #include "common.h"
+#include "password.h"
+#include "sys/socket.h"
+
 namespace Hdc {
 static const char* SPECIAL_CHARS = "~!@#$%^&*()-_=+\\|[{}];:'\",<.>/?";
 static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
+std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr)
+{
+    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+        return "";
+    }
+
+    struct sockaddr_un addr = {};
+    addr.sun_family = AF_UNIX;
+    size_t maxPathLen = sizeof(addr.sun_path) - 1;
+    size_t pathLen = strlen(socketPath);
+    if (pathLen > maxPathLen) {
+        WRITE_LOG(LOG_FATAL, "Socket path too long.");
+        close(sockfd);
+        return "";
+    }
+    memcpy_s(addr.sun_path, maxPathLen, socketPath, pathLen);
+ 
+    if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
+        close(sockfd);
+        return "";
+    }
+
+    ssize_t bytesSend = send(sockfd, messageStr.c_str(), messageStr.size(), 0);
+    if (bytesSend < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to send message.");
+        close(sockfd);
+        return "";
+    }
+
+    std::string response;
+    char buffer[MESSAGE_STR_MAX_LEN] = {0};
+    ssize_t bytesRead = 0;
+    while ((bytesRead = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
+        response.append(buffer, bytesRead);
+        if (memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN) != EOK) {
+            WRITE_LOG(LOG_FATAL, "memset_s failed.");
+            close(sockfd);
+            return "";
+        }
+    }
+    if (bytesRead < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
+        close(sockfd);
+        return "";
+    }
+    
+    close(sockfd);
+    return response;
+}
+
+std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t type)
+{
+    if (str.empty()) {
+        WRITE_LOG(LOG_FATAL, "Input string is empty.");
+        return "";
+    }
+    const size_t bodyLen = str.size();
+    size_t totalLength = MESSAGE_METHOD_POS + MESSAGE_METHOD_LEN +
+                         MESSAGE_LENGTH_LEN + bodyLen + 1;
+
+    std::string messageMethodTypeStr = IntToStringWithPadding(type, MESSAGE_METHOD_LEN);
+    if (messageMethodTypeStr.length() != MESSAGE_METHOD_LEN) {
+        WRITE_LOG(LOG_FATAL, "messageMethodTypeStr length must be:%d,now is:%s",
+            MESSAGE_METHOD_LEN, messageMethodTypeStr.c_str());
+        return "";
+    }
+
+    std::string messageBodyLen = IntToStringWithPadding(str.length(), MESSAGE_LENGTH_LEN);
+    if (messageBodyLen.empty() || (messageBodyLen.length() > MESSAGE_LENGTH_LEN)) {
+        WRITE_LOG(LOG_FATAL, "messageBodyLen length must be:%d,now is:%s", MESSAGE_LENGTH_LEN, messageBodyLen.c_str());
+        return "";
+    }
+
+    std::vector<char> newBuffer(totalLength + 1, '\0');
+    if (snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", ('0' + METHOD_VERSION_V1),
+        messageMethodTypeStr.c_str(), messageBodyLen.c_str(), str.data())
+        < 0) {
+        WRITE_LOG(LOG_FATAL, "SplicMessage Error!");
+        return "";
+    }
+
+    std::string result(newBuffer.data(), totalLength);
+    return result;
+}
+
+std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
+{
+    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT);
+    if (sendStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "sendStr is empty.");
+        return std::vector<uint8_t>();
+    }
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH, sendStr.c_str());
+    memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
+    if (recvStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "recvStr is empty.");
+        return std::vector<uint8_t>();
+    }
+
+    CredentialMessage messageStruct(recvStr);
+    memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
+    if (messageStruct.GetMessageBodyLen() > 0) {
+        std::string body = messageStruct.GetMessageBody();
+        std::vector<uint8_t> retByteData = String2Uint8(body, messageStruct.GetMessageBodyLen());
+        if (!body.empty()) {
+            memset_s(&body[0], body.size(), 0, body.size());
+        }
+        return retByteData;
+    } else {
+        WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
+        return std::vector<uint8_t>();
+    }
+}
+
+std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encryptData)
+{
+    std::string sendStr = SplicMessageStr(encryptData, METHOD_DECRYPT);
+    if (sendStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "sendStr is empty.");
+        return std::make_pair(nullptr, 0);
+    }
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH, sendStr.c_str());
+    memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
+    if (recvStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "recvStr is empty.");
+        return std::make_pair(nullptr, 0);
+    }
+
+    CredentialMessage messageStruct(recvStr);
+    memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
+    if (messageStruct.GetMessageBodyLen() > 0) {
+        uint8_t *keyData = new uint8_t[messageStruct.GetMessageBodyLen() + 1];
+        std::copy(messageStruct.GetMessageBody().begin(), messageStruct.GetMessageBody().end(), keyData);
+        keyData[messageStruct.GetMessageBodyLen()] = '\0';
+        return std::make_pair(keyData, messageStruct.GetMessageBodyLen());
+    } else {
+        WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
+        return std::make_pair(nullptr, 0);
+    }
+}
 HdcPassword::HdcPassword(const std::string &pwdKeyAlias):hdcHuks(pwdKeyAlias)
 {
     memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
@@ -77,7 +221,7 @@ void HdcPassword::ByteToHex(std::vector<uint8_t>& byteData)
 
 bool HdcPassword::HexToByte(std::vector<uint8_t>& hexData)
 {
-    if ((hexData.size() % 2) != 0) { //2 hexData len must be even
+    if ((hexData.size() % 2) != 0) { // 2 hexData len must be even
         WRITE_LOG(LOG_FATAL, "invalid data size %d", hexData.size());
         return false;
     }
@@ -115,7 +259,7 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
     if (!HexToByte(encryptData)) {
         return false;
     }
-    std::pair<uint8_t*, int> result = hdcHuks.AesGcmDecrypt(encryptPwd);
+    std::pair<uint8_t*, int> result = DecryptGetPwdValue(encryptPwd);
     if (result.first == nullptr) {
         return false;
     }
@@ -133,7 +277,7 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
     } while (0);
 
     if (memset_s(result.first, result.second, 0, PASSWORD_LENGTH) != EOK) {
-        WRITE_LOG(LOG_FATAL, "memset_s failed");
+        WRITE_LOG(LOG_FATAL, "memset_s failed.");
         success = false;
     }
     delete[] result.first;
@@ -144,10 +288,7 @@ bool HdcPassword::EncryptPwd(void)
 {
     std::vector<uint8_t> encryptData;
     ClearEncryptPwd();
-    bool encryptResult = hdcHuks.AesGcmEncrypt(pwd, PASSWORD_LENGTH, encryptData);
-    if (!encryptResult) {
-        return false;
-    }
+    encryptData = EncryptGetPwdValue(pwd, PASSWORD_LENGTH);
     ByteToHex(encryptData);
     return true;
 }
@@ -159,7 +300,7 @@ bool HdcPassword::ResetPwdKey()
 
 int HdcPassword::GetEncryptPwdLength()
 {
-    return HdcHuks::CaculateGcmEncryptLen(PASSWORD_LENGTH) * 2; //2, bytes to hex
+    return HdcHuks::CaculateGcmEncryptLen(PASSWORD_LENGTH) * 2; // 2, bytes to hex
 }
 
 void HdcPassword::ClearEncryptPwd(void)

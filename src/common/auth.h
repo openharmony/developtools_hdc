@@ -41,5 +41,8 @@ int GetPublicKeyFileBuf(unsigned char *data, size_t len);
 bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen);
 bool PostUIConfirm(string publicKey);
 }
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+#define HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS "hdc_private_key_file_pwd_key_alias"
+#endif
 
 #endif

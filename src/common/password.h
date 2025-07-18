@@ -18,9 +18,14 @@
 #include <string>
 #include <memory>
 #include <utility>
+#include <iomanip>
+
+#include "credential_message.h"
 #include "hdc_huks.h"
 namespace Hdc {
 #define PASSWORD_LENGTH 10
+
+static const char* HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
 
 class HdcPassword {
 public:
@@ -33,15 +38,20 @@ public:
     std::string GetEncryptPassword(void);
     bool ResetPwdKey();
     int GetEncryptPwdLength();
+    char GetHexChar(uint8_t data);
 private:
     uint8_t pwd[PASSWORD_LENGTH];
     std::string encryptPwd;
     HdcHuks hdcHuks;
-    char GetHexChar(uint8_t data);
     void ByteToHex(std::vector<uint8_t>& byteData);
     bool HexToByte(std::vector<uint8_t>& hexData);
     uint8_t HexCharToInt(uint8_t data);
     void ClearEncryptPwd(void);
+    std::string SplicMessageStr(const std::string& str, const size_t type);
+    std::string SendToUnixSocketAndRecvStr(const char* socketPath, const std::string& messageStr);
+    std::vector<uint8_t> EncryptGetPwdValue(uint8_t* pwd, int pwdLen);
+    std::pair<uint8_t*, int> DecryptGetPwdValue(const std::string& encryptData);
 };
+
 } // namespace Hdc
 #endif // HDC_PASSWORD_H

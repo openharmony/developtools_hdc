@@ -74,7 +74,7 @@ int RemovePath(const std::string& path)
         return -1;
     }
     if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
-        if (unlink(path.c_str()) == -1) { 
+        if (unlink(path.c_str()) == -1) {
             WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink,, error is :%s", strerror(errno));
         }
     } else if (S_ISDIR(st.st_mode)) {

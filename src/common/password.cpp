@@ -111,7 +111,7 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
 
 std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
 {
-    std::string sendStr = SplicMessageStr((reinterpret_cast<const char*>(pwd), pwdLen), METHOD_ENCRYPT);
+    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();

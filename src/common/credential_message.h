@@ -23,7 +23,7 @@ class CredentialMessage {
 public:
     CredentialMessage() = default;
     explicit CredentialMessage(const std::string& messageStr);
-    Init(const std::string& messageStr);
+    void Init(const std::string& messageStr);
     ~CredentialMessage();
     int GetMessageVersion() const { return messageVersion; }
     int GetMessageMethodType() const { return messageMethodType; }

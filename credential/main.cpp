@@ -50,7 +50,7 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
     }
     std::vector<uint8_t> encryptData;
 
-    bool encryptResult = hdcHuks.AesGcmEncrypt(reinterpret_cast<static const uint8_t*>(messageStr.c_str()),
+    bool encryptResult = hdcHuks.AesGcmEncrypt(reinterpret_cast<const uint8_t*>(messageStr.c_str()),
                                                 PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
         WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: AES GCM encryption failed.");
@@ -153,7 +153,7 @@ int CreateAndBindSocket(const std::string& socketPath)
     struct sockaddr_un addr = {};
     addr.sun_family = AF_UNIX;
     size_t maxPathLen = sizeof(addr.sun_path) - 1;
-    size_t pathLen = strlen(socketPath);
+    size_t pathLen = socketPath.size();
     if (pathLen > sizeof(addr.sun_path) - 1) {
         WRITE_LOG(LOG_FATAL, "Socket path too long.");
         close(sockfd);

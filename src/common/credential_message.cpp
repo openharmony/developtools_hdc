@@ -21,7 +21,7 @@ CredentialMessage::CredentialMessage(const std::string& messageStr)
     Init(messageStr);
 }
 
-CredentialMessage::Init(const std::string& messageStr)
+void CredentialMessage::Init(const std::string& messageStr)
 {
     if (messageStr.empty() || messageStr.length() < MESSAGE_BODY_POS) {
         WRITE_LOG(LOG_FATAL, "messageStr is too short!");
@@ -159,7 +159,7 @@ std::vector<uint8_t> String2Uint8(const std::string& str, size_t len)
 
 std::string IntToStringWithPadding(int length, int maxLen)
 {
-    std::string str = std::to_string(len);
+    std::string str = std::to_string(length);
     if (str.length() > static_cast<size_t>(maxLen)) {
         return "";
     }

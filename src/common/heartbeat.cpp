@@ -33,11 +33,13 @@ void HdcHeartbeat::AddHeartbeatCount(void)
 bool HdcHeartbeat::HandleMessageCount(void)
 {
     messageCount++;
+#ifndef HDC_HOST
     auto nowTime = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(nowTime - lastTime);
     if (duration.count() > 3600) {   //3600: seconds
         return false;
     }
+#endif
     return true;
 }
 

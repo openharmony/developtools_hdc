@@ -14,7 +14,7 @@
 # limitations under the License.
 import time
 import pytest
-from utils import GP, check_hdc_cmd, check_hdc_targets, check_shell_any_device, load_gp
+from utils import GP, check_hdc_cmd, check_hdc_targets, check_shell_any_device, load_gp, check_shell
 
 
 class TestUsbConnect:
@@ -26,14 +26,14 @@ class TestUsbConnect:
         assert check_hdc_targets()
         cmd = 'shell "kill -9 `pidof hdcd`"'
         check_hdc_cmd(f"{cmd}", "[Fail][E001003] USB communication abnormal, please check the USB communication link.")
-        time.sleep(3)
+        assert check_shell(f"{GP.hdc_head} wait", "")
         assert check_hdc_targets()
 
     @pytest.mark.L0
     @pytest.mark.repeat(10)
     def test_list_targets_multi_usb_device(self):
         devices_str = check_shell_any_device(f"{GP.hdc_exe} list targets", None, True)
-        time.sleep(3) # sleep 3s to wait for the device to connect channel
+        assert check_shell(f"{GP.hdc_head} wait", "")
         devices_array = devices_str[1].split('\n')
         if devices_array:
             for device in devices_array:

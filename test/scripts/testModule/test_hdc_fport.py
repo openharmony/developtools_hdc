@@ -27,7 +27,7 @@ class TestXportCommand:
         remote_port = 11080
         fport_arg = f"tcp:{local_port} tcp:{remote_port}"
         assert check_hdc_cmd(f"fport {fport_arg}", "Forwardport result:OK")
-        assert check_shell_any_device(f"netstat -an", "LISTENING", False)[0]
+        assert check_shell_any_device(f"netstat -an", "LISTEN", False)[0]
         assert check_shell_any_device(f"netstat -an", f"{local_port}", False)[0]
         assert check_hdc_cmd(f"fport ls", fport_arg)
         assert check_hdc_cmd(f"fport rm {fport_arg}", "success")
@@ -64,7 +64,7 @@ class TestXportCommand:
         # fport
         fport_arg = f"tcp:{client_connect_port} tcp:{daemon_transmit_port}"
         assert check_hdc_cmd(f"fport {fport_arg}", "Forwardport result:OK")
-        assert check_shell_any_device(f"netstat -an", "LISTENING", False)[0]
+        assert check_shell_any_device(f"netstat -an", "LISTEN", False)[0]
         assert check_shell_any_device(f"netstat -an", f"{client_connect_port}", False)[0]
         assert check_hdc_cmd(f"fport ls", fport_arg)
 

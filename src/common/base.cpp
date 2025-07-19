@@ -668,7 +668,7 @@ static void EchoLog(string &buf)
         string debugInfo = functionName;
         GetLogDebugFunctionName(debugInfo, line, threadIdString);
         GetLogLevelAndTime(logLevel, logLevelString, timeString);
-#ifdef OHOS_HOST
+#ifdef HOST_OHOS
         string logBuf = StringFormat("[%s][%s][%u]%s%s %s%s", logLevelString.c_str(), timeString.c_str(),
                                      getuid(), threadIdString.c_str(), debugInfo.c_str(), buf, sep.c_str());
 #else

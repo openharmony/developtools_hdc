@@ -49,7 +49,7 @@ namespace Hdc {
             return 0;
         }
         if (ids.empty()) {
-            WRITE_LOG(LOG_FATAL, "No active OS account IDS found.");
+            WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds is empty.");
             return 0;
         }
         return ids[0];
@@ -76,6 +76,10 @@ namespace Hdc {
         struct HksParamSet *paramSet = nullptr;
 #ifndef HDC_HOST
         int32_t currentUserId = GetUserId();
+        if (currentUserId  == 0) {
+            WRITE_LOG(LOG_FATAL, "current user id is 0, reset key failed.");
+            return false;
+        }
         WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
 #endif
         struct HksParam genAesKeyPara[] = {
@@ -136,6 +140,10 @@ namespace Hdc {
         struct HksParamSet *paramSet = nullptr;
 #ifndef HDC_HOST
         int32_t currentUserId = GetUserId();
+        if (currentUserId  == 0) {
+            WRITE_LOG(LOG_FATAL, "current user id is 0,failed.");
+            return nullptr;
+        }
         WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
 #endif
         struct HksParam aesEncryptPara[] = {
@@ -187,6 +195,10 @@ namespace Hdc {
         
 #ifndef HDC_HOST
         int32_t currentUserId = GetUserId();
+        if (currentUserId  == 0) {
+            WRITE_LOG(LOG_FATAL, "current user id is 0,failed.");
+            return nullptr;
+        }
         WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
 #endif
         struct HksParam aesDecryptPara[] = {

@@ -18,6 +18,7 @@
 #include <chrono>
 #include <dirent.h>
 #include <securec.h>
+#include <set>
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <thread>
@@ -48,11 +49,26 @@ constexpr uint32_t MAX_SIZE_IOBUF_STABLE = 60 * 1024; // 60KB, compatible with p
 static const char* HDC_CREDENTIAL_SOCKET_REAL_PATH =
     "/data/service/el1/public/hdc_server/hdc_common/hdc_credential.socket";
 constexpr uint8_t CMD_ARG1_COUNT = 2;
+constexpr int MIN_USER_ID = 100;
+constexpr int MAX_USER_ID = 10736;
 
 int RemoveDir(const std::string& dir);
 int RemovePath(const std::string& path);
 const std::string StringFormat(const char* const formater, ...);
 const std::string StringFormat(const char* const formater, va_list& vaArgs);
 char GetPathSep();
+bool CreatePathWithMode(const char* path, mode_t mode);
+bool IsUserDir(const std::string& dir);
+
+/* calculate the difference of two vector, return the vector of a - b. */
+template<typename T>
+std::vector<T> Minus(const std::vector<T>& a, const std::vector<T>& b)
+{
+    std::set<T> aSet(a.begin(), a.end());
+    std::set<T> bSet(b.begin(), b.end());
+    std::vector<T> diff;
+    std::set_difference(aSet.begin(), aSet.end(), bSet.begin(), bSet.end(), std::back_inserter(diff));
+    return diff;
+}
 
 #endif // HDC_CREDENTIAL_BASE_H

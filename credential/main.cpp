@@ -228,6 +228,10 @@ int main(int argc, const char *argv[])
         WRITE_LOG(LOG_FATAL, "HdcAccountSubscriberMonitor failed");
         return 0;
     }
+
+    // fresh all accounts path when process restart.
+    FreshAccountsPath();
+    
     int sockfd = CreateAndBindSocket(HDC_CREDENTIAL_SOCKET_REAL_PATH);
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");

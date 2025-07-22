@@ -85,6 +85,7 @@ int RemovePath(const std::string& path)
         WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
         return rc;
     }
+    WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
     return 0;
 }
 
@@ -107,4 +108,29 @@ const std::string StringFormat(const char* const formater, va_list& vaArgs)
     } else {
         return std::string(args.data(), retSize);
     }
+}
+
+bool CreatePathWithMode(const char* path, mode_t mode)
+{
+    if (::mkdir(path, mode) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));
+        return false;
+    }
+    if (::chmod(path, mode) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
+        return false;
+    }
+    WRITE_LOG(LOG_DEBUG, "Directory created successfully.");
+    return true;
+}
+
+bool IsUserDir(const std::string& dir)
+{
+    int userId;
+    try {
+        userId = std::stoi(dir);
+    } catch (const std::invalid_argument&) {
+        userId = 0;
+    }
+    return userId >= MIN_USER_ID && userId <= MAX_USER_ID;
 }

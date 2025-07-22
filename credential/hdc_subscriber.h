@@ -28,5 +28,5 @@ public:
 };
 
 int HdcAccountSubscriberMonitor();
-
+void FreshAccountsPath();
 #endif // HDC_SUBSCRIBER_H

@@ -259,7 +259,7 @@ class TestHdcReturnValue:
         assert match_uninstall is not None
 
         result = get_shell_result(f"install {get_local_path('hap_no_exsit.hap')} {get_remote_path('test')}")
-        result = re.split("\r|\n", result)
+        result = re.split(get_end_symbol(), result)
         pattern = r'\[Fail\]Error opening file: no such file or directory, path:(.*)hap_no_exsit.hap'
         match = re.match(pattern, result[0])
         assert match is not None

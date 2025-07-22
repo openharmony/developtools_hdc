@@ -24,16 +24,16 @@ def clear_env():
 class TestShellPerformance:
     @pytest.mark.L0
     def test_shell_cmd_timecost_param_p(self):
-        check_hdc_cmd("shell \"ps -ef | grep hdcd\"")
+        check_hdc_cmd("shell \"ls -al /data/local/tmp\"")
         assert check_cmd_time(
             cmd="-p shell \"ps -ef | grep hdcd\"",
             pattern="hdcd",
-            duration=None,
+            duration=220,
             times=50)
 
     @pytest.mark.L0
     def test_shell_cmd_timecost_param_none(self):
-        check_hdc_cmd("shell \"ps -ef | grep hdcd\"")
+        check_hdc_cmd("shell \"echo 1\"")
         assert check_cmd_time(
             cmd="shell \"ps -ef | grep hdcd\"",
             pattern="hdcd",

@@ -228,7 +228,7 @@ int main(int argc, const char *argv[])
         WRITE_LOG(LOG_FATAL, "HdcAccountSubscriberMonitor failed");
         return 0;
     }
-    int sockfd = CreateAndBindSocket(HDC_CREDENTIAL_SOCKET_REAL_PATH);
+    int sockfd = CreateAndBindSocket(HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");
         return -1;
@@ -238,7 +238,7 @@ int main(int argc, const char *argv[])
         close(sockfd);
         return -1;
     }
-    WRITE_LOG(LOG_INFO, "Listening on socket: %s", HDC_CREDENTIAL_SOCKET_REAL_PATH);
+    WRITE_LOG(LOG_INFO, "Listening on socket: %s", HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
     bool running = true;
     while (running) {
         int connfd = accept(sockfd, nullptr, nullptr);
@@ -272,6 +272,6 @@ int main(int argc, const char *argv[])
     } // Keep the server running indefinitely
     WRITE_LOG(LOG_FATAL, "hdc_credential stopped.");
     close(sockfd);
-    unlink(HDC_CREDENTIAL_SOCKET_REAL_PATH);
+    unlink(HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
     return 0;
 }

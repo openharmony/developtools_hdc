@@ -41,14 +41,14 @@ void CredentialMessage::Init(const std::string& messageStr)
 
     std::string messageLengthStr = messageStr.substr(MESSAGE_LENGTH_POS, MESSAGE_LENGTH_LEN);
     char* end = nullptr;
-    size_t bodyLength = strtol(messageLengthStr.c_str(), &end, 10);
+    size_t bodyLength = static_cast<size_t>(strtol(messageLengthStr.c_str(), &end, 10));
     if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "Invalid message body length %s.", messageLengthStr.c_str());
         return;
     }
 
     if (messageStr.length() < MESSAGE_BODY_POS + bodyLength) {
-        WRITE_LOG(LOG_FATAL, "messageStr is too short: %s", messageStr.c_str());
+        WRITE_LOG(LOG_FATAL, "messageStr is too short.");
         return;
     }
 
@@ -163,5 +163,5 @@ std::string IntToStringWithPadding(int length, int maxLen)
     if (str.length() > static_cast<size_t>(maxLen)) {
         return "";
     }
-    return std::string(maxLen - str.length(), '0') + str;
+    return std::string(static_cast<size_t>(maxLen) - str.length(), '0') + str;
 }

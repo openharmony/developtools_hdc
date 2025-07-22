@@ -28,10 +28,6 @@ namespace Hdc {
         { .tag = HKS_TAG_AUTH_STORAGE_LEVEL, .uint32Param = HKS_AUTH_STORAGE_LEVEL_DE },
     };
 
-    struct HksParam genAesKeyPara[] = {
-        { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT }
-    };
-
     HdcHuks::HdcHuks(const std::string& keyAlias)
     {
         this->keyAlias = keyAlias;
@@ -58,6 +54,17 @@ namespace Hdc {
         bool genSuccess = false;
 
         struct HksParamSet *paramSet = nullptr;
+#ifndef HDC_HOST
+        int32_t currentUserId = GetUserId();
+        WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
+#endif
+        struct HksParam genAesKeyPara[] = {
+            { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT },
+#ifndef HDC_HOST
+            { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
+#endif
+        };
+
         if (!MakeHuksParamSet(&paramSet, aesBasePara, sizeof(aesBasePara) / sizeof(HksParam),
             genAesKeyPara, sizeof(genAesKeyPara) / sizeof(HksParam))) {
             return false;
@@ -107,9 +114,16 @@ namespace Hdc {
     {
         GenerateNonce(nonce, length);
         struct HksParamSet *paramSet = nullptr;
+#ifndef HDC_HOST
+        int32_t currentUserId = GetUserId();
+        WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
+#endif
         struct HksParam aesEncryptPara[] = {
             { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT },
-            { .tag = HKS_TAG_NONCE, .blob = { length, nonce} }
+            { .tag = HKS_TAG_NONCE, .blob = { length, nonce} },
+#ifndef HDC_HOST
+            { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
+#endif
         };
         if (!MakeHuksParamSet(&paramSet, aesBasePara, sizeof(aesBasePara) / sizeof(HksParam),
             aesEncryptPara, sizeof(aesEncryptPara) / sizeof(HksParam))) {
@@ -147,13 +161,20 @@ namespace Hdc {
         return encryptSuccess;
     }
 
-    struct HksParamSet* HdcHuks::MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce)
+    struct HksParamSet* HdcHuks::MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce, std::vector<uint8_t>& tag)
     {
         struct HksParamSet *paramSet = nullptr;
         
+#ifndef HDC_HOST
+        int32_t currentUserId = GetUserId();
+        WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
+#endif
         struct HksParam aesDecryptPara[] = {
             { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_DECRYPT },
-            { .tag = HKS_TAG_NONCE, .blob = { nonce.size(), nonce.data()} }
+            { .tag = HKS_TAG_NONCE, .blob = { nonce.size(), nonce.data()} },
+#ifndef HDC_HOST
+            { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
+#endif
         };
         if (!MakeHuksParamSet(&paramSet, aesBasePara, sizeof(aesBasePara) / sizeof(HksParam),
             aesDecryptPara, sizeof(aesDecryptPara) / sizeof(HksParam))) {
@@ -179,14 +200,16 @@ namespace Hdc {
         struct HksParamSet *paramSet = nullptr;
         std::vector<uint8_t> encryptText;
         std::vector<uint8_t> nonceValue;
+        std::vector<uint8_t> tagValue;
 
         if (!CheckEncryptDataLen(inputData)) {
             return std::make_pair(nullptr, 0);
         }
 
         nonceValue.assign(inputData.begin(), inputData.begin() + AES_GCM_NONCE_BYTE_LEN);
-        encryptText.assign(inputData.begin() + AES_GCM_NONCE_BYTE_LEN, inputData.end());
-        paramSet = MakeAesGcmDecryptParamSets(nonceValue);
+        tagValue.assign(inputData.begin() - AES_GCM_TAG_BYTE_LEN, inputData.end());
+        encryptText.assign(inputData.begin() + AES_GCM_NONCE_BYTE_LEN, inputData.end() - AES_GCM_TAG_BYTE_LEN);
+        paramSet = MakeAesGcmDecryptParamSets(nonceValue, tagValue);
         if (paramSet == nullptr) {
             return std::make_pair(nullptr, 0);
         }
@@ -254,4 +277,19 @@ namespace Hdc {
     {
         return palinDataLen + AES_GCM_NONCE_BYTE_LEN + AES_GCM_TAG_BYTE_LEN;
     }
+
+#ifndef HDC_HOST
+    std::int32_t HdcHuks::GetUserId(void)
+    {
+        std::vector<int32_t> ids;
+
+        OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
+        if (err != 0) {
+            WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, err %d", err);
+            return 0;
+        }
+        return ids[0];
+    }
+#endif
+
 } // namespace Hdc

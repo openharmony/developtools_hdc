@@ -17,6 +17,9 @@
 #include <string>
 #include <memory>
 #include <utility>
+#ifndef HDC_HOST
+#include "os_account_manager.h"
+#endif
 #include "hks_type.h"
 namespace Hdc {
 class HdcHuks {
@@ -26,11 +29,14 @@ public:
     std::pair<uint8_t*, int> AesGcmDecrypt(const std::string& inputData);
     static int CaculateGcmEncryptLen(int palinDataLen);
     bool ResetHuksKey(void);
+    #ifndef HDC_HOST
+    std::int32_t GetUserId(void);
+    #endif
 private:
     bool MakeHuksParamSet(struct HksParamSet **paramSet,
         const struct HksParam *baseParams, int baseParamCount, const struct HksParam *params, int paramCount);
     bool KeyExist(struct HksParamSet *paramSet);
-    struct HksParamSet* MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce);
+    struct HksParamSet* MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce, std::vector<uint8_t>& tag);
     struct HksParamSet* MakeAesGcmEncryptParamSets(uint8_t *nonce, int length);
     bool CheckEncryptDataLen(const std::string& encryptData);
     bool CreateAesKey(struct HksParamSet *paramSet);

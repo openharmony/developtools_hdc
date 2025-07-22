@@ -36,7 +36,7 @@ private:
     bool MakeHuksParamSet(struct HksParamSet **paramSet,
         const struct HksParam *baseParams, int baseParamCount, const struct HksParam *params, int paramCount);
     bool KeyExist(struct HksParamSet *paramSet);
-    struct HksParamSet* MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce, std::vector<uint8_t>& tag);
+    struct HksParamSet* MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce);
     struct HksParamSet* MakeAesGcmEncryptParamSets(uint8_t *nonce, int length);
     bool CheckEncryptDataLen(const std::string& encryptData);
     bool CreateAesKey(struct HksParamSet *paramSet);

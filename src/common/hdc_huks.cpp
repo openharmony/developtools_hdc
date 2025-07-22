@@ -110,7 +110,8 @@ namespace Hdc {
         HksGenerateRandom(nullptr, &nonceBlob);
     }
 
-    struct HksParamSet* HdcHuks::MakeAesGcmEncryptParamSets(uint8_t *nonce, int length)
+    struct HksParamSet* HdcHuks::
+    (uint8_t *nonce, int length)
     {
         GenerateNonce(nonce, length);
         struct HksParamSet *paramSet = nullptr;
@@ -161,7 +162,7 @@ namespace Hdc {
         return encryptSuccess;
     }
 
-    struct HksParamSet* HdcHuks::MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce, std::vector<uint8_t>& tag)
+    struct HksParamSet* HdcHuks::MakeAesGcmDecryptParamSets(std::vector<uint8_t>& nonce)
     {
         struct HksParamSet *paramSet = nullptr;
         
@@ -175,6 +176,7 @@ namespace Hdc {
 #ifndef HDC_HOST
             { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
 #endif
+
         };
         if (!MakeHuksParamSet(&paramSet, aesBasePara, sizeof(aesBasePara) / sizeof(HksParam),
             aesDecryptPara, sizeof(aesDecryptPara) / sizeof(HksParam))) {
@@ -200,16 +202,14 @@ namespace Hdc {
         struct HksParamSet *paramSet = nullptr;
         std::vector<uint8_t> encryptText;
         std::vector<uint8_t> nonceValue;
-        std::vector<uint8_t> tagValue;
 
         if (!CheckEncryptDataLen(inputData)) {
             return std::make_pair(nullptr, 0);
         }
 
         nonceValue.assign(inputData.begin(), inputData.begin() + AES_GCM_NONCE_BYTE_LEN);
-        tagValue.assign(inputData.begin() - AES_GCM_TAG_BYTE_LEN, inputData.end());
-        encryptText.assign(inputData.begin() + AES_GCM_NONCE_BYTE_LEN, inputData.end() - AES_GCM_TAG_BYTE_LEN);
-        paramSet = MakeAesGcmDecryptParamSets(nonceValue, tagValue);
+        encryptText.assign(inputData.begin() + AES_GCM_NONCE_BYTE_LEN, inputData.end());
+        paramSet = MakeAesGcmDecryptParamSets(nonceValue);
         if (paramSet == nullptr) {
             return std::make_pair(nullptr, 0);
         }

@@ -39,13 +39,17 @@ namespace Hdc {
     }
 
 #ifndef HDC_HOST
-    static std::int32_t GetUserId(void)
+    static int32_t GetUserId(void)
     {
         std::vector<int32_t> ids;
 
         OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
         if (err != 0) {
             WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, err %d", err);
+            return 0;
+        }
+        if (ids.empty()) {
+            WRITE_LOG(LOG_FATAL, "No active OS account IDS found.");
             return 0;
         }
         return ids[0];

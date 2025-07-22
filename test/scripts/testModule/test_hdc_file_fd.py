@@ -20,10 +20,8 @@ import logging
 import multiprocessing
 import pytest
 
-
 from utils import GP, run_command_with_timeout, get_shell_result, \
     check_shell, check_version, get_local_path, rmdir, load_gp, get_hdcd_pss, get_hdcd_fd_count
-
 
 SEP = "/"
 MOUNT_POINT = "storage"
@@ -40,7 +38,6 @@ TEST_FILE_CASE_TABLE = [
     (True, True, True),
     (True, True, False),
 ]
-
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +90,8 @@ class TestFileNoSpaceFdLeak:
         for i in range(1, re_send_time + 1):
             logger.info("send %d times", i)
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
+                                                             f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}",
+                                                             25)
             if "Command timed out" in error_str:
                 logger.warning("error_str: %s", error_str)
                 return False
@@ -126,7 +124,6 @@ class TestFileNoSpaceFdLeak:
         self.pss = get_hdcd_pss()
         if self.pss == 0:
             logger.error("get hdcd mem pss failed")
-
 
     @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
@@ -196,7 +193,8 @@ class TestFileReFullSpaceFdLeak:
         re_send_time = 10
         for i in range(1, re_send_time + 1):
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
+                                                             f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}",
+                                                             25)
             logger.info("output:%s,error:%s", output_str, error_str)
             if "Command timed out" in error_str:
                 logger.warning("Command timed out")
@@ -315,12 +313,23 @@ class TestFileNoSpaceFdFullCrash:
 
         last_fd_count = 0
         loop_count = 0
+        equal_count = 0
         while True:
             self.fd_count = get_shell_result(f"shell ls {SEP}proc/{self.pid}/fd | wc -l")
+            logger.warning("fd_count is %s", ("ff" + self.fd_count))
             try:
                 if int(self.fd_count) >= 32768:
                     break
                 if int(self.fd_count) < last_fd_count:
+                    logger.warning("fd count decrease.")
+                    assert not check_shell(f"shell ls data/log/faultlog/faultlogger/", "-hdcd-")
+                    run_command_with_timeout(f"{GP.hdc_head} kill", 3)
+                    return
+                if int(self.fd_count) == last_fd_count:
+                    equal_count += 1
+                if equal_count > 20:
+                    logger.warning("equal 20 times.")
+                    assert not check_shell(f"shell ls data/log/faultlog/faultlogger/", "-hdcd-")
                     run_command_with_timeout(f"{GP.hdc_head} kill", 3)
                     return
                 last_fd_count = int(self.fd_count)
@@ -328,13 +337,15 @@ class TestFileNoSpaceFdFullCrash:
                 if loop_count % 5 == 0:
                     logger.warning("fd count is:%s", self.fd_count)
             except ValueError:
-                logger.warning("ValueError, last count:%d", last_fd_count)
+                logger.warning("ValueError")
                 break
+            except TypeError:
+                logger.warning("TypeError output:%s", self.fd_count)
+                break
+
         run_command_with_timeout(f"{GP.hdc_head} kill", 3)
         run_command_with_timeout(f"{GP.hdc_head} kill", 3)
 
         run_command_with_timeout(f"{GP.hdc_head} wait", 3)
         time.sleep(3)
-
-        new_pid = get_shell_result(f"shell pidof hdcd").split("\r")[0]
-        assert not self.pid == new_pid
+        assert not check_shell(f"shell ls data/log/faultlog/faultlogger/", "-hdcd-")

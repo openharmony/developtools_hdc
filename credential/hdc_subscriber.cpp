@@ -39,7 +39,7 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
             WRITE_LOG(LOG_DEBUG, "Directory created successfully.");
             break;
         case OsAccountState::REMOVED:
-            if (RemovePath(path.c_str()) == 0) {
+            if (HdcCredentialBase::RemovePath(path.c_str()) == 0) {
                 WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
             } else {
                 WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));

@@ -20,6 +20,7 @@
 #include "password.h"
 
 using namespace Hdc;
+using namespace HdcCredentialBase;
 
 Hdc::HdcHuks hdcHuks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);

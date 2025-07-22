@@ -16,6 +16,9 @@
 #include "hks_param.h"
 #include "hks_api.h"
 #include "log.h"
+#ifndef HDC_HOST
+#include "os_account_manager.h"
+#endif
 namespace Hdc {
     static const int AES_GCM_NONCE_BYTE_LEN = 12;
     static const int AES_GCM_TAG_BYTE_LEN = 16;
@@ -35,6 +38,19 @@ namespace Hdc {
                                  reinterpret_cast<uint8_t*>(const_cast<char*>(this->keyAlias.c_str())) };
     }
 
+#ifndef HDC_HOST
+    static std::int32_t GetUserId(void)
+    {
+        std::vector<int32_t> ids;
+
+        OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
+        if (err != 0) {
+            WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, err %d", err);
+            return 0;
+        }
+        return ids[0];
+    }
+#endif
     bool HdcHuks::DeleteAesKey(HksParamSet *paramSet)
     {
         if (!KeyExist(paramSet)) {
@@ -110,8 +126,7 @@ namespace Hdc {
         HksGenerateRandom(nullptr, &nonceBlob);
     }
 
-    struct HksParamSet* HdcHuks::
-    (uint8_t *nonce, int length)
+    struct HksParamSet* HdcHuks::MakeAesGcmEncryptParamSets(uint8_t *nonce, int length)
     {
         GenerateNonce(nonce, length);
         struct HksParamSet *paramSet = nullptr;
@@ -277,19 +292,4 @@ namespace Hdc {
     {
         return palinDataLen + AES_GCM_NONCE_BYTE_LEN + AES_GCM_TAG_BYTE_LEN;
     }
-
-#ifndef HDC_HOST
-    std::int32_t HdcHuks::GetUserId(void)
-    {
-        std::vector<int32_t> ids;
-
-        OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
-        if (err != 0) {
-            WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, err %d", err);
-            return 0;
-        }
-        return ids[0];
-    }
-#endif
-
 } // namespace Hdc

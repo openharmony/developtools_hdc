@@ -16,7 +16,7 @@
 
 using namespace Hdc;
 
-char GetPathSep()
+char HdcCredentialBase::GetPathSep()
 {
 #ifdef _WIN32
     const char sep = '\\';
@@ -26,7 +26,7 @@ char GetPathSep()
     return sep;
 }
 
-int RemoveDir(const std::string& dir)
+int HdcCredentialBase::RemoveDir(const std::string& dir)
 {
     DIR *pdir = opendir(dir.c_str());
     if (pdir == nullptr) {
@@ -39,7 +39,7 @@ int RemoveDir(const std::string& dir)
         if (ent->d_name[0] == '.') {
             continue;
         }
-        std::string subpath = dir + GetPathSep() + ent->d_name;
+        std::string subpath = dir + HdcCredentialBase::GetPathSep() + ent->d_name;
         if (lstat(subpath.c_str(), &st) == -1) {
             WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", subpath.c_str());
             continue;
@@ -66,7 +66,7 @@ int RemoveDir(const std::string& dir)
     return 0;
 }
 
-int RemovePath(const std::string& path)
+int HdcCredentialBase::RemovePath(const std::string& path)
 {
     struct stat st;
     if (lstat(path.c_str(), &st) == -1) {
@@ -81,14 +81,14 @@ int RemovePath(const std::string& path)
         if (path == "." || path == "..") {
             return 0;
         }
-        int rc = RemoveDir(path);
+        int rc = HdcCredentialBase::RemoveDir(path);
         WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
         return rc;
     }
     return 0;
 }
 
-const std::string StringFormat(const char* const formater, ...)
+const std::string HdcCredentialBase::StringFormat(const char* const formater, ...)
 {
     va_list vaArgs;
     va_start(vaArgs, formater);
@@ -97,7 +97,7 @@ const std::string StringFormat(const char* const formater, ...)
     return ret;
 }
 
-const std::string StringFormat(const char* const formater, va_list& vaArgs)
+const std::string HdcCredentialBase::StringFormat(const char* const formater, va_list& vaArgs)
 {
     std::vector<char> args(MAX_SIZE_IOBUF_STABLE);
     const int retSize = vsnprintf_s(

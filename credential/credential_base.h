@@ -37,15 +37,16 @@
 #define LOG_TAG "HDC_LOG"
 #endif // HDC_HILOG
 
+namespace HdcCredentialBase {
 // 0x10000000 is 1.0.0a
 constexpr uint32_t CREDENTIAL_VERSION_NUMBER = 0x10000000;
 constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
-static const char*  HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS = "hdc_private_key_file_pwd_key_alias";
+const std::string HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS = "hdc_private_key_file_pwd_key_alias";
 constexpr size_t PASSWORD_LENGTH = 10;
 
 constexpr uint32_t MAX_SIZE_IOBUF_STABLE = 60 * 1024; // 60KB, compatible with previous version
-static const char* HDC_CREDENTIAL_SOCKET_REAL_PATH =
+const std::string HDC_CREDENTIAL_SOCKET_REAL_PATH =
     "/data/service/el1/public/hdc_server/hdc_common/hdc_credential.socket";
 constexpr uint8_t CMD_ARG1_COUNT = 2;
 
@@ -54,5 +55,6 @@ int RemovePath(const std::string& path);
 const std::string StringFormat(const char* const formater, ...);
 const std::string StringFormat(const char* const formater, va_list& vaArgs);
 char GetPathSep();
+} // namespace HdcCredentialBase
 
 #endif // HDC_CREDENTIAL_BASE_H

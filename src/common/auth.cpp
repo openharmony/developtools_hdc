@@ -583,10 +583,6 @@ static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
     pwd.GeneratePassword();
-    if (!pwd.ResetPwdKey()) {
-        WRITE_LOG(LOG_FATAL, "reset pwd key failed");
-        return false;
-    }
     if (!pwd.EncryptPwd()) {
         WRITE_LOG(LOG_FATAL, "encrypt pwd failed");
         return false;

@@ -12,31 +12,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "hdc_subscriber.h"
 #include <filesystem>
 #include "credential_base.h"
-#include "hdc_subscriber.h"
 
 using namespace Hdc;
 using namespace OHOS::AccountSA;
 namespace fs = std::filesystem;
 
 namespace {
-    static const std::string g_prefixPath = "/data/service/el1/public/hdc_server/";
-    static const mode_t g_mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
+static const std::string USER_DIR_PREFIX_PATH = "/data/service/el1/public/hdc_server/";
+static const mode_t MODE = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 }
 
 void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data)
 {
     WRITE_LOG(LOG_INFO, "Recv data.state:%d, data.toId:%d", data.state, data.toId);
-    std::string path = g_prefixPath + std::to_string(data.toId);
+    std::string path = USER_DIR_PREFIX_PATH + std::to_string(data.toId);
     switch (data.state) {
         case OsAccountState::CREATED:
-            if (CreatePathWithMode(path.c_str(), g_mode) != 0) {
+            if (HdcCredentialBase::CreatePathWithMode(path.c_str(), MODE) != 0) {
                 WRITE_LOG(LOG_FATAL, "Failed to create directory, error is:%s", strerror(errno));
             }
             break;
         case OsAccountState::REMOVED:
-            if (RemovePath(path.c_str()) != 0) {
+            if (HdcCredentialBase::RemovePath(path.c_str()) != 0) {
                 WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
             }
             break;
@@ -90,23 +90,23 @@ void FreshAccountsPath()
         existUserIds.push_back(std::to_string(info.GetLocalId()));
     }
     std::vector<std::string> existUserDirs;
-    for (const auto& entry : fs::directory_iterator(g_prefixPath)) {
+    for (const auto& entry : fs::directory_iterator(USER_DIR_PREFIX_PATH)) {
         std::string dir = entry.path().filename().string();
         if (IsUserDir(dir)) {
             existUserDirs.push_back(dir);
         }
     }
-    std::vector<std::string> needCreate = Minus<std::string>(existUserIds, existUserDirs);
-    std::vector<std::string> needRemove = Minus<std::string>(existUserDirs, existUserIds);
+    std::vector<std::string> needCreate = HdcCredentialBase::Substract<std::string>(existUserIds, existUserDirs);
+    std::vector<std::string> needRemove = HdcCredentialBase::Substract<std::string>(existUserDirs, existUserIds);
     for (const auto& item : needCreate) {
-        std::string path = g_prefixPath + item;
-        if (!CreatePathWithMode(path.c_str(), g_mode)) {
+        std::string path = USER_DIR_PREFIX_PATH + item;
+        if (!HdcCredentialBase::CreatePathWithMode(path.c_str(), MODE)) {
             WRITE_LOG(LOG_FATAL, "Failed to create directory, error is:%s", strerror(errno));
         }
     }
     for (const auto& item : needRemove) {
-        std::string path = g_prefixPath + item;
-        if (RemovePath(path.c_str()) != 0) {
+        std::string path = USER_DIR_PREFIX_PATH + item;
+        if (HdcCredentialBase::RemovePath(path.c_str()) != 0) {
             WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
         }
     }

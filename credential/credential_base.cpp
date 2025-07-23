@@ -16,6 +16,7 @@
 
 using namespace Hdc;
 
+namespace HdcCredentialBase {
 char GetPathSep()
 {
 #ifdef _WIN32
@@ -134,3 +135,4 @@ bool IsUserDir(const std::string& dir)
     }
     return userId >= MIN_USER_ID && userId <= MAX_USER_ID;
 }
+}   // namespace HdcCredentialBase

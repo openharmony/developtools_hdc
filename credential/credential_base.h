@@ -38,15 +38,16 @@
 #define LOG_TAG "HDC_LOG"
 #endif // HDC_HILOG
 
+namespace HdcCredentialBase {
 // 0x10000000 is 1.0.0a
 constexpr uint32_t CREDENTIAL_VERSION_NUMBER = 0x10000000;
 constexpr size_t SOCKET_CLIENT_NUMS = 1;
 
-static const char*  HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS = "hdc_private_key_file_pwd_key_alias";
+const std::string HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS = "hdc_private_key_file_pwd_key_alias";
 constexpr size_t PASSWORD_LENGTH = 10;
 
 constexpr uint32_t MAX_SIZE_IOBUF_STABLE = 60 * 1024; // 60KB, compatible with previous version
-static const char* HDC_CREDENTIAL_SOCKET_REAL_PATH =
+const std::string HDC_CREDENTIAL_SOCKET_REAL_PATH =
     "/data/service/el1/public/hdc_server/hdc_common/hdc_credential.socket";
 constexpr uint8_t CMD_ARG1_COUNT = 2;
 constexpr int MIN_USER_ID = 100;
@@ -60,9 +61,9 @@ char GetPathSep();
 bool CreatePathWithMode(const char* path, mode_t mode);
 bool IsUserDir(const std::string& dir);
 
-/* calculate the difference of two vector, return the vector of a - b. */
+/* Calculate diff: return elements in vector a but not in vector b */
 template<typename T>
-std::vector<T> Minus(const std::vector<T>& a, const std::vector<T>& b)
+std::vector<T> Substract(const std::vector<T>& a, const std::vector<T>& b)
 {
     std::set<T> aSet(a.begin(), a.end());
     std::set<T> bSet(b.begin(), b.end());
@@ -70,5 +71,6 @@ std::vector<T> Minus(const std::vector<T>& a, const std::vector<T>& b)
     std::set_difference(aSet.begin(), aSet.end(), bSet.begin(), bSet.end(), std::back_inserter(diff));
     return diff;
 }
+} // namespace HdcCredentialBase
 
 #endif // HDC_CREDENTIAL_BASE_H

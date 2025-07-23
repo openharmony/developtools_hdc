@@ -80,9 +80,9 @@ int HdcAccountSubscriberMonitor()
 void FreshAccountsPath()
 {
     std::vector<OHOS::AccountSA::OsAccountInfo> osAccountInfos;
-    OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(osAccountInfos);
+    OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryAllCreatedOsAccounts(osAccountInfos);
     if (err != 0) {
-        WHITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, error is:%d", err);
+        WRITE_LOG(LOG_FATAL, "QueryAllCreatedOsAccounts failed, error is:%d", err);
         return;
     }
     std::vector<std::string> existUserIds;
@@ -92,7 +92,7 @@ void FreshAccountsPath()
     std::vector<std::string> existUserDirs;
     for (const auto& entry : fs::directory_iterator(USER_DIR_PREFIX_PATH)) {
         std::string dir = entry.path().filename().string();
-        if (IsUserDir(dir)) {
+        if (HdcCredentialBase::IsUserDir(dir)) {
             existUserDirs.push_back(dir);
         }
     }

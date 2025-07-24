@@ -90,8 +90,7 @@ class TestFileNoSpaceFdLeak:
         for i in range(1, re_send_time + 1):
             logger.info("send %d times", i)
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                                                             f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}",
-                                                             25)
+                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
             if "Command timed out" in error_str:
                 logger.warning("error_str: %s", error_str)
                 return False
@@ -193,8 +192,7 @@ class TestFileReFullSpaceFdLeak:
         re_send_time = 10
         for i in range(1, re_send_time + 1):
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                                                             f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}",
-                                                             25)
+                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
             logger.info("output:%s,error:%s", output_str, error_str)
             if "Command timed out" in error_str:
                 logger.warning("Command timed out")

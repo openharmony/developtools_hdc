@@ -16,7 +16,8 @@
 
 using namespace Hdc;
 
-char HdcCredentialBase::GetPathSep()
+namespace HdcCredentialBase {
+char GetPathSep()
 {
 #ifdef _WIN32
     const char sep = '\\';
@@ -26,7 +27,7 @@ char HdcCredentialBase::GetPathSep()
     return sep;
 }
 
-int HdcCredentialBase::RemoveDir(const std::string& dir)
+int RemoveDir(const std::string& dir)
 {
     DIR *pdir = opendir(dir.c_str());
     if (pdir == nullptr) {
@@ -39,7 +40,7 @@ int HdcCredentialBase::RemoveDir(const std::string& dir)
         if (ent->d_name[0] == '.') {
             continue;
         }
-        std::string subpath = dir + HdcCredentialBase::GetPathSep() + ent->d_name;
+        std::string subpath = dir + GetPathSep() + ent->d_name;
         if (lstat(subpath.c_str(), &st) == -1) {
             WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", subpath.c_str());
             continue;
@@ -66,7 +67,7 @@ int HdcCredentialBase::RemoveDir(const std::string& dir)
     return 0;
 }
 
-int HdcCredentialBase::RemovePath(const std::string& path)
+int RemovePath(const std::string& path)
 {
     struct stat st;
     if (lstat(path.c_str(), &st) == -1) {
@@ -81,14 +82,15 @@ int HdcCredentialBase::RemovePath(const std::string& path)
         if (path == "." || path == "..") {
             return 0;
         }
-        int rc = HdcCredentialBase::RemoveDir(path);
+        int rc = RemoveDir(path);
         WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
         return rc;
     }
+    WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
     return 0;
 }
 
-const std::string HdcCredentialBase::StringFormat(const char* const formater, ...)
+const std::string StringFormat(const char* const formater, ...)
 {
     va_list vaArgs;
     va_start(vaArgs, formater);
@@ -97,7 +99,7 @@ const std::string HdcCredentialBase::StringFormat(const char* const formater, ..
     return ret;
 }
 
-const std::string HdcCredentialBase::StringFormat(const char* const formater, va_list& vaArgs)
+const std::string StringFormat(const char* const formater, va_list& vaArgs)
 {
     std::vector<char> args(MAX_SIZE_IOBUF_STABLE);
     const int retSize = vsnprintf_s(
@@ -108,3 +110,29 @@ const std::string HdcCredentialBase::StringFormat(const char* const formater, va
         return std::string(args.data(), retSize);
     }
 }
+
+bool CreatePathWithMode(const char* path, mode_t mode)
+{
+    if (::mkdir(path, mode) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));
+        return false;
+    }
+    if (::chmod(path, mode) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
+        return false;
+    }
+    WRITE_LOG(LOG_DEBUG, "Directory created successfully.");
+    return true;
+}
+
+bool IsUserDir(const std::string& dir)
+{
+    int userId;
+    try {
+        userId = std::stoi(dir);
+    } catch (const std::invalid_argument&) {
+        userId = 0;
+    }
+    return userId >= MIN_USER_ID && userId <= MAX_USER_ID;
+}
+}   // namespace HdcCredentialBase

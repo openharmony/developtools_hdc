@@ -286,9 +286,11 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
 
 bool HdcPassword::EncryptPwd(void)
 {
-    std::vector<uint8_t> encryptData;
     ClearEncryptPwd();
-    encryptData = EncryptGetPwdValue(pwd, PASSWORD_LENGTH);
+    std::vector<uint8_t> encryptData = EncryptGetPwdValue(pwd, PASSWORD_LENGTH);
+    if (encryptData.size() == 0) {
+        return false;
+    }
     ByteToHex(encryptData);
     return true;
 }

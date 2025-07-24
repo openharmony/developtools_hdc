@@ -12,36 +12,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "credential_base.h"
 #include "hdc_subscriber.h"
+#include <filesystem>
+#include "credential_base.h"
 
 using namespace Hdc;
 using namespace OHOS::AccountSA;
+namespace fs = std::filesystem;
+
+namespace {
+static const std::string USER_DIR_PREFIX_PATH = "/data/service/el1/public/hdc_server/";
+static const mode_t MODE = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
+}
 
 void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data)
 {
     WRITE_LOG(LOG_INFO, "Recv data.state:%d, data.toId:%d", data.state, data.toId);
-    std::string strId = std::to_string(data.toId);
-    std::string path = std::string("/data/service/el1/public/hdc_server/") +
-        strId;
-    mode_t mode = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
-
+    std::string path = USER_DIR_PREFIX_PATH + std::to_string(data.toId);
     switch (data.state) {
         case OsAccountState::CREATED:
-            if (::mkdir(path.c_str(), mode) != 0) {
-                WRITE_LOG(LOG_FATAL, "Failed to create directory ,error is :%s", strerror(errno));
-                break;
+            if (HdcCredentialBase::CreatePathWithMode(path.c_str(), MODE) != 0) {
+                WRITE_LOG(LOG_FATAL, "Failed to create directory, error is:%s", strerror(errno));
             }
-            if (::chmod(path.c_str(), mode) != 0) {
-                WRITE_LOG(LOG_FATAL, "Failed to set directory permissions, error is :%s", strerror(errno));
-                break;
-            }
-            WRITE_LOG(LOG_DEBUG, "Directory created successfully.");
             break;
         case OsAccountState::REMOVED:
-            if (HdcCredentialBase::RemovePath(path.c_str()) == 0) {
-                WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");
-            } else {
+            if (HdcCredentialBase::RemovePath(path.c_str()) != 0) {
                 WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
             }
             break;
@@ -49,7 +44,6 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
             WRITE_LOG(LOG_FATAL, "This state is not support,state is:%d", data.state);
             break;
     }
-    return;
 }
 
 void HdcSubscriber::OnAccountsChanged(const int& id)
@@ -81,4 +75,39 @@ int HdcAccountSubscriberMonitor()
     }
 
     return 0;
+}
+
+void FreshAccountsPath()
+{
+    std::vector<OHOS::AccountSA::OsAccountInfo> osAccountInfos;
+    OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryAllCreatedOsAccounts(osAccountInfos);
+    if (err != 0) {
+        WRITE_LOG(LOG_FATAL, "QueryAllCreatedOsAccounts failed, error is:%d", err);
+        return;
+    }
+    std::vector<std::string> existUserIds;
+    for (const auto& info : osAccountInfos) {
+        existUserIds.push_back(std::to_string(info.GetLocalId()));
+    }
+    std::vector<std::string> existUserDirs;
+    for (const auto& entry : fs::directory_iterator(USER_DIR_PREFIX_PATH)) {
+        std::string dir = entry.path().filename().string();
+        if (HdcCredentialBase::IsUserDir(dir)) {
+            existUserDirs.push_back(dir);
+        }
+    }
+    std::vector<std::string> needCreate = HdcCredentialBase::Substract<std::string>(existUserIds, existUserDirs);
+    std::vector<std::string> needRemove = HdcCredentialBase::Substract<std::string>(existUserDirs, existUserIds);
+    for (const auto& item : needCreate) {
+        std::string path = USER_DIR_PREFIX_PATH + item;
+        if (!HdcCredentialBase::CreatePathWithMode(path.c_str(), MODE)) {
+            WRITE_LOG(LOG_FATAL, "Failed to create directory, error is:%s", strerror(errno));
+        }
+    }
+    for (const auto& item : needRemove) {
+        std::string path = USER_DIR_PREFIX_PATH + item;
+        if (HdcCredentialBase::RemovePath(path.c_str()) != 0) {
+            WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
+        }
+    }
 }

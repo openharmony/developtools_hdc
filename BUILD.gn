@@ -403,10 +403,8 @@ ohos_executable("hdc") {
     "openssl:libssl_static",
   ]
 
+  defines += [ "IS_RELEASE_VERSION" ]
   if (is_ohos) {
-    if (build_variant == "user") {
-      defines += [ "IS_RELEASE_VERSION" ]
-    }
     sources += [ "src/common/credential_message.cpp" ]
     sources += [ "src/common/hdc_huks.cpp" ]
     sources += [ "src/common/password.cpp" ]

@@ -411,12 +411,6 @@ ohos_executable("hdc") {
     defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
     defines += [ "HOST_OHOS" ]
     external_deps += [ "huks:libhukssdk" ]
-    if (product_name != "ohos-sdk") {
-      external_deps += [
-        "os_account:account_iam_innerkits",
-        "os_account:os_account_innerkits",
-      ]
-    }
   }
 
   deps = [ ":hdc_hash_gen" ]

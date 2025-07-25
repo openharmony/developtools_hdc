@@ -12,12 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifdef __OHOS__
+#include "common_test.h"
 #include <sys/xattr.h>
 #include <sys/wait.h>
-#endif
 #include "base.h"
-#include "main_test.h"
 
 using namespace testing::ext;
 

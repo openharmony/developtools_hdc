@@ -252,6 +252,7 @@ template("build_hdc") {
   if (image_name == "system") {
     if (product_name != "ohos-sdk" || is_emulator) {
       ohos_executable("hdcd_${image_name}_exe") {
+        branch_protector_ret = "pac_ret"
         sanitize = {
           cfi = true
           cfi_cross_dso = true
@@ -313,6 +314,7 @@ template("build_hdc") {
     }
   } else {
     ohos_executable("hdcd_${image_name}_exe") {
+      branch_protector_ret = "pac_ret"
       sanitize = {
         cfi = true
         cfi_cross_dso = true
@@ -402,18 +404,13 @@ ohos_executable("hdc") {
   ]
 
   if (is_ohos) {
+    defines += [ "IS_RELEASE_VERSION" ]
     sources += [ "src/common/credential_message.cpp" ]
     sources += [ "src/common/hdc_huks.cpp" ]
     sources += [ "src/common/password.cpp" ]
     defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
     defines += [ "HOST_OHOS" ]
     external_deps += [ "huks:libhukssdk" ]
-    if (product_name != "ohos-sdk") {
-      external_deps += [
-        "os_account:account_iam_innerkits",
-        "os_account:os_account_innerkits",
-      ]
-    }
   }
 
   deps = [ ":hdc_hash_gen" ]

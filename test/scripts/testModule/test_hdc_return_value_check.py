@@ -18,7 +18,7 @@ import time
 import pytest
 
 from utils import GP, get_shell_result, get_cmd_block_output, get_end_symbol, \
-    run_command_with_timeout, check_shell, get_remote_path, get_local_path
+    run_command_with_timeout, check_shell, get_remote_path, get_local_path, load_gp
 
 logger = logging.getLogger(__name__)
 

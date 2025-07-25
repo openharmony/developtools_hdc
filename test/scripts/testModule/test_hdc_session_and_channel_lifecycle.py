@@ -19,7 +19,7 @@ import multiprocessing
 import pytest
 import tempfile
 
-from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_shell_result, get_end_symbol
+from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_shell_result, get_end_symbol, load_gp
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,12 @@ class TestSessionLifeCycle:
         check_shell(f"shell reboot")
         time.sleep(5)
         check_shell(f"kill")
+        is_ohos = check_shell("uname", "HarmonyOS")
         # 检查serverOutput是否包含上述字符串
-        tmp_path = tempfile.gettempdir()
+        if not is_ohos:
+            tmp_path = tempfile.gettempdir()
+        else:
+            tmp_path = os.path.expanduser("~")
         hdc_log_path = f"{tmp_path}{os.sep}hdc.log"
         with open(hdc_log_path, 'r') as file:
             for line in file.readlines():
@@ -113,8 +117,12 @@ class TestSessionLifeCycle:
                                "Remove forward ruler success")
         time.sleep(5)
         check_shell(f"kill")
+        is_ohos = check_shell("uname", "HarmonyOS")
         # 检查serverOutput是否包含上述字符串
-        tmp_path = tempfile.gettempdir()
+        if not is_ohos:
+            tmp_path = tempfile.gettempdir()
+        else:
+            tmp_path = os.path.expanduser("~")
         hdc_log_path = f"{tmp_path}{os.sep}hdc.log"
         with open(hdc_log_path, 'r') as file:
             for line in file.readlines():

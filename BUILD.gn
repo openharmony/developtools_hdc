@@ -65,7 +65,10 @@ config("hdc_config") {
     "src/common",
     "${py_out_dir}",
   ]
-  cflags_cc = [ "-std=c++17" ]
+  cflags_cc = [
+    "-std=c++17",
+    "-D_FORTIFY_SOURCE=2",
+  ]
   if (is_mingw) {
     cflags_cc += [ "-Wno-inconsistent-dllimport" ]  # in mingw some sec api will
                                                     # overwrite by utilsecurec
@@ -252,6 +255,7 @@ template("build_hdc") {
   if (image_name == "system") {
     if (product_name != "ohos-sdk" || is_emulator) {
       ohos_executable("hdcd_${image_name}_exe") {
+        branch_protector_ret = "pac_ret"
         sanitize = {
           cfi = true
           cfi_cross_dso = true
@@ -313,6 +317,7 @@ template("build_hdc") {
     }
   } else {
     ohos_executable("hdcd_${image_name}_exe") {
+      branch_protector_ret = "pac_ret"
       sanitize = {
         cfi = true
         cfi_cross_dso = true
@@ -402,6 +407,9 @@ ohos_executable("hdc") {
   ]
 
   if (is_ohos) {
+    if (build_variant == "user") {
+      defines += [ "IS_RELEASE_VERSION" ]
+    }
     sources += [ "src/common/credential_message.cpp" ]
     sources += [ "src/common/hdc_huks.cpp" ]
     sources += [ "src/common/password.cpp" ]

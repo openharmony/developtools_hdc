@@ -65,10 +65,7 @@ config("hdc_config") {
     "src/common",
     "${py_out_dir}",
   ]
-  cflags_cc = [
-    "-std=c++17",
-    "-D_FORTIFY_SOURCE=2",
-  ]
+  cflags_cc = [ "-std=c++17" ]
   if (is_mingw) {
     cflags_cc += [ "-Wno-inconsistent-dllimport" ]  # in mingw some sec api will
                                                     # overwrite by utilsecurec

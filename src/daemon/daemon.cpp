@@ -115,6 +115,10 @@ bool HdcDaemon::GetAuthByPassValue()
 {
     // enable security
     string secure;
+#ifdef CONFIG_HDC_OSPM_AUTH_DISABLE
+    WRITE_LOG(LOG_INFO, "Get param secure failed caused by hdc ospm auth disable");
+    return false;
+#endif
     if (!SystemDepend::GetDevItem("const.hdc.secure", secure)) {
         WRITE_LOG(LOG_INFO, "Get param secure failed");
         return true;

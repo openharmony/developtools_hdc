@@ -21,6 +21,7 @@ declare_args() {
   # suggestion: uv threads number from 16 - 256
   hdcd_uv_thread_size = 4
   hdc_uv_thread_size = 128
+  hdc_ospm_auth_disable = false
 }
 
 hdc_common_sources = [
@@ -69,6 +70,9 @@ config("hdc_config") {
   if (is_mingw) {
     cflags_cc += [ "-Wno-inconsistent-dllimport" ]  # in mingw some sec api will
                                                     # overwrite by utilsecurec
+  }
+  if (hdc_ospm_auth_disable) {
+    cflags_cc += [ "-DCONFIG_HDC_OSPM_AUTH_DISABLE" ]
   }
 }
 

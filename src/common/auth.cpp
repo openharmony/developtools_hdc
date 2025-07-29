@@ -1073,7 +1073,7 @@ bool CheckPrivateKeyFile()
         return false;
     }
 
-    int ret = IsEncryptedPEM(prikeyFileName); 
+    int ret = IsEncryptedPEM(prikeyFileName);
     if (ret == 0) {
         EVP_PKEY* evp = nullptr;
         evp = GenerateNewKey();
@@ -1090,7 +1090,7 @@ bool CheckPrivateKeyFile()
         WRITE_LOG(LOG_FATAL, "check private key file failed");
         return false;
     }
-    return true; 
+    return true;
 }
 #endif // HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
 

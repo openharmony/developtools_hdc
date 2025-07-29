@@ -92,7 +92,7 @@ bool HdcServer::Initial(const char *listenString)
     }
     Base::RemoveLogFile();
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
-    if (!Base::CheckPrivateKeyFile()) {
+    if (!HdcAuth::CheckPrivateKeyFile()) {
         WRITE_LOG(LOG_FATAL, "Private key file not found, please check your installation.");
         return false;
     }

@@ -1033,7 +1033,7 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
 }
 
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
-int IsEncryptedPEM(const string& prikeyFileName)
+int IsEncryptedPEM(const std::string& prikeyFileName)
 {
     if (prikeyFileName.empty()) {
         WRITE_LOG(LOG_FATAL, "private key file name is empty");
@@ -1042,15 +1042,15 @@ int IsEncryptedPEM(const string& prikeyFileName)
 
     FILE* filePrikey = Base::Fopen(prikeyFileName.c_str(), "r");
     if (filePrikey == nullptr) {
-            WRITE_LOG(LOG_FATAL, "open private key file failed!error code: %d", strerror(errno));
-            return -1;
-        }
+        WRITE_LOG(LOG_FATAL, "open private key file failed!error code: %d", strerror(errno));
+        return -1;
     }
 
     char buf[BUF_SIZE_SMALL] = {0};
     int ret = 1;
     if (fgets(buf, sizeof(buf), filePrikey) != nullptr) {
-        if (strncmp(buf, HDC_PRIVATE_KEY_FILE_FIRST_LINE.c_str(), HDC_PRIVATE_KEY_FILE_FIRST_LINE.size()) == 0) {
+        if (strncmp(buf, HDC_PRIVATE_KEY_FILE_FIRST_LINE_STR.c_str(),
+            HDC_PRIVATE_KEY_FILE_FIRST_LINE_STR.size())  == 0) {
             WRITE_LOG(LOG_INFO, "private key is not encrypted, Re encrypt!");
             ret = 0; // not encrypted
         } else {
@@ -1067,7 +1067,7 @@ int IsEncryptedPEM(const string& prikeyFileName)
 }
 bool CheckPrivateKeyFile()
 {
-    string prikeyFileName;
+    std::string prikeyFileName;
     if (!GetUserKeyPath(prikeyFileName)) {
         WRITE_LOG(LOG_FATAL, "get key path failed");
         return false;

@@ -1043,7 +1043,7 @@ int IsEncryptedPEM(const std::string& prikeyFileName)
     FILE* filePrikey = Base::Fopen(prikeyFileName.c_str(), "r");
     if (filePrikey == nullptr) {
         WRITE_LOG(LOG_FATAL, "open private key file failed!error code: %d", strerror(errno));
-        return -1;
+        return 1; // file not exist or open failed
     }
 
     char buf[BUF_SIZE_SMALL] = {0};

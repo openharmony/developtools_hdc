@@ -1075,8 +1075,7 @@ bool CheckPrivateKeyFile()
 
     int ret = IsEncryptedPEM(prikeyFileName);
     if (ret == 0) {
-        EVP_PKEY* evp = nullptr;
-        evp = GenerateNewKey();
+        EVP_PKEY* evp = GenerateNewKey();
         if (evp == nullptr) {
             WRITE_LOG(LOG_FATAL, "generate new key failed");
             return false;

@@ -35,19 +35,14 @@ void HdcHostUdsServerTest::TearDown() {}
 
 HWTEST_F(HdcHostUdsServerTest, Test_AcceptUdsClient, TestSize.Level0)
 {
-    printf("0000\n");
 #ifdef __OHOS__
-    printf("1111");
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
-    printf("222");
     HdcServerForClient *cls = new HdcServerForClient(true, std::string("uds"), nullptr, &loopMain);
-    printf("333");
-    uv_pipe_t udsListen;
-    udsListen.data = cls;
-    printf("4444");
-    HdcServerForClient::AcceptUdsClient((uv_stream_t *)&udsListen, 0);
-    printf("55555");
+    EXPECT_TRUE(!cls->SetUdsListen()); // uv_pipe_bind失败
+    sleep(1);
+    HdcServerForClient::AcceptUdsClient((uv_stream_t *)&cls->udsListen, 0); // 添加channel成功，uv_accept失败 -》 FreeChannel没有真正释放channel
+    EXPECT_TRUE(cls->mapChannel.size() == 1);
 
     delete cls;
 #endif

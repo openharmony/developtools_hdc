@@ -20,8 +20,6 @@
 #include "define_enum.h"
 #endif
 
-#include <stdio.h>
-
 using namespace testing::ext;
 
 namespace Hdc {

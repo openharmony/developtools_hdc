@@ -12,18 +12,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef HDC_MAIN_TEST_H
-#define HDC_MAIN_TEST_H
+#ifndef HDC_CREDENTIAL_BASE_TEST_H
+#define HDC_CREDENTIAL_BASE_TEST_H
 #include <gtest/gtest.h>
-namespace Hdc {
-class HdcMainTest : public ::testing::Test {
+namespace HdcCredentialBase {
+class HdcCredentialBaseTest : public testing::Test {
 public:
     static void SetUpTestCase();
     static void TearDownTestCase();
     void SetUp();
     void TearDown();
 
-    bool TestIsHishellLabel(pid_t pid);
+private:
+    mode_t MODE = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 };
-}   // namespace Hdc
-#endif  // HDC_MAIN_TEST_H
+}   // namespace HdcCredentialBase
+#endif  // HDC_CREDENTIAL_BASE_TEST_H

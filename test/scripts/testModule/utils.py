@@ -1067,7 +1067,11 @@ def get_end_symbol():
 
 
 def get_server_pid_from_file():
-    tmp_dir_path = tempfile.gettempdir()
+    is_ohos = check_shell("uname", "Harmony")
+    if not is_ohos:
+        tmp_dir_path = tempfile.gettempdir()
+    else:
+        tmp_dir_path = os.path.expanduser("~")
     pid_file = os.path.join(tmp_dir_path, ".HDCServer.pid")
     with open(pid_file, "r") as f:
         pid = f.read()

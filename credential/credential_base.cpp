@@ -31,7 +31,7 @@ int RemoveDir(const std::string& dir)
 {
     DIR *pdir = opendir(dir.c_str());
     if (pdir == nullptr) {
-        WRITE_LOG(LOG_FATAL, "opendir failed dir:%s", dir.c_str());
+        WRITE_LOG(LOG_FATAL, "opendir failed, error is:%s", strerror(errno));
         return -1;
     }
     struct dirent *ent;
@@ -42,7 +42,7 @@ int RemoveDir(const std::string& dir)
         }
         std::string subpath = dir + GetPathSep() + ent->d_name;
         if (lstat(subpath.c_str(), &st) == -1) {
-            WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", subpath.c_str());
+            WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", ent->d_name);
             continue;
         }
         if (S_ISDIR(st.st_mode)) {
@@ -56,7 +56,7 @@ int RemoveDir(const std::string& dir)
                 WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
             }
         } else {
-            WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o subpath:%s", st.st_mode, subpath.c_str());
+            WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o", st.st_mode);
         }
     }
     if (rmdir(dir.c_str()) == -1) {
@@ -71,7 +71,7 @@ int RemovePath(const std::string& path)
 {
     struct stat st;
     if (lstat(path.c_str(), &st) == -1) {
-        WRITE_LOG(LOG_WARN, "lstat failed path:%s", path.c_str());
+        WRITE_LOG(LOG_WARN, "lstat failed path:%s", strerror(errno));
         return -1;
     }
     if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
@@ -83,7 +83,6 @@ int RemovePath(const std::string& path)
             return 0;
         }
         int rc = RemoveDir(path);
-        WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
         return rc;
     }
     WRITE_LOG(LOG_DEBUG, "Directory removed successfully.");

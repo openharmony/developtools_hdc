@@ -91,6 +91,12 @@ bool HdcServer::Initial(const char *listenString)
         return false;
     }
     Base::RemoveLogFile();
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    if (!HdcAuth::CheckPrivateKeyFile()) {
+        WRITE_LOG(LOG_FATAL, "Private key file not found, please check your installation.");
+        return false;
+    }
+#endif
     do {
         clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
         int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();

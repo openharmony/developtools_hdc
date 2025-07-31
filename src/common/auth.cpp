@@ -1032,6 +1032,67 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
     return outLen;
 }
 
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+int IsEncryptedPEM(const std::string& prikeyFileName)
+{
+    if (prikeyFileName.empty()) {
+        WRITE_LOG(LOG_FATAL, "private key file name is empty");
+        return -1;
+    }
+
+    FILE* filePrikey = Base::Fopen(prikeyFileName.c_str(), "r");
+    if (filePrikey == nullptr) {
+        WRITE_LOG(LOG_FATAL, "open private key file failed!error code: %d", strerror(errno));
+        return 1; // file not exist or open failed
+    }
+
+    char buf[BUF_SIZE_SMALL] = {0};
+    int ret = 1;
+    if (fgets(buf, sizeof(buf), filePrikey) != nullptr) {
+        if (strncmp(buf, HDC_PRIVATE_KEY_FILE_FIRST_LINE_STR.c_str(),
+            HDC_PRIVATE_KEY_FILE_FIRST_LINE_STR.size())  == 0) {
+            WRITE_LOG(LOG_INFO, "private key is not encrypted, Re encrypt!");
+            ret = 0; // not encrypted
+        } else {
+            WRITE_LOG(LOG_INFO, "private key is encrypted, not re encrypt!");
+            ret = 1; // encrypted
+        }
+    }
+    
+    if (fclose(filePrikey) != 0) {
+        WRITE_LOG(LOG_FATAL, "fclose error:%d", strerror(errno));
+        return -1;
+    }
+    return ret;
+}
+bool CheckPrivateKeyFile()
+{
+    std::string prikeyFileName;
+    if (!GetUserKeyPath(prikeyFileName)) {
+        WRITE_LOG(LOG_FATAL, "get key path failed");
+        return false;
+    }
+
+    int ret = IsEncryptedPEM(prikeyFileName);
+    if (ret == 0) {
+        EVP_PKEY* evp = GenerateNewKey();
+        if (evp == nullptr) {
+            WRITE_LOG(LOG_FATAL, "generate new key failed");
+            return false;
+        }
+        if (!WritePrivateFile(prikeyFileName, evp)) {
+            WRITE_LOG(LOG_FATAL, "write private key failed");
+            EVP_PKEY_free(evp);
+            return false;
+        }
+    } else if (ret < 0) {
+        WRITE_LOG(LOG_FATAL, "check private key file failed");
+        return false;
+    }
+    return true;
+}
+#endif // HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+
 #else // DAEMON
 int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize, const string& pubkey)
 {

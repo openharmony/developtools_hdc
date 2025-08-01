@@ -501,6 +501,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             WRITE_LOG(LOG_INFO, "response auth signture success");
             return true;
         }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
         case AUTH_SSL_TLS_PSK: {
             if (hSession->classSSL == nullptr && !ServerSessionSSLInit(hSession, handshake)) {
                 WRITE_LOG(LOG_FATAL, "SSL init failed");
@@ -508,6 +509,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             }
             return ServerSSLHandshake(hSession, handshake);
         }
+#endif
         default:
             WRITE_LOG(LOG_FATAL, "invalid auth type %d", handshake.authType);
             return false;

@@ -560,7 +560,9 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
         }
     }
     hdiNew->version = handshake.version;
-    AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
+    if (hdiNew->hSession != nullptr) {
+        AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
+    }
 }
 
 #ifdef HDC_SUPPORT_ENCRYPT_TCP

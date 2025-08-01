@@ -116,7 +116,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");
@@ -145,7 +145,7 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");

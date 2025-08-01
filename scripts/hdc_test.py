@@ -39,7 +39,7 @@ TEST_FILE_PATH = "{}{}".format(os.path.abspath("D:/Download/sdk/"), '\\')
 
 HAP_ONE = {
     'HAP_NAME': "entry-default-signed-debug.hap",
-    'PACKAGE_NAME': "com.hmos.diagnosis",
+    'PACKAGE_NAME': "diagnosis",
 }
 
 TCP_CONN = {

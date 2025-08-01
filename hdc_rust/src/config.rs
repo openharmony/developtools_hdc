@@ -271,7 +271,7 @@ pub enum MessageLevel {
     Ok,
 }
 
-pub const PACKET_FLAG: &[u8] = "HW".as_bytes();
+pub const PACKET_FLAG: &[u8] = "HW".as_bytes(); // Must be 2 bytes, representing the abbreviation for hdc work
 pub const VER_PROTOCOL: u16 = 1;
 pub const ENABLE_IO_CHECK: bool = false;
 pub const PAYLOAD_VCODE: u8 = 0x09;

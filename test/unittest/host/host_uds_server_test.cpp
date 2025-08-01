@@ -18,7 +18,10 @@
 #include "uv.h"
 #include <securec.h>
 #include "define_enum.h"
+#include "server.h"
 #endif
+
+#include <stdio.h>
 
 using namespace testing::ext;
 
@@ -39,10 +42,27 @@ HWTEST_F(HdcHostUdsServerTest, Test_AcceptUdsClient, TestSize.Level0)
     HdcServerForClient *cls = new HdcServerForClient(true, std::string("uds"), nullptr, &loopMain);
     EXPECT_TRUE(!cls->SetUdsListen()); // uv_pipe_bind失败
     sleep(1);
-    HdcServerForClient::AcceptUdsClient((uv_stream_t *)&cls->udsListen, 0);
+    HdcServerForClient::AcceptUdsClient((uv_stream_t *)&cls->udsListen, 0); // 添加channel成功，uv_accept失败 -》 FreeChannel没有真正释放channel
     EXPECT_TRUE(cls->mapChannel.size() == 1);
 
     delete cls;
+#endif
+}
+
+HWTEST_F(HdcHostUdsServerTest, Test_AttachChannelInnerForUds, TestSize.Level0)
+{
+#ifdef __OHOS__
+    uv_loop_t loopMain;
+    uv_loop_init(&loopMain);
+
+    HdcServer server(true);
+    HdcServerForClient *clsServerForClient = new HdcServerForClient(true, "uds", &server, &loopMain);
+    server.clsServerForClient = clsServerForClient;
+    HSession hSession = server.MallocSession(true, CONN_USB, nullptr);
+    HChannel hChannel = new HdcChannel();
+    clsServerForClient->AdminChannel(OP_ADD, hChannel->channelId, hChannel);
+    server.AttachChannelInnerForUds(hSession, hChannel->channelId);
+    EXPECT_TRUE(hChannel->targetSessionId == hSession->sessionId);
 #endif
 }
 

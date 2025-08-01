@@ -40,9 +40,9 @@ HWTEST_F(HdcHostUdsServerTest, Test_AcceptUdsClient, TestSize.Level0)
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
     HdcServerForClient *cls = new HdcServerForClient(true, std::string("uds"), nullptr, &loopMain);
-    EXPECT_TRUE(!cls->SetUdsListen()); // uv_pipe_bind失败
+    EXPECT_TRUE(!cls->SetUdsListen());
     sleep(1);
-    HdcServerForClient::AcceptUdsClient((uv_stream_t *)&cls->udsListen, 0); // 添加channel成功，uv_accept失败 -》 FreeChannel没有真正释放channel
+    HdcServerForClient::AcceptUdsClient((uv_stream_t *)&cls->udsListen, 0);
     EXPECT_TRUE(cls->mapChannel.size() == 1);
 
     delete cls;

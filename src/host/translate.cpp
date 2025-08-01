@@ -126,7 +126,7 @@ namespace TranslateCommand {
 #endif
             " start [-r]                            - Start server. If with '-r', will be restart server\n"
             " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
-            " -s [ip:]port                          - Set hdc server listen config\n"
+            " -s [ip:]port | uds                    - Set hdc server listen config\n"
             " -m                                    - Start server at foreground\n"
             " -p                                    - Skip the server startup, run in single client mode\n"
             "\n"
@@ -197,7 +197,7 @@ namespace TranslateCommand {
             " format [-f] partition                 - Format partition\n"
             "---------------------------------external commands:------------------------------------\n"
             "extconn key                            - Connect external device via key, TCP use ip:port(remian)\n"
-            "-S [ip:]port                           - Set hdc external server listen config\n"
+            "-S [ip:]port | uds                     - Set hdc external server listen config\n"
             "\n"
             "---------------------------------environment variables:-----------------------------\n"
 #ifdef _WIN32

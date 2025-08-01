@@ -325,6 +325,8 @@ ohos_unittest("hdc_host_base_unittest") {
     "${hdc_path}/src/host/host_tcp.cpp",
     "${hdc_path}/src/host/host_uart.cpp",
     "${hdc_path}/src/host/host_usb.cpp",
+    "${hdc_path}/src/host/host_forward.cpp",
+    "${hdc_path}/src/host/host_unity.cpp",
     "${hdc_path}/src/host/host_updater.cpp",
     "${hdc_path}/src/host/host_shell_option.cpp",
     "${hdc_path}/src/host/translate.cpp",

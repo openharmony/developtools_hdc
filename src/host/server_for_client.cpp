@@ -385,6 +385,7 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
         di.connectKey = lst.front();
         di.connType = CONN_TCP;
         di.connStatus = STATUS_READY;
+        di.inited = false;
         HDaemonInfo pDi = reinterpret_cast<HDaemonInfo>(&di);
         ptrServer->AdminDaemonMap(OP_ADD, STRING_EMPTY, pDi);
         lst.pop_front();
@@ -452,6 +453,9 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_ALL, "%s %s", __FUNCTION__, Hdc::MaskString(connectKey).c_str());
 #endif
+    HdcServer* serverPtr = reinterpret_cast<HdcServer*>(ptrServer);
+    std::mutex& mutex = serverPtr->g_connectKeyMutexes[connectKey];
+    std::lock_guard<std::mutex> lock(mutex);
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
     int connectError = -2;

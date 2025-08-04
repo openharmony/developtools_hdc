@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from utils import GP, check_shell_any_device, check_hdc_cmd, get_shell_result, load_gp, get_local_path, get_local_md5
+from utils import GP, check_shell_any_device, check_hdc_cmd, get_shell_result, load_gp, get_local_path, \
+    get_local_md5, check_unsupport_systems
 from utils import server_loop
 from utils import client_get_file
 import threading
@@ -22,6 +23,7 @@ import os
 
 class TestXportCommand:
     @pytest.mark.L0
+    @check_unsupport_systems(["Harmony"])
     def test_fport_cmd_output(self):
         local_port = 18070
         remote_port = 11080
@@ -47,6 +49,7 @@ class TestXportCommand:
         assert check_hdc_cmd(f"fport rm {rport_arg}", "success")
 
     @pytest.mark.L0
+    @check_unsupport_systems(["Harmony"])
     def test_xport_data_comm(self):
         """
         test fport rport data communicate.

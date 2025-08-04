@@ -19,7 +19,7 @@ import logging
 import threading
 import pytest
 
-from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result
+from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result, load_gp
 from enum import Enum
 
 

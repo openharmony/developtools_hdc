@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "common_test.h"
+#include <limits>
 #include <sys/xattr.h>
 #include <sys/wait.h>
 #include "base.h"
@@ -45,7 +46,7 @@ bool HdcMainTest::TestIsHishellLabel(pid_t pid)
     const char* attrName = "security.selinux";
     // get attribute size
     ssize_t attrSize = getxattr(pathBuf, attrName, nullptr, 0);
-    if (attrSize == 0 || attrSize == - 1) {
+    if (attrSize <= 0 || attrSize >= std::numeric_limits<size_t>::max()) {
         return false;
     }
     char *attrValue = new(std::nothrow) char[attrSize];

@@ -1083,6 +1083,21 @@ def get_server_pid_from_file():
     return pid
 
 
+def check_unsupport_systems(systems):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            cur_sys = subprocess.getoutput("uname -a")
+            for system in systems:
+                if system in cur_sys:
+                    print("system not support, ignore this case")
+                    pytest.skip("System not support, test skipped.")
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+@check_unsupport_systems(["Harmony"])
 def get_cmd_block_output(command, timeout=600):
     # 启动子进程
     process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

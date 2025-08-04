@@ -100,7 +100,7 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
     std::string result;
     result.reserve(totalLength);
     result.push_back('0' + METHOD_VERSION_V1);
-    result.append(messageMethodTypeStr); 
+    result.append(messageMethodTypeStr);
     result.append(messageBodyLen);
     result.append(str);
     if (result.size() != totalLength) {

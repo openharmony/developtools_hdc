@@ -126,7 +126,11 @@ namespace TranslateCommand {
 #endif
             " start [-r]                            - Start server. If with '-r', will be restart server\n"
             " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
+#ifdef __OHOS__
+            " -s [ip:]port | uds                    - Set hdc server listen config\n"
+#else
             " -s [ip:]port                          - Set hdc server listen config\n"
+#endif
             " -m                                    - Start server at foreground\n"
             " -p                                    - Skip the server startup, run in single client mode\n"
             "\n"

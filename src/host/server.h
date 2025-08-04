@@ -55,7 +55,6 @@ public:
     void *clsServerForClient;
     std::atomic<uint32_t> lastErrorNum;
     void PrintCmdLogEx(const string &cmdStr);
-    std::map<std::string, std::mutex> g_connectKeyMutexes;
     
 private:
     void ClearInstanceResource() override;

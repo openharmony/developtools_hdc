@@ -101,7 +101,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             bFinish = true;
             break;
         }
-#ifndef HDC_HOST
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
         int rc = epoll_wait(epfd, events, epollSize, SECONDS_TIMEOUT * TIME_BASE);
 #else
         struct timeval timeout;

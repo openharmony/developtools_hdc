@@ -19,8 +19,10 @@ group("daemon_etc") {
     ":hdc.para",
     ":hdc.para.dac",
     ":hdcd.cfg",
-    ":hdc_credential.cfg",
   ]
+  if (hdc_feature_support_credential) {
+    deps += [ ":hdc_credential.cfg", ]
+  }
 }
 
 ohos_prebuilt_etc("hdc_credential.cfg") {

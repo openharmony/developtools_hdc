@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 #include "file_descriptor.h"
-#ifndef HDC_HOST
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
 #include <sys/epoll.h>
 #endif
 

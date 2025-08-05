@@ -125,7 +125,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
             continue;
         }
         nBytes = 0;
-#ifndef HDC_HOST
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
         uint32_t event = events[0].events;
         if ((event & EPOLLIN) && (thisClass->fdIO > 0)) {
             nBytes = read(thisClass->fdIO, buf, bufSize);
@@ -180,7 +180,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
         }
 #endif
     }
-#ifndef HDC_HOST
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
     if ((thisClass->fdIO > 0) && (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1)) {
         WRITE_LOG(LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epfd:%d errno:%d",
             thisClass->fdIO, epfd, errno);

@@ -80,7 +80,7 @@ void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
     bool bFinish = false;
     bool fetalFinish = false;
     ssize_t nBytes;
-#ifndef HDC_HOST
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
     constexpr int epollSize = 1;
     int epfd = epoll_create(epollSize);
     struct epoll_event ev;

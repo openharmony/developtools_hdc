@@ -16,6 +16,7 @@ import os
 import time
 import logging
 import multiprocessing
+import platform
 import pytest
 import tempfile
 
@@ -61,7 +62,7 @@ class TestSessionLifeCycle:
         check_shell(f"shell reboot")
         time.sleep(5)
         check_shell(f"kill")
-        is_ohos = check_shell("uname", "Harmony")
+        is_ohos = "Harmony" in platform.system()
         # 检查serverOutput是否包含上述字符串
         if not is_ohos:
             tmp_path = tempfile.gettempdir()
@@ -117,7 +118,7 @@ class TestSessionLifeCycle:
                                "Remove forward ruler success")
         time.sleep(5)
         check_shell(f"kill")
-        is_ohos = check_shell("uname", "Harmony")
+        is_ohos = "Harmony" in platform.system()
         # 检查serverOutput是否包含上述字符串
         if not is_ohos:
             tmp_path = tempfile.gettempdir()

@@ -102,15 +102,18 @@ std::string CredentialMessage::Construct() const
         return "";
     }
     
-    std::vector<char> newBuffer(totalLength + 1, '\0');
-    int resLen = snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s",
-        ('0' + messageVersion), messageMethodTypeStr.c_str(), messageBodyLenStr.c_str(), messageBody.c_str());
-    if (resLen < 0) {
-        WRITE_LOG(LOG_FATAL, "Construct Error!, resLen is:%d", resLen);
+    std::string result;
+    result.reserve(totalLength);
+    result.push_back('0' + messageVersion);
+    result.append(messageMethodTypeStr);
+    result.append(messageBodyLenStr);
+    result.append(messageBody);
+
+    if (result.size() != totalLength) {
+        WRITE_LOG(LOG_FATAL, "size mismatch. Expected: %zu, Actual: %zu", totalLength, result.size());
         return "";
     }
 
-    std::string result(newBuffer.data(), totalLength);
     return result;
 }
 

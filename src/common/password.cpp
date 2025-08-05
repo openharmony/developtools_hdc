@@ -82,7 +82,7 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
     }
     const size_t bodyLen = str.size();
     size_t totalLength = MESSAGE_METHOD_POS + MESSAGE_METHOD_LEN +
-                         MESSAGE_LENGTH_LEN + bodyLen + 1;
+                         MESSAGE_LENGTH_LEN + bodyLen;
 
     std::string messageMethodTypeStr = IntToStringWithPadding(type, MESSAGE_METHOD_LEN);
     if (messageMethodTypeStr.length() != MESSAGE_METHOD_LEN) {
@@ -97,15 +97,16 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
         return "";
     }
 
-    std::vector<char> newBuffer(totalLength + 1, '\0');
-    if (snprintf_s(newBuffer.data(), newBuffer.size(), newBuffer.size() - 1, "%c%s%s%s", ('0' + METHOD_VERSION_V1),
-        messageMethodTypeStr.c_str(), messageBodyLen.c_str(), str.data())
-        < 0) {
-        WRITE_LOG(LOG_FATAL, "SplicMessage Error!");
+    std::string result;
+    result.reserve(totalLength);
+    result.push_back('0' + METHOD_VERSION_V1);
+    result.append(messageMethodTypeStr);
+    result.append(messageBodyLen);
+    result.append(str);
+    if (result.size() != totalLength) {
+        WRITE_LOG(LOG_FATAL, "size mismatch. Expected: %zu, Actual: %zu", totalLength, result.size());
         return "";
     }
-
-    std::string result(newBuffer.data(), totalLength);
     return result;
 }
 
@@ -116,7 +117,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");
@@ -145,7 +146,7 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr.c_str());
+    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (recvStr.empty()) {
         WRITE_LOG(LOG_FATAL, "recvStr is empty.");

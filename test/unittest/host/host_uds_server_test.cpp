@@ -61,6 +61,7 @@ HWTEST_F(HdcHostUdsServerTest, Test_AttachChannelInnerForUds, TestSize.Level0)
     clsServerForClient->AdminChannel(OP_ADD, hChannel->channelId, hChannel);
     server.AttachChannelInnerForUds(hSession, hChannel->channelId);
     EXPECT_TRUE(hChannel->targetSessionId == hSession->sessionId);
+    delete hChannel;
 #endif
 }
 

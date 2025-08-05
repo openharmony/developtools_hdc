@@ -385,17 +385,14 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
         sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
     }
 #endif
-    int rc = -1;
     if (!uv_is_closing((const uv_handle_t *)sendStream) && uv_is_writable(sendStream)) {
         ++hChannel->ref;
         if (commandFlag == CMD_FILE_DATA || commandFlag == CMD_APP_DATA) {
-            rc = Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)FileCmdWriteCallback, data);
+            Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)FileCmdWriteCallback, data);
         } else {
-            rc = Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+            Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
         }
-    }
-    if (rc < 0) {
-        WRITE_LOG(LOG_WARN, "send data failed channelId:%u sizeNewBuf:%d", hChannel->channelId, sizeNewBuf);
+    } else {
         delete[] data;
     }
 }
@@ -784,12 +781,10 @@ void HdcChannelBase::EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int 
         return;
     }
     sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
-    int rc = -1;
     if (!uv_is_closing((const uv_handle_t *)sendStream) && uv_is_writable(sendStream)) {
         ++hChannel->ref;
-        rc = Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
-    }
-    if (rc < 0) {
+        Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+    } else {
         WRITE_LOG(LOG_WARN, "EchoToClient, channelId:%u is unwritable.", hChannel->channelId);
         delete[] data;
     }

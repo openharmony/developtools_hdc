@@ -729,6 +729,8 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
     }
     if (hChannel->isDead) {
         WRITE_LOG(LOG_FATAL, "FetchCommand channelId:%u isDead", channelId);
+        uint8_t flag = 0;
+        Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &flag, 1);
         --hChannel->ref;
         return ret;
     }

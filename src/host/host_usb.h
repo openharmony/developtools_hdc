@@ -29,13 +29,10 @@ public:
     HdcHostUSB(const bool serverOrDaemonIn, void *ptrMainBase, void *ctxUSBin);
     virtual ~HdcHostUSB();
     int Initial();
-    static void InitLogging(void *ctxUSB);
     int SendUSBRaw(HSession hSession, uint8_t *data, const int length) override;
     HSession ConnectDetectDaemon(const HSession hSession, const HDaemonInfo pdi);
     void Stop();
     void RemoveIgnoreDevice(string &mountInfo);
-    static libusb_log_level GetLibusbLogLevel(void);
-    static void SetLibusbLogLevelEnv(libusb_log_level logLevel);
     void SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld);
 
 private:

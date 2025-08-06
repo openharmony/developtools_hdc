@@ -30,6 +30,7 @@ enum HdcLogLevel {
     LOG_INFO,  // default
     LOG_DEBUG,
     LOG_ALL,
+    LOG_VERBOSE,
     LOG_LAST = LOG_ALL,  // tail, not use
 };
 

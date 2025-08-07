@@ -104,6 +104,7 @@ bool HdcServer::Initial(const char *listenString)
             WRITE_LOG(LOG_FATAL, "clsServerForClient Initial failed");
             break;
         }
+        clsUSBClt->InitLogging(ctxUSB);
         clsTCPClt = new HdcHostTCP(true, this);
         clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
         if (clsUSBClt->Initial() != RET_SUCCESS) {

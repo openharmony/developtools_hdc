@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "host_usb.h"
+#include <regex>
 #include <stdlib.h>
 #include <thread>
 #include <chrono>
@@ -56,6 +57,107 @@ int HdcHostUSB::Initial()
     modRunning = true;
     StartupUSBWork();  // Main thread registration, IO in sub-thread
     return 0;
+}
+
+static string UsbLogSNHandler(const char* srcStr, size_t length)
+{
+    string str(srcStr, length);
+    std::regex pattern("[\\\\#][A-Z]+_[0-9a-zA-Z]+(&[A-Z]+_*[0-9a-zA-Z]+)*[\\\\#]");
+    std::smatch matches;
+
+    if (std::regex_search(str, matches, pattern)) {
+        size_t snStPos = matches.position(0) + matches.length(0);
+        return str.substr(0, snStPos) + Hdc::MaskString(str.substr(snStPos));
+    }
+    return str;
+}
+
+static void UsbLogHandler(libusb_context* ctx, enum libusb_log_level level, const char* str)
+{
+    int l = -1;
+    switch (level) {
+        case LIBUSB_LOG_LEVEL_ERROR:
+            l = LOG_FATAL;
+            break;
+        case LIBUSB_LOG_LEVEL_WARNING:
+            l = LOG_WARN;
+            break;
+        case LIBUSB_LOG_LEVEL_INFO:
+            l = LOG_INFO;
+            break;
+        case LIBUSB_LOG_LEVEL_DEBUG:
+            l = LOG_DEBUG;
+            break;
+        default:
+            break;
+    }
+    if (l >= 0) {
+        char *newStr = strdup(str);
+        if (!newStr) {
+            return;
+        }
+        char *p = strstr(newStr, "libusb:");
+        if (!p) {
+            p = newStr;
+        }
+        char *q = strrchr(newStr, '\n');
+        if (q) {
+            *q = '\0';
+        }
+        string result = UsbLogSNHandler(p, strlen(p));
+        WRITE_LOG(l, "%s", result.c_str());
+        free(newStr);
+    }
+}
+
+libusb_log_level HdcHostUSB::GetLibusbLogLevel(void)
+{
+    libusb_log_level debugLevel;
+
+    switch (static_cast<Hdc::HdcLogLevel>(Base::GetLogLevel())) {
+        case LOG_WARN:
+            debugLevel = LIBUSB_LOG_LEVEL_ERROR;
+            break;
+        case LOG_INFO:
+            debugLevel = LIBUSB_LOG_LEVEL_WARNING;
+            break;
+        case LOG_DEBUG:
+            debugLevel = LIBUSB_LOG_LEVEL_INFO;
+            break;
+        case LOG_VERBOSE:
+            debugLevel = LIBUSB_LOG_LEVEL_DEBUG;
+            break;
+        case LOG_FATAL:
+            // pass through to no libusb logging
+        default:
+            debugLevel = LIBUSB_LOG_LEVEL_NONE;
+            break;
+    }
+    return debugLevel;
+}
+
+void HdcHostUSB::SetLibusbLogLevelEnv(libusb_log_level logLevel)
+{
+    std::string debugEnv = "LIBUSB_DEBUG";
+#ifdef _WIN32
+    debugEnv += "=";
+    debugEnv += std::to_string(logLevel);
+    _putenv(debugEnv.c_str());
+#else
+    setenv(debugEnv.c_str(), std::to_string(logLevel).c_str(), 1);
+#endif
+}
+
+void HdcHostUSB::InitLogging(void *ctxUSB)
+{
+    if (ctxUSB == nullptr) {
+        WRITE_LOG(LOG_FATAL, "InitLogging failed ctxUSB is nullptr");
+        return;
+    }
+    libusb_log_level debugLevel = GetLibusbLogLevel();
+    libusb_set_option((libusb_context *)ctxUSB, LIBUSB_OPTION_LOG_LEVEL, debugLevel);
+    libusb_set_log_cb((libusb_context *)ctxUSB, UsbLogHandler,
+                      LIBUSB_LOG_CB_CONTEXT | LIBUSB_LOG_CB_GLOBAL);
 }
 
 bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)

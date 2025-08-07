@@ -173,6 +173,7 @@ int RunServerMode(string &serverListenString)
      * call uv_os_tmpdir and libuv inner wiil call getenv
      * setenv and getenv concurrent calling wiil cause crash
     */
+    HdcHostUSB::SetLibusbLogLevelEnv(HdcHostUSB::GetLibusbLogLevel());
     HdcServer server(true);
     if (!server.Initial(serverListenString.c_str())) {
         Base::PrintMessage("Initial failed");

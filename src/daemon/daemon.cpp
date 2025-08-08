@@ -658,7 +658,9 @@ bool HdcDaemon::AuthVerifyRsa(HSession hSession, const string &encryptToken, con
     unsigned char decryptToken[BUF_SIZE_DEFAULT] = { 0 };
 
     // for rsa encrypt, the length of encryptToken can't bigger than BUF_SIZE_DEFAULT
-    if (encryptToken.length() > BUF_SIZE_DEFAULT2) {
+    const int scaleOfEncrypt = 4;
+    const int scaleOfDecode = 3;
+    if (encryptToken.length() > BUF_SIZE_DEFAULT / scaleOfDecode * scaleOfEncrypt) {
         WRITE_LOG(LOG_FATAL, "invalid encryptToken, length is %zd", encryptToken.length());
         return false;
     }

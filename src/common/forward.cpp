@@ -455,8 +455,8 @@ bool HdcForwardBase::SetupTCPPoint(HCtxForward ctxPoint)
     struct sockaddr_in addr;
     if (ctxPoint->masterSlave) {
 #ifdef HDC_HOST
-        SetupTcpListenAllIp(ctxPoint, port, rc);
-        WRITE_LOG(LOG_DEBUG, "rc:%d", rc);
+        bool ret = SetupTcpListenAllIp(ctxPoint, port, rc);
+        WRITE_LOG(LOG_DEBUG, "SetupTcpListenAllIp ret:%d, rc:%d", ret, rc);
 #else
         uv_ip4_addr("127.0.0.1", port, &addr); // loop interface
         rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addr, 0);

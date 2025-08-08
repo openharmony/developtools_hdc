@@ -90,8 +90,8 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
 
         Base::TryCloseHandle((const uv_handle_t *)&ctxIn->pipe, [](uv_handle_t *handle) {
-            HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
 #ifndef HDC_EMULATOR
+            HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
             if (ctxIn != nullptr) {
                 delete ctxIn;
                 ctxIn = nullptr;

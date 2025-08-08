@@ -431,11 +431,11 @@ bool HdcForwardBase::SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc
                     ipv4.c_str(), rc, buffer);
                 return false;
             }
+        } else {
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind %d %s", rc, buffer);
+            return false;
         }
-    } else {
-        uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
-        WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind %d %s", rc, buffer);
-        return false;
     }
     return true;
 }

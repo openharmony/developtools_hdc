@@ -996,7 +996,7 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
         }
         case CMD_KERNEL_CHANNEL_CLOSE: {  // Daemon is only cleaning up the Channel task
             ClearOwnTasks(hSession, channelId);
-            if (*payload != 0) {
+            if (payloadSize >= 1 && *payload != 0) {
                 --(*payload);
                 Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, payload, 1);
             }

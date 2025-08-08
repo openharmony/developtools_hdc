@@ -14,10 +14,11 @@
 */
 
 #include "sudo_iam.h"
-#include "account_iam_client.h"
-#include "account_iam_info.h"
-#include "account_iam_client_callback.h"
 #include "i_inputer.h"
+#include "user_auth_client_callback.h"
+
+using namespace OHOS::UserIam::PinAuth;
+using namespace OHOS::UserIam::UserAuth;
 
 std::condition_variable g_condVarForAuth;
 bool g_authFinish;
@@ -48,10 +49,9 @@ SudoIInputer::~SudoIInputer()
     }
 }
 
-} //PinAuth
-} //UserIam
+} // PinAuth
 
-namespace AccountSA {
+namespace UserAuth {
 
 SudoIDMCallback::SudoIDMCallback()
 {
@@ -69,6 +69,9 @@ void SudoIDMCallback::OnResult(int32_t result, const Attributes &extraInfo)
     if (result == 0) {
         verifyResult_ = true;
     }
+    if (!extraInfo.GetUint8ArrayValue(Attribustes::ATTR_SIGNATURE, authToken_)) {
+        verifyResult_ = false;
+    }
 
     std::unique_lock<std::mutex> lock { g_mutexForAuth };
     g_authFinish = true;
@@ -80,5 +83,16 @@ bool SudoIDMCallback::GetVerifyResult(void)
     return verifyResult_;
 }
 
-} // AccountSA
-} //OHOS
+std::vector<uint8_t> SudoIDMCallback::GetAuthToken()
+{
+    return authToken_;
+}
+
+SudoIDMCallback::~SudoIDMCallback()
+{
+    authToken_.assign(authToken_.size(), 0);
+}
+
+} // UserAuth
+} // UserIam
+} // OHOS

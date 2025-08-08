@@ -447,7 +447,7 @@ bool HdcDaemon::AlreadyInKnownHosts(const string& key)
 
     std::string keys((std::istreambuf_iterator<char>(keyifs)), std::istreambuf_iterator<char>());
     const int keyLength = 625;
-    if (keys.find(key) != string::npos && key.size() == keyLength) {
+    if (key.size() == keyLength && keys.find(key) != string::npos) {
         keyifs.close();
         return true;
     }

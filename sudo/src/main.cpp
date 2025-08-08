@@ -48,8 +48,8 @@ static const char *OUT_OF_MEM = "[E0001] out of memory\n";
 static const char *COMMAND_NOT_FOUND = "[E0002] command not found\n";
 static const char *USER_VERIFY_FAILED = "[E0003] Sorry, try again. If screen lock password not set, set it first.\n";
 static const char *HELP = "sudo - execute command as root\n\n"
-                        "usage: sudo command ...\n"
-                        "usage: sudo sh -c command ...\n";
+                       "usage: sudo command ...\n"
+                       "usage: sudo sh -c command ...\n";
 
 static int32_t g_userId = -1;
 static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
@@ -355,7 +355,7 @@ static bool SetPSL()
     return true;
 }
 
-#if defined(SUPPORT_ACCOUNT_CONSTRAINT)
+#if defined(SURPPORT_ACCOUNT_CONSTRAINT)
 static bool CheckUserLimitation()
 {
     bool isNotEnabled = false;
@@ -388,7 +388,7 @@ int main(int argc, char* argv[], char* env[])
     }
 #endif
 
-    if (argc < 2) { //2:argc check number
+    if (argc < 2) { // 2:argc check number
         WriteStdErr(HELP);
         return 1;
     }

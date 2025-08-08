@@ -47,7 +47,7 @@ ohos_executable("exec_sudo") {
     }
 
     if (hdc_support_account_constraint) {
-      defines += [ "SUPPORT_ACCOUNT_CONSTRAINT" ]
+      defines += [ "SURPPORT_ACCOUNT_CONSTRAINT" ]
     }
 
     subsystem_name = "developtools"

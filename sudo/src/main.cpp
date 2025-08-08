@@ -35,7 +35,7 @@
 #define PWD_BUF_LEN 128
 #define CHALLENGE_LEN 32
 #define DEFAULT_PATH "/system/bin"
-#define DEFAULT_BASH "/system/bin/sh" 
+#define DEFAULT_BASH "/system/bin/sh"
 #define PATH "PATH="
 using namespace OHOS::UserIam;
 using namespace OHOS::AccountSA;
@@ -48,13 +48,13 @@ static const char *OUT_OF_MEM = "[E0001] out of memory\n";
 static const char *COMMAND_NOT_FOUND = "[E0002] command not found\n";
 static const char *USER_VERIFY_FAILED = "[E0003] Sorry, try again. If screen lock password not set, set it first.\n";
 static const char *HELP = "sudo - execute command as root\n\n"
-                          "usage: sudo command ...\n"
-                          "usage: sudo sh -c command ...\n";
+                        "usage: sudo command ...\n"
+                        "usage: sudo sh -c command ...\n";
 
 static int32_t g_userId = -1;
 static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
 static std::vector<uint8_t> g_authToken;
-static std::string CONSTRAINT_SUDO = "constraint.sudo";
+static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 
 static void WriteStdErr(const char *str)
 {
@@ -271,14 +271,14 @@ static bool GetChallenge()
     return true;
 }
 
-static bool VerifyAccount(int32_t userId)
+static bool VerifyAccount()
 {
     bool verifyResult = false;
 
     UserAuthClient &sudoIAMClient = UserAuthClient::GetInstance();
-    std::shared_ptr<UserAuth::AuthenticationCllback> callback = std::make_shared<SudoIDMCallback>();
+    std::shared_ptr<UserAuth::AuthenticationCallback> callback = std::make_shared<SudoIDMCallback>();
 
-    OHOS::UserIam::UserAuth::Authparam authParam;
+    OHOS::UserIam::UserAuth::AuthParam authParam;
     authParam.userId = g_userId;
     authParam.challenge = g_challenge;
     authParam.authType = AuthType::PIN;
@@ -323,7 +323,7 @@ static bool UserAccountVerify(char *pwd, int pwdLen)
         verifyResult = true;
     }
 
-    PinAuthRegister::GetInstance().UnregisterInputer();
+    PinAuthRegister::GetInstance().UnRegisterInputer();
     return verifyResult;
 }
 
@@ -356,13 +356,13 @@ static bool SetPSL()
 }
 
 #if defined(SUPPORT_ACCOUNT_CONSTRAINT)
-static bool CHeckUserLimitation()
+static bool CheckUserLimitation()
 {
     bool isNotEnabled = false;
-    OHOS::ErrCode err = OsAccountManager::CheckOsAccountConstraint(
+    OHOS::ErrCode err = OsAccountManager::CheckOsAccountConstraintEnabled(
         g_userId, CONSTRAINT_SUDO, isNotEnabled);
     if (err != 0) {
-        WriteStdErr("check account constraint failed.\n");
+        WriteStdErr("check account constrain failed.\n");
         return false;
     }
 
@@ -382,18 +382,22 @@ int main(int argc, char* argv[], char* env[])
         return 1;
     }
 
-#if defined(SUPPORT_ACCOUNT_CONSTRAINT)
-    if (!CHeckUserLimitation()) {
+#if defined(SURPPORT_ACCOUNT_CONSTRAINT)
+    if (!CheckUserLimitation()) {
         return 1;
     }
 #endif
 
     if (argc < 2) { //2:argc check number
-        WriteStdErr(help);
+        WriteStdErr(HELP);
         return 1;
     }
 
     if (!GetChallenge()) {
+        return 1;
+    }
+
+    if (!VerifyUserPin()) {
         return 1;
     }
 
@@ -415,7 +419,7 @@ int main(int argc, char* argv[], char* env[])
     }
 
 #if defined(SURPPORT_SELINUX)
-    if (setcon("u::r::sudo_execv_label:s0") != 0) {
+    if (setcon("u:r:sudo_execv_label:s0") != 0) {
         WriteStdErr("set SEHarmony label failed\n");
         return 1;
     }

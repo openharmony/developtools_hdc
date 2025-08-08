@@ -52,7 +52,6 @@ SudoIInputer::~SudoIInputer()
 } // PinAuth
 
 namespace UserAuth {
-
 SudoIDMCallback::SudoIDMCallback()
 {
     verifyResult_ = false;
@@ -69,7 +68,7 @@ void SudoIDMCallback::OnResult(int32_t result, const Attributes &extraInfo)
     if (result == 0) {
         verifyResult_ = true;
     }
-    if (!extraInfo.GetUint8ArrayValue(Attribustes::ATTR_SIGNATURE, authToken_)) {
+    if (!extraInfo.GetUint8ArrayValue(Attributes::ATTR_SIGNATURE, authToken_)) {
         verifyResult_ = false;
     }
 

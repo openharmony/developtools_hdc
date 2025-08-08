@@ -37,16 +37,14 @@ public:
 private:
     std::vector<uint8_t> passwd_;
 };
-
 } // PinAuth
 
 namespace UserAuth {
-
 class SudoIDMCallback : public AuthenticationCallback {
 public:
     virtual ~SudoIDMCallback();
     SudoIDMCallback();
-    void OnAcquireInfo(int32_t module, uint32_t acquireInfo, 
+    void OnAcquireInfo(int32_t module, uint32_t acquireInfo,
                           const OHOS::UserIam::UserAuth::Attributes &extraInfo) override;
     void OnResult(int32_t result,
                           const OHOS::UserIam::UserAuth::Attributes &extraInfo) override;
@@ -54,9 +52,10 @@ public:
     std::vector<uint8_t> GetAuthToken();
 private:
     bool verifyResult_;
+    std::vector<uint8_t> authToken_;
 };
 } // UserAuth
 
 } // UserIam
 } // OHOS
-#endif  // SUDO_IAM_H
+#endif  //SUDO_IAM_H

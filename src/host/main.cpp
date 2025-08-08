@@ -15,6 +15,7 @@
 
 #include <iostream>
 #include "ext_client.h"
+#include "forward.h"
 #include "server.h"
 #include "server_for_client.h"
 
@@ -360,13 +361,37 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
     return true;
 }
 
+bool ParseForwardListenIP(char *optarg)
+{
+    if (optarg == nullptr) {
+        return false;
+    }
+    sockaddr_in addrv4;
+    sockaddr_in6 addrv6;
+    string forwardListenIP;
+
+    const int testPort = 8888;
+    if (uv_ip4_addr(optarg, testPort, &addrv4) == 0) {
+        forwardListenIP = IPV4_MAPPING_PREFIX;
+        forwardListenIP += optarg;
+        HdcForwardBase::SetForwardListenIP(forwardListenIP);
+    } else if (uv_ip6_addr(optarg, testPort, &addrv6) == 0) {
+        forwardListenIP = optarg;
+        HdcForwardBase::SetForwardListenIP(forwardListenIP);
+    } else {
+        Base::PrintMessage("-e content IP incorrect.");
+        return false;
+    }
+    return true;
+}
+
 bool GetCommandlineOptions(int optArgc, const char *optArgv[])
 {
     int ch = 0;
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:e:t:l:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
@@ -382,6 +407,13 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 fprintf(stdout, "%s\n", ver.c_str());
                 needExit = true;
                 return needExit;
+            }
+            case 'e': {
+                if (!ParseForwardListenIP(optarg)) {
+                    needExit = true;
+                    return needExit;
+                }
+                break;
             }
             case 'f': {  // [not-publish]
                 break;

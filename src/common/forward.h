@@ -19,6 +19,9 @@
 namespace Hdc {
 class HdcForwardBase : public HdcTaskBase {
 public:
+#ifdef HDC_HOST
+    static void SetForwardListenIP(string &ip);
+#endif
     explicit HdcForwardBase(HTaskInfo hTaskInfo);
     virtual ~HdcForwardBase();
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
@@ -94,6 +97,9 @@ private:
     void FreeJDWP(HCtxForward ctx);
     void OnAccept(uv_stream_t *server, HCtxForward ctxClient, uv_stream_t *client);
     bool DetechForwardType(HCtxForward ctxPoint);
+#ifdef HDC_HOST
+    bool SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc);
+#endif
     bool SetupTCPPoint(HCtxForward ctxPoint);
     bool SetupDevicePoint(HCtxForward ctxPoint);
     bool SetupFilePoint(HCtxForward ctxPoint);

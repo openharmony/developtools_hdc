@@ -36,6 +36,7 @@ ohos_executable("exec_sudo") {
       "os_account:os_account_innerkits",
       "pin_auth:pinauth_framework",
       "user_auth_framework:userauth_client",
+      "access_control_level_manager:aclmgr_sdk",
     ]
 
     defines = [ "HAS_PIN_AUTH_PART" ]
@@ -43,6 +44,10 @@ ohos_executable("exec_sudo") {
     if (build_selinux) {
       external_deps += [ "selinux:libselinux" ]
       defines += [ "SURPPORT_SELINUX" ]
+    }
+
+    if (hdc_support_account_constraint) {
+      defines += [ "SURPPORT_ACCOUNT_CONSTRAINT" ]
     }
 
     subsystem_name = "developtools"

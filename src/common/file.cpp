@@ -68,16 +68,18 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     do {
         ++refCount;
         WRITE_LOG_DAEMON(LOG_INFO, "BeginTransfer cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
+            taskInfo->sessionId, Hdc::MaskString(context->localPath).c_str(),
+            Hdc::MaskString(context->remotePath).c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_DEBUG, "uv_fs_open rdonly rc:%d localPath:%s", rc, context->localPath.c_str());
+            WRITE_LOG(LOG_DEBUG, "uv_fs_open rdonly rc:%d localPath:%s",
+                rc, Hdc::MaskString(context->localPath).c_str());
         }
         context->master = true;
         ret = true;
     } while (false);
     if (!ret) {
-        LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", context->localPath.c_str(),
+        LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", Hdc::MaskString(context->localPath).c_str(),
                context->remotePath.c_str());
     }
     delete[](reinterpret_cast<char *>(argv));
@@ -520,11 +522,11 @@ bool HdcFile::BeginFileOperations()
     openReq->data = &ctxNow;
     ++refCount;
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-        taskInfo->sessionId, ctxNow.localPath.c_str(), ctxNow.remotePath.c_str());
+        taskInfo->sessionId, ctxNow.localPath.c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
     int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                         S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {
-        WRITE_LOG(LOG_DEBUG, "uv_fs_open create rc:%d %s", rc, ctxNow.localPath.c_str());
+        WRITE_LOG(LOG_DEBUG, "uv_fs_open create rc:%d %s", rc, Hdc::MaskString(ctxNow.localPath).c_str());
     }
     if (ctxNow.transferDirBegin == 0) {
         ctxNow.transferDirBegin = Base::GetRuntimeMSec();
@@ -539,10 +541,11 @@ void HdcFile::TransferNext(CtxFile *context)
     context->localPath = context->localDirName + context->localName;
     context->taskQueue.pop_back();
     WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
-              context->localPath.c_str(), ctxNow.taskQueue.size());
+              Hdc::MaskString(context->localPath).c_str(), ctxNow.taskQueue.size());
     uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
-        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s", context->localPath.c_str());
+        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
+            Hdc::MaskString(context->localPath).c_str());
         OnFileOpenFailed(context);
         return;
     }
@@ -551,10 +554,11 @@ void HdcFile::TransferNext(CtxFile *context)
     do {
         ++refCount;
         WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
+            taskInfo->sessionId, Hdc::MaskString(context->localPath).c_str(),
+            Hdc::MaskString(context->remotePath).c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, context->localPath.c_str());
+            WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, Hdc::MaskString(context->localPath).c_str());
         }
     } while (false);
 

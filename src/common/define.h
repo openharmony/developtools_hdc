@@ -124,7 +124,7 @@ constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MAX_MS = 1000;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30200000 is 3.2.0a
+// 0x30200100 is 3.2.0b
 constexpr uint32_t HDC_VERSION_NUMBER = 0x30200100;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST

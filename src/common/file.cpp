@@ -79,7 +79,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         ret = true;
     } while (false);
     if (!ret) {
-        LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", Hdc::MaskString(context->localPath).c_str(),
+        LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", context->localPath.c_str(),
                context->remotePath.c_str());
     }
     delete[](reinterpret_cast<char *>(argv));

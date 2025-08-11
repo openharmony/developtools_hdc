@@ -422,6 +422,7 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
     if (!freeOrClear) {  // step1
         // update
         HdcDaemonInformation diNew = *hdiOld;
+        diNew.inited = false;
         diNew.connStatus = STATUS_OFFLINE;
         diNew.hSession = nullptr;
         HDaemonInfo hdiNew = &diNew;
@@ -530,6 +531,7 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
     HdcDaemonInformation diNew = *hdiOld;
     HDaemonInfo hdiNew = &diNew;
     // update
+    hdiNew->inited = false;
     hdiNew->connStatus = STATUS_CONNECTED;
     WRITE_LOG(LOG_INFO, "handshake info is : %s", handshake.ToDebugString().c_str());
     WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
@@ -1002,12 +1004,17 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         di.connectKey = connectKey;
         di.connType = connType;
         di.connStatus = STATUS_UNKNOW;
+        di.inited = false;
         HDaemonInfo pDi = reinterpret_cast<HDaemonInfo>(&di);
         AdminDaemonMap(OP_ADD, "", pDi);
         AdminDaemonMap(OP_QUERY, connectKey, hdi);
     }
     if (!hdi || hdi->connStatus == STATUS_CONNECTED) {
         WRITE_LOG(LOG_FATAL, "Connected return");
+        return ERR_GENERIC;
+    }
+    if (hdi->inited == true) {
+        WRITE_LOG(LOG_FATAL, "Connection is inited");
         return ERR_GENERIC;
     }
     HSession hSession = nullptr;
@@ -1044,6 +1051,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
     if (hdiQuery) {
         HdcDaemonInformation diNew = *hdiQuery;
         diNew.hSession = hSession;
+        diNew.inited = true;
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hdiQuery->connectKey, hdiNew);
     }

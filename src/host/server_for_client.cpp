@@ -385,6 +385,7 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
         di.connectKey = lst.front();
         di.connType = CONN_TCP;
         di.connStatus = STATUS_READY;
+        di.inited = false;
         HDaemonInfo pDi = reinterpret_cast<HDaemonInfo>(&di);
         ptrServer->AdminDaemonMap(OP_ADD, STRING_EMPTY, pDi);
         lst.pop_front();
@@ -436,6 +437,9 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
                 bExitRepet = true;
                 sRet = "Connect failed";
                 thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
+                hdi->inited = false;
+                hdi->connStatus = STATUS_OFFLINE;
+                ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
                 break;
             }
         }

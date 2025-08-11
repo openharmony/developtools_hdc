@@ -364,7 +364,7 @@ bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, ui
         char buf[size] = { 0 };
         uv_strerror_r(ret, buf, size);
         WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
-            buf, Hdc::MaskString(context->localPath).c_str());
+            buf, context->localPath.c_str());
         uv_fs_req_cleanup(&fs);
         context->lastErrno = static_cast<uint32_t>(abs(ret));
         return false;
@@ -709,7 +709,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         // set flag to remove first layer directory of filename from master
         ctxNow.targetDirNotExist = true;
     } else if (ctxNow.isDir && !(mode & S_IFDIR)) {
-        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", Hdc::MaskString(localPath).c_str());
+        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
         errStr = "Not a directory, path:" + localPath;
         return false;
     }
@@ -778,7 +778,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     }
 
     WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
-        localPath.c_str(), optName.c_str());
+        Hdc::MaskString(localPath).c_str(), optName.c_str());
     return true;
 }
 

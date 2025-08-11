@@ -437,6 +437,9 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
                 bExitRepet = true;
                 sRet = "Connect failed";
                 thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
+                hdi->inited = false;
+                hdi->connStatus = STATUS_OFFLINE;
+                ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
                 break;
             }
         }

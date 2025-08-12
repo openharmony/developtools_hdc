@@ -416,7 +416,6 @@ struct HdcChannel {
             commandParameters[i] = ' ';
             i--;
         }
-        oss << " command parameters:" << commandParameters;
         oss << " command result:" << isSuccess;
         oss << " command take time:" << (endTime - startTime) << "ms";
         oss << " faultInfo:" << faultInfo;

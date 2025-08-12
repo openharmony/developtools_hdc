@@ -26,7 +26,7 @@ import tempfile
 import functools
 import logging
 import socket
-
+import platform
 import pytest
 import importlib
 
@@ -1067,7 +1067,7 @@ def get_end_symbol():
 
 
 def get_server_pid_from_file():
-    is_ohos = check_shell("uname", "Harmony")
+    is_ohos = "Harmony" in platform.system()
     if not is_ohos:
         tmp_dir_path = tempfile.gettempdir()
     else:
@@ -1087,7 +1087,7 @@ def check_unsupport_systems(systems):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            cur_sys = subprocess.getoutput("uname -a")
+            cur_sys = platform.system()
             for system in systems:
                 if system in cur_sys:
                     print("system not support, ignore this case")

@@ -14,6 +14,7 @@
 # limitations under the License.
 import os
 import time
+import platform
 import pytest
 from utils import GP, check_hdc_cmd, get_shell_result, run_command_with_timeout, check_shell, get_local_path, \
     get_remote_path, rmdir, load_gp, check_cmd_block
@@ -75,7 +76,8 @@ class TestTcpByFport:
 
     @pytest.mark.L1
     def test_remote_tcp_connect(self):
-        if not self.is_hmos():
+        is_ohos = "Harmony" in platform.system()
+        if not is_ohos:
             assert True
             return
         pid = os.getpid()

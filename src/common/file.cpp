@@ -79,7 +79,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         ret = true;
     } while (false);
     if (!ret) {
-        LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", Hdc::MaskString(context->localPath).c_str(),
+        LogMsg(MSG_FAIL, "Transfer path failed, Master:%s Slave:%s", context->localPath.c_str(),
                context->remotePath.c_str());
     }
     delete[](reinterpret_cast<char *>(argv));
@@ -522,7 +522,7 @@ bool HdcFile::BeginFileOperations()
     openReq->data = &ctxNow;
     ++refCount;
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-        taskInfo->sessionId, ctxNow.localPath.c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
+        taskInfo->sessionId, Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
     int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                         S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {

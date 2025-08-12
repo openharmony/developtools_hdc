@@ -221,7 +221,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
                                                     dataSize, dataSize);
                 if (compressSize <= 0) {
                     WRITE_LOG(LOG_DEBUG, "LZ4 compress failed, path: %s compress none",
-                        Hdc::MaskString(context->localPath).c_str());
+                        context->localPath.c_str());
                     delete[] sendBuf;
                     payloadHead.compressType = COMPRESS_NONE;
                     compressSize = dataSize;
@@ -296,7 +296,7 @@ bool HdcTransferBase::ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTran
         return true;
     }
     if (req->result == 0) {
-        WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", Hdc::MaskString(context->localPath).c_str(), context->openFd);
+        WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", context->localPath.c_str(), context->openFd);
         return true;
     }
     if (context->indexIO < context->fileSize) {
@@ -364,7 +364,7 @@ bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, ui
         char buf[size] = { 0 };
         uv_strerror_r(ret, buf, size);
         WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
-            buf, Hdc::MaskString(context->localPath).c_str());
+            buf, context->localPath.c_str());
         uv_fs_req_cleanup(&fs);
         context->lastErrno = static_cast<uint32_t>(abs(ret));
         return false;
@@ -372,7 +372,7 @@ bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, ui
     uv_statfs_t* statfs = static_cast<uv_statfs_t*>(fs.ptr);
     uint64_t freeBytes = statfs->f_bsize * statfs->f_bfree;
     WRITE_LOG(LOG_DEBUG, "CheckSpace, path: %s, freeBytes: %llu",
-        Hdc::MaskString(context->localPath).c_str(), freeBytes);
+        context->localPath.c_str(), freeBytes);
     uv_fs_req_cleanup(&fs);
     context->lastErrno = static_cast<uint32_t>((freeBytes == 0) ? ENOSPC : EIO);
     return false;
@@ -478,7 +478,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
     CALLSTAT_GUARD(*(thisClass->loopTaskStatus), req->loop, "HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
     WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
-        Hdc::MaskString(context->localPath).c_str(), thisClass->taskInfo->channelId, req->result);
+        context->localPath.c_str(), thisClass->taskInfo->channelId, req->result);
     --thisClass->refCount;
     if (req->result <= 0) {
         constexpr int bufSize = 1024;
@@ -489,8 +489,8 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           localPath.c_str());
         WRITE_LOG(LOG_FATAL, "open path:%s, localPath:%s, error:%s, dir:%d, master:%d",
-            Hdc::MaskString(context->localPath).c_str(),
-            Hdc::MaskString(localPath).c_str(), buf, context->isDir, context->master);
+            context->localPath.c_str(),
+            localPath.c_str(), buf, context->isDir, context->master);
         OnFileOpenFailed(context);
         return;
     }
@@ -665,7 +665,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
 {
     // If optName show this is directory mode, check localPath and try create each layer
     WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s",
-        Hdc::MaskString(localPath).c_str(), optName.c_str());
+        localPath.c_str(), optName.c_str());
     if ((optName.find('/') == string::npos) && (optName.find('\\') == string::npos)) {
         WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s, return", optName.c_str());
         return true;
@@ -683,13 +683,13 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
             dirsOflocalPath.pop_back();
         }
         WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu",
-            Hdc::MaskString(localPath).c_str(), dirsOflocalPath.size());
+            localPath.c_str(), dirsOflocalPath.size());
         string makedirPath;
         if (!Base::IsAbsolutePath(localPath)) {
             makedirPath = ".";
         }
         for (auto dir : dirsOflocalPath) {
-            WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", Hdc::MaskString(dir).c_str());
+            WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", dir.c_str());
 
             if (dir == ".") {
                 continue;
@@ -709,7 +709,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         // set flag to remove first layer directory of filename from master
         ctxNow.targetDirNotExist = true;
     } else if (ctxNow.isDir && !(mode & S_IFDIR)) {
-        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", Hdc::MaskString(localPath).c_str());
+        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
         errStr = "Not a directory, path:" + localPath;
         return false;
     }

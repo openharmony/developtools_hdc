@@ -354,7 +354,7 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
         } else if (uv_ip6_addr(buf, port, &addrv6) == 0) {
             serverListenString = optarg;
         } else {
-            Base::PrintMessage("[E001106]-s content IP incorrect.");
+            Base::PrintMessage("-s content IP incorrect.");
             return false;
         }
     }
@@ -379,7 +379,7 @@ bool ParseForwardListenIP(char *optarg)
         forwardListenIP = optarg;
         HdcForwardBase::SetForwardListenIP(forwardListenIP);
     } else {
-        Base::PrintMessage("-e content IP incorrect.");
+        Base::PrintMessage("[E001106]-e content IP incorrect.");
         return false;
     }
     return true;

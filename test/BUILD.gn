@@ -319,7 +319,6 @@ ohos_unittest("hdc_host_base_unittest") {
   sources += [
     "${hdc_path}/src/daemon/daemon_app.cpp",
     "${hdc_path}/src/host/host_app.cpp",
-
     "${hdc_path}/src/host/server_for_client.cpp",
     "${hdc_path}/src/host/server.cpp",
     "${hdc_path}/src/host/host_tcp.cpp",
@@ -332,7 +331,6 @@ ohos_unittest("hdc_host_base_unittest") {
     "${hdc_path}/src/host/translate.cpp",
     "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
-
     "unittest/daemon/daemon_app_test.cpp",
     "unittest/common/define_test.cpp",
     "unittest/host/host_app_test.cpp",

@@ -26,9 +26,7 @@ using namespace testing::ext;
 namespace Hdc {
 void HdcHostUdsServerTest::SetUpTestCase() {}
 void HdcHostUdsServerTest::TearDownTestCase() {}
-void HdcHostUdsServerTest::SetUp()
-{
-}
+void HdcHostUdsServerTest::SetUp(){}
 void HdcHostUdsServerTest::TearDown() {}
 
 

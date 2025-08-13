@@ -732,12 +732,14 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
 
     if (handshake.authType == AUTH_NONE) {
         return HandDaemonAuthInit(hSession, channelId, handshake);
-    } else if (handshake.authType == AUTH_PUBLICKEY) {
+    } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_NONE
+        && GetSessionAuthToken(hSession->sessionId).size() > 0
+        && handshake.authType == AUTH_PUBLICKEY) {
         return HandDaemonAuthPubkey(hSession, channelId, handshake);
-    } else if (handshake.authType == AUTH_SIGNATURE) {
+    } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_PUBLICKEY && handshake.authType == AUTH_SIGNATURE) {
         return HandDaemonAuthSignature(hSession, channelId, handshake);
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
-    } else if (handshake.authType == AUTH_SSL_TLS_PSK) {
+    } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_PUBLICKEY && handshake.authType == AUTH_SSL_TLS_PSK) {
         return DaemonSSLHandshake(hSession, channelId, handshake);
 #endif
     } else {

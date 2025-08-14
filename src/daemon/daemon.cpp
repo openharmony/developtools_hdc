@@ -446,6 +446,7 @@ bool HdcDaemon::AlreadyInKnownHosts(const string& key)
     }
 
     std::string keys((std::istreambuf_iterator<char>(keyifs)), std::istreambuf_iterator<char>());
+    // the length of pubkey is 625
     const int keyLength = 625;
     if (key.size() == keyLength && keys.find(key) != string::npos) {
         keyifs.close();

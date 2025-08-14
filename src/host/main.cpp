@@ -379,7 +379,7 @@ bool ParseForwardListenIP(char *optarg)
         forwardListenIP = optarg;
         HdcForwardBase::SetForwardListenIP(forwardListenIP);
     } else {
-        Base::PrintMessage("-e content IP incorrect.");
+        Base::PrintMessage("[E001106]-e content IP incorrect.");
         return false;
     }
     return true;

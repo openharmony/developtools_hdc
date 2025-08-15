@@ -658,7 +658,7 @@ bool HdcDaemon::AuthVerifyRsa(HSession hSession, const string &encryptToken, con
     unsigned char decryptToken[BUF_SIZE_DEFAULT] = { 0 };
 
     // for rsa encrypt, the length of encryptToken can't bigger than BUF_SIZE_DEFAULT
-    // Base64 divides every 3 bytes of the original data into four 6-bit segments,
+    // Base64 divides every 3 bytes(8 bits) of the original data into 4 segments(6 bits),
     // each of which is then mapped to a new character.
     const int scaleOfEncrypt = 4;
     const int scaleOfDecode = 3;

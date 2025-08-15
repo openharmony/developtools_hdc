@@ -409,7 +409,6 @@ bool HdcForwardBase::SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc
     char buffer[BUF_SIZE_DEFAULT] = { 0 };
     rc = uv_ip6_addr(g_forwardListenIp.c_str(), port, &addrv6);
     if (rc != 0) {
-        LogMsg(MSG_FAIL, "[E008001] %s is not available", g_forwardListenIp.c_str());
         uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
         WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_ip6_addr %d %s", rc, buffer);
         return false;
@@ -427,14 +426,12 @@ bool HdcForwardBase::SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc
             uv_ip4_addr(ipv4.c_str(), port, &addrv4);
             rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addrv4, 0);
             if (rc != 0) {
-                LogMsg(MSG_FAIL, "[E008002] %s:%d bind failed", ipv4.c_str(), port);
                 uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
                 WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind ipv4 %s failed %d %s",
                     ipv4.c_str(), rc, buffer);
                 return false;
             }
         } else {
-            LogMsg(MSG_FAIL, "[E008003] %s:%d bind failed", g_forwardListenIp.c_str(), port);
             uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
             WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind %d %s", rc, buffer);
             return false;

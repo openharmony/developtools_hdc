@@ -16,12 +16,8 @@
 #ifdef HDC_HOST
 #include "forward.h"
 #include "uv.h"
-#include <securec.h>
 #include "define.h"
-#include "define_enum.h"
 #endif
-
-#include <stdio.h>
 
 using namespace testing::ext;
 

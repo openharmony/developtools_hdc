@@ -91,11 +91,9 @@ namespace TranslateCommand {
               "                                         -a: include debug and release processes\n"
               "                                         -p: don't display debug and release tags\n"
               "\n"
-#ifndef __OHOS__
               "security commands:\n"
               " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
               "\n";
-#endif
         return ret;
     }
 
@@ -192,11 +190,9 @@ namespace TranslateCommand {
             " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
             " sideload [PATH]                       - Sideload the given full OTA package\n"
             "\n"
-#ifndef __OHOS__
             "security commands:\n"
             " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
             "\n"
-#endif
             "---------------------------------flash commands:------------------------------------\n"
             "flash commands:\n"
             " update packagename                    - Update system by package\n"

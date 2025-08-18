@@ -131,8 +131,9 @@ namespace TranslateCommand {
 #else
             " -s [ip:]port                          - Set hdc server listen config\n"
 #endif
-            " -e ip                                 - Set local listening IP for forwarding local traffic\n"
-            "                                         to remote devices, cannot run in single client mode\n"
+            " -e ip                                 - Set the IP address for which the host listens during TCP\n"
+            "                                         port forwarding. The default value is 127.0.0.1,\n"
+            "                                         cannot run in single client mode\n"
             " -m                                    - Start server at foreground\n"
             " -p                                    - Skip the server startup, run in single client mode\n"
             "\n"

@@ -129,7 +129,7 @@ class TestForwardIpSetting:
         check_shell(f"kill")
         time.sleep(1)
 
-        p = multiprocessing.Process(target=self.new_process_run, args=("-e 23.168.32.2 -m",))
+        p = multiprocessing.Process(target=self.new_process_run, args=("-e 10.176.223.250 -m",))
         p.start()
         time.sleep(1)
 

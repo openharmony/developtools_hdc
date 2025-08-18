@@ -26,7 +26,7 @@ import tempfile
 import functools
 import logging
 import socket
-
+import platform
 import pytest
 import importlib
 
@@ -1067,7 +1067,11 @@ def get_end_symbol():
 
 
 def get_server_pid_from_file():
-    tmp_dir_path = tempfile.gettempdir()
+    is_ohos = "Harmony" in platform.system()
+    if not is_ohos:
+        tmp_dir_path = tempfile.gettempdir()
+    else:
+        tmp_dir_path = os.path.expanduser("~")
     pid_file = os.path.join(tmp_dir_path, ".HDCServer.pid")
     with open(pid_file, "r") as f:
         pid = f.read()
@@ -1079,6 +1083,21 @@ def get_server_pid_from_file():
     return pid
 
 
+def check_unsupport_systems(systems):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            cur_sys = platform.system()
+            for system in systems:
+                if system in cur_sys:
+                    print("system not support, ignore this case")
+                    pytest.skip("System not support, test skipped.")
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+@check_unsupport_systems(["Harmony"])
 def get_cmd_block_output(command, timeout=600):
     # 启动子进程
     process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

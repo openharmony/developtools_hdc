@@ -16,6 +16,9 @@
 #include "base.h"
 
 namespace Hdc {
+#ifdef HDC_HOST
+static string g_forwardListenIp = DEFAULT_SERVER_ADDR_IP;
+#endif
 HdcForwardBase::HdcForwardBase(HTaskInfo hTaskInfo)
     : HdcTaskBase(hTaskInfo)
 {
@@ -393,6 +396,51 @@ bool HdcForwardBase::DetechForwardType(HCtxForward ctxPoint)
     return true;
 }
 
+#ifdef HDC_HOST
+void HdcForwardBase::SetForwardListenIP(string &ip)
+{
+    g_forwardListenIp = ip;
+}
+
+bool HdcForwardBase::SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc)
+{
+    struct sockaddr_in addrv4;
+    struct sockaddr_in6 addrv6;
+    char buffer[BUF_SIZE_DEFAULT] = { 0 };
+    rc = uv_ip6_addr(g_forwardListenIp.c_str(), port, &addrv6);
+    if (rc != 0) {
+        uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_ip6_addr %d %s", rc, buffer);
+        return false;
+    }
+    rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addrv6, 0);
+    if (rc != 0) {
+        WRITE_LOG(LOG_WARN, "SetupTcpListenAllIp uv_tcp_bind ipv6 %d", rc);
+        if (rc == -EAFNOSUPPORT) {
+            size_t index = g_forwardListenIp.find(IPV4_MAPPING_PREFIX);
+            size_t size = IPV4_MAPPING_PREFIX.size();
+            if (index == std::string::npos) {
+                return false;
+            }
+            std::string ipv4 = g_forwardListenIp.substr(index + size);
+            uv_ip4_addr(ipv4.c_str(), port, &addrv4);
+            rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addrv4, 0);
+            if (rc != 0) {
+                uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+                WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind ipv4 %s failed %d %s",
+                    ipv4.c_str(), rc, buffer);
+                return false;
+            }
+        } else {
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind %d %s", rc, buffer);
+            return false;
+        }
+    }
+    return true;
+}
+#endif
+
 bool HdcForwardBase::SetupTCPPoint(HCtxForward ctxPoint)
 {
     string &sNodeCfg = ctxPoint->localArgs[1];
@@ -406,8 +454,13 @@ bool HdcForwardBase::SetupTCPPoint(HCtxForward ctxPoint)
     }
     struct sockaddr_in addr;
     if (ctxPoint->masterSlave) {
+#ifdef HDC_HOST
+        bool ret = SetupTcpListenAllIp(ctxPoint, port, rc);
+        WRITE_LOG(LOG_DEBUG, "SetupTcpListenAllIp ret:%d, rc:%d", ret, rc);
+#else
         uv_ip4_addr("127.0.0.1", port, &addr); // loop interface
         rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addr, 0);
+#endif
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "SetupTCPPoint master uv_tcp_bind failed, rc:%d port:%d ctxid:%u cid:%u sid:%u",
                 rc, port, ctxPoint->id, taskInfo->channelId, taskInfo->sessionId);

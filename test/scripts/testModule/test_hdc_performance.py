@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from utils import GP, check_cmd_time, check_hdc_cmd, check_rate, get_local_path, get_remote_path, load_gp
+from utils import GP, check_cmd_time, check_hdc_cmd, check_rate, get_local_path, get_remote_path, \
+    load_gp, check_unsupport_systems
 
 
 def clear_env():
@@ -24,23 +25,24 @@ def clear_env():
 class TestShellPerformance:
     @pytest.mark.L0
     def test_shell_cmd_timecost_param_p(self):
-        check_hdc_cmd("shell \"ls -al /data/local/tmp\"")
+        check_hdc_cmd("shell \"touch /data/local/tmp/test_file\"")
         assert check_cmd_time(
-            cmd="-p shell \"ps -ef | grep hdcd\"",
-            pattern="hdcd",
+            cmd="-p shell \"ls -al /data/local/tmp\"",
+            pattern="test_file",
             duration=220,
             times=50)
 
     @pytest.mark.L0
     def test_shell_cmd_timecost_param_none(self):
-        check_hdc_cmd("shell \"echo 1\"")
+        check_hdc_cmd("shell \"ps -ef | grep hdcd\"")
         assert check_cmd_time(
-            cmd="shell \"ps -ef | grep hdcd\"",
-            pattern="hdcd",
+            cmd="shell \"echo 1\"",
+            pattern="1",
             duration=None,
             times=20)
 
     @pytest.mark.L0
+    @check_unsupport_systems(["Linux", "Harmony", "Darwin"])
     def test_shell_huge_cat(self):
         assert check_hdc_cmd(f"file send {get_local_path('word_100M.txt')} {get_remote_path('it_word_100M.txt')}")
         assert check_cmd_time(

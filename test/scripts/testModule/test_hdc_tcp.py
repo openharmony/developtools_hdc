@@ -14,6 +14,7 @@
 # limitations under the License.
 import os
 import time
+import platform
 import pytest
 from utils import GP, check_hdc_cmd, get_shell_result, run_command_with_timeout, check_shell, get_local_path, \
     get_remote_path, rmdir, load_gp, check_cmd_block
@@ -72,3 +73,18 @@ class TestTcpByFport:
         install_cmd = f"install {app}"
         patten = f"please confirm a device by help info"
         assert check_cmd_block(f"{GP.hdc_exe} {install_cmd}", f"{patten}", timeout=3)
+
+    @pytest.mark.L1
+    def test_remote_tcp_connect(self):
+        is_ohos = "Harmony" in platform.system()
+        if not is_ohos:
+            assert True
+            return
+        pid = os.getpid()
+        is_hishell = check_shell(f'ps -efZ | grep {pid}', 'u:r:hishell_hap:s0')
+        check_hdc_cmd("kill")
+        cmd = "-s 0.0.0.0:8710 -m"
+        if is_hishell:
+            assert check_hdc_cmd(cmd, "Program running. Ver:")
+        else:
+            assert check_hdc_cmd(cmd, "[E001105] Unsupport option [s], please try command in HiShell.")

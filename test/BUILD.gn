@@ -309,14 +309,34 @@ ohos_unittest("hdc_host_base_unittest") {
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
   defines = [ "HDC_HOST" ]
+  if (is_ohos) {
+    defines += [ "HOST_OHOS" ]
+  }
+  if (hdc_support_uart) {
+    defines += [ "HDC_SUPPORT_UART" ]
+  }
   sources = hdc_common_sources
   sources += [
     "${hdc_path}/src/daemon/daemon_app.cpp",
     "${hdc_path}/src/host/host_app.cpp",
+    "${hdc_path}/src/host/server_for_client.cpp",
+    "${hdc_path}/src/host/server.cpp",
+    "${hdc_path}/src/host/host_tcp.cpp",
+    "${hdc_path}/src/host/host_uart.cpp",
+    "${hdc_path}/src/host/host_usb.cpp",
+    "${hdc_path}/src/host/host_forward.cpp",
+    "${hdc_path}/src/host/host_unity.cpp",
+    "${hdc_path}/src/host/host_updater.cpp",
+    "${hdc_path}/src/host/host_shell_option.cpp",
+    "${hdc_path}/src/host/translate.cpp",
+    "${hdc_path}/src/common/server_cmd_log.cpp",
+    "${hdc_path}/src/common/uart.cpp",
     "unittest/daemon/daemon_app_test.cpp",
     "unittest/common/define_test.cpp",
     "unittest/host/host_app_test.cpp",
     "unittest/host/main_test.cpp",
+    "unittest/host/host_uds_server_test.cpp",
+    "unittest/host/host_fport_listen_ip_test.cpp",
   ]
 
   configs = [
@@ -440,6 +460,7 @@ group("hdc_unittest") {
     ":hdc_ssl_unittest",
     ":hdc_uart_unittest",
     ":hdc_host_base_unittest",
+    ":hdc_credential_unittest",
   ]
 }
 
@@ -552,5 +573,34 @@ ohos_unittest("hdc_register_unittest") {
     "hilog:libhilog",
     "init:libbeget_proxy",
     "init:libbegetutil",
+  ]
+}
+
+ohos_unittest("hdc_credential_unittest") {
+  use_exceptions = true
+  module_out_path = module_output_path
+  resource_config_file = "unittest/resource/ohos_test.xml"
+  subsystem_name = "developtools"
+  part_name = "hdc"
+  sources = [
+    "${hdc_path}/src/common/base.cpp",
+    "${hdc_path}/credential/credential_base.cpp",
+    "unittest/credential/credential_base_test.cpp",
+  ]
+  include_dirs = [
+    "${hdc_path}/credential",
+    "${hdc_path}/test/unittest/credential/include",
+  ]
+
+  configs = [
+    ":hdc_common_config",
+    ":hdc_ut_code_flag",
+    ":hdc_ut_config",
+  ]
+
+  external_deps = [
+    "openssl:libcrypto_shared",
+    "bounds_checking_function:libsec_shared",
+    "libuv:uv",
   ]
 }

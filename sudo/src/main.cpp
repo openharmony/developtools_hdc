@@ -25,22 +25,36 @@
 #if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
 #endif
-#include "account_iam_client.h"
 #include "os_account_manager.h"
 #include "sudo_iam.h"
+#include "user_auth_client.h"
+#include "pinauth_register.h"
+#include "user_access_ctrl_client.h"
+#include "aclmgr_system_api.h"
 
 #define PWD_BUF_LEN 128
+#define CHALLENGE_LEN 32
 #define DEFAULT_PATH "/system/bin"
 #define DEFAULT_BASH "/system/bin/sh"
-
+#define PATH "PATH="
 using namespace OHOS::UserIam;
 using namespace OHOS::AccountSA;
+using namespace OHOS::UserIam::PinAuth;
+using namespace OHOS::UserIam::UserAuth;
 
 static FILE *g_ttyFp = nullptr;
 
 static const char *OUT_OF_MEM = "[E0001] out of memory\n";
 static const char *COMMAND_NOT_FOUND = "[E0002] command not found\n";
 static const char *USER_VERIFY_FAILED = "[E0003] Sorry, try again. If screen lock password not set, set it first.\n";
+static const char *HELP = "sudo - execute command as root\n\n"
+                       "usage: sudo command ...\n"
+                       "usage: sudo sh -c command ...\n";
+
+static int32_t g_userId = -1;
+static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
+static std::vector<uint8_t> g_authToken;
+static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 
 static void WriteStdErr(const char *str)
 {
@@ -115,8 +129,8 @@ static bool GetCmdInPath(char *cmd, int cmdBufLen, char *envp[])
     }
 
     for (ep = envp; *ep != nullptr; ep++) {
-        if (strcmp(*ep, "PATH=") == 0) {
-            path = *ep + strlen("PATH=");
+        if (strncmp(*ep, PATH, strlen(PATH)) == 0) {
+            path = *ep + strlen(PATH);
             break;
         }
     }
@@ -247,74 +261,73 @@ static void WaitForAuth(void)
     g_condVarForAuth.wait(lock, [] { return g_authFinish; });
 }
 
-static bool VerifyAccount(int32_t userId)
+static bool GetChallenge()
 {
-    std::vector<uint8_t> challenge;
-    AuthOptions authOptions;
+    int32_t res = InitChallengeForCommand(g_challenge.data(), g_challenge.size());
+    if (res != 0) {
+        WriteStdErr("init challenge failed\n");
+        return false;
+    }
+    return true;
+}
+
+static bool VerifyAccount()
+{
     bool verifyResult = false;
 
-    AccountIAMClient &sudoIAMClient = AccountIAMClient::GetInstance();
-    std::shared_ptr<IDMCallback> callback = std::make_shared<SudoIDMCallback>();
-    authOptions.accountId = userId;
-    sudoIAMClient.AuthUser(authOptions, challenge, AuthType::PIN, AuthTrustLevel::ATL1, callback);
+    UserAuthClient &sudoIAMClient = UserAuthClient::GetInstance();
+    std::shared_ptr<UserAuth::AuthenticationCallback> callback = std::make_shared<SudoIDMCallback>();
+
+    OHOS::UserIam::UserAuth::AuthParam authParam;
+    authParam.userId = g_userId;
+    authParam.challenge = g_challenge;
+    authParam.authType = AuthType::PIN;
+    authParam.authTrustLevel = AuthTrustLevel::ATL1;
+
+    sudoIAMClient.BeginAuthentication(authParam, callback);
     std::shared_ptr<SudoIDMCallback> sudoCallback = std::static_pointer_cast<SudoIDMCallback>(callback);
     WaitForAuth();
     verifyResult = sudoCallback->GetVerifyResult();
+    g_authToken = sudoCallback->GetAuthToken();
     return verifyResult;
+}
+
+static bool GetUserId()
+{
+    std::vector<int32_t> ids;
+
+    OHOS::ErrCode err = OsAccountManager::QueryActiveOsAccountIds(ids);
+    if (err != 0) {
+        WriteStdErr("get os account local id failed\n");
+        return false;
+    }
+
+    g_userId = ids[0];
+    return true;
 }
 
 static bool UserAccountVerify(char *pwd, int pwdLen)
 {
+    bool verifyResult = false;
     std::shared_ptr<PinAuth::IInputer> inputer = nullptr;
-    OHOS::ErrCode err;
-    int verifyResult = 0;
-    pid_t pid;
-    int fds[2];
 
-    if (pipe(fds) != 0) {
-        WriteStdErr("exec pipe failed\n");
+    inputer = std::make_shared<PinAuth::SudoIInputer>();
+    std::shared_ptr<PinAuth::SudoIInputer> sudoInputer = std::static_pointer_cast<PinAuth::SudoIInputer>(inputer);
+    sudoInputer->SetPasswd(pwd, pwdLen);
+    if (!PinAuthRegister::GetInstance().RegisterInputer(inputer)) {
+        WriteStdErr("register pin inputer failed\n");
         return false;
     }
-    pid = fork();
-    if (pid == -1) {
-        WriteStdErr("exec fork failed\n");
-        close(fds[0]);
-        close(fds[1]);
-        return false;
+
+    if (VerifyAccount()) {
+        verifyResult = true;
     }
-    if (pid == 0) {
-        int32_t userId = -1;
-        close(fds[0]);
-        err = OsAccountManager::GetForegroundOsAccountLocalId(userId);
-        if (err != 0) {
-            WriteStdErr("get os account local id failed\n");
-            exit(1);
-        }
-        inputer = std::make_shared<PinAuth::SudoIInputer>();
-        std::shared_ptr<PinAuth::SudoIInputer> sudoInputer = std::static_pointer_cast<PinAuth::SudoIInputer>(inputer);
-        sudoInputer->SetPasswd(pwd, pwdLen);
-        err = AccountIAMClient::GetInstance().RegisterPINInputer(inputer);
-        if (err != 0) {
-            WriteStdErr("register pin inputer failed\n");
-            exit(1);
-        }
-        if (VerifyAccount(userId)) {
-            verifyResult = 1;
-        }
-        AccountIAMClient::GetInstance().UnregisterPINInputer();
-        write(fds[1], &verifyResult, sizeof(verifyResult));
-        close(fds[1]);
-        exit(0);
-    } else {
-        close(fds[1]);
-        waitpid(pid, nullptr, 0);
-        read(fds[0], &verifyResult, sizeof(verifyResult));
-        close(fds[0]);
-        return (verifyResult == 1);
-    }
+
+    PinAuthRegister::GetInstance().UnRegisterInputer();
+    return verifyResult;
 }
 
-static bool VerifyUserPin(void)
+static bool VerifyUserPin()
 {
     char passwd[PWD_BUF_LEN] = {0};
     bool pwdVerifyResult = false;
@@ -332,37 +345,73 @@ static bool VerifyUserPin(void)
     return pwdVerifyResult;
 }
 
+static bool SetPSL()
+{
+    int32_t res = SetProcessLevelByCommand(g_authToken.data(), g_authToken.size());
+    if (res != 0) {
+        WriteStdErr("set psl failed\n");
+        return false;
+    }
+    return true;
+}
+
+#if defined(SURPPORT_ACCOUNT_CONSTRAINT)
+static bool CheckUserLimitation()
+{
+    bool isNotEnabled = false;
+    OHOS::ErrCode err = OsAccountManager::CheckOsAccountConstraintEnabled(
+        g_userId, CONSTRAINT_SUDO, isNotEnabled);
+    if (err != 0) {
+        WriteStdErr("check account constrain failed.\n");
+        return false;
+    }
+
+    if (isNotEnabled) {
+        WriteStdErr("no permision.\n");
+        return false;
+    }
+
+    return true;
+}
+#endif
+
 int main(int argc, char* argv[], char* env[])
 {
-    char execCmd[PATH_MAX + 1] = {0};
-    char **argvNew = nullptr;
-    const char *help = "sudo - execute command as root\n\n"
-                       "usage: sudo command ...\n"
-                       "usage: sudo sh -c command ...\n";
-    if (argc < 2) { //2:argc check number
-        WriteStdErr(help);
+    if (!GetUserId()) {
+        WriteStdErr("get user id failed.\n");
         return 1;
     }
 
-    /*
-     * Get and verify user pwd
-    */
+#if defined(SURPPORT_ACCOUNT_CONSTRAINT)
+    if (!CheckUserLimitation()) {
+        return 1;
+    }
+#endif
+
+    if (argc < 2) { // 2:argc check number
+        WriteStdErr(HELP);
+        return 1;
+    }
+
+    if (!GetChallenge()) {
+        return 1;
+    }
+
     if (!VerifyUserPin()) {
         return 1;
     }
 
-    /*
-     * Make exec cmd and the args
-    */
-    argvNew = ParseCmd(argc, argv, env, execCmd, PATH_MAX + 1);
+    if (!SetPSL()) {
+        return 1;
+    }
+
+    char execCmd[PATH_MAX + 1] = {0};
+    char **argvNew = ParseCmd(argc, argv, env, execCmd, PATH_MAX + 1);
     CloseTty();
     if (argvNew == nullptr) {
         return 1;
     }
 
-    /*
-     * set uid, gid, egid
-    */
     if (!SetUidGid()) {
         FreeArgvNew(argvNew);
         WriteStdErr("setuid failed\n");
@@ -370,11 +419,13 @@ int main(int argc, char* argv[], char* env[])
     }
 
 #if defined(SURPPORT_SELINUX)
-    setcon("u:r:privilege_app:s0");
+    if (setcon("u:r:sudo_execv_label:s0") != 0) {
+        WriteStdErr("set SEHarmony label failed\n");
+        return 1;
+    }
 #endif
 
     execvp(execCmd, argvNew);
-
     WriteStdErr("execvp failed\n");
     return 1;
 }

@@ -124,8 +124,8 @@ constexpr uint16_t NEW_SESSION_DROP_USB_DATA_TIME_MAX_MS = 1000;
 // |----------------------------------------------------------------|
 // | major |reserve| minor |reserve|version|  fix  |   reserve      |
 // |----------------------------------------------------------------|
-// 0x30200000 is 3.2.0a
-constexpr uint32_t HDC_VERSION_NUMBER = 0x30200000;
+// 0x30200100 is 3.2.0b
+constexpr uint32_t HDC_VERSION_NUMBER = 0x30200100;
 constexpr uint32_t HDC_BUF_MAX_BYTES = INT_MAX;
 #ifdef HDC_HOST
 constexpr uint32_t HOST_SOCKETPAIR_SIZE = 1024 * 1024;
@@ -150,7 +150,7 @@ const string SERVER_NAME = "HDCServer";
 const string STRING_EMPTY = "";
 const string HANDSHAKE_MESSAGE = "OHOS HDC";  // sep not char '-', not more than 11 bytes
 const string HANDSHAKE_FAILED = "HS FAILED";
-const string PACKET_FLAG = "HW";              // must 2bytes
+const string PACKET_FLAG = "HW";              // Must be 2 bytes, representing the abbreviation for hdc work
 const string EMPTY_ECHO = "[Empty]";
 const string MESSAGE_INFO = "[Info]";
 const string MESSAGE_FAIL = "[Fail]";

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "host_usb.h"
+#include <regex>
 #include <stdlib.h>
 #include <thread>
 #include <chrono>
@@ -58,6 +59,19 @@ int HdcHostUSB::Initial()
     return 0;
 }
 
+static string UsbLogSNHandler(const char* srcStr, size_t length)
+{
+    string str(srcStr, length);
+    std::regex pattern("[\\\\#][A-Z]+_[0-9a-zA-Z]+(&[A-Z]+_*[0-9a-zA-Z]+)*[\\\\#]");
+    std::smatch matches;
+
+    if (std::regex_search(str, matches, pattern)) {
+        size_t snStPos = matches.position(0) + matches.length(0);
+        return str.substr(0, snStPos) + Hdc::MaskString(str.substr(snStPos));
+    }
+    return str;
+}
+
 static void UsbLogHandler(libusb_context* ctx, enum libusb_log_level level, const char* str)
 {
     int l = -1;
@@ -90,7 +104,8 @@ static void UsbLogHandler(libusb_context* ctx, enum libusb_log_level level, cons
         if (q) {
             *q = '\0';
         }
-        WRITE_LOG(l, "%s", p);
+        string result = UsbLogSNHandler(p, strlen(p));
+        WRITE_LOG(l, "%s", result.c_str());
         free(newStr);
     }
 }
@@ -241,7 +256,6 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
             return;
         }
         thisClass->logRePrintCount = 0;
-        thisClass->InitLogging(thisClass->ctxUSB);
     }
     HdcServer *ptrConnect = static_cast<HdcServer *>(thisClass->clsMainBase);
     CALLSTAT_GUARD(ptrConnect->loopMainStatus, handle->loop, "HdcHostUSB::WatchUsbNodeChange");

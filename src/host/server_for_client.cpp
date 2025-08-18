@@ -385,6 +385,7 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
         di.connectKey = lst.front();
         di.connType = CONN_TCP;
         di.connStatus = STATUS_READY;
+        di.inited = false;
         HDaemonInfo pDi = reinterpret_cast<HDaemonInfo>(&di);
         ptrServer->AdminDaemonMap(OP_ADD, STRING_EMPTY, pDi);
         lst.pop_front();
@@ -436,6 +437,9 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
                 bExitRepet = true;
                 sRet = "Connect failed";
                 thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
+                hdi->inited = false;
+                hdi->connStatus = STATUS_OFFLINE;
+                ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
                 break;
             }
         }
@@ -801,7 +805,7 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
         string remote = CMDSTR_REMOTE_PARAMETER + " ";
         if (parameters.find(remote) != std::string::npos) {
             parameters.replace(parameters.find(remote), remote.size(), "");
-            WRITE_LOG(LOG_DEBUG, "parameters: %s", parameters.c_str());
+            WRITE_LOG(LOG_DEBUG, "parameters: %s", Hdc::MaskString(parameters).c_str());
         }
     }
     delete[](reinterpret_cast<char *>(argv));
@@ -1150,8 +1154,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
             }
         }
 
-        WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s command:%s", hChannel->channelId,
-            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
+        WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s", hChannel->channelId,
+            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str());
         if (Hdc::Base::GetCmdLogSwitch()) {
             string logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, (reinterpret_cast<char *>(bufPtr)));
             ptrServer->PrintCmdLogEx(logBuf);

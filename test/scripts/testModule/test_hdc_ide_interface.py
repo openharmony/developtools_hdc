@@ -19,13 +19,13 @@ import logging
 import threading
 import pytest
 
-from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result
+from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result, load_gp
 from enum import Enum
 
 
 class OsValue(Enum):
     UNKNOWN = 1
-    HMOS = 2
+    OHOS = 2
     OTHER = 3
 
 
@@ -64,15 +64,15 @@ class TestCommonSupport:
         cmd = f"taskkill /F /PID {pid}"
         subprocess.Popen(cmd, shell=False)
 
-    def is_hmos(self):  # 此项依赖toybox和实际的OS
+    def is_ohos(self):  # 此项依赖toybox和实际的OS
         with lock:
             if self.os_value != OsValue.UNKNOWN:
-                return self.os_value == OsValue.HMOS
+                return self.os_value == OsValue.OHOS
             if check_shell(f"shell uname -a", "HongMeng Kernel"):
-                self.os_value = OsValue.HMOS
+                self.os_value = OsValue.OHOS
             else:
                 self.os_value = OsValue.OTHER
-        return self.os_value == OsValue.HMOS
+        return self.os_value == OsValue.OHOS
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -122,7 +122,7 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_is_hongmeng_os(self):
-        if not self.is_hmos():
+        if not self.is_ohos():
             assert True
             return
         assert check_shell(f"shell uname -a", "HongMeng Kernel")
@@ -130,7 +130,7 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_support_ftp(self):
-        if not self.is_hmos():
+        if not self.is_ohos():
             assert True
             return
         assert not check_shell(f"shell ls -d system/bin/bftpd", "No such file or directory")
@@ -148,7 +148,7 @@ class TestCommonSupport:
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_check_support_tsan(self):
-        if not self.is_hmos():
+        if not self.is_ohos():
             assert True
             return
         assert not check_shell(f"shell ls -d system/lib64/libclang_rt.tsan.so", "No such file or directory")
@@ -169,25 +169,6 @@ class TestCommonSupport:
     @pytest.mark.repeat(2)
     def test_check_hilog_not_support_options(self):
         assert check_shell(f"shell hilog -v xxx", "Invalid argument")
-
-    @pytest.mark.L0
-    @pytest.mark.repeat(2)
-    def test_check_support_screenrecorder(self):
-        if not self.is_hmos():
-            assert True
-            return
-        prefix = "hua"
-        check_shell(f"shell aa start -b com.{prefix}wei.hmos.screenrecorder"
-                    f" -a com.{prefix}wei.hmos.screenrecorder.ServiceExtAbility"
-                    f" --ps 'CustomizedFileName' 'test.mp4'")
-        time.sleep(2)
-        assert check_shell(f"shell mediatool query test.xxx", "The displayName format is not correct!")
-        assert not check_shell(f"shell mediatool query testxxx.mp4", "The displayName format is not correct!")
-        result = get_shell_result(f"shell mediatool query test.mp4 -u")
-        assert "test.mp4" in result and "file://media" in result
-
-        check_shell(f"shell aa start -b com.{prefix}wei.hmos.screenrecorder "
-                    f"-a com.{prefix}wei.hmos.screenrecorder.ServiceExtAbility")
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)

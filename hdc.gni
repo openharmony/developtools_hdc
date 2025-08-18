@@ -24,6 +24,7 @@ declare_args() {
   hdc_version_check = false
   support_hdcd_user_permit = false
   hdc_feature_support_sudo = false
+  hdc_support_account_constraint = true
   hdc_feature_support_credential = false
 
   if (defined(global_parts_info)) {

@@ -31,7 +31,7 @@ enum HdcLogLevel {
     LOG_DEBUG,
     LOG_ALL,
     LOG_VERBOSE,
-    LOG_LAST = LOG_VERBOSE,  // tail, not use
+    LOG_LAST = LOG_ALL,  // tail, not use
 };
 
 #ifdef IS_RELEASE_VERSION

@@ -12,12 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifdef __OHOS__
+#include "common_test.h"
+#include <limits>
 #include <sys/xattr.h>
 #include <sys/wait.h>
-#endif
 #include "base.h"
-#include "main_test.h"
 
 using namespace testing::ext;
 
@@ -47,7 +46,7 @@ bool HdcMainTest::TestIsHishellLabel(pid_t pid)
     const char* attrName = "security.selinux";
     // get attribute size
     ssize_t attrSize = getxattr(pathBuf, attrName, nullptr, 0);
-    if (attrSize == 0 || attrSize == - 1) {
+    if (attrSize <= 0 || attrSize >= std::numeric_limits<size_t>::max()) {
         return false;
     }
     char *attrValue = new(std::nothrow) char[attrSize];

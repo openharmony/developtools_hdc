@@ -17,10 +17,8 @@
 #define SUDO_IAM_H
 #include <condition_variable>
 #include <mutex>
-#include "account_iam_client.h"
-#include "account_iam_info.h"
-#include "account_iam_client_callback.h"
 #include "i_inputer.h"
+#include "user_auth_client_callback.h"
 
 extern std::condition_variable g_condVarForAuth;
 extern bool g_authFinish;
@@ -39,22 +37,25 @@ public:
 private:
     std::vector<uint8_t> passwd_;
 };
+} // PinAuth
 
-} //PinAuth
-} //UserIam
-
-namespace AccountSA {
-
-class SudoIDMCallback : public IDMCallback {
+namespace UserAuth {
+class SudoIDMCallback : public AuthenticationCallback {
 public:
-    virtual ~SudoIDMCallback() = default;
+    virtual ~SudoIDMCallback();
     SudoIDMCallback();
-    void OnAcquireInfo(int32_t module, uint32_t acquireInfo, const Attributes &extraInfo) override;
-    void OnResult(int32_t result, const Attributes &extraInfo) override;
+    void OnAcquireInfo(int32_t module, uint32_t acquireInfo,
+                          const OHOS::UserIam::UserAuth::Attributes &extraInfo) override;
+    void OnResult(int32_t result,
+                          const OHOS::UserIam::UserAuth::Attributes &extraInfo) override;
     bool GetVerifyResult(void);
+    std::vector<uint8_t> GetAuthToken();
 private:
     bool verifyResult_;
+    std::vector<uint8_t> authToken_;
 };
-} // AccountSA
-} //OHOS
-#endif //SUDO_IAM_H
+} // UserAuth
+
+} // UserIam
+} // OHOS
+#endif  //SUDO_IAM_H

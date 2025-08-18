@@ -91,6 +91,12 @@ bool HdcServer::Initial(const char *listenString)
         return false;
     }
     Base::RemoveLogFile();
+#ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
+    if (!HdcAuth::CheckPrivateKeyFile()) {
+        WRITE_LOG(LOG_FATAL, "Private key file not found, please check your installation.");
+        return false;
+    }
+#endif
     do {
         clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
         int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
@@ -416,6 +422,7 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
     if (!freeOrClear) {  // step1
         // update
         HdcDaemonInformation diNew = *hdiOld;
+        diNew.inited = false;
         diNew.connStatus = STATUS_OFFLINE;
         diNew.hSession = nullptr;
         HDaemonInfo hdiNew = &diNew;
@@ -495,6 +502,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             WRITE_LOG(LOG_INFO, "response auth signture success");
             return true;
         }
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
         case AUTH_SSL_TLS_PSK: {
             if (hSession->classSSL == nullptr && !ServerSessionSSLInit(hSession, handshake)) {
                 WRITE_LOG(LOG_FATAL, "SSL init failed");
@@ -502,6 +510,7 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
             }
             return ServerSSLHandshake(hSession, handshake);
         }
+#endif
         default:
             WRITE_LOG(LOG_FATAL, "invalid auth type %d", handshake.authType);
             return false;
@@ -522,6 +531,7 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
     HdcDaemonInformation diNew = *hdiOld;
     HDaemonInfo hdiNew = &diNew;
     // update
+    hdiNew->inited = false;
     hdiNew->connStatus = STATUS_CONNECTED;
     WRITE_LOG(LOG_INFO, "handshake info is : %s", handshake.ToDebugString().c_str());
     WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
@@ -724,6 +734,8 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
     }
     if (hChannel->isDead) {
         WRITE_LOG(LOG_FATAL, "FetchCommand channelId:%u isDead", channelId);
+        uint8_t flag = 0;
+        Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &flag, 1);
         --hChannel->ref;
         return ret;
     }
@@ -994,12 +1006,17 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         di.connectKey = connectKey;
         di.connType = connType;
         di.connStatus = STATUS_UNKNOW;
+        di.inited = false;
         HDaemonInfo pDi = reinterpret_cast<HDaemonInfo>(&di);
         AdminDaemonMap(OP_ADD, "", pDi);
         AdminDaemonMap(OP_QUERY, connectKey, hdi);
     }
     if (!hdi || hdi->connStatus == STATUS_CONNECTED) {
         WRITE_LOG(LOG_FATAL, "Connected return");
+        return ERR_GENERIC;
+    }
+    if (hdi->inited == true) {
+        WRITE_LOG(LOG_FATAL, "Connection is inited");
         return ERR_GENERIC;
     }
     HSession hSession = nullptr;
@@ -1036,6 +1053,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
     if (hdiQuery) {
         HdcDaemonInformation diNew = *hdiQuery;
         diNew.hSession = hSession;
+        diNew.inited = true;
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hdiQuery->connectKey, hdiNew);
     }

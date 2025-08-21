@@ -108,7 +108,7 @@ class TestSessionLifeCycle:
         time.sleep(1)
         item = f"127.0.0.1:{fport_tcp_host_port + 3}"
         connect_key = f"{item[:3]}******{item[-3:]}(L:{len(item)})"
-        ls_result_line = f"connectKey:{connect_key} command flag:1001 command parameters:ls command result:1 command take time:"
+        ls_result_line = f"connectKey:{connect_key} command flag:1001 command result:1 command take time:"
         for i in range(3):
             target_lines.append(ls_result_line)
             check_shell(f"-t 127.0.0.1:{fport_tcp_host_port + 3} shell ls")

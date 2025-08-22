@@ -150,7 +150,7 @@ protected:
             return;
         }
         WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
-            context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
+            Hdc::MaskString(context->localPath).c_str(), context->openFd, context->closeReqSubmitted);
         uv_fs_t fs;
         uv_fs_close(nullptr, &fs, context->openFd, nullptr);
         uv_fs_req_cleanup(&fs);

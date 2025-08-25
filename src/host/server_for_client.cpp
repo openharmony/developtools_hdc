@@ -630,7 +630,7 @@ void HdcServerForClient::HandleRemote(HChannel hChannel, string &parameters, Rem
         string remote = CMDSTR_REMOTE_PARAMETER + " ";
         if (parameters.find(remote) != std::string::npos) {
             parameters.replace(parameters.find(remote), remote.size(), "");
-            WRITE_LOG(LOG_DEBUG, "parameters: %s", parameters.c_str());
+            WRITE_LOG(LOG_DEBUG, "parameters: %s", Hdc::MaskString(parameters).c_str());
         }
     }
     delete[](reinterpret_cast<char *>(argv));
@@ -880,8 +880,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
                 EchoClient(hChannel, MSG_FAIL, retEcho.c_str());
             }
         }
-        WRITE_LOG(LOG_DEBUG, "ReadChannel cid:%u sid:%u key:%s command: %s",
-            hChannel->channelId, hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), bufPtr);
+        WRITE_LOG(LOG_DEBUG, "ReadChannel cid:%u sid:%u key:%s", hChannel->channelId,
+            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str());
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");
             return -10;  //  -10 error formatCommand

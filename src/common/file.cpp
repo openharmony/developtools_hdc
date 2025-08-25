@@ -529,10 +529,11 @@ void HdcFile::TransferNext(CtxFile *context)
     context->localPath = context->localDirName + context->localName;
     context->taskQueue.pop_back();
     WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
-              context->localPath.c_str(), ctxNow.taskQueue.size());
+              Hdc::MaskString(context->localPath).c_str(), ctxNow.taskQueue.size());
     uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
-        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s", context->localPath.c_str());
+        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
+            Hdc::MaskString(context->localPath).c_str());
         OnFileOpenFailed(context);
         return;
     }

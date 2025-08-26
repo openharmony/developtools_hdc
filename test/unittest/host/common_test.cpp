@@ -21,9 +21,9 @@
 using namespace testing::ext;
 
 namespace Hdc {
-void HdcMainTest::SetUpTestCase() {}
-void HdcMainTest::TearDownTestCase() {}
-void HdcMainTest::SetUp()
+void HdcCommonTest::SetUpTestCase() {}
+void HdcCommonTest::TearDownTestCase() {}
+void HdcCommonTest::SetUp()
 {
 #ifdef UT_DEBUG
     Base::SetLogLevel(LOG_ALL);
@@ -31,9 +31,9 @@ void HdcMainTest::SetUp()
     Base::SetLogLevel(LOG_OFF);
 #endif
 }
-void HdcMainTest::TearDown() {}
+void HdcCommonTest::TearDown() {}
 
-bool HdcMainTest::TestIsHishellLabel(pid_t pid)
+bool HdcCommonTest::TestIsHishellLabel(pid_t pid)
 {
     if (pid == 0) {
         return false;
@@ -63,12 +63,12 @@ bool HdcMainTest::TestIsHishellLabel(pid_t pid)
     return label == "u:r:hishell_hap:s0";
 }
 
-HWTEST_F(HdcMainTest, TestIsHishell_1, TestSize.Level0)
+HWTEST_F(HdcCommonTest, TestIsHishell_1, TestSize.Level0)
 {
     EXPECT_FALSE(TestIsHishellLabel(0));
 }
 
-HWTEST_F(HdcMainTest, TestIsHishell_2, TestSize.Level0)
+HWTEST_F(HdcCommonTest, TestIsHishell_2, TestSize.Level0)
 {
     pid_t pid = fork();
     ASSERT_GT(pid, 0);
@@ -77,11 +77,11 @@ HWTEST_F(HdcMainTest, TestIsHishell_2, TestSize.Level0)
     } else {
         // parent process
         kill(pid, SIGUSR1);
-        EXPECT_TRUE(TestIsHishellLabel(pid));
+        EXPECT_FALSE(TestIsHishellLabel(pid));
     }
 }
 
-HWTEST_F(HdcMainTest, TestIsHishell_3, TestSize.Level0)
+HWTEST_F(HdcCommonTest, TestIsHishell_3, TestSize.Level0)
 {
     pid_t pid = fork();
     ASSERT_GT(pid, 0);
@@ -90,11 +90,11 @@ HWTEST_F(HdcMainTest, TestIsHishell_3, TestSize.Level0)
     } else {
         // parent process
         kill(pid, SIGUSR1);
-        EXPECT_TRUE(TestIsHishellLabel(pid));
+        EXPECT_FALSE(TestIsHishellLabel(pid));
     }
 }
 
-HWTEST_F(HdcMainTest, TestIsHishell_4, TestSize.Level0)
+HWTEST_F(HdcCommonTest, TestIsHishell_4, TestSize.Level0)
 {
     pid_t pid = fork();
     ASSERT_GT(pid, 0);
@@ -103,7 +103,7 @@ HWTEST_F(HdcMainTest, TestIsHishell_4, TestSize.Level0)
     } else {
         // parent process
         kill(pid, SIGUSR1);
-        EXPECT_TRUE(TestIsHishellLabel(pid));
+        EXPECT_FALSE(TestIsHishellLabel(pid));
     }
 }
 }

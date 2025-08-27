@@ -132,7 +132,7 @@ int HdcDaemonTCP::SetTCPListen()
         return ERR_API_FAIL;
     }
     // Get listen port
-    Base::ZeroStruct(addr);
+    addr = {};
     namelen = sizeof(addr);
     if (uv_tcp_getsockname(&servTCP, (sockaddr *)&addr, &namelen)) {
         return ERR_API_FAIL;

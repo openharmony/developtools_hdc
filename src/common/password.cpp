@@ -167,12 +167,12 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
 }
 HdcPassword::HdcPassword(const std::string &pwdKeyAlias):hdcHuks(pwdKeyAlias)
 {
-    memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
+    (void)memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
 }
 
 HdcPassword::~HdcPassword()
 {
-    memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
+    (void)memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
 }
 
 std::pair<uint8_t*, int> HdcPassword::GetPassword(void)

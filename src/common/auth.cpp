@@ -812,7 +812,11 @@ static uint8_t* GetPlainPwd(const std::string& privateKeyFile)
         WRITE_LOG(LOG_FATAL, "out of mem %d", plainPwd.second);
         return nullptr;
     }
-    memcpy_s(localPwd, plainPwd.second, plainPwd.first, plainPwd.second);
+    if(memcpy_s(localPwd, plainPwd.second, plainPwd.first, plainPwd.second) != EOK) {
+        delete []localPwd;
+        localPwd = nullptr;
+        return nullptr;
+    }
     localPwd[plainPwd.second] = '\0';
     return localPwd;
 }

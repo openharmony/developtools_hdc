@@ -1072,7 +1072,7 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
             return ERR_BUF_COPY;
         };
         uint8_t *bufToZero = reinterpret_cast<uint8_t *>(hSession->ioBuf + hSession->availTailIndex);
-        Base::ZeroBuf(bufToZero, hSession->bufSize - hSession->availTailIndex);
+        memset_s(bufToZero, hSession->bufSize - hSession->availTailIndex, 0, hSession->bufSize - hSession->availTailIndex);
     }
     return indexBuf;
 }

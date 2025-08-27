@@ -114,22 +114,6 @@ namespace Base {
     string Convert2HexStr(uint8_t arr[], int length);
     string CanonicalizeSpecPath(string &src);
     bool TryCreateDirectory(const string &path, string &err);
-    // Just zero a POD type, such as a structure or union
-    // If it contains c++ struct such as stl-string or others, please use 'T = {}' to initialize struct
-    template<class T> int ZeroStruct(T &structBuf)
-    {
-        return memset_s(&structBuf, sizeof(T), 0, sizeof(T));
-    }
-    // just zero a statically allocated array of POD or built-in types
-    template<class T, size_t N> int ZeroArray(T (&arrayBuf)[N])
-    {
-        return memset_s(arrayBuf, sizeof(T) * N, 0, sizeof(T) * N);
-    }
-    // just zero memory buf, such as pointer
-    template<class T> int ZeroBuf(T &arrayBuf, int size)
-    {
-        return memset_s(arrayBuf, size, 0, size);
-    }
     // clang-format off
     const string StringFormat(const char * const formater, ...);
     const string StringFormat(const char * const formater, va_list &vaArgs);

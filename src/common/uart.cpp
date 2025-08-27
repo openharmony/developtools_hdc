@@ -1037,9 +1037,9 @@ void HdcUARTBase::TransferStateMachine::Wait()
 HdcUART::HdcUART()
 {
 #ifdef _WIN32
-    Base::ZeroStruct(ovWrite);
+    ovWrite = {};
     ovWrite.hEvent = CreateEvent(NULL, false, false, NULL);
-    Base::ZeroStruct(ovRead);
+    ovRead = {};
     ovRead.hEvent = CreateEvent(NULL, false, false, NULL);
 #endif
 }

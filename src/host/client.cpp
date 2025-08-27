@@ -39,7 +39,7 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
     MallocChannel(&channel);  // free by logic
     debugRetryCount = 0;
 #ifndef _WIN32
-    Base::ZeroStruct(terminalState);
+    terminalState = {};
 #endif
     isCheckVersionCmd = checkVersion;
 }
@@ -639,7 +639,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
         return;  // error
     }
     thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(cmd), strlen(cmd));
-    Base::ZeroArray(hChannel->bufStd);
+    memset_s(cmd, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd), 0, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd));
 }
 
 void HdcClient::ModifyTty(bool setOrRestore, uv_tty_t *tty)

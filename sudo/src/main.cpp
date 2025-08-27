@@ -343,7 +343,7 @@ static bool VerifyUserPin()
     }
 
     pwdVerifyResult = UserAccountVerify(passwd, strnlen(passwd, PWD_BUF_LEN));
-    memset_s(passwd, sizeof(passwd), 0, sizeof(passwd));
+    (void)memset_s(passwd, sizeof(passwd), 0, sizeof(passwd));
     if (!pwdVerifyResult) {
         WriteTty(USER_VERIFY_FAILED);
     }

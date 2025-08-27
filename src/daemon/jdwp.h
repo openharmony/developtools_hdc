@@ -58,7 +58,7 @@ private:
         uint32_t ppid;
         PollNode(int fd, uint32_t pid)
         {
-            Base::ZeroStruct(pollfd);
+            pollfd = {};
             pollfd.fd = fd;
             pollfd.events = POLLNVAL | POLLRDHUP | POLLHUP | POLLERR;
             pollfd.revents = 0;

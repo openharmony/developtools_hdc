@@ -79,7 +79,7 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
                 WRITE_LOG(LOG_FATAL, "HdcDaemonApp::CommandDispatch new uv_fs_t failed");
                 return false;
             }
-            memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+            (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
             MakeCtxForAppCheck(payload, payloadSize);
             openReq->data = &ctxNow;
             ++refCount;

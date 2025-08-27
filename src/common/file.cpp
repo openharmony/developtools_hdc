@@ -63,7 +63,7 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
         LogMsg(MSG_FAIL, "HdcFile::BeginTransfer new openReq failed");
         return false;
     }
-    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = context;
     do {
         ++refCount;
@@ -518,7 +518,7 @@ bool HdcFile::BeginFileOperations()
         LogMsg(MSG_FAIL, "HdcFile::SlaveCheck new openReq failed");
         return false;
     }
-    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = &ctxNow;
     ++refCount;
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
@@ -549,7 +549,7 @@ void HdcFile::TransferNext(CtxFile *context)
         OnFileOpenFailed(context);
         return;
     }
-    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = context;
     do {
         ++refCount;

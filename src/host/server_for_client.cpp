@@ -220,7 +220,7 @@ bool HdcServerForClient::SetTCPListen()
     struct sockaddr_in6 addr;
     uv_tcp_init(loopMain, &tcpListen);
 
-    WRITE_LOG(LOG_DEBUG, "channelHost %s, port: %d", channelHost.c_str(), channelPort);
+    WRITE_LOG(LOG_DEBUG, "channelHost %s, port: %d", Hdc::MaskString(channelHost).c_str(), channelPort);
     int rc = uv_ip6_addr(channelHost.c_str(), channelPort, &addr);
     if (rc != 0) {
         uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
@@ -241,7 +241,7 @@ bool HdcServerForClient::SetTCPListen()
                 if (rc != 0) {
                     uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
                     WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
-                        ipv4.c_str(), rc, buffer);
+                        Hdc::MaskString(ipv4).c_str(), rc, buffer);
                     return false;
                 }
             }

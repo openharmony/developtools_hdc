@@ -351,7 +351,7 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname, string pubkey)
 
     string authResult;
     if (!SystemDepend::GetDevItem("persist.hdc.daemon.auth_result", authResult)) {
-        WRITE_LOG(LOG_FATAL, "user refuse [%s] this developer [%s]", authResult.c_str(), hostname.c_str());
+        WRITE_LOG(LOG_FATAL, "user refuse [%s] this developer [%s]", authResult.c_str(), Hdc::MaskString(hostname).c_str());
         return REFUSE;
     }
     WRITE_LOG(LOG_FATAL, "user permit_result [%s] for this developer [%s]", authResult.c_str(), hostname.c_str());

@@ -21,12 +21,16 @@ namespace Hdc {
 static const char* SPECIAL_CHARS = "~!@#$%^&*()-_=+\\|[{}];:'\",<.>/?";
 static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
-std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr)
+ssize_t HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, const std::string &messageStr, char data[], ssize_t size)
 {
+    if (data == nullptr || size < static_cast<ssize_t>(MESSAGE_STR_MAX_LEN)) {
+        WRITE_LOG(LOG_FATAL, "data is null or size:%d out of range", size);
+        return -1;
+    }
     int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create socket.");
-        return "";
+        return -1;
     }
 
     struct sockaddr_un addr = {};
@@ -36,42 +40,47 @@ std::string HdcPassword::SendToUnixSocketAndRecvStr(const char *socketPath, cons
     if (pathLen > maxPathLen) {
         WRITE_LOG(LOG_FATAL, "Socket path too long.");
         close(sockfd);
-        return "";
+        return -1;
     }
     memcpy_s(addr.sun_path, maxPathLen, socketPath, pathLen);
  
     if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
         close(sockfd);
-        return "";
+        return -1;
     }
 
     ssize_t bytesSend = send(sockfd, messageStr.c_str(), messageStr.size(), 0);
     if (bytesSend < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to send message.");
         close(sockfd);
-        return "";
+        return -1;
     }
 
-    std::string response;
+    ssize_t count = 0;
     char buffer[MESSAGE_STR_MAX_LEN] = {0};
     ssize_t bytesRead = 0;
     while ((bytesRead = recv(sockfd, buffer, sizeof(buffer) - 1, 0)) > 0) {
-        response.append(buffer, bytesRead);
-        if (memset_s(buffer, sizeof(buffer), 0, MESSAGE_STR_MAX_LEN) != EOK) {
-            WRITE_LOG(LOG_FATAL, "memset_s failed.");
-            close(sockfd);
-            return "";
+        if (bytesRead >= size - count) {
+            WRITE_LOG(LOG_FATAL, "out of range size:%d count:%d bytesRead:%d", size, count, bytesRead);
+            bytesRead = -1;
+            break;
         }
+        if (memcpy_s(data + count, size - count, buffer, bytesRead) != EOK) {
+            WRITE_LOG(LOG_FATAL, "memcpy_s failed.");
+            bytesRead = -1;
+            break;
+        }
+        count += bytesRead;
     }
     if (bytesRead < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
         close(sockfd);
-        return "";
+        return -1;
     }
     
     close(sockfd);
-    return response;
+    return count;
 }
 
 std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t type)
@@ -117,13 +126,15 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr);
+    char data[MESSAGE_STR_MAX_LEN] = {0};
+    ssize_t count = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr,
+                                               data, MESSAGE_STR_MAX_LEN);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
-    if (recvStr.empty()) {
-        WRITE_LOG(LOG_FATAL, "recvStr is empty.");
+    if (count <= 0) {
+        WRITE_LOG(LOG_FATAL, "recv data is empty.");
         return std::vector<uint8_t>();
     }
-
+    std::string recvStr(data, count);
     CredentialMessage messageStruct(recvStr);
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     if (messageStruct.GetMessageBodyLen() > 0) {
@@ -146,13 +157,15 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);
     }
-    std::string recvStr = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr);
+    char data[MESSAGE_STR_MAX_LEN] = {0};
+    ssize_t count = SendToUnixSocketAndRecvStr(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr,
+                                               data, MESSAGE_STR_MAX_LEN);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
-    if (recvStr.empty()) {
-        WRITE_LOG(LOG_FATAL, "recvStr is empty.");
+    if (count <= 0) {
+        WRITE_LOG(LOG_FATAL, "recv data is empty.");
         return std::make_pair(nullptr, 0);
     }
-
+    std::string recvStr(data, count);
     CredentialMessage messageStruct(recvStr);
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     if (messageStruct.GetMessageBodyLen() > 0) {

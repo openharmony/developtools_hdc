@@ -126,6 +126,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
     std::string recvStr(data, count);
     CredentialMessage messageStruct(recvStr);
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
+    memset_s(data, MESSAGE_STR_MAX_LEN, 0, MESSAGE_STR_MAX_LEN);
     if (messageStruct.GetMessageBodyLen() > 0) {
         std::string body = messageStruct.GetMessageBody();
         std::vector<uint8_t> retByteData = String2Uint8(body, messageStruct.GetMessageBodyLen());
@@ -156,6 +157,7 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
     std::string recvStr(data, count);
     CredentialMessage messageStruct(recvStr);
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
+    memset_s(data, MESSAGE_STR_MAX_LEN, 0, MESSAGE_STR_MAX_LEN);
     if (messageStruct.GetMessageBodyLen() > 0) {
         uint8_t *keyData = new uint8_t[messageStruct.GetMessageBodyLen() + 1];
         std::copy(messageStruct.GetMessageBody().begin(), messageStruct.GetMessageBody().end(), keyData);

@@ -924,8 +924,8 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         fflush(stdout);
 #else
         constexpr int len = 512;
-        int size = s.size() / len;
-        int left = s.size() % len;
+        int size = bytesIO / len;
+        int left = bytesIO % len;
         for (int i = 0; i <= size; i++) {
             int cnt = len;
             const char *p = reinterpret_cast<char *>(buf) + i * cnt;
@@ -965,7 +965,9 @@ string HdcClient::ListTargetsAll(const string &str)
     const string lists = "list targets -v";
     if (!strncmp(this->command.c_str(), lists.c_str(), lists.size())) {
         UpdateList(str);
-        all = Base::ReplaceAll(all, "\n", "\thdc\n");
+        if (str != "\r\n") {
+            all = Base::ReplaceAll(all, "\n", "\thdc\n");
+        }
     } else if (!strncmp(this->command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
         UpdateList(str);
     }

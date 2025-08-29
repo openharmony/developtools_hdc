@@ -26,7 +26,6 @@ hdc_common_sources = [
   "${hdc_path}/src/common/channel.cpp",
   "${hdc_path}/src/common/circle_buffer.cpp",
   "${hdc_path}/src/common/compress.cpp",
-  "${hdc_path}/src/common/debug.cpp",
   "${hdc_path}/src/common/decompress.cpp",
   "${hdc_path}/src/common/entry.cpp",
   "${hdc_path}/src/common/file.cpp",

@@ -272,14 +272,15 @@ template("build_hdc") {
     } else {
       ohos_rust_executable("hdcd_${image_name}_exe") {
         sources = [ "hdc_rust/src/daemon/main.rs" ]
+        rustflags = []
         if (use_clang_coverage) {
-          rustflags = [
+          rustflags += [
             "-C",
             "instrument-coverage",
             "-Clink-arg=--coverage",
           ]
         }
-        rustflags = [ "-Cforce-frame-pointers=yes" ]
+        rustflags += [ "-Cforce-frame-pointers=yes" ]
         deps = [
           "//third_party/rust/crates/env_logger:lib",
           "//third_party/rust/crates/humantime:lib",

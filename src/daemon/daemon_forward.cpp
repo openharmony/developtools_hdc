@@ -54,14 +54,23 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
     }
     // do slave connect
     // fd[0] for forward, fd[1] for jdwp
+    // forward to close fd[0], fd[1] for jdwp close
+    int fds[2] = { 0 };
     bool ret = false;
     Base::CreateSocketPair(fds);
+    if (uv_tcp_init(loopTask, &ctxPoint->tcp)) {
+        return ret;
+    }
+    ctxPoint->tcp.data = ctxPoint;
+    if (uv_tcp_open(&ctxPoint->tcp, fds[0])) {
+        Base::CloseSocketPair(fds);
+        return ret;
+    }
     constexpr auto len = sizeof(uint32_t);
     uint8_t flag[1 + len + len];
     flag[0] = SP_JDWP_NEWFD;
     if (memcpy_s(flag + 1, sizeof(flag) - 1, &pid, len) ||
         memcpy_s(flag + 1 + len, sizeof(flag) - len - 1, &fds[1], len)) {
-        Base::CloseSocketPair(fds);
         return ret;
     }
     if (ThreadCtrlCommunicate(flag, sizeof(flag)) > 0) {

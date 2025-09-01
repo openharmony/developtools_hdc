@@ -474,7 +474,7 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
                 hChannel->connectLocalDevice = true;
             }
         }
-        memset_s(hChannel->bufStd, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd), 0, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd));
+        (void)memset_s(hChannel->bufStd, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd), 0, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd));
         childRet = snprintf_s(hChannel->bufStd + bufOffsetTwo, sizeof(hChannel->bufStd) - bufOffsetTwo,
                               sizeof(hChannel->bufStd) - bufOffsetThree, "%s",
                               const_cast<char *>(connectKey.c_str()));

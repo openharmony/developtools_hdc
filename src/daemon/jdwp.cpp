@@ -178,7 +178,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
             }
         }
     }
-    memset_s(ctxJdwp->buf, sizeof(ctxJdwp->buf), 0, sizeof(ctxJdwp->buf));
+    (void)memset_s(ctxJdwp->buf, sizeof(ctxJdwp->buf), 0, sizeof(ctxJdwp->buf));
     if (!ret) {
         WRITE_LOG(LOG_INFO, "ReadStream proc:%d err, free it.", ctxJdwp->pid);
         thisClass->freeContextMutex.lock();

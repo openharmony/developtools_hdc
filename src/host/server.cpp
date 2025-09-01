@@ -149,7 +149,7 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
         constexpr int bufSize = 1024;
         char buffer[bufSize] = { 0 };
         strerror_s(buffer, bufSize, err);
-        WRITE_LOG(LOG_WARN, "GetShortPath errmsg:%s", buffer);
+        WRITE_LOG(LOG_WARN, "GetShortPath path:[%s] errmsg:%s", path, buffer);
         string uvPath = path;
         runPath = uvPath.substr(uvPath.find_last_of("/\\") + 1);
     }
@@ -159,7 +159,7 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
     if (sprintf_s(buf, sizeof(buf), "dummy -l %d -s %s -m", Base::GetLogLevelByEnv(), listenString) < 0) {
         return retVal;
     }
-    WRITE_LOG(LOG_DEBUG, "Run server in debug-forground, cmd:%s, args:%s", Hdc::MaskString(runPath).c_str(), buf);
+    WRITE_LOG(LOG_DEBUG, "Run server in debug-forground, cmd:%s, args:%s", runPath.c_str(), buf);
     STARTUPINFO si = {};
     si.cb = sizeof(STARTUPINFO);
     PROCESS_INFORMATION pi = {};
@@ -168,8 +168,13 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
     si.wShowWindow = SW_HIDE;
 #endif
     if (!CreateProcess(runPath.c_str(), buf, nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
-        WRITE_LOG(LOG_WARN, "CreateProcess failed with cmd:%s, args:%s, Error Code %d", Hdc::MaskString(runPath).c_str(),
-                buf, GetLastError());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_WARN, "CreateProcess failed with cmd:%s, args:%s, Error Code %d",
+                Hdc::MaskString(runPath).c_str(), buf, GetLastError());
+        } else {
+            WRITE_LOG(LOG_WARN, "CreateProcess failed with cmd:%s, args:%s, Error Code %d",
+                runPath.c_str(), buf, GetLastError());
+        }
         retVal = false;
     } else {
         retVal = true;

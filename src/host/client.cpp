@@ -547,13 +547,12 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
         if (index != std::string::npos) {
             s = s.substr(index + size);
         }
-        WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv4 %s:%d", Hdc::MaskString(s).c_str(), port);
+        WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv4 %s:%d", s.c_str(), port);
         uv_ip4_addr(s.c_str(), port, &destv4);
         uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&destv4, Connect);
     } else {
         isIpV4 = false;
-        std::string s = ip;
-        WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv6 %s:%d", Hdc::MaskString(s).c_str(), port);
+        WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv6 %s:%d", ip, port);
         uv_ip6_addr(ip, port, &dest);
         uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&dest, Connect);
     }
@@ -589,7 +588,11 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
         uv_timer_stop(handle);
         uv_stop(thisClass->loopMain);
-        WRITE_LOG(LOG_DEBUG, "Cmd has been canceld");
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", Hdc::MaskString(thisClass->command).c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        }
         return;
     }
     while (closeInput) {

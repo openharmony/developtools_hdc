@@ -73,7 +73,7 @@ HWTEST_F(HdcDefineTest, TestToDisplayChannelStr1, TestSize.Level1)
     channel->isSuccess = true;
     channel->faultInfo = "";
     std::string result = "HdcServerForClient [ channelId:2867909239 connectKey:700******900(L:32) "
-    "command flag:3000 command result:1 command take time:100ms faultInfo: ]";
+        "command flag:3000 command result:1 command take time:100ms faultInfo: ]";
     ASSERT_EQ(channel->ToDisplayChannelStr(), result);
     
     delete channel;
@@ -87,15 +87,14 @@ HWTEST_F(HdcDefineTest, TestToDisplayChannelStr1, TestSize.Level1)
 HWTEST_F(HdcDefineTest, TestToDisplayChannelStr2, TestSize.Level1)
 {
     HChannel channel = HdcDefineTest::InstanceHChannel();
-    channel->connectKey = "7001005458323933328a259b97233900";
+    channel->connectKey = "192.168.43.176:8989";
     channel->channelId = 2867909239;
     channel->commandFlag = 3000;
-    channel->commandParameters = "send remote -cwd \"D:\\test\\script0408\\scripts\\\" main.py /data/  ";
     channel->startTime = 22121121212;
     channel->endTime = 22121121312;
     channel->isSuccess = true;
     channel->faultInfo = "";
-    std::string result = "HdcServerForClient [ channelId:2867909239 connectKey:700******900(L:32) "
+    std::string result = "HdcServerForClient [ channelId:2867909239 connectKey:192******989(L:19) "
         "command flag:3000 command result:1 command take time:100ms faultInfo: ]";
     ASSERT_EQ(channel->ToDisplayChannelStr(), result);
     

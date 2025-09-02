@@ -4,13 +4,26 @@
 ---------------------------------global commands:----------------------------------
  -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds
  -v/version                            - Print hdc version
+ -l[0-5]                               - Set runtime log level
  -t connectkey                         - Use device with given connect key
+ checkserver                           - Check client-server version
 
 ---------------------------------component commands:-------------------------------
 session commands(on server):
  list targets [-v]                     - List all devices status, -v for detail
+ tconn key [-remove]                   - Connect device via key, TCP use ip:port
+                                         example:192.168.0.100:10178/192.168.0.100
+                                         USB connect automatic, TCP need to connect manually
+                                         If with '-remove', will remove connection
+                                         UART connect need connect manually
+                                         Baud Rate can be specified with commas
+                                         key format: <Port Name>[,Baud Rate]
+                                         example: tconn COM5,921600
+                                         Default Baud Rate is 921600
+
  start [-r]                            - Start server. If with '-r', will be restart server
  kill [-r]                             - Kill server. If with '-r', will be restart server
+ -s [ip:]port                          - Set hdc server listen config
 
 service commands(on daemon):
  target mount                          - Set /system /vendor partition read-write
@@ -21,6 +34,7 @@ service commands(on daemon):
                                          permissions
  tmode usb                             - Reboot the device, listening on USB
  tmode port [port]                     - Reboot the device, listening on TCP port
+ tmode port close                      - Close TCP port
 
 ---------------------------------task commands:-------------------------------------
 file commands:

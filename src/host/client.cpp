@@ -588,7 +588,11 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
         uv_timer_stop(handle);
         uv_stop(thisClass->loopMain);
-        WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", Hdc::MaskString(thisClass->command).c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        }
         return;
     }
     while (closeInput) {

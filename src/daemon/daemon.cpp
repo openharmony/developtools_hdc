@@ -351,10 +351,12 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname, string pubkey)
 
     string authResult;
     if (!SystemDepend::GetDevItem("persist.hdc.daemon.auth_result", authResult)) {
-        WRITE_LOG(LOG_FATAL, "user refuse [%s] this developer [%s]", authResult.c_str(), hostname.c_str());
+        WRITE_LOG(LOG_FATAL, "user refuse [%s] this developer [%s]",
+            authResult.c_str(), Hdc::MaskString(hostname).c_str());
         return REFUSE;
     }
-    WRITE_LOG(LOG_FATAL, "user permit_result [%s] for this developer [%s]", authResult.c_str(), hostname.c_str());
+    WRITE_LOG(LOG_FATAL, "user permit_result [%s] for this developer [%s]",
+            authResult.c_str(), Hdc::MaskString(hostname).c_str());
     string prifix = "auth_result:";
     string result = authResult.substr(prifix.length());
     if (result == "1") {
@@ -373,8 +375,8 @@ bool HdcDaemon::GetHostPubkeyInfo(const string& buf, string& hostname, string& p
 
     hostname = buf.substr(0, buf.find(separator));
     pubkey = buf.substr(buf.find(separator) + 1);
-    WRITE_LOG(LOG_INFO, "hostname is [%s], pubkey is [%s]", hostname.c_str(),
-        pubkey.substr(0, pubkey.size() / 2).c_str());
+    WRITE_LOG(LOG_INFO, "hostname is [%s], pubkey is [%s]", Hdc::MaskString(hostname).c_str(),
+        Hdc::MaskString(pubkey.substr(0, pubkey.size() / 2)).c_str());
 
     return (!hostname.empty() && !pubkey.empty());
 }

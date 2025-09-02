@@ -71,7 +71,6 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
     flag[0] = SP_JDWP_NEWFD;
     if (memcpy_s(flag + 1, sizeof(flag) - 1, &pid, len) ||
         memcpy_s(flag + 1 + len, sizeof(flag) - len - 1, &fds[1], len)) {
-        Base::CloseSocketPair(fds);
         return ret;
     }
     if (ThreadCtrlCommunicate(flag, sizeof(flag)) > 0) {

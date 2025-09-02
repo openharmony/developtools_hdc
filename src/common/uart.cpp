@@ -1037,9 +1037,9 @@ void HdcUARTBase::TransferStateMachine::Wait()
 HdcUART::HdcUART()
 {
 #ifdef _WIN32
-    ovWrite = {};
+    (void)memset_s(&ovWrite, sizeof(OVERLAPPED), 0, sizeof(OVERLAPPED));
     ovWrite.hEvent = CreateEvent(NULL, false, false, NULL);
-    ovRead = {};
+    (void)memset_s(&ovRead, sizeof(OVERLAPPED), 0, sizeof(OVERLAPPED));
     ovRead.hEvent = CreateEvent(NULL, false, false, NULL);
 #endif
 }

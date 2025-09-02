@@ -333,9 +333,10 @@ ohos_unittest("hdc_host_base_unittest") {
     "unittest/daemon/daemon_app_test.cpp",
     "unittest/common/define_test.cpp",
     "unittest/host/host_app_test.cpp",
-    "unittest/host/main_test.cpp",
     "unittest/host/host_uds_server_test.cpp",
     "unittest/host/host_fport_listen_ip_test.cpp",
+    "unittest/host/host_translate_test.cpp",
+    "unittest/host/common_test.cpp",
   ]
 
   configs = [

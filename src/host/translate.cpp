@@ -24,13 +24,33 @@ namespace TranslateCommand {
               "---------------------------------global commands:----------------------------------\n"
               " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
               " -v/version                            - Print hdc version\n"
+              " -l[0-5]                               - Set runtime log level\n"
               " -t connectkey                         - Use device with given connect key\n"
+              " checkserver                           - Check client-server version\n"
               "\n"
               "---------------------------------component commands:-------------------------------\n"
               "session commands(on server):\n"
               " list targets [-v]                     - List all devices status, -v for detail\n"
+              " tconn key [-remove]                   - Connect device via key, TCP use ip:port\n"
+              "                                         example:192.168.0.100:10178/192.168.0.100\n"
+              "                                         USB connect automatic, TCP need to connect manually\n"
+              "                                         If with '-remove', will remove connection"
+#ifdef HDC_SUPPORT_UART
+              "\n"
+              "                                         UART connect need connect manually\n"
+              "                                         Baud Rate can be specified with commas\n"
+              "                                         key format: <Port Name>[,Baud Rate]\n"
+              "                                         example: tconn COM5,921600\n"
+              "                                         Default Baud Rate is 921600\n"
+              "\n"
+#endif
               " start [-r]                            - Start server. If with '-r', will be restart server\n"
               " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
+#ifdef __OHOS__
+              " -s [ip:]port | uds                    - Set hdc server listen config\n"
+#else
+              " -s [ip:]port                          - Set hdc server listen config\n"
+#endif
               "\n"
               "service commands(on daemon):\n"
               " target mount                          - Set /system /vendor partition read-write\n"
@@ -107,7 +127,7 @@ namespace TranslateCommand {
             "---------------------------------global commands:----------------------------------\n"
             " -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds\n"
             " -v/version                            - Print hdc version\n"
-            " -l[0-5]                               - Set runtime loglevel\n"
+            " -l[0-5]                               - Set runtime log level\n"
             " -t connectkey                         - Use device with given connect key\n"
             " checkserver                           - Check client-server version\n"
             " checkdevice                           - Check server-daemon version(only uart)\n"
@@ -117,9 +137,10 @@ namespace TranslateCommand {
             "session commands(on server):\n"
             " discover                              - Discover devices listening on TCP via LAN broadcast\n"
             " list targets [-v]                     - List all devices status, -v for detail\n"
-            " tconn key                             - Connect device via key, TCP use ip:port\n"
+            " tconn key [-remove]                   - Connect device via key, TCP use ip:port\n"
             "                                         example:192.168.0.100:10178/192.168.0.100\n"
             "                                         USB connect automatic, TCP need to connect manually\n"
+            "                                         If with '-remove', will remove connection"
 #ifdef HDC_SUPPORT_UART
             "\n"
             "                                         UART connect need connect manually\n"
@@ -143,6 +164,7 @@ namespace TranslateCommand {
             " -p                                    - Skip the server startup, run in single client mode\n"
             "\n"
             "service commands(on daemon):\n"
+            " wait                                  - Wait for the device to become available\n"
             " target mount                          - Set /system /vendor partition read-write\n"
             " target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\\recovery\n"
             " target boot [MODE]                    - Reboot the into MODE\n"
@@ -196,6 +218,9 @@ namespace TranslateCommand {
             " bugreport [FILE]                      - Return all information from the device, stored in file if FILE "
             "is specified\n"
             " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
+            " track-jpid [-a|-p]                    - Track PIDs of debug processes hosting a JDWP transport\n"
+            "                                         -a: include debug and release processes\n"
+            "                                         -p: don't display debug and release tags\n"
             " sideload [PATH]                       - Sideload the given full OTA package\n"
             "\n"
 #ifndef __OHOS__
@@ -275,7 +300,12 @@ namespace TranslateCommand {
                 return stringError;
             }
             string sport = outCmd->parameters.substr(pos + 1);
-            WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", ip.c_str(), sport.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", Hdc::MaskString(ip).c_str(), sport.c_str());
+            } else {
+                WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", ip.c_str(), sport.c_str());
+            }
+            
             if (sport.empty() || !Base::IsDigitString(sport)) {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;

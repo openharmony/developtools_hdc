@@ -303,7 +303,8 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
     setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
 #endif
 
-    struct sockaddr_un saddr = {};
+    struct sockaddr_un saddr;
+    memset_s(&saddr, sizeof(sockaddr_un), 0, sizeof(sockaddr_un));
     size_t capacity = sizeof(saddr.sun_path);
     size_t min = size < capacity ? size : capacity;
     for (size_t i = 0; i < min; i++) {

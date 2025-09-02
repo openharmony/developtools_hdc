@@ -62,7 +62,7 @@ namespace SystemDepend {
         if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
             // failed
             ret = false;
-            memset_s(tmpStringBuf, BUF_SIZE_MEDIUM, 0, BUF_SIZE_MEDIUM);
+            (void)memset_s(tmpStringBuf, BUF_SIZE_MEDIUM, 0, BUF_SIZE_MEDIUM);
         }
 #endif
         out = tmpStringBuf;

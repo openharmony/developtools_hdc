@@ -39,7 +39,7 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
     MallocChannel(&channel);  // free by logic
     debugRetryCount = 0;
 #ifndef _WIN32
-    terminalState = {};
+    (void)memset_s(&terminalState, sizeof(termios), 0, sizeof(termios));
 #endif
     isCheckVersionCmd = checkVersion;
 }
@@ -588,7 +588,11 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
         uv_timer_stop(handle);
         uv_stop(thisClass->loopMain);
-        WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", Hdc::MaskString(thisClass->command).c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
+        }
         return;
     }
     while (closeInput) {
@@ -639,7 +643,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
         return;  // error
     }
     thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(cmd), strlen(cmd));
-    memset_s(cmd, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd), 0, sizeof(hChannel->bufStd) * strlen(hChannel->bufStd));
+    (void)memset_s(cmd, sizeof(hChannel->bufStd), 0, sizeof(hChannel->bufStd));
 }
 
 void HdcClient::ModifyTty(bool setOrRestore, uv_tty_t *tty)
@@ -924,8 +928,8 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         fflush(stdout);
 #else
         constexpr int len = 512;
-        int size = s.size() / len;
-        int left = s.size() % len;
+        int size = bytesIO / len;
+        int left = bytesIO % len;
         for (int i = 0; i <= size; i++) {
             int cnt = len;
             const char *p = reinterpret_cast<char *>(buf) + i * cnt;
@@ -965,7 +969,9 @@ string HdcClient::ListTargetsAll(const string &str)
     const string lists = "list targets -v";
     if (!strncmp(this->command.c_str(), lists.c_str(), lists.size())) {
         UpdateList(str);
-        all = Base::ReplaceAll(all, "\n", "\thdc\n");
+        if (str != "\r\n") {
+            all = Base::ReplaceAll(all, "\n", "\thdc\n");
+        }
     } else if (!strncmp(this->command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
         UpdateList(str);
     }

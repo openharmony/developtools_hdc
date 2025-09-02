@@ -529,7 +529,8 @@ bool HdcForwardBase::LocalAbstractConnect(uv_pipe_t *pipe, string &sNodeCfg)
             break;
         }
         fcntl(s, F_SETFD, FD_CLOEXEC);
-        struct sockaddr_un addr = {};
+        struct sockaddr_un addr;
+        (void)memset_s(&addr, sizeof(sockaddr_un), 0, sizeof(sockaddr_un));
         int addrLen = sNodeCfg.size() + offsetof(struct sockaddr_un, sun_path) + 1;
         addr.sun_family = AF_LOCAL;
         addr.sun_path[0] = 0;

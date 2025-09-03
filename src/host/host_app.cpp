@@ -120,7 +120,7 @@ bool HdcHostApp::RunQueue(CtxFile *context)
         OnFileOpenFailed(context);
         return false;
     }
-    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = context;
     ++refCount;
     uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, 0, OnFileOpen);

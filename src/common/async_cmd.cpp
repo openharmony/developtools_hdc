@@ -119,7 +119,7 @@ bool AsyncCmd::GetDevItem(const char *key, string &out)
     if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
         WRITE_LOG(LOG_WARN, "GetDevItem false tmpStringBuf:%s", tmpStringBuf);
         ret = false;
-        Base::ZeroArray(tmpStringBuf);
+        (void)memset_s(tmpStringBuf, sizeof(tmpStringBuf), 0, sizeof(tmpStringBuf));
     }
 #endif
     out = tmpStringBuf;

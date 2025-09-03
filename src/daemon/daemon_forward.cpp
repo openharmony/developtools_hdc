@@ -44,7 +44,7 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
 {
     HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
     HdcJdwp *clsJdwp = (HdcJdwp *)daemon->clsJdwp;
-    uint32_t pid = std::stol(ctxPoint->localArgs[1]);
+    uint32_t pid = static_cast<uint32_t>(atoi(ctxPoint->localArgs[1].c_str()));
     if (ctxPoint->checkPoint) {
         uint32_t id = ctxPoint->id;
         bool ret = clsJdwp->CheckPIDExist(pid);
@@ -71,7 +71,6 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
     flag[0] = SP_JDWP_NEWFD;
     if (memcpy_s(flag + 1, sizeof(flag) - 1, &pid, len) ||
         memcpy_s(flag + 1 + len, sizeof(flag) - len - 1, &fds[1], len)) {
-        Base::CloseSocketPair(fds);
         return ret;
     }
     if (ThreadCtrlCommunicate(flag, sizeof(flag)) > 0) {

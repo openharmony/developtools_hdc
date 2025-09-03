@@ -643,7 +643,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
         return;  // error
     }
     thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(cmd), strlen(cmd));
-    (void)memset_s(cmd, sizeof(hChannel->bufStd), 0, sizeof(hChannel->bufStd));
+    (void)memset_s(hChannel->bufStd, sizeof(hChannel->bufStd), 0, sizeof(hChannel->bufStd));
 }
 
 void HdcClient::ModifyTty(bool setOrRestore, uv_tty_t *tty)

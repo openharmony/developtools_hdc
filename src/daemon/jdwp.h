@@ -58,7 +58,7 @@ private:
         uint32_t ppid;
         PollNode(int fd, uint32_t pid)
         {
-            (void)memset_s(pollfd, sizeof(_PollFd), 0, sizeof(_PollFd));
+            pollfd = {};
             pollfd.fd = fd;
             pollfd.events = POLLNVAL | POLLRDHUP | POLLHUP | POLLERR;
             pollfd.revents = 0;

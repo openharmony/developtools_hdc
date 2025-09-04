@@ -62,7 +62,12 @@ ssize_t HdcPassword::GetCredential(const char *socketPath, const std::string &me
     ssize_t bytesRead = 0;
     while ((bytesRead = recv(sockfd, data + count, size - 1 - count, 0)) > 0) {
         count += bytesRead;
+        if (count >= size - 1) {
+            WRITE_LOG(LOG_WARN, "Data truncated, buffer size limit reached.");
+            break;
+        }
     }
+    data[count] = '\0'; // Null-terminate the received data
     if (bytesRead < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
         close(sockfd);

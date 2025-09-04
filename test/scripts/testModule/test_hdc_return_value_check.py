@@ -18,7 +18,8 @@ import time
 import pytest
 
 from utils import GP, get_shell_result, get_cmd_block_output, get_end_symbol, \
-    run_command_with_timeout, check_shell, get_remote_path, get_local_path, load_gp
+    run_command_with_timeout, check_shell, get_remote_path, get_local_path, \
+    load_gp, check_unsupport_systems
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class TestHdcReturnValue:
     """
 
     @pytest.mark.L0
+    @check_unsupport_systems(["Linux", "Harmony", "Darwin"])
     def test_hdc_help(self):
         result = get_shell_result(f"help")
         result_lines = re.split("\r|\n", result)
@@ -68,7 +70,6 @@ class TestHdcReturnValue:
                     if line != result_lines[index]:
                         logger.warning(f"line:{line}, result line:{result_lines[index]}")
                         assert False
-                        return
                     index = index + 1
         return
 

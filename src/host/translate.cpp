@@ -91,7 +91,7 @@ namespace TranslateCommand {
               "                                         -a: include debug and release processes\n"
               "                                         -p: don't display debug and release tags\n"
 #ifdef __OHOS__
-              "\n"
+              "\n";
 #else
               "\n"
               "security commands:\n"
@@ -135,7 +135,7 @@ namespace TranslateCommand {
 #else
             " -s [ip:]port                          - Set hdc server listen config\n"
 #endif
-            " -e ip                                 - Set the IP address dor which the host listens during TCP\n"
+            " -e ip                                 - Set the IP address for which the host listens during TCP\n"
             "                                         port forwarding. The default value is 127.0.0.1,\n"
             "                                         cannot run in single client mode\n"
             " -m                                    - Start server at foreground\n"

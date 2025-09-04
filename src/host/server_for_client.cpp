@@ -663,7 +663,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         case CMD_WAIT_FOR: {
             WRITE_LOG(LOG_DEBUG, "CMD_WAIT_FOR command");
             ret = !WaitForAny(hChannel);
-            hChannel->isSuccess = true;
+            hChannel->isSuccess = ret;
             break;
         }
         case CMD_KERNEL_TARGET_ANY: {

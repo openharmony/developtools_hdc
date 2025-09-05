@@ -4,7 +4,7 @@
 ---------------------------------global commands:----------------------------------
  -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds
  -v/version                            - Print hdc version
- -l[0-5]                               - Set runtime log level
+ -l[0-6]                               - Set runtime log level
  -t connectkey                         - Use device with given connect key
  checkserver                           - Check client-server version
 

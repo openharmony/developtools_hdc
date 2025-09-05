@@ -33,11 +33,11 @@ public:
 
 void HostShellOptionTest::SetUpTestCase()
 {
-// #ifdef UT_DEBUG
-//     Base::SetLogLevel(LOG_ALL);
-// #else
-//     Base::SetLogLevel(LOG_OFF);
-// #endif
+#ifdef UT_DEBUG
+    Base::SetLogLevel(LOG_ALL);
+#else
+    Base::SetLogLevel(LOG_OFF);
+#endif
 }
 void HostShellOptionTest::TearDownTestCase() {}
 void HostShellOptionTest::SetUp() {}

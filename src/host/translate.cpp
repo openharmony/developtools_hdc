@@ -90,10 +90,14 @@ namespace TranslateCommand {
               " track-jpid [-a|-p]                    - Track PIDs of debug processes hosting a JDWP transport\n"
               "                                         -a: include debug and release processes\n"
               "                                         -p: don't display debug and release tags\n"
+#ifdef __OHOS__
+              "\n";
+#else
               "\n"
               "security commands:\n"
               " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
               "\n";
+#endif
         return ret;
     }
 
@@ -131,6 +135,9 @@ namespace TranslateCommand {
 #else
             " -s [ip:]port                          - Set hdc server listen config\n"
 #endif
+            " -e ip                                 - Set the IP address for which the host listens during TCP\n"
+            "                                         port forwarding. The default value is 127.0.0.1,\n"
+            "                                         cannot run in single client mode\n"
             " -m                                    - Start server at foreground\n"
             " -p                                    - Skip the server startup, run in single client mode\n"
             "\n"
@@ -190,9 +197,11 @@ namespace TranslateCommand {
             " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
             " sideload [PATH]                       - Sideload the given full OTA package\n"
             "\n"
+#ifndef __OHOS__
             "security commands:\n"
             " keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub\n"
             "\n"
+#endif
             "---------------------------------flash commands:------------------------------------\n"
             "flash commands:\n"
             " update packagename                    - Update system by package\n"

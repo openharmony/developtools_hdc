@@ -150,10 +150,11 @@ string DaemonUsage()
           "\n"
           "general options:\n"
           " -h                            - Print help\n"
+          " -v                            - Print hdcd version\n"
           " -l 0-5                        - Print runtime log\n"
           "\n"
           "daemon mode options:\n"
-          " -b                            - Daemon run in background/fork mode\n"
+          " -b/-forkchild                 - Daemon run in background/fork mode\n"
 #ifdef HDC_SUPPORT_UART
           " -i                            - Enable UART mode\n"
 #endif

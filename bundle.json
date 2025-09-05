@@ -45,6 +45,7 @@
         "pin_auth",
         "rust_rust-openssl",
         "huks",
+        "access_control_level_manager",
         "rust_libc"
       ],
       "third_party": []

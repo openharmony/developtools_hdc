@@ -31,7 +31,7 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
     std::string path = USER_DIR_PREFIX_PATH + std::to_string(data.toId);
     switch (data.state) {
         case OsAccountState::CREATED:
-            if (!HdcCredentialBase::CreatePathWithMode(path.c_str(), MODE)) {
+            if (HdcCredentialBase::CreatePathWithMode(path.c_str(), MODE) != 0) {
                 WRITE_LOG(LOG_FATAL, "Failed to create directory, error is:%s", strerror(errno));
             }
             break;

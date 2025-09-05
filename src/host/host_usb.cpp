@@ -256,6 +256,7 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
             return;
         }
         thisClass->logRePrintCount = 0;
+        thisClass->InitLogging(thisClass->ctxUSB);
     }
     HdcServer *ptrConnect = static_cast<HdcServer *>(thisClass->clsMainBase);
     CALLSTAT_GUARD(ptrConnect->loopMainStatus, handle->loop, "HdcHostUSB::WatchUsbNodeChange");
@@ -475,7 +476,7 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
         }
         if (hUSB->hostBulkIn.endpoint == 0 || hUSB->hostBulkOut.endpoint == 0) {
             WRITE_LOG(LOG_DEBUG, "hostBulkIn.endpoint %d hUSB->hostBulkOut.endpoint %d",
-                    hUSB->hostBulkIn.endpoint, hUSB->hostBulkOut.endpoint);
+                hUSB->hostBulkIn.endpoint, hUSB->hostBulkOut.endpoint);
             break;
         }
         ret = 0;
@@ -527,7 +528,7 @@ int HdcHostUSB::UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int d
         if (childRet <= 0) {
             hdc_strerrno(buf);
             WRITE_LOG(LOG_FATAL, "select error:%d [%s][%d] retry times %d alread send %d bytes, total %d bytes",
-                    errno, buf, childRet, retryTimes, index, dataSize);
+                errno, buf, childRet, retryTimes, index, dataSize);
             Base::DispUvStreamInfo(stream, "hostusb select failed");
             DispAllLoopStatus("hostusb select failed-" + std::to_string(hSession->sessionId));
             if (retryTimes >= maxRetryTimes) {

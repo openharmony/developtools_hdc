@@ -15,6 +15,7 @@
 #ifndef HDC_TRANSLATE_TEST_H
 #define HDC_TRANSLATE_TEST_H
 #include <gtest/gtest.h>
+#include "translate.h"
 namespace Hdc {
 class HdcTranslateTest : public ::testing::Test {
 public:
@@ -22,6 +23,7 @@ public:
     static void TearDownTestCase();
     void SetUp();
     void TearDown();
+    TranslateCommand::FormatCommand *formatCommand;
 };
 }   // namespace Hdc
 #endif  // HDC_TRANSLATE_TEST_H

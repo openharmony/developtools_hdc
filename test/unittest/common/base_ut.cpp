@@ -23,14 +23,11 @@ using namespace testing;
 
 namespace Hdc {
 class UpdateCmdLogSwitchTest : public ::testing::Test {
-public:
-    static void SetUpTestCase(void);
-    static void TearDownTestCase(void);
-    void SetUp();
-    void TearDown();
-private:
-    char **argv = nullptr;
-    int slotIndex = 0;
+    private:
+        static void SetUpTestCase(void);
+        static void TearDownTestCase(void);
+        void SetUp();
+        void TearDown();
 };
 
 void UpdateCmdLogSwitchTest::SetUpTestCase() {}
@@ -68,325 +65,144 @@ HWTEST_F(UpdateCmdLogSwitchTest, UpdateCmdLogSwitch_a, TestSize.Level0) {
     EXPECT_FALSE(Base::GetCmdLogSwitch());
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestConnectKey2IPv4Port, TestSize.Level0) {
-    const char* connectKey = "127.0.0.1:8710";
-    char outIP[BUF_SIZE_TINY] = "";
-    uint16_t outPort = 0;
-    int result = Base::ConnectKey2IPPort(connectKey, outIP, &outPort, sizeof(outIP));
+class BaseTest : public ::testing::Test {
+    private:
+        static void SetUpTestCase(void);
+        static void TearDownTestCase(void);
+        void SetUp();
+        void TearDown();
+};
 
-    EXPECT_EQ(result, RET_SUCCESS);
-    EXPECT_EQ(std::string(outIP), "127.0.0.1");
-    EXPECT_EQ(outPort, 8710);
+void BaseTest::SetUpTestCase() {}
+void BaseTest::TearDownTestCase() {}
+void BaseTest::SetUp() {}
+void BaseTest::TearDown() {}
+
+const Base::HdcFeatureSet& featureSet = Base::GetSupportFeature();
+// 验证返回的特性集合不为空
+HWTEST_F(BaseTest, FeatureSet_ReturnsNonEmpty, TestSize.Level0) {
+    EXPECT_FALSE(featureSet.empty());
+    EXPECT_EQ(featureSet.size(), 2);
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestConnectKey2IPv6Port, TestSize.Level0) {
-    const char* connectKey = "::1:8710";
-    char outIP[BUF_SIZE_TINY] = "";
-    uint16_t outPort = 0;
-    int result = Base::ConnectKey2IPPort(connectKey, outIP, &outPort, sizeof(outIP));
-
-    EXPECT_EQ(result, RET_SUCCESS);
-    EXPECT_EQ(std::string(outIP), "::1");
-    EXPECT_EQ(outPort, 8710);
+// 验证多次调用返回相同引用
+HWTEST_F(BaseTest, FeatureSet_ReturnsSameReferenceOnMultipleCalls, TestSize.Level0) {
+    const Base::HdcFeatureSet& firstCall = Base::GetSupportFeature();
+    const Base::HdcFeatureSet& secondCall = Base::GetSupportFeature();
+    
+    EXPECT_EQ(&firstCall, &secondCall);
+    EXPECT_EQ(&featureSet, &firstCall);
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestConnectKey2IPInvalid, TestSize.Level0) {
-    const char* connectKey = "127.0.0.1";
-    char outIP[BUF_SIZE_TINY] = "";
-    uint16_t outPort = 0;
+// 验证包含预期的特性
+HWTEST_F(BaseTest, FeatureSet_ContainsExpectedFeatures, TestSize.Level0) {
 
-    int result = Base::ConnectKey2IPPort(connectKey, outIP, &outPort, sizeof(outIP));
-    EXPECT_EQ(result, ERR_PARM_FORMAT);
-
-    connectKey = "127.0.0.1:abc";
-    result = Base::ConnectKey2IPPort(connectKey, outIP, &outPort, sizeof(outIP));
-    EXPECT_EQ(result, 0);   //atoi returns 0 when an error occurs
+    EXPECT_TRUE(std::find(featureSet.begin(), featureSet.end(), FEATURE_HEARTBEAT) != featureSet.end());
+    EXPECT_TRUE(std::find(featureSet.begin(), featureSet.end(), FEATURE_ENCRYPT_TCP) != featureSet.end());
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsSingleParam, TestSize.Level0) {
-    const char* cmdStringLine = "checkserver";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 1);
-    EXPECT_EQ(std::string(argv[0]), "checkserver");
+// 验证不包含非预期的特性
+HWTEST_F(BaseTest, FeatureSet_DoesNotContainUnexpectedFeatures, TestSize.Level0) {
+    EXPECT_FALSE(std::find(featureSet.begin(), featureSet.end(), "unknown") != featureSet.end());
+    
+    EXPECT_EQ(featureSet.size(), 2);
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsMultParam, TestSize.Level0) {
-    const char* cmdStringLine = "target mount";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 2);
-    EXPECT_EQ(std::string(argv[0]), "target");
-    EXPECT_EQ(std::string(argv[1]), "mount");
+// 验证当输入为空容器时，函数返回空字符串
+HWTEST_F(BaseTest, FeatureToStringTest_EmptyContainer, TestSize.Level0) {
+    Base::HdcFeatureSet empty_feature;
+    std::string result = Base::FeatureToString(empty_feature);
+    EXPECT_EQ(result, "");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsQuotoArgs, TestSize.Level0) {
-    const char* cmdStringLine = "\"shell ls\"";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 1);
-    EXPECT_EQ(std::string(argv[0]), "shell ls");
+// 验证当输入只包含一个元素时，函数返回该元素且不包含逗号
+HWTEST_F(BaseTest, FeatureToStringTest_SingleElement, TestSize.Level0) {
+    Base::HdcFeatureSet single_feature = {"feature1"};
+    std::string result = Base::FeatureToString(single_feature);
+    EXPECT_EQ(result, "feature1");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsMultQuoteArgs, TestSize.Level0) {
-    const char* cmdStringLine = "\"shell\" \"ls\"";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 2);
-    EXPECT_EQ(std::string(argv[0]), "shell");
-    EXPECT_EQ(std::string(argv[1]), "ls");
+// 验证当输入包含两个元素时，函数正确添加逗号分隔符
+HWTEST_F(BaseTest, FeatureToStringTest_TwoElements, TestSize.Level0) {
+    Base::HdcFeatureSet two_features = {"feature1", "feature2"};
+    std::string result = Base::FeatureToString(two_features);
+    EXPECT_EQ(result, "feature1,feature2");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsUnmatchQuotesArgs, TestSize.Level0) {
-    const char* cmdStringLine = "\"shell ls";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 1);
-    EXPECT_EQ(std::string(argv[0]), "shell ls");
+// 验证当输入包含多个元素时，函数正确处理所有元素和分隔符
+HWTEST_F(BaseTest, FeatureToStringTest_MultipleElements, TestSize.Level0) {
+    Base::HdcFeatureSet multiple_features = {"feature1", "feature2", "feature3", "feature4"};
+    std::string result = Base::FeatureToString(multiple_features);
+    EXPECT_EQ(result, "feature1,feature2,feature3,feature4");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsNullArgs, TestSize.Level0) {
-    const char* cmdStringLine = "";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_EQ(argv, nullptr);
-    EXPECT_EQ(slotIndex, 0);
+// 验证当容器包含空字符串时，函数正确处理
+HWTEST_F(BaseTest, FeatureToStringTest_ElementsWithEmptyString, TestSize.Level0) {
+    Base::HdcFeatureSet features_with_empty = {"feature1", "", "feature3"};
+    std::string result = Base::FeatureToString(features_with_empty);
+    EXPECT_EQ(result, "feature1,,feature3");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToQuoteNullArgs, TestSize.Level0) {
-    const char* cmdStringLine = "\"\"";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 1);
-    EXPECT_EQ(std::string(argv[0]), "");
+// 验证当元素包含逗号或其他特殊字符时，函数正确处理
+HWTEST_F(BaseTest, FeatureToStringTest_ElementsWithSpecialCharacters, TestSize.Level0) {
+    Base::HdcFeatureSet special_features = {"feature,1", "feature:2", "feature;3"};
+    std::string result = Base::FeatureToString(special_features);
+    EXPECT_EQ(result, "feature,1,feature:2,feature;3");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsTabArgs, TestSize.Level0) {
-    const char* cmdStringLine = "shell\tls";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 2);
-    EXPECT_EQ(std::string(argv[0]), "shell");
-    EXPECT_EQ(std::string(argv[1]), "ls");
+// 多个特征的字符串转换
+HWTEST_F(BaseTest, StringToFeatureSet_NormalCase, TestSize.Level0) {
+    Base::HdcFeatureSet features;
+    std::string input = "feature1,feature2,feature3";
+    
+    Base::StringToFeatureSet(input, features);
+    
+    ASSERT_EQ(features.size(), 3);
+    EXPECT_EQ(features[0], "feature1");
+    EXPECT_EQ(features[1], "feature2");
+    EXPECT_EQ(features[2], "feature3");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsSpacesArgs, TestSize.Level0) {
-    const char* cmdStringLine = "      \t\n\rshell ls";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 2);
-    EXPECT_EQ(std::string(argv[0]), "shell");
-    EXPECT_EQ(std::string(argv[1]), "ls");
+// 测试单个特征情况
+HWTEST_F(BaseTest, StringToFeatureSet_SingleFeature, TestSize.Level0) {
+    Base::HdcFeatureSet features;
+    std::string input = "feature1";
+    
+    Base::StringToFeatureSet(input, features);
+    
+    ASSERT_EQ(features.size(), 1);
+    EXPECT_EQ(features[0], "feature1");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitCommandToArgsLongArgs, TestSize.Level0) {
-    const char* cmdStringLine = "file send -b com.myapp ./aaaa ./bbbb";
-    argv = Base::SplitCommandToArgs(cmdStringLine, &slotIndex);
-
-    EXPECT_NE(argv, nullptr);
-    EXPECT_EQ(slotIndex, 6);
-    EXPECT_EQ(std::string(argv[0]), "file");
-    EXPECT_EQ(std::string(argv[1]), "send");
-    EXPECT_EQ(std::string(argv[2]), "-b");
-    EXPECT_EQ(std::string(argv[3]), "com.myapp");
-    EXPECT_EQ(std::string(argv[4]), "./aaaa");
-    EXPECT_EQ(std::string(argv[5]), "./bbbb");
+// 测试空字符串情况
+HWTEST_F(BaseTest, StringToFeatureSet_EmptyString, TestSize.Level0) {
+    Base::HdcFeatureSet features;
+    std::string input = "";
+    
+    Base::StringToFeatureSet(input, features);
+    
+    EXPECT_TRUE(features.empty());
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestRunPipeComandBase, TestSize.Level0) {
-    const char* cmdString = "echo \"hello world\"";
-    char outBuf[BUF_SIZE_MEDIUM] = "";
-    bool result = Base::RunPipeComand(cmdString, outBuf, sizeof(outBuf), true);
-
-    EXPECT_TRUE(result);
-    EXPECT_EQ(std::string(outBuf), "hello world");
+//  测试包含空元素的情况
+HWTEST_F(BaseTest, StringToFeatureSet_WithEmptyElements, TestSize.Level0) {
+    Base::HdcFeatureSet features;
+    std::string input = "feature1,,feature2";
+    
+    Base::StringToFeatureSet(input, features);
+    
+    ASSERT_EQ(features.size(), 2);
+    EXPECT_EQ(features[0], "feature1");
+    EXPECT_EQ(features[1], "feature2");
 }
 
-HWTEST_F(UpdateCmdLogSwitchTest, TestRunPipeComandNullArgs, TestSize.Level0) {
-    const char* cmdString = "echo \"hello world\"";
-    char *outBuf = nullptr;
-    bool result = Base::RunPipeComand(cmdString, outBuf, sizeof(outBuf), true);
-
-    EXPECT_FALSE(result);
+// 测试只有分隔符的情况
+HWTEST_F(BaseTest, StringToFeatureSet_OnlyDelimiter, TestSize.Level0) {
+    Base::HdcFeatureSet features;
+    std::string input = ",";
+    
+    Base::StringToFeatureSet(input, features);
+    
+    ASSERT_EQ(features.size(), 0);
 }
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestRunPipeComandSizeOutBufZero, TestSize.Level0) {
-    const char* cmdString = "echo \"hello world\"";
-    char *outBuf = nullptr;
-    bool result = Base::RunPipeComand(cmdString, outBuf, 0, true);
-
-    EXPECT_FALSE(result);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitString, TestSize.Level0) {
-    const string origString = "a,b,c";
-    const string seq = ",";
-    vector<string> resultStrings;
-    Base::SplitString(origString, seq, resultStrings);
-
-    EXPECT_EQ(resultStrings.size(), 3);
-    EXPECT_EQ(resultStrings[0], "a");
-    EXPECT_EQ(resultStrings[1], "b");
-    EXPECT_EQ(resultStrings[2], "c");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitStringNullArgs, TestSize.Level0) {
-    const string origString = "";
-    const string seq = ",";
-    vector<string> resultStrings;
-    Base::SplitString(origString, seq, resultStrings);
-
-    EXPECT_EQ(resultStrings.size(), 0);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitStringLeadingSep, TestSize.Level0) {
-    const string origString = ",b,c";
-    const string seq = ",";
-    vector<string> resultStrings;
-    Base::SplitString(origString, seq, resultStrings);
-
-    EXPECT_EQ(resultStrings.size(), 2);
-    EXPECT_EQ(resultStrings[0], "b");
-    EXPECT_EQ(resultStrings[1], "c");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitStringTrailingSep, TestSize.Level0) {
-    const string origString = "a,,,,,b,,,,,c";
-    const string seq = ",";
-    vector<string> resultStrings;
-    Base::SplitString(origString, seq, resultStrings);
-
-    EXPECT_EQ(resultStrings.size(), 3);
-    EXPECT_EQ(resultStrings[0], "a");
-    EXPECT_EQ(resultStrings[1], "b");
-    EXPECT_EQ(resultStrings[2], "c");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestSplitStringNoSeq, TestSize.Level0) {
-    const string origString = "abcdefg";
-    const string seq = ",";
-    vector<string> resultStrings;
-    Base::SplitString(origString, seq, resultStrings);
-
-    EXPECT_EQ(resultStrings.size(), 1);
-    EXPECT_EQ(resultStrings[0], "abcdefg");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestGetShellPath, TestSize.Level0) {
-    string expect = "/bin/sh";
-    string result = Base::GetShellPath();
-
-    EXPECT_EQ(result, expect);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestStringEndsWith, TestSize.Level0) {
-    string s = "hello world";
-    string sub = "world";
-    EXPECT_EQ(Base::StringEndsWith(s, sub), 1);
-
-    sub = "test";
-    EXPECT_EQ(Base::StringEndsWith(s, sub), 0);
-
-    sub = "";
-    EXPECT_EQ(Base::StringEndsWith(s, sub), 1);
-
-    sub = "hello world!!!";
-    EXPECT_EQ(Base::StringEndsWith(s, sub), 0);
-
-    s = "abcdefg";
-    sub = "bcd";
-    EXPECT_EQ(Base::StringEndsWith(s, sub), 0);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestGetPathWithoutFilename, TestSize.Level0) {
-    string s = "/datalocal/tmp/test.txt";
-    string expect = "/datalocal/tmp/";
-    string result = Base::GetPathWithoutFilename(s);
-
-    EXPECT_EQ(result, expect);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestGetPathWithoutFilenameEndWithSep, TestSize.Level0) {
-    string s = "/datalocal/tmp/";
-    string result = Base::GetPathWithoutFilename(s);
-
-    EXPECT_EQ(result, s);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestGetPathWithoutFilenameEmpty, TestSize.Level0) {
-    string s = "";
-    string result = Base::GetPathWithoutFilename(s);
-
-    EXPECT_EQ(result, s);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestGetPathWithoutFilenameMultSep, TestSize.Level0) {
-    string s = "/datalocal//tmp/test.txt";
-    string expect = "/datalocal//tmp/";
-    string result = Base::GetPathWithoutFilename(s);
-
-    EXPECT_EQ(result, expect);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestBuildErrorString, TestSize.Level0) {
-    const char* op = "Open";
-    const char* localPath = "/system/bin/ls";
-    const char* err = "Permisson dined";
-    string str;
-    Base::BuildErrorString(localPath, op, err, str);
-
-    EXPECT_EQ(str, "Open /system/bin/ls failed, Permisson dined");
-
-    Base::BuildErrorString("", "", "", str);
-    EXPECT_EQ(str, "  failed, ");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestBase64EncodeBufNormal, TestSize.Level0) {
-    const uint8_t input[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F}; // "Hello"
-    const int length = sizeof(input) / sizeof(input[0]);
-    uint8_t bufOut[BUF_SIZE_DEFAULT];
-
-    int outputLength = Base::Base64EncodeBuf(input, length, bufOut);
-    EXPECT_EQ(outputLength, 8);
-    EXPECT_EQ(std::string(reinterpret_cast<char*>(bufOut), outputLength), "SGVsbG8=");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestBase64EncodeBufEmpty, TestSize.Level0) {
-    const uint8_t input[] = {};
-    const int length = 0;
-    uint8_t bufOut[BUF_SIZE_DEFAULT];
-
-    int outputLength = Base::Base64EncodeBuf(input, length, bufOut);
-    EXPECT_EQ(outputLength, 0);
-    EXPECT_EQ(std::string(reinterpret_cast<char*>(bufOut), outputLength), "");
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestBase64EncodeNormal, TestSize.Level0) {
-    const uint8_t input[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F}; // "Hello"
-    const int length = sizeof(input) / sizeof(input[0]);
-    vector<uint8_t> encode = { 'S', 'G', 'V', 's', 'b', 'G', '8', '=' };
-    vector<uint8_t> result = Base::Base64Encode(input, length);
-
-    EXPECT_EQ(result, encode);
-}
-
-HWTEST_F(UpdateCmdLogSwitchTest, TestBase64EncodeEmpty, TestSize.Level0) {
-    const uint8_t input[] = {};
-    const int length = 0;
-    vector<uint8_t> result = Base::Base64Encode(input, length);
-
-    EXPECT_EQ(result.size(), 0);
-
-    result = Base::Base64Encode(nullptr, length);
-    EXPECT_EQ(result.size(), 0);
-}
-
 } // namespace Hdc

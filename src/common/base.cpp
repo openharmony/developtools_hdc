@@ -1261,7 +1261,7 @@ static void EchoLog(string &buf)
 
     bool RunPipeComand(const char *cmdString, char *outBuf, uint16_t sizeOutBuf, bool ignoreTailLf)
     {
-        if ( cmdString == nullptr || outBuf == nullptr) {
+        if (cmdString == nullptr || outBuf == nullptr) {
             return false;
         }
         FILE *pipeHandle = popen(cmdString, "r");

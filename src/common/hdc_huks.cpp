@@ -16,7 +16,7 @@
 #include "hks_param.h"
 #include "hks_api.h"
 #include "log.h"
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
 #include "os_account_manager.h"
 #endif
 namespace Hdc {
@@ -38,7 +38,7 @@ namespace Hdc {
                                  reinterpret_cast<uint8_t*>(const_cast<char*>(this->keyAlias.c_str())) };
     }
 
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
     static int32_t GetUserId(void)
     {
         std::vector<int32_t> ids;
@@ -74,7 +74,7 @@ namespace Hdc {
         bool genSuccess = false;
 
         struct HksParamSet *paramSet = nullptr;
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
         int32_t currentUserId = GetUserId();
         if (currentUserId  == 0) {
             WRITE_LOG(LOG_FATAL, "current user id is 0, reset key failed.");
@@ -84,7 +84,7 @@ namespace Hdc {
 #endif
         struct HksParam genAesKeyPara[] = {
             { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT },
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
             { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
 #endif
         };
@@ -138,7 +138,7 @@ namespace Hdc {
     {
         GenerateNonce(nonce, length);
         struct HksParamSet *paramSet = nullptr;
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
         int32_t currentUserId = GetUserId();
         if (currentUserId  == 0) {
             WRITE_LOG(LOG_FATAL, "current user id is 0,failed.");
@@ -149,7 +149,7 @@ namespace Hdc {
         struct HksParam aesEncryptPara[] = {
             { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT },
             { .tag = HKS_TAG_NONCE, .blob = { length, nonce} },
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
             { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
 #endif
         };
@@ -193,7 +193,7 @@ namespace Hdc {
     {
         struct HksParamSet *paramSet = nullptr;
         
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
         int32_t currentUserId = GetUserId();
         if (currentUserId  == 0) {
             WRITE_LOG(LOG_FATAL, "current user id is 0,failed.");
@@ -204,7 +204,7 @@ namespace Hdc {
         struct HksParam aesDecryptPara[] = {
             { .tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_DECRYPT },
             { .tag = HKS_TAG_NONCE, .blob = { nonce.size(), nonce.data()} },
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
+#ifndef HDC_HOST
             { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
 #endif
 

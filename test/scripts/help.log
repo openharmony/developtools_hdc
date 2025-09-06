@@ -74,7 +74,8 @@ app commands:
                                          -s: remove shared bundle
 
 debug commands:
- hilog [-h]                            - Show device log, -h for detail
+ hilog [-h|parse]                      - Show device log, -h for detail
+                                         parse: parse local hilog files
  shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)
                                          -b: run command in specified debug application bundle path
                                              bundle parameter only support non-interactive shell

@@ -418,6 +418,7 @@ ohos_unittest("hdc_base_unittest") {
     "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
     "${hdc_path}/src/common/password.cpp",
+    "${hdc_path}/src/common/credential_message.cpp",
     "${hdc_path}/src/common/hdc_huks.cpp",
     "unittest/common/base_ut.cpp",
     "unittest/common/file_ut.cpp",
@@ -442,7 +443,14 @@ ohos_unittest("hdc_base_unittest") {
     "init:libbegetutil",
     "huks:libhukssdk",
   ]
+
   defines = [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
+  if (hdc_unit_test) {
+    defines += [ "HDC_UNIT_TEST" ]
+  }
+  if (hdc_feature_support_credential) {
+    defines += [ "HDC_FEATURE_SUPPORT_CREDENTIAL" ]
+  }
 }
 
 group("HdcJdwpTest") {

@@ -95,6 +95,28 @@ HWTEST_F(HdcCredentialBaseTest, TestStringFormat_NormalStr, TestSize.Level1)
     EXPECT_EQ(StringFormat("%d + %d = %d", 1, 2, 3), "1 + 2 = 3");
 }
 
+HWTEST_F(HdcCredentialBaseTest, TestStringFormat_HexStr, TestSize.Level1)
+{
+    EXPECT_EQ(StringFormat("%x", 255), "ff");
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestStringFormat_OctalStr, TestSize.Level1)
+{
+    EXPECT_EQ(StringFormat("%o", 255), "377");
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestStringFormat_PointerStr, TestSize.Level1)
+{
+        EXPECT_EQ(StringFormat("%p", (void*)0x1234), "0x1234");
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestStringFormat_MultiArgsStr, TestSize.Level1)
+{
+    EXPECT_EQ(StringFormat("%s%c", "test", 'c'), "testc");
+    EXPECT_EQ(StringFormat("%s %d + %d = %d", "test", 1, 2, 3), "test 1 + 2 = 3");
+    EXPECT_EQ(StringFormat("%c+%o+%p+%s", 'c', 255, (void*)0x1234, "test"), "c+377+0x1234+test");
+}
+
 HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_NotNumber, TestSize.Level1)
 {
     EXPECT_FALSE(IsUserDir("aaa"));
@@ -108,8 +130,14 @@ HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_InvalidNumber, TestSize.Level1)
 
 HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_ValidNumber, TestSize.Level1)
 {
+    EXPECT_TRUE(IsUserDir("102"));
+    EXPECT_TRUE(IsUserDir("10000"));
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_BoundaryNumber, TestSize.Level1)
+{
     EXPECT_TRUE(IsUserDir("100"));
-    EXPECT_TRUE(IsUserDir("101"));
+    EXPECT_TRUE(IsUserDir("10736"));
 }
 
 HWTEST_F(HdcCredentialBaseTest, TestSubstract_Normal, TestSize.Level1)
@@ -124,4 +152,29 @@ HWTEST_F(HdcCredentialBaseTest, TestSubstract_Normal, TestSize.Level1)
     EXPECT_EQ(diffB_A.size(), 1);
     EXPECT_EQ(diffB_A[0], "4");
 }
+
+HWTEST_F(HdcCredentialBaseTest, TestRemoveDir_NullPath, TestSize.Level1)
+{
+    EXPECT_EQ(RemoveDir(""), -1);
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestRemoveDir_NotExistsPath, TestSize.Level1)
+{
+    EXPECT_EQ(RemoveDir("./not_exist_dir"), -1);
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestRemoveDir_SimpleLevelPath, TestSize.Level1)
+{
+    EXPECT_TRUE(CreatePathWithMode("./1111", MODE));
+    EXPECT_EQ(RemoveDir("./1111"), 0);
+}
+
+HWTEST_F(HdcCredentialBaseTest, TestRemoveDir_MultiLevelPath, TestSize.Level1)
+{
+    EXPECT_TRUE(CreatePathWithMode("./11111", MODE));
+    EXPECT_TRUE(CreatePathWithMode("./11111/22222", MODE));
+    EXPECT_TRUE(CreatePathWithMode("./11111/22222/33333", MODE));
+    EXPECT_EQ(RemoveDir("./11111"), 0);
+}
+
 }

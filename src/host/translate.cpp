@@ -101,7 +101,12 @@ namespace TranslateCommand {
               "                                         -s: remove shared bundle\n"
               "\n"
               "debug commands:\n"
+#ifdef _WIN32
+              " hilog [-h|parse]                      - Show device log, -h for detail\n"
+              "                                         parse: parse local hilog files\n"
+#else
               " hilog [-h]                            - Show device log, -h for detail\n"
+#endif
               " shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)\n"
               "                                         -b: run command in specified debug application bundle path\n"
               "                                             bundle parameter only support non-interactive shell\n"
@@ -213,7 +218,12 @@ namespace TranslateCommand {
             "                                         -s: remove shared bundle\n"
             "\n"
             "debug commands:\n"
+#ifdef _WIN32
+            " hilog [-h|parse]                      - Show device log, -h for detail\n"
+            "                                         parse: parse local hilog files\n"
+#else
             " hilog [-h]                            - Show device log, -h for detail\n"
+#endif
             " shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)\n"
             "                                         -b: run command in specified debug application bundle path\n"
             "                                             bundle parameter only support non-interactive shell\n"

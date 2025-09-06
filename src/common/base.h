@@ -292,7 +292,6 @@ namespace Base {
     bool GetEncrpytTCPSwitch();
     void SetIsServerFlag(bool isServer);
     bool GetIsServerFlag();
-    void UpdateTmpDirCache();
 }  // namespace base
 }  // namespace Hdc
 

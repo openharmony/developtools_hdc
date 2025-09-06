@@ -61,7 +61,7 @@ namespace Hdc {
         int len = pwd.GetEncryptPwdLength();
         ASSERT_EQ(len, ENCRYPT_LENGTH);
     }
-
+#ifdef HDC_FEATURE_SUPPORT_CREDENTIAL
     HWTEST_F(HdcPasswordTest, TestEncryptAndDecrypt, TestSize.Level0)
     {
         HdcPassword pwd(TEST_KEY_ALIAS);
@@ -75,4 +75,5 @@ namespace Hdc {
         plainPwd = pwd.GetPassword();
         ASSERT_EQ(memcmp(plainPwd.first, "1111111111", plainPwd.second), 0);
     }
+#endif
 } // namespace Hdc

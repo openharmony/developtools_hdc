@@ -416,6 +416,7 @@ ohos_unittest("hdc_base_unittest") {
   resource_config_file = "unittest/resource/ohos_test.xml"
   sources = hdc_common_sources
   sources += [
+    "${hdc_path}/src/common/credential_message.cpp",
     "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
     "${hdc_path}/src/common/password.cpp",
@@ -444,6 +445,9 @@ ohos_unittest("hdc_base_unittest") {
     "huks:libhukssdk",
   ]
   defines = [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
+  if (hdc_unit_test) {
+    defines += [ "HDC_UNIT_TEST" ]
+  }
 }
 
 group("HdcJdwpTest") {

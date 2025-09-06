@@ -448,6 +448,9 @@ ohos_unittest("hdc_base_unittest") {
   if (hdc_unit_test) {
     defines += [ "HDC_UNIT_TEST" ]
   }
+  if (hdc_feature_support_credential) {
+    defines += [ "HDC_FEATURE_SUPPORT_CREDENTIAL" ]
+  }
 }
 
 group("HdcJdwpTest") {

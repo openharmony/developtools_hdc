@@ -31,7 +31,6 @@ namespace TranslateCommand {
     string ForwardPort(const char *input, FormatCommand *outCmd);
     string RunMode(const char *input, FormatCommand *outCmd);
     void TargetReboot(const char *input, FormatCommand *outCmd);
-    string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatCommand *outCmd);
 }
 }
 #endif

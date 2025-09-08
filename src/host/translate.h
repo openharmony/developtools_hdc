@@ -27,10 +27,12 @@ namespace TranslateCommand {
     string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatCommand *outCmd);
     string Usage();
     string Verbose();
+#ifdef HDC_UNIT_TEST
     string TargetConnect(FormatCommand *outCmd);
     string ForwardPort(const char *input, FormatCommand *outCmd);
     string RunMode(const char *input, FormatCommand *outCmd);
     void TargetReboot(const char *input, FormatCommand *outCmd);
+#endif
 }
 }
 #endif

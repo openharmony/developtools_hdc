@@ -14,6 +14,12 @@
  */
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+#include <openssl/err.h>
 
 #include "base.h"
 #include "define.h"
@@ -31,6 +37,16 @@ public:
 private:
     char **argv = nullptr;
     int slotIndex = 0;
+};
+
+const uint32_t RSANUMBYTES = 512;  // 4096 bit key length
+const uint32_t RSANUMWORDS = (RSANUMBYTES / sizeof(uint32_t));
+struct RSAPublicKey {
+    int wordModulusSize;            // Length of n[] in number of uint32_t */
+    uint32_t rsaN0inv;              // -1 / n[0] mod 2^32
+    uint32_t modulus[RSANUMWORDS];  // modulus as little endian array
+    uint32_t rr[RSANUMWORDS];       // R^2 as little endian array
+    BN_ULONG exponent;                   // 3 or 65537
 };
 
 void BaseTest::SetUpTestCase() {}
@@ -483,7 +499,6 @@ HWTEST_F(BaseTest, CanPrintCmd_ALLOW, TestSize.Level0) {
     EXPECT_TRUE(Base::CanPrintCmd(CMD_UNITY_BUGREPORT_INIT));
 }
 
-
 HWTEST_F(BaseTest, TestConnectKey2IPv4Port, TestSize.Level0) {
     const char* connectKey = "127.0.0.1:8710";
     char outIP[BUF_SIZE_TINY] = "";
@@ -804,4 +819,161 @@ HWTEST_F(BaseTest, TestBase64EncodeEmpty, TestSize.Level0) {
     result = Base::Base64Encode(nullptr, length);
     EXPECT_EQ(result.size(), 0);
 }
+
+HWTEST_F(BaseTest, TestBase64DecodeBufPadding, TestSize.Level0) {
+    const uint8_t input[] = "SGVsbG8=";
+    int length = strlen(reinterpret_cast<char *>(const_cast<uint8_t *>(input)));
+    uint8_t bufOut[BUF_SIZE_DEFAULT] = {};
+
+    int outputLength = Base::Base64DecodeBuf(input, length, bufOut);
+    EXPECT_EQ(outputLength, 5); // 5 : "Hello"
+    EXPECT_EQ(std::string(reinterpret_cast<char*>(bufOut), outputLength), "Hello");
+
+    const uint8_t input2[] = "SGVsbG8==";
+    int length2 = strlen(reinterpret_cast<char *>(const_cast<uint8_t *>(input)));
+    uint8_t bufOut2[BUF_SIZE_DEFAULT] = {};
+
+    int outputLength2 = Base::Base64DecodeBuf(input2, length2, bufOut2);
+    EXPECT_EQ(outputLength2, 4);  // 5 : "Hell"
+    EXPECT_EQ(std::string(reinterpret_cast<char*>(bufOut), outputLength2), "Hell");
+}
+
+HWTEST_F(BaseTest, TestBase64DecodeBufSpecial, TestSize.Level0) {
+    const uint8_t input[] = "Q2F0Y2xlIHRlc3Q=";    // "Catecle test"
+    int length = strlen(reinterpret_cast<char *>(const_cast<uint8_t *>(input)));
+    uint8_t bufOut[BUF_SIZE_DEFAULT];
+
+    int outputLength = Base::Base64DecodeBuf(input, length, bufOut);
+    EXPECT_EQ(outputLength, 11);    // 11 : "Catecle test"
+    EXPECT_EQ(std::string(reinterpret_cast<char*>(bufOut), outputLength), "Catcle test");
+}
+
+HWTEST_F(BaseTest, TestBase64DecodeBufEmpty, TestSize.Level0) {
+    const uint8_t* input = nullptr;
+    int length = 0;
+    uint8_t bufOut[BUF_SIZE_DEFAULT];
+
+    int outputLength = Base::Base64DecodeBuf(input, length, bufOut);
+    EXPECT_EQ(outputLength, 0);
+}
+
+HWTEST_F(BaseTest, TestBase64Decode, TestSize.Level0) {
+    const uint8_t input[] = "SGVsbG8=";
+    int length = strlen(reinterpret_cast<char *>(const_cast<uint8_t *>(input)));
+    string result = Base::Base64Decode(input, length);
+    EXPECT_EQ(result, "Hello");
+}
+
+HWTEST_F(BaseTest, TestBase64DecodeEmpty, TestSize.Level0) {
+    const uint8_t* input = nullptr;
+    int length = 0;
+    string result = Base::Base64Decode(input, length);
+    EXPECT_EQ(result, "");
+}
+
+HWTEST_F(BaseTest, TestBase64DecodeInvalidArgs, TestSize.Level0) {
+    const uint8_t input[] = "XYZ%";
+    int length = strlen(reinterpret_cast<char *>(const_cast<uint8_t *>(input)));
+    string result = Base::Base64Decode(input, length);
+    EXPECT_EQ(result, "");
+}
+
+HWTEST_F(BaseTest, TestReverseBytes, TestSize.Level0) {
+    uint8_t start[] = { 0x12, 0x34, 0x56, 0x78};
+    int size = sizeof(start) / sizeof(start[0]);
+    Base::ReverseBytes(start, size);
+
+    uint8_t result[] = { 0x78, 0x56, 0x34, 0x12};
+    EXPECT_EQ(start[0], result[0]);
+    EXPECT_EQ(start[1], result[1]);
+    EXPECT_EQ(start[2], result[2]);
+    EXPECT_EQ(start[3], result[3]);
+}
+
+HWTEST_F(BaseTest, TestReverseBytesZero, TestSize.Level0) {
+    uint8_t start[] = { 0x00 };
+    int size = 0;
+    Base::ReverseBytes(start, size);
+
+    EXPECT_EQ(start[0], 0x00);
+}
+
+HWTEST_F(BaseTest, TestConvert2HexStr, TestSize.Level0) {
+    uint8_t arr[] = { 0x01, 0x02, 0x03 };
+    int length = sizeof(arr) / sizeof(arr[0]);
+    string result = Base::Convert2HexStr(arr, length);
+
+    EXPECT_EQ(result, "01:02:03");
+}
+
+HWTEST_F(BaseTest, TestConvert2HexStrSingleByte, TestSize.Level0) {
+    uint8_t arr[] = { 0xFF };
+    int length = sizeof(arr) / sizeof(arr[0]);
+    string result = Base::Convert2HexStr(arr, length);
+
+    EXPECT_EQ(result, "FF");
+}
+
+HWTEST_F(BaseTest, TestConvert2HexStrZeroLength, TestSize.Level0) {
+    uint8_t arr[] = {};
+    int length = 0;
+    string result = Base::Convert2HexStr(arr, length);
+
+    EXPECT_EQ(result, "");
+}
+
+HWTEST_F(BaseTest, TestConvert2HexStrUp, TestSize.Level0) {
+    uint8_t arr[] = { 0xab, 0xcd, 0xef };
+    int length = sizeof(arr) / sizeof(arr[0]);
+    string result = Base::Convert2HexStr(arr, length);
+
+    EXPECT_EQ(result, "AB:CD:EF");
+}
+
+HWTEST_F(BaseTest, TestConvert2HexStrLargeArray, TestSize.Level0) {
+    const int size = 1024;
+    uint8_t *data = new uint8_t[size];
+
+    for (int i = 0; i < size; ++i) {
+        data[i] = static_cast<uint8_t>(i);
+    }
+
+    string result = Base::Convert2HexStr(data, size);
+
+    EXPECT_NE(result.find("00:01:02"), std::string::npos);
+    EXPECT_NE(result.find("FE:FF"), std::string::npos);
+
+    delete[] data;
+}
+
+HWTEST_F(BaseTest, TestBasicStringFormat, TestSize.Level0) {
+    {
+        const char* formater = "The Number is %d";
+        int number = 123;
+        string result = Base::StringFormat(formater, number);
+        EXPECT_EQ(result, "The Number is 123");
+    }
+
+    {
+        const char* formater = "The Number is %.2f";
+        double number = 3.14159;
+        string result = Base::StringFormat(formater, number);
+        EXPECT_EQ(result, "The Number is 3.14");
+    }
+
+    {
+        const char* formater = "Hello %s";
+        const char* name = "World";
+        string result = Base::StringFormat(formater, name);
+        EXPECT_EQ(result, "Hello World");
+    }
+}
+
+HWTEST_F(BaseTest, TestChineseStringFormat, TestSize.Level0) {
+    const char* formater = "中文：%s";
+    const char* name = "你好，世界！";
+    string result = Base::StringFormat(formater, name);
+    EXPECT_EQ(result, "中文：你好，世界！");
+}
+
 } // namespace Hdc

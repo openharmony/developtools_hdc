@@ -1171,10 +1171,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
 #ifdef SUPPORT_DETAILE_HDC_CMD_LOG
             logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, (reinterpret_cast<char *>(bufPtr)));
 #else
-            if (Base::CanPrintCmd(command)) {
-                std::string cmdStr = std::to_string(command);
-                logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, cmdStr.c_str());
-            }
+            std::string cmdStr = std::to_string(command);
+            logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, cmdStr.c_str());
 #endif
             if (logBuf.length() > 0) {
                 ptrServer->PrintCmdLogEx(logBuf);

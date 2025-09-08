@@ -306,6 +306,10 @@ namespace TranslateCommand {
         if (pos != std::string::npos) {
             // tcp mode
             string ip = outCmd->parameters.substr(0, pos);
+            if (ip == "localhost") {
+                ip = "127.0.0.1";
+                outCmd->parameters.replace(0, pos, ip);
+            }
             if (!Base::IsValidIpv4(ip)) {
                 stringError = "[E001104]:IP address incorrect";
                 outCmd->bJumpDo = true;
@@ -322,10 +326,6 @@ namespace TranslateCommand {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;
                 return stringError;
-            }
-            if (ip == "localhost") {
-                ip = "127.0.0.1";
-                outCmd->parameters.replace(0, pos, ip);
             }
             int port = static_cast<int>(strtol(sport.c_str(), nullptr, 10));
             sockaddr_in addr;
@@ -376,8 +376,8 @@ namespace TranslateCommand {
         outCmd->parameters = input + CMDSTR_TARGET_MODE.size() + 1;  // with  ' '
         int portLength = 4;
         int portSpaceLength = 5;
-        if (!strncmp(outCmd->parameters.c_str(), "port", portLength) &&
-            !strcmp(outCmd->parameters.c_str(), CMDSTR_TMODE_USB.c_str())) {
+        if (strncmp(outCmd->parameters.c_str(), "port", portLength) &&
+            strcmp(outCmd->parameters.c_str(), CMDSTR_TMODE_USB.c_str())) {
             stringError = "Error tmode command";
             outCmd->bJumpDo = true;
         } else if (!strncmp(outCmd->parameters.c_str(), "port ", portSpaceLength)) {

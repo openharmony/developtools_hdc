@@ -1149,7 +1149,7 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
         }
         return 0;
     }
-    struct TranslateCommand::FormatCommand formatCommand = { 0 };
+    struct TranslateCommand::FormatCommand formatCommand = {};
     if (!hChannel->interactiveShellMode) {
         string retEcho = String2FormatCommand(reinterpret_cast<char *>(bufPtr), bytesIO, &formatCommand);
         if (retEcho.length()) {

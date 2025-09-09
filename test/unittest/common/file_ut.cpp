@@ -246,4 +246,86 @@ HWTEST_F(HdcFileTest, TestSetMasterParameters, TestSize.Level0)
         EXPECT_EQ(mockHdcdFile->SetMasterParameters(&context, argc, argvInvalid), false);
     }
 }
+
+HWTEST_F(HdcFileTest, TestIsPathInsideSandbox, TestSize.Level0)
+{
+    {
+        // case 1: 在沙箱路径
+        const string path = "data/storage/el2/base/com.example.myapplication/data/file.txt";
+        const string appDir = "data/storage/el2/base/com.example.myapplication";
+        ASSERT_TRUE(mockHdcdFile->IsPathInsideSandbox(path, appDir));
+    }
+
+    {
+        // case 2: 不在沙箱路径
+        const string path = "data/storage/el2/base/com.example.yourapplication/file.txt";
+        const string appDir = "data/storage/el2/base/com.example.myapplication";
+        ASSERT_FALSE(mockHdcdFile->IsPathInsideSandbox(path, appDir));
+    }
+
+    {
+        // case 3: 路径长度小于沙箱路径
+        const string path = "data/local/tmp/file.txt";
+        const string appDir = "data/storage/el2/base/com.example.myapplication";
+        ASSERT_FALSE(mockHdcdFile->IsPathInsideSandbox(path, appDir));
+    }
+}
+
+
+HWTEST_F(HdcFileTest, TestSetMasterParametersOnDaemon, TestSize.Level0)
+{
+    HdcFile::CtxFile context;
+    char arg0[] = "-b";
+    char argFirst[] = "-cwd";
+    char argRemotePath[] = "D:\\";
+    char argBundleName[] = "com.example.myapplication";
+    char argLocalPath[] = "data/local/tmp/test.txt";
+    char argInvalidBundlePath[] = "../../../../test.txt";
+    std::filesystem::path testPath = "/mnt/debug/100/debug_hap/com.example.myapplication/data/local/tmp/";
+    if (!std::filesystem::exists(testPath))
+    {
+        std::filesystem::create_directories(testPath);
+    }
+    ASSERT_TRUE(std::filesystem::exists(testPath));
+
+    {
+        // case 1: normal
+        int argc = 5;
+        context.sandboxMode = true;
+        context.transferConfig.reserve1 = "com.example.myapplication";
+        char *argvB[] = {argFirst, argRemotePath, arg0, argBundleName, argLocalPath};
+        EXPECT_EQ(mockHdcdFile->SetMasterParametersOnDaemon(&context, argc, argvB, argc), true);
+    }
+
+    {
+        // case 1: Invalid bundle name
+        int argc = 5;
+        context.sandboxMode = true;
+        context.transferConfig.reserve1 = "com.example.test";
+        char *argvB[] = {argFirst, argRemotePath, arg0, argBundleName, argInvalidBundlePath};
+        EXPECT_EQ(mockHdcdFile->SetMasterParametersOnDaemon(&context, argc, argvB, argc), false);
+    }
+}
+
+HWTEST_F(HdcFileTest, TestParseAndValidateOptions, TestSize.Level0)
+{
+    HdcFile::CtxFile ctxNow;
+    ctxNow.transferConfig.fileSize = 102400;
+    ctxNow.transferConfig.path = "data/local/tmp/file.txt";
+    ctxNow.transferConfig.reserve1 = "com.example.myapplication";
+
+    // case 1: application path
+    string s = SerialStruct::SerializeToString(ctxNow.transferConfig);
+    bool result = mockHdcdFile->ParseAndValidateOptions(reinterpret_cast<uint8_t*>(s.data()), s.size());
+    ASSERT_TRUE(result);
+}
+
+HWTEST_F(HdcFileTest, TestCheckBundleAndPath, TestSize.Level0)
+{
+    HdcFile::CtxFile ctxNow;
+    hTaskInfo->serverOrDaemon = true;
+    bool result = mockHdcdFile->CheckBundleAndPath();
+    ASSERT_TRUE(result);
+}
+
 }

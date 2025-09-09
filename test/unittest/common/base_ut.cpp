@@ -14,12 +14,6 @@
  */
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/pem.h>
-#include <openssl/rsa.h>
-#include <openssl/sha.h>
-#include <openssl/err.h>
 
 #include "base.h"
 #include "define.h"
@@ -37,16 +31,6 @@ public:
 private:
     char **argv = nullptr;
     int slotIndex = 0;
-};
-
-const uint32_t RSANUMBYTES = 512;  // 4096 bit key length
-const uint32_t RSANUMWORDS = (RSANUMBYTES / sizeof(uint32_t));
-struct RSAPublicKey {
-    int wordModulusSize;            // Length of n[] in number of uint32_t */
-    uint32_t rsaN0inv;              // -1 / n[0] mod 2^32
-    uint32_t modulus[RSANUMWORDS];  // modulus as little endian array
-    uint32_t rr[RSANUMWORDS];       // R^2 as little endian array
-    BN_ULONG exponent;                   // 3 or 65537
 };
 
 void BaseTest::SetUpTestCase() {}

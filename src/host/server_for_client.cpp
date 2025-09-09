@@ -1165,9 +1165,17 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
 
         WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s", hChannel->channelId,
             hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str());
+
         if (Hdc::Base::GetCmdLogSwitch()) {
+#ifdef SUPPORT_DETAILE_HDC_CMD_LOG
             string logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, (reinterpret_cast<char *>(bufPtr)));
-            ptrServer->PrintCmdLogEx(logBuf);
+#else
+            std::string cmdStr = std::to_string(command);
+            string logBuf = Base::CmdLogStringFormat(hChannel->targetSessionId, cmdStr.c_str());
+#endif
+            if (logBuf.length() > 0) {
+                ptrServer->PrintCmdLogEx(logBuf);
+            }
         }
         if (formatCommand.bJumpDo) {
             WRITE_LOG(LOG_FATAL, "ReadChannel bJumpDo true");

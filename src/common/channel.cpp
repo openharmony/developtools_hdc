@@ -140,9 +140,11 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         char buffer[bufSize] = { 0 };
         uv_err_name_r(nread, buffer, bufSize);
         WRITE_LOG(LOG_DEBUG, "ReadStream channelId:%u failed:%s", channelId, buffer);
+
 #ifdef HDC_HOST
         thisClass->FillChannelResult(hChannel, false, buffer);
 #endif
+
         needExit = true;
         goto Finish;
     } else {
@@ -189,7 +191,7 @@ Finish:
         WRITE_LOG(LOG_DEBUG, "Read Stream needExit, FreeChannel finish channelId:%u", channelId);
     } else {
 #ifdef HDC_HOST
-      hChannel->isSuccess = (hChannel->faultInfo.size() == 0);
+        hChannel->isSuccess = (hChannel->faultInfo.size() == 0);
 #endif
     }
 }

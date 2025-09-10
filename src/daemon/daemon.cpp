@@ -440,7 +440,9 @@ bool HdcDaemon::AlreadyInKnownHosts(const string& key)
     }
 
     std::string keys((std::istreambuf_iterator<char>(keyifs)), std::istreambuf_iterator<char>());
-    if (keys.find(key) != string::npos) {
+    // the length of pubkey is 625
+    const int keyLength = 625;
+    if (key.size() == keyLength && keys.find(key) != string::npos) {
         keyifs.close();
         return true;
     }
@@ -652,7 +654,11 @@ bool HdcDaemon::AuthVerifyRsa(HSession hSession, const string &encryptToken, con
     unsigned char decryptToken[BUF_SIZE_DEFAULT] = { 0 };
 
     // for rsa encrypt, the length of encryptToken can't bigger than BUF_SIZE_DEFAULT
-    if (encryptToken.length() > BUF_SIZE_DEFAULT2) {
+    // Base64 divides every 3 bytes(8 bits) of the original data into 4 segments(6 bits),
+    // each of which is then mapped to a new character.
+    const int scaleOfEncrypt = 4;
+    const int scaleOfDecode = 3;
+    if (encryptToken.length() > BUF_SIZE_DEFAULT / scaleOfDecode * scaleOfEncrypt) {
         WRITE_LOG(LOG_FATAL, "invalid encryptToken, length is %zd", encryptToken.length());
         return false;
     }
@@ -726,9 +732,11 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
 
     if (handshake.authType == AUTH_NONE) {
         return HandDaemonAuthInit(hSession, channelId, handshake);
-    } else if (handshake.authType == AUTH_PUBLICKEY) {
+    } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_NONE
+        && GetSessionAuthToken(hSession->sessionId).size() > 0
+        && handshake.authType == AUTH_PUBLICKEY) {
         return HandDaemonAuthPubkey(hSession, channelId, handshake);
-    } else if (handshake.authType == AUTH_SIGNATURE) {
+    } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_PUBLICKEY && handshake.authType == AUTH_SIGNATURE) {
         return HandDaemonAuthSignature(hSession, channelId, handshake);
     } else {
         WRITE_LOG(LOG_FATAL, "invalid auth state %d for session %u", handshake.authType, hSession->sessionId);
@@ -935,7 +943,7 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
         }
         case CMD_KERNEL_CHANNEL_CLOSE: {  // Daemon is only cleaning up the Channel task
             ClearOwnTasks(hSession, channelId);
-            if (*payload != 0) {
+            if (payloadSize >= 1 && *payload != 0) {
                 --(*payload);
                 Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, payload, 1);
             }

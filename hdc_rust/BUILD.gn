@@ -156,7 +156,6 @@ ohos_rust_static_library("hdc_library_host") {
     "//third_party/rust/crates/log:lib",
     "//third_party/rust/crates/rust-openssl/openssl:lib",
   ]
-
   external_deps = [
     "rust_libc:lib",
     "ylong_runtime:ylong_runtime_static",

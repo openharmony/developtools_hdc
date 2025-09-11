@@ -106,7 +106,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
         hSession->isRunningOk = false;
         char buffer[BUF_SIZE_DEFAULT] = { 0 };
         uv_strerror_r(status, buffer, BUF_SIZE_DEFAULT);
-        hSession->faultInfo += buffer;        
+        hSession->faultInfo += buffer;
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {

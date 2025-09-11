@@ -633,7 +633,7 @@ static void EchoLog(string &buf)
             return;
         }
 
-#ifdef  HDC_HILOG
+#ifdef HDC_HILOG
         string tmpPath = functionName;
         string filePath = GetFileNameAny(tmpPath);
         switch (static_cast<int>(logLevel)) {
@@ -2728,6 +2728,7 @@ void CloseOpenFd(void)
         fileStream.close();
         return ret;
     }
+
     void UpdateCmdLogSwitch()
     {
         char *env = getenv(ENV_SERVER_CMD_LOG.c_str());
@@ -2751,7 +2752,6 @@ void CloseOpenFd(void)
         }
         g_cmdlogSwitch = false;
     }
-
     bool GetCmdLogSwitch()
     {
         return g_cmdlogSwitch;

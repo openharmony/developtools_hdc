@@ -233,7 +233,7 @@ static void GetUserPwd(char *pwdBuf, int bufLen)
     newTerm.c_lflag &= ~(ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &newTerm);
     (void)fgets(pwdBuf, bufLen, stdin);
-    if (pwdBuf[strlen(pwdBuf) - 1] == '\n') {
+    if (strlen(pwdBuf) != 0 && pwdBuf[strlen(pwdBuf) - 1] == '\n') {
         pwdBuf[strlen(pwdBuf) - 1] = '\0';
     }
     tcsetattr(STDIN_FILENO, TCSANOW, &oldTerm);
@@ -337,6 +337,11 @@ static bool VerifyUserPin()
     }
 
     GetUserPwd(passwd, PWD_BUF_LEN);
+    if (strlen(passwd) == 0) {
+        WriteTty(USER_VERIFY_FAILED);
+        return pwdVerifyResult;
+    }
+
     pwdVerifyResult = UserAccountVerify(passwd, strnlen(passwd, PWD_BUF_LEN));
     memset_s(passwd, sizeof(passwd), 0, sizeof(passwd));
     if (!pwdVerifyResult) {

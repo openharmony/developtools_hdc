@@ -14,6 +14,7 @@
  */
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <fstream>
 
 #include "base.h"
 #include "define.h"
@@ -958,6 +959,330 @@ HWTEST_F(BaseTest, TestChineseStringFormat, TestSize.Level0) {
     const char* name = "你好，世界！";
     string result = Base::StringFormat(formater, name);
     EXPECT_EQ(result, "中文：你好，世界！");
+}
+
+HWTEST_F(BaseTest, TestStringToFeatureSetCase1, TestSize.Level0) {
+    const Base::HdcFeatureSet features = {"feature1", "feature2"};
+    string feature = "feature1";
+    EXPECT_TRUE(Base::IsSupportFeature(features, feature));
+}
+
+HWTEST_F(BaseTest, TestStringToFeatureSetCase2, TestSize.Level0) {
+    const Base::HdcFeatureSet features = {"feature1", "feature2"};
+    string feature = "feature3";
+    EXPECT_FALSE(Base::IsSupportFeature(features, feature));
+}
+
+HWTEST_F(BaseTest, TestStringToFeatureSetCase3, TestSize.Level0) {
+    const Base::HdcFeatureSet features = {};
+    string feature = "feature3";
+    EXPECT_FALSE(Base::IsSupportFeature(features, feature));
+}
+
+HWTEST_F(BaseTest, TestUpdateHeartbeatSwitchCacheNoSetEnv, TestSize.Level0) {
+    Base::g_heartbeatSwitch = false;
+    unsetenv(ENV_SERVER_HEARTBEAT.c_str());
+    Base::UpdateHeartbeatSwitchCache();
+    EXPECT_TRUE(Base::g_heartbeatSwitch);
+}
+
+HWTEST_F(BaseTest, TestUpdateHeartbeatSwitchCacheEmptyEnv, TestSize.Level0) {
+    Base::g_heartbeatSwitch = false;
+    setenv(ENV_SERVER_HEARTBEAT.c_str(), "", 1);
+    Base::UpdateHeartbeatSwitchCache();
+    EXPECT_TRUE(Base::g_heartbeatSwitch);
+    unsetenv(ENV_SERVER_HEARTBEAT.c_str());
+}
+
+HWTEST_F(BaseTest, TestUpdateHeartbeatSwitchCache, TestSize.Level0) {
+    Base::g_heartbeatSwitch = false;
+    setenv(ENV_SERVER_HEARTBEAT.c_str(), "1", 1);
+    Base::UpdateHeartbeatSwitchCache();
+    EXPECT_FALSE(Base::g_heartbeatSwitch);
+    unsetenv(ENV_SERVER_HEARTBEAT.c_str());
+}
+
+HWTEST_F(BaseTest, TestGetheartbeatSwitch, TestSize.Level0) {
+    Base::g_heartbeatSwitch = false;
+    EXPECT_FALSE(Base::GetheartbeatSwitch());
+
+    Base::g_heartbeatSwitch = true;
+    EXPECT_TRUE(Base::GetheartbeatSwitch());
+}
+
+HWTEST_F(BaseTest, TestUpdateEncrpytTCPCacheNoSetEnv, TestSize.Level0) {
+    Base::g_encryptTCPSwitch = false;
+    unsetenv(ENV_ENCRYPT_CHANNEL.c_str());
+    Base::UpdateEncrpytTCPCache();
+    EXPECT_FALSE(Base::g_encryptTCPSwitch);
+}
+
+HWTEST_F(BaseTest, TestUpdateEncrpytTCPCacheEmptyEnv, TestSize.Level0) {
+    Base::g_encryptTCPSwitch = false;
+    setenv(ENV_ENCRYPT_CHANNEL.c_str(), "0", 1);
+    Base::UpdateEncrpytTCPCache();
+    EXPECT_FALSE(Base::g_encryptTCPSwitch);
+    unsetenv(ENV_ENCRYPT_CHANNEL.c_str());
+}
+
+HWTEST_F(BaseTest, TestUpdateEncrpytTCPCache, TestSize.Level0) {
+    Base::g_encryptTCPSwitch = false;
+    setenv(ENV_ENCRYPT_CHANNEL.c_str(), "1", 1);
+    Base::UpdateEncrpytTCPCache();
+    EXPECT_TRUE(Base::g_encryptTCPSwitch);
+    unsetenv(ENV_ENCRYPT_CHANNEL.c_str());
+}
+
+HWTEST_F(BaseTest, TestGetEncrpytTCPSwitch, TestSize.Level0) {
+    Base::g_encryptTCPSwitch = false;
+    EXPECT_FALSE(Base::GetEncrpytTCPSwitch());
+    
+    Base::g_encryptTCPSwitch = true;
+    EXPECT_TRUE(Base::GetEncrpytTCPSwitch());
+}
+
+HWTEST_F(BaseTest, TestUpdateCmdLogSwitchNoSetEnv, TestSize.Level0) {
+    Base::g_cmdlogSwitch = false;
+    unsetenv(ENV_SERVER_CMD_LOG.c_str());
+    Base::UpdateCmdLogSwitch();
+    EXPECT_FALSE(Base::g_cmdlogSwitch);
+}
+
+HWTEST_F(BaseTest, TestUpdateCmdLogSwitchEmptyEnv, TestSize.Level0) {
+    Base::g_cmdlogSwitch = false;
+    setenv(ENV_SERVER_CMD_LOG.c_str(), "0", 1);
+    Base::UpdateCmdLogSwitch();
+    EXPECT_FALSE(Base::g_cmdlogSwitch);
+    unsetenv(ENV_SERVER_CMD_LOG.c_str());
+}
+
+HWTEST_F(BaseTest, TestUpdateCmdLogSwitchInvalidEnv, TestSize.Level0) {
+    Base::g_cmdlogSwitch = false;
+    setenv(ENV_SERVER_CMD_LOG.c_str(), "1234", 1);
+    Base::UpdateCmdLogSwitch();
+    EXPECT_FALSE(Base::g_cmdlogSwitch);
+    unsetenv(ENV_SERVER_CMD_LOG.c_str());
+}
+
+HWTEST_F(BaseTest, TestUpdateCmdLogSwitch, TestSize.Level0) {
+    Base::g_cmdlogSwitch = false;
+    setenv(ENV_SERVER_CMD_LOG.c_str(), "1", 1);
+    Base::UpdateCmdLogSwitch();
+    EXPECT_TRUE(Base::g_cmdlogSwitch);
+    unsetenv(ENV_SERVER_CMD_LOG.c_str());
+}
+
+HWTEST_F(BaseTest, TestGetCmdLogSwitch, TestSize.Level0) {
+    Base::g_cmdlogSwitch = false;
+    EXPECT_FALSE(Base::GetCmdLogSwitch());
+    
+    Base::g_cmdlogSwitch = true;
+    EXPECT_TRUE(Base::GetCmdLogSwitch());
+}
+
+HWTEST_F(BaseTest, TestWriteToFileSuccessfully, TestSize.Level0) {
+    const string fileName = "/data/local/tmp/1.txt";
+    const string content = "Hello, World!";
+    const string expectedContent = content;
+
+    remove(fileName.c_str());
+    EXPECT_TRUE(Base::WriteToFile(fileName, content, std::ios_base::out));
+
+    std::ifstream file(fileName);
+    string actualContext;
+    getline(file, actualContext);
+
+    EXPECT_EQ(expectedContent, actualContext);
+    remove(fileName.c_str());
+}
+
+HWTEST_F(BaseTest, TestWriteToFileSuccessfullyCase2, TestSize.Level0) {
+    const string fileName = "/data/local/tmp/2.txt";
+    const string content = "First line\nSecend line";
+    const string expectedContent = content;
+
+    remove(fileName.c_str());
+    EXPECT_TRUE(Base::WriteToFile(fileName, content, std::ios_base::app));
+
+    std::ifstream file(fileName);
+    string actualContext;
+    string line;
+    while (getline(file, line)) {
+        actualContext += line + "\n";
+    }
+
+    EXPECT_EQ(expectedContent + "\n", actualContext);
+    remove(fileName.c_str());
+}
+
+HWTEST_F(BaseTest, TestWriteToFileSuccessfullyFileExist, TestSize.Level0) {
+    const string fileName = "/data/local/tmp/3.txt";
+    const string FirstLine = "First line\n";
+    const string SecendLine = "Secend line";
+    const string expectedContent = FirstLine + SecendLine;
+
+    remove(fileName.c_str());
+    {
+        std::ofstream file(fileName);
+        file << FirstLine;
+    }
+
+    EXPECT_TRUE(Base::WriteToFile(fileName, SecendLine, std::ios_base::app));
+
+    std::ifstream file(fileName);
+    string actualContext;
+    string line;
+    while (getline(file, line)) {
+        actualContext += line + "\n";
+    }
+
+    EXPECT_EQ(expectedContent + "\n", actualContext);
+    remove(fileName.c_str());
+}
+
+HWTEST_F(BaseTest, TestWriteToFileSuccessfullyPathInvalid, TestSize.Level0) {
+    const string fileName = "/invalidpath/5.txt";
+    const string content = "Hello, World!";
+
+    EXPECT_FALSE(Base::WriteToFile(fileName, content, std::ios_base::app));
+}
+
+#ifndef _WIN32
+void CreateTestFile(const string& filePath)
+{
+    std::ofstream file(filePath);
+    if (file.is_open()) {
+        file  << "Hello World!";
+        file.close();
+    }
+}
+
+void CleanupTestFiles(const string& filePath, const string& fileName)
+{
+    (void)remove((filePath + fileName).c_str());
+    (void)remove((filePath + "test.tar.gz").c_str());
+    (void)rmdir(filePath.c_str());
+}
+
+HWTEST_F(BaseTest, TestCompressLogFileSourceFileNotExist, TestSize.Level0) {
+    const string filePath = "/data/local/tmp/testDir/";
+    const string sourceFileName = "nonexistent.txt";
+    const string targetFileName = "test.tar.gz";
+
+    mkdir(filePath.c_str(), 0777);
+    EXPECT_FALSE(Base::CompressLogFile(filePath, sourceFileName, targetFileName));
+
+    CleanupTestFiles(filePath, sourceFileName);
+}
+
+HWTEST_F(BaseTest, TestCompressLogFileTargetEmpty, TestSize.Level0) {
+    const string filePath = "/data/local/tmp/testDir/";
+    const string sourceFileName = "test.txt";
+    const string targetFileName = "";
+
+    mkdir(filePath.c_str(), 0777);
+    CreateTestFile(filePath + sourceFileName);
+    EXPECT_FALSE(Base::CompressLogFile(filePath, sourceFileName, targetFileName));
+
+    CleanupTestFiles(filePath, sourceFileName);
+}
+
+HWTEST_F(BaseTest, TestCompressLogFile, TestSize.Level0) {
+    const string filePath = "/data/local/tmp/testDir/";
+    const string sourceFileName = "test.txt";
+    const string targetFileName = "test.tar.gz";
+
+    mkdir(filePath.c_str(), 0777);
+    CreateTestFile(filePath + sourceFileName);
+
+    EXPECT_TRUE(Base::CompressLogFile(filePath, sourceFileName, targetFileName));
+    EXPECT_TRUE(access((filePath + targetFileName).c_str(), F_OK) == 0);
+
+    CleanupTestFiles(filePath, sourceFileName);
+}
+
+HWTEST_F(BaseTest, TestCompressLogFileInvalidPath, TestSize.Level0) {
+    const string filePath = "/invalid/";
+    const string sourceFileName = "/data/local/tmp/test.txt";
+    const string targetFileName = "test.tar.gz";
+
+    CreateTestFile(sourceFileName);
+
+    EXPECT_FALSE(Base::CompressLogFile(filePath, sourceFileName, targetFileName));
+
+    CleanupTestFiles(filePath, sourceFileName);
+}
+
+HWTEST_F(BaseTest, TestCompressCmdLogAndRemoveSourceFileNotExist, TestSize.Level0) {
+    const string filePath = "/data/local/tmp/testDir/";
+    const string sourceFileName = "nonexistent.txt";
+    const string targetFileName = "test.tar.gz";
+
+    mkdir(filePath.c_str(), 0777);
+    EXPECT_FALSE(Base::CompressCmdLogAndRemove(filePath, sourceFileName, targetFileName));
+
+    CleanupTestFiles(filePath, sourceFileName);
+}
+
+HWTEST_F(BaseTest, TestCompressCmdLogAndRemove, TestSize.Level0) {
+    const string filePath = "/data/local/tmp/testDir/";
+    const string sourceFileName = "test.txt";
+    const string targetFileName = "test.tar.gz";
+
+    mkdir(filePath.c_str(), 0777);
+    CreateTestFile(filePath + sourceFileName);
+
+    EXPECT_TRUE(Base::CompressCmdLogAndRemove(filePath, sourceFileName, targetFileName));
+    EXPECT_TRUE(access((filePath + targetFileName).c_str(), F_OK) == 0);
+    EXPECT_FALSE(access((filePath + sourceFileName).c_str(), F_OK) == 0);
+
+    CleanupTestFiles(filePath, sourceFileName);
+}
+#endif
+
+void CreateTestFileAndSetFileSize(const string& fileName, size_t size)
+{
+    std::ofstream file(fileName, std::ios::binary | std::ios::out);
+    if (file.is_open()) {
+        file.seekp(size - 1);
+        file.put('\0');
+        file.close();
+    }
+}
+
+HWTEST_F(BaseTest, TestIsFileSizeLessThan, TestSize.Level0) {
+    const string fileName = "/data/local/tmp/test.txt";
+    const size_t fileMaxSize = 1024;
+
+    {
+        CreateTestFileAndSetFileSize(fileName, 512);
+        EXPECT_TRUE(Base::IsFileSizeLessThan(fileName, fileMaxSize));
+        (void)remove(fileName.c_str());
+    }
+
+    {
+        CreateTestFileAndSetFileSize(fileName, 2048);
+        EXPECT_FALSE(Base::IsFileSizeLessThan(fileName, fileMaxSize));
+        (void)remove(fileName.c_str());
+    }
+}
+
+HWTEST_F(BaseTest, TestSetIsServerFlag, TestSize.Level0) {
+    Base::g_isServer = false;
+    Base::SetIsServerFlag(true);
+    EXPECT_TRUE(Base::g_isServer);
+    
+    Base::SetIsServerFlag(false);
+    EXPECT_FALSE(Base::g_isServer);
+}
+
+HWTEST_F(BaseTest, TestGetIsServerFlag, TestSize.Level0) {
+    Base::g_isServer = false;
+    Base::SetIsServerFlag(true);
+    EXPECT_TRUE(Base::GetIsServerFlag());
+    
+    Base::SetIsServerFlag(false);
+    EXPECT_FALSE(Base::GetIsServerFlag());
 }
 
 } // namespace Hdc

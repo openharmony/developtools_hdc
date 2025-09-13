@@ -29,7 +29,7 @@ void CredentialMessage::Init(const std::string& messageStr)
     }
 
     int versionInt = messageStr[MESSAGE_VERSION_POS] - '0';
-    if ((versionInt >= METHOD_VERSION_V1 && versionInt <= METHOD_VERSION_MAX) ? false : true) {
+    if (versionInt < METHOD_VERSION_V1 || versionInt > METHOD_VERSION_MAX) {
         WRITE_LOG(LOG_FATAL, "Invalid message version %d.", versionInt);
         return;
     }

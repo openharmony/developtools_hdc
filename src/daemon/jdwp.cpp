@@ -678,7 +678,8 @@ void *HdcJdwp::FdEventPollThread(void *args)
         thisClass->freeContextMutex.unlock();
         poll(&pollfds[0], size, -1);
         for (const auto &pollfdsing : pollfds) {
-            if (pollfdsing.revents & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR)) {  // POLLNVAL:fd not open
+            // POLLNVAL:fd not open
+            if ((static_cast<unsigned short>(pollfdsing.revents) & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR)) != 0) {
                 thisClass->freeContextMutex.lock();
                 auto it = thisClass->pollNodeMap.find(pollfdsing.fd);
                 if (it != thisClass->pollNodeMap.end()) {
@@ -689,7 +690,7 @@ void *HdcJdwp::FdEventPollThread(void *args)
                     }
                 }
                 thisClass->freeContextMutex.unlock();
-            } else if (pollfdsing.revents & POLLIN) {
+            } else if ((static_cast<unsigned short>(pollfdsing.revents) & POLLIN) != 0) {
                 if (pollfdsing.fd == thisClass->awakenPollFd) {
                     thisClass->DrainAwakenPollThread();
                 }

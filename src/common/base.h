@@ -41,6 +41,19 @@ namespace Base {
     uint8_t GetLogLevel();
     extern bool g_isBackgroundServer;
     extern uint8_t g_logLevel;
+#ifdef HDC_UNIT_TEST
+    extern bool g_encryptTCPSwitch;
+    extern bool g_heartbeatSwitch;
+    extern bool g_cmdlogSwitch;
+    extern std::atomic<bool> g_isServer;
+    bool CompressLogFile(const std::string& filePath,
+                         const std::string& sourceFileName,
+                         const std::string& targetFileName);
+    bool CompressCmdLogAndRemove(const std::string& pathName,
+                                 const std::string& fileName,
+                                 const std::string& targetFileName);
+    bool IsFileSizeLessThan(const std::string& fileName, const size_t fileMaxSize);
+#endif
     void SetLogLevel(const uint8_t logLevel);
     uint8_t GetLogLevelByEnv();
     void PrintMessage(const char *fmt, ...);

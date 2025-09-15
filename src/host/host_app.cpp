@@ -73,7 +73,8 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
         } else {
             string path = argv[i];
             ExtractRelativePath(context->transferConfig.clientCwd, path);
-            if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")) {
+            if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")
+                || MatchPackageExtendName(path, ".app")) {
                 context->taskQueue.push_back(path);
             } else {
                 string tarpath = Dir2Tar(path.c_str());
@@ -143,6 +144,8 @@ void HdcHostApp::CheckMaster(CtxFile *context)
         context->transferConfig.optionalName += ".hsp";
     } else if (context->localPath.find(".tar") != static_cast<size_t>(-1)) {
         context->transferConfig.optionalName += ".tar";
+    } else if (context->localPath.find(".app") != static_cast<size_t>(-1)) {
+        context->transferConfig.optionalName += ".app";
     } else {
         context->transferConfig.optionalName += ".bundle";
     }

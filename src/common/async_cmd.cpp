@@ -45,8 +45,9 @@ bool AsyncCmd::ReadyForRelease()
         WRITE_LOG(LOG_WARN, "childShell not ready for release pid:%d", pid);
         return false;
     }
-    if (refCount != 0) {
-        WRITE_LOG(LOG_WARN, "refCount:%u not ready for release", refCount);
+    uint32_t count = refCount.load();
+    if (count != 0) {
+        WRITE_LOG(LOG_WARN, "refCount:%u not ready for release", count);
         return false;
     }
     if (childShell != nullptr) {
@@ -83,7 +84,8 @@ bool AsyncCmd::Initial(uv_loop_t *loopIn, const CmdResultCallback callback, uint
 bool AsyncCmd::FinishShellProc(const void *context, const bool result, const string exitMsg)
 {
     AsyncCmd *thisClass = static_cast<AsyncCmd *>(const_cast<void *>(context));
-    WRITE_LOG(LOG_DEBUG, "FinishShellProc finish pipeRead fd:%d pid:%d", thisClass->fd, thisClass->pid);
+    WRITE_LOG(LOG_DEBUG, "FinishShellProc finish pipeRead fd:%d pid:%d count:%u",
+              thisClass->fd, thisClass->pid, thisClass->refCount.load());
     thisClass->resultCallback(true, result, thisClass->cmdResult + exitMsg);
     --thisClass->refCount;
     return true;
@@ -278,16 +280,17 @@ bool AsyncCmd::ExecuteCommand(const string &command, string executePath)
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);
+    ++refCount;
     childShell = new(std::nothrow) HdcFileDescriptor(loop, fd, this, ChildReadCallback, FinishShellProc, false);
     if (childShell == nullptr) {
         WRITE_LOG(LOG_FATAL, "ExecuteCommand new childShell failed");
+        --refCount;
         return false;
     }
     if (!childShell->StartWorkOnThread()) {
         WRITE_LOG(LOG_FATAL, "ExecuteCommand StartWorkOnThread failed");
         return false;
     }
-    ++refCount;
     return true;
 }
 }  // namespace Hdc

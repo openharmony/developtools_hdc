@@ -44,7 +44,7 @@ bool HdcDaemonForward::SetupJdwpPoint(HCtxForward ctxPoint)
 {
     HdcDaemon *daemon = (HdcDaemon *)taskInfo->ownerSessionClass;
     HdcJdwp *clsJdwp = (HdcJdwp *)daemon->clsJdwp;
-    uint32_t pid = std::stol(ctxPoint->localArgs[1]);
+    uint32_t pid = static_cast<uint32_t>(::strtol(ctxPoint->localArgs[1].c_str(), nullptr, 10));
     if (ctxPoint->checkPoint) {
         uint32_t id = ctxPoint->id;
         bool ret = clsJdwp->CheckPIDExist(pid);

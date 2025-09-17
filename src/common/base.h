@@ -306,6 +306,8 @@ namespace Base {
     void ProcessCmdLogs();
     void UpdateEncrpytTCPCache();
     bool GetEncrpytTCPSwitch();
+    void SetIsServerFlag(bool isServer);
+    bool GetIsServerFlag();
 }  // namespace base
 }  // namespace Hdc
 

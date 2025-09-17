@@ -558,11 +558,19 @@ static bool WritePublicFile(const std::string& fileName, EVP_PKEY *evp)
     FILE *fp = nullptr;
     fp = Base::Fopen(fileName.c_str(), "w");
     if (fp == nullptr) {
-        WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_FATAL, "open %s failed", Hdc::MaskString(fileName).c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
+        }
         return false;
     }
     if (!PEM_write_PUBKEY(fp, evp)) {
-        WRITE_LOG(LOG_FATAL, "write public key file %s failed", fileName.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_FATAL, "write public key file %s failed", Hdc::MaskString(fileName).c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "write public key file %s failed", fileName.c_str());
+        }
         (void)fclose(fp);
         return false;
     }
@@ -591,7 +599,11 @@ static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
 #endif
     fp = Base::Fopen(fileName.c_str(), "w");
     if (fp == nullptr) {
-        WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_FATAL, "open %s failed", Hdc::MaskString(fileName).c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
+        }
         return false;
     }
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY

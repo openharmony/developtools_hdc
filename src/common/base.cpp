@@ -56,6 +56,7 @@ namespace Base {
     std::vector<std::string> g_cmdLogsFilesStrings;
     std::mutex g_threadCompressCmdLogsMutex;
     std::shared_ptr<std::thread> g_compressCmdLogsThread;
+    std::atomic<bool> g_isServer = false;   // default false for client
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -254,7 +255,12 @@ namespace Base {
                 char buf[bufSize] = { 0 };
                 uv_strerror_r(value, buf, bufSize);
                 uv_fs_req_cleanup(&req);
-                WRITE_LOG(LOG_FATAL, "GetLogDirSize error file %s not exist %s", utfName.c_str(), buf);
+                if (Base::GetIsServerFlag()) {
+                    WRITE_LOG(LOG_FATAL, "GetLogDirSize error file %s not exist %s",
+                        Hdc::MaskString(utfName).c_str(), buf);
+                } else {
+                    WRITE_LOG(LOG_FATAL, "GetLogDirSize error file %s not exist %s", utfName.c_str(), buf);
+                }
             }
             if (req.result == 0) {
                 totalSize += req.statbuf.st_size;
@@ -276,10 +282,18 @@ namespace Base {
             return;
         }
         if ((access(bakPath.c_str(), F_OK) != 0) || !CompressLogFile(bakName)) {
-            WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", bakPath.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", HdcMaskString(bakPath).c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", bakPath.c_str());
+            }
             return;
         }
-        WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", HdcMaskString(bakPath).c_str());
+        } else {
+            WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
+        }
         unlink(bakPath.c_str());
     }
 #endif
@@ -290,10 +304,18 @@ namespace Base {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
         if (access(full.c_str(), F_OK) != 0) {
-            WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", Hdc::MaskString(full).c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
+            }
             return retVal;
         }
-        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", Hdc::MaskString(fileName).c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        }
         char currentDir[BUF_SIZE_DEFAULT];
         getcwd(currentDir, sizeof(currentDir));
 
@@ -335,10 +357,18 @@ namespace Base {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
         if (access(full.c_str(), F_OK) != 0) {
-            WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", Hdc::MaskString(full).c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
+            }
             return retVal;
         }
-        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", Hdc::MaskString(fileName).c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        }
         char currentDir[BUF_SIZE_DEFAULT];
         getcwd(currentDir, sizeof(currentDir));
         pid_t pc = fork();  // create process
@@ -447,7 +477,11 @@ namespace Base {
             string deleteFile = GetLogDirName() + name;
             LPCTSTR lpFileName = TEXT(deleteFile.c_str());
             BOOL ret = DeleteFile(lpFileName);
-            WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_INFO, "delete: %s ret:%d", Hdc::MaskString(deleteFile).c_str(), ret);
+            } else {
+                WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
+            }
             count++;
         }
     }
@@ -601,7 +635,11 @@ namespace Base {
         if (rc < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
-            WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", path.c_str(), buffer);
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", Hdc::MaskString(path).c_str(), buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", path.c_str(), buffer);
+            }
         }
         uv_fs_req_cleanup(&req);
     }
@@ -2877,7 +2915,11 @@ void CloseOpenFd(void)
             return false;
         }
         if (access(sourceFileName.c_str(), F_OK) != 0) {
-            WRITE_LOG(LOG_FATAL, "path %s not exist", pathName.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "path %s not exist", Hdc::MaskString(pathName).c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "path %s not exist", pathName.c_str());
+            }
             return false;
         }
         if (!CompressLogFile(pathName, fileName, targetFileName)) {
@@ -2918,7 +2960,11 @@ void CloseOpenFd(void)
         std::string findFileMatchStr = path + "/" + matchStr;
         HANDLE hFind = FindFirstFile(findFileMatchStr.c_str(), &findData);
         if (hFind == INVALID_HANDLE_VALUE) {
-            WRITE_LOG(LOG_FATAL, "FindFirstFile failed, path:%s", findFileMatchStr.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "FindFirstFile failed, path:%s", Hdc::MaskString(findFileMatchStr).c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "FindFirstFile failed, path:%s", findFileMatchStr.c_str());
+            }
             return ;
         }
         do {
@@ -2930,7 +2976,11 @@ void CloseOpenFd(void)
     #else
         DIR *dir = opendir(path.c_str());
         if (dir == nullptr) {
-            WRITE_LOG(LOG_WARN, "open %s failed", path.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_WARN, "open %s failed", Hdc::MaskString(path).c_str());
+            } else {
+                WRITE_LOG(LOG_WARN, "open %s failed", path.c_str());
+            }
             return g_cmdLogsFilesStrings;
         }
         struct dirent *entry;
@@ -3008,7 +3058,11 @@ void CloseOpenFd(void)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            WRITE_LOG(LOG_FATAL, "SaveLogToPath failed, path:%s error:%s", path.c_str(), buffer);
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_FATAL, "SaveLogToPath failed, path:%s error:%s", Hdc::MaskString(path).c_str(), buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "SaveLogToPath failed, path:%s error:%s", path.c_str(), buffer);
+            }
             return;
         }
         string text(str);
@@ -3093,6 +3147,16 @@ void CloseOpenFd(void)
         string timeStr;
         GetTimeString(timeStr);
         return StringFormat("[%s] %u %s\n", timeStr.c_str(), targetSessionId, cmdStr.c_str());
+    }
+
+    void SetIsServerFlag(bool isServer)
+    {
+        g_isServer = isServer;
+    }
+
+    bool GetIsServerFlag()
+    {
+        return g_isServer;
     }
 } // namespace Base
 } // namespace Hdc

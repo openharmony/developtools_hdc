@@ -212,7 +212,7 @@ void HdcHostUSB::KickoutZombie(HSession hSession)
     HdcServer *ptrConnect = (HdcServer *)hSession->classInstance;
     HUSB hUSB = hSession->hUSB;
     if (!hUSB->devHandle) {
-        WRITE_LOG(LOG_WARN, "KickoutZombie devHandle:%p isDead:%d", hUSB->devHandle, hSession->isDead);
+        WRITE_LOG(LOG_WARN, "KickoutZombie devHandle isDead:%d", hSession->isDead);
         return;
     }
     if (LIBUSB_ERROR_NO_DEVICE != libusb_kernel_driver_active(hUSB->devHandle, hUSB->interfaceNumber)) {

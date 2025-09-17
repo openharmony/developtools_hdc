@@ -43,7 +43,11 @@ ssize_t HdcPassword::GetCredential(const char *socketPath, const std::string &me
         close(sockfd);
         return -1;
     }
-    memcpy_s(addr.sun_path, maxPathLen, socketPath, pathLen);
+    if (memcpy_s(addr.sun_path, maxPathLen, socketPath, pathLen) != EOK) {
+        WRITE_LOG(LOG_FATAL, "Memcpy_s error.");
+        close(sockfd);
+        return -1;
+    }
  
     if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");

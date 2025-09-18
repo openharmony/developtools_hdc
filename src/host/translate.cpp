@@ -102,7 +102,7 @@ namespace TranslateCommand {
               "\n"
               "debug commands:\n"
 #ifdef _WIN32
-              "hilog [-h|parse]                       - Show device log, -h for detail\n"
+              " hilog [-h|parse]                      - Show device log, -h for detail\n"
               "                                         parse: parse local hilog files\n"
 #else
               " hilog [-h]                            - Show device log, -h for detail\n"
@@ -219,8 +219,8 @@ namespace TranslateCommand {
             "\n"
             "debug commands:\n"
 #ifdef _WIN32
-            "hilog [-h|parse]                       - Show device log, -h for detail\n"
-              "                                         parse: parse local hilog files\n"
+            " hilog [-h|parse]                      - Show device log, -h for detail\n"
+            "                                         parse: parse local hilog files\n"
 #else
             " hilog [-h]                            - Show device log, -h for detail\n"
 #endif

@@ -432,6 +432,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
             }
             case 'm': {  // [not-publish] is server mode，or client mode
                 g_isServerMode = true;
+                Base::SetIsServerFlag(g_isServerMode);
                 break;
             }
             case 'n': {

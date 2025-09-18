@@ -275,7 +275,12 @@ namespace TranslateCommand {
                 return stringError;
             }
             string sport = outCmd->parameters.substr(pos + 1);
-            WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", ip.c_str(), sport.c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", Hdc::MaskString(ip).c_str(), sport.c_str());
+            } else {
+                WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", ip.c_str(), sport.c_str());
+            }
+            
             if (sport.empty() || !Base::IsDigitString(sport)) {
                 stringError = "Port incorrect";
                 outCmd->bJumpDo = true;

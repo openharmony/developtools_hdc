@@ -178,7 +178,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
             }
         }
     }
-    Base::ZeroArray(ctxJdwp->buf);
+    (void)memset_s(ctxJdwp->buf, sizeof(ctxJdwp->buf), 0, sizeof(ctxJdwp->buf));
     if (!ret) {
         WRITE_LOG(LOG_INFO, "ReadStream proc:%d err, free it.", ctxJdwp->pid);
         thisClass->freeContextMutex.lock();
@@ -304,7 +304,7 @@ int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
 #endif
 
     struct sockaddr_un saddr;
-    Base::ZeroStruct(saddr);
+    memset_s(&saddr, sizeof(sockaddr_un), 0, sizeof(sockaddr_un));
     size_t capacity = sizeof(saddr.sun_path);
     size_t min = size < capacity ? size : capacity;
     for (size_t i = 0; i < min; i++) {

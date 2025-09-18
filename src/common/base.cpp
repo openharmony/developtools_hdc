@@ -1638,8 +1638,6 @@ static void EchoLog(string &buf)
         return socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, fds);
 #endif
 #else
-        struct sockaddr_in addr;
-        socklen_t addrlen = sizeof(addr);
         int reuse = 1;
         if (fds == 0) {
             return -1;
@@ -1648,18 +1646,20 @@ static void EchoLog(string &buf)
         if (listener == -1) {
             return -2;  // -2:sockets error
         }
-        Base::ZeroStruct(addr);
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        addr.sin_port = 0;
         fds[0] = fds[1] = (int)-1;
         do {
+            struct sockaddr_in addr;
+            (void)memset_s(&addr, sizeof(sockaddr_in), 0, sizeof(sockaddr_in));
+            addr.sin_family = AF_INET;
+            addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            addr.sin_port = 0;
             if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, (socklen_t)sizeof(reuse))) {
                 break;
             }
             if (::bind(listener, (struct sockaddr *)&addr, sizeof(addr))) {
                 break;
             }
+            socklen_t addrlen = sizeof(addr);
             if (getsockname(listener, (struct sockaddr *)&addr, &addrlen)) {
                 break;
             }
@@ -2128,7 +2128,7 @@ static void EchoLog(string &buf)
         uv_os_sock_t dupFd = -1;
 #ifdef _WIN32
         WSAPROTOCOL_INFO info;
-        ZeroStruct(info);
+        (void)memset_s(&info, sizeof(WSAPROTOCOL_INFO), 0, sizeof(WSAPROTOCOL_INFO));
         if (WSADuplicateSocketA(tcp->socket, GetCurrentProcessId(), &info) < 0) {
             return dupFd;
         }

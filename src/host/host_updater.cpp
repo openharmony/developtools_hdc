@@ -85,7 +85,7 @@ bool HostUpdater::RunQueue(CtxFile &context)
         OnFileOpenFailed(&context);
         return false;
     }
-    memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = &context;
     refCount++;
     uv_fs_open(loopTask, openReq, context.localPath.c_str(), O_RDONLY, 0, OnFileOpen);
@@ -138,7 +138,7 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
 void HostUpdater::CheckMaster(CtxFile *context)
 {
     uv_fs_t fs;
-    Base::ZeroStruct(fs.statbuf);
+    (void)memset_s(&fs.statbuf, sizeof(uv_stat_t), 0, sizeof(uv_stat_t));
     uv_fs_fstat(nullptr, &fs, context->openFd, nullptr);
     context->transferConfig.fileSize = fs.statbuf.st_size;
     uv_fs_req_cleanup(&fs);

@@ -79,7 +79,6 @@ using std::vector;
 
 #include "circle_buffer.h"
 #include "define.h"
-#include "debug.h"
 #include "base.h"
 #include "task.h"
 #ifdef HDC_SUPPORT_ENCRYPT_TCP

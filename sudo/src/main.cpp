@@ -38,7 +38,8 @@ using namespace OHOS::UserIam::UserAuth;
 
 namespace {
 static const int CHALLENGE_LEN = 32;
-static const char *DEFAULT_PATH = "/system/bin";
+static const std::vector<std::string> DEFAULT_PATH = {"/bin", "/usr/bin", "/system/bin", "/vendor/bin",
+    "/usr/local/bin", "/data/app/bin", "/data/service/hnp/bin", "/opt/homebrew"};
 static const char *DEFAULT_BASH = "/system/bin/sh";
 static FILE *g_ttyFp = nullptr;
 static const char *OUT_OF_MEM = "[E0001] out of memory\n";
@@ -111,52 +112,40 @@ static void FreeArgvNew(char **argvNew)
 }
 
 /*
- * Find cmd from PATH
+ * Find cmd from DEFAULT_PATH
 */
-static bool GetCmdInPath(char *cmd, int cmdBufLen, char *envp[])
+static bool GetCmdInPath(char *cmd, int cmdBufLen)
 {
+    std::string cmdStr(cmd);
     struct stat st;
-    char *path = nullptr;
-    char *pathBak = nullptr;
-    char **ep = nullptr;
-    char *cp = nullptr;
-    char pathBuf[PATH_MAX + 1] = {0};
-    bool findSuccess = false;
 
-    if (strchr(cmd, '/') != nullptr) {
-        return true;
-    }
-
-    for (ep = envp; *ep != nullptr; ep++) {
-        if (strncmp(*ep, PATH, strlen(PATH)) == 0) {
-            path = *ep + strlen(PATH);
-            break;
+    if (cmdStr.find('/') != std::string::npos) {
+        if (stat(cmdStr.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+            return true;
+        } else {
+            WriteTty(COMMAND_NOT_FOUND);
+            return false;
         }
     }
 
-    path = StrDup((path != nullptr && *path != '\0') ? path : DEFAULT_PATH);
-    pathBak = path;
-    do {
-        if ((cp = strchr(path, ':')) != nullptr) {
-            *cp = '\0';
+    for (const auto &path : DEFAULT_PATH) {
+        std::string cmdPath = path.empty() ? cmd : path + "/" + cmd;
+        if (stat(cmdPath.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+            size_t len = cmdPath.length();
+            int ret = memcpy_s(cmd, cmdBufLen - 1, cmdPath.c_str(), len);
+            if (ret != EOK) {
+                WriteTty(COMMAND_NOT_FOUND);
+                return false;
+            }
+            return true;
         }
-        int ret = sprintf_s(pathBuf, sizeof(pathBuf), "%s/%s", *path ? path : ".", cmd);
-        if (ret > 0 && stat(pathBuf, &st) == 0 && S_ISREG(st.st_mode)) {
-            findSuccess = true;
-            break;
-        }
-        path = cp + 1;
-    } while (cp != nullptr);
-
-    delete [] pathBak;
-    if (!findSuccess) {
-        WriteTty(COMMAND_NOT_FOUND);
-        return false;
     }
-    return (sprintf_s(cmd, cmdBufLen, "%s", pathBuf) < 0) ? false : true;
+
+    WriteTty(COMMAND_NOT_FOUND);
+    return false;
 }
 
-static char **ParseCmd(int argc, char* argv[], char* env[], char *cmd, int cmdLen)
+static char **ParseCmd(int argc, char* argv[], char *cmd, int cmdLen)
 {
     int startCopyArgvIndex = 1;
     int argvNewIndex = 0;
@@ -202,7 +191,7 @@ static char **ParseCmd(int argc, char* argv[], char* env[], char *cmd, int cmdLe
     */
     if (!isShc) {
         ret = sprintf_s(cmd, cmdLen, "%s", argv[1]);
-        if (ret < 0 || !GetCmdInPath(cmd, cmdLen, env)) {
+        if (ret < 0 || !GetCmdInPath(cmd, cmdLen)) {
             FreeArgvNew(argvTmp);
             return nullptr;
         }
@@ -267,7 +256,7 @@ static bool VerifyUserPin()
     }
 
     int curUserId = GetUserId();
-    // avoid switch user when process running.
+    // switch user when process running, quick cancel.
     if (curUserId != g_userId) {
         WriteTty(USER_SWITCH_FAILED);
         return false;
@@ -326,8 +315,35 @@ static bool CheckUserLimitation()
 }
 #endif
 
-int main(int argc, char* argv[], char* env[])
+static bool UpdateEnvironmentPath()
 {
+    if (unsetenv("PATH") != 0) {
+        WriteStdErr("unsetenv failed!\n");
+        return false;
+    }
+
+    std::string newPath;
+    for (const auto &pathDir : DEFAULT_PATH) {
+        if (!newPath.empty()) {
+            newPath += ":";
+        }
+        newPath += pathDir;
+    }
+
+    if (!newPath.empty() && setenv("PATH", newPath.c_str(), 1) != 0) {
+        WriteStdErr("setenv failed!\n");
+        return false;
+    }
+
+    return true;
+}
+
+int main(int argc, char* argv[])
+{
+    if (!UpdateEnvironmentPath()) {
+        return 1;
+    }
+
     g_userId = GetUserId();
     if (g_userId == -1) {
         WriteStdErr("get user id failed.\n");
@@ -358,7 +374,7 @@ int main(int argc, char* argv[], char* env[])
     }
 
     char execCmd[PATH_MAX + 1] = {0};
-    char **argvNew = ParseCmd(argc, argv, env, execCmd, PATH_MAX + 1);
+    char **argvNew = ParseCmd(argc, argv, execCmd, PATH_MAX + 1);
     CloseTty();
     if (argvNew == nullptr) {
         return 1;

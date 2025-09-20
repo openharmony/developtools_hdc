@@ -32,29 +32,28 @@
 #include "user_access_ctrl_client.h"
 #include "aclmgr_system_api.h"
 
-#define PWD_BUF_LEN 128
-#define CHALLENGE_LEN 32
-#define DEFAULT_PATH "/system/bin"
-#define DEFAULT_BASH "/system/bin/sh"
-#define PATH "PATH="
 using namespace OHOS::UserIam;
 using namespace OHOS::AccountSA;
-using namespace OHOS::UserIam::PinAuth;
 using namespace OHOS::UserIam::UserAuth;
 
+namespace {
+static const int CHALLENGE_LEN = 32;
+static const char *DEFAULT_PATH = "/system/bin";
+static const char *DEFAULT_BASH = "/system/bin/sh";
 static FILE *g_ttyFp = nullptr;
-
 static const char *OUT_OF_MEM = "[E0001] out of memory\n";
 static const char *COMMAND_NOT_FOUND = "[E0002] command not found\n";
 static const char *USER_VERIFY_FAILED = "[E0003] Sorry, try again. If screen lock password not set, set it first.\n";
+static const char *USER_SWITCH_FAILED = "[E0004] Currently logged-in user has switched, please try again.\n";
 static const char *HELP = "sudo - execute command as root\n\n"
                        "usage: sudo command ...\n"
                        "usage: sudo sh -c command ...\n";
-
 static int32_t g_userId = -1;
 static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
 static std::vector<uint8_t> g_authToken;
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
+static const std::string TITLE = "Allow execution of sudo commands";
+}
 
 static void WriteStdErr(const char *str)
 {
@@ -219,28 +218,6 @@ static char **ParseCmd(int argc, char* argv[], char* env[], char *cmd, int cmdLe
     return argvTmp;
 }
 
-static void GetUserPwd(char *pwdBuf, int bufLen)
-{
-    const char *prompts = "[sudo] password for current user:";
-    const char *newline = "\n";
-    struct termios oldTerm;
-    struct termios newTerm;
-
-    WriteTty(prompts);
-
-    tcgetattr(STDIN_FILENO, &oldTerm);
-    newTerm = oldTerm;
-    newTerm.c_lflag &= ~(ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newTerm);
-    (void)fgets(pwdBuf, bufLen, stdin);
-    if (pwdBuf[strlen(pwdBuf) - 1] == '\n') {
-        pwdBuf[strlen(pwdBuf) - 1] = '\0';
-    }
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldTerm);
-    
-    WriteTty(newline);
-}
-
 static bool SetUidGid(void)
 {
     if (setuid(0) != 0) {
@@ -271,78 +248,52 @@ static bool GetChallenge()
     return true;
 }
 
-static bool VerifyAccount()
-{
-    bool verifyResult = false;
-
-    UserAuthClient &sudoIAMClient = UserAuthClient::GetInstance();
-    std::shared_ptr<UserAuth::AuthenticationCallback> callback = std::make_shared<SudoIDMCallback>();
-
-    OHOS::UserIam::UserAuth::AuthParam authParam;
-    authParam.userId = g_userId;
-    authParam.challenge = g_challenge;
-    authParam.authType = AuthType::PIN;
-    authParam.authTrustLevel = AuthTrustLevel::ATL1;
-
-    sudoIAMClient.BeginAuthentication(authParam, callback);
-    std::shared_ptr<SudoIDMCallback> sudoCallback = std::static_pointer_cast<SudoIDMCallback>(callback);
-    WaitForAuth();
-    verifyResult = sudoCallback->GetVerifyResult();
-    g_authToken = sudoCallback->GetAuthToken();
-    return verifyResult;
-}
-
-static bool GetUserId()
+static int32_t GetUserId()
 {
     std::vector<int32_t> ids;
 
     OHOS::ErrCode err = OsAccountManager::QueryActiveOsAccountIds(ids);
     if (err != 0) {
         WriteStdErr("get os account local id failed\n");
-        return false;
+        return -1;
     }
-
-    g_userId = ids[0];
-    return true;
-}
-
-static bool UserAccountVerify(char *pwd, int pwdLen)
-{
-    bool verifyResult = false;
-    std::shared_ptr<PinAuth::IInputer> inputer = nullptr;
-
-    inputer = std::make_shared<PinAuth::SudoIInputer>();
-    std::shared_ptr<PinAuth::SudoIInputer> sudoInputer = std::static_pointer_cast<PinAuth::SudoIInputer>(inputer);
-    sudoInputer->SetPasswd(pwd, pwdLen);
-    if (!PinAuthRegister::GetInstance().RegisterInputer(inputer)) {
-        WriteStdErr("register pin inputer failed\n");
-        return false;
-    }
-
-    if (VerifyAccount()) {
-        verifyResult = true;
-    }
-
-    PinAuthRegister::GetInstance().UnRegisterInputer();
-    return verifyResult;
+    return ids[0];
 }
 
 static bool VerifyUserPin()
 {
-    char passwd[PWD_BUF_LEN] = {0};
-    bool pwdVerifyResult = false;
-
     if (getuid() == 0) {
         return true;
     }
 
-    GetUserPwd(passwd, PWD_BUF_LEN);
-    pwdVerifyResult = UserAccountVerify(passwd, strnlen(passwd, PWD_BUF_LEN));
-    (void)memset_s(passwd, sizeof(passwd), 0, sizeof(passwd));
-    if (!pwdVerifyResult) {
+    int curUserId = GetUserId();
+    // avoid switch user when process running.
+    if (curUserId != g_userId) {
+        WriteTty(USER_SWITCH_FAILED);
+        return false;
+    }
+
+    UserAuthClient &sudoIAMClient = UserAuthClient::GetInstance();
+    std::shared_ptr<SudoIDMCallback> callback = std::make_shared<SudoIDMCallback>();
+
+    OHOS::UserIam::UserAuth::WidgetAuthParam widgetAuthParam;
+    widgetAuthParam.userId = g_userId;
+    widgetAuthParam.challenge = g_challenge;
+    widgetAuthParam.authTrustLevel = AuthTrustLevel::ATL3;
+    widgetAuthParam.authTypes = { AuthType::PIN };
+
+    OHOS::UserIam::UserAuth::WidgetParam widgetParam;
+    widgetParam.title = TITLE;
+    widgetParam.windowMode = OHOS::UserIam::UserAuth::WindowModeType::UNKNOWN_WINDOW_MODE;
+
+    sudoIAMClient.BeginWidgetAuth(widgetAuthParam, widgetParam, callback);
+    WaitForAuth();
+    bool verifyResult = callback->GetVerifyResult();
+    g_authToken = callback->GetAuthToken();
+    if (!verifyResult) {
         WriteTty(USER_VERIFY_FAILED);
     }
-    return pwdVerifyResult;
+    return verifyResult;
 }
 
 static bool SetPSL()
@@ -377,7 +328,8 @@ static bool CheckUserLimitation()
 
 int main(int argc, char* argv[], char* env[])
 {
-    if (!GetUserId()) {
+    g_userId = GetUserId();
+    if (g_userId == -1) {
         WriteStdErr("get user id failed.\n");
         return 1;
     }

@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <charconv>
 #include "credential_message.h"
 
 using namespace Hdc;
@@ -40,9 +41,9 @@ void CredentialMessage::Init(const std::string& messageStr)
     messageMethodType = StripLeadingZeros(messageMethodStr);
 
     std::string messageLengthStr = messageStr.substr(MESSAGE_LENGTH_POS, MESSAGE_LENGTH_LEN);
-    char* end = nullptr;
-    size_t bodyLength = static_cast<size_t>(strtol(messageLengthStr.c_str(), &end, 10));
-    if (end == nullptr || *end != '\0' || bodyLength > MESSAGE_STR_MAX_LEN) {
+    size_t bodyLength = 0;
+    std::from_chars(messageLengthStr.data(), messageLengthStr.data() + messageLengthStr.size(), bodyLength);
+    if (bodyLength > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "Invalid message body length %s.", messageLengthStr.c_str());
         return;
     }
@@ -146,8 +147,8 @@ int StripLeadingZeros(const std::string& input)
         return -1;
     }
     
-    char* end = nullptr;
-    long value = strtol(numberStr.c_str(), &end, 10);
+    long value = 0;
+    std::from_chars(numberStr.data(), numberStr.data() + numberStr.size(), value);
     return static_cast<int>(value);
 }
 

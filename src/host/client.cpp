@@ -33,8 +33,10 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
 {
 #ifdef __OHOS__
     serverAddress = addrString;
-    channel = new HdcChannel();
-    channel->isUds = (serverAddress.empty() || serverAddress == UDS_STR);
+    channel = new(std::nothrow) HdcChannel();
+    if (channel != nullptr) {
+        channel->isUds = (serverAddress.empty() || serverAddress == UDS_STR);
+    }
 #endif
     MallocChannel(&channel);  // free by logic
     debugRetryCount = 0;

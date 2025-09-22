@@ -58,6 +58,10 @@ void HdcServerForClient::AcceptUdsClient(uv_stream_t *server, int status)
 {
     StartTraceScope("HdcServerForClient::AcceptUdsClient");
     HdcServerForClient *thisClass = (HdcServerForClient *)(((uv_pipe_t *)server)->data);
+    if (thisClass == nullptr) {
+        WRITE_LOG(LOG_FATAL, "HdcServerForClient is null");
+        return;
+    }
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptUdsClient");
     HChannel hChannel = new HdcChannel();
     if (hChannel == nullptr) {

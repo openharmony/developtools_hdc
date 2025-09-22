@@ -98,11 +98,11 @@ std::string DecryptPwd(const std::string& messageStr)
         }
     } while (0);
 
-    memset_s(decryptPwd.first, decryptPwd.second, 0, decryptPwd.second);
+    (void)memset_s(decryptPwd.first, decryptPwd.second, 0, decryptPwd.second);
     delete[] decryptPwd.first;
 
     std::string pwdStr(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
-    memset_s(pwd, PASSWORD_LENGTH, 0, PASSWORD_LENGTH);
+    (void)memset_s(pwd, PASSWORD_LENGTH, 0, PASSWORD_LENGTH);
 
     return pwdStr;
 }
@@ -201,12 +201,13 @@ std::string CredentialVersion()
 
 bool SplitCommandToArgs(int argc, const char **argv)
 {
+    constexpr uint8_t cmdArgv1Len = 2;
     if (argc == CMD_ARG1_COUNT) {
-        if (!strcmp(argv[1], "-h")) {
+        if (!strncmp(argv[1], "-h", cmdArgv1Len)) {
             std::string usage = CredentialUsage();
             fprintf(stderr, "%s", usage.c_str());
             return false;
-        } else if (!strcmp(argv[1], "-v")) {
+        } else if (!strncmp(argv[1], "-v", cmdArgv1Len)) {
             std::string ver = CredentialVersion();
             fprintf(stderr, "%s\n", ver.c_str());
             return false;

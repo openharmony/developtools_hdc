@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <charconv>
 #include "credential_base.h"
 
 using namespace Hdc;
@@ -126,12 +127,8 @@ bool CreatePathWithMode(const char* path, mode_t mode)
 
 bool IsUserDir(const std::string& dir)
 {
-    int userId;
-    try {
-        userId = std::stoi(dir);
-    } catch (const std::invalid_argument&) {
-        userId = 0;
-    }
+    int userId = 0;
+    std::from_chars(dir.data(), dir.data() + dir.size(), userId);
     return userId >= MIN_USER_ID && userId <= MAX_USER_ID;
 }
 }   // namespace HdcCredentialBase

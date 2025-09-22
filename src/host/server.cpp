@@ -1138,6 +1138,10 @@ void HdcServer::DeatchChannelInnerForUds(HSession hSession, const uint32_t chann
 void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
+    if (hSfc == nullptr) {
+        WRITE_LOG(LOG_DEBUG, "HdcServerForClient is null");
+        return;
+    }
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY, channelId, nullptr);
     if (!hChannel) {
         WRITE_LOG(LOG_DEBUG, "AttachChannel hChannel null channelId:%u", channelId);
@@ -1153,6 +1157,10 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
 void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
+    if (hSfc == nullptr) {
+        WRITE_LOG(LOG_DEBUG, "HdcServerForClient is null");
+        return;
+    }
     // childCleared has not set, no need OP_QUERY_REF
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY, channelId, nullptr);
     if (!hChannel) {

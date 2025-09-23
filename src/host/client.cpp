@@ -971,9 +971,7 @@ string HdcClient::ListTargetsAll(const string &str)
     const string lists = "list targets -v";
     if (!strncmp(this->command.c_str(), lists.c_str(), lists.size())) {
         UpdateList(str);
-        if (str != "\r\n") {
-            all = Base::ReplaceAll(all, "\n", "\thdc\n");
-        }
+        all = Base::ReplaceAll(all, "\n", "\thdc\n");
     } else if (!strncmp(this->command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
         UpdateList(str);
     }

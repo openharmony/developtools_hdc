@@ -278,7 +278,7 @@ bool GetUserKeyPath(string &path)
         uv_fs_stat(nullptr, &req, path.c_str(), nullptr);
         uv_fs_req_cleanup(&req);
         if (req.result < 0) {
-            WRITE_LOG(LOG_FATAL, "Cannot mkdir '%s'", path.c_str());
+            WRITE_LOG(LOG_FATAL, "Cannot mkdir '%s'", Hdc::MaskString(path).c_str());
             return false;
         }
     }
@@ -758,7 +758,7 @@ bool GetHostName(string &hostname)
 
     hostname = string(buf, bufsize);
 
-    WRITE_LOG(LOG_INFO, "hostname: %s", hostname.c_str());
+    WRITE_LOG(LOG_INFO, "hostname: %s", Hdc::MaskString(hostname).c_str());
 
     return true;
 }

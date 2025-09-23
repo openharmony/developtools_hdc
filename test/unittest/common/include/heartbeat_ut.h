@@ -19,12 +19,12 @@
 #include <gtest/gtest.h>
 
 namespace Hdc {
-    class HdcHeartbeatTest : public testing::Test {
-    public:
-        static void SetUpTestCase(void);
-        static void TearDownTestCase(void);
-        void SetUp();
-        void TearDown();
-    };
+class HdcHeartbeatTest : public testing::Test {
+public:
+    static void SetUpTestCase(void);
+    static void TearDownTestCase(void);
+    void SetUp();
+    void TearDown();
+};
 } // namespace Hdc
 #endif // HDC_HEARTBEAT_TEST_H

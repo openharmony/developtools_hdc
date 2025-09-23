@@ -17,50 +17,50 @@
 
 using namespace testing::ext;
 namespace Hdc {
-    #define TEST_HUKS_ALIAS "test_huks_alias"
-    #define TEST_DATA_LEN 10
-    void HdcHuksTest::SetUpTestCase() {}
-    void HdcHuksTest::TearDownTestCase() {}
-    void HdcHuksTest::SetUp() {}
-    void HdcHuksTest::TearDown() {}
+#define TEST_HUKS_ALIAS "test_huks_alias"
+#define TEST_DATA_LEN 10
+void HdcHuksTest::SetUpTestCase() {}
+void HdcHuksTest::TearDownTestCase() {}
+void HdcHuksTest::SetUp() {}
+void HdcHuksTest::TearDown() {}
 
-    HWTEST_F(HdcHuksTest, TestResetHuksKey, TestSize.Level0)
-    {
-        HdcHuks huks(TEST_HUKS_ALIAS);
-        ASSERT_EQ(huks.ResetHuksKey(), true);
-    }
+HWTEST_F(HdcHuksTest, TestResetHuksKey, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    ASSERT_EQ(huks.ResetHuksKey(), true);
+}
 
-    HWTEST_F(HdcHuksTest, TestAesGcmEncrypt, TestSize.Level0)
-    {
-        HdcHuks huks(TEST_HUKS_ALIAS);
-        std::vector<uint8_t> encryptData;
-        uint8_t testData[TEST_DATA_LEN];
-        memset_s(testData, TEST_DATA_LEN, '1', TEST_DATA_LEN);
-        bool ret = huks.AesGcmEncrypt(testData, TEST_DATA_LEN, encryptData);
-        ASSERT_EQ(ret, true);
-    }
+HWTEST_F(HdcHuksTest, TestAesGcmEncrypt, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::vector<uint8_t> encryptData;
+    uint8_t testData[TEST_DATA_LEN];
+    memset_s(testData, TEST_DATA_LEN, '1', TEST_DATA_LEN);
+    bool ret = huks.AesGcmEncrypt(testData, TEST_DATA_LEN, encryptData);
+    ASSERT_EQ(ret, true);
+}
 
-    HWTEST_F(HdcHuksTest, TestAesGcmEncryptLen, TestSize.Level0)
-    {
-        HdcHuks huks(TEST_HUKS_ALIAS);
-        int len = huks.CaculateGcmEncryptLen(TEST_DATA_LEN);
-        ASSERT_EQ(len, 38); // 38 = 12 + 10 + 16
-    }
+HWTEST_F(HdcHuksTest, TestAesGcmEncryptLen, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    int len = huks.CaculateGcmEncryptLen(TEST_DATA_LEN);
+    ASSERT_EQ(len, 38); // 38 = 12 + 10 + 16
+}
 
 
-    HWTEST_F(HdcHuksTest, TestAesGcmEncryptAndDecrypt, TestSize.Level0)
-    {
-        HdcHuks huks(TEST_HUKS_ALIAS);
-        std::vector<uint8_t> encryptData;
-        uint8_t testData[TEST_DATA_LEN];
-        memset_s(testData, TEST_DATA_LEN, '1', TEST_DATA_LEN);
-        bool ret = huks.AesGcmEncrypt(testData, TEST_DATA_LEN, encryptData);
-        ASSERT_EQ(ret, true);
+HWTEST_F(HdcHuksTest, TestAesGcmEncryptAndDecrypt, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::vector<uint8_t> encryptData;
+    uint8_t testData[TEST_DATA_LEN];
+    memset_s(testData, TEST_DATA_LEN, '1', TEST_DATA_LEN);
+    bool ret = huks.AesGcmEncrypt(testData, TEST_DATA_LEN, encryptData);
+    ASSERT_EQ(ret, true);
 
-        std::string encryptStr;
-        encryptStr.assign(encryptData.begin(), encryptData.end());
-        std::pair<uint8_t*, int> plainStr = huks.AesGcmDecrypt(encryptStr);
-        ASSERT_EQ(plainStr.second, 10); // 10 is testData length
-        ASSERT_EQ(memcmp(plainStr.first, testData, plainStr.second), 0);
-    }
+    std::string encryptStr;
+    encryptStr.assign(encryptData.begin(), encryptData.end());
+    std::pair<uint8_t*, int> plainStr = huks.AesGcmDecrypt(encryptStr);
+    ASSERT_EQ(plainStr.second, 10); // 10 is testData length
+    ASSERT_EQ(memcmp(plainStr.first, testData, plainStr.second), 0);
+}
 } // namespace Hdc

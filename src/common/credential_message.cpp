@@ -42,8 +42,12 @@ void CredentialMessage::Init(const std::string& messageStr)
 
     std::string messageLengthStr = messageStr.substr(MESSAGE_LENGTH_POS, MESSAGE_LENGTH_LEN);
     size_t bodyLength = 0;
-    std::from_chars(messageLengthStr.data(), messageLengthStr.data() + messageLengthStr.size(), bodyLength);
-    if (bodyLength > MESSAGE_STR_MAX_LEN) {
+    auto [ptr, ec] = std::from_chars(messageLengthStr.data(),
+                                     messageLengthStr.data() + messageLengthStr.size(), bodyLength);
+    if (ec != std::errc()) {
+        bodyLength = 0;
+    }
+    if (bodyLength == 0 || bodyLength > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "Invalid message body length %s.", messageLengthStr.c_str());
         return;
     }
@@ -148,7 +152,10 @@ int StripLeadingZeros(const std::string& input)
     }
     
     long value = 0;
-    std::from_chars(numberStr.data(), numberStr.data() + numberStr.size(), value);
+    auto [ptr, ec] = std::from_chars(numberStr.data(), numberStr.data() + numberStr.size(), value);
+    if (ec != std::errc()) {
+        value = 0;
+    }
     return static_cast<int>(value);
 }
 

@@ -544,8 +544,13 @@ void HdcFile::TransferNext(CtxFile *context)
               Hdc::MaskString(context->localPath).c_str(), ctxNow.taskQueue.size());
     uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
-        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
-            Hdc::MaskString(context->localPath).c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
+                      Hdc::MaskString(context->localPath).c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
+                      context->localPath.c_str());
+        }
         OnFileOpenFailed(context);
         return;
     }
@@ -553,12 +558,23 @@ void HdcFile::TransferNext(CtxFile *context)
     openReq->data = context;
     do {
         ++refCount;
-        WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, Hdc::MaskString(context->localPath).c_str(),
-            Hdc::MaskString(context->remotePath).c_str());
+        if (Base::GetIsServerFlag()) {
+            WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
+                             taskInfo->sessionId, Hdc::MaskString(context->localPath).c_str(),
+                             Hdc::MaskString(context->remotePath).c_str());
+        } else {
+            WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
+                             taskInfo->sessionId, context->localPath.c_str(), context->remotePath.c_str());
+        }
+        
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, Hdc::MaskString(context->localPath).c_str());
+            if (Base::GetIsServerFlag()) {
+                WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc,
+                          Hdc::MaskString(context->localPath).c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, context->localPath.c_str());
+            }
         }
     } while (false);
 

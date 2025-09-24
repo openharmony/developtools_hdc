@@ -664,8 +664,9 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
 bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string &errStr)
 {
     // If optName show this is directory mode, check localPath and try create each layer
-    WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s",
-        localPath.c_str(), optName.c_str());
+    WRITE_LOG_DAEMON(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s",
+                     Hdc::MaskString(localPath).c_str(), optName.c_str());
+    
     if ((optName.find('/') == string::npos) && (optName.find('\\') == string::npos)) {
         WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s, return", optName.c_str());
         return true;
@@ -682,14 +683,14 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         if (dirsOflocalPath.size() > 0 && !ctxNow.isDir && localPath.back() != Base::GetPathSep()) {
             dirsOflocalPath.pop_back();
         }
-        WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu",
-            localPath.c_str(), dirsOflocalPath.size());
+        WRITE_LOG_DAEMON(LOG_DEBUG, "localPath = %s dir layers = %zu",
+                         Hdc::MaskString(localPath).c_str(), dirsOflocalPath.size());
         string makedirPath;
         if (!Base::IsAbsolutePath(localPath)) {
             makedirPath = ".";
         }
         for (auto dir : dirsOflocalPath) {
-            WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", dir.c_str());
+            WRITE_LOG_DAEMON(LOG_DEBUG, "CheckLocalPath create dir = %s", Hdc::MaskString(dir).c_str());
 
             if (dir == ".") {
                 continue;
@@ -709,7 +710,7 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         // set flag to remove first layer directory of filename from master
         ctxNow.targetDirNotExist = true;
     } else if (ctxNow.isDir && !(mode & S_IFDIR)) {
-        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
+        WRITE_LOG_DAEMON(LOG_WARN, "Not a directory, path:%s", Hdc::MaskString(localPath).c_str());
         errStr = "Not a directory, path:" + localPath;
         return false;
     }
@@ -756,7 +757,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
                 if (shortPath.at(0) == Base::GetPathSep()) {
                     shortPath = shortPath.substr(1);
                 }
-                WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, shortPath.c_str());
+                WRITE_LOG_DAEMON(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, Hdc::MaskString(shortPath).c_str());
 
                 // set mode
                 auto it = ctxNow.dirModeMap.find(shortPath);
@@ -777,8 +778,9 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
         }
     }
 
-    WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
-        Hdc::MaskString(localPath).c_str(), optName.c_str());
+    WRITE_LOG_DAEMON(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
+                     Hdc::MaskString(localPath).c_str(), optName.c_str());
+    
     return true;
 }
 

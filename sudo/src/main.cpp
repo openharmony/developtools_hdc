@@ -62,6 +62,12 @@ static void WriteStdErr(const char *str)
     fflush(stderr);
 }
 
+static void WriteStdErrFmtWithStr(const std::string& format, const std::string& error)
+{
+    fprintf(stderr, format.c_str(), error.c_str());
+    fflush(stderr);
+}
+
 static void WriteTty(const char *str)
 {
     if (g_ttyFp != nullptr) {
@@ -318,7 +324,7 @@ static bool CheckUserLimitation()
 static bool UpdateEnvironmentPath()
 {
     if (unsetenv("PATH") != 0) {
-        WriteStdErr("unsetenv failed!\n");
+        WriteStdErrFmtWithStr("unsetenv failed!error message:%s\n", std::strerror(errno));
         return false;
     }
 
@@ -331,7 +337,7 @@ static bool UpdateEnvironmentPath()
     }
 
     if (!newPath.empty() && setenv("PATH", newPath.c_str(), 1) != 0) {
-        WriteStdErr("setenv failed!\n");
+        WriteStdErrFmtWithStr("setenv failed!error message:%s\n", std::strerror(errno));
         return false;
     }
 

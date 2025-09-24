@@ -777,6 +777,11 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
         return false;
     }
     if (handshake.authType == AUTH_NONE) {
+        if (GetSessionAuthStatus(handshake.sessionId) != AUTH_NONE) {
+            WRITE_LOG(LOG_FATAL, "session %u is already, But now session is %u, refused!",
+                handshake.sessionId, hSession->sessionId);
+            return false;
+        }
         DaemonSessionHandshakeInit(hSession, handshake);
     }
     if (!HandDaemonAuth(hSession, channelId, handshake)) {

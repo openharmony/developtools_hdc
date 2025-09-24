@@ -244,10 +244,10 @@ std::pair<uint8_t*, int> HdcHuks::AesGcmDecrypt(const std::string& inputData)
         return std::make_pair(nullptr, 0);
     }
 
-    int maxPlainDataLen = inputData.size() - AES_GCM_NONCE_BYTE_LEN;
+    size_t maxPlainDataLen = inputData.size() - AES_GCM_NONCE_BYTE_LEN;
     uint8_t *plainData = new(std::nothrow)uint8_t[maxPlainDataLen];
     if (plainData == nullptr) {
-        WRITE_LOG(LOG_FATAL, " out of memory %d", maxPlainDataLen);
+        WRITE_LOG(LOG_FATAL, " out of memory %zu", maxPlainDataLen);
         HksFreeParamSet(&paramSet);
         return std::make_pair(nullptr, 0);
     }

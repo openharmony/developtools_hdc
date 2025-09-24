@@ -266,7 +266,7 @@ int main(int argc, const char *argv[])
             continue;
         }
 
-        size_t bytesSend = write(connfd, sendBuf.c_str(), sendBuf.size());
+        ssize_t bytesSend = write(connfd, sendBuf.c_str(), sendBuf.size());
         if (bytesSend != sendBuf.size()) {
             WRITE_LOG(LOG_FATAL, "Failed to send message.");
             close(connfd);

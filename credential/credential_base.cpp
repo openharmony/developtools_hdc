@@ -128,7 +128,10 @@ bool CreatePathWithMode(const char* path, mode_t mode)
 bool IsUserDir(const std::string& dir)
 {
     int userId = 0;
-    std::from_chars(dir.data(), dir.data() + dir.size(), userId);
+    auto [ptr, ec] = std::from_chars(dir.data(), dir.data() + dir.size(), userId);
+    if (ec != std::errc()) {
+        userId = 0;
+    }
     return userId >= MIN_USER_ID && userId <= MAX_USER_ID;
 }
 }   // namespace HdcCredentialBase

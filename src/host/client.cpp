@@ -20,11 +20,16 @@
 #include "server.h"
 #ifdef __OHOS__
 #include <sys/un.h>
+#include "system_depend.h"
 #endif
 #include "file.h"
 
 std::map<std::string, std::string> g_lists;
 bool g_show = true;
+#ifdef __OHOS__
+static const std::string SYS_PARAM_ENTERPRISE_HDC_DISABLE = "persist.edm.hdc_remote_disable";
+static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
+#endif
 
 namespace Hdc {
 bool g_terminalStateChange = false;
@@ -436,6 +441,12 @@ bool IsCaptureCommand(const string& cmd)
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
+#ifdef __OHOS__
+    if (IsNeedInterceptCommand()) {
+        WRITE_LOG(LOG_FATAL, "[E008001]Operation restricted by the organization.");
+        return ENTERPRISE_HDC_DISABLE_ERR;
+    }
+#endif
     uint16_t port = 0;
     int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {
@@ -1024,4 +1035,17 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     hTaskInfo->isCleared = false;
     return hTaskInfo;
 };
+
+#ifdef __OHOS__
+// Analyse whether intercept hdc commands
+bool HdcClient::IsNeedInterceptCommand()
+{
+    std::string out;
+    SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out);
+    if (out.empty() || out == "false") {
+        return false;
+    }
+    return true;
+}
+#endif
 }  // namespace Hdc

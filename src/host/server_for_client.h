@@ -67,6 +67,7 @@ private:
     bool CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi);
 #ifdef __OHOS__
     bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
+    bool IsNeedInterceptCommand();
 #endif
 
 #ifdef __OHOS__

@@ -409,12 +409,19 @@ ohos_executable("hdc") {
 
   if (is_ohos) {
     defines += [ "IS_RELEASE_VERSION" ]
-    sources += [ "src/common/credential_message.cpp" ]
+    sources += [
+      "src/common/credential_message.cpp",
+      "src/host/system_depend.cpp",
+    ]
     sources += [ "src/common/hdc_huks.cpp" ]
     sources += [ "src/common/password.cpp" ]
     defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
     defines += [ "HOST_OHOS" ]
-    external_deps += [ "huks:libhukssdk" ]
+    external_deps += [
+      "huks:libhukssdk",
+      "c_utils:utils",
+      "init:libbegetutil",
+    ]
   }
 
   deps = [ ":hdc_hash_gen" ]

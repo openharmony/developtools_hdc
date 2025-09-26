@@ -52,7 +52,6 @@ private:
     uint32_t GetLastPID();
     bool StartServer(const string &cmd);
     bool KillServer(const string &cmd);
-    void ChannelCtrlServerStart(const char *listenString);
     void BindLocalStd();
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);

@@ -56,26 +56,42 @@ bool Decompress::CheckPath(std::string decPath)
     int rc = uv_fs_lstat(nullptr, &req, tarPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (rc != 0 || !(req.statbuf.st_mode & S_IFREG)) {
-        WRITE_LOG(LOG_FATAL, "%s not exist, or not file", tarPath.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "%s not exist, or not file", tarPath.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "%s not exist, or not file", Hdc::MaskString(tarPath).c_str());
+        }
         return false;
     }
     auto fileSize = req.statbuf.st_size;
     if (fileSize == 0 || fileSize % HEADER_LEN != 0) {
-        WRITE_LOG(LOG_FATAL, "file is not tar %s", tarPath.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "file is not tar %s", tarPath.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "file is not tar %s", Hdc::MaskString(tarPath).c_str());
+        }
         return false;
     }
     rc = uv_fs_lstat(nullptr, &req, decPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (rc == 0) {
         if (req.statbuf.st_mode & S_IFREG) {
-            WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", decPath.c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", decPath.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", Hdc::MaskString(decPath).c_str());
+            }
             return false;
         }
     } else {
         std::string estr;
         bool b = Base::TryCreateDirectory(decPath, estr);
         if (!b) {
-            WRITE_LOG(LOG_FATAL, "mkdir failed decPath:%s estr:%s", decPath.c_str(), estr.c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "mkdir failed decPath:%s estr:%s", decPath.c_str(), estr.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "mkdir failed decPath:%s estr:%s", Hdc::MaskString(decPath).c_str(), estr.c_str());
+            }
             return false;
         }
     }

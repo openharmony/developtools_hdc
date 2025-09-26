@@ -273,6 +273,7 @@ bool HdcDaemonUnity::RemountDevice()
             WRITE_LOG(LOG_FATAL, "Mount failed /system (via mount)");
         }
     }
+
     if (CallRemount()) {
         LogMsg(MSG_OK, "Mount finish");
         return true;

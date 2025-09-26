@@ -149,8 +149,13 @@ protected:
         if (context == nullptr || !context->isFdOpen) {
             return;
         }
-        WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
-                  context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
+                      context->localPath.c_str(), context->openFd, context->closeReqSubmitted);
+        } else {
+            WRITE_LOG(LOG_DEBUG, "CloseCtxFd, localPath:%s result:%d, closeReqSubmitted:%d",
+                      Hdc::MaskString(context->localPath).c_str(), context->openFd, context->closeReqSubmitted);
+        }
         uv_fs_t fs;
         uv_fs_close(nullptr, &fs, context->openFd, nullptr);
         uv_fs_req_cleanup(&fs);

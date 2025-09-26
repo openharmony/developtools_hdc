@@ -118,14 +118,6 @@ bool HdcClient::StartServer(const string &cmd)
     return true;
 }
 
-void HdcClient::ChannelCtrlServerStart(const char *listenString)
-{
-    Base::PrintMessage("hdc start server, listening: %s", channelHostPort.c_str());
-    HdcServer::PullupServer(channelHostPort.c_str());
-    uv_sleep(START_CMD_WAIT_TIME);
-    ExecuteCommand(CMDSTR_SERVICE_START.c_str());
-}
-
 bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
 {
     // new version build channle to send Ctrl command to server

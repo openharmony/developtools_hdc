@@ -428,7 +428,7 @@ bool HdcForwardBase::SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc
             if (rc != 0) {
                 uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
                 WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_tcp_bind ipv4 %s failed %d %s",
-                    ipv4.c_str(), rc, buffer);
+                          Hdc::MaskString(ipv4).c_str(), rc, buffer);
                 return false;
             }
         } else {

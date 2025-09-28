@@ -139,7 +139,8 @@ int HdcDaemonUnity::ExecuteShellExtend(const uint8_t *payload, const int payload
             WRITE_LOG(LOG_FATAL, "ExecuteShellExtend command is empty");
         }
     }
-    WRITE_LOG(LOG_DEBUG, "ExecuteShellExtend command: %s, bundleName: %s", command.c_str(), bundleName.c_str());
+    WRITE_LOG(LOG_DEBUG, "ExecuteShellExtend command: %s, bundleName: %s",
+              Hdc::MaskString(command).c_str(), bundleName.c_str());
     return ExecuteOptionShell(command, bundleName);
 }
 

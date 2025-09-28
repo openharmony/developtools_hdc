@@ -328,7 +328,7 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname, string pubkey)
 
     // then write para for setting
     if (!SystemDepend::SetDevItem("persist.hdc.client.hostname", hostname.c_str())) {
-        WRITE_LOG(LOG_FATAL, "set param(%s) failed", hostname.c_str());
+        WRITE_LOG(LOG_FATAL, "set param(%s) failed", Hdc::MaskString(hostname).c_str());
         return REFUSE;
     }
 
@@ -432,7 +432,8 @@ void HdcDaemon::UpdateKnownHosts(const string& key)
     keyofs.flush();
     keyofs.close();
 
-    WRITE_LOG(LOG_FATAL, "save new key [%s] into keyfile %s over", key.substr(0, key.size() / 2).c_str(), keyfile);
+    WRITE_LOG(LOG_FATAL, "save new key [%s] into keyfile %s over",
+              Hdc::MaskString(key.substr(0, key.size() / 2)).c_str(), keyfile);
 
     return;
 }
@@ -455,7 +456,7 @@ bool HdcDaemon::AlreadyInKnownHosts(const string& key)
         return true;
     }
 
-    WRITE_LOG(LOG_FATAL, "key [%s] not in keyfile %s", key.substr(0, key.size() / 2).c_str(), keyfile);
+    WRITE_LOG(LOG_FATAL, "key [%s] not in keyfile %s", Hdc::MaskString(key.substr(0, key.size() / 2)).c_str(), keyfile);
 
     keyifs.close();
     return false;

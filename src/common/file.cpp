@@ -72,8 +72,12 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
             Hdc::MaskString(context->remotePath).c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_DEBUG, "uv_fs_open rdonly rc:%d localPath:%s",
-                rc, Hdc::MaskString(context->localPath).c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "uv_fs_open rdonly rc:%d localPath:%s", rc, context->localPath.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "uv_fs_open rdonly rc:%d localPath:%s",
+                          rc, Hdc::MaskString(context->localPath).c_str());
+            }
         }
         context->master = true;
         ret = true;
@@ -204,8 +208,14 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     if (!IsPathInsideSandbox(resolvedPath, appDir)) {
         LogMsg(MSG_FAIL, "[E005102] Remote path: %s is invalid, no such file/directory or it's out of "
             "the application directory.", context->inputLocalPath.c_str());
-        WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
-            context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
+                      context->inputLocalPath.c_str(), fullPath.c_str(), resolvedPath.c_str(), errno);
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Invalid path:%s, fullpath:%s, resolvedPath:%s, errno:%d",
+                      Hdc::MaskString(context->inputLocalPath).c_str(), Hdc::MaskString(fullPath).c_str(),
+                      Hdc::MaskString(resolvedPath).c_str(), errno);
+        }
         return false;
     }
     return true;
@@ -465,7 +475,11 @@ bool HdcFile::CheckBundleAndPath()
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
         LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
             ctxNow.bundleName.c_str());
-        WRITE_LOG(LOG_DEBUG, "Invalid bundle name: %s", ctxNow.bundleName.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "Invalid bundle name: %s", ctxNow.bundleName.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Invalid bundle name: %s", Hdc::MaskString(ctxNow.bundleName).c_str());
+        }
         return false;
     }
     return true;
@@ -540,12 +554,22 @@ void HdcFile::TransferNext(CtxFile *context)
     context->localName = context->taskQueue.back();
     context->localPath = context->localDirName + context->localName;
     context->taskQueue.pop_back();
-    WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
-              Hdc::MaskString(context->localPath).c_str(), ctxNow.taskQueue.size());
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
+                  context->localPath.c_str(), ctxNow.taskQueue.size());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "TransferNext localPath = %s queuesize:%d",
+                  Hdc::MaskString(context->localPath).c_str(), ctxNow.taskQueue.size());
+    }
     uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
-        WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
-            context->localPath.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
+                      context->localPath.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "HdcFile::TransferNext new openReq failed for file %s",
+                      Hdc::MaskString(context->localPath).c_str());
+        }
         OnFileOpenFailed(context);
         return;
     }
@@ -558,7 +582,12 @@ void HdcFile::TransferNext(CtxFile *context)
             Hdc::MaskString(context->remotePath).c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
-            WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, Hdc::MaskString(context->localPath).c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s", rc, context->localPath.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "next uv_fs_open rc:%d localPath:%s",
+                          rc, Hdc::MaskString(context->localPath).c_str());
+            }
         }
     } while (false);
 

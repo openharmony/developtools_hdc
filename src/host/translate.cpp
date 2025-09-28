@@ -312,7 +312,7 @@ namespace TranslateCommand {
                 return stringError;
             }
             string sport = outCmd->parameters.substr(pos + 1);
-            if (Base::GetIsServerFlag()) {
+            if (Base::GetCaller() == Base::Caller::SERVER) {
                 WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", Hdc::MaskString(ip).c_str(), sport.c_str());
             } else {
                 WRITE_LOG(LOG_INFO, "TargetConnect ip:%s port:%s", ip.c_str(), sport.c_str());

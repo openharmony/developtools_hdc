@@ -189,7 +189,7 @@ bool GenerateKey(const char *file)
     bool ret = false;
 
     while (true) {
-        WRITE_LOG(LOG_DEBUG, "generate_key '%s'\n", file);
+        WRITE_LOG(LOG_DEBUG, "generate_key '%s'\n", Hdc::MaskString(string(file)).c_str());
         if (!publicKey || !exponent || !rsa) {
             WRITE_LOG(LOG_DEBUG, "Failed to allocate key");
             break;
@@ -202,7 +202,7 @@ bool GenerateKey(const char *file)
 
         fKey = Base::Fopen(file, "w");
         if (!fKey) {
-            WRITE_LOG(LOG_DEBUG, "Failed to open '%s'\n", file);
+            WRITE_LOG(LOG_DEBUG, "Failed to open '%s'\n", Hdc::MaskString(string(file)).c_str());
             umask(old_mask);
             break;
         }
@@ -278,7 +278,7 @@ bool GetUserKeyPath(string &path)
         uv_fs_stat(nullptr, &req, path.c_str(), nullptr);
         uv_fs_req_cleanup(&req);
         if (req.result < 0) {
-            WRITE_LOG(LOG_FATAL, "Cannot mkdir '%s'", path.c_str());
+            WRITE_LOG(LOG_FATAL, "Cannot mkdir '%s'", Hdc::MaskString(path).c_str());
             return false;
         }
     }
@@ -558,7 +558,7 @@ static bool WritePublicFile(const std::string& fileName, EVP_PKEY *evp)
     FILE *fp = nullptr;
     fp = Base::Fopen(fileName.c_str(), "w");
     if (fp == nullptr) {
-        if (Base::GetIsServerFlag()) {
+        if (Base::GetCaller() == Base::Caller::SERVER) {
             WRITE_LOG(LOG_FATAL, "open %s failed", Hdc::MaskString(fileName).c_str());
         } else {
             WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
@@ -566,7 +566,7 @@ static bool WritePublicFile(const std::string& fileName, EVP_PKEY *evp)
         return false;
     }
     if (!PEM_write_PUBKEY(fp, evp)) {
-        if (Base::GetIsServerFlag()) {
+        if (Base::GetCaller() == Base::Caller::SERVER) {
             WRITE_LOG(LOG_FATAL, "write public key file %s failed", Hdc::MaskString(fileName).c_str());
         } else {
             WRITE_LOG(LOG_FATAL, "write public key file %s failed", fileName.c_str());
@@ -599,7 +599,7 @@ static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
 #endif
     fp = Base::Fopen(fileName.c_str(), "w");
     if (fp == nullptr) {
-        if (Base::GetIsServerFlag()) {
+        if (Base::GetCaller() == Base::Caller::SERVER) {
             WRITE_LOG(LOG_FATAL, "open %s failed", Hdc::MaskString(fileName).c_str());
         } else {
             WRITE_LOG(LOG_FATAL, "open %s failed", fileName.c_str());
@@ -671,12 +671,12 @@ bool LoadPublicKey(const string& pubkey_filename, string &pubkey)
     do {
         file_pubkey = Base::Fopen(pubkey_filename.c_str(), "r");
         if (!file_pubkey) {
-            WRITE_LOG(LOG_FATAL, "open file %s failed", pubkey_filename.c_str());
+            WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(pubkey_filename).c_str());
             break;
         }
         evp = PEM_read_PUBKEY(file_pubkey, NULL, NULL, NULL);
         if (!evp) {
-            WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", pubkey_filename.c_str());
+            WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", Hdc::MaskString(pubkey_filename).c_str());
             break;
         }
         bio = BIO_new(BIO_s_mem());
@@ -696,7 +696,7 @@ bool LoadPublicKey(const string& pubkey_filename, string &pubkey)
         }
         pubkey = string(buf, len);
         ret = true;
-        WRITE_LOG(LOG_INFO, "load pubkey from file(%s) success", pubkey_filename.c_str());
+        WRITE_LOG(LOG_INFO, "load pubkey from file(%s) success", Hdc::MaskString(pubkey_filename).c_str());
     } while (0);
 
     if (evp) {
@@ -758,7 +758,7 @@ bool GetHostName(string &hostname)
 
     hostname = string(buf, bufsize);
 
-    WRITE_LOG(LOG_INFO, "hostname: %s", hostname.c_str());
+    WRITE_LOG(LOG_INFO, "hostname: %s", Hdc::MaskString(hostname).c_str());
 
     return true;
 }
@@ -790,13 +790,13 @@ bool ReadEncryptKeyFile(const std::string& privateKeyFile, std::vector<uint8_t>&
     std::string privateKeyKeyFile = privateKeyFile + ".key";
     std::ifstream inFile(privateKeyKeyFile.c_str(), std::ios::binary);
     if (!inFile) {
-        WRITE_LOG(LOG_FATAL, "open file %s failed", privateKeyKeyFile.c_str());
+        WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(privateKeyKeyFile).c_str());
         return false;
     }
     fileData.resize(needFileLength);
     inFile.read(reinterpret_cast<char*>(fileData.data()), needFileLength);
     if (inFile.eof() || inFile.fail()) {
-        WRITE_LOG(LOG_FATAL, "read file %s failed", privateKeyKeyFile.c_str());
+        WRITE_LOG(LOG_FATAL, "read file %s failed", Hdc::MaskString(privateKeyKeyFile).c_str());
         inFile.close();
         return false;
     }
@@ -849,7 +849,7 @@ static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **
     do {
         file_prikey = Base::Fopen(prikey_filename.c_str(), "r");
         if (!file_prikey) {
-            WRITE_LOG(LOG_FATAL, "open file %s failed", prikey_filename.c_str());
+            WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(prikey_filename).c_str());
             break;
         }
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
@@ -858,7 +858,7 @@ static bool LoadPrivateKey(const string& prikey_filename, RSA **rsa, EVP_PKEY **
         *evp = PEM_read_PrivateKey(file_prikey, NULL, NULL, NULL);
 #endif
         if (*evp == nullptr) {
-            WRITE_LOG(LOG_FATAL, "read prikey from %s failed", prikey_filename.c_str());
+            WRITE_LOG(LOG_FATAL, "read prikey from %s failed", Hdc::MaskString(prikey_filename).c_str());
             break;
         }
         *rsa = EVP_PKEY_get1_RSA(*evp);
@@ -987,7 +987,7 @@ bool RsaSignAndBase64(string &buf, AuthVerifyType type)
         return false;
     }
     if (!LoadPrivateKey(prikeyFileName, &rsa, &evp)) {
-        WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikeyFileName.c_str());
+        WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", Hdc::MaskString(prikeyFileName).c_str());
         return false;
     }
     if (type == AuthVerifyType::RSA_3072_SHA512) {
@@ -1029,7 +1029,7 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
             break;
         }
         if (!LoadPrivateKey(prikeyFileName, &rsa, &evp)) {
-            WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", prikeyFileName.c_str());
+            WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", Hdc::MaskString(prikeyFileName).c_str());
             break;
         }
         unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };

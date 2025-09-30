@@ -23,19 +23,31 @@ bool Compress::AddPath(std::string path)
     int rc = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "%s is not exist", path.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "%s is not exist", path.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "%s is not exist", Hdc::MaskString(path).c_str());
+        }
         return false;
     }
     if (req.statbuf.st_mode & S_IFREG) {
         return AddEntry(path);
     }
     if (!AddEntry(path)) {
-        WRITE_LOG(LOG_DEBUG, "AddEntry failed dir:%s", path.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "AddEntry failed dir:%s", path.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "AddEntry failed dir:%s", Hdc::MaskString(path).c_str());
+        }
         return false;
     }
     rc = uv_fs_scandir(nullptr, &req, path.c_str(), 0, nullptr);
     if (rc < 0) {
-        WRITE_LOG(LOG_DEBUG, "uv_fs_scandir failed dir:%s", path.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "uv_fs_scandir failed dir:%s", path.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "uv_fs_scandir failed dir:%s", Hdc::MaskString(path).c_str());
+        }
         uv_fs_req_cleanup(&req);
         return false;
     }
@@ -65,7 +77,11 @@ bool Compress::AddEntry(std::string path)
         return true;
     }
     Entry entry(this->prefix, path);
-    WRITE_LOG(LOG_DEBUG, "AddEntry %s", path.c_str());
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "AddEntry %s", path.c_str());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "AddEntry %s", Hdc::MaskString(path).c_str());
+    }
     entrys.push_back(entry);
     return true;
 }
@@ -83,7 +99,11 @@ bool Compress::SaveToFile(std::string localPath)
 
     std::ofstream file(localPath.c_str(), std::ios::out | std::ios::binary);
     if (!file.is_open()) {
-        WRITE_LOG(LOG_FATAL, "SaveToFile open file %s failed", localPath.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "SaveToFile open file %s failed", localPath.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "SaveToFile open file %s failed", Hdc::MaskString(localPath).c_str());
+        }
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "SaveToFile entrys len : %u", entrys.size());

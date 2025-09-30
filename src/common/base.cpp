@@ -255,7 +255,7 @@ namespace Base {
                 char buf[bufSize] = { 0 };
                 uv_strerror_r(value, buf, bufSize);
                 uv_fs_req_cleanup(&req);
-                if (Base::GetIsServerFlag()) {
+                if (GetCaller() == Caller::SERVER) {
                     WRITE_LOG(LOG_FATAL, "GetLogDirSize error file %s not exist %s",
                         Hdc::MaskString(utfName).c_str(), buf);
                 } else {
@@ -282,14 +282,14 @@ namespace Base {
             return;
         }
         if ((access(bakPath.c_str(), F_OK) != 0) || !CompressLogFile(bakName)) {
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", HdcMaskString(bakPath).c_str());
             } else {
                 WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", bakPath.c_str());
             }
             return;
         }
-        if (Base::GetIsServerFlag()) {
+        if (GetCaller() == Caller::SERVER) {
             WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", HdcMaskString(bakPath).c_str());
         } else {
             WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
@@ -304,14 +304,14 @@ namespace Base {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
         if (access(full.c_str(), F_OK) != 0) {
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", Hdc::MaskString(full).c_str());
             } else {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
             }
             return retVal;
         }
-        if (Base::GetIsServerFlag()) {
+        if (GetCaller() == Caller::SERVER) {
             WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", Hdc::MaskString(fileName).c_str());
         } else {
             WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
@@ -357,14 +357,14 @@ namespace Base {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
         if (access(full.c_str(), F_OK) != 0) {
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", Hdc::MaskString(full).c_str());
             } else {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
             }
             return retVal;
         }
-        if (Base::GetIsServerFlag()) {
+        if (GetCaller() == Caller::SERVER) {
             WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", Hdc::MaskString(fileName).c_str());
         } else {
             WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
@@ -388,8 +388,13 @@ namespace Base {
                 WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exitCode);
                 retVal = true;
             } else {
-                WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
-                    fileName.c_str(), strerror(errno));
+                if (GetCaller() == Caller::CLIENT) {
+                    WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
+                              fileName.c_str(), strerror(errno));
+                } else {
+                    WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
+                              Hdc::MaskString(fileName).c_str(), strerror(errno));
+                }
             }
         }
         chdir(currentDir);
@@ -477,7 +482,7 @@ namespace Base {
             string deleteFile = GetLogDirName() + name;
             LPCTSTR lpFileName = TEXT(deleteFile.c_str());
             BOOL ret = DeleteFile(lpFileName);
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_INFO, "delete: %s ret:%d", Hdc::MaskString(deleteFile).c_str(), ret);
             } else {
                 WRITE_LOG(LOG_INFO, "delete: %s ret:%d", deleteFile.c_str(), ret);
@@ -571,7 +576,11 @@ namespace Base {
 #endif
         for (auto name = files.begin() + beginCount; name != files.end(); name++) {
             string deleteFile = GetLogDirName() + *name;
-            WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_INFO, "delete: %s", deleteFile.c_str());
+            } else {
+                WRITE_LOG(LOG_INFO, "delete: %s", Hdc::MaskString(deleteFile).c_str());
+            }
             unlink(deleteFile.c_str());
         }
     }
@@ -635,7 +644,7 @@ namespace Base {
         if (rc < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", Hdc::MaskString(path).c_str(), buffer);
             } else {
                 WRITE_LOG(LOG_FATAL, "uv_fs_chmod %s failed %s", path.c_str(), buffer);
@@ -1337,7 +1346,12 @@ static void EchoLog(string &buf)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_stat %s error %s", pathName, buffer);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_stat %s error %s", pathName, buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_stat %s error %s",
+                          Hdc::MaskString(string(pathName)).c_str(), buffer);
+            }
             return -1;
         }
         size_t nFileSize = req.statbuf.st_size;
@@ -1367,7 +1381,12 @@ static void EchoLog(string &buf)
         if (fd < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
-            WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_open %s error %s", resolvedPath.c_str(), buffer);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_open %s error %s", resolvedPath.c_str(), buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_open %s error %s",
+                          Hdc::MaskString(resolvedPath).c_str(), buffer);
+            }
             goto ReadFileFromPath_Finish;
         }
         uv_fs_req_cleanup(&req);
@@ -1376,8 +1395,13 @@ static void EchoLog(string &buf)
         if (byteIO != readMax) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
-            WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%llu readMax:%llu",
-                resolvedPath.c_str(), buffer, byteIO, readMax);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%llu readMax:%llu",
+                          resolvedPath.c_str(), buffer, byteIO, readMax);
+            } else {
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%llu readMax:%llu",
+                          Hdc::MaskString(resolvedPath).c_str(), buffer, byteIO, readMax);
+            }
             goto ReadFileFromPath_Finish;
         }
         ret = 0;
@@ -1422,7 +1446,12 @@ static void EchoLog(string &buf)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_open %s error %s", resolvedPath.c_str(), buffer);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_open %s error %s", resolvedPath.c_str(), buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_open %s error %s",
+                          Hdc::MaskString(resolvedPath).c_str(), buffer);
+            }
             return ERR_FILE_OPEN;
         }
         uv_buf_t wbf = uv_buf_init((char *)buf, bufLen);
@@ -1433,8 +1462,13 @@ static void EchoLog(string &buf)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%llu bufLen:%llu",
-                resolvedPath.c_str(), buffer, bytesDone, bufLen);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%llu bufLen:%llu",
+                          resolvedPath.c_str(), buffer, bytesDone, bufLen);
+            } else {
+                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%llu bufLen:%llu",
+                          Hdc::MaskString(resolvedPath).c_str(), buffer, bytesDone, bufLen);
+            }
             return ERR_BUF_SIZE;
         }
         return RET_SUCCESS;
@@ -1484,7 +1518,12 @@ static void EchoLog(string &buf)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            WRITE_LOG(LOG_DEBUG, "Open mutex file %s failed!!! %s", bufPath, buffer);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "Open mutex file %s failed!!! %s", bufPath, buffer);
+            } else {
+                WRITE_LOG(LOG_DEBUG, "Open mutex file %s failed!!! %s",
+                          Hdc::MaskString(string(bufPath)).c_str(), buffer);
+            }
             return ERR_FILE_OPEN;
         }
 #ifdef _WIN32
@@ -1521,7 +1560,12 @@ static void EchoLog(string &buf)
         fl.l_len = 0;
         int retChild = fcntl(fd, F_SETLK, &fl);
         if (retChild == -1) {
-            WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n", bufPath);
+            } else {
+                WRITE_LOG(LOG_DEBUG, "File \"%s\" locked. proc already exit!!!\n",
+                          Hdc::MaskString(string(bufPath)).c_str());
+            }
             uv_fs_close(nullptr, &req, fd, nullptr);
             return 1;
         }
@@ -1533,7 +1577,12 @@ static void EchoLog(string &buf)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_close(nullptr, &req, fd, nullptr);
-            WRITE_LOG(LOG_FATAL, "ftruncate file %s failed!!! %s", bufPath, buffer);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "ftruncate file %s failed!!! %s", bufPath, buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "ftruncate file %s failed!!! %s",
+                          Hdc::MaskString(string(bufPath)).c_str(), buffer);
+            }
             return ERR_FILE_STAT;
         }
         uv_buf_t wbf = uv_buf_init(pidBuf, strlen(pidBuf));
@@ -1543,10 +1592,18 @@ static void EchoLog(string &buf)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_close(nullptr, &req, fd, nullptr);
-            WRITE_LOG(LOG_FATAL, "write file %s failed!!! %s", bufPath, buffer);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "write file %s failed!!! %s", bufPath, buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "write file %s failed!!! %s", Hdc::MaskString(string(bufPath)).c_str(), buffer);
+            }
             return ERR_FILE_WRITE;
         }
-        WRITE_LOG(LOG_DEBUG, "Write mutext to %s, pid:%s", bufPath, pidBuf);
+        if (GetCaller() == Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "Write mutext to %s, pid:%s", bufPath, pidBuf);
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Write mutext to %s, pid:%s", Hdc::MaskString(string(bufPath)).c_str(), pidBuf);
+        }
         if (checkOrNew) {
             // close it for check only
             uv_fs_close(nullptr, &req, fd, nullptr);
@@ -1834,19 +1891,31 @@ static void EchoLog(string &buf)
         uv_fs_req_cleanup(&req);
         if (r < 0) {
             r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
-            WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", path.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", path.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "path not exist create dir = %s", Hdc::MaskString(path).c_str());
+            }
             uv_fs_req_cleanup(&req);
             if (r < 0) {
                 constexpr int bufSize = 1024;
                 char buf[bufSize] = { 0 };
                 uv_strerror_r((int)req.result, buf, bufSize);
-                WRITE_LOG(LOG_WARN, "create dir %s failed %s", path.c_str(), buf);
+                if (GetCaller() == Caller::CLIENT) {
+                    WRITE_LOG(LOG_WARN, "create dir %s failed %s", path.c_str(), buf);
+                } else {
+                    WRITE_LOG(LOG_WARN, "create dir %s failed %s", Hdc::MaskString(path).c_str(), buf);
+                }
                 err = "[E005005] Error create directory: " + string(buf) + ", path:" + path;
                 return false;
             }
         } else {
             if (!((mode & S_IFMT) == S_IFDIR)) {
-                WRITE_LOG(LOG_WARN, "%s exist, not directory", path.c_str());
+                if (GetCaller() == Caller::CLIENT) {
+                    WRITE_LOG(LOG_WARN, "%s exist, not directory", path.c_str());
+                } else {
+                    WRITE_LOG(LOG_WARN, "%s exist, not directory", Hdc::MaskString(path).c_str());
+                }
                 err = "File exists, path:";
                 err += path.c_str();
                 return false;
@@ -2086,12 +2155,20 @@ static void EchoLog(string &buf)
         char resolvedPath[PATH_MAX] = { 0 };
 #if defined(_WIN32)
         if (!_fullpath(resolvedPath, src.c_str(), PATH_MAX)) {
-            WRITE_LOG(LOG_FATAL, "_fullpath %s failed", src.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "_fullpath %s failed", src.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "_fullpath %s failed", Hdc::MaskString(src).c_str());
+            }
             return "";
         }
 #else
         if (realpath(src.c_str(), resolvedPath) == nullptr) {
-            WRITE_LOG(LOG_FATAL, "realpath %s failed", src.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "realpath %s failed", src.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "realpath %s failed", Hdc::MaskString(src).c_str());
+            }
             return "";
         }
 #endif
@@ -2593,7 +2670,11 @@ void CloseOpenFd(void)
         std::wstring wideFileName = converter.from_bytes(fileName);
         std::wstring wideMode = converter.from_bytes(mode);
         if (!_wfullpath(resolvedPath, wideFileName.c_str(), PATH_MAX + 1)) {
-            WRITE_LOG(LOG_FATAL, "_wfullpath %s failed", wideFileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "_wfullpath %s failed", wideFileName.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "_wfullpath %s failed", Hdc::MaskString(fileName).c_str());
+            }
             return nullptr;
         }
         return _wfopen(resolvedPath, wideMode.c_str());
@@ -2656,7 +2737,11 @@ void CloseOpenFd(void)
         if (regex_match(bundleName, std::regex("^[0-9a-zA-Z_\\.]+$"))) {
             return true;
         }
-        WRITE_LOG(LOG_WARN, "bundleName:%s contains invalid characters", bundleName.c_str());
+        if (GetCaller() == Caller::CLIENT) {
+            WRITE_LOG(LOG_WARN, "bundleName:%s contains invalid characters", bundleName.c_str());
+        } else {
+            WRITE_LOG(LOG_WARN, "bundleName:%s contains invalid characters", Hdc::MaskString(bundleName).c_str());
+        }
         return false;
     }
 
@@ -2759,13 +2844,21 @@ void CloseOpenFd(void)
     {
         std::ofstream fileStream(fileName.c_str(), mode);
         if (!fileStream.is_open()) {
-            WRITE_LOG(LOG_FATAL, "open %s error", fileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "open %s error", fileName.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "open %s error", Hdc::MaskString(fileName).c_str());
+            }
             return false;
         }
         bool ret = true;
         fileStream.write(content.data(), content.length());
         if (fileStream.fail()) {
-            WRITE_LOG(LOG_FATAL, "write %s error", fileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "write %s error", fileName.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "write %s error", Hdc::MaskString(fileName).c_str());
+            }
             ret = false;
         }
         fileStream.flush();
@@ -2820,7 +2913,11 @@ void CloseOpenFd(void)
         bool retVal = false;
         string sourceFileNameFull = filePath + sourceFileName;
         if (access(sourceFileNameFull.c_str(), F_OK) != 0) {
-            WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "file %s not exist", Hdc::MaskString(sourceFileNameFull).c_str());
+            }
             return retVal;
         }
         if (targetFileName.empty()) {
@@ -2869,7 +2966,11 @@ void CloseOpenFd(void)
         bool retVal = false;
         string sourceFileNameFull = filePath + sourceFileName;
         if (access(sourceFileNameFull.c_str(), F_OK) != 0) {
-            WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "file %s not exist", sourceFileNameFull.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "file %s not exist", Hdc::MaskString(sourceFileNameFull).c_str());
+            }
             return retVal;
         }
         if (targetFileName.empty()) {
@@ -2921,7 +3022,7 @@ void CloseOpenFd(void)
             return false;
         }
         if (access(sourceFileName.c_str(), F_OK) != 0) {
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "path %s not exist", Hdc::MaskString(pathName).c_str());
             } else {
                 WRITE_LOG(LOG_FATAL, "path %s not exist", pathName.c_str());
@@ -2929,7 +3030,11 @@ void CloseOpenFd(void)
             return false;
         }
         if (!CompressLogFile(pathName, fileName, targetFileName)) {
-            WRITE_LOG(LOG_FATAL, "compress %s failed", targetFileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "compress %s failed", targetFileName.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "compress %s failed", Hdc::MaskString(targetFileName).c_str());
+            }
             return false;
         }
         unlink(sourceFileName.c_str());
@@ -2946,7 +3051,11 @@ void CloseOpenFd(void)
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(value, buf, bufSize);
-            WRITE_LOG(LOG_FATAL, "uv_fs_stat failed, file:%s error:%s", fileName.c_str(), buf);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "uv_fs_stat failed, file:%s error:%s", fileName.c_str(), buf);
+            } else {
+                WRITE_LOG(LOG_FATAL, "uv_fs_stat failed, file:%s error:%s", Hdc::MaskString(fileName).c_str(), buf);
+            }
             return true;
         }
         if (fileSize < fileMaxSize) {
@@ -2966,7 +3075,7 @@ void CloseOpenFd(void)
         std::string findFileMatchStr = path + "/" + matchStr;
         HANDLE hFind = FindFirstFile(findFileMatchStr.c_str(), &findData);
         if (hFind == INVALID_HANDLE_VALUE) {
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "FindFirstFile failed, path:%s", Hdc::MaskString(findFileMatchStr).c_str());
             } else {
                 WRITE_LOG(LOG_FATAL, "FindFirstFile failed, path:%s", findFileMatchStr.c_str());
@@ -2982,7 +3091,7 @@ void CloseOpenFd(void)
     #else
         DIR *dir = opendir(path.c_str());
         if (dir == nullptr) {
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_WARN, "open %s failed", Hdc::MaskString(path).c_str());
             } else {
                 WRITE_LOG(LOG_WARN, "open %s failed", path.c_str());
@@ -3018,7 +3127,11 @@ void CloseOpenFd(void)
         uint32_t beginCount = files.size() - delCount;
         for (auto name = files.begin() + beginCount; name != files.end(); name++) {
             string delFileName = path.c_str() + *name;
-            WRITE_LOG(LOG_INFO, "delete file %s", delFileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_INFO, "delete file %s", delFileName.c_str());
+            } else {
+                WRITE_LOG(LOG_INFO, "delete file %s", Hdc::MaskString(delFileName).c_str());
+            }
             unlink(delFileName.c_str());
         }
         return;
@@ -3036,11 +3149,19 @@ void CloseOpenFd(void)
         string renameFileName = CMD_LOG_COMPRESS_FILE_NAME_PREFIX + timeStr + CMD_LOG_FILE_TYPE;
         string renameFilePath = path + renameFileName;
         if (rename(logFileName.c_str(), renameFilePath.c_str()) != 0) {
-            WRITE_LOG(LOG_FATAL, "rename file %s failed", logFileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "rename file %s failed", logFileName.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "rename file %s failed", Hdc::MaskString(logFileName).c_str());
+            }
         }
         string targetTarFileName = renameFileName + CMD_LOG_COMPRESS_FILE_NAME_SUFFIX;
         if (!CompressCmdLogAndRemove(path, renameFileName, targetTarFileName)) {
-            WRITE_LOG(LOG_FATAL, "compress and remove file %s failed", renameFileName.c_str());
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "compress and remove file %s failed", renameFileName.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "compress and remove file %s failed", Hdc::MaskString(renameFileName).c_str());
+            }
             return;
         }
         //delete old files
@@ -3064,7 +3185,7 @@ void CloseOpenFd(void)
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            if (Base::GetIsServerFlag()) {
+            if (GetCaller() == Caller::SERVER) {
                 WRITE_LOG(LOG_FATAL, "SaveLogToPath failed, path:%s error:%s", Hdc::MaskString(path).c_str(), buffer);
             } else {
                 WRITE_LOG(LOG_FATAL, "SaveLogToPath failed, path:%s error:%s", path.c_str(), buffer);
@@ -3088,14 +3209,28 @@ void CloseOpenFd(void)
             uv_fs_req_cleanup(&req);
             result = uv_fs_mkdir(nullptr, &req, directoryPath.c_str(), DEF_FILE_PERMISSION, nullptr);
             if (result == 0) {
-                WRITE_LOG(LOG_INFO, "Directory created: %s", directoryPath.c_str());
+                if (GetCaller() == Caller::CLIENT) {
+                    WRITE_LOG(LOG_INFO, "Directory created: %s", directoryPath.c_str());
+                } else {
+                    WRITE_LOG(LOG_INFO, "Directory created: %s", Hdc::MaskString(directoryPath).c_str());
+                }
                 return true;
             } else {
-                WRITE_LOG(LOG_FATAL, "Failed to create directory: %s:Error:%d", directoryPath.c_str(), result);
+                if (GetCaller() == Caller::CLIENT) {
+                    WRITE_LOG(LOG_FATAL, "Failed to create directory: %s:Error:%d", directoryPath.c_str(), result);
+                } else {
+                    WRITE_LOG(LOG_FATAL, "Failed to create directory: %s:Error:%d",
+                              Hdc::MaskString(directoryPath).c_str(), result);
+                }
                 return false;
             }
         } else {
-            WRITE_LOG(LOG_FATAL, "Failed to check directory: %s:Error:%d", directoryPath.c_str(), result);
+            if (GetCaller() == Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "Failed to check directory: %s:Error:%d", directoryPath.c_str(), result);
+            } else {
+                WRITE_LOG(LOG_FATAL, "Failed to check directory: %s:Error:%d",
+                          Hdc::MaskString(directoryPath).c_str(), result);
+            }
             return false;
         }
     }
@@ -3160,9 +3295,17 @@ void CloseOpenFd(void)
         g_isServer = isServer;
     }
 
-    bool GetIsServerFlag()
+    Caller GetCaller()
     {
-        return g_isServer;
+#ifdef HDC_HOST
+        if (g_isServer) {
+            return Caller::SERVER;
+        } else {
+            return Caller::CLIENT;
+        }
+#else
+        return Caller::DAEMON;
+#endif
     }
 } // namespace Base
 } // namespace Hdc

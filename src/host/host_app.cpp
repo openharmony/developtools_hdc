@@ -31,7 +31,11 @@ HdcHostApp::~HdcHostApp()
 
 string HdcHostApp::Dir2Tar(const char *dir)
 {
-    WRITE_LOG(LOG_DEBUG, "dir:%s", dir);
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "dir:%s", dir);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "dir:%s", Hdc::MaskString(string(dir)).c_str());
+    }
     string tarpath;
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, dir, nullptr);
@@ -177,7 +181,11 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
         string::size_type pos = path.rfind(".tar");
         if (mode == APPMOD_INSTALL && pos != string::npos) {
             unlink(path.c_str());
-            WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "unlink path:%s", Hdc::MaskString(path).c_str());
+            }
         }
     }
     string path = ctxNow.localPath;

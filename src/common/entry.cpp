@@ -54,7 +54,7 @@ Entry::Entry(std::string prefix, std::string path)
                     path.c_str(), fileSize);
 #else
                 WRITE_LOG(LOG_WARN, "File: %s, size: %lldB, over the 4GB limit, ignored.",
-                    path.c_str(), fileSize);
+                    Hdc::MaskString(path).c_str(), fileSize);
 #endif
             }
         }
@@ -131,7 +131,11 @@ bool Entry::PayloadToFile(std::string prefixPath, std::ifstream &inFile)
     saveFile = prefixPath + GetName();
     std::ofstream outFile(saveFile, std::ios::app | std::ios::binary);
     if (!outFile.is_open()) {
-        WRITE_LOG(LOG_FATAL, "PayloadToFile open %s fail", saveFile.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "PayloadToFile open %s fail", saveFile.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "PayloadToFile open %s fail", Hdc::MaskString(saveFile).c_str());
+        }
         return false;
     }
     bool ret = true;
@@ -184,7 +188,12 @@ bool Entry::PayloadToDir(std::string prefixPath, std::ifstream &inFile)
     std::string estr;
     bool b = Base::TryCreateDirectory(dirPath, estr);
     if (!b) {
-        WRITE_LOG(LOG_FATAL, "PayloadToDir mkdir failed dirPath:%s estr:%s", dirPath.c_str(), estr.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "PayloadToDir mkdir failed dirPath:%s estr:%s", dirPath.c_str(), estr.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "PayloadToDir mkdir failed dirPath:%s estr:%s",
+                      Hdc::MaskString(dirPath).c_str(), estr.c_str());
+        }
         return false;
     }
     return true;
@@ -203,7 +212,11 @@ bool Entry::WriteToTar(std::ofstream &file)
             std::string name = Base::UnicodeToUtf8(GetName().c_str(), true);
             std::ifstream inFile(name, std::ios::binary);
             if (!inFile) {
-                WRITE_LOG(LOG_FATAL, "open %s fail", name.c_str());
+                if (Base::GetCaller() == Base::Caller::CLIENT) {
+                    WRITE_LOG(LOG_FATAL, "open %s fail", name.c_str());
+                } else {
+                    WRITE_LOG(LOG_FATAL, "open %s fail", Hdc::MaskString(name).c_str());
+                }
             }
             file << inFile.rdbuf();
             auto pading = HEADER_LEN - (needSize % HEADER_LEN);

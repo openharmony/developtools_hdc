@@ -615,3 +615,41 @@ ohos_unittest("hdc_credential_unittest") {
     "libuv:uv",
   ]
 }
+
+ohos_unittest("hdc_ext_unittest") {
+  use_exceptions = true
+  module_out_path = module_output_path
+  resource_config_file = "unittest/resource/ohos_test.xml"
+  subsystem_name = "developtools"
+  part_name = "hdc"
+  sources = [
+    "${hdc_path}/src/common/base.cpp",
+    "${hdc_path}/src/common/circle_buffer.cpp",
+    "${hdc_path}/src/common/compress.cpp",
+    "${hdc_path}/src/common/credential_message.cpp",
+    "${hdc_path}/src/common/decompress.cpp",
+    "${hdc_path}/src/common/header.cpp",
+    "${hdc_path}/src/common/heartbeat.cpp",
+    "${hdc_path}/src/common/server_cmd_log.cpp",
+    "${hdc_path}/src/common/auth.cpp",
+    "${hdc_path}/src/common/entry.cpp",
+    "unittest/ext/ext_test.cpp",
+  ]
+  include_dirs = [
+    "${hdc_path}/common",
+    "${hdc_path}/host",
+    "${hdc_path}/test/unittest/ext/include",
+  ]
+
+  configs = [
+    ":hdc_common_config",
+    ":hdc_ut_code_flag",
+    ":hdc_ut_config",
+  ]
+
+  external_deps = [
+    "openssl:libcrypto_shared",
+    "bounds_checking_function:libsec_shared",
+    "libuv:uv",
+  ]
+}

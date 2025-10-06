@@ -25,6 +25,22 @@ struct CtxFileIO {
     HdcFileDescriptor *thisClass;
 };
 
+class FileIoThread {
+public:
+    explicit FileIoThread(HdcFileDescriptor* ptr);
+    ~FileIoThread();
+    void Run();
+private:
+    HdcFileDescriptor* descriptor = nullptr;
+    bool fetalFinish = false;
+    uint8_t* buf = nullptr;
+    int bufSize = 0;
+
+    bool ReadData(int epollFd, void* events);
+    bool Malloc();
+    bool PrepareBuf();
+};
+
 class HdcFileDescriptor {
 public:
     // callerContext, normalFinish, errorString
@@ -68,6 +84,8 @@ private:
     void HandleWrite();
     void WaitWrite();
     void CtxFileIOWrite(CtxFileIO *cfio);
+
+    friend class FileIoThread;
 };
 }  // namespace Hdc
 

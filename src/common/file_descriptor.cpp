@@ -13,12 +13,175 @@
  * limitations under the License.
  */
 #include "file_descriptor.h"
+
 #if !defined(HDC_HOST) || defined(HOST_OHOS)
 #include <sys/epoll.h>
 #endif
 
+#include "memory_pool.h"
+
+namespace {
+static constexpr int SECONDS_TIMEOUT = 5;
+
+// 120% of max buf size, use stable size to avoid no buf
+static const int IO_THREAD_READ_MAX = Hdc::Base::GetMaxBufSizeStable() * 1.2;
+
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
+static constexpr int EPOLL_SIZE = 1;
+int WaitIo(int fd, void* events)
+{
+    return epoll_wait(fd, static_cast<struct epoll_event*>(events), EPOLL_SIZE, SECONDS_TIMEOUT * Hdc::TIME_BASE);
+}
+#else
+int WaitIo(int fd, void*)
+{
+    struct timeval timeout;
+    timeout.tv_sec = SECONDS_TIMEOUT;
+    timeout.tv_usec = 0;
+    fd_set rset;
+    FD_ZERO(&rset);
+#ifdef _WIN32
+    FD_SET(static_cast<SOCKET>(fd), &rset);
+#else
+    FD_SET(fd, &rset);
+#endif
+    return select(fd + 1, &rset, nullptr, nullptr, &timeout);
+}
+#endif
+
+void CloseIoFd(int epollFd, int ioFd)
+{
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
+    if ((ioFd > 0) && (epoll_ctl(epollFd, EPOLL_CTL_DEL, ioFd, nullptr) == -1)) {
+        Hdc::WRITE_LOG(Hdc::LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epollFd:%d errno:%d",
+            ioFd, epollFd, errno);
+    }
+    close(epollFd);
+#endif
+}
+} // namespace
+
 namespace Hdc {
-static const int SECONDS_TIMEOUT = 5;
+
+FileIoThread::FileIoThread(HdcFileDescriptor* ptr)
+{
+    descriptor = ptr;
+}
+
+FileIoThread::~FileIoThread()
+{
+    if (buf != nullptr) {
+        MemoryPool::Instance().Deallocate(buf);
+    }
+}
+
+void FileIoThread::Run()
+{
+    if (!Malloc() || descriptor == nullptr) {
+        return;
+    }
+
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
+    int epollFd = epoll_create(EPOLL_SIZE);
+    struct epoll_event ev;
+    struct epoll_event events[EPOLL_SIZE];
+    ev.data.fd = descriptor->fdIO;
+    ev.events = EPOLLIN | EPOLLET;
+    epoll_ctl(epollFd, EPOLL_CTL_ADD, descriptor->fdIO, &ev);
+#else
+    int epollFd = descriptor->fdIO;
+    void* events = nullptr;
+#endif
+    while (true) {
+        if (!ReadData(epollFd, events)) {
+            break;
+        }
+    }
+
+    CloseIoFd(epollFd, descriptor->fdIO);
+
+    --descriptor->refIO;
+    descriptor->workContinue = false;
+    descriptor->callbackFinish(descriptor->callerContext, fetalFinish, STRING_EMPTY);
+}
+
+bool FileIoThread::ReadData(int epollFd, void* events)
+{
+    if (!PrepareBuf()) {
+        return false;
+    }
+
+    int rc = WaitIo(epollFd, events);
+    if (rc < 0) {
+        auto err = errno;
+        WRITE_LOG(LOG_FATAL, "FileIOOnThread select or epoll_wait fdIO:%d error:%d",
+            descriptor->fdIO, err);
+        return err == EINTR || err == EAGAIN;
+    } else if (rc == 0) {
+        WRITE_LOG(LOG_WARN, "FileIOOnThread select rc = 0, timeout.");
+        return true;
+    }
+    ssize_t nBytes = 0;
+#if !defined(HDC_HOST) || defined(HOST_OHOS)
+    uint32_t event = static_cast<struct epoll_event*>(events)->events;
+    if ((event & EPOLLIN) && (descriptor->fdIO > 0)) {
+        nBytes = read(descriptor->fdIO, buf, bufSize);
+    }
+    if ((event & EPOLLERR) || (event & EPOLLHUP) || (event & EPOLLRDHUP)) {
+        fetalFinish = true;
+        if ((nBytes > 0) && !descriptor->callbackRead(descriptor->callerContext, buf, nBytes)) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", descriptor->fdIO);
+        }
+        return false;
+    }
+#else
+    if (descriptor->fdIO > 0) {
+        nBytes = read(descriptor->fdIO, buf, bufSize);
+    }
+#endif
+    if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
+        WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", descriptor->fdIO);
+        return true;
+    }
+    if (nBytes > 0) {
+        if (!descriptor->callbackRead(descriptor->callerContext, buf, nBytes)) {
+            WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", descriptor->fdIO);
+            return false;
+        }
+        return true;
+    } else {
+        WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%d errno:%d",
+            descriptor->fdIO, nBytes, errno);
+        fetalFinish = true;
+        return false;
+    }
+}
+
+bool FileIoThread::Malloc()
+{
+    buf = static_cast<uint8_t*>(MemoryPool::Instance().Allocate(IO_THREAD_READ_MAX));
+    if (buf == nullptr) {
+        descriptor->callbackFinish(descriptor->callerContext, true, "Memory alloc failed");
+        return false;
+    }
+    bufSize = IO_THREAD_READ_MAX;
+    return true;
+}
+
+bool FileIoThread::PrepareBuf()
+{
+    if (descriptor->workContinue == false) {
+        WRITE_LOG(LOG_INFO, "FileIOOnThread fdIO:%d workContinue false", descriptor->fdIO);
+        return false;
+    }
+
+    if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
+        WRITE_LOG(LOG_FATAL, "FileIOOnThread buf memset_s fail.");
+        return false;
+    }
+
+    return true;
+}
 
 HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *callerContextIn,
                                      CallBackWhenRead callbackReadIn, CmdResultCallback callbackFinishIn,
@@ -69,162 +232,12 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
     }
 }
 
-void HdcFileDescriptor::FileIOOnThread(CtxFileIO *ctxIO, int bufSize)
-{
-#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
-    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
-    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
-#endif
-    HdcFileDescriptor *thisClass = ctxIO->thisClass;
-    uint8_t *buf = ctxIO->bufIO;
-    bool bFinish = false;
-    bool fetalFinish = false;
-    ssize_t nBytes;
-#if !defined(HDC_HOST) || defined(HOST_OHOS)
-    constexpr int epollSize = 1;
-    int epfd = epoll_create(epollSize);
-    struct epoll_event ev;
-    struct epoll_event events[epollSize];
-    ev.data.fd = thisClass->fdIO;
-    ev.events = EPOLLIN | EPOLLET;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, thisClass->fdIO, &ev);
-#endif
-    while (true) {
-        if (thisClass->workContinue == false) {
-            WRITE_LOG(LOG_INFO, "FileIOOnThread fdIO:%d workContinue false", thisClass->fdIO);
-            bFinish = true;
-            break;
-        }
-
-        if (memset_s(buf, bufSize, 0, bufSize) != EOK) {
-            WRITE_LOG(LOG_FATAL, "FileIOOnThread buf memset_s fail.");
-            bFinish = true;
-            break;
-        }
-#if !defined(HDC_HOST) || defined(HOST_OHOS)
-        int rc = epoll_wait(epfd, events, epollSize, SECONDS_TIMEOUT * TIME_BASE);
-#else
-        struct timeval timeout;
-        timeout.tv_sec = SECONDS_TIMEOUT;
-        timeout.tv_usec = 0;
-        fd_set rset;
-        FD_ZERO(&rset);
-        FD_SET(thisClass->fdIO, &rset);
-        int rc = select(thisClass->fdIO + 1, &rset, nullptr, nullptr, &timeout);
-#endif
-        if (rc < 0) {
-            WRITE_LOG(LOG_FATAL, "FileIOOnThread select or epoll_wait fdIO:%d error:%d",
-                thisClass->fdIO, errno);
-            if (errno == EINTR || errno == EAGAIN) {
-                continue;
-            }
-            bFinish = true;
-            break;
-        } else if (rc == 0) {
-            WRITE_LOG(LOG_WARN, "FileIOOnThread select rc = 0, timeout.");
-            continue;
-        }
-        nBytes = 0;
-#if !defined(HDC_HOST) || defined(HOST_OHOS)
-        uint32_t event = events[0].events;
-        if ((event & EPOLLIN) && (thisClass->fdIO > 0)) {
-            nBytes = read(thisClass->fdIO, buf, bufSize);
-        }
-        if ((event & EPOLLERR) || (event & EPOLLHUP) || (event & EPOLLRDHUP)) {
-            bFinish = true;
-            fetalFinish = true;
-            if ((nBytes > 0) && !thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
-            }
-            break;
-        }
-        if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
-            WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
-            continue;
-        }
-        if (nBytes > 0) {
-            if (!thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
-                bFinish = true;
-                break;
-            }
-            continue;
-        } else {
-            WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%d errno:%d",
-                thisClass->fdIO, nBytes, errno);
-            bFinish = true;
-            fetalFinish = true;
-            break;
-        }
-#else
-        if (thisClass->fdIO > 0) {
-            nBytes = read(thisClass->fdIO, buf, bufSize);
-        }
-        if (nBytes < 0 && (errno == EINTR || errno == EAGAIN)) {
-            WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d read interrupt", thisClass->fdIO);
-            continue;
-        }
-        if (nBytes > 0) {
-            if (!thisClass->callbackRead(thisClass->callerContext, buf, nBytes)) {
-                WRITE_LOG(LOG_WARN, "FileIOOnThread fdIO:%d callbackRead false", thisClass->fdIO);
-                bFinish = true;
-                break;
-            }
-            continue;
-        } else {
-            WRITE_LOG(LOG_INFO, "FileIOOnThread fd:%d nBytes:%d errno:%d",
-                thisClass->fdIO, nBytes, errno);
-            bFinish = true;
-            fetalFinish = true;
-            break;
-        }
-#endif
-    }
-#if !defined(HDC_HOST) || defined(HOST_OHOS)
-    if ((thisClass->fdIO > 0) && (epoll_ctl(epfd, EPOLL_CTL_DEL, thisClass->fdIO, nullptr) == -1)) {
-        WRITE_LOG(LOG_INFO, "EPOLL_CTL_DEL fail fd:%d epfd:%d errno:%d",
-            thisClass->fdIO, epfd, errno);
-    }
-    close(epfd);
-#endif
-    if (buf != nullptr) {
-        delete[] buf;
-        buf = nullptr;
-    }
-    delete ctxIO;
-
-    --thisClass->refIO;
-    if (bFinish) {
-        thisClass->workContinue = false;
-        thisClass->callbackFinish(thisClass->callerContext, fetalFinish, STRING_EMPTY);
-    }
-}
-
 int HdcFileDescriptor::LoopReadOnThread()
 {
-#ifdef CONFIG_USE_JEMALLOC_DFX_INIF
-    mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
-    mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
-#endif
-    int readMax = Base::GetMaxBufSizeStable() * 1.2; // 120% of max buf size, use stable size to avoid no buf.
-    auto contextIO = new(std::nothrow) CtxFileIO();
-    auto buf = new(std::nothrow) uint8_t[readMax]();
-    if (!contextIO || !buf) {
-        if (contextIO) {
-            delete contextIO;
-        }
-        if (buf) {
-            delete[] buf;
-        }
-        WRITE_LOG(LOG_FATAL, "Memory alloc failed");
-        callbackFinish(callerContext, true, "Memory alloc failed");
-        return -1;
-    }
-    contextIO->bufIO = buf;
-    contextIO->thisClass = this;
     ++refIO;
-    std::thread([contextIO, readMax]() {
-        HdcFileDescriptor::FileIOOnThread(contextIO, readMax);
+    std::thread([this]() {
+        FileIoThread thread(this);
+        thread.Run();
     }).detach();
     return 0;
 }

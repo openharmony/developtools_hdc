@@ -323,6 +323,10 @@ struct HdcSession {
         (void)memset_s(&hChildWorkTCP, sizeof(hChildWorkTCP), 0, sizeof(hChildWorkTCP));
         (void)memset_s(&fdChildWorkTCP, sizeof(fdChildWorkTCP), 0, sizeof(fdChildWorkTCP));
         (void)memset_s(&stat, sizeof(stat), 0, sizeof(stat));
+        (void)memset_s(&hWorkTCP, sizeof(hWorkTCP), 0, sizeof(hWorkTCP));
+        (void)memset_s(&hWorkThread, sizeof(hWorkThread), 0, sizeof(hWorkThread));
+        (void)memset_s(&hWorkChildThread, sizeof(hWorkChildThread), 0, sizeof(hWorkChildThread));
+        (void)memset_s(&heartbeatTimer, sizeof(heartbeatTimer), 0, sizeof(heartbeatTimer));
 #ifdef HDC_SUPPORT_UART
         hUART = nullptr;
 #endif

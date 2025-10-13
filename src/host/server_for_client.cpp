@@ -1144,8 +1144,8 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     }
 #ifdef __OHOS__
     if (IsNeedInterceptCommand()) {
-        EchoClient(hChannel, MSG_FAIL, "[E008001]Operation restricted by the organization.");
-        WRITE_LOG(LOG_FATAL, "[E008001]Server Operation restricted by the organization.");
+        EchoClient(hChannel, MSG_FAIL, "[E00C001]Operation restricted by the organization.");
+        WRITE_LOG(LOG_FATAL, "[E00C001]Server Operation restricted by the organization.");
         return ENTERPRISE_HDC_DISABLE_ERR;
     }
 #endif

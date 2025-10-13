@@ -18,22 +18,7 @@
 
 namespace Hdc {
 namespace SystemDepend {
-#ifdef HDC_SUPPORT_FLASHD
-// deprecated, remove later
-inline bool GetDevItem(const char *key, string value)
-{
-    return false;
-};
-inline bool SetDevItem(const char *key, const char *value)
-{
-    return false;
-};
-#else
 bool GetDevItem(const char *key, string &out, const char *preDefine = nullptr);
-bool SetDevItem(const char *key, const char *value);
-uint32_t GetDevUint(const char *key, uint32_t defaultValue);
-#endif
-bool RebootDevice(const string &cmd);
 }  // namespace SystemDepend
 }  // namespace Hdc
 

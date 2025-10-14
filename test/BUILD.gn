@@ -35,6 +35,7 @@ hdc_common_sources = [
   "${hdc_path}/src/common/heartbeat.cpp",
   "${hdc_path}/src/common/session.cpp",
   "${hdc_path}/src/common/task.cpp",
+  "${hdc_path}/src/common/memory_pool.cpp",
   "${hdc_path}/src/common/tcp.cpp",
   "${hdc_path}/src/common/tlv.cpp",
   "${hdc_path}/src/common/transfer.cpp",
@@ -146,7 +147,10 @@ ohos_source_set("hdc_common") {
     ":hdc_common_config",
     ":hdc_ut_config",
   ]
-  defines = [ "OPENSSL_SUPPRESS_DEPRECATED" ]
+  defines = [
+    "OPENSSL_SUPPRESS_DEPRECATED",
+    "MEMORY_POOL_ENABLE"
+  ]
   if (hdc_fuzz_test) {
     defines += [
       "FUZZ_TEST",
@@ -178,6 +182,7 @@ ohos_source_set("hdc_daemon") {
   defines = [
     "HARMONY_PROJECT",
     "OPENSSL_SUPPRESS_DEPRECATED",
+    "MEMORY_POOL_ENABLE"
   ]
 }
 
@@ -201,6 +206,7 @@ ohos_source_set("hdc_host") {
   defines = [
     "HARMONY_PROJECT",
     "OPENSSL_SUPPRESS_DEPRECATED",
+    "MEMORY_POOL_ENABLE"
   ]
 }
 
@@ -307,7 +313,10 @@ ohos_unittest("hdc_host_base_unittest") {
   use_exceptions = true
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
-  defines = [ "HDC_HOST" ]
+  defines = [
+    "HDC_HOST",
+    "MEMORY_POOL_ENABLE"
+  ]
   if (is_ohos) {
     defines += [ "HOST_OHOS" ]
   }
@@ -407,7 +416,10 @@ ohos_unittest("hdc_ssl_unittest") {
     "openssl:libcrypto_static",
     "openssl:libssl_static",
   ]
-  defines = [ "HDC_SUPPORT_ENCRYPT_TCP" ]
+  defines = [
+    "HDC_SUPPORT_ENCRYPT_TCP",
+    "MEMORY_POOL_ENABLE"
+  ]
 }
 
 ohos_unittest("hdc_base_unittest") {
@@ -447,7 +459,10 @@ ohos_unittest("hdc_base_unittest") {
     "huks:libhukssdk",
   ]
 
-  defines = [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
+  defines = [
+    "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY",
+    "MEMORY_POOL_ENABLE"
+  ]
   if (hdc_unit_test) {
     defines += [ "HDC_UNIT_TEST" ]
   }

@@ -18,12 +18,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 namespace Hdc {
-    class HdcHuksTest : public testing::Test {
-    public:
-        static void SetUpTestCase(void);
-        static void TearDownTestCase(void);
-        void SetUp();
-        void TearDown();
-    };
+class HdcHuksTest : public testing::Test {
+public:
+    static void SetUpTestCase(void);
+    static void TearDownTestCase(void);
+    void SetUp();
+    void TearDown();
+};
 } // namespace Hdc
 #endif // HDC_HUKS_UT_H

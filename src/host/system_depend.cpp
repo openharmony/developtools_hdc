@@ -24,11 +24,9 @@ envirments
 */
 #include "system_depend.h"
 #include "base.h"
-#if defined(HARMONY_PROJECT)
-extern "C" {
+#ifdef __OHOS__
 #include "init_reboot.h"
 #include "parameter.h"
-}
 #endif
 
 namespace Hdc {

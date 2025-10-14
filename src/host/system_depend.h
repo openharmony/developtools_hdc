@@ -12,27 +12,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef HDC_TRANSLATE_H
-#define HDC_TRANSLATE_H
-#include "host_common.h"
+#ifndef HDC_SYSTEM_DEPEND_H
+#define HDC_SYSTEM_DEPEND_H
+#include "common.h"
 
 namespace Hdc {
-namespace TranslateCommand {
-struct FormatCommand {
-    uint16_t cmdFlag;
-    string parameters;
-    bool bJumpDo;
+namespace SystemDepend {
+#ifdef HDC_SUPPORT_FLASHD
+// deprecated, remove later
+inline bool GetDevItem(const char *key, string value)
+{
+    return false;
 };
+inline bool SetDevItem(const char *key, const char *value)
+{
+    return false;
+};
+#else
+bool GetDevItem(const char *key, string &out, const char *preDefine = nullptr);
+bool SetDevItem(const char *key, const char *value);
+uint32_t GetDevUint(const char *key, uint32_t defaultValue);
+#endif
+bool RebootDevice(const string &cmd);
+}  // namespace SystemDepend
+}  // namespace Hdc
 
-string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatCommand *outCmd);
-string Usage();
-string Verbose();
-#ifdef HDC_UNIT_TEST
-string TargetConnect(FormatCommand *outCmd);
-string ForwardPort(const char *input, FormatCommand *outCmd);
-string RunMode(const char *input, FormatCommand *outCmd);
-void TargetReboot(const char *input, FormatCommand *outCmd);
-#endif
-}
-}
-#endif
+#endif  // HDC_BASE_H

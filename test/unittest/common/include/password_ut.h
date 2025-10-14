@@ -18,14 +18,14 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 namespace Hdc {
-    class HdcPasswordTest : public testing::Test {
-    public:
-        static void SetUpTestCase(void);
-        static void TearDownTestCase(void);
-        void SetUp();
-        void TearDown();
-    private:
-        bool CheckPasswordFormat(std::pair<uint8_t*, int> pwdInfo);
-    };
+class HdcPasswordTest : public testing::Test {
+public:
+    static void SetUpTestCase(void);
+    static void TearDownTestCase(void);
+    void SetUp();
+    void TearDown();
+private:
+    bool CheckPasswordFormat(std::pair<uint8_t*, int> pwdInfo);
+};
 } // namespace Hdc
 #endif // HDC_PASSWORD_UT_H

@@ -19,13 +19,17 @@
 #include "server.h"
 #ifdef __OHOS__
 #include <sys/un.h>
+#include "system_depend.h"
 #endif
 #include "host_shell_option.h"
+
 namespace Hdc {
 static const int MAX_RETRY_COUNT = 500;
 static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
 #ifdef __OHOS__
 static const int MAX_CONNECTIONS_COUNT = 16;
+static const std::string SYS_PARAM_ENTERPRISE_HDC_DISABLE = "persist.edm.hdc_remote_disable";
+static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
 #endif
 
 HdcServerForClient::HdcServerForClient(const bool serverOrClient, const string &addrString, void *pClsServer,
@@ -58,6 +62,10 @@ void HdcServerForClient::AcceptUdsClient(uv_stream_t *server, int status)
 {
     StartTraceScope("HdcServerForClient::AcceptUdsClient");
     HdcServerForClient *thisClass = (HdcServerForClient *)(((uv_pipe_t *)server)->data);
+    if (thisClass == nullptr) {
+        WRITE_LOG(LOG_FATAL, "HdcServerForClient is null");
+        return;
+    }
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptUdsClient");
     HChannel hChannel = new HdcChannel();
     if (hChannel == nullptr) {
@@ -220,7 +228,7 @@ bool HdcServerForClient::SetTCPListen()
     struct sockaddr_in6 addr;
     uv_tcp_init(loopMain, &tcpListen);
 
-    if (Base::GetIsServerFlag()) {
+    if (Base::GetCaller() == Base::Caller::SERVER) {
         WRITE_LOG(LOG_DEBUG, "channelHost %s, port: %d", Hdc::MaskString(channelHost).c_str(), channelPort);
     } else {
         WRITE_LOG(LOG_DEBUG, "channelHost %s, port: %d", channelHost.c_str(), channelPort);
@@ -244,7 +252,7 @@ bool HdcServerForClient::SetTCPListen()
                 rc = uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr4v, 0);
                 if (rc != 0) {
                     uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
-                    if (Base::GetIsServerFlag()) {
+                    if (Base::GetCaller() == Base::Caller::SERVER) {
                         WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
                             Hdc::MaskString(ipv4).c_str(), rc, buffer);
                     } else {
@@ -1134,6 +1142,13 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
+#ifdef __OHOS__
+    if (IsNeedInterceptCommand()) {
+        EchoClient(hChannel, MSG_FAIL, "[E008001]Operation restricted by the organization.");
+        WRITE_LOG(LOG_FATAL, "[E008001]Server Operation restricted by the organization.");
+        return ENTERPRISE_HDC_DISABLE_ERR;
+    }
+#endif
     HDaemonInfo hdi = nullptr;
     HdcServer *ptrServer = (HdcServer *)clsServer;
     ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
@@ -1252,4 +1267,16 @@ bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaem
     }
     return (tagMatch->second == STR_FEATURE_ENABLE);
 }
+
+#ifdef __OHOS__
+bool HdcServerForClient::IsNeedInterceptCommand()
+{
+    std::string out;
+    SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out);
+    if (out.empty() || out == "false") {
+        return false;
+    }
+    return true;
+}
+#endif
 }  // namespace Hdc

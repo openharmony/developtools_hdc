@@ -20,11 +20,16 @@
 #include "server.h"
 #ifdef __OHOS__
 #include <sys/un.h>
+#include "system_depend.h"
 #endif
 #include "file.h"
 
 std::map<std::string, std::string> g_lists;
 bool g_show = true;
+#ifdef __OHOS__
+static const std::string SYS_PARAM_ENTERPRISE_HDC_DISABLE = "persist.edm.hdc_remote_disable";
+static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
+#endif
 
 namespace Hdc {
 bool g_terminalStateChange = false;
@@ -33,8 +38,10 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
 {
 #ifdef __OHOS__
     serverAddress = addrString;
-    channel = new HdcChannel();
-    channel->isUds = (serverAddress.empty() || serverAddress == UDS_STR);
+    channel = new(std::nothrow) HdcChannel();
+    if (channel != nullptr) {
+        channel->isUds = (serverAddress.empty() || serverAddress == UDS_STR);
+    }
 #endif
     MallocChannel(&channel);  // free by logic
     debugRetryCount = 0;
@@ -114,14 +121,6 @@ bool HdcClient::StartServer(const string &cmd)
     WRITE_LOG(LOG_DEBUG, "uv_kill rc:%d", rc);
     HdcServer::PullupServer(channelHostPort.c_str());
     return true;
-}
-
-void HdcClient::ChannelCtrlServerStart(const char *listenString)
-{
-    Base::PrintMessage("hdc start server, listening: %s", channelHostPort.c_str());
-    HdcServer::PullupServer(channelHostPort.c_str());
-    uv_sleep(START_CMD_WAIT_TIME);
-    ExecuteCommand(CMDSTR_SERVICE_START.c_str());
 }
 
 bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
@@ -442,6 +441,12 @@ bool IsCaptureCommand(const string& cmd)
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
+#ifdef __OHOS__
+    if (IsNeedInterceptCommand()) {
+        WRITE_LOG(LOG_FATAL, "[E008001]Operation restricted by the organization.");
+        return ENTERPRISE_HDC_DISABLE_ERR;
+    }
+#endif
     uint16_t port = 0;
     int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {
@@ -588,7 +593,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
     if (!HostUpdater::ConfirmCommand(thisClass->command, closeInput)) {
         uv_timer_stop(handle);
         uv_stop(thisClass->loopMain);
-        if (Base::GetIsServerFlag()) {
+        if (Base::GetCaller() == Base::Caller::SERVER) {
             WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", Hdc::MaskString(thisClass->command).c_str());
         } else {
             WRITE_LOG(LOG_DEBUG, "Cmd \'%s\' has been canceld", thisClass->command.c_str());
@@ -969,9 +974,7 @@ string HdcClient::ListTargetsAll(const string &str)
     const string lists = "list targets -v";
     if (!strncmp(this->command.c_str(), lists.c_str(), lists.size())) {
         UpdateList(str);
-        if (str != "\r\n") {
-            all = Base::ReplaceAll(all, "\n", "\thdc\n");
-        }
+        all = Base::ReplaceAll(all, "\n", "\thdc\n");
     } else if (!strncmp(this->command.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
         UpdateList(str);
     }
@@ -1032,4 +1035,17 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
     hTaskInfo->isCleared = false;
     return hTaskInfo;
 };
+
+#ifdef __OHOS__
+// Analyse whether intercept hdc commands
+bool HdcClient::IsNeedInterceptCommand()
+{
+    std::string out;
+    SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out);
+    if (out.empty() || out == "false") {
+        return false;
+    }
+    return true;
+}
+#endif
 }  // namespace Hdc

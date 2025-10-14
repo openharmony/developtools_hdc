@@ -149,17 +149,32 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
         constexpr int bufSize = 1024;
         char buffer[bufSize] = { 0 };
         strerror_s(buffer, bufSize, err);
-        WRITE_LOG(LOG_WARN, "GetShortPath path:[%s] errmsg:%s", path, buffer);
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_WARN, "GetShortPath path:[%s] errmsg:%s", path, buffer);
+        } else {
+            WRITE_LOG(LOG_WARN, "GetShortPath path:[%s] errmsg:%s",
+                      Hdc::MaskString(string(path)).c_str(), buffer);
+        }
         string uvPath = path;
         runPath = uvPath.substr(uvPath.find_last_of("/\\") + 1);
     }
-    WRITE_LOG(LOG_DEBUG, "server shortpath:[%s] runPath:[%s]", shortPath, runPath.c_str());
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "server shortpath:[%s] runPath:[%s]", shortPath, runPath.c_str());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "server shortpath:[%s] runPath:[%s]",
+                  Hdc::MaskString(string(shortPath)).c_str(), Hdc::MaskString(runPath).c_str());
+    }
     // here we give a dummy option first, because getopt will assume the first option is command. it
     // begin from 2nd args.
     if (sprintf_s(buf, sizeof(buf), "dummy -l %d -s %s -m", Base::GetLogLevelByEnv(), listenString) < 0) {
         return retVal;
     }
-    WRITE_LOG(LOG_DEBUG, "Run server in debug-forground, cmd:%s, args:%s", runPath.c_str(), buf);
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "Run server in debug-forground, cmd:%s, args:%s", runPath.c_str(), buf);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "Run server in debug-forground, cmd:%s, args:%s",
+                  Hdc::MaskString(runPath).c_str(), Hdc::MaskString(string(buf)).c_str());
+    }
     STARTUPINFO si = {};
     si.cb = sizeof(STARTUPINFO);
     PROCESS_INFORMATION pi = {};
@@ -168,7 +183,7 @@ bool HdcServer::PullupServerWin32(const char *path, const char *listenString)
     si.wShowWindow = SW_HIDE;
 #endif
     if (!CreateProcess(runPath.c_str(), buf, nullptr, nullptr, false, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi)) {
-        if (Base::GetIsServerFlag()) {
+        if (Base::GetCaller() == Base::Caller::SERVER) {
             WRITE_LOG(LOG_WARN, "CreateProcess failed with cmd:%s, args:%s, Error Code %d",
                 Hdc::MaskString(runPath).c_str(), buf, GetLastError());
         } else {
@@ -549,7 +564,11 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
         if (Base::TlvToStringMap(handshake.buf, tlvmap)) {
             if (tlvmap.find(TAG_DEVNAME) != tlvmap.end()) {
                 hdiNew->devName = tlvmap[TAG_DEVNAME];
-                WRITE_LOG(LOG_INFO, "devname = %s", hdiNew->devName.c_str());
+                if (Base::GetCaller() == Base::Caller::CLIENT) {
+                    WRITE_LOG(LOG_INFO, "devname = %s", hdiNew->devName.c_str());
+                } else {
+                    WRITE_LOG(LOG_INFO, "devname = %s", Hdc::MaskString(hdiNew->devName).c_str());
+                }
             }
             if (tlvmap.find(TAG_EMGMSG) != tlvmap.end()) {
                 hdiNew->emgmsg = tlvmap[TAG_EMGMSG];
@@ -1138,6 +1157,10 @@ void HdcServer::DeatchChannelInnerForUds(HSession hSession, const uint32_t chann
 void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
+    if (hSfc == nullptr) {
+        WRITE_LOG(LOG_DEBUG, "HdcServerForClient is null");
+        return;
+    }
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY, channelId, nullptr);
     if (!hChannel) {
         WRITE_LOG(LOG_DEBUG, "AttachChannel hChannel null channelId:%u", channelId);
@@ -1153,6 +1176,10 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
 void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
+    if (hSfc == nullptr) {
+        WRITE_LOG(LOG_DEBUG, "HdcServerForClient is null");
+        return;
+    }
     // childCleared has not set, no need OP_QUERY_REF
     HChannel hChannel = hSfc->AdminChannel(OP_QUERY, channelId, nullptr);
     if (!hChannel) {

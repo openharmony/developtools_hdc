@@ -66,7 +66,7 @@ forward commands:
 app commands:
  install [-r|-s] src                   - Send package(s) to device and install them
                                          src examples: single or multiple packages and directories
-                                         (.hap .hsp)
+                                         (.hap .hsp .app)
                                          -r: replace existing application
                                          -s: install shared bundle for multi-apps
  uninstall [-k] [-s] package           - Remove application package from device

@@ -31,7 +31,11 @@ HdcHostApp::~HdcHostApp()
 
 string HdcHostApp::Dir2Tar(const char *dir)
 {
-    WRITE_LOG(LOG_DEBUG, "dir:%s", dir);
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "dir:%s", dir);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "dir:%s", Hdc::MaskString(string(dir)).c_str());
+    }
     string tarpath;
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, dir, nullptr);
@@ -73,7 +77,8 @@ bool HdcHostApp::BeginInstall(CtxFile *context, const char *command)
         } else {
             string path = argv[i];
             ExtractRelativePath(context->transferConfig.clientCwd, path);
-            if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")) {
+            if (MatchPackageExtendName(path, ".hap") || MatchPackageExtendName(path, ".hsp")
+                || MatchPackageExtendName(path, ".app")) {
                 context->taskQueue.push_back(path);
             } else {
                 string tarpath = Dir2Tar(path.c_str());
@@ -143,6 +148,8 @@ void HdcHostApp::CheckMaster(CtxFile *context)
         context->transferConfig.optionalName += ".hsp";
     } else if (context->localPath.find(".tar") != static_cast<size_t>(-1)) {
         context->transferConfig.optionalName += ".tar";
+    } else if (context->localPath.find(".app") != static_cast<size_t>(-1)) {
+        context->transferConfig.optionalName += ".app";
     } else {
         context->transferConfig.optionalName += ".bundle";
     }
@@ -174,7 +181,11 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, bool lastResult, const ch
         string::size_type pos = path.rfind(".tar");
         if (mode == APPMOD_INSTALL && pos != string::npos) {
             unlink(path.c_str());
-            WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "unlink path:%s", Hdc::MaskString(path).c_str());
+            }
         }
     }
     string path = ctxNow.localPath;

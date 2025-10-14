@@ -44,6 +44,7 @@ private:
     static void RetryUdsConnectWorker(uv_timer_t *handle);
     static void ConnectUds(uv_connect_t *connection, int status);
     int ConnectUdsServerForClient();
+    bool IsNeedInterceptCommand();
 #endif
     int ConnectServerForClient(const char *ip, uint16_t port);
     int ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO) override;
@@ -52,7 +53,6 @@ private:
     uint32_t GetLastPID();
     bool StartServer(const string &cmd);
     bool KillServer(const string &cmd);
-    void ChannelCtrlServerStart(const char *listenString);
     void BindLocalStd();
     void BindLocalStd(HChannel hChannel);
     void ModifyTty(bool setOrRestore, uv_tty_t *tty);

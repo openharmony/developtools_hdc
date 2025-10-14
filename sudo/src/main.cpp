@@ -170,15 +170,15 @@ static char **ParseCmd(int argc, char* argv[], char* env[], char *cmd, int cmdLe
      * sudo sh -c xxx yyy -----> sh -c xxx yyy
      * sudo xxx yyy       -----> xxx yyy
     */
-    if (argc <= 0) {
+    if ((argc <= 0) || (argc > ARG_MAX)) {
         return nullptr;
     }
-    argvTmp = new(std::nothrow) char* [argc];
+    argvTmp = new(std::nothrow) char* [argc + 1]; //+1:for nullptr
     if (argvTmp == nullptr) {
         WriteStdErr(OUT_OF_MEM);
         return nullptr;
     }
-    (void)memset_s(argvTmp, sizeof(char*) * argc, 0, sizeof(char*) * argc);
+    (void)memset_s(argvTmp, sizeof(char*) * (argc + 1), 0, sizeof(char*) * (argc + 1));
     /*
      * sudo sh -c xxxx
     */

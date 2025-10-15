@@ -45,6 +45,7 @@ HWTEST_F(HdcTranslateTest, TestHdcHelp, TestSize.Level0)
     EXPECT_NE(usage.find("checkserver"), string::npos);
     EXPECT_NE(usage.find("tconn key [-remove]"), string::npos);
     EXPECT_NE(usage.find("-s [ip:]port"), string::npos);
+    EXPECT_NE(usage.find("-cwd: specify the working directory"), string::npos);
 }
 
 HWTEST_F(HdcTranslateTest, TestHdcHelp_OHOS, TestSize.Level0)

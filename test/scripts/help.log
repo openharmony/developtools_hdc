@@ -46,6 +46,7 @@ file commands:
                                          -z: compress transfer, not improve transmission efficiency
                                          for compressed files
                                          -m: mode sync
+                                         -cwd: specify the working directory
                                          -b: send/receive file to debug application directory
 
 forward commands:
@@ -64,11 +65,12 @@ forward commands:
  fport rm taskstr                      - Remove forward/reverse task by taskstring
 
 app commands:
- install [-r|-s] src                   - Send package(s) to device and install them
+ install [-r|-s|-cwd] src              - Send package(s) to device and install them
                                          src examples: single or multiple packages and directories
                                          (.hap .hsp .app)
                                          -r: replace existing application
                                          -s: install shared bundle for multi-apps
+                                         -cwd: specify the working directory
  uninstall [-k] [-s] package           - Remove application package from device
                                          -k: keep the data and cache directories
                                          -s: remove shared bundle

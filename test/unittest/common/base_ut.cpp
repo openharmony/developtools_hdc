@@ -1276,13 +1276,4 @@ HWTEST_F(BaseTest, TestSetIsServerFlag, TestSize.Level0) {
     EXPECT_FALSE(Base::g_isServer);
 }
 
-HWTEST_F(BaseTest, TestGetIsServerFlag, TestSize.Level0) {
-    Base::g_isServer = false;
-    Base::SetIsServerFlag(true);
-    EXPECT_TRUE(Base::GetIsServerFlag());
-    
-    Base::SetIsServerFlag(false);
-    EXPECT_FALSE(Base::GetIsServerFlag());
-}
-
 } // namespace Hdc

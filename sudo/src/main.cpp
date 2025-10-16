@@ -59,7 +59,6 @@ static const std::string TITLE = "Allow execution of sudo commands";
 static std::vector<std::string> envSnapshot;
 /*
  * Default table of "bad" variables to remove from the environment.
- * XXX - how to omit TERMCAP if it starts with '/'?
  */
 static std::vector<const std::string> initialBadenvTables = {
     "IFS",
@@ -416,8 +415,6 @@ static bool UpdateEnvironmentPath()
 
 static void SaveEnvSnapshot()
 {
-    envSnapshot.clear();
-
     for(int i = 0; environ[i] != nullptr; ++i) {
         envSnapshot.push_back(environ[i]);
     }
@@ -484,11 +481,8 @@ static bool MatchWithWildcard(const std::string& pattern, const std::string& val
     return pIdx >= patternSize && vIdx >= valueSize;
 }
 
-std::pair<bool, std::string> MatchesEnvPattern(const std::string& value, const std::string& pattern)
+static bool MatchesEnvPattern(const std::string& value, const std::string& pattern)
 {
-    size_t sepPos = value.find('=');
-    std::string envName = (sepPos == std::string::npos) ? value : value.substr(0, sepPos);
-
     size_t startPos = pattern.find('*');
     bool isWild = (startPos != std::string::npos);
     size_t len = (isWild) ? startPos : pattern.size();
@@ -503,20 +497,20 @@ std::pair<bool, std::string> MatchesEnvPattern(const std::string& value, const s
         }
     }
 
-    return std::make_pair(match, match ? envName : std::string());
+    return match;
 }
 
-std::pair<bool, std::string> MatchesEnvDel(const std::string& envItem)
+static bool MatchesEnvDel(const std::string& envItem)
 {
     for (const auto& badItem : initialBadenvTables) {
         if (!badItem.empty()) {
-            std::pair<bool, std::string> result = MatchesEnvPattern(envItem, badItem);
-            if (result.first && !result.second.empty()) {
+            bool result = MatchesEnvPattern(envItem, badItem);
+            if (result) {
                 return result;
             }
         }
     }
-    return std::make_pair(false, std::string());
+    return false;
 }
 
 static bool TzIsSafe(std::string tzItem)
@@ -550,17 +544,15 @@ static bool TzIsSafe(std::string tzItem)
     return true;
 }
 
-std::pair<bool, std::string> MatchesEnvCheckPattern(const std::string& value, const std::string& pattern)
+static bool MatchesEnvCheckPattern(const std::string& value, const std::string& pattern)
 {
-    size_t sepPos = value.find('=');
-    std::string envName = (sepPos == std::string::npos) ? value : value.substr(0, sepPos);
     bool keepItem = true;
 
     if (strncmp(value.c_str(), "TZ=", 3) == 0) {
         keepItem = TzIsSafe(value);
     } else {
-        std::pair<bool, std::string> result = MatchesEnvPattern(value, pattern);
-        if (result.first && !result.second.empty()) {
+        bool result = MatchesEnvPattern(value, pattern);
+        if (result) {
             size_t eqPos = value.find('=');
             if ((eqPos != std::string::npos) && (eqPos + 1 < value.size())) {
                 std::string val = value.substr(eqPos + 1);
@@ -570,38 +562,41 @@ std::pair<bool, std::string> MatchesEnvCheckPattern(const std::string& value, co
             }
         }
     }
-    return std::make_pair(keepItem, !keepItem ? envName : std::string());
+    return keepItem;
 }
 
-std::pair<bool, std::string> MatchesEnvCheck(const std::string& envItem)
+static bool MatchesEnvCheck(const std::string& envItem)
 {
     for (const auto& checkItem : initialCheckenvTables) {
         if (!checkItem.empty()) {
-            std::pair<bool, std::string> result = MatchesEnvCheckPattern(envItem, checkItem);
-            if (!result.first && !result.second.empty()) {
-                return result;
+            bool result = MatchesEnvCheckPattern(envItem, checkItem);
+            if (!result) {
+                return true;
             }
         }
     }
-    return std::make_pair(false, std::string());
+    return false;
 }
 
 static bool UpdateEnv()
 {
     SaveEnvSnapshot();
     for (const auto& envItem : envSnapshot) {
-        std::pair<bool, std::string> delResult = MatchesEnvDel(envItem);
-        if (delResult.first) {
-            if (!delResult.second.empty()) {
-                unsetenv(delResult.second.c_str());
+        size_t sepPos = envItem.find('=');
+        std::string envName = (sepPos == std::string::npos) ? envItem : envItem.substr(0, sepPos);
+
+        bool delResult = MatchesEnvDel(envItem);
+        if (delResult) {
+            if (!envName.empty()) {
+                unsetenv(envName.c_str());
                 continue;
             }
         }
 
-        std::pair<bool, std::string> checkResult = MatchesEnvCheck(envItem);
-        if (!checkResult.first) {
-            if (!checkResult.second.empty()) {
-                unsetenv(checkResult.second.c_str());
+        bool checkResult = MatchesEnvCheck(envItem);
+        if (checkResult) {
+            if (!envName.empty()) {
+                unsetenv(envName.c_str());
                 continue;
             }
         }

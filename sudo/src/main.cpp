@@ -548,6 +548,25 @@ static bool TzIsSafe(std::string tzItem)
     return true;
 }
 
+static bool CheckValueSafety(const std::string& value, const std::string& pattern)
+{
+    if (value.empty() || pattern.empty()) {
+        return true;
+    }
+    
+    bool result = MatchesEnvPattern(value, pattern);
+    if (result) {
+        size_t eqPos = value.find('=');
+        if ((eqPos != std::string::npos) && (eqPos + 1 < value.size())) {
+            std::string val = value.substr(eqPos + 1);
+            if (val.find_first_of("/%") != std::string::npos) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static bool MatchesEnvCheckPattern(const std::string& value, const std::string& pattern)
 {
     bool keepItem = true;
@@ -556,16 +575,7 @@ static bool MatchesEnvCheckPattern(const std::string& value, const std::string& 
     if (strncmp(value.c_str(), "TZ=", tzLength) == 0) {
         keepItem = TzIsSafe(value);
     } else {
-        bool result = MatchesEnvPattern(value, pattern);
-        if (result) {
-            size_t eqPos = value.find('=');
-            if ((eqPos != std::string::npos) && (eqPos + 1 < value.size())) {
-                std::string val = value.substr(eqPos + 1);
-                if (val.find_first_of("/%") != std::string::npos) {
-                    keepItem = false;
-                }
-            }
-        }
+        keepItem = CheckValueSafety(value, pattern);
     }
     return keepItem;
 }

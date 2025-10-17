@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <securec.h>
+#include <unistd.h>
 
 #if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
@@ -35,7 +36,6 @@
 using namespace OHOS::UserIam;
 using namespace OHOS::AccountSA;
 using namespace OHOS::UserIam::UserAuth;
-extern char **environ;
 
 namespace {
 static const int CHALLENGE_LEN = 32;
@@ -57,6 +57,7 @@ static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 static const std::string TITLE = "Allow execution of sudo commands";
 
 static std::vector<std::string> envSnapshot;
+
 /*
  * Default table of "bad" variables to remove from the environment.
  */
@@ -80,34 +81,34 @@ static std::vector<const std::string> initialBadenvTables = {
     "VAR_ACE",
     "USR_ACE",
     "DLC_ACE",
-    "TERMINFO",			/* terminfo, exclusive path to terminfo files */
-    "TERMINFO_DIRS",		/* terminfo, path(s) to terminfo files */
-    "TERMPATH",			/* termcap, path(s) to termcap files */
-    "TERMCAP",			/* XXX - only if it starts with '/' */
-    "ENV",			/* ksh, file to source before script runs */
-    "BASH_ENV",			/* bash, file to source before script runs */
-    "PS4",			/* bash, prefix for lines in xtrace mode */
-    "GLOBIGNORE",		/* bash, globbing patterns to ignore */
-    "BASHOPTS",			/* bash, initial "shopt -s" options */
-    "SHELLOPTS",		/* bash, initial "set -o" options */
-    "JAVA_TOOL_OPTIONS",	/* java, extra command line options */
-    "PERLIO_DEBUG",		/* perl, debugging output file */
-    "PERLLIB",			/* perl, search path for modules/includes */
-    "PERL5LIB",			/* perl 5, search path for modules/includes */
-    "PERL5OPT",			/* perl 5, extra command line options */
-    "PERL5DB",			/* perl 5, command used to load debugger */
-    "FPATH",			/* ksh, search path for functions */
-    "NULLCMD",			/* zsh, command for null file redirection */
-    "READNULLCMD",		/* zsh, command for null file redirection */
-    "ZDOTDIR",			/* zsh, search path for dot files */
-    "TMPPREFIX",		/* zsh, prefix for temporary files */
-    "PYTHONHOME",		/* python, module search path */
-    "PYTHONPATH",		/* python, search path */
-    "PYTHONINSPECT",		/* python, allow inspection */
-    "PYTHONUSERBASE",		/* python, per user site-packages directory */
-    "RUBYLIB",			/* ruby, library load path */
-    "RUBYOPT",			/* ruby, extra command line options */
-    "*=()*"			/* bash functions */
+    "TERMINFO",             /* terminfo, exclusive path to terminfo files */
+    "TERMINFO_DIRS",        /* terminfo, path(s) to terminfo files */
+    "TERMPATH",             /* termcap, path(s) to termcap files */
+    "TERMCAP",              /* XXX - only if it starts with '/' */
+    "ENV",                  /* ksh, file to source before script runs */
+    "BASH_ENV",             /* bash, file to source before script runs */
+    "PS4",                  /* bash, prefix for lines in xtrace mode */
+    "GLOBIGNORE",           /* bash, globbing patterns to ignore */
+    "BASHOPTS",             /* bash, initial "shopt -s" options */
+    "SHELLOPTS",            /* bash, initial "set -o" options */
+    "JAVA_TOOL_OPTIONS",    /* java, extra command line options */
+    "PERLIO_DEBUG",         /* perl, debugging output file */
+    "PERLLIB",              /* perl, search path for modules/includes */
+    "PERL5LIB",             /* perl 5, search path for modules/includes */
+    "PERL5OPT",             /* perl 5, extra command line options */
+    "PERL5DB",              /* perl 5, command used to load debugger */
+    "FPATH",                /* ksh, search path for functions */
+    "NULLCMD",              /* zsh, command for null file redirection */
+    "READNULLCMD",          /* zsh, command for null file redirection */
+    "ZDOTDIR",              /* zsh, search path for dot files */
+    "TMPPREFIX",            /* zsh, prefix for temporary files */
+    "PYTHONHOME",           /* python, module search path */
+    "PYTHONPATH",           /* python, search path */
+    "PYTHONINSPECT",        /* python, allow inspection */
+    "PYTHONUSERBASE",       /* python, per user site-packages directory */
+    "RUBYLIB",              /* ruby, library load path */
+    "RUBYOPT",              /* ruby, extra command line options */
+    "*=()*"                 /* bash functions */
 };
 
 /*
@@ -415,7 +416,7 @@ static bool UpdateEnvironmentPath()
 
 static void SaveEnvSnapshot()
 {
-    for(int i = 0; environ[i] != nullptr; ++i) {
+    for (int i = 0; environ[i] != nullptr; ++i) {
         envSnapshot.push_back(environ[i]);
     }
 }
@@ -452,13 +453,13 @@ static bool MatchWithWildcard(const std::string& pattern, const std::string& val
             }
             continue;
         }
-        if (pChar == vChar){
+        if (pChar == vChar) {
             if (pChar == '=') {
                 sawSep = true;
             }
             pIdx++;
             vIdx++;
-        } else if(lastStar != std::string::npos) {
+        } else if (lastStar != std::string::npos) {
             pIdx = lastStar + 1;
             lastMatch++;
             vIdx = lastMatch;
@@ -532,9 +533,12 @@ static bool TzIsSafe(std::string tzItem)
         if ((lastCh == '/') &&
             (ch == '.') &&
             (i + 1 < tzItem.size()) &&
-            (tzItem[i + 1] == '.') &&
-            (i + 2 == tzItem.size() || tzItem[i + 2] == '/')) {
-            return false;
+            (tzItem[i + 1] == '.')) {
+            const size_t next = i + 2;
+            const bool isEndOrSlash = (next ==  tzItem.size() || tzItem[next] == '/');
+            if (isEndOrSlash) {
+                return false;
+            }
         }
         lastCh = ch;
     }
@@ -547,8 +551,9 @@ static bool TzIsSafe(std::string tzItem)
 static bool MatchesEnvCheckPattern(const std::string& value, const std::string& pattern)
 {
     bool keepItem = true;
+    int tzLength = 3;
 
-    if (strncmp(value.c_str(), "TZ=", 3) == 0) {
+    if (strncmp(value.c_str(), "TZ=", tzLength) == 0) {
         keepItem = TzIsSafe(value);
     } else {
         bool result = MatchesEnvPattern(value, pattern);
@@ -658,6 +663,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 #endif
+
     if (!UpdateEnv()) {
         WriteStdErr("UpdateEnv failed\n");
         return 1;

@@ -422,7 +422,6 @@ static void SaveEnvSnapshot()
 }
 
 static bool MatchWithWildcard(const std::string& pattern, const std::string& value)
-
 {
     size_t pIdx = 0;
     size_t vIdx = 0;
@@ -516,7 +515,6 @@ static bool MatchesEnvDel(const std::string& envItem)
 }
 
 static bool TzIsSafe(std::string tzItem)
-
 {
     if (!tzItem.empty() && tzItem[0] == ':') {
         tzItem = tzItem.substr(1);

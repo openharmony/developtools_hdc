@@ -547,13 +547,12 @@ bool HdcUARTBase::SendUARTRaw(HSession hSession, uint8_t *data, const size_t len
         }
     }
     hSession->ref++;
-    WRITE_LOG(LOG_DEBUG, "%s length:%d", __FUNCTION__, length);
 #ifdef HDC_HOST
     ssize_t sendBytes = WriteUartDev(data, length, *hSession->hUART);
 #else
     ssize_t sendBytes = WriteUartDev(data, length, deamonUart);
 #endif
-    WRITE_LOG(LOG_DEBUG, "%s sendBytes %zu", __FUNCTION__, sendBytes);
+    WRITE_LOG(LOG_DEBUG, "%s length:%d, sendBytes %zu", __FUNCTION__, length, sendBytes);
     if (sendBytes < 0) {
         WRITE_LOG(LOG_DEBUG, "%s send fail. try to freesession", __FUNCTION__);
         OnTransferError(hSession);
@@ -566,9 +565,6 @@ bool HdcUARTBase::SendUARTRaw(HSession hSession, uint8_t *data, const size_t len
 // just send the data to hdc session side
 bool HdcUARTBase::UartSendToHdcStream(HSession hSession, uint8_t *data, size_t size)
 {
-    WRITE_LOG(LOG_DEBUG, "%s send to session %s package size %zu", __FUNCTION__,
-              hSession->ToDebugString().c_str(), size);
-
     int ret = RET_SUCCESS;
 
     if (size < sizeof(UartHead)) {
@@ -718,7 +714,6 @@ void HdcUARTBase::SendPkgInUARTOutMap()
         WRITE_LOG(LOG_ALL, "UartPackageManager: No pkgs needs to be sent.");
         return;
     }
-    WRITE_LOG(LOG_DEBUG, "UartPackageManager: send pkgs, have:%zu pkgs", outPkgs.size());
     // we have maybe more than one session
     // each session has it owner serial port
     std::unordered_set<uint32_t> hasWaitPkg;
@@ -792,7 +787,6 @@ void HdcUARTBase::SendPkgInUARTOutMap()
 
 void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
 {
-    WRITE_LOG(LOG_DEBUG, "%s UartPackageManager clean for sessionId %u", __FUNCTION__, sessionId);
     size_t erased = 0;
     std::lock_guard<std::recursive_mutex> lock(mapOutPkgsMutex);
     auto it = outPkgs.begin();
@@ -807,14 +801,14 @@ void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
             it++;
         }
     }
-    WRITE_LOG(LOG_DEBUG, "%s erased %zu", __FUNCTION__, erased);
+    WRITE_LOG(LOG_DEBUG, "%s UartPackageManager clean for sessionId %u, erased %zu",
+              __FUNCTION__, sessionId, erased);
 
     NotifyTransfer(); // tell transfer we maybe have some change
 }
 
 void HdcUARTBase::EnsureAllPkgsSent()
 {
-    WRITE_LOG(LOG_DEBUG, "%s", __FUNCTION__);
     slots.WaitFree();
     if (!outPkgs.empty()) {
         std::this_thread::sleep_for(1000ms);
@@ -900,8 +894,6 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
     size_t offset = 0;
     uint8_t sendDataBuf[MAX_UART_SIZE_IOBUF];
 
-    WRITE_LOG(LOG_ALL, "SendUARTData data length :%d", length);
-
     do {
         UartHead *head = (UartHead *)sendDataBuf;
         if (memset_s(head, sizeof(UartHead), 0, sizeof(UartHead)) != EOK) {
@@ -973,7 +965,6 @@ void HdcUARTBase::ReadDataFromUARTStream(uv_stream_t *stream, ssize_t nread, con
         hSessionBase->FreeSession(hSession->sessionId);
     }
     hSession->hUART->streamSize -= nread;
-    WRITE_LOG(LOG_DEBUG, "%s sessionId:%u, nread:%d", __FUNCTION__, hSession->sessionId, nread);
 }
 
 bool HdcUARTBase::ReadyForWorkThread(HSession hSession)

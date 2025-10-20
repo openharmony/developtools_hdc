@@ -58,11 +58,9 @@ HdcDaemonUSB::~HdcDaemonUSB()
 
 void HdcDaemonUSB::Stop()
 {
-    WRITE_LOG(LOG_INFO, "HdcDaemonUSB Stop");
     // Here only clean up the IO-related resources, session related resources clear reason to clean up the session
     // module
     modRunning = false;
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB Stop free main session");
     Base::TryCloseHandle((uv_handle_t *)&checkEP);
     CloseEndpoint(&usbHandle);
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB Stop free main session finish");
@@ -122,7 +120,6 @@ int HdcDaemonUSB::Initial()
     }
 
     HdcDaemon *daemon = (HdcDaemon *)clsMainBase;
-    WRITE_LOG(LOG_DEBUG, "HdcDaemonUSB::Initiall");
     uv_timer_init(&daemon->loopMain, &checkEP);
     checkEP.data = this;
     uv_timer_start(&checkEP, WatchEPTimer, 0, TIME_BASE);

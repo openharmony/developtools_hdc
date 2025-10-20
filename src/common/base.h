@@ -38,6 +38,11 @@
 
 namespace Hdc {
 namespace Base {
+    enum class Caller {
+        CLIENT = 0,
+        SERVER = 1,
+        DAEMON = 2,
+    };
     uint8_t GetLogLevel();
     extern bool g_isBackgroundServer;
     extern uint8_t g_logLevel;
@@ -291,7 +296,7 @@ namespace Base {
     void UpdateEncrpytTCPCache();
     bool GetEncrpytTCPSwitch();
     void SetIsServerFlag(bool isServer);
-    bool GetIsServerFlag();
+    Caller GetCaller();
 }  // namespace base
 }  // namespace Hdc
 

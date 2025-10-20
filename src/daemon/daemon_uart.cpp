@@ -40,7 +40,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
     devPath = devPathIn;
     WRITE_LOG(LOG_DEBUG, "HdcDaemonUART init");
     if (access(devPath.c_str(), F_OK) != 0) {
-        WRITE_LOG(LOG_DEBUG, "uartMod Disable, path is %s and errno is %d.", devPath.c_str(), errno);
+        WRITE_LOG(LOG_DEBUG, "uartMod Disable, path is %s and errno is %d.", Hdc::MaskString(devPath).c_str(), errno);
         return -1;
     }
 #ifndef HDC_UT
@@ -137,7 +137,7 @@ int HdcDaemonUART::OpenUartDevice()
     int ret = ERR_GENERIC;
     while (true) {
         if ((uartHandle = open(devPath.c_str(), O_RDWR | O_NOCTTY | O_NDELAY)) < 0) {
-            WRITE_LOG(LOG_WARN, "%s: cannot open uartHandle: errno=%d", devPath.c_str(), errno);
+            WRITE_LOG(LOG_WARN, "%s: cannot open uartHandle: errno=%d", Hdc::MaskString(devPath).c_str(), errno);
             break;
         }
         uv_sleep(UART_IO_WAIT_TIME_100);

@@ -122,7 +122,7 @@ bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const str
         if (rindex != string::npos) {
             string dir = ctxNow.localPath.substr(0, rindex);
             RemovePath(dir);
-            WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s", dir.c_str());
+            WRITE_LOG(LOG_DEBUG, "RemovePath dir:%s", Hdc::MaskString(dir).c_str());
         }
     }
     asyncCommand.DoRelease();
@@ -197,7 +197,8 @@ string HdcDaemonApp::Tar2Dir(const char *path)
     string::size_type rindex = tarpath.rfind(".tar");
     if (rindex != string::npos) {
         dir = tarpath.substr(0, rindex) + Base::GetPathSep();
-        WRITE_LOG(LOG_DEBUG, "path:%s dir:%s", path, dir.c_str());
+        WRITE_LOG(LOG_DEBUG, "path:%s dir:%s", Hdc::MaskString(string(path)).c_str(),
+                  Hdc::MaskString(dir).c_str());
         Decompress dc(tarpath);
         dc.DecompressToLocal(dir);
     }
@@ -208,7 +209,7 @@ int HdcDaemonApp::RemoveDir(const string &dir)
 {
     DIR *pdir = opendir(dir.c_str());
     if (pdir == nullptr) {
-        WRITE_LOG(LOG_FATAL, "opendir failed dir:%s", dir.c_str());
+        WRITE_LOG(LOG_FATAL, "opendir failed dir:%s", Hdc::MaskString(dir).c_str());
         return -1;
     }
     struct dirent *ent;
@@ -219,7 +220,7 @@ int HdcDaemonApp::RemoveDir(const string &dir)
         }
         std::string subpath = dir + Base::GetPathSep() + ent->d_name;
         if (lstat(subpath.c_str(), &st) == -1) {
-            WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", subpath.c_str());
+            WRITE_LOG(LOG_WARN, "lstat failed subpath:%s", Hdc::MaskString(subpath).c_str());
             continue;
         }
         if (S_ISDIR(st.st_mode)) {
@@ -231,7 +232,8 @@ int HdcDaemonApp::RemoveDir(const string &dir)
         } else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
             unlink(subpath.c_str());
         } else {
-            WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o subpath:%s", st.st_mode, subpath.c_str());
+            WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o subpath:%s", st.st_mode,
+                      Hdc::MaskString(subpath).c_str());
         }
     }
     if (rmdir(dir.c_str()) == -1) {
@@ -246,7 +248,7 @@ void HdcDaemonApp::RemovePath(const string &path)
 {
     struct stat st;
     if (lstat(path.c_str(), &st) == -1) {
-        WRITE_LOG(LOG_WARN, "lstat failed path:%s", path.c_str());
+        WRITE_LOG(LOG_WARN, "lstat failed path:%s", Hdc::MaskString(path).c_str());
         return;
     }
     if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
@@ -256,7 +258,7 @@ void HdcDaemonApp::RemovePath(const string &path)
             return;
         }
         int rc = RemoveDir(path);
-        WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, path.c_str());
+        WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, Hdc::MaskString(path).c_str());
     }
 }
 

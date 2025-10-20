@@ -220,8 +220,13 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
                 compressSize = LZ4_compress_default((const char *)data, (char *)sendBuf + payloadPrefixReserve,
                                                     dataSize, dataSize);
                 if (compressSize <= 0) {
-                    WRITE_LOG(LOG_DEBUG, "LZ4 compress failed, path: %s compress none",
-                        context->localPath.c_str());
+                    if (Base::GetCaller() == Base::Caller::CLIENT) {
+                        WRITE_LOG(LOG_DEBUG, "LZ4 compress failed, path: %s compress none",
+                                  context->localPath.c_str());
+                    } else {
+                        WRITE_LOG(LOG_DEBUG, "LZ4 compress failed, path: %s compress none",
+                                  Hdc::MaskString(context->remotePath).c_str());
+                    }
                     delete[] sendBuf;
                     payloadHead.compressType = COMPRESS_NONE;
                     compressSize = dataSize;
@@ -296,7 +301,12 @@ bool HdcTransferBase::ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTran
         return true;
     }
     if (req->result == 0) {
-        WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", context->localPath.c_str(), context->openFd);
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", context->localPath.c_str(), context->openFd);
+        } else {
+            WRITE_LOG(LOG_DEBUG, "path:%s fd:%d eof", Hdc::MaskString(context->remotePath).c_str(),
+                      context->openFd);
+        }
         return true;
     }
     if (context->indexIO < context->fileSize) {
@@ -363,16 +373,26 @@ bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, ui
         constexpr int size = 1024;
         char buf[size] = { 0 };
         uv_strerror_r(ret, buf, size);
-        WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
-            buf, context->localPath.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
+                      buf, context->localPath.c_str());
+        } else {
+            WRITE_LOG(LOG_WARN, "CheckSpace error querying filesystem: %s, path: %s",
+                      buf, Hdc::MaskString(context->remotePath).c_str());
+        }
         uv_fs_req_cleanup(&fs);
         context->lastErrno = static_cast<uint32_t>(abs(ret));
         return false;
     }
     uv_statfs_t* statfs = static_cast<uv_statfs_t*>(fs.ptr);
     uint64_t freeBytes = statfs->f_bsize * statfs->f_bfree;
-    WRITE_LOG(LOG_DEBUG, "CheckSpace, path: %s, freeBytes: %llu",
-        context->localPath.c_str(), freeBytes);
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "CheckSpace, path: %s, freeBytes: %llu",
+                  context->localPath.c_str(), freeBytes);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "CheckSpace, path: %s, freeBytes: %llu",
+                  Hdc::MaskString(context->remotePath).c_str(), freeBytes);
+    }
     uv_fs_req_cleanup(&fs);
     context->lastErrno = static_cast<uint32_t>((freeBytes == 0) ? ENOSPC : EIO);
     return false;
@@ -464,8 +484,12 @@ void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, const std::stri
     if ((pos = srcStr.find(fullPath)) != std::string::npos) {
         srcStr = srcStr.replace(pos, fullPath.length(), "");
     } else {
-        WRITE_LOG(LOG_DEBUG, "fullPath:%s, srcStr:%s", Hdc::MaskString(fullPath).c_str(),
-            Hdc::MaskString(srcStr).c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "fullPath:%s, srcStr:%s", fullPath.c_str(), srcStr.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "fullPath:%s, srcStr:%s", Hdc::MaskString(fullPath).c_str(),
+                      Hdc::MaskString(srcStr).c_str());
+        }
     }
 }
 
@@ -477,8 +501,13 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
     HdcTransferBase *thisClass = (HdcTransferBase *)context->thisClass;
     CALLSTAT_GUARD(*(thisClass->loopTaskStatus), req->loop, "HdcTransferBase::OnFileOpen");
     uv_fs_req_cleanup(req);
-    WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
-        context->localPath.c_str(), thisClass->taskInfo->channelId, req->result);
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
+                  context->localPath.c_str(), thisClass->taskInfo->channelId, req->result);
+    } else {
+        WRITE_LOG(LOG_DEBUG, "Filemod openfile:%s channelId:%u result:%d",
+                  Hdc::MaskString(context->remotePath).c_str(), thisClass->taskInfo->channelId, req->result);
+    }
     --thisClass->refCount;
     if (req->result <= 0) {
         constexpr int bufSize = 1024;
@@ -488,9 +517,15 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         thisClass->RemoveSandboxRootPath(localPath, context->bundleName);
         thisClass->LogMsg(MSG_FAIL, "Error opening file: %s, path:%s", buf,
                           localPath.c_str());
-        WRITE_LOG(LOG_FATAL, "open path:%s, localPath:%s, error:%s, dir:%d, master:%d",
-            context->localPath.c_str(),
-            localPath.c_str(), buf, context->isDir, context->master);
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "open path:%s, localPath:%s, error:%s, dir:%d, master:%d",
+                      context->localPath.c_str(),
+                      localPath.c_str(), buf, context->isDir, context->master);
+        } else {
+            WRITE_LOG(LOG_FATAL, "open path:%s, localPath:%s, error:%s, dir:%d, master:%d",
+                      Hdc::MaskString(context->remotePath).c_str(),
+                      Hdc::MaskString(localPath).c_str(), buf, context->isDir, context->master);
+        }
         OnFileOpenFailed(context);
         return;
     }
@@ -610,7 +645,12 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
     uv_fs_t req = {};
     uv_dirent_t dent;
 
-    WRITE_LOG(LOG_DEBUG, "GetSubFiles path = %s currentDirname = %s", path.c_str(), currentDirname.c_str());
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "GetSubFiles path = %s currentDirname = %s", path.c_str(), currentDirname.c_str());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "GetSubFiles path = %s currentDirname = %s",
+                  Hdc::MaskString(path).c_str(), Hdc::MaskString(currentDirname).c_str());
+    }
 
     if (!path.size()) {
         return retNum;
@@ -652,7 +692,11 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
             continue;
         }
         string fileName = dent.name;
-        WRITE_LOG(LOG_DEBUG, "GetSubFiles fileName = %s", fileName.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "GetSubFiles fileName = %s", fileName.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "GetSubFiles fileName = %s", Hdc::MaskString(fileName).c_str());
+        }
 
         out->push_back(currentDirname + Base::GetPathSep() + fileName);
     }
@@ -664,10 +708,20 @@ int HdcTransferBase::GetSubFilesRecursively(string path, string currentDirname, 
 bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string &errStr)
 {
     // If optName show this is directory mode, check localPath and try create each layer
-    WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s",
-        localPath.c_str(), optName.c_str());
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s",
+                  localPath.c_str(), optName.c_str());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "CheckDirectory localPath = %s optName = %s",
+                  Hdc::MaskString(localPath).c_str(), Hdc::MaskString(optName).c_str());
+    }
     if ((optName.find('/') == string::npos) && (optName.find('\\') == string::npos)) {
-        WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s, return", optName.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s, return", optName.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Not directory mode optName = %s, return",
+                      Hdc::MaskString(optName).c_str());
+        }
         return true;
     } // when transfer single file, slaver will not create each layer directory.
     ctxNow.isDir = true;
@@ -682,14 +736,22 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         if (dirsOflocalPath.size() > 0 && !ctxNow.isDir && localPath.back() != Base::GetPathSep()) {
             dirsOflocalPath.pop_back();
         }
-        WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu",
-            localPath.c_str(), dirsOflocalPath.size());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu", localPath.c_str(), dirsOflocalPath.size());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "localPath = %s dir layers = %zu",
+                      Hdc::MaskString(localPath).c_str(), dirsOflocalPath.size());
+        }
         string makedirPath;
         if (!Base::IsAbsolutePath(localPath)) {
             makedirPath = ".";
         }
         for (auto dir : dirsOflocalPath) {
-            WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", dir.c_str());
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", dir.c_str());
+            } else {
+                WRITE_LOG(LOG_DEBUG, "CheckLocalPath create dir = %s", Hdc::MaskString(dir).c_str());
+            }
 
             if (dir == ".") {
                 continue;
@@ -709,7 +771,11 @@ bool HdcTransferBase::CheckLocalPath(string &localPath, string &optName, string 
         // set flag to remove first layer directory of filename from master
         ctxNow.targetDirNotExist = true;
     } else if (ctxNow.isDir && !(mode & S_IFDIR)) {
-        WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_WARN, "Not a directory, path:%s", localPath.c_str());
+        } else {
+            WRITE_LOG(LOG_WARN, "Not a directory, path:%s", Hdc::MaskString(localPath).c_str());
+        }
         errStr = "Not a directory, path:" + localPath;
         return false;
     }
@@ -734,7 +800,11 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     } else if (optName.find('\\') != string::npos) {
         Base::SplitString(optName, "\\", dirsOfOptName);
     } else {
-        WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", optName.c_str());
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", optName.c_str());
+        } else {
+            WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", Hdc::MaskString(optName).c_str());
+        }
         return true;
     }
 
@@ -756,7 +826,11 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
                 if (shortPath.at(0) == Base::GetPathSep()) {
                     shortPath = shortPath.substr(1);
                 }
-                WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, shortPath.c_str());
+                if (Base::GetCaller() == Base::Caller::CLIENT) {
+                    WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, shortPath.c_str());
+                } else {
+                    WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, Hdc::MaskString(shortPath).c_str());
+                }
 
                 // set mode
                 auto it = ctxNow.dirModeMap.find(shortPath);
@@ -777,8 +851,13 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
         }
     }
 
-    WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
-        Hdc::MaskString(localPath).c_str(), optName.c_str());
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
+                  localPath.c_str(), optName.c_str());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
+                  Hdc::MaskString(localPath).c_str(), optName.c_str());
+    }
     return true;
 }
 

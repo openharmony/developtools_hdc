@@ -346,7 +346,6 @@ void HdcDaemonUART::Stop()
         ResponseUartTrans(currentSessionId, 0, PKG_OPTION_FREE);
         EnsureAllPkgsSent();
         isAlive = false;
-        WRITE_LOG(LOG_DEBUG, "%s free main session", __FUNCTION__);
         if (checkSerialPort.data != nullptr) {
             externInterface.TryCloseHandle((uv_handle_t *)&checkSerialPort);
             checkSerialPort.data = nullptr;

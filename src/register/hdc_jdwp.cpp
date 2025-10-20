@@ -207,7 +207,6 @@ void HdcJdwpSimulator::ReadFromJdwp()
         }
         int32_t fd = *reinterpret_cast<int32_t *>(buf);
         std::string str(reinterpret_cast<char *>(buf + sizeof(int32_t)), cnt - sizeof(int32_t));
-        HILOG_INFO(LOG_CORE, "Read fd:%{public}d str:%{public}s", fd, str.c_str());
         struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
         if (cmsg == nullptr) {
             HILOG_FATAL(LOG_CORE, "Read cmsg is nullptr");

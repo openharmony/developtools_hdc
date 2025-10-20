@@ -443,7 +443,7 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     char ip[BUF_SIZE_TINY] = "";
 #ifdef __OHOS__
     if (IsNeedInterceptCommand()) {
-        WRITE_LOG(LOG_FATAL, "[E008001]Operation restricted by the organization.");
+        WRITE_LOG(LOG_FATAL, "[E00C001]Operation restricted by the organization.");
         return ENTERPRISE_HDC_DISABLE_ERR;
     }
 #endif

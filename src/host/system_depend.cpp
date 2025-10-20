@@ -31,19 +31,6 @@ envirments
 
 namespace Hdc {
 namespace SystemDepend {
-bool SetDevItem(const char *key, const char *value)
-{
-    bool ret = true;
-#ifdef HARMONY_PROJECT
-    ret = SetParameter(key, value) == 0;
-#else
-    char outBuf[256] = "";
-    string stringBuf = Base::StringFormat("param set %s %s", key, value);
-    Base::RunPipeComand(stringBuf.c_str(), outBuf, sizeof(outBuf), true);
-#endif  // HARMONY_PROJECT
-    return ret;
-}
-
 bool GetDevItem(const char *key, string &out, const char *preDefine)
 {
     bool ret = true;
@@ -65,32 +52,6 @@ bool GetDevItem(const char *key, string &out, const char *preDefine)
 #endif
     out = tmpStringBuf;
     return ret;
-}
-
-uint32_t GetDevUint(const char *key, uint32_t defaultValue)
-{
-    return GetUintParameter(key, defaultValue);
-}
-
-bool CallDoReboot(const char *reason)
-{
-    string rebootCtrl = "ohos.startup.powerctrl";
-#ifdef HARMONY_PROJECT
-    return SetDevItem(rebootCtrl.c_str(), reason);
-#else
-    return false;
-#endif
-}
-
-bool RebootDevice(const string &cmd)
-{
-    string reason = "reboot";
-    if (cmd != "") {
-        reason += ",";
-        reason += cmd;
-    }
-    WRITE_LOG(LOG_DEBUG, "DoReboot with args:[%s] for cmd:[%s]", reason.c_str(), cmd.c_str());
-    return CallDoReboot(reason.c_str());
 }
 }
 }  // namespace Hdc

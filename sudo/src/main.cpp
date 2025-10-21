@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <securec.h>
+#include <unistd.h>
 
 #if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
@@ -54,6 +55,75 @@ static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
 static std::vector<uint8_t> g_authToken;
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 static const std::string TITLE = "Allow execution of sudo commands";
+
+static std::vector<std::string> envSnapshot;
+
+/*
+ * Default table of "bad" variables to remove from the environment.
+ */
+static std::vector<const std::string> initialBadenvTables = {
+    "IFS",
+    "CDPATH",
+    "LOCALDOMAIN",
+    "RES_OPTIONS",
+    "HOSTALIASES",
+    "NLSPATH",
+    "PATH_LOCALE",
+    "LD_*",
+    "_RLD*",
+    "SHLIB_PATH",
+    "LDR_*",
+    "LIBPATH",
+    "AUTHSTATE",
+    "DYLD_*",
+    "KRB5_CONFIG*",
+    "KRB5_KTNAME",
+    "VAR_ACE",
+    "USR_ACE",
+    "DLC_ACE",
+    "TERMINFO",             /* terminfo, exclusive path to terminfo files */
+    "TERMINFO_DIRS",        /* terminfo, path(s) to terminfo files */
+    "TERMPATH",             /* termcap, path(s) to termcap files */
+    "TERMCAP",              /* XXX - only if it starts with '/' */
+    "ENV",                  /* ksh, file to source before script runs */
+    "BASH_ENV",             /* bash, file to source before script runs */
+    "PS4",                  /* bash, prefix for lines in xtrace mode */
+    "GLOBIGNORE",           /* bash, globbing patterns to ignore */
+    "BASHOPTS",             /* bash, initial "shopt -s" options */
+    "SHELLOPTS",            /* bash, initial "set -o" options */
+    "JAVA_TOOL_OPTIONS",    /* java, extra command line options */
+    "PERLIO_DEBUG",         /* perl, debugging output file */
+    "PERLLIB",              /* perl, search path for modules/includes */
+    "PERL5LIB",             /* perl 5, search path for modules/includes */
+    "PERL5OPT",             /* perl 5, extra command line options */
+    "PERL5DB",              /* perl 5, command used to load debugger */
+    "FPATH",                /* ksh, search path for functions */
+    "NULLCMD",              /* zsh, command for null file redirection */
+    "READNULLCMD",          /* zsh, command for null file redirection */
+    "ZDOTDIR",              /* zsh, search path for dot files */
+    "TMPPREFIX",            /* zsh, prefix for temporary files */
+    "PYTHONHOME",           /* python, module search path */
+    "PYTHONPATH",           /* python, search path */
+    "PYTHONINSPECT",        /* python, allow inspection */
+    "PYTHONUSERBASE",       /* python, per user site-packages directory */
+    "RUBYLIB",              /* ruby, library load path */
+    "RUBYOPT",              /* ruby, extra command line options */
+    "*=()*"                 /* bash functions */
+};
+
+/*
+ * Default table of variables to check for '%' and '/' characters.
+ */
+static std::vector<std::string> initialCheckenvTables = {
+    "COLORTERM",
+    "LANG",
+    "LANGUAGE",
+    "LC_*",
+    "LINGUAS",
+    "TERM",
+    "TZ"
+};
+
 }
 
 static void WriteStdErr(const char *str)
@@ -344,6 +414,211 @@ static bool UpdateEnvironmentPath()
     return true;
 }
 
+static void SaveEnvSnapshot()
+{
+    for (int i = 0; environ[i] != nullptr; ++i) {
+        envSnapshot.push_back(environ[i]);
+    }
+}
+
+static bool MatchWithWildcard(const std::string& pattern, const std::string& value)
+{
+    size_t pIdx = 0;
+    size_t vIdx = 0;
+    size_t lastStar = std::string::npos;
+    size_t lastMatch = 0;
+    bool sawSep = false;
+
+    size_t patternSize = pattern.size();
+    size_t valueSize = value.size();
+
+    while ((pIdx < patternSize && vIdx <= valueSize)) {
+        char pChar = (pIdx < patternSize) ? pattern[pIdx] : '\0';
+        char vChar = (vIdx < valueSize) ? value[vIdx] : '\0';
+
+        if (pChar == '*') { // 跳过连续的 '*'
+            while (pIdx < patternSize && pattern[pIdx] == '*') {
+                pIdx++;
+            }
+
+            if (pIdx >= patternSize) { // '*'在pattern末尾，匹配任意内容
+                return true;
+            }
+
+            lastStar = pIdx - 1;
+            lastMatch = vIdx;
+
+            if (((pIdx < patternSize) && (pattern[pIdx] == '='))) {
+                sawSep = true;
+            }
+            continue;
+        }
+        if (pChar == vChar) {
+            if (pChar == '=') {
+                sawSep = true;
+            }
+            pIdx++;
+            vIdx++;
+        } else if (lastStar != std::string::npos) {
+            pIdx = lastStar + 1;
+            lastMatch++;
+            vIdx = lastMatch;
+
+            if (vIdx < valueSize) {
+                char nextPatternChar = (pIdx < patternSize) ? pattern[pIdx] : '\0';
+                if (nextPatternChar != '\0') {
+                    while ((sawSep) && (vIdx < valueSize) && (value[vIdx] != nextPatternChar)) {
+                        vIdx++;
+                    }
+                }
+            }
+        } else {
+            return false;
+        }
+    }
+    while ((pIdx < patternSize) && pattern[pIdx] == '*') {
+        pIdx++;
+    }
+    return pIdx >= patternSize && vIdx >= valueSize;
+}
+
+static bool MatchesEnvPattern(const std::string& value, const std::string& pattern)
+{
+    size_t startPos = pattern.find('*');
+    bool isWild = (startPos != std::string::npos);
+    size_t len = (isWild) ? startPos : pattern.size();
+
+    bool match = false;
+
+    if (isWild) {
+        match = MatchWithWildcard(pattern, value);
+    } else {
+        if (strncmp(pattern.c_str(), value.c_str(), len) == 0) {
+            match = true;
+        }
+    }
+
+    return match;
+}
+
+static bool MatchesEnvDel(const std::string& envItem)
+{
+    for (const auto& badItem : initialBadenvTables) {
+        if (!badItem.empty()) {
+            bool result = MatchesEnvPattern(envItem, badItem);
+            if (result) {
+                return result;
+            }
+        }
+    }
+    return false;
+}
+
+static bool TzIsSafe(std::string tzItem)
+{
+    if (!tzItem.empty() && tzItem[0] == ':') {
+        tzItem = tzItem.substr(1);
+    }
+
+    if (!tzItem.empty() && tzItem[0] == '/') {
+        return false;
+    }
+
+    char lastCh = '/';
+    for (size_t i = 0; i < tzItem.size(); ++i) {
+        char ch = tzItem[i];
+        if (std::isspace(static_cast<unsigned char>(ch)) || !std::isprint(static_cast<unsigned char>(ch))) {
+            return false;
+        }
+        if ((lastCh == '/') &&
+            (ch == '.') &&
+            (i + 1 < tzItem.size()) &&
+            (tzItem[i + 1] == '.')) {
+            const size_t next = i + 2;
+            const bool isEndOrSlash = (next ==  tzItem.size() || tzItem[next] == '/');
+            if (isEndOrSlash) {
+                return false;
+            }
+        }
+        lastCh = ch;
+    }
+    if (tzItem.size() >= PATH_MAX) {
+        return false;
+    }
+    return true;
+}
+
+static bool CheckValueSafety(const std::string& value, const std::string& pattern)
+{
+    if (value.empty() || pattern.empty()) {
+        return true;
+    }
+    
+    bool result = MatchesEnvPattern(value, pattern);
+    if (result) {
+        size_t eqPos = value.find('=');
+        if ((eqPos != std::string::npos) && (eqPos + 1 < value.size())) {
+            std::string val = value.substr(eqPos + 1);
+            if (val.find_first_of("/%") != std::string::npos) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool MatchesEnvCheckPattern(const std::string& value, const std::string& pattern)
+{
+    bool keepItem = true;
+    int tzLength = 3;
+
+    if (strncmp(value.c_str(), "TZ=", tzLength) == 0) {
+        keepItem = TzIsSafe(value);
+    } else {
+        keepItem = CheckValueSafety(value, pattern);
+    }
+    return keepItem;
+}
+
+static bool MatchesEnvCheck(const std::string& envItem)
+{
+    for (const auto& checkItem : initialCheckenvTables) {
+        if (!checkItem.empty()) {
+            bool result = MatchesEnvCheckPattern(envItem, checkItem);
+            if (!result) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool UpdateEnv()
+{
+    SaveEnvSnapshot();
+    for (const auto& envItem : envSnapshot) {
+        size_t sepPos = envItem.find('=');
+        std::string envName = (sepPos == std::string::npos) ? envItem : envItem.substr(0, sepPos);
+
+        bool delResult = MatchesEnvDel(envItem);
+        if (delResult) {
+            if (!envName.empty()) {
+                unsetenv(envName.c_str());
+                continue;
+            }
+        }
+
+        bool checkResult = MatchesEnvCheck(envItem);
+        if (checkResult) {
+            if (!envName.empty()) {
+                unsetenv(envName.c_str());
+                continue;
+            }
+        }
+    }
+    return true;
+}
+
 int main(int argc, char* argv[])
 {
     if (!UpdateEnvironmentPath()) {
@@ -399,6 +674,10 @@ int main(int argc, char* argv[])
     }
 #endif
 
+    if (!UpdateEnv()) {
+        WriteStdErr("UpdateEnv failed\n");
+        return 1;
+    }
     execvp(execCmd, argvNew);
     WriteStdErr("execvp failed\n");
     return 1;

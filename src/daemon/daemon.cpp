@@ -500,11 +500,11 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
             break;
         }
 
-        string confirmmsg = "[E000002]:The device unauthorized.\r\n"\
-                             "This server's public key is not set.\r\n"\
-                             "Please check for a confirmation dialog on your device.\r\n"\
-                             "Otherwise try 'hdc kill' if that seems wrong.";
-        std::thread notifymsg([this, &handshake, channelId, sessionId = hSession->sessionId, &confirmmsg]() {
+        std::thread notifymsg([this, &handshake, channelId, sessionId = hSession->sessionId]() {
+            std::string confirmmsg = "[E000002]:The device unauthorized.\r\n"\
+                                     "This server's public key is not set.\r\n"\
+                                     "Please check for a confirmation dialog on your device.\r\n"\
+                                     "Otherwise try 'hdc kill' if that seems wrong.";
             this->EchoHandshakeMsg(handshake, channelId, sessionId, confirmmsg);
         });
         notifymsg.detach();

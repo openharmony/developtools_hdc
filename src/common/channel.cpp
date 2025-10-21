@@ -614,6 +614,9 @@ void HdcChannelBase::FreeChannelContinue(HChannel hChannel)
 #ifdef HOST_OHOS
 void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
 {
+    if (handle == nullptr) {
+        return;
+    }
     StartTraceScope("HdcChannelBase::FreeChannelOpeate");
     HChannel hChannel = (HChannel)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
@@ -649,6 +652,9 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
 #else
 void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
 {
+    if (handle == nullptr) {
+        return;
+    }
     StartTraceScope("HdcChannelBase::FreeChannelOpeate");
     HChannel hChannel = (HChannel)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;

@@ -14,6 +14,8 @@
  */
 #ifndef HDC_ASYNC_CMD_H
 #define HDC_ASYNC_CMD_H
+#include <atomic>
+
 #include "common.h"
 
 namespace Hdc {
@@ -53,7 +55,7 @@ private:
     int fd = 0;
     int pid = 0;
     HdcFileDescriptor *childShell = nullptr;
-    uint32_t refCount = 0;
+    std::atomic<uint32_t> refCount = 0;
     CmdResultCallback resultCallback;
     uv_loop_t *loop = nullptr;
     string cmdResult;

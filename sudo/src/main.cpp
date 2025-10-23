@@ -310,7 +310,7 @@ static bool GetChallenge()
         WriteStdErr("GetChallenge userid is failed!\n");
         return false;
     }
-    int32_t res = InitChallengeForCommand(g_challenge.data(), g_challenge.size(), g_userId);
+    int32_t res = InitChallengeForCommand(g_userId, g_challenge.data(), g_challenge.size());
     if (res != 0) {
         WriteStdErr("init challenge failed\n");
         return false;

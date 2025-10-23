@@ -327,6 +327,10 @@ static int32_t GetUserId()
         WriteStdErr("get os account local id failed\n");
         return -1;
     }
+    if (ids.empty()) {
+        WriteStdErr("os account return is empty!\n");
+        return -1;
+    }
     return ids[0];
 }
 

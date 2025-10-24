@@ -306,7 +306,11 @@ static void WaitForAuth(void)
 
 static bool GetChallenge()
 {
-    int32_t res = InitChallengeForCommand(g_challenge.data(), g_challenge.size());
+    if (g_userId == -1) {
+        WriteStdErr("GetChallenge userid is failed!\n");
+        return false;
+    }
+    int32_t res = InitChallengeForCommand(g_userId, g_challenge.data(), g_challenge.size());
     if (res != 0) {
         WriteStdErr("init challenge failed\n");
         return false;
@@ -321,6 +325,10 @@ static int32_t GetUserId()
     OHOS::ErrCode err = OsAccountManager::QueryActiveOsAccountIds(ids);
     if (err != 0) {
         WriteStdErr("get os account local id failed\n");
+        return -1;
+    }
+    if (ids.empty()) {
+        WriteStdErr("os account return is empty!\n");
         return -1;
     }
     return ids[0];
@@ -371,26 +379,6 @@ static bool SetPSL()
     }
     return true;
 }
-
-#if defined(SURPPORT_ACCOUNT_CONSTRAINT)
-static bool CheckUserLimitation()
-{
-    bool isNotEnabled = false;
-    OHOS::ErrCode err = OsAccountManager::CheckOsAccountConstraintEnabled(
-        g_userId, CONSTRAINT_SUDO, isNotEnabled);
-    if (err != 0) {
-        WriteStdErr("check account constrain failed.\n");
-        return false;
-    }
-
-    if (isNotEnabled) {
-        WriteStdErr("no permision.\n");
-        return false;
-    }
-
-    return true;
-}
-#endif
 
 static bool UpdateEnvironmentPath()
 {
@@ -631,12 +619,6 @@ int main(int argc, char* argv[])
         WriteStdErr("get user id failed.\n");
         return 1;
     }
-
-#if defined(SURPPORT_ACCOUNT_CONSTRAINT)
-    if (!CheckUserLimitation()) {
-        return 1;
-    }
-#endif
 
     if (argc < 2) { // 2:argc check number
         WriteStdErr(HELP);

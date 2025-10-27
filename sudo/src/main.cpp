@@ -56,6 +56,7 @@ static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
 static std::vector<uint8_t> g_authToken;
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 static const std::string TITLE = "Allow execution of sudo commands";
+static const int USER_NO_PREMISSION = 25000008; // InitChallengeForCommand return current user no permission
 
 static std::vector<std::string> envSnapshot;
 
@@ -312,7 +313,11 @@ static bool GetChallenge()
     }
     int32_t res = InitChallengeForCommand(g_userId, g_challenge.data(), g_challenge.size());
     if (res != 0) {
-        WriteStdErr("init challenge failed\n");
+        if (res == USER_NO_PREMISSION) {
+            WriteStdErr("no permission.\n");
+        } else {
+            WriteStdErr("init challenge failed\n");
+        }
         return false;
     }
     return true;

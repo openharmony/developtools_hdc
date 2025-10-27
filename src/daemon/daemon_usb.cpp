@@ -375,6 +375,36 @@ void HdcDaemonUSB::OnSessionFreeFinally(const HSession hSession)
     }
 }
 
+static void FuncNewSessionUp(uv_timer_t *handle)
+{
+    HSessionInfo hSessionInfo = reinterpret_cast<HSessionInfo>(handle->data);
+    if (hSessionInfo == nullptr) {
+        Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
+        WRITE_LOG(LOG_FATAL, "hSessionInfo is null");
+        return;
+    }
+    HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(hSessionInfo->classInstance);
+    if (Base::IsSessionDeleted(hSessionInfo->sessionId)) {
+        WRITE_LOG(LOG_INFO, "funcNewSessionUp session is deleted");
+        delete hSessionInfo;
+        handle->data = nullptr;
+        Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
+        return;
+    }
+    HSession hChildSession = hSessionInfo->hSession;
+    if (hChildSession->childLoop.active_handles == 0) {
+        return;
+    }
+    if (!hChildSession->isDead) {
+        auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
+        Base::SendToPollFd(hChildSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
+        WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
+    }
+    delete hSessionInfo;
+    handle->data = nullptr;
+    Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
+}
+
 HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, int recvBytesIO)
 {
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
@@ -386,6 +416,11 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
     }
     currentSessionId = sessionId;
     Base::StartWorkThread(&daemon->loopMain, daemon->SessionWorkThread, Base::FinishWorkThread, hChildSession);
+    // wait for thread up
+    while (hChildSession->childLoop.active_handles == 0) {
+        WRITE_LOG(LOG_DEBUG, "wait for thread up");
+        usleep(UV_DEFAULT_INTERVAL);
+    }
 
     HSessionInfo hSessionInfo = new(std::nothrow) HdcSessionInfo();
     if (hSessionInfo == nullptr) {
@@ -396,35 +431,7 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, 
     hSessionInfo->classInstance = hChildSession->classInstance;
     hSessionInfo->classModule = hChildSession->classModule;
     hSessionInfo->hSession = hChildSession;
-    auto funcNewSessionUp = [](uv_timer_t *handle) -> void {
-        HSessionInfo hSessionInfo = reinterpret_cast<HSessionInfo>(handle->data);
-        if (hSessionInfo == nullptr) {
-            Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
-            WRITE_LOG(LOG_FATAL, "hSessionInfo is null");
-            return;
-        }
-        HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(hSessionInfo->classInstance);
-        if (Base::IsSessionDeleted(hSessionInfo->sessionId)) {
-            WRITE_LOG(LOG_INFO, "funcNewSessionUp session is deleted");
-            delete hSessionInfo;
-            handle->data = nullptr;
-            Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
-            return;
-        }
-        HSession hChildSession = hSessionInfo->hSession;
-        if (hChildSession->childLoop.active_handles == 0) {
-            return;
-        }
-        if (!hChildSession->isDead) {
-            auto ctrl = daemon->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-            Base::SendToPollFd(hChildSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
-            WRITE_LOG(LOG_DEBUG, "Main thread usbio migrate finish");
-        }
-        delete hSessionInfo;
-        handle->data = nullptr;
-        Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
-    };
-    Base::TimerUvTask(&daemon->loopMain, hSessionInfo, funcNewSessionUp);
+    Base::TimerUvTask(&daemon->loopMain, hSessionInfo, FuncNewSessionUp);
     return hChildSession;
 }
 

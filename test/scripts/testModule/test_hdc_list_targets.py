@@ -60,8 +60,9 @@ class TestListTargetsOfUsb:
     @pytest.mark.L0
     def test_shell_no_such_file(self):
         count = 0
+        sep = "/"
         for sn in self.usbs:
-            cmd = f"{GP.hdc_exe} -t {sn} find /system -name nosuchfile"
+            cmd = f"{GP.hdc_exe} -t {sn} find {sep}system -name nosuchfile"
             result, _ = get_cmd_block_output_and_error(cmd)
             print(result)
             count = count + 1

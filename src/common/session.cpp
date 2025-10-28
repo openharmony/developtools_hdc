@@ -1411,7 +1411,10 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
 void HdcSessionBase::StopHeartbeatWork(HSession hSession)
 {
     hSession->heartbeat.SetSupportHeartbeat(false);
-    uv_timer_stop(&hSession->heartbeatTimer);
+    if (Base::GetheartbeatSwitch()) {
+        WRITE_LOG(LOG_INFO, "session %u stop heartbeatTimer", hSession->sessionId);
+        uv_timer_stop(&hSession->heartbeatTimer);
+    }
 }
 
 // send heartbeat msg

@@ -46,7 +46,7 @@ class TestShellHilog:
         # 新开进程执行hdc shell hilog，防止阻塞主进程
         p = multiprocessing.Process(target=self.new_process_run, args=("shell hilog",))
         p.start()
-        time.sleep(1)
+        time.sleep(3)
         hilog_pid = get_shell_result(f'shell pidof hilog')
         hilog_pid = hilog_pid.replace(get_end_symbol(), "")
         assert hilog_pid.isdigit()

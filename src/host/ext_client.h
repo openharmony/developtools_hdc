@@ -34,7 +34,7 @@ public:
 private:
     uv_lib_t lib;
     void Version(const std::string &str);
-    static void Help(const std::string &str);
+    static void Help();
     void Discover(const std::string &str);
     void Start(const std::string &str);
     void Kill(const std::string &str);

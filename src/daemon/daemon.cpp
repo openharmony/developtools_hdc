@@ -224,7 +224,7 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB, bool bEnableBridge)
 #endif
 
 // clang-format off
-bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId,
+bool HdcDaemon::RedirectToTask(HTaskInfo hTaskInfo, HSession /* hSession */, const uint32_t /* channelId */,
                                const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     StartTraceScope("HdcDaemon::RedirectToTask");

@@ -120,7 +120,7 @@ void HdcServerForClient::AcceptUdsClient(uv_stream_t *server, int status)
 }
 #endif
 
-void HdcServerForClient::AcceptClient(uv_stream_t *server, int status)
+void HdcServerForClient::AcceptClient(uv_stream_t *server, int /* status */)
 {
     StartTraceScope("HdcServerForClient::AcceptClient");
     uv_tcp_t *pServTCP = (uv_tcp_t *)server;
@@ -975,7 +975,7 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
 }
 
 #ifdef __OHOS__
-int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
+int HdcServerForClient::BindChannelToSession(HChannel hChannel)
 {
     StartTraceScope("HdcServerForClient::BindChannelToSession");
     if (FindAliveSessionFromDaemonMap(hChannel) == nullptr) {
@@ -1025,7 +1025,7 @@ int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr,
     return RET_SUCCESS;
 }
 #else
-int HdcServerForClient::BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
+int HdcServerForClient::BindChannelToSession(HChannel hChannel)
 {
     StartTraceScope("HdcServerForClient::BindChannelToSession");
     if (FindAliveSessionFromDaemonMap(hChannel) == nullptr) {
@@ -1118,7 +1118,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
         return 0;
     }
     // channel handshake stBindChannelToSession
-    if (BindChannelToSession(hChannel, nullptr, 0)) {
+    if (BindChannelToSession(hChannel)) {
         hChannel->availTailIndex = 0;
         WRITE_LOG(LOG_FATAL, "BindChannelToSession failed channelId:%u sid:%u",
             hChannel->channelId, hChannel->targetSessionId);

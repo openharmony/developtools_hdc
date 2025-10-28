@@ -85,7 +85,7 @@ static int GetUserPermit(void)
     return USER_PERMIT_SUCCESS;
 }
 
-int main(int argc, char** argv)
+int main()
 {
     // ohos not support, direct success
     if (!Rosen::SceneBoardJudgement::IsSceneBoardEnabled()) {

@@ -118,7 +118,7 @@ std::string HdcPassword::SplicMessageStr(const std::string &str, const size_t ty
     return result;
 }
 
-std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd, int pwdLen)
+std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd)
 {
     std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT);
     if (sendStr.empty()) {
@@ -300,7 +300,7 @@ bool HdcPassword::DecryptPwd(std::vector<uint8_t>& encryptData)
 bool HdcPassword::EncryptPwd(void)
 {
     ClearEncryptPwd();
-    std::vector<uint8_t> encryptData = EncryptGetPwdValue(pwd, PASSWORD_LENGTH);
+    std::vector<uint8_t> encryptData = EncryptGetPwdValue(pwd);
     if (encryptData.size() == 0) {
         return false;
     }

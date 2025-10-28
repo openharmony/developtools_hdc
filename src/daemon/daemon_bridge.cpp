@@ -51,7 +51,7 @@ void HdcDaemonBridge::Stop()
     WRITE_LOG(LOG_DEBUG, "~HdcDaemonBridge");
 }
 
-void HdcDaemonBridge::AllocBufferCallback(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf)
+void HdcDaemonBridge::AllocBufferCallback(uv_handle_t* /* handle */, size_t /* sizeSuggested */, uv_buf_t *buf)
 {
     buf->base = (char *)new int[1];
     buf->len = SOCKET_FD_LEN;
@@ -128,7 +128,7 @@ int HdcDaemonBridge::SetBridgeListen()
 
     uv_pipe_init(&ptrConnect->loopMain, &servPipe, 0);
     uv_pipe_open(&servPipe, (uv_file)bridgeFd);
-    uv_read_start((uv_stream_t *)&servPipe, HdcDaemonBridge::AllocBufferCallback, HdcDaemonBridge::AcceptClient);
+    uv_read_start((uv_stream_t *)&servPipe, AllocBufferCallback, HdcDaemonBridge::AcceptClient);
 
     return RET_SUCCESS;
 }

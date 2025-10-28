@@ -36,7 +36,7 @@ private:
     bool SetDeviceRunMode(const char *cmd);
     bool GetHiLog(const char *cmd);
     bool ListJdwpProcess(void *daemonIn);
-    bool AsyncCmdOut(bool finish, int64_t exitStatus, const string result);
+    bool AsyncCmdOut(bool finish, const string result);
     bool TrackJdwpProcess(void *daemonIn, const string& param);
     void RemoveJdwpTracker();
     int ExecuteShellExtend(const uint8_t *payload, const int payloadSize);

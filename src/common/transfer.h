@@ -129,10 +129,10 @@ protected:
     bool CheckSandboxOptionCompatibility(const string &option, CtxFile *context);
     int GetSubFiles(const char *path, string filter, vector<string> *out);
     int GetSubFilesRecursively(string path, string currentDirname, vector<string> *out);
-    virtual void CheckMaster(CtxFile *context)
+    virtual void CheckMaster(CtxFile* /* context */)
     {
     }
-    virtual void WhenTransferFinish(CtxFile *context)
+    virtual void WhenTransferFinish(CtxFile* /* context */)
     {
     }
     bool MatchPackageExtendName(string fileName, string extName);

@@ -689,8 +689,7 @@ HWTEST_F(HdcExtTest, 49, TestSize.Level0)
 HWTEST_F(HdcExtTest, 50, TestSize.Level0)
 {
     std::string prefixPath = "/tmp/";
-    std::ifstream inFileStream("/dev/null");
-    EXPECT_TRUE(entry->PayloadToDir(prefixPath, inFileStream));
+    EXPECT_TRUE(entry->PayloadToDir(prefixPath));
     inFileStream.close();
 }
 

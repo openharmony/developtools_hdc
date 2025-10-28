@@ -1292,7 +1292,7 @@ bool HdcServer::ServerCommand(const uint32_t sessionId, const uint32_t channelId
 }
 
 // clang-format off
-bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId,
+bool HdcServer::RedirectToTask(HTaskInfo hTaskInfo, HSession /* hSession */, const uint32_t /* channelId */,
                                const uint16_t command, uint8_t *payload, const int payloadSize)
 // clang-format on
 {

@@ -203,7 +203,7 @@ bool HostUpdater::CommandDispatch(const uint16_t command, uint8_t *payload, cons
             ret = BeginTransfer(CMDSTR_FLASHD_FLASH, payload, payloadSize, FLASH_PARAM_MIN_COUNT, FLASH_FILE_INDEX);
             break;
         case CMD_FLASHD_FINISH:
-            ret = CheckUpdateContinue(command, payload, payloadSize);
+            ret = CheckUpdateContinue(payload, payloadSize);
             break;
         case CMD_FLASHD_ERASE:
             ret = CheckCmd(CMD_FLASHD_ERASE, payload, payloadSize, ERASE_PARAM_MIN_COUNT);
@@ -238,7 +238,7 @@ void HostUpdater::ProcessProgress(uint8_t percentage)
     }
 }
 
-bool HostUpdater::CheckUpdateContinue(const uint16_t command, const uint8_t *payload, int payloadSize)
+bool HostUpdater::CheckUpdateContinue(const uint8_t *payload, int payloadSize)
 {
     if (static_cast<size_t>(payloadSize) < sizeof(uint16_t)) {
         return false;

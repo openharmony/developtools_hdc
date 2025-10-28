@@ -164,13 +164,13 @@ bool Runtime::Initial(bool bConnectToDaemonIn)
 {
     bConnectToDaemon = bConnectToDaemonIn;
     constexpr int sleepTime = 300;
-    auto funcServerFinish = [](uv_work_t *req, int status) -> void {
+    auto funcServerFinish = [](uv_work_t *req, int /* status */) -> void {
         auto thisClass = (Runtime *)req->data;
         thisClass->serverRunning = false;
         WRITE_LOG(LOG_DEBUG, "Ut runtime frame server thread finish");
         delete req;
     };
-    auto funcDaemonFinish = [](uv_work_t *req, int status) -> void {
+    auto funcDaemonFinish = [](uv_work_t *req, int /* status */) -> void {
         auto thisClass = (Runtime *)req->data;
         thisClass->daemonRunning = false;
         WRITE_LOG(LOG_DEBUG, "Ut runtime frame daemon thread finish");

@@ -46,7 +46,7 @@ bool HdcDaemonUnity::ReadyForRelease()
     return true;
 }
 
-bool HdcDaemonUnity::AsyncCmdOut(bool finish, int64_t exitStatus, const string result)
+bool HdcDaemonUnity::AsyncCmdOut(bool finish, const string result)
 {
 #ifdef UNIT_TEST
     Base::WriteBinFile((UT_TMP_PATH + "/execute.result").c_str(), (uint8_t *)result.c_str(), result.size(),
@@ -105,8 +105,8 @@ int HdcDaemonUnity::ExecuteShell(const string &shellCommand, string optionPath)
 {
     do {
         AsyncCmd::CmdResultCallback funcResultOutput;
-        funcResultOutput = [this](bool finish, int64_t exitStatus, const string result) -> bool {
-            return this->AsyncCmdOut(finish, exitStatus, result);
+        funcResultOutput = [this](bool finish, int64_t /* exitStatus */, const string result) -> bool {
+            return this->AsyncCmdOut(finish, result);
         };
         if (!asyncCommand.Initial(loopTask, funcResultOutput)) {
             break;

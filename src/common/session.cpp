@@ -1127,8 +1127,7 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
     delete req;
 }
 
-bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8_t *baseBuf,
-                                                  const int bytesIO)
+bool HdcSessionBase::DispatchSessionThreadCommand(const uint8_t *baseBuf, const int bytesIO)
 {
     bool ret = true;
     uint8_t flag = *const_cast<uint8_t *>(baseBuf);
@@ -1146,7 +1145,7 @@ bool HdcSessionBase::DispatchSessionThreadCommand(HSession hSession, const uint8
     return ret;
 }
 
-void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events)
+void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int /* status */, int /* events */)
 {
     HSession hSession = (HSession)poll->data;
     CALLSTAT_GUARD(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromSession");
@@ -1169,7 +1168,7 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int status, int events
         }
         // only one command, no need to split command from stream
         // if add more commands, consider the format command
-        hSessionBase->DispatchSessionThreadCommand(hSession, reinterpret_cast<uint8_t *>(buf), nread);
+        hSessionBase->DispatchSessionThreadCommand(reinterpret_cast<uint8_t *>(buf), nread);
         break;
     }
     delete[] buf;
@@ -1345,7 +1344,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
 }
 
 // Several bytes of control instructions, generally do not stick
-void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int status, int events)
+void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int /* status */, int /* events */)
 {
     HSession hSession = (HSession)poll->data;
     CALLSTAT_GUARD(hSession->childLoopStatus, poll->loop, "HdcSessionBase::ReadCtrlFromMain");

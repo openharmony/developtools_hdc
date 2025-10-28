@@ -114,7 +114,7 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
     return ret;
 };
 
-bool HdcDaemonApp::AsyncInstallFinish(bool finish, int64_t exitStatus, const string result)
+bool HdcDaemonApp::AsyncInstallFinish(int64_t exitStatus, const string result)
 {
     if (mode == APPMOD_INSTALL) {
         unlink(ctxNow.localPath.c_str());
@@ -170,8 +170,8 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
         }
     }
 
-    funcAppModFinish = [this](bool finish, int64_t exitStatus, const string result) -> bool {
-        return this->AsyncInstallFinish(finish, exitStatus, result);
+    funcAppModFinish = [this](bool /* finish */, int64_t exitStatus, const string result) -> bool {
+        return this->AsyncInstallFinish(exitStatus, result);
     };
     if (installOrUninstall) {
         mode = APPMOD_INSTALL;

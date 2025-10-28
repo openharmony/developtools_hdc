@@ -22,7 +22,7 @@ class HdcTaskBase {
 public:
     HdcTaskBase(HTaskInfo hTaskInfo);
     virtual ~HdcTaskBase();
-    virtual bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
+    virtual bool CommandDispatch(const uint16_t /* command */, uint8_t* /* payload */, const int /* payloadSize */)
     {
         return true;
     }

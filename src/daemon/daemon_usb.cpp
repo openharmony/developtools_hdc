@@ -94,7 +94,7 @@ string HdcDaemonUSB::GetDevPath(const std::string &path)
     return res;
 }
 
-int HdcDaemonUSB::GetMaxPacketSize(int fdFfs)
+int HdcDaemonUSB::GetMaxPacketSize()
 {
     // no ioctl support, todo dynamic get
     return MAX_PACKET_SIZE_HISPEED;
@@ -191,7 +191,7 @@ int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
         fcntl(controlEp, F_SETFD, FD_CLOEXEC);
         fcntl(hUSB->bulkOut, F_SETFD, FD_CLOEXEC);
         fcntl(hUSB->bulkIn, F_SETFD, FD_CLOEXEC);
-        hUSB->wMaxPacketSizeSend = GetMaxPacketSize(hUSB->bulkIn);
+        hUSB->wMaxPacketSizeSend = GetMaxPacketSize();
 
         WRITE_LOG(LOG_INFO, "New bulk in\\out open bulkout:%d bulkin:%d", hUSB->bulkOut, hUSB->bulkIn);
         ret = RET_SUCCESS;
@@ -405,7 +405,7 @@ static void FuncNewSessionUp(uv_timer_t *handle)
     Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(handle), Base::CloseTimerCallback);
 }
 
-HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, int recvBytesIO)
+HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId)
 {
     HdcDaemon *daemon = reinterpret_cast<HdcDaemon *>(clsMainBase);
     StartTraceScope("HdcDaemonUSB::PrepareNewSession");
@@ -559,7 +559,7 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
     }
     hChildSession = daemon->AdminSession(OP_QUERY, sessionId, nullptr);
     if (!hChildSession) {
-        hChildSession = PrepareNewSession(sessionId, readBuf, readBytes);
+        hChildSession = PrepareNewSession(sessionId);
         if (!hChildSession) {
             WRITE_LOG(LOG_WARN, "prep new session err for sessionId:%u", sessionId);
             return ERR_SESSION_NOFOUND;

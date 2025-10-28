@@ -223,7 +223,7 @@ string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
 }
 #endif  // JS_JDWP_CONNECT
 
-void HdcJdwp::AcceptClient(uv_stream_t *server, int status)
+void HdcJdwp::AcceptClient(uv_stream_t *server, int /* status */)
 {
     uv_pipe_t *listenPipe = (uv_pipe_t *)server;
     HdcJdwp *thisClass = (HdcJdwp *)listenPipe->data;
@@ -240,7 +240,7 @@ void HdcJdwp::AcceptClient(uv_stream_t *server, int status)
         thisClass->freeContextMutex.unlock();
         return;
     }
-    auto funAlloc = [](uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf) -> void {
+    auto funAlloc = [](uv_handle_t *handle, size_t /* sizeSuggested */, uv_buf_t *buf) -> void {
         HCtxJdwp ctxJdwp = (HCtxJdwp)handle->data;
         buf->base = (char *)ctxJdwp->buf;
         buf->len = sizeof(ctxJdwp->buf);

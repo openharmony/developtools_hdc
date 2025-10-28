@@ -57,7 +57,7 @@ SudoIDMCallback::SudoIDMCallback()
     verifyResult_ = false;
 }
 
-void SudoIDMCallback::OnAcquireInfo(int32_t module, uint32_t acquireInfo, const Attributes &extraInfo)
+void SudoIDMCallback::OnAcquireInfo(int32_t /* module */, uint32_t /* acquireInfo */, const Attributes& /* extraInfo */)
 {
     return;
 }

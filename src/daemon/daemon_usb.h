@@ -48,12 +48,12 @@ private:
     string GetDevPath(const std::string &path);
     bool ReadyForWorkThread(HSession hSession) override;
     int LoopUSBRead(HUSB hUSB, int readMaxWanted);
-    HSession PrepareNewSession(uint32_t sessionId, uint8_t *pRecvBuf, int recvBytesIO);
+    HSession PrepareNewSession(uint32_t sessionId);
     bool JumpAntiquePacket(const uint8_t &buf, ssize_t bytes) const;
     int SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t *data, const int length);
     int CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop);
     void ResetOldSession(uint32_t sessionId, bool isSoftReset = false);
-    int GetMaxPacketSize(int fdFfs);
+    int GetMaxPacketSize();
     int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     void FillUsbV2Head(struct UsbFunctionfsDescV2 &descUsbFfs);
     int UsbToStream(uv_stream_t *stream, const uint8_t *buf, const int size);

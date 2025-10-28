@@ -77,8 +77,6 @@ namespace Base {
     int SendToPollFd(int fd, const uint8_t *buf, const int bufLen);
     // As an uv_write_cb it must keep the same as prototype
     void SendCallback(uv_write_t *req, int status);
-    // As an uv_alloc_cb it must keep the same as prototype
-    void AllocBufferCallback(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf);
     uint64_t GetRuntimeMSec();
     string GetRandomString(const uint16_t expectedLen);
 #ifndef HDC_HOST

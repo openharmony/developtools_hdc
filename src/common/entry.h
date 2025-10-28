@@ -44,7 +44,7 @@ public:
 
     bool CopyPayload(std::string prefixPath, std::ifstream &inFile);
     bool PayloadToFile(std::string prefixPath, std::ifstream &inFile);
-    bool PayloadToDir(std::string prefixPath, std::ifstream &inFile);
+    bool PayloadToDir(std::string prefixPath);
     bool ReadAndWriteData(std::ifstream &inFile, std::ofstream &outFile, uint8_t *buffAppend,
         int readSize, int writeSize);
     bool WriteToTar(std::ofstream &file);

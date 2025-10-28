@@ -66,17 +66,17 @@ public:
 
     HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize = SIZE_THREAD_POOL);
     virtual ~HdcSessionBase();
-    virtual void AttachChannel(HSession hSession, const uint32_t channelId)
+    virtual void AttachChannel(HSession /* hSession */, const uint32_t /* channelId */)
     {
     }
-    virtual void DeatchChannel(HSession hSession, const uint32_t channelId)
+    virtual void DeatchChannel(HSession /* hSession */, const uint32_t /* channelId */)
     {
     }
-    virtual void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
+    virtual void NotifyInstanceSessionFree(HSession /* hSession */, bool /* freeOrClear */)
     {
     }
-    virtual bool RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId,
-                                const uint16_t command, uint8_t *payload, const int payloadSize)
+    virtual bool RedirectToTask(HTaskInfo /* hTaskInfo */, HSession /* hSession */, const uint32_t /* channelId */,
+                                const uint16_t /* command */, uint8_t* /* payload */, const int /* payloadSize */)
     {
         return true;
     }
@@ -119,17 +119,17 @@ public:
     virtual void EnumUARTDeviceRegister(UartKickoutZombie);
 #endif
     void ClearOwnTasks(HSession hSession, const uint32_t channelIDInput);
-    virtual bool FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
-                              int payloadSize)
+    virtual bool FetchCommand(HSession /* hSession */, const uint32_t /* channelId */,
+                              const uint16_t /* command */, uint8_t* /* payload */, int /* payloadSize */)
     {
         return true;
     }
-    virtual bool ServerCommand(const uint32_t sessionId, const uint32_t channelId, const uint16_t command,
-                               uint8_t *bufPtr, const int size)
+    virtual bool ServerCommand(const uint32_t /* sessionId */, const uint32_t /* channelId */,
+                               const uint16_t /* command */, uint8_t* /* bufPtr */, const int /* size */)
     {
         return true;
     }
-    virtual bool RemoveInstanceTask(const uint8_t op, HTaskInfo hTask)
+    virtual bool RemoveInstanceTask(const uint8_t /* op */, HTaskInfo /* hTask */)
     {
         return true;
     }
@@ -159,7 +159,7 @@ protected:
     void PrintSession(const uint32_t sessionId);
 #endif
     HSession VoteReset(const uint32_t sessionId);
-    virtual void JdwpNewFileDescriptor(const uint8_t *buf, const int bytesIO)
+    virtual void JdwpNewFileDescriptor(const uint8_t* /* buf */, const int /* bytesIO */)
     {
     }
     // must be define in haderfile, cannot in cpp file
@@ -210,8 +210,7 @@ private:
     }
     int DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe, uint8_t *encBuf);
     bool DispatchMainThreadCommand(HSession hSession, const CtrlStruct *ctrl);
-    bool DispatchSessionThreadCommand(HSession hSession, const uint8_t *baseBuf,
-                                      const int bytesIO);
+    bool DispatchSessionThreadCommand(const uint8_t *baseBuf, const int bytesIO);
     void BeginRemoveTask(HTaskInfo hTask);
     bool TryRemoveTask(HTaskInfo hTask);
     void ReChildLoopForSessionClear(HSession hSession);

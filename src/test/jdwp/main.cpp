@@ -70,7 +70,7 @@ static bool TryCloseLoop(uv_loop_t *ptrLoop, const char *callerName)
             if (ptrLoop->active_handles >= maxHandle) {
                 PrintMessage("TryCloseLoop issue");
             }
-            auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void {
+            auto clearLoopTask = [](uv_handle_t *handle, void* /* arg */) -> void {
                 TryCloseHandle(handle);
             };
             uv_walk(ptrLoop, clearLoopTask, nullptr);
@@ -104,13 +104,13 @@ static void FreeInstance()
     PrintMessage("jdwp_test_process exit.");
 }
 
-static void Stop(int signo)
+static void Stop(int /* signo */)
 {
     FreeInstance();
     _exit(0);
 }
 
-int main(int argc, const char *argv[])
+int main()
 {
     uv_loop_init(&loopMain);
 

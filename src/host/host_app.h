@@ -26,7 +26,7 @@ public:
 private:
     bool BeginInstall(CtxFile *context, const char *command);
     void CheckMaster(CtxFile *context) override;
-    bool CheckInstallContinue(AppModType mode, bool lastResult, const char *msg);
+    bool CheckInstallContinue(AppModType mode, const char *msg);
     bool RunQueue(CtxFile *context);
     bool BeginSideload(CtxFile *context, const char *localPath);
     string Dir2Tar(const char *dir);

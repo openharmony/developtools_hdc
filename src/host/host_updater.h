@@ -34,7 +34,7 @@ protected:
 private:
     bool BeginTransfer(const std::string &function, const uint8_t *payload, int payloadSize, size_t minParam,
     size_t fileIndex);
-    bool CheckUpdateContinue(const uint16_t command, const uint8_t *payload, int payloadSize);
+    bool CheckUpdateContinue(const uint8_t *payload, int payloadSize);
     bool RunQueue(CtxFile &context);
     void ProcessProgress(uint8_t percentage);
     void SendRawData(std::string rawData) const;

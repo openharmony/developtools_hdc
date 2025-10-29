@@ -818,16 +818,6 @@ static void EchoLog(string &buf)
         *nOrigSize = sizeWanted;
     }
 
-    // As an uv_alloc_cb it must keep the same as prototype
-    void AllocBufferCallback(uv_handle_t *handle, size_t sizeSuggested, uv_buf_t *buf)
-    {
-        const int size = GetMaxBufSizeStable();
-        buf->base = (char *)new uint8_t[size]();
-        if (buf->base) {
-            buf->len = size - 1;
-        }
-    }
-
     // As an uv_write_cb it must keep the same as prototype
     void SendCallback(uv_write_t *req, int status)
     {
@@ -862,7 +852,7 @@ static void EchoLog(string &buf)
                 if (ptrLoop->active_handles >= 2) { // 2:at least 2 handles for read & write.
                     WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
                 }
-                auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
+                auto clearLoopTask = [](uv_handle_t *handle, void* /* arg */) -> void { TryCloseHandle(handle); };
                 uv_walk(ptrLoop, clearLoopTask, nullptr);
                 // If all processing ends, Then return0,this call will block
                 if (!ptrLoop->active_handles) {
@@ -903,7 +893,7 @@ static void EchoLog(string &buf)
                 if (ptrLoop->active_handles >= 2) { // 2:at least 2 handles for read & write.
                     WRITE_LOG(LOG_DEBUG, "TryCloseLoop issue");
                 }
-                auto clearLoopTask = [](uv_handle_t *handle, void *arg) -> void { TryCloseHandle(handle); };
+                auto clearLoopTask = [](uv_handle_t *handle, void* /* arg */) -> void { TryCloseHandle(handle); };
                 uv_walk(ptrLoop, clearLoopTask, nullptr);
 #ifdef _WIN32
                 // If all processing ends, Then return0,this call will block
@@ -1201,7 +1191,7 @@ static void EchoLog(string &buf)
     }
 
     // After creating the session worker thread, execute it on the main thread
-    void FinishWorkThread(uv_work_t *req, int status)
+    void FinishWorkThread(uv_work_t *req, int /* status */)
     {
         // This is operated in the main thread
         delete req;
@@ -2899,7 +2889,7 @@ void CloseOpenFd(void)
         return GetTmpDir() + CMD_LOG_DIR_NAME + GetPathSep();
     }
 
-    void TimeoutHandler(int signum)
+    void TimeoutHandler(int /* signum */)
     {
         _exit(1);
     }

@@ -64,11 +64,11 @@ protected:
         uint8_t *bufIO;
     };
 
-    virtual bool SetupJdwpPoint(HCtxForward ctxPoint)
+    virtual bool SetupJdwpPoint(HCtxForward /* ctxPoint */)
     {
         return false;
     }
-    virtual bool SetupArkPoint(HCtxForward ctxPoint)
+    virtual bool SetupArkPoint(HCtxForward /* ctxPoint */)
     {
         return false;
     }

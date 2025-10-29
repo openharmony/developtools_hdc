@@ -179,11 +179,11 @@ protected:
     // review how about make a HUART in daemon side and put the devhandle in it ?
     int uartHandle = -1;
     virtual bool SendUARTRaw(HSession hSession, uint8_t *data, const size_t length);
-    virtual void SendUartSoftReset(HSession hUART, uint32_t sessionId) {};
+    virtual void SendUartSoftReset(HSession /* hUART */, uint32_t /* sessionId */) {};
     virtual RetErrCode ValidateUartPacket(vector<uint8_t> &data, uint32_t &sessionId,
                                           uint32_t &packageIndex, size_t &fullPackageLength);
     virtual void NotifyTransfer();
-    virtual void ResetOldSession(uint32_t sessionId)
+    virtual void ResetOldSession(uint32_t /* sessionId */)
     {
         return;
     }

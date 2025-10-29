@@ -747,20 +747,23 @@ template<class T, class Enable> struct Serializer {
 };
 
 template<> struct Serializer<int32_t> {
-    static void Serialize(uint32_t tag, int32_t value, FlagsType<>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, int32_t value, FlagsType<>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
         SerialDetail::WriteVarint(value, out);
     }
 
-    static void Serialize(uint32_t tag, int32_t value, FlagsType<flags::s>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, int32_t value, FlagsType<flags::s>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
         SerialDetail::WriteSignedVarint(value, out);
     }
 
     static void Serialize(
-        uint32_t tag, int32_t value, FlagsType<flags::s | flags::f>, Writer &out, bool force = false)
+        uint32_t tag, int32_t value, FlagsType<flags::s | flags::f>, Writer &out,
+        [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::FIXED32, out);
         SerialDetail::WriteSignedFixed(value, out);
@@ -819,13 +822,15 @@ template<> struct Serializer<int32_t> {
 };
 
 template<> struct Serializer<uint32_t> {
-    static void Serialize(uint32_t tag, uint32_t value, FlagsType<>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, uint32_t value, FlagsType<>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
         SerialDetail::WriteVarint(value, out);
     }
 
-    static void Serialize(uint32_t tag, uint32_t value, FlagsType<flags::f>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, uint32_t value, FlagsType<flags::f>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::FIXED32, out);
         SerialDetail::WriteFixed(value, out);
@@ -867,20 +872,23 @@ template<> struct Serializer<uint32_t> {
 };
 
 template<> struct Serializer<int64_t> {
-    static void Serialize(uint32_t tag, int64_t value, FlagsType<>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, int64_t value, FlagsType<>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
         SerialDetail::WriteVarint(value, out);
     }
 
-    static void Serialize(uint32_t tag, int64_t value, FlagsType<flags::s>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, int64_t value, FlagsType<flags::s>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
         SerialDetail::WriteSignedVarint(value, out);
     }
 
     static void Serialize(
-        uint32_t tag, int64_t value, FlagsType<flags::s | flags::f>, Writer &out, bool force = false)
+        uint32_t tag, int64_t value, FlagsType<flags::s | flags::f>, Writer &out,
+        [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::FIXED64, out);
         SerialDetail::WriteSignedFixed(value, out);
@@ -939,7 +947,8 @@ template<> struct Serializer<int64_t> {
 };
 
 template<> struct Serializer<uint64_t> {
-    static void Serialize(uint32_t tag, uint64_t value, FlagsType<>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, uint64_t value, FlagsType<>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::VARINT, out);
         SerialDetail::WriteVarint(value, out);
@@ -1114,7 +1123,8 @@ template<class T> struct Serializer<T, std::enable_if_t<std::is_enum_v<T>>> {
 };
 
 template<> struct Serializer<std::string> {
-    static void Serialize(uint32_t tag, const std::string &value, FlagsType<>, Writer &out, bool force = false)
+    static void Serialize(uint32_t tag, const std::string &value, FlagsType<>, Writer &out,
+                          [[maybe_unused]] bool force = false)
     {
         SerialDetail::WriteTagWriteType(tag, WireType::LENGTH_DELIMETED, out);
         SerialDetail::WriteVarint(value.size(), out);

@@ -45,7 +45,7 @@ private:
     bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck = false);
     static void OrderConnecTargetResult(uv_timer_t *req);
     bool SendToDaemon(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int bufSize);
-    int BindChannelToSession(HChannel hChannel, uint8_t *bufPtr, const int bytesIO);
+    int BindChannelToSession(HChannel hChannel);
     bool CheckAutoFillTarget(HChannel hChannel);
     bool CommandRemoveSession(HChannel hChannel, const char *connectKey);
     bool CommandRemoveForward(const string &forwardKey);

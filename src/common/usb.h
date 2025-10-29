@@ -22,15 +22,15 @@ public:
     HdcUSBBase(const bool serverOrDaemonIn, void *ptrMainBase);
     virtual ~HdcUSBBase();
     virtual bool ReadyForWorkThread(HSession hSession);
-    virtual void CancelUsbIo(HSession hSession) {};
+    virtual void CancelUsbIo(HSession /* hSession */) {};
     int SendUSBBlock(HSession hSession, uint8_t *data, const int length);
 
 protected:
-    virtual int SendUSBRaw(HSession hSession, uint8_t *data, const int length)
+    virtual int SendUSBRaw(HSession /* hSession */, uint8_t* /* data */, const int /* length */)
     {
         return 0;
     }
-    virtual int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize)
+    virtual int UsbToHdcProtocol(uv_stream_t* /* stream */, uint8_t* /* appendData */, int /* dataSize */)
     {
         return 0;
     };

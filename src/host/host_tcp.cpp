@@ -31,7 +31,7 @@ void HdcHostTCP::Stop()
 {
 }
 
-void HdcHostTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf)
+void HdcHostTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t* /* handle */, const uv_buf_t *rcvbuf)
 {
     char bufString[BUF_SIZE_TINY];
     int port = 0;

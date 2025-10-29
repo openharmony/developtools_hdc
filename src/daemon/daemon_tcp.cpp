@@ -63,7 +63,7 @@ void HdcDaemonTCP::TransmitConfig(const sockaddr *addrSrc, uv_udp_t *handle)
     uv_udp_send(req, handle, &sndbuf, 1, &addrSrcIPPort, SendUDPFinish);
 }
 
-void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int status)
+void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int /* status */)
 {
     uv_loop_t *ptrLoop = server->loop;
     uv_tcp_t *pServTCP = (uv_tcp_t *)server;
@@ -98,7 +98,7 @@ Finish:
     ptrConnect->FreeSession(hSession->sessionId);
 }
 
-void HdcDaemonTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf)
+void HdcDaemonTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t* /* rcvbuf */)
 {
     TransmitConfig(addrSrc, handle);
 }

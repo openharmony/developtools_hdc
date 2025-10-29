@@ -42,16 +42,16 @@ protected:
         char version[BUF_SIZE_TINY] = { 0 };
     } __attribute__((packed));
     uint32_t MallocChannel(HChannel *hOutChannel);
-    virtual int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
+    virtual int ReadChannel(HChannel /* hChannel */, uint8_t* /* bufPtr */, const int /* bytesIO */)
     {
         return 0;
     }
-    virtual void NotifyInstanceChannelFree(HChannel hChannel) {};
+    virtual void NotifyInstanceChannelFree(HChannel /* hChannel */) {};
     void Send(const uint32_t channelId, uint8_t *bufPtr, const int size);
     void SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size, const uint16_t commandFlag = 0);
     void SendChannelWithCmd(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int size);
     void EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int size);
-    virtual bool ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uint32_t sessionId)
+    virtual bool ChannelSendSessionCtrlMsg(vector<uint8_t>& /* ctrlMsg */, uint32_t /* sessionId */)
     {
         return true;  // just server use
     }

@@ -33,7 +33,7 @@ void HdcTCPBase::InitialChildClass(const bool serverOrDaemonIn, void *ptrMainBas
 }
 
 void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf, const struct sockaddr *addr,
-                         unsigned flags)
+                         unsigned /* flags */)
 {
     while (true) {
         HdcTCPBase *thisClass = (HdcTCPBase *)handle->data;
@@ -53,7 +53,7 @@ void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf
     delete[] rcvbuf->base;
 }
 
-void HdcTCPBase::AllocStreamUDP(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
+void HdcTCPBase::AllocStreamUDP(uv_handle_t* /* handle */, size_t /* sizeWanted */, uv_buf_t *buf)
 {
     int bufLen = BUF_SIZE_DEFAULT;
     char *pRecvBuf = reinterpret_cast<char *>(new uint8_t[bufLen]());
@@ -64,7 +64,7 @@ void HdcTCPBase::AllocStreamUDP(uv_handle_t *handle, size_t sizeWanted, uv_buf_t
     buf->len = bufLen;
 }
 
-void HdcTCPBase::SendUDPFinish(uv_udp_send_t *req, int status)
+void HdcTCPBase::SendUDPFinish(uv_udp_send_t *req, int /* status */)
 {
     delete req;
 }

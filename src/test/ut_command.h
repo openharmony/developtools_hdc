@@ -46,7 +46,7 @@ int TestRuntimeCommand(const int method, const string &debugServerPort, const st
 int TestRuntimeCommandSimple(bool bTCPorUSB, int method, bool bNeedConnectDaemon);
 void TestRunClient(const string &debugServerPort, const string &debugConnectKey, const string &cmd);
 void PreConnectDaemon(const string &debugServerPort, const string &debugConnectKey);
-void *TestBackgroundServerForClient(void *param);
+void *TestBackgroundServerForClient();
 void *DdmcallThreadEntry(void *param);
 int DdmCallCommandEntry(int argc, const char *argv[]);
 }  // namespace HdcTest

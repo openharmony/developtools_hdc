@@ -26,7 +26,7 @@ public:
     int WriteUvTcpFd(uv_tcp_t *tcp, uint8_t *buf, int size);
 
 protected:
-    virtual void RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const uv_buf_t *rcvbuf)
+    virtual void RecvUDPEntry(const sockaddr* /* addrSrc */, uv_udp_t* /* handle */, const uv_buf_t* /* rcvbuf */)
     {
     }
     static void RecvUDP(

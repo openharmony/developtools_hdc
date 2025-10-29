@@ -76,8 +76,8 @@ bool HdcdConnection::GetShowDialogResult(void)
     return showDialogResult;
 }
 
-void HdcdConnection::OnAbilityDisconnectDone(const AppExecFwk::ElementName &element,
-    int32_t resultCode)
+void HdcdConnection::OnAbilityDisconnectDone(const AppExecFwk::ElementName& /* element */,
+                                             int32_t /* resultCode */)
 {
     AUTH_LOGE("disconnect success");
 }

@@ -245,7 +245,8 @@ void TestForwardExternThread(void *arg)
     uv_tcp_t client;
     const int clientForwardTimeout = 1000;
     bool *clientOK = (bool *)arg;
-    auto funcDelayCallUtForwardConnect = [&](const uint8_t flag, string &msg, const void *p) -> void {
+    auto funcDelayCallUtForwardConnect = [clientOK, &loop](const uint8_t /* flag */,
+                    string& /* msg */, const void* /* p */) -> void {
         if (!*clientOK) {
             // client create forward timeout
             WRITE_LOG(LOG_WARN, "Client forward timeout");

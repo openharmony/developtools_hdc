@@ -100,7 +100,7 @@ void FreeInstance()
     g_jdwpSimulatorFree = false;
 }
 
-void Stop(int signo)
+void Stop(int /* signo */)
 {
     FreeInstance();
     _exit(0);

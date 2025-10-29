@@ -46,7 +46,7 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
     }
 }
 
-void HdcSubscriber::OnAccountsChanged(const int& id)
+void HdcSubscriber::OnAccountsChanged(const int& /* id */)
 {
 }
 

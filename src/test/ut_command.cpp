@@ -16,7 +16,7 @@
 using namespace Hdc;
 
 namespace HdcTest {
-void *TestBackgroundServerForClient(void *param)
+void *TestBackgroundServerForClient()
 {
     HdcServer server(true);
     server.Initial("0.0.0.0:8710");

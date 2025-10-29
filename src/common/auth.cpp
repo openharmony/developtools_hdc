@@ -31,26 +31,26 @@ namespace HdcAuth {
 // ---------------------------------------Cheat compiler---------------------------------------------------------
 #ifdef HDC_HOST
 
-bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen)
+bool AuthVerify(uint8_t* /* token */, uint8_t* /* sig */, int /* siglen */)
 {
     return false;
 };
-bool PostUIConfirm(string publicKey)
+bool PostUIConfirm(string /* publicKey */)
 {
     return false;
 }
 
 #else  // daemon
 
-bool GenerateKey(const char *file)
+bool GenerateKey(const char* /* file */)
 {
     return false;
 };
-int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig)
+int AuthSign(void* /* rsa */, const unsigned char* /* token */, size_t /* tokenSize */, void* /* sig */)
 {
     return 0;
 };
-int GetPublicKeyFileBuf(unsigned char *data, size_t len)
+int GetPublicKeyFileBuf(unsigned char* /* data */, size_t /* len */)
 {
     return 0;
 }
@@ -463,7 +463,7 @@ void LoadDaemonKey(list<void *> *listPublicKey)
     }
 }
 
-bool PostUIConfirm(string publicKey)
+bool PostUIConfirm(string /* publicKey */)
 {
     // Because the Hi3516 development board has no UI support for the time being, all public keys are received and
     // By default, the system UI will record the public key /data/misc/hdc/hdckey/data/misc/hdc/hdckey

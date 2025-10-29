@@ -66,7 +66,7 @@ void ExtClient::ExecuteCommand(const string &command)
     if (!strncmp(command.c_str(), CMDSTR_SOFTWARE_VERSION.c_str(), CMDSTR_SOFTWARE_VERSION.size())) {
         Version(command);
     } else if (!strncmp(command.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size())) {
-        Help(command);
+        Help();
     } else if (!strncmp(command.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size())) {
         Discover(command);
     } else if (!strncmp(command.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
@@ -116,7 +116,7 @@ void ExtClient::Version(const std::string &str)
     Handle(str, name);
 }
 
-void ExtClient::Help(const std::string &str)
+void ExtClient::Help()
 {
     return;
 }
@@ -364,7 +364,7 @@ void ExtClient::WaitForExtent(const std::string &str)
     uv_dlclose(&uvLib);
 }
 
-static void OnExit(uv_process_t *req, int64_t exitStatus, int termSignal)
+static void OnExit(uv_process_t *req, int64_t /* exitStatus */, int /* termSignal */)
 {
     uv_close((uv_handle_t*) req, nullptr);
 }

@@ -114,7 +114,7 @@ bool Entry::CopyPayload(std::string prefixPath, std::ifstream &inFile)
             break;
         }
         case TypeFlage::DIRECTORY: {
-            if (!PayloadToDir(prefixPath, inFile)) {
+            if (!PayloadToDir(prefixPath)) {
                 return false;
             }
             break;
@@ -181,7 +181,7 @@ bool Entry::ReadAndWriteData(std::ifstream &inFile, std::ofstream &outFile, uint
     return true;
 }
 
-bool Entry::PayloadToDir(std::string prefixPath, std::ifstream &inFile)
+bool Entry::PayloadToDir(std::string prefixPath)
 {
     std::string saveFile = "";
     auto dirPath = prefixPath.append(GetName());

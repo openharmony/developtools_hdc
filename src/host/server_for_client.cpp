@@ -24,7 +24,6 @@
 #include "host_shell_option.h"
 
 namespace Hdc {
-static const int MAX_RETRY_COUNT = 500;
 static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
 #ifdef __OHOS__
 static const int MAX_CONNECTIONS_COUNT = 16;
@@ -444,20 +443,27 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
                 sRet = "Connect OK";
                 thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
             }
-            break;
         } else {
             uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
             ++(*bRetryCount);
-            if (*bRetryCount > MAX_RETRY_COUNT ||
-                (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT)) {
-                // 5s or localDevice 1s
+            if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
                 bExitRepet = true;
+            } else {
+                HSession hSession = hdi->hSession;
+                if (hSession != nullptr) {
+                    if (!hSession->isRunningOk) {
+                        bExitRepet = true;
+                    }
+                } else {
+                    bExitRepet = true;
+                }
+            }
+            if (bExitRepet) {
                 sRet = "Connect failed";
                 thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
                 hdi->inited = false;
                 hdi->connStatus = STATUS_OFFLINE;
                 ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
-                break;
             }
         }
         break;

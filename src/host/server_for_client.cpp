@@ -414,6 +414,23 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
 #endif
 }
 
+static bool IsRunningOk(HDaemonInfo hdi)
+{
+    bool b = false;
+    if (hdi == nullptr) {
+        return true;
+    }
+    HSession hSession = hdi->hSession;
+    if (hSession != nullptr) {
+        if (!hSession->isRunningOk) {
+            b = true;
+        }
+    } else {
+        b = true;
+    }
+    return b;
+}
+
 void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
 {
     HChannel hChannel = (HChannel)req->data;
@@ -432,41 +449,31 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     if (hdi && hdi->connStatus == STATUS_CONNECTED) {
         bConnectOK = true;
     }
-    while (true) {
-        if (bConnectOK) {
-            bExitRepet = true;
-            if (hChannel->isCheck) {
-                WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
-                thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
-                thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
-            } else {
-                sRet = "Connect OK";
-                thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
-            }
+    if (bConnectOK) {
+        bExitRepet = true;
+        if (hChannel->isCheck) {
+            WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
+            thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
+            thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
         } else {
-            uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
-            ++(*bRetryCount);
-            if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
-                bExitRepet = true;
-            } else {
-                HSession hSession = hdi->hSession;
-                if (hSession != nullptr) {
-                    if (!hSession->isRunningOk) {
-                        bExitRepet = true;
-                    }
-                } else {
-                    bExitRepet = true;
-                }
-            }
-            if (bExitRepet) {
-                sRet = "Connect failed";
-                thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
-                hdi->inited = false;
-                hdi->connStatus = STATUS_OFFLINE;
-                ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
-            }
+            sRet = "Connect OK";
+            thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
         }
-        break;
+    } else {
+        uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
+        ++(*bRetryCount);
+        if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
+            bExitRepet = true;
+        } else {
+            bExitRepet = IsRunningOk(hdi);
+        }
+        if (bExitRepet) {
+            sRet = "Connect failed";
+            thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
+            hdi->inited = false;
+            hdi->connStatus = STATUS_OFFLINE;
+            ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
+        }
     }
     if (bExitRepet) {
         thisClass->FreeChannel(hChannel->channelId);

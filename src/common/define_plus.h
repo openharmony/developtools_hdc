@@ -264,7 +264,7 @@ struct HdcSession {
 
     HdcSessionStat stat;
 #ifdef HDC_HOST
-    std::atomic<bool> isRunningOk;
+    bool isRunningOk;
     std::string faultInfo;
     uint64_t commandCount = 0;
     std::string ToDisplayConnectionStr()

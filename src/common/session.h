@@ -229,6 +229,7 @@ private:
     void StartHeartbeatWork(HSession hSession);
     void SetFeature(SessionHandShake &handshake);
     void StopHeartbeatWork(HSession hSession);
+    static void TaskClassDeleteRetry(uv_timer_t *handle);
 
     map<uint32_t, HSession> mapSession;
     uv_rwlock_t lockMapSession;

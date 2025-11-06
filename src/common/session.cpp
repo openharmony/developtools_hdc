@@ -99,10 +99,50 @@ bool HdcSessionBase::TryRemoveTask(HTaskInfo hTask)
     return ret;
 }
 
+void HdcSessionBase::TaskClassDeleteRetry(uv_timer_t *handle)
+{
+    StartTraceScope("HdcSessionBase::BeginRemoveTask taskClassDeleteRetry");
+    HTaskInfo hTask = (HTaskInfo)handle->data;
+    HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
+    if (hTask->isCleared == false) {
+        hTask->isCleared = true;
+        WRITE_LOG(LOG_WARN, "taskClassDeleteRetry start clear task, taskType:%d cid:%u sid:%u",
+            hTask->taskType, hTask->channelId, hTask->sessionId);
+        bool ret = thisClass->RemoveInstanceTask(OP_CLEAR, hTask);
+        if (!ret) {
+            WRITE_LOG(LOG_WARN, "taskClassDeleteRetry RemoveInstanceTask return false taskType:%d cid:%u sid:%u",
+                hTask->taskType, hTask->channelId, hTask->sessionId);
+        }
+    }
+
+    constexpr uint32_t count = 1000;
+    if (hTask->closeRetryCount == 0 || hTask->closeRetryCount > count) {
+        WRITE_LOG(LOG_DEBUG, "TaskDelay task remove retry count %d/%d, taskType:%d channelId:%u, sessionId:%u",
+            hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->taskType, hTask->channelId, hTask->sessionId);
+        hTask->closeRetryCount = 1;
+    }
+    hTask->closeRetryCount++;
+    if (!thisClass->TryRemoveTask(hTask)) {
+        WRITE_LOG(LOG_WARN, "TaskDelay TryRemoveTask false channelId:%u", hTask->channelId);
+        return;
+    }
+    WRITE_LOG(LOG_WARN, "TaskDelay task remove finish, channelId:%u", hTask->channelId);
+    if (hTask != nullptr) {
+        delete hTask;
+        hTask = nullptr;
+    }
+    thisClass->taskCount--;
+    Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
+}
+
 // remove step1
 void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
 {
     StartTraceScope("HdcSessionBase::BeginRemoveTask");
+    if (hTask == nullptr) {
+        WRITE_LOG(LOG_FATAL, "BeginRemoveTask hTask is null");
+        return;
+    }
     if (hTask->taskStop || hTask->taskFree) {
         WRITE_LOG(LOG_WARN, "BeginRemoveTask channelId:%u taskStop:%d taskFree:%d",
             hTask->channelId, hTask->taskStop, hTask->taskFree);
@@ -110,41 +150,7 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
     }
 
     WRITE_LOG(LOG_WARN, "BeginRemoveTask taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
-    auto taskClassDeleteRetry = [](uv_timer_t *handle) -> void {
-        StartTraceScope("HdcSessionBase::BeginRemoveTask taskClassDeleteRetry");
-        HTaskInfo hTask = (HTaskInfo)handle->data;
-        HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
-        if (hTask->isCleared == false) {
-            hTask->isCleared = true;
-            WRITE_LOG(LOG_WARN, "taskClassDeleteRetry start clear task, taskType:%d cid:%u sid:%u",
-                hTask->taskType, hTask->channelId, hTask->sessionId);
-            bool ret = thisClass->RemoveInstanceTask(OP_CLEAR, hTask);
-            if (!ret) {
-                WRITE_LOG(LOG_WARN, "taskClassDeleteRetry RemoveInstanceTask return false taskType:%d cid:%u sid:%u",
-                    hTask->taskType, hTask->channelId, hTask->sessionId);
-            }
-        }
-
-        constexpr uint32_t count = 1000;
-        if (hTask->closeRetryCount == 0 || hTask->closeRetryCount > count) {
-            WRITE_LOG(LOG_DEBUG, "TaskDelay task remove retry count %d/%d, taskType:%d channelId:%u, sessionId:%u",
-                hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->taskType, hTask->channelId, hTask->sessionId);
-            hTask->closeRetryCount = 1;
-        }
-        hTask->closeRetryCount++;
-        if (!thisClass->TryRemoveTask(hTask)) {
-            WRITE_LOG(LOG_WARN, "TaskDelay TryRemoveTask false channelId:%u", hTask->channelId);
-            return;
-        }
-        WRITE_LOG(LOG_WARN, "TaskDelay task remove finish, channelId:%u", hTask->channelId);
-        if (hTask != nullptr) {
-            delete hTask;
-            hTask = nullptr;
-        }
-        thisClass->taskCount--;
-        Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
-    };
-    Base::TimerUvTask(hTask->runLoop, hTask, taskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
+    Base::TimerUvTask(hTask->runLoop, hTask, TaskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
 
     hTask->taskStop = true;
 }

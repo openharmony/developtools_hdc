@@ -414,21 +414,19 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
 #endif
 }
 
-static bool IsRunningOk(HDaemonInfo hdi)
+static bool IsDisconnect(HDaemonInfo hdi)
 {
-    bool b = false;
     if (hdi == nullptr) {
         return true;
     }
     HSession hSession = hdi->hSession;
-    if (hSession != nullptr) {
-        if (!hSession->isRunningOk) {
-            b = true;
-        }
-    } else {
-        b = true;
+    if (hSession == nullptr) {
+        return true;
     }
-    return b;
+    if (!hSession->isRunningOk) {
+        return true;
+    }
+    return false;
 }
 
 void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
@@ -465,7 +463,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
         if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
             bExitRepet = true;
         } else {
-            bExitRepet = IsRunningOk(hdi);
+            bExitRepet = IsDisconnect(hdi);
         }
         if (bExitRepet) {
             sRet = "Connect failed";
@@ -1122,7 +1120,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
         return ERR_HANDSHAKE_CONNECTKEY_FAILED;
     }
     // channel handshake step3
-    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%u handshake finished",
+    WRITE_LOG(LOG_INFO, "ServerForClient cid:%u sid:%u handshake finished",
         hChannel->channelId, hChannel->targetSessionId);
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;

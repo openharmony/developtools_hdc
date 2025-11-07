@@ -1120,7 +1120,7 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
         return ERR_HANDSHAKE_CONNECTKEY_FAILED;
     }
     // channel handshake step3
-    WRITE_LOG(LOG_INFO, "ServerForClient cid:%u sid:%u handshake finished",
+    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%u handshake finished",
         hChannel->channelId, hChannel->targetSessionId);
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;

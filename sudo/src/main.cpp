@@ -318,6 +318,7 @@ static bool GetChallenge()
         } else {
             WriteStdErr("init challenge failed\n");
         }
+        return false;
     }
     return true;
 }

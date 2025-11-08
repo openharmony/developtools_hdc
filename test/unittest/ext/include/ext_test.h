@@ -15,19 +15,6 @@
 #ifndef HDC_EXT_TEST_H
 #define HDC_EXT_TEST_H
 #include <gtest/gtest.h>
-#include <fstream>
-#include <sys/stat.h>
-#include <chrono>
-#include "base.h"
-#include "circle_buffer.h"
-#include "compress.h"
-#include "credential_message.h"
-#include "decompress.h"
-#include "header.h"
-#include "heartbeat.h"
-#include "server_cmd_log.h"
-#include "auth.h"
-#include "entry.h"
 namespace Hdc {
 class HdcExtTest : public ::testing::Test {
 public:
@@ -36,17 +23,6 @@ public:
     void SetUp();
     void TearDown();
     void RemoveTestFiles();
-protected:
-    CircleBuffer* buffer;
-    Compress* compress;
-    CredentialMessage* message;
-    Decompress* decompress;
-    Entry* entry;
-    Header* header;
-    HdcHeartbeat* heartbeat;
-    ServerCmdLog* serverCmdLog;
-    std::string testKeyPath;
-    std::string testPubKeyPath;
 };
 }   // namespace Hdc
 #endif  // HDC_EXT_TEST_H

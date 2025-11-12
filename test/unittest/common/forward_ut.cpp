@@ -401,4 +401,39 @@ HWTEST_F(HdcForwardBaseTest, DetectForwardType_TC08_INVALID, TestSize.Level0)
     delete ctx;
 }
 
+HWTEST_F(HdcForwardBaseTest, CheckNodeInfo_WhitespaceInput, TestSize.Level0)
+{
+    std::string as[2];
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+    EXPECT_FALSE(forward.CheckNodeInfo(" ", as));
+    EXPECT_TRUE(forward.CheckNodeInfo("tcp:8080 ", as));
+
+    delete info;
+}
+
+HWTEST_F(HdcForwardBaseTest, DetectForwardType_EmptyArgs, TestSize.Level0)
+{
+    auto* ctx = new HdcForwardBase::ContextForward();
+    ctx->localArgs[0] = "";
+    ctx->localArgs[1] = "";
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+    EXPECT_FALSE(forward.DetechForwardType(ctx));
+
+    delete info;
+    delete ctx;
+}
+
+HWTEST_F(HdcForwardBaseTest, StopTask_EmptyMap, TestSize.Level0)
+{
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+
+    EXPECT_TRUE(forward.mapCtxPoint.empty());
+    forward.StopTask();
+    EXPECT_TRUE(forward.mapCtxPoint.empty());
+
+    delete info;
+}
 } // namespace Hdc

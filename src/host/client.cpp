@@ -23,6 +23,9 @@
 #include "system_depend.h"
 #endif
 #include "file.h"
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#include "command_event_report.h"
+#endif
 
 std::map<std::string, std::string> g_lists;
 bool g_show = true;
@@ -438,9 +441,24 @@ bool IsCaptureCommand(const string& cmd)
     return false;
 }
 
+static bool ReportCommandEvent(const string &commandIn)
+{
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+    if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(commandIn, Base::GetCaller())) {
+        WRITE_LOG(LOG_FATAL,
+            "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+        return false;
+    }
+#endif
+    return true;
+}
+
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
+    if (!ReportCommandEvent(commandIn)) {
+        return -1;
+    }
 #ifdef __OHOS__
     if (IsNeedInterceptCommand()) {
         WRITE_LOG(LOG_FATAL, "[E00C001]Operation restricted by the organization.");
@@ -456,19 +474,16 @@ int HdcClient::ExecuteCommand(const string &commandIn)
         return -1;
 #endif
     }
-
     if (!strncmp(commandIn.c_str(), CMDSTR_HILOG.c_str(), CMDSTR_HILOG.size()) &&
         IsCaptureCommand(commandIn)) {
         RunExecuteCommand(commandIn);
         return 0;
     }
-
     if (!strncmp(commandIn.c_str(), CMDSTR_FILE_SEND.c_str(), CMDSTR_FILE_SEND.size()) ||
         !strncmp(commandIn.c_str(), CMDSTR_FILE_RECV.c_str(), CMDSTR_FILE_RECV.size())) {
         WRITE_LOG(LOG_DEBUG, "Set file send mode");
         channel->remote = RemoteType::REMOTE_FILE;
-    }
-    if (!strncmp(commandIn.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
+    } else if (!strncmp(commandIn.c_str(), CMDSTR_APP_INSTALL.c_str(), CMDSTR_APP_INSTALL.size())) {
         channel->remote = RemoteType::REMOTE_APP;
     }
     command = commandIn;

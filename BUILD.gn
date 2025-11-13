@@ -167,6 +167,14 @@ template("hdcd_source_set") {
       defines += [ "HDC_VERSION_CHECK" ]
     }
 
+    if (hdc_feature_support_report_command_event) {
+      defines += [ "HDC_SUPPORT_REPORT_COMMAND_EVENT" ]
+      sources += [ "src/common/credential_message.cpp" ]
+      sources += [ "src/common/command_event_report.cpp" ]
+      defines += [ "DAEMON_ONLY" ]
+      external_deps += [ "common_event_service:cesfwk_innerkits" ]
+    }
+
     ldflags = [ "-rdynamic" ]
 
     subsystem_name = "developtools"
@@ -418,8 +426,10 @@ ohos_executable("hdc") {
     ]
     sources += [ "src/common/hdc_huks.cpp" ]
     sources += [ "src/common/password.cpp" ]
+    sources += [ "src/common/command_event_report.cpp" ]
     defines += [ "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY" ]
     defines += [ "HOST_OHOS" ]
+    defines += [ "HDC_SUPPORT_REPORT_COMMAND_EVENT" ]
     external_deps += [
       "huks:libhukssdk",
       "c_utils:utils",

@@ -26,6 +26,7 @@ declare_args() {
   hdc_feature_support_sudo = false
   hdc_support_account_constraint = true
   hdc_feature_support_credential = false
+  hdc_feature_support_report_command_event = false
 
   if (defined(global_parts_info)) {
     if (defined(global_parts_info.ability_ability_base)) {

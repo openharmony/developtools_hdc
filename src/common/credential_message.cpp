@@ -176,3 +176,26 @@ std::string IntToStringWithPadding(int length, int maxLen)
     }
     return std::string(static_cast<size_t>(maxLen) - str.length(), '0') + str;
 }
+
+void SplitString(const std::string &origString, const std::string &seq,
+                 std::vector<std::string> &resultStrings)
+{
+    if (seq.empty()) {
+        return;
+    }
+
+    std::string::size_type p1 = 0;
+    std::string::size_type p2 = origString.find(seq);
+
+    while (p2 != std::string::npos) {
+        resultStrings.push_back(origString.substr(p1, p2 - p1));
+        p1 = p2 + seq.size();
+        p2 = origString.find(seq, p1);
+    }
+
+    if (p1 != origString.size()) {
+        resultStrings.push_back(origString.substr(p1));
+    } else if (p1 == origString.size() && p2 == std::string::npos) {
+        resultStrings.push_back("");
+    }
+}

@@ -14,7 +14,8 @@
     "subsystem": "developtools",
     "features": [
       "hdc_feature_support_sudo",
-      "hdc_feature_support_credential"
+      "hdc_feature_support_credential",
+      "hdc_feature_support_report_command_event"
     ],
     "adapted_system_type": [
       "standard"

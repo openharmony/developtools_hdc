@@ -41,7 +41,7 @@
 namespace HdcCredentialBase {
 // 0x10000000 is 1.0.0a
 constexpr uint32_t CREDENTIAL_VERSION_NUMBER = 0x10000000;
-constexpr size_t SOCKET_CLIENT_NUMS = 1;
+constexpr size_t SOCKET_CLIENT_NUMS = 1024;
 
 const std::string HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS = "hdc_private_key_file_pwd_key_alias";
 constexpr size_t PASSWORD_LENGTH = 10;

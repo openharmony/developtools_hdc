@@ -25,6 +25,9 @@
 #include <fstream>
 #include <unistd.h>
 #include <sys/wait.h>
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#include "command_event_report.h"
+#endif
 
 namespace Hdc {
 #ifdef USE_CONFIG_UV_THREADS
@@ -989,10 +992,49 @@ bool HdcDaemon::CheckAuthStatus(HSession hSession, const uint32_t channelId, con
     return true;
 }
 
+static std::map<HdcCommand, std::string> DaemonReportMap = {
+    {HdcCommand::CMD_KERNEL_TARGET_CONNECT, CMDSTR_CONNECT_TARGET},
+    {HdcCommand::CMD_SHELL_INIT, CMDSTR_SHELL},
+    {HdcCommand::CMD_UNITY_RUNMODE, CMDSTR_TARGET_MODE},
+    {HdcCommand::CMD_APP_CHECK, CMDSTR_APP_INSTALL},
+    {HdcCommand::CMD_APP_UNINSTALL, CMDSTR_APP_UNINSTALL},
+    {HdcCommand::CMD_FORWARD_CHECK, CMDSTR_FORWARD_FPORT},
+    {HdcCommand::CMD_FORWARD_INIT, CMDSTR_FORWARD_RPORT},
+    {HdcCommand::CMD_UNITY_HILOG, CMDSTR_HILOG},
+    {HdcCommand::CMD_JDWP_LIST, CMDSTR_LIST_JDWP},
+    {HdcCommand::CMD_JDWP_TRACK, CMDSTR_TRACK_JDWP},
+    {HdcCommand::CMD_UNITY_REMOUNT, CMDSTR_TARGET_MOUNT},
+    {HdcCommand::CMD_UNITY_REBOOT, CMDSTR_TARGET_REBOOT},
+    {HdcCommand::CMD_UNITY_BUGREPORT_INIT, CMDSTR_BUGREPORT},
+};
+
+static bool ReportCommandEvent(HSession hSession, const uint32_t channelId, const uint16_t command,
+                               uint8_t *payload, const int payloadSize)
+{
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+    if (Hdc::DaemonReportMap[Hdc::HdcCommand(command)] != "" &&
+        !DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
+            Hdc::DaemonReportMap[Hdc::HdcCommand(command)] + " " +
+            std::string(reinterpret_cast<char *>(payload), payloadSize),
+            Base::GetCaller(), Hdc::DaemonReportMap[Hdc::HdcCommand(command)]
+        )) {
+            WRITE_LOG(LOG_FATAL,
+                "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+            return false;
+        }
+#endif
+    return true;
+}
+
 bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
 {
     StartTraceScope("HdcDaemon::FetchCommand");
+    if (!ReportCommandEvent(hSession, channelId, command, payload, payloadSize)) {
+        std::string msg = "[E00C002]Execution intercepted due to inaccessibility of reporting command event.";
+        LogMsg(hSession->sessionId, channelId, MSG_FAIL, msg.c_str());
+        return false;
+    }
     bool ret = true;
     if (!CheckAuthStatus(hSession, channelId, command)) {
         return true;

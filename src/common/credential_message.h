@@ -47,6 +47,8 @@ bool IsNumeric(const std::string& str);
 int StripLeadingZeros(const std::string& input);
 std::string IntToStringWithPadding(int length, int maxLen);
 std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
+void SplitString(const std::string &origString, const std::string &seq,
+                 std::vector<std::string> &resultStrings);
 
 constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
 constexpr size_t MESSAGE_VERSION_POS = 0;
@@ -56,13 +58,39 @@ constexpr size_t MESSAGE_LENGTH_POS = 4;
 constexpr size_t MESSAGE_LENGTH_LEN = 4;
 constexpr size_t MESSAGE_BODY_POS = 8;
 
+const size_t MESSAGE_PARAM_COMMAND_EVENT_REPORT_SIZE = 6;
+const size_t MESSAGE_PARAM_RETURN_MAX_SIZE = 16;
+const std::string HDC_COMMAND_REPORT = "usual.event.HDC_COMMAND_REPORT";
+const std::string EVENT_PARAM_REPORT_USERID = "userId";
+const std::string EVENT_PARAM_REPORT_ROLE = "role";
+const std::string EVENT_PARAM_REPORT_STATUS = "status";
+const std::string EVENT_PARAM_REPORT_TIME = "happenTime";
+const std::string EVENT_PARAM_REPORT_COMMAND = "command";
+const std::string EVENT_PARAM_REPORT_CONTENT = "content";
+const std::string EVENT_PARAM_RETURN_SUCCESS = "success";
+const std::string EVENT_PARAM_RETURN_FAILED = "failed";
+
 enum V1MethodID {
     METHOD_ENCRYPT = 1,
     METHOD_DECRYPT,
 };
 
+enum V2MethodID {
+    METHOD_COMMAND_EVENT_REPORT = 1
+};
+
+enum MethodCommandEventReportParamIndex {
+    PARAM_REPORT_USERID = 0,
+    PARAM_REPORT_ROLE,
+    PARAM_REPORT_TIME,
+    PARAM_REPORT_STATUS,
+    PARAM_REPORT_COMMAND,
+    PARAM_REPORT_CONTENT,
+};
+
 enum MethodVersion {
     METHOD_VERSION_V1 = 1,
+    METHOD_VERSION_V2 = 2,
     METHOD_VERSION_MAX = 9,
 };
 

@@ -22,6 +22,9 @@
 #include "system_depend.h"
 #endif
 #include "host_shell_option.h"
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#include "command_event_report.h"
+#endif
 
 namespace Hdc {
 static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
@@ -1146,12 +1149,30 @@ void HdcServerForClient::ReportServerVersion(HChannel hChannel)
                        version.size());
 }
 
+static bool ReportCommandEvent(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
+{
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+    if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
+        std::string(reinterpret_cast<char *>(bufPtr), bytesIO), Base::GetCaller())) {
+        WRITE_LOG(LOG_FATAL,
+            "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+        return false;
+        }
+#endif
+    return true;
+}
+
 // Here is Server to get data, the source is the SERVER's ChildWork to send data
 int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
 {
     StartTraceScope("HdcServerForClient::ReadChannel");
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
+    }
+    if (!ReportCommandEvent(hChannel, bufPtr, bytesIO)) {
+        EchoClient(hChannel, MSG_FAIL,
+            "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+        return ERR_GENERIC;
     }
 #ifdef __OHOS__
     if (IsNeedInterceptCommand()) {

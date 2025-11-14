@@ -43,6 +43,9 @@ namespace Base {
         SERVER = 1,
         DAEMON = 2,
     };
+    const std::string CALLER_CLIENT = "client";
+    const std::string CALLER_SERVER = "server";
+    const std::string CALLER_DAEMON = "daemon";
     uint8_t GetLogLevel();
     extern bool g_isBackgroundServer;
     extern uint8_t g_logLevel;

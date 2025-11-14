@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 #include <sys/socket.h>
+#include <want.h>
+#include <common_event_manager.h>
+#include <common_event_publish_info.h>
+
 #include "credential_base.h"
 #include "credential_message.h"
 #include "hdc_huks.h"
@@ -107,14 +111,8 @@ std::string DecryptPwd(const std::string& messageStr)
     return pwdStr;
 }
 
-std::string ParseAndProcessMessageStr(const std::string& messageStr)
+void HandleV1Message(CredentialMessage& messageStruct, std::string& needSendStr)
 {
-    CredentialMessage messageStruct(messageStr);
-    if (messageStruct.GetMessageBody().empty() ||
-        messageStruct.GetMessageVersion() != METHOD_VERSION_V1) {
-        WRITE_LOG(LOG_FATAL, "Invalid message structure or version not v1.");
-        return "";
-    }
     std::string processMessageValue;
     switch (messageStruct.GetMessageMethodType()) {
         case METHOD_ENCRYPT: {
@@ -127,13 +125,106 @@ std::string ParseAndProcessMessageStr(const std::string& messageStr)
         }
         default: {
             WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
-            return "";
+            return;
         }
     }
 
     messageStruct.SetMessageBody(processMessageValue);
+    needSendStr = messageStruct.Construct();
+}
 
-    return messageStruct.Construct();
+std::string HandleCommandEventMessage(const std::string& messageStr)
+{
+    if (messageStr.empty()) {
+        WRITE_LOG(LOG_FATAL, "HandleCommandEventMessage failed, message is empty.");
+        return EVENT_PARAM_RETURN_FAILED;
+    }
+
+    std::vector<std::string> parts;
+    SplitString(messageStr, ";", parts);
+    if (parts.size() != MESSAGE_PARAM_COMMAND_EVENT_REPORT_SIZE) {
+        WRITE_LOG(LOG_FATAL, "HandleCommandEventMessage failed, split string num is %d.", parts.size());
+        return EVENT_PARAM_RETURN_FAILED;
+    }
+
+    OHOS::AAFwk::Want want;
+    want.SetAction(HDC_COMMAND_REPORT);
+    try {
+        want.SetParam(EVENT_PARAM_REPORT_USERID, std::stoi(parts[PARAM_REPORT_USERID]));
+        want.SetParam(EVENT_PARAM_REPORT_TIME, std::stoll(parts[PARAM_REPORT_TIME]));
+    } catch (const std::invalid_argument &except) {
+        WRITE_LOG(LOG_FATAL, "Param out of range, userId: %s, time: %s.",
+            parts[PARAM_REPORT_USERID].c_str(), parts[PARAM_REPORT_TIME].c_str());
+        return EVENT_PARAM_RETURN_FAILED;
+    } catch (const std::out_of_range &except) {
+        WRITE_LOG(LOG_FATAL, "Invalid argument, userId: %s, time: %s.",
+            parts[PARAM_REPORT_USERID].c_str(), parts[PARAM_REPORT_TIME].c_str());
+        return EVENT_PARAM_RETURN_FAILED;
+    } catch (...) {
+        WRITE_LOG(LOG_FATAL, "Unknown error, userId: %s, time: %s.",
+            parts[PARAM_REPORT_USERID].c_str(), parts[PARAM_REPORT_TIME].c_str());
+        return EVENT_PARAM_RETURN_FAILED;
+    }
+    want.SetParam(EVENT_PARAM_REPORT_ROLE, parts[PARAM_REPORT_ROLE]);
+    want.SetParam(EVENT_PARAM_REPORT_STATUS, parts[PARAM_REPORT_STATUS]);
+    want.SetParam(EVENT_PARAM_REPORT_COMMAND, parts[PARAM_REPORT_COMMAND]);
+    want.SetParam(EVENT_PARAM_REPORT_CONTENT, parts[PARAM_REPORT_CONTENT]);
+
+    OHOS::EventFwk::CommonEventData event {want};
+    OHOS::EventFwk::CommonEventPublishInfo publishInfo;
+    publishInfo.SetOrdered(true);
+    int32_t ret = OHOS::EventFwk::CommonEventManager::NewPublishCommonEvent(event, publishInfo);
+    if (ret != 0) {
+        WRITE_LOG(LOG_FATAL, "NewPublishCommonEvent error: %d.", ret);
+        return EVENT_PARAM_RETURN_FAILED;
+    }
+
+    return EVENT_PARAM_RETURN_SUCCESS;
+}
+
+void HandleV2Message(CredentialMessage& messageStruct, std::string& needSendStr)
+{
+    std::string processMessageValue;
+    switch (messageStruct.GetMessageMethodType()) {
+        case METHOD_COMMAND_EVENT_REPORT: {
+            processMessageValue = HandleCommandEventMessage(messageStruct.GetMessageBody());
+            break;
+        }
+        default: {
+            WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
+            return;
+        }
+    }
+
+    messageStruct.SetMessageBody(processMessageValue);
+    needSendStr = messageStruct.Construct();
+}
+
+bool HandleMessage(const std::string& messageStr, std::string& needSendStr)
+{
+    bool ret = false;
+    CredentialMessage messageStruct(messageStr);
+    if (messageStruct.GetMessageBody().empty()) {
+        WRITE_LOG(LOG_FATAL, "Invalid message structure.");
+        return ret;
+    }
+
+    switch (messageStruct.GetMessageVersion()) {
+        case METHOD_VERSION_V1: {
+            HandleV1Message(messageStruct, needSendStr);
+            ret = true;
+            break;
+        }
+        case METHOD_VERSION_V2: {
+            HandleV2Message(messageStruct, needSendStr);
+            ret = true;
+            break;
+        }
+        default:
+            WRITE_LOG(LOG_FATAL, "Unsupport message version.");
+    }
+
+    return ret;
 }
 
 int CreateAndBindSocket(const std::string& socketPath)
@@ -221,6 +312,7 @@ bool SplitCommandToArgs(int argc, const char **argv)
     }
     return true;
 }
+
 int main(int argc, const char *argv[])
 {
     if (!SplitCommandToArgs(argc, argv)) {
@@ -259,7 +351,12 @@ int main(int argc, const char *argv[])
             close(connfd);
             continue;
         }
-        std::string sendBuf = ParseAndProcessMessageStr(std::string(buffer, bytesRead));
+        std::string sendBuf;
+        if (!HandleMessage(std::string(buffer, bytesRead), sendBuf)) {
+            close(connfd);
+            continue;
+        }
+
         if (sendBuf.empty()) {
             WRITE_LOG(LOG_FATAL, "Error: Processed message is empty.");
             close(connfd);

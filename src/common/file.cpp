@@ -14,6 +14,9 @@
  */
 #include "file.h"
 #include "serial_struct.h"
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#include "command_event_report.h"
+#endif
 
 namespace Hdc {
 HdcFile::HdcFile(HTaskInfo hTaskInfo)
@@ -607,6 +610,14 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
         }
         case CMD_FILE_CHECK: {
             ret = SlaveCheck(payload, payloadSize);
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+            if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportFileCommandEvent(
+                ctxNow.localPath, ctxNow.master, taskInfo->serverOrDaemon)) {
+                WRITE_LOG(LOG_FATAL,
+                    "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+                ret = false;
+            }
+#endif
             break;
         }
         case CMD_FILE_MODE:

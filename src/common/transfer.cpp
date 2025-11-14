@@ -22,6 +22,10 @@
 #include <selinux/selinux.h>
 #endif
 #include <memory>
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#include "command_event_report.h"
+#endif
+
 namespace Hdc {
 constexpr uint64_t HDC_TIME_CONVERT_BASE = 1000000000;
 
@@ -950,6 +954,19 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     return ret;
 }
 
+bool ReportFileCommandEvent(const std::string &localPath, bool master, bool serverOrDaemon)
+{
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+    if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportFileCommandEvent(
+        localPath, master, serverOrDaemon)) {
+        WRITE_LOG(LOG_FATAL,
+            "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+        return false;
+    }
+#endif
+    return true;
+}
+
 bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     StartTraceScope("HdcTransferBase::CommandDispatch");
@@ -975,13 +992,16 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 break;
             }
             context->transferBegin = Base::GetRuntimeMSec();
+            if (!ReportFileCommandEvent(context->localPath, context->master, taskInfo->serverOrDaemon)) {
+                ret = false;
+                break;
+            }
         } else if (command == commandData) {
             if (static_cast<uint32_t>(payloadSize) > HDC_BUF_MAX_BYTES || payloadSize < 0) {
                 WRITE_LOG(LOG_FATAL, "CommandDispatch payloadSize:%d", payloadSize);
                 ret = false;
                 break;
             }
-            // Note, I will trigger FileIO after multiple times.
             CtxFile *context = &ctxNow;
             if (!RecvIOPayload(context, payload, payloadSize)) {
                 WRITE_LOG(LOG_DEBUG, "RecvIOPayload return false. channelId:%u lastErrno:%u result:%d isFdOpen %d",
@@ -991,7 +1011,6 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
                 break;
             }
         } else {
-            // Other subclass commands
         }
         break;
     }

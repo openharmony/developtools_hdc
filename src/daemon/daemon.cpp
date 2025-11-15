@@ -555,7 +555,7 @@ bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string
             return false;
         }
         SHA512(reinterpret_cast<const unsigned char *>(token.c_str()), token.size(), tokenSha512);
-        if (EVP_PKEY_verify(ctx, tokenRsaSign.get(), tokenRsaSignLen, tokenSha512, sizeof(tokenSha512)) < 0) {
+        if (EVP_PKEY_verify(ctx, tokenRsaSign.get(), tokenRsaSignLen, tokenSha512, sizeof(tokenSha512)) <= 0) {
             WRITE_LOG(LOG_FATAL, "verify failed for session %u", hSession->sessionId);
             return false;
         }

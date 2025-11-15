@@ -12,8 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "daemon_app.h"
 #include "daemon_app_test.h"
+
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstdio>
+#include <cstdlib>
 
 using namespace testing::ext;
 
@@ -81,4 +88,97 @@ HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck, TestSize.Level3)
 
     delete taskInfo;
 }
+
+/*
+ * New tests added below
+ */
+
+HWTEST_F(HdcDaemonAppTest, Test_Tar2Dir_NoTar, TestSize.Level0)
+{
+    HTaskInfo taskInfo = new TaskInformation();
+    HdcDaemonApp daemonApp(taskInfo);
+
+    // path without ".tar" should return empty string
+    string res = daemonApp.Tar2Dir("/tmp/somefile.hap");
+    EXPECT_EQ(res, "");
+
+    delete taskInfo;
 }
+
+static bool FileExists(const std::string &path)
+{
+    struct stat st;
+    return (lstat(path.c_str(), &st) == 0);
+}
+
+HWTEST_F(HdcDaemonAppTest, Test_RemovePath_File, TestSize.Level0)
+{
+    HTaskInfo taskInfo = new TaskInformation();
+    HdcDaemonApp daemonApp(taskInfo);
+
+    // create temporary file
+    std::string tmpl = "/data/local/tmp/hdc_testfileXXXXXX";
+    std::vector<char> buf(tmpl.begin(), tmpl.end());
+    buf.push_back('\0');
+    int fd = mkstemp(buf.data());
+    if (fd < 0) {
+        perror("mkstemp failed");
+        return;
+    }
+    ASSERT_GE(fd, 0);
+    close(fd);
+    std::string path(buf.data());
+    ASSERT_TRUE(FileExists(path));
+
+    // remove using RemovePath
+    daemonApp.RemovePath(path);
+    EXPECT_FALSE(FileExists(path));
+
+    delete taskInfo;
+}
+
+HWTEST_F(HdcDaemonAppTest, Test_RemovePath_DirRecursive, TestSize.Level0)
+{
+    HTaskInfo taskInfo = new TaskInformation();
+    HdcDaemonApp daemonApp(taskInfo);
+
+    // create temporary directory
+    char dirtmpl[] = "/data/local/tmp/hdc_testdirXXXXXX";
+    char *d = mkdtemp(dirtmpl);
+    ASSERT_NE(d, nullptr) << "Failed to create temporary directory";
+    std::string dir(d);
+
+    // ensure parent directory exists
+    std::string parentDir = "/data/local/tmp";
+    if (!FileExists(parentDir)) {
+        ASSERT_EQ(mkdir(parentDir.c_str(), 0755), 0) << "Failed to create parent directory";
+    }
+
+    // create a nested directory and file
+    std::string subdir = dir + "/sub";
+    ASSERT_EQ(mkdir(subdir.c_str(), 0755), 0) << "Failed to create directory: " << subdir;
+    std::string file1 = dir + "/f1.txt";
+    int fd1 = open(file1.c_str(), O_CREAT | O_WRONLY, 0644);
+    ASSERT_GE(fd1, 0);
+    write(fd1, "x", 1);
+    close(fd1);
+
+    std::string file2 = subdir + "/f2.txt";
+    int fd2 = open(file2.c_str(), O_CREAT | O_WRONLY, 0644);
+    ASSERT_GE(fd2, 0);
+    write(fd2, "y", 1);
+    close(fd2);
+
+    ASSERT_TRUE(FileExists(file1));
+    ASSERT_TRUE(FileExists(file2));
+
+    // remove the directory recursively
+    daemonApp.RemovePath(dir);
+
+    EXPECT_FALSE(FileExists(dir));
+    EXPECT_FALSE(FileExists(file1));
+    EXPECT_FALSE(FileExists(file2));
+
+    delete taskInfo;
+}
+} // namespace Hdc

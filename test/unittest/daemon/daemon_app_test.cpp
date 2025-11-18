@@ -121,10 +121,6 @@ HWTEST_F(HdcDaemonAppTest, Test_RemovePath_File, TestSize.Level0)
     std::vector<char> buf(tmpl.begin(), tmpl.end());
     buf.push_back('\0');
     int fd = mkstemp(buf.data());
-    if (fd < 0) {
-        perror("mkstemp failed");
-        return;
-    }
     ASSERT_GE(fd, 0);
     close(fd);
     std::string path(buf.data());

@@ -407,7 +407,9 @@ HWTEST_F(HdcForwardBaseTest, CheckNodeInfo_WhitespaceInput, TestSize.Level0)
     HTaskInfo info = new TaskInformation();
     HdcForwardBase forward(info);
     EXPECT_FALSE(forward.CheckNodeInfo(" ", as));
-    EXPECT_TRUE(forward.CheckNodeInfo("tcp:8080 ", as));
+    EXPECT_TRUE(forward.CheckNodeInfo("tcp:8080", as));
+    EXPECT_EQ(as[0], "tcp");
+    EXPECT_EQ(as[1], "8080");
 
     delete info;
 }

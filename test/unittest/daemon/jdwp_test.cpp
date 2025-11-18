@@ -25,18 +25,6 @@ using namespace testing::ext;
 
 namespace Hdc {
 
-static void IdleCallBack(uv_idle_t* handle)
-{
-    HdcJdwpTest *ht = (HdcJdwpTest *)handle->data;
-    static int cycles = 0;
-    CALLSTAT_GUARD(*(ht->loopStatus), &(ht->mLoop), "IdleCallBack");
-
-    uv_sleep(ht->mCallDuration);
-    if (cycles++ > ht->mCycles) {
-        uv_stop(&(ht->mLoop));
-    }
-}
-
 void HdcJdwpTest::SetUpTestCase() { }
 
 void HdcJdwpTest::TearDownTestCase() {}
@@ -44,10 +32,6 @@ void HdcJdwpTest::TearDownTestCase() {}
 void HdcJdwpTest::SetUp()
 {
     uv_loop_init(&mLoop);
-    mIdle.data = this;
-    uv_idle_init(&mLoop, &mIdle);
-    uv_idle_start(&mIdle, IdleCallBack);
-    StartLoopMonitor();
     loopStatus = new LoopStatus(&mLoop, "HandleTestLoop");
     loop = uv_default_loop();
     jdwp = new HdcJdwp(loop, loopStatus);
@@ -88,6 +72,7 @@ HWTEST_F(HdcJdwpTest, Test_AdminContext_AddAndQuery, TestSize.Level0)
 
     HdcJdwp::HCtxJdwp queriedCtx = static_cast<HdcJdwp::HCtxJdwp>(jdwp->AdminContext(OP_QUERY, pid, nullptr));
     EXPECT_EQ(queriedCtx, ctx);
+    EXPECT_EQ(queriedCtx->pid, pid);
 
     jdwp->AdminContext(OP_REMOVE, pid, nullptr);
     jdwp->FreeContext(ctx);

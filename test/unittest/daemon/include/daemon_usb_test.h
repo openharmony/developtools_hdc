@@ -15,6 +15,7 @@
 #ifndef HDC_DAEMON_USB_TEST_H
 #define HDC_DAEMON_USB_TEST_H
 #include <gtest/gtest.h>
+#include <filesystem>
 namespace Hdc {
 class HdcDaemonUSBTest : public ::testing::Test {
 public:

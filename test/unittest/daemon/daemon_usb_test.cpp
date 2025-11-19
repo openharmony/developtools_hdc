@@ -49,7 +49,12 @@ HWTEST_F(HdcDaemonUSBTest, ConstructorDestructor_DefaultValues, TestSize.Level0)
 HWTEST_F(HdcDaemonUSBTest, GetDevPath_ReturnsEmptyOnInvalidPath, TestSize.Level0)
 {
     HdcDaemonUSB usb(false, nullptr);
-    std::string invalidPath = "/tmp/nonexistent_usb_dir";
+    std::string invalidPath = "/data/local/tmp/nonexistent_usb_dir";
+    if (std::filesystem::exists(invalidPath))
+    {
+        std::filesystem::remove(invalidPath);
+    }
+    ASSERT_FALSE(std::filesystem::exists(invalidPath));
     std::string result = usb.GetDevPath(invalidPath);
     EXPECT_EQ(result, "");
 }
@@ -93,8 +98,10 @@ HWTEST_F(HdcDaemonUSBTest, OnNewHandshakeOK_SetsCurrentSessionId, TestSize.Level
     HdcDaemonUSB usb(false, nullptr);
     uint32_t sessionId = 12345;
     usb.OnNewHandshakeOK(sessionId);
+    EXPECT_EQ(usb.currentSessionId, sessionId);
     // No getter, but we can check by calling again and expecting no crash
     usb.OnNewHandshakeOK(sessionId + 1);
+    EXPECT_EQ(usb.currentSessionId, sessionId + 1);
 }
 
 } // namespace

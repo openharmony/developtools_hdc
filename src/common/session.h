@@ -98,6 +98,8 @@ public:
     virtual void FreeSession(const uint32_t sessionId);
 #ifdef HDC_HOST
     void PrintAllSessionConnection(const uint32_t sessionId);
+#else
+    void AdminUsbSession();
 #endif
     void WorkerPendding();
     int OnRead(HSession hSession, uint8_t *bufPtr, const int bufLen);

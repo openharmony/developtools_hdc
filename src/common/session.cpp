@@ -817,6 +817,26 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
     return hRet;
 }
 
+#ifndef HDC_HOST
+void HdcSessionBase::AdminUsbSession()
+{
+    StartTraceScope("HdcSessionBase::AdminUsbSession");
+    HSession hSession = nullptr;
+    uv_rwlock_wrlock(&lockMapSession);
+    for (const auto& [_, hRet] : mapSession) {
+        if (hRet->connType == CONN_USB) {
+            hSession = hRet;
+            break;
+        }
+    }
+    uv_rwlock_wrunlock(&lockMapSession);
+
+    if (hSession != nullptr) {
+        FreeSession(hSession->sessionId);
+    }
+}
+#endif
+
 void HdcSessionBase::DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask)
 {
     int idx = 1;

@@ -49,6 +49,7 @@ void HdcForwardBase::StopTask()
         HCtxForward ctx = iter->second;
         ctxs.push_back(ctx);
     }
+    Base::CloseFd(fds[0]);
     // FREECONTEXT in the STOP is triggered by the other party sector, no longer notifying each other.
     mapCtxPoint.clear();
     ctxPointMutex.unlock();

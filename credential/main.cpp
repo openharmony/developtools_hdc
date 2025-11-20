@@ -182,7 +182,7 @@ std::string HandleCommandEventMessage(const std::string& messageStr)
     return EVENT_PARAM_RETURN_SUCCESS;
 }
 
-void HandleV2Message(CredentialMessage& messageStruct, std::string& needSendStr)
+void HandleCommandReportMessage(CredentialMessage& messageStruct, std::string& needSendStr)
 {
     std::string processMessageValue;
     switch (messageStruct.GetMessageMethodType()) {
@@ -215,8 +215,8 @@ bool HandleMessage(const std::string& messageStr, std::string& needSendStr)
             ret = true;
             break;
         }
-        case METHOD_VERSION_V2: {
-            HandleV2Message(messageStruct, needSendStr);
+        case METHOD_REPORT: {
+            HandleCommandReportMessage(messageStruct, needSendStr);
             ret = true;
             break;
         }

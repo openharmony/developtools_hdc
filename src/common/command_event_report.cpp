@@ -40,26 +40,16 @@ bool CommandEventReport::IsSupportReport()
     return OHOS::system::GetParameter("const.pc_security.fileguard_force_enable", "") == "true";
 }
 
-std::string CommandEventReport::GetHdcStatus(Base::Caller caller)
-{
-    if (caller == Base::Caller::DAEMON) {
-        if (OHOS::system::GetParameter("persist.hdc.control", "") == "true") {
-            return "enabled";
-        }
-    } else if (OHOS::system::GetParameter("persist.edm.hdc_remote_disable", "false") != "true") {
-            return "enabled";
-    }
-    return "forbidden";
-}
-
-std::string CommandEventReport::FormatMessage(const std::string &command, const std::string &raw, Base::Caller caller)
+std::string CommandEventReport::FormatMessage(const std::string &command, const std::string &raw,
+    Base::Caller caller, bool isIntercepted)
 {
     std::string content = raw;
     std::stringstream ss;
+    std::string status = isIntercepted ? "forbidden" : "enabled";
     ss << std::to_string(getuid() / BASE_ID) << ";";
     ss << GetCallerName(caller) << ";";
     ss << GetCurrentTimeStamp() << ";";
-    ss << GetHdcStatus(caller) << ";";
+    ss << status << ";";
     ss << command << ";";
 
     std::string result = ss.str();
@@ -73,9 +63,10 @@ std::string CommandEventReport::FormatMessage(const std::string &command, const 
     return result;
 }
 
-std::string CommandEventReport::SplicMessageStr(const std::string &command, const std::string &raw, Base::Caller caller)
+std::string CommandEventReport::SplicMessageStr(const std::string &command, const std::string &raw,
+    Base::Caller caller, bool isIntercepted)
 {
-    std::string str = FormatMessage(command, raw, caller);
+    std::string str = FormatMessage(command, raw, caller, isIntercepted);
     if (str.empty()) {
         WRITE_LOG(LOG_FATAL, "Input command is empty.");
         return "";
@@ -99,7 +90,7 @@ std::string CommandEventReport::SplicMessageStr(const std::string &command, cons
     size_t totalLength = MESSAGE_METHOD_POS + MESSAGE_METHOD_LEN +
                          MESSAGE_LENGTH_LEN + bodyLen;
     result.reserve(totalLength);
-    result.push_back('0' + METHOD_VERSION_V2);
+    result.push_back('0' + METHOD_REPORT);
     result.append(messageMethodTypeStr);
     result.append(messageBodyLen);
     result.append(str);
@@ -111,7 +102,8 @@ std::string CommandEventReport::SplicMessageStr(const std::string &command, cons
     return result;
 }
 
-bool CommandEventReport::ReportCommandEvent(const std::string &inputRaw, Base::Caller caller, std::string command)
+bool CommandEventReport::ReportCommandEvent(const std::string &inputRaw, Base::Caller caller,
+    bool isIntercepted, std::string command)
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
     if (!IsSupportReport()) {
@@ -123,10 +115,10 @@ bool CommandEventReport::ReportCommandEvent(const std::string &inputRaw, Base::C
     }
 
     if (caller == Base::Caller::DAEMON) {
-        return Report(command, inputRaw, caller);
+        return Report(command, inputRaw, caller, isIntercepted);
     }
 
-    return ReportByUnixSocket(command, inputRaw, caller);
+    return ReportByUnixSocket(command, inputRaw, caller, isIntercepted);
 #else
     return true;
 #endif
@@ -146,27 +138,29 @@ bool CommandEventReport::ReportFileCommandEvent(
     }
 
     if (!serverOrDaemon) {
-        return Report(command, localPath, Base::Caller::DAEMON);
+        return Report(command, localPath, Base::Caller::DAEMON, false);
     }
 
-    return ReportByUnixSocket(command, localPath, Base::Caller::CLIENT);
+    return ReportByUnixSocket(command, localPath, Base::Caller::CLIENT, false);
 #else
     return true;
 #endif
 }
 
-bool CommandEventReport::Report(const std::string &command, const std::string &content, Base::Caller caller)
+bool CommandEventReport::Report(const std::string &command, const std::string &content,
+    Base::Caller caller, bool isIntercepted)
 {
 #ifdef DAEMON_ONLY
     OHOS::EventFwk::CommonEventPublishInfo publishInfo;
     publishInfo.SetOrdered(true);
     OHOS::AAFwk::Want want;
 
+    std::string status = isIntercepted ? "forbidden" : "enabled";
     want.SetAction(HDC_COMMAND_REPORT);
     want.SetParam(EVENT_PARAM_REPORT_USERID, int(getuid() / BASE_ID));
     want.SetParam(EVENT_PARAM_REPORT_ROLE, GetCallerName(caller));
     want.SetParam(EVENT_PARAM_REPORT_TIME, std::stoll(GetCurrentTimeStamp()));
-    want.SetParam(EVENT_PARAM_REPORT_STATUS, GetHdcStatus(caller));
+    want.SetParam(EVENT_PARAM_REPORT_STATUS, status);
     want.SetParam(EVENT_PARAM_REPORT_COMMAND, command);
     want.SetParam(EVENT_PARAM_REPORT_CONTENT, content);
 
@@ -182,68 +176,80 @@ bool CommandEventReport::Report(const std::string &command, const std::string &c
     return true;
 }
 
-bool SendMessageByUnixSocket(const std::string &messageStr)
+bool SendMessageByUnixSocket(const int sockfd, const std::string &messageStr)
 {
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
-        return false;
-    }
-    struct sockaddr_un addr = {};
-    addr.sun_family = AF_UNIX;
+    struct sockaddr_un addr = {.sun_family = AF_UNIX};
     size_t maxPathLen = sizeof(addr.sun_path) - 1;
     size_t pathLen = strlen(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str());
     if (pathLen > maxPathLen) {
         WRITE_LOG(LOG_FATAL, "Socket path too long.");
-        close(sockfd);
-        return false;
-    }
-    int ret = memcpy_s(addr.sun_path, maxPathLen,
-        HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), pathLen);
-    if (ret != 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to memcpy_st.");
-        close(sockfd);
-        return false;
-    }
-    if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
-        close(sockfd);
-        return false;
-    }
-    if (send(sockfd, messageStr.c_str(), messageStr.size(), 0) < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to send message.");
-        close(sockfd);
         return false;
     }
 
+    if (memcpy_s(addr.sun_path, maxPathLen, HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), pathLen) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to memcpy_st.");
+        return false;
+    }
+
+    if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
+        return false;
+    }
+
+    if (send(sockfd, messageStr.c_str(), messageStr.size(), 0) < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to send message.");
+        return false;
+    }
+
+    return true;
+}
+
+bool RecvMessageByUnixSocket(const int sockfd)
+{
+    ssize_t count = 0;
+    ssize_t bytesRead = 0;
     char buffer[MESSAGE_PARAM_RETURN_MAX_SIZE];
-    ssize_t bytesRead = recv(sockfd, buffer, MESSAGE_PARAM_RETURN_MAX_SIZE - 1, 0);
-    if (bytesRead < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
-        close(sockfd);
+    while ((bytesRead = recv(sockfd, buffer + count, MESSAGE_PARAM_RETURN_MAX_SIZE - 1 - count, 0)) > 0) {
+        count += bytesRead;
+        if (count >= MESSAGE_PARAM_RETURN_MAX_SIZE - 1) {
+            WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
+            return false;
+        }
+    }
+
+    buffer[count] = '\0';
+    std::string reciveStr(buffer, count);
+    CredentialMessage messageStruct(reciveStr);
+    if (messageStruct.GetMessageBody() == EVENT_PARAM_RETURN_FAILED) {
+        WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
         return false;
     }
-    buffer[bytesRead] = '\0';
-    std::string str(buffer);
-    if (str == EVENT_PARAM_RETURN_FAILED) {
-        close(sockfd);
-        return false;
-    }
-    close(sockfd);
+
     return true;
 }
 
 bool CommandEventReport::ReportByUnixSocket(const std::string &command,
-    const std::string &inputRaw, Base::Caller caller)
+    const std::string &inputRaw, Base::Caller caller, bool isIntercepted)
 {
-    std::string messageStr = SplicMessageStr(command, inputRaw, caller);
+    std::string messageStr = SplicMessageStr(command, inputRaw, caller, isIntercepted);
     if (messageStr.empty()) {
         WRITE_LOG(LOG_FATAL, "Failed to format message.");
         return false;
     }
 
-    if (!SendMessageByUnixSocket(messageStr)) {
-        WRITE_LOG(LOG_FATAL, "Failed to send message to credential.");
+    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+        return false;
+    }
+
+    if (!SendMessageByUnixSocket(sockfd, messageStr)) {
+        close(sockfd);
+        return false;
+    }
+
+    if (!RecvMessageByUnixSocket(sockfd)) {
+        close(sockfd);
         return false;
     }
 
@@ -267,13 +273,13 @@ bool CommandEventReport::GetCommandFromInputRaw(const char* inputRaw, std::strin
         CMDSTR_TARGET_REBOOT, CMDSTR_TARGET_MODE
     };
 
-    for (auto elem : Compare) {
+    for (const auto &elem : Compare) {
         if (!strcmp(inputRaw, elem.c_str())) {
             command = elem;
             return true;
         }
     }
-    for (auto elem : nCompare) {
+    for (const auto &elem : nCompare) {
         if (!strncmp(inputRaw, elem.c_str(), elem.size())) {
             command = elem;
             return true;

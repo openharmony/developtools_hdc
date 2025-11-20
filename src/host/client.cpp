@@ -441,32 +441,39 @@ bool IsCaptureCommand(const string& cmd)
     return false;
 }
 
-static bool ReportCommandEvent(const string &commandIn)
+static int ReportCommandEvent(const string &commandIn, bool isIntercepted)
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
-    if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(commandIn, Base::GetCaller())) {
+    if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
+        commandIn, Base::GetCaller(), isIntercepted)) {
         WRITE_LOG(LOG_FATAL,
             "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
-        return false;
+        return ERR_GENERIC;
     }
 #endif
-    return true;
+
+#ifdef __OHOS__
+    if (isIntercepted) {
+        WRITE_LOG(LOG_FATAL, "[E00C001]Operation restricted by the organization.");
+        return ENTERPRISE_HDC_DISABLE_ERR;
+    }
+#endif
+    return RET_SUCCESS;
 }
 
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
-    if (!ReportCommandEvent(commandIn)) {
-        return -1;
-    }
+    bool isIntercepted = false;
 #ifdef __OHOS__
-    if (IsNeedInterceptCommand()) {
-        WRITE_LOG(LOG_FATAL, "[E00C001]Operation restricted by the organization.");
-        return ENTERPRISE_HDC_DISABLE_ERR;
-    }
+    isIntercepted = IsNeedInterceptCommand();
 #endif
+    int ret = ReportCommandEvent(commandIn, isIntercepted);
+    if (ret != RET_SUCCESS) {
+        return ret;
+    }
     uint16_t port = 0;
-    int ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
+    ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {
 #ifndef __OHOS__
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort %s failed with %d",

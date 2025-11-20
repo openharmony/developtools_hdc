@@ -1149,11 +1149,11 @@ void HdcServerForClient::ReportServerVersion(HChannel hChannel)
                        version.size());
 }
 
-static bool ReportCommandEvent(HChannel hChannel, uint8_t *bufPtr, const int bytesIO)
+static bool ReportCommandEvent(uint8_t *bufPtr, const int bytesIO, bool isIntercepted)
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
     if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
-        std::string(reinterpret_cast<char *>(bufPtr), bytesIO), Base::GetCaller())) {
+        std::string(reinterpret_cast<char *>(bufPtr), bytesIO), Base::GetCaller(), isIntercepted)) {
         WRITE_LOG(LOG_FATAL,
             "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
         return false;
@@ -1169,13 +1169,17 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
     if (!hChannel->handshakeOK) {
         return ChannelHandShake(hChannel, bufPtr, bytesIO);
     }
-    if (!ReportCommandEvent(hChannel, bufPtr, bytesIO)) {
+    bool isIntercepted = false;
+#ifdef __OHOS__
+    isIntercepted = IsNeedInterceptCommand();
+#endif
+    if (!ReportCommandEvent(bufPtr, bytesIO, isIntercepted)) {
         EchoClient(hChannel, MSG_FAIL,
             "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
         return ERR_GENERIC;
     }
 #ifdef __OHOS__
-    if (IsNeedInterceptCommand()) {
+    if (isIntercepted) {
         EchoClient(hChannel, MSG_FAIL, "[E00C001]Operation restricted by the organization.");
         WRITE_LOG(LOG_FATAL, "[E00C001]Server Operation restricted by the organization.");
         return ENTERPRISE_HDC_DISABLE_ERR;

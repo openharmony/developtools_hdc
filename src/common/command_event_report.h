@@ -31,17 +31,21 @@ const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_c
 class CommandEventReport : public std::enable_shared_from_this<CommandEventReport> {
     DECLARE_DELAYED_SINGLETON(CommandEventReport)
 public:
-    bool ReportCommandEvent(const std::string &inputRaw, Base::Caller caller, std::string command = "");
+    bool ReportCommandEvent(const std::string &inputRaw, Base::Caller caller,
+        bool isIntercepted, std::string command = "");
     bool ReportFileCommandEvent(
         const std::string &localPath, bool master, bool serverOrDaemon);
 private:
     bool IsSupportReport();
-    std::string SplicMessageStr(const std::string &command, const std::string &raw, Base::Caller caller);
-    std::string FormatMessage(const std::string &command, const std::string &raw, Base::Caller caller);
-    std::string GetHdcStatus(Base::Caller caller);
+    std::string SplicMessageStr(const std::string &command, const std::string &raw,
+        Base::Caller caller, bool isIntercepted);
+    std::string FormatMessage(const std::string &command, const std::string &raw,
+        Base::Caller caller, bool isIntercepted);
     bool GetCommandFromInputRaw(const char* inputRaw, std::string &command);
-    bool Report(const std::string &command, const std::string &content, Base::Caller caller);
-    bool ReportByUnixSocket(const std::string &command, const std::string &inputRaw, Base::Caller caller);
+    bool Report(const std::string &command, const std::string &content,
+        Base::Caller caller, bool isIntercepted);
+    bool ReportByUnixSocket(const std::string &command, const std::string &inputRaw,
+        Base::Caller caller, bool isIntercepted);
     std::string GetCurrentTimeStamp();
     std::string GetCallerName(Base::Caller caller);
 };

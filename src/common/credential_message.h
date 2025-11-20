@@ -59,7 +59,7 @@ constexpr size_t MESSAGE_LENGTH_LEN = 4;
 constexpr size_t MESSAGE_BODY_POS = 8;
 
 const size_t MESSAGE_PARAM_COMMAND_EVENT_REPORT_SIZE = 6;
-const size_t MESSAGE_PARAM_RETURN_MAX_SIZE = 16;
+const size_t MESSAGE_PARAM_RETURN_MAX_SIZE = 32;
 const std::string HDC_COMMAND_REPORT = "usual.event.HDC_COMMAND_REPORT";
 const std::string EVENT_PARAM_REPORT_USERID = "userId";
 const std::string EVENT_PARAM_REPORT_ROLE = "role";
@@ -75,7 +75,7 @@ enum V1MethodID {
     METHOD_DECRYPT,
 };
 
-enum V2MethodID {
+enum MethodReport {
     METHOD_COMMAND_EVENT_REPORT = 1
 };
 
@@ -90,7 +90,7 @@ enum MethodCommandEventReportParamIndex {
 
 enum MethodVersion {
     METHOD_VERSION_V1 = 1,
-    METHOD_VERSION_V2 = 2,
+    METHOD_REPORT = 2,
     METHOD_VERSION_MAX = 9,
 };
 

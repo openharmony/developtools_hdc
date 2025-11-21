@@ -911,6 +911,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
+    bool isClearBufAllocated = false;
     if (pld.compressSize > 0) {
         switch (pld.compressType) {
 #ifdef HARMONY_PROJECT
@@ -920,6 +921,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
                     WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
                     return false;
                 }
+                isClearBufAllocated = true;
                 clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
                                                 pld.compressSize, pld.uncompressSize);
                 break;
@@ -949,7 +951,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         ret = true;
         break;
     }
-    if (pld.compressSize > 0 && pld.compressType == COMPRESS_LZ4) {
+    if (isClearBufAllocated && (clearBuf != nullptr)) {
         delete[] clearBuf;
     }
     return ret;

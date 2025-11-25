@@ -546,7 +546,16 @@ bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string
 {
     unsigned char tokenSha512[SHA512_DIGEST_LENGTH];
     try {
-        std::unique_ptr<unsigned char[]> tokenRsaSign = std::make_unique<unsigned char[]>(tokenSignBase64.length());
+        // Base64 divides every 3 bytes(8 bits) of the original data into 4 segments(6 bits),
+        const int scaleOfEncrypt = 4;
+        const int scaleOfDecrypt = 3;
+        // Invalid base64 format
+        if (tokenSignBase64.empty() || tokenSignBase64.length() % 4 != 0) {
+            WRITE_LOG(LOG_FATAL, "Invalid base64 format for session %u", hSession->sessionId);
+            return false;
+        }
+        size_t maxDecodedLen = (tokenSignBase64.length() / scaleOfEncrypt * scaleOfDecrypt);
+        std::unique_ptr<unsigned char[]> tokenRsaSign = std::make_unique<unsigned char[]>(maxDecodedLen);
         // Get the real token sign
         int tokenRsaSignLen = EVP_DecodeBlock(tokenRsaSign.get(),
             reinterpret_cast<const unsigned char *>(tokenSignBase64.c_str()), tokenSignBase64.length());

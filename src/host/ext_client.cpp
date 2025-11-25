@@ -294,7 +294,7 @@ std::string ExtClient::RemoveRemoteCwd(const std::string &str)
         return cmd;
     }
     for (int i = 0; i < argc; i++) {
-        if (argv[i] == CMDSTR_REMOTE_PARAMETER) {
+        if (argv[i] && (strcmp(argv[i], CMDSTR_REMOTE_PARAMETER) == 0)) {
             std::string remove = Base::StringFormat("%s %s \"%s\" ", argv[i], argv[i + 1], argv[i + 2]);
             if (cmd.find(remove) != std::string::npos) {
                 cmd.replace(cmd.find(remove), remove.size(), "");

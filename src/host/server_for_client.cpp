@@ -478,7 +478,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
         if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
             bExitRepet = true;
         } else {
-            bExitRepet = IsDisconnect(hdi *bRetryCount);
+            bExitRepet = IsDisconnect(hdi, *bRetryCount);
         }
         if (bExitRepet) {
             sRet = "Connect failed";

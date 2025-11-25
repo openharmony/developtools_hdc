@@ -29,7 +29,19 @@ using namespace Hdc;
 
 namespace HdcAuth {
 // ---------------------------------------Cheat compiler---------------------------------------------------------
-#ifndef HDC_HOST // daemon
+#ifdef HDC_HOST
+
+bool AuthVerify(uint8_t* /* token */, uint8_t* /* sig */, int /* siglen */)
+{
+    return false;
+};
+bool PostUIConfirm(string /* publicKey */)
+{
+    return false;
+}
+
+#else  // daemon
+
 bool GenerateKey(const char* /* file */)
 {
     return false;
@@ -407,6 +419,31 @@ void ReadDaemonKeys(const char *file, list<void *> *listPublicKey)
     fclose(f);
 }
 
+bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen)
+{
+    list<void *> listPublicKey;
+    uint8_t authKeyIndex = 0;
+    void *ptr = nullptr;
+    int ret = 0;
+    int childRet = 0;
+    while (KeylistIncrement(&listPublicKey, authKeyIndex, &ptr)) {
+        RSA *rsa = nullptr;
+        if (!RSAPublicKey2RSA((const uint8_t *)ptr, &rsa)) {
+            break;
+        }
+        childRet = RSA_verify(NID_sha256, reinterpret_cast<const unsigned char *>(token),
+                              RSA_TOKEN_SIZE, reinterpret_cast<const unsigned char *>(sig),
+                              siglen, rsa);
+        RSA_free(rsa);
+        if (childRet == 1) {
+            ret = 1;
+            break;
+        }
+    }
+    FreeKey(true, &listPublicKey);
+    return ret;
+}
+
 void LoadDaemonKey(list<void *> *listPublicKey)
 {
 #ifdef HDC_PCDEBUG
@@ -424,6 +461,13 @@ void LoadDaemonKey(list<void *> *listPublicKey)
             ReadDaemonKeys(p, listPublicKey);
         }
     }
+}
+
+bool PostUIConfirm(string /* publicKey */)
+{
+    // Because the Hi3516 development board has no UI support for the time being, all public keys are received and
+    // By default, the system UI will record the public key /data/misc/hdc/hdckey/data/misc/hdc/hdckey
+    return true;
 }
 #endif  // HDC_HOST
 

@@ -286,7 +286,10 @@ bool HdcDaemon::ShowPermitDialog()
 {
     pid_t pid;
     int fds[2];
-    pipe(fds);
+    if (pipe(fds) != 0) {
+        WRITE_LOG(LOG_FATAL, "pipe failed %s", strerror(errno));
+        return false;
+    }
 
     if ((pid = fork()) == -1) {
         WRITE_LOG(LOG_FATAL, "fork failed %s", strerror(errno));
@@ -642,7 +645,7 @@ bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const 
             break;
         }
         int wbytes = BIO_write(bio, pubkeyp, pubkey.length());
-        if (wbytes <= 0) {
+        if (wbytes != pubkey.length()) {
             WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, hSession->sessionId);
             break;
         }

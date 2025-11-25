@@ -113,27 +113,20 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
 bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
 {
     StartTraceScope("HdcUSBBase::IsUsbPacketHeader");
+    if (ioBytes != sizeof(USBHead)) {
+        WRITE_LOG(LOG_FATAL, "IsUsbPacketHeader  wrong bytes: %d", ioBytes);
+        return false;
+    }
     USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
     uint32_t maybeSize = ntohl(usbPayloadHeader->dataSize);
-    bool isHeader = false;
-    do {
-        if (memcmp(usbPayloadHeader->flag, USB_PACKET_FLAG.c_str(), USB_PACKET_FLAG.size())) {
-            break;
-        }
-        if (ioBytes != sizeof(USBHead)) {
-            break;
-        }
-        if (maybeSize == 0) {
-            isHeader = true;  // nop packet
-            break;
-        } else {  // maybeSize != 0
-            if (usbPayloadHeader->option & USB_OPTION_HEADER) {
-                isHeader = true;
-                break;
-            }
-        }
-    } while (false);
-    return isHeader;
+    if (memcmp(usbPayloadHeader->flag, USB_PACKET_FLAG.c_str(), USB_PACKET_FLAG.size())) {
+        return false;
+    }
+
+    if ((maybeSize == 0) || (usbPayloadHeader->option & USB_OPTION_HEADER))) {
+        return true;
+    }
+    return false;
 }
 
 void HdcUSBBase::PreSendUsbSoftReset(HSession hSession, uint32_t sessionIdOld)

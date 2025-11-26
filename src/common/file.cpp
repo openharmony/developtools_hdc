@@ -524,7 +524,7 @@ bool HdcFile::HandleFileExistenceAndNewness()
             constexpr int bufSize = 1024;
             char buf[bufSize] = {0};
             uv_strerror(statRet, buf, bufSize);
-            WRITE_LOG(LOG_WARN, "uv_fs_stat failed, file:%s error:%s", Hhdc::MaskString(ctxNow.localPath).c_str(), buf);
+            WRITE_LOG(LOG_WARN, "uv_fs_stat failed, file:%s error:%s", Hdc::MaskString(ctxNow.localPath).c_str(), buf);
             return false;
         }
         if ((uint64_t)fs.statbuf.st_mtim.tv_sec >= ctxNow.transferConfig.mtime) {

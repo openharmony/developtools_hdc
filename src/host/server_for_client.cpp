@@ -417,16 +417,28 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
 #endif
 }
 
-static bool IsDisconnect(HDaemonInfo hdi)
+static bool IsDisconnect(HDaemonInfo hdi, uint16_t count)
 {
     if (hdi == nullptr) {
         return true;
     }
+#ifdef HDC_SUPPORT_UART
+    if (hdi->connType == CONN_SERIAL) {
+        const uint16_t maxRetryCount = 500;
+        if (count > maxRetryCount) {
+            WRITE_LOG(LOG_INFO, "uart retry count:%u", count);
+            return true;
+        }
+        return false;
+    }
+#endif
     HSession hSession = hdi->hSession;
     if (hSession == nullptr) {
+        WRITE_LOG(LOG_INFO, "hSession is nullptr connKey:%s", Hdc::MaskString(hdi->connectKey).c_str());
         return true;
     }
     if (!hSession->isRunningOk) {
+        WRITE_LOG(LOG_INFO, "isRunningOk is false sessionId:%u", hSession->sessionId);
         return true;
     }
     return false;
@@ -466,7 +478,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
         if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
             bExitRepet = true;
         } else {
-            bExitRepet = IsDisconnect(hdi);
+            bExitRepet = IsDisconnect(hdi, *bRetryCount);
         }
         if (bExitRepet) {
             sRet = "Connect failed";
@@ -474,6 +486,8 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
             hdi->inited = false;
             hdi->connStatus = STATUS_OFFLINE;
             ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
+            WRITE_LOG(LOG_INFO, "channelId:%u target:%s STATUS_OFFLINE",
+                      hChannel->channelId, Hdc::MaskString(target).c_str());
         }
     }
     if (bExitRepet) {

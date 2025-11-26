@@ -217,7 +217,7 @@ void *AsyncCmd::Popen(void *arg)
     constexpr uint8_t pipeWrite = 1;
     pid_t childPid;
     int fds[2];
-    if (pipe(fds) != 0){
+    if (pipe(fds) != 0) {
         WRITE_LOG(LOG_FATAL, "Popen pipe failed errno:%d", errno);
         return reinterpret_cast<void *>(ERR_GENERIC);
     }

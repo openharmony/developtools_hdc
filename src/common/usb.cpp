@@ -123,7 +123,7 @@ bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
         return false;
     }
 
-    if ((maybeSize == 0) || (usbPayloadHeader->option & USB_OPTION_HEADER))) {
+    if ((maybeSize == 0) || (usbPayloadHeader->option & USB_OPTION_HEADER)) {
         return true;
     }
     return false;

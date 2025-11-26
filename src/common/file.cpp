@@ -523,7 +523,7 @@ bool HdcFile::HandleFileExistenceAndNewness()
         if (statRet != 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = {0};
-            uv_strerror(statRet, buf, bufSize);
+            uv_strerror_r(statRet, buf, bufSize);
             WRITE_LOG(LOG_WARN, "uv_fs_stat failed, file:%s error:%s", Hdc::MaskString(ctxNow.localPath).c_str(), buf);
             return false;
         }

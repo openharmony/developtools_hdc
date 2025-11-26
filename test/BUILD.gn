@@ -497,6 +497,7 @@ ohos_unittest("hdc_base_unittest") {
     "unittest/common/heartbeat_ut.cpp",
     "unittest/common/hdc_huks_ut.cpp",
     "unittest/common/password_ut.cpp",
+    "unittest/common/serial_struct_define_test.cpp",
     "unittest/common/server_cmd_log_ut.cpp",
     "unittest/common/transfer_ut.cpp",
     "unittest/common/tlv_ut.cpp",

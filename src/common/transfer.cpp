@@ -245,7 +245,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
             }
         }
     }
-    payloadHead.compressSize = compressSize;
+    payloadHead.compressSize = static_cast<uint32_t>(compressSize);
     head = SerialStruct::SerializeToString(payloadHead);
     if (head.size() + 1 > payloadPrefixReserve ||
         EOK != memcpy_s(sendBuf, sendBufSize, head.c_str(), head.size() + 1)) {
@@ -546,8 +546,10 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         st.fileSize = fs.statbuf.st_size;
         st.optionalName = context->localName;
         if (st.holdTimestamp) {
-            st.atime = fs.statbuf.st_atim.tv_sec * HDC_TIME_CONVERT_BASE + fs.statbuf.st_atim.tv_nsec;
-            st.mtime = fs.statbuf.st_mtim.tv_sec * HDC_TIME_CONVERT_BASE + fs.statbuf.st_mtim.tv_nsec;
+            st.atime = static_cast<uint64_t>(fs.statbuf.st_atim.tv_sec * HDC_TIME_CONVERT_BASE
+                                             + fs.statbuf.st_atim.tv_nsec);
+            st.mtime = static_cast<uint64_t>(fs.statbuf.st_mtim.tv_sec * HDC_TIME_CONVERT_BASE
+                                             + fs.statbuf.st_mtim.tv_nsec);
         }
         st.path = context->remotePath;
         // update ctxNow=context child value
@@ -593,7 +595,7 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
 bool HdcTransferBase::MatchPackageExtendName(string fileName, string extName)
 {
     bool match = false;
-    int subfixIndex = fileName.rfind(extName);
+    size_t subfixIndex = fileName.rfind(extName);
     if ((fileName.size() - subfixIndex) != extName.size()) {
         return false;
     }
@@ -629,7 +631,7 @@ int HdcTransferBase::GetSubFiles(const char *path, string filter, vector<string>
         }
         string fileName = dent.name;
         for (auto &&s : filterStrings) {
-            int subfixIndex = fileName.rfind(s);
+            size_t subfixIndex = fileName.rfind(s);
             if ((fileName.size() - subfixIndex) != s.size())
                 continue;
             string fullPath = string(path) + Base::GetPathSep();
@@ -929,7 +931,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
 #endif
             default: {  // COMPRESS_NONE
                 clearBuf = data + payloadPrefixReserve;
-                clearSize = pld.compressSize;
+                clearSize = static_cast<int>(pld.compressSize);
                 break;
             }
         }

@@ -953,7 +953,7 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     payloadHead.protocolVer = VER_PROTOCOL;
     payloadHead.headSize = htons(s.size());
     payloadHead.dataSize = htonl(dataSize);
-    int finalBufSize = sizeof(PayloadHead) + s.size() + dataSize;
+    size_t finalBufSize = sizeof(PayloadHead) + s.size() + dataSize;
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
     uint8_t *finayBuf = (hSession->connType == CONN_TCP && hSession->sslHandshake) ?
         new(std::nothrow) uint8_t[HdcSSLBase::GetSSLBufLen(finalBufSize) + 1]() :
@@ -1004,7 +1004,7 @@ int HdcSessionBase::DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe
     StartTraceScope("HdcSessionBase::DecryptPayload");
     PayloadProtect protectBuf = {};
     uint16_t headSize = ntohs(payloadHeadBe->headSize);
-    int dataSize = ntohl(payloadHeadBe->dataSize);
+    uint32_t dataSize = ntohl(payloadHeadBe->dataSize);
     string encString(reinterpret_cast<char *>(encBuf), headSize);
     SerialStruct::ParseFromString(protectBuf, encString);
     if (protectBuf.vCode != payloadProtectStaticVcode) {

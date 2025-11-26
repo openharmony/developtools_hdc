@@ -149,7 +149,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         hChannel->availTailIndex += nread;
     }
     while (hChannel->availTailIndex > DWORD_SERIALIZE_SIZE) {
-        size = ntohl(*reinterpret_cast<uint32_t *>(hChannel->ioBuf + indexBuf));  // big endian
+        size = static_cast<int>(ntohl(*reinterpret_cast<uint32_t *>(hChannel->ioBuf + indexBuf)));  // big endian
         if (size <= 0 || static_cast<uint32_t>(size) > HDC_BUF_MAX_BYTES) {
             WRITE_LOG(LOG_FATAL, "ReadStream size:%d channelId:%u", size, channelId);
 #ifdef HDC_HOST

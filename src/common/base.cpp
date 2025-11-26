@@ -1306,13 +1306,13 @@ static void EchoLog(string &buf)
             return false;
         }
         int bytesRead = 0;
-        int bytesOnce = 0;
+        size_t bytesOnce = 0;
         while (!feof(pipeHandle)) {
             bytesOnce = fread(outBuf, 1, sizeOutBuf - bytesRead, pipeHandle);
-            if (bytesOnce <= 0) {
+            if (bytesOnce == 0) {
                 break;
             }
-            bytesRead += bytesOnce;
+            bytesRead += static_cast<int>(bytesOnce);
         }
         if (bytesRead && ignoreTailLf) {
             if (outBuf[bytesRead - 1] == '\n') {
@@ -1320,7 +1320,7 @@ static void EchoLog(string &buf)
             }
         }
         pclose(pipeHandle);
-        return bytesRead;
+        return bytesRead > 0;
     }
 
     // bufLen == 0: alloc buffer in heap, need free it later
@@ -1329,7 +1329,7 @@ static void EchoLog(string &buf)
     int ReadBinFile(const char *pathName, void **buf, const size_t bufLen)
     {
         uint8_t *pDst = nullptr;
-        size_t byteIO = 0;
+        int byteIO = 0;
         uv_fs_t req;
         int ret = uv_fs_stat(nullptr, &req, pathName, nullptr);
         if (ret < 0) {
@@ -1382,14 +1382,14 @@ static void EchoLog(string &buf)
         uv_fs_req_cleanup(&req);
         byteIO = uv_fs_read(nullptr, &req, fd, &rbf, 1, 0, nullptr);
         uv_fs_close(nullptr, nullptr, fd, nullptr);
-        if (byteIO != readMax) {
+        if (byteIO != static_cast<int>(readMax)) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             if (GetCaller() == Caller::CLIENT) {
-                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%llu readMax:%llu",
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%d readMax:%llu",
                           resolvedPath.c_str(), buffer, byteIO, readMax);
             } else {
-                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%llu readMax:%llu",
+                WRITE_LOG(LOG_FATAL, "ReadBinFile uv_fs_read %s error %s byteIO:%d readMax:%llu",
                           Hdc::MaskString(resolvedPath).c_str(), buffer, byteIO, readMax);
             }
             goto ReadFileFromPath_Finish;
@@ -1446,17 +1446,17 @@ static void EchoLog(string &buf)
         }
         uv_buf_t wbf = uv_buf_init((char *)buf, bufLen);
         uv_fs_req_cleanup(&req);
-        size_t bytesDone = uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
+        int bytesDone = uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
         uv_fs_close(nullptr, &req, fd, nullptr);
-        if (bytesDone != bufLen) {
+        if (bytesDone != static_cast<int>(bufLen)) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
             if (GetCaller() == Caller::CLIENT) {
-                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%llu bufLen:%llu",
+                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%d bufLen:%llu",
                           resolvedPath.c_str(), buffer, bytesDone, bufLen);
             } else {
-                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%llu bufLen:%llu",
+                WRITE_LOG(LOG_FATAL, "WriteBinFile uv_fs_write %s error %s bytesDone:%d bufLen:%llu",
                           Hdc::MaskString(resolvedPath).c_str(), buffer, bytesDone, bufLen);
             }
             return ERR_BUF_SIZE;

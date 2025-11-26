@@ -138,7 +138,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     }
 
     if (ret) {
-        uint32_t pid = 0;
+        int32_t pid = 0;
         char *p = ctxJdwp->buf;
         if (nread == sizeof(uint32_t)) {  // Java: pid
             pid = atoi(p);
@@ -158,7 +158,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 #endif  // JS_JDWP_CONNECT
         }
         if (pid > 0) {
-            ctxJdwp->pid = pid;
+            ctxJdwp->pid = static_cast<uint32_t>(pid);
 #ifdef JS_JDWP_CONNECT
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s isDebug:%d",
                 pid, ctxJdwp->pkgName.c_str(), ctxJdwp->isDebug);

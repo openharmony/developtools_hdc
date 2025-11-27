@@ -167,7 +167,7 @@ template("hdcd_source_set") {
       defines += [ "HDC_VERSION_CHECK" ]
     }
 
-    if (hdc_feature_support_report_command_event) {
+    if (build_selinux && image_name == "system" && hdc_feature_support_report_command_event) {
       defines += [ "HDC_SUPPORT_REPORT_COMMAND_EVENT" ]
       sources += [ "src/common/credential_message.cpp" ]
       sources += [ "src/common/command_event_report.cpp" ]

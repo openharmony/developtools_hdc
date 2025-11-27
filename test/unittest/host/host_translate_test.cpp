@@ -41,7 +41,7 @@ HWTEST_F(HdcTranslateTest, TestHdcHelp, TestSize.Level0)
 {
     std::string usage = TranslateCommand::Usage();
     EXPECT_FALSE(usage.empty());
-    EXPECT_NE(usage.find("-l[0-5]"), string::npos);
+    EXPECT_NE(usage.find("-l[0-6]"), string::npos);
     EXPECT_NE(usage.find("checkserver"), string::npos);
     EXPECT_NE(usage.find("tconn key [-remove]"), string::npos);
     EXPECT_NE(usage.find("-s [ip:]port"), string::npos);
@@ -62,7 +62,7 @@ HWTEST_F(HdcTranslateTest, TestHdcHelpVerbose, TestSize.Level0)
 {
     std::string usage = TranslateCommand::Verbose();
     EXPECT_FALSE(usage.empty());
-    EXPECT_NE(usage.find("-l[0-5]"), string::npos);
+    EXPECT_NE(usage.find("-l[0-6]"), string::npos);
     EXPECT_NE(usage.find("checkserver"), string::npos);
     EXPECT_NE(usage.find("tconn key [-remove]"), string::npos);
     EXPECT_NE(usage.find("-s [ip:]port"), string::npos);
@@ -322,4 +322,59 @@ HWTEST_F(HdcTranslateTest, TestString2FormatCommandTrackJpid, TestSize.Level0)
     EXPECT_EQ(formatCommand->parameters, "p");
 }
 
+HWTEST_F(HdcTranslateTest, TestInstallHelp, TestSize.Level0)
+{
+    std::string usage = TranslateCommand::Usage();
+    EXPECT_FALSE(usage.empty());
+    EXPECT_NE(usage.find("install [option] src"), string::npos);
+    EXPECT_NE(usage.find("-r: replace existing application"), string::npos);
+    EXPECT_NE(usage.find("-s: install shared bundle for multi-apps"), string::npos);
+    EXPECT_NE(usage.find("-w: specify waitting time for installation"), string::npos);
+    EXPECT_NE(usage.find("-u: specify a user id"), string::npos);
+    EXPECT_NE(usage.find("-cwd: specify the working directory"), string::npos);
+    EXPECT_NE(usage.find("-p: specify a bundle path or direction"), string::npos);
+    EXPECT_NE(usage.find("-h: list available options of 'bm install' command"), string::npos);
+}
+
+HWTEST_F(HdcTranslateTest, TestInstallHelpVerbose, TestSize.Level0)
+{
+    std::string usage = TranslateCommand::Verbose();
+    EXPECT_FALSE(usage.empty());
+    EXPECT_NE(usage.find("install [option] src"), string::npos);
+    EXPECT_NE(usage.find("-r: replace existing application"), string::npos);
+    EXPECT_NE(usage.find("-s: install shared bundle for multi-apps"), string::npos);
+    EXPECT_NE(usage.find("-w: specify waitting time for installation"), string::npos);
+    EXPECT_NE(usage.find("-u: specify a user id"), string::npos);
+    EXPECT_NE(usage.find("-cwd: specify the working directory"), string::npos);
+    EXPECT_NE(usage.find("-p: specify a bundle path or direction"), string::npos);
+    EXPECT_NE(usage.find("-h: list available options of 'bm install' command"), string::npos);
+}
+
+HWTEST_F(HdcTranslateTest, TestUnintsallHelp, TestSize.Level0)
+{
+    std::string usage = TranslateCommand::Usage();
+    EXPECT_FALSE(usage.empty());
+    EXPECT_NE(usage.find("uninstall [option] package"), string::npos);
+    EXPECT_NE(usage.find("-n: uninstall a bundle by bundle name"), string::npos);
+    EXPECT_NE(usage.find("-m: uninstall a module by module name"), string::npos);
+    EXPECT_NE(usage.find("-k: keep the data and cache directories"), string::npos);
+    EXPECT_NE(usage.find("-s: remove shared bundle"), string::npos);
+    EXPECT_NE(usage.find("-v: uninstall a inter-application shared library by versionCode"), string::npos);
+    EXPECT_NE(usage.find("-u: specify a user id"), string::npos);
+    EXPECT_NE(usage.find("-h: list available options of 'bm uninstall' command"), string::npos);
+}
+
+HWTEST_F(HdcTranslateTest, TestUnintsallHelpVerbose, TestSize.Level0)
+{
+    std::string usage = TranslateCommand::Verbose();
+    EXPECT_FALSE(usage.empty());
+    EXPECT_NE(usage.find("uninstall [option] package"), string::npos);
+    EXPECT_NE(usage.find("-n: uninstall a bundle by bundle name"), string::npos);
+    EXPECT_NE(usage.find("-m: uninstall a module by module name"), string::npos);
+    EXPECT_NE(usage.find("-k: keep the data and cache directories"), string::npos);
+    EXPECT_NE(usage.find("-s: remove shared bundle"), string::npos);
+    EXPECT_NE(usage.find("-v: uninstall a inter-application shared library by versionCode"), string::npos);
+    EXPECT_NE(usage.find("-u: specify a user id"), string::npos);
+    EXPECT_NE(usage.find("-h: list available options of 'bm uninstall' command"), string::npos);
+}
 }

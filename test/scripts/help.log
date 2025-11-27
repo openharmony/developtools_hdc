@@ -65,15 +65,26 @@ forward commands:
  fport rm taskstr                      - Remove forward/reverse task by taskstring
 
 app commands:
- install [-r|-s|-cwd] src              - Send package(s) to device and install them
+ install [option] src                  - Send package(s) to device and install them
                                          src examples: single or multiple packages and directories
                                          (.hap .hsp .app)
+                                         option is -r|-s|-w|-u|-p|-h|-cwd
                                          -r: replace existing application
                                          -s: install shared bundle for multi-apps
+                                         -w: specify waitting time for installation
+                                         -u: specify a user id
+                                         -p: specify a bundle path or direction
+                                         -h: list available options of 'bm install' command
                                          -cwd: specify the working directory
- uninstall [-k] [-s] package           - Remove application package from device
+ uninstall [option] package            - Remove application package from device
+                                         option is -n|-m|-k|-s|-v|-u|-h
+                                         -n: uninstall a bundle by bundle name
+                                         -m: uninstall a module by module name
                                          -k: keep the data and cache directories
                                          -s: remove shared bundle
+                                         -v: uninstall a inter-application shared library by versionCode
+                                         -u: specify a user id
+                                         -h: list available options of 'bm uninstall' command
 
 debug commands:
  hilog [-h|parse]                      - Show device log, -h for detail

@@ -902,10 +902,12 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
     SerialStruct::ParseFromString(pld, serialString);
     int clearSize = 0;
     StartTraceScope("HdcTransferBase::RecvIOPayload");
-    if (pld.compressSize > static_cast<uint32_t>(dataSize) || pld.uncompressSize > MAX_SIZE_IOBUF) {
+    if ((pld.compressSize > (static_cast<uint32_t>(dataSize) - payloadPrefixReserve) ||
+        pld.uncompressSize > MAX_SIZE_IOBUF) {
         WRITE_LOG(LOG_FATAL, "compress size is greater than the dataSize. pld.compressSize = %d", pld.compressSize);
         return false;
     }
+    bool isClearBufAllocated = false;
     if (pld.compressSize > 0) {
         switch (pld.compressType) {
 #ifdef HARMONY_PROJECT
@@ -915,6 +917,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
                     WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
                     return false;
                 }
+                isClearBufAllocated = true;
                 clearSize = LZ4_decompress_safe((const char *)data + payloadPrefixReserve, (char *)clearBuf,
                                                 pld.compressSize, pld.uncompressSize);
                 break;
@@ -944,7 +947,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         ret = true;
         break;
     }
-    if (pld.compressSize > 0 && pld.compressType != COMPRESS_NONE) {
+    if (isClearBufAllocated && (clearBuf != nullptr))) {
         delete[] clearBuf;
     }
     return ret;

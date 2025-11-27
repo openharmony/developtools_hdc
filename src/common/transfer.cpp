@@ -947,7 +947,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         ret = true;
         break;
     }
-    if (isClearBufAllocated && (clearBuf != nullptr))) {
+    if (isClearBufAllocated && (clearBuf != nullptr)) {
         delete[] clearBuf;
     }
     return ret;

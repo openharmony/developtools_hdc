@@ -29,8 +29,8 @@ public:
     void OnNewHandshakeOK(const uint32_t sessionId);
     void Stop();
 protected:
-    virtual HSession GetSession(const uint32_t sessionId, bool create) override;
-    virtual void OnTransferError(const HSession session) override;
+    HSession GetSession(const uint32_t sessionId, bool create) override;
+    void OnTransferError(const HSession session) override;
 
 private:
     static inline void UvWatchTimer(uv_timer_t *handle)

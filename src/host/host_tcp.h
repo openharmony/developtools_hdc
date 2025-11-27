@@ -20,7 +20,7 @@ namespace Hdc {
 class HdcHostTCP : public HdcTCPBase {
 public:
     HdcHostTCP(const bool serverOrDaemonIn, void *ptrMainBase);
-    virtual ~HdcHostTCP();
+    ~HdcHostTCP();
     void FindLanDaemon();
     HSession ConnectDaemon(const string &connectKey, bool isCheck = false);
     void Stop();

@@ -26,7 +26,7 @@ class HdcHostApp;
 class HdcClient : public HdcChannelBase {
 public:
     HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion = false);
-    virtual ~HdcClient();
+    ~HdcClient();
     int Initial(const string &connectKeyIn);
     int ExecuteCommand(const string &commandIn);
     int CtrlServiceWork(const char *commandIn);

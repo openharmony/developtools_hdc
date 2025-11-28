@@ -985,6 +985,9 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
     }
     if (hdi->hSession == nullptr || hdi->hSession->isDead) {
         WRITE_LOG(LOG_WARN, "Bind tartget session is null or dead cid:%u", hChannel->channelId);
+        if (hdi->hSession != nullptr) {
+            WRITE_LOG(LOG_WARN, "session dead cid:%u sid:%u", hChannel->channelId, hdi->hSession->sessionId);
+        }
         FillChannelResult(hChannel, false, "bind tartget session is null or dead");
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;

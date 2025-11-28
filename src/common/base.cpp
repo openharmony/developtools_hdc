@@ -1305,14 +1305,14 @@ static void EchoLog(string &buf)
         if (pipeHandle == nullptr) {
             return false;
         }
-        int bytesRead = 0;
+        size_t bytesRead = 0;
         size_t bytesOnce = 0;
         while (!feof(pipeHandle)) {
             bytesOnce = fread(outBuf, 1, sizeOutBuf - bytesRead, pipeHandle);
             if (bytesOnce == 0) {
                 break;
             }
-            bytesRead += static_cast<int>(bytesOnce);
+            bytesRead += bytesOnce;
         }
         if (bytesRead && ignoreTailLf) {
             if (outBuf[bytesRead - 1] == '\n') {
@@ -1382,7 +1382,7 @@ static void EchoLog(string &buf)
         uv_fs_req_cleanup(&req);
         byteIO = uv_fs_read(nullptr, &req, fd, &rbf, 1, 0, nullptr);
         uv_fs_close(nullptr, nullptr, fd, nullptr);
-        if (byteIO != static_cast<int>(readMax)) {
+        if (byteIO < 0 || static_cast<size_t>(byteIO) != readMax) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             if (GetCaller() == Caller::CLIENT) {

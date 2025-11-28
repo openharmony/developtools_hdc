@@ -12,11 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "daemon_unity.h"
 #include <cstdlib>
 #include <sys/mount.h>
 #include <sys/wait.h>
-
-#include "daemon_unity.h"
+#include "hdc_statistic_reporter.h"
 
 namespace Hdc {
 HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
@@ -111,7 +111,9 @@ int HdcDaemonUnity::ExecuteShell(const string &shellCommand, string optionPath)
         if (!asyncCommand.Initial(loopTask, funcResultOutput)) {
             break;
         }
-        asyncCommand.ExecuteCommand(shellCommand, optionPath);
+        if (!asyncCommand.ExecuteCommand(shellCommand, optionPath)) {
+            HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::SHELL_FAIL_COUNT);
+        }
         ++refCount;
         return RET_SUCCESS;
     } while (false);
@@ -128,8 +130,10 @@ int HdcDaemonUnity::ExecuteShellExtend(const uint8_t *payload, const int payload
     string errMsg = "";
     TlvBuf tlvbuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
     tlvbuf.Display();
+    HdcStatisticReporter& reporter = HdcStatisticReporter::GetInstance();
     if (tlvbuf.ContainInvalidTag()) {
         LogMsg(MSG_FAIL, "[E003004] Device does not support this shell option");
+        reporter.IncrCommandInfo(STATISTIC_ITEM::SHELL_FAIL_COUNT);
         return -1;
     } else {
         if (!tlvbuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
@@ -141,7 +145,11 @@ int HdcDaemonUnity::ExecuteShellExtend(const uint8_t *payload, const int payload
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteShellExtend command: %s, bundleName: %s",
               Hdc::MaskString(command).c_str(), bundleName.c_str());
-    return ExecuteOptionShell(command, bundleName);
+    int ret = ExecuteOptionShell(command, bundleName);
+    if (ret == -1) {
+        reporter.IncrCommandInfo(STATISTIC_ITEM::SHELL_FAIL_COUNT);
+    }
+    return ret;
 }
 
 bool HdcDaemonUnity::FindMountDeviceByPath(const char *toQuery, char *dev)
@@ -350,7 +358,9 @@ inline bool HdcDaemonUnity::GetHiLog(const char *cmd)
     if (cmd && !strcmp(const_cast<char *>(cmd), "h")) {
         cmdDo += " -h";
     }
-    ExecuteShell(cmdDo.c_str());
+    if (ExecuteShell(cmdDo.c_str()) == -1) {
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::HILOG_FAIL_COUNT);
+    }
     return true;
 }
 

@@ -119,6 +119,7 @@ private:
     string GetSessionAuthPubkey(uint32_t sessionid);
     bool GetAuthByPassValue();
     bool CheckAuthStatus(HSession hSession, const uint32_t channelId, const uint16_t command);
+    void HandleCommandReport(const uint16_t command);
     std::map<uint32_t, HdcDaemonAuthInfo> mapAuthStatus;
     std::mutex mapAuthStatusMutex;
     bool authEnable;

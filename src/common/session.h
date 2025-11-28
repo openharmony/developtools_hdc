@@ -229,10 +229,10 @@ private:
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
     void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
     void StartHeartbeatWork(HSession hSession);
-    void SetFeature(SessionHandShake &handshake);
+    void SetFeature(SessionHandShake &handshake, const uint8_t connType);
     void StopHeartbeatWork(HSession hSession);
     static void TaskClassDeleteRetry(uv_timer_t *handle);
-
+    std::string GetOs();
     map<uint32_t, HSession> mapSession;
     uv_rwlock_t lockMapSession;
     std::atomic<uint32_t> sessionRef = 0;
@@ -240,6 +240,7 @@ private:
     uv_thread_t threadSessionMain;
     size_t threadPoolCount;
     std::atomic<uint32_t> taskCount = 0;
+    uint64_t freeBegin = 0;
 };
 }  // namespace Hdc
 #endif

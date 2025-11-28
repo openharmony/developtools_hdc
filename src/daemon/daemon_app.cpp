@@ -14,6 +14,7 @@
  */
 #include "daemon_app.h"
 #include "decompress.h"
+#include "hdc_statistic_reporter.h"
 
 namespace Hdc {
 HdcDaemonApp::HdcDaemonApp(HTaskInfo hTaskInfo)
@@ -179,7 +180,11 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
         mode = APPMOD_UNINSTALL;
     }
     asyncCommand.Initial(loopTask, funcAppModFinish, AsyncCmd::OPTION_COMMAND_ONETIME);
-    asyncCommand.ExecuteCommand(doBuf);
+    if (!asyncCommand.ExecuteCommand(doBuf)) {
+        STATISTIC_ITEM item = installOrUninstall ? STATISTIC_ITEM::INSTALL_FAIL_COUNT :
+                        STATISTIC_ITEM::UNINSTALL_FAIL_COUNT;
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(item);
+    }
 }
 
 void HdcDaemonApp::Sideload(const char *pathOTA)

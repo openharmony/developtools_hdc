@@ -113,8 +113,8 @@ void HdcChannelBase::WorkerPendding()
 void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf)
 {
     StartTraceScope("HdcChannelBase::ReadStream");
-    int size = 0;
-    int indexBuf = 0;
+    uint32_t size = 0;
+    uint32_t indexBuf = 0;
     int childRet = 0;
     bool needExit = false;
     HChannel hChannel = (HChannel)tcp->data;
@@ -149,8 +149,8 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
         hChannel->availTailIndex += nread;
     }
     while (hChannel->availTailIndex > DWORD_SERIALIZE_SIZE) {
-        size = static_cast<int>(ntohl(*reinterpret_cast<uint32_t *>(hChannel->ioBuf + indexBuf)));  // big endian
-        if (size <= 0 || static_cast<uint32_t>(size) > HDC_BUF_MAX_BYTES) {
+        size = ntohl(*reinterpret_cast<uint32_t *>(hChannel->ioBuf + indexBuf));  // big endian
+        if (size == 0 || size > HDC_BUF_MAX_BYTES) {
             WRITE_LOG(LOG_FATAL, "ReadStream size:%d channelId:%u", size, channelId);
 #ifdef HDC_HOST
             thisClass->FillChannelResult(hChannel, false,

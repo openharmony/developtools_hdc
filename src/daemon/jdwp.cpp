@@ -138,7 +138,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     }
 
     if (ret) {
-        uint32_t pid = 0;
+        int32_t pid = 0;
         char *p = ctxJdwp->buf;
         if (nread == sizeof(uint32_t)) {  // Java: pid
             pid = atoi(p);
@@ -147,7 +147,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
             // pid isDebug pkgName/processName
             struct JsMsgHeader *jsMsg = reinterpret_cast<struct JsMsgHeader *>(p);
             if (jsMsg->msgLen == static_cast<uint32_t>(nread)) {
-                pid = jsMsg->pid;
+                pid = static_cast<int32_t>(jsMsg->pid);
                 string pkgName = string((char *)p + sizeof(JsMsgHeader), jsMsg->msgLen - sizeof(JsMsgHeader));
                 ctxJdwp->pkgName = pkgName;
                 ctxJdwp->isDebug = jsMsg->isDebug;
@@ -158,7 +158,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 #endif  // JS_JDWP_CONNECT
         }
         if (pid > 0) {
-            ctxJdwp->pid = pid;
+            ctxJdwp->pid = static_cast<uint32_t>(pid);
 #ifdef JS_JDWP_CONNECT
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s isDebug:%d",
                 pid, ctxJdwp->pkgName.c_str(), ctxJdwp->isDebug);
@@ -180,7 +180,7 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     }
     (void)memset_s(ctxJdwp->buf, sizeof(ctxJdwp->buf), 0, sizeof(ctxJdwp->buf));
     if (!ret) {
-        WRITE_LOG(LOG_INFO, "ReadStream proc:%d err, free it.", ctxJdwp->pid);
+        WRITE_LOG(LOG_INFO, "ReadStream proc:%u err, free it.", ctxJdwp->pid);
         thisClass->freeContextMutex.lock();
         thisClass->FreeContext(ctxJdwp);
         thisClass->freeContextMutex.unlock();

@@ -198,7 +198,7 @@ int HdcUSBBase::SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t 
         WRITE_LOG(LOG_FATAL, "Error usb send to stream dataSize:%d", dataSize);
         return ERR_IO_FAIL;
     }
-    hUSB->payloadSize -= childRet;
+    hUSB->payloadSize -= static_cast<uint32_t>(childRet);
     return hUSB->payloadSize;
 }
 

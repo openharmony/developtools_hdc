@@ -55,7 +55,7 @@ void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf
 
 void HdcTCPBase::AllocStreamUDP(uv_handle_t* /* handle */, size_t /* sizeWanted */, uv_buf_t *buf)
 {
-    int bufLen = BUF_SIZE_DEFAULT;
+    size_t bufLen = BUF_SIZE_DEFAULT;
     char *pRecvBuf = reinterpret_cast<char *>(new uint8_t[bufLen]());
     if (!pRecvBuf) {
         return;

@@ -184,11 +184,11 @@ int HdcUARTBase::SetSerial(int fd, int nSpeed, int nBits, char nEvent, int nStop
         return ERR_GENERIC;
     }
     bzero(&newttys1, sizeof(newttys1));
-    newttys1.c_cflag = GetUartSpeed(nSpeed);
+    newttys1.c_cflag = static_cast<tcflag_t>(GetUartSpeed(nSpeed));
     newttys1.c_cflag |= (CLOCAL | CREAD);
     newttys1.c_cflag &= ~CSIZE;
     newttys1.c_lflag &= ~ICANON;
-    newttys1.c_cflag |= GetUartBits(nBits);
+    newttys1.c_cflag |= static_cast<tcflag_t>(GetUartBits(nBits));
     switch (nEvent) {
         case 'O':
             newttys1.c_cflag |= PARENB;
@@ -395,7 +395,7 @@ ssize_t HdcUARTBase::WriteUartDev(uint8_t *data, const size_t length, HdcUART &u
 int HdcUARTBase::UartToHdcProtocol(uv_stream_t *stream, uint8_t *data, int dataSize)
 {
     HSession hSession = (HSession)stream->data;
-    unsigned int fd = hSession->dataFd[STREAM_MAIN];
+    int fd = hSession->dataFd[STREAM_MAIN];
     fd_set fdSet;
     struct timeval timeout = {3, 0};
     FD_ZERO(&fdSet);
@@ -906,7 +906,7 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
         head->sessionId = hSession->sessionId;
         head->packageIndex = ++hSession->hUART->packageIndex;
 
-        int RemainingDataSize = length - offset;
+        int RemainingDataSize = static_cast<int>(length - offset);
         if (RemainingDataSize > packageDataMaxSize) {
             // more than one package max data size
             head->dataSize = static_cast<uint16_t>(packageDataMaxSize);
@@ -927,7 +927,7 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
             return ERR_BUF_COPY;
         }
         offset += head->dataSize;
-        int packageFullSize = sizeof(UartHead) + head->dataSize;
+        uint32_t packageFullSize = sizeof(UartHead) + head->dataSize;
         WRITE_LOG(LOG_ALL, "SendUARTData =============> %s", head->ToDebugString().c_str());
         RequestSendPackage(sendDataBuf, packageFullSize);
     } while (offset != length);

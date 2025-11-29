@@ -906,7 +906,7 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
         head->sessionId = hSession->sessionId;
         head->packageIndex = ++hSession->hUART->packageIndex;
 
-        size_t RemainingDataSize = length - offset;
+        int RemainingDataSize = static_cast<int>(length - offset);
         if (RemainingDataSize > packageDataMaxSize) {
             // more than one package max data size
             head->dataSize = static_cast<uint16_t>(packageDataMaxSize);

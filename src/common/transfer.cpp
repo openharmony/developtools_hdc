@@ -596,6 +596,9 @@ bool HdcTransferBase::MatchPackageExtendName(string fileName, string extName)
 {
     bool match = false;
     size_t subfixIndex = fileName.rfind(extName);
+    if (subfixIndex == string::npos) {
+        return false;
+    }
     if ((fileName.size() - subfixIndex) != extName.size()) {
         return false;
     }

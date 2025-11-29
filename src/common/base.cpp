@@ -1448,7 +1448,7 @@ static void EchoLog(string &buf)
         uv_fs_req_cleanup(&req);
         int bytesDone = uv_fs_write(nullptr, &req, fd, &wbf, 1, 0, nullptr);
         uv_fs_close(nullptr, &req, fd, nullptr);
-        if (bytesDone != static_cast<int>(bufLen)) {
+        if (bytesDone < 0 ||  static_cast<size_t>(bytesDone) != bufLen) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);

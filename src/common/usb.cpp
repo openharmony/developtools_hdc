@@ -113,7 +113,7 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
 bool HdcUSBBase::IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes)
 {
     StartTraceScope("HdcUSBBase::IsUsbPacketHeader");
-    if (ioBytes != sizeof(USBHead)) {
+    if (ioBytes < sizeof(USBHead)) {
         WRITE_LOG(LOG_FATAL, "IsUsbPacketHeader  wrong bytes: %d", ioBytes);
         return false;
     }

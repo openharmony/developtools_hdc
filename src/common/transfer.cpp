@@ -935,7 +935,7 @@ bool HdcTransferBase::RecvIOPayload(CtxFile *context, uint8_t *data, int dataSiz
         }
     }
     while (true) {
-        if (clearSize <= 0) {
+        if (clearSize < 0) {
             WRITE_LOG(LOG_WARN, "invalid data size for fileIO: %d", clearSize);
             break;
         }

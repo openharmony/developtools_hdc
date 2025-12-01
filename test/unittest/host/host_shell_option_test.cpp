@@ -75,10 +75,8 @@ HWTEST_F(HostShellOptionTest, TestParameterToTlv_1, TestSize.Level0)
     string stringError;
     int argc = 0;
     char **argv = Base::SplitCommandToArgs(parameters.c_str() + (CMDSTR_SHELL_EX.size() - 1), &argc);
-    if (argv == nullptr || argc <= 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to split command to args");
-        return;
-    }
+    ASSERT_TRUE(argv != nullptr);
+    ASSERT_TRUE(argc > 0);
 
     bool result = HostShellOption::ParameterToTlv(argv, argc, tb, stringError);
 
@@ -95,10 +93,8 @@ HWTEST_F(HostShellOptionTest, TestParameterToTlv_2, TestSize.Level0)
     string stringError;
     int argc = 0;
     char **argv = Base::SplitCommandToArgs(parameters.c_str() + (CMDSTR_SHELL_EX.size() - 1), &argc);
-    if (argv == nullptr || argc <= 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to split command to args");
-        return;
-    }
+    ASSERT_TRUE(argv != nullptr);
+    ASSERT_TRUE(argc > 0);
 
     bool result = HostShellOption::ParameterToTlv(argv, argc, tb, stringError);
 
@@ -114,10 +110,8 @@ HWTEST_F(HostShellOptionTest, TestParameterToTlv_3, TestSize.Level0)
     string stringError;
     int argc = 0;
     char **argv = Base::SplitCommandToArgs(parameters.c_str() + (CMDSTR_SHELL_EX.size() - 1), &argc);
-    if (argv == nullptr || argc <= 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to split command to args");
-        return;
-    }
+    ASSERT_TRUE(argv != nullptr);
+    ASSERT_TRUE(argc > 0);
 
     bool result = HostShellOption::ParameterToTlv(argv, argc, tb, stringError);
 
@@ -131,10 +125,8 @@ HWTEST_F(HostShellOptionTest, TestConstructShellCommand, TestSize.Level0)
     string parameters = "shell ls -l";
     int argc = 0;
     char **argv = Base::SplitCommandToArgs(parameters.c_str() + (CMDSTR_SHELL_EX.size() - 1), &argc);
-    if (argv == nullptr || argc <= 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to split command to args");
-        return;
-    }
+    ASSERT_TRUE(argv != nullptr);
+    ASSERT_TRUE(argc > 0);
 
     string result = HostShellOption::ConstructShellCommand(argv, argc, argc);
     EXPECT_EQ(result, "");

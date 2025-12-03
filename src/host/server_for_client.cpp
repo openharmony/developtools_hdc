@@ -465,7 +465,8 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     if (bConnectOK) {
         bExitRepet = true;
         if (hChannel->isCheck) {
-            WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
+            WRITE_LOG(LOG_INFO, "%s check device success and remove %s",
+                      __FUNCTION__, Hdc::MaskString(hChannel->key).c_str());
             thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
             thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
         } else {

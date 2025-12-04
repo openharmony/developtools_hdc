@@ -276,9 +276,17 @@ bool AsyncCmd::ExecuteCommand(const string &command, string executePath)
     string cmd = command;
     cmd = Base::ShellCmdTrim(cmd);
     if ((fd = ThreadFork(cmd, executePath, true, pid)) < 0) {
+#ifdef IS_RELEASE_VERSION
         WRITE_LOG(LOG_FATAL, "ExecuteCommand failed cmd:%s fd:%d", Hdc::MaskString(cmd).c_str(), fd);
         return false;
     }
+    WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", Hdc::MaskString(cmd).c_str(), fd, pid);
+#else
+        WRITE_LOG(LOG_FATAL, "ExecuteCommand failed cmd:%s fd:%d", cmd.c_str(), fd);
+        return false;
+    }
+    WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);
+#endif
     WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", Hdc::MaskString(cmd).c_str(), fd, pid);
     ++refCount;
     childShell = new(std::nothrow) HdcFileDescriptor(loop, fd, this, ChildReadCallback, FinishShellProc, false);

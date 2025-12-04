@@ -34,20 +34,20 @@ public:
     bool ReportCommandEvent(const std::string &inputRaw, Base::Caller caller,
         bool isIntercepted, std::string command = "");
     bool ReportFileCommandEvent(
-        const std::string &localPath, bool master, bool serverOrDaemon);
+        const std::string &localPath, const bool master, const bool serverOrDaemon) const;
 private:
-    bool IsSupportReport();
+    bool IsSupportReport() const
     std::string SplicMessageStr(const std::string &command, const std::string &raw,
         Base::Caller caller, bool isIntercepted);
     std::string FormatMessage(const std::string &command, const std::string &raw,
         Base::Caller caller, bool isIntercepted);
     bool GetCommandFromInputRaw(const char* inputRaw, std::string &command);
     bool Report(const std::string &command, const std::string &content,
-        Base::Caller caller, bool isIntercepted);
+        const Base::Caller caller, const bool isIntercepted) const;
     bool ReportByUnixSocket(const std::string &command, const std::string &inputRaw,
         Base::Caller caller, bool isIntercepted);
     std::string GetCurrentTimeStamp();
-    std::string GetCallerName(Base::Caller caller);
+    std::string GetCallerName(const Base::Caller caller);
 };
 } // namespace Hdc
 #endif // HDC_COMMAND_EVENT_REPORT_H

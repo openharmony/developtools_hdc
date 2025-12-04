@@ -553,7 +553,8 @@ bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string
         const int scaleOfEncrypt = 4;
         const int scaleOfDecrypt = 3;
         // Invalid base64 format
-        if (tokenSignBase64.empty() || tokenSignBase64.length() % 4 != 0) {
+        const int base64BlockSize = 4; // base64 string must be a multiple of 4
+        if (tokenSignBase64.empty() || tokenSignBase64.length() % base64BlockSize != 0) {
             WRITE_LOG(LOG_FATAL, "Invalid base64 format for session %u", hSession->sessionId);
             return false;
         }
@@ -645,7 +646,7 @@ bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const 
             break;
         }
         int wbytes = BIO_write(bio, pubkeyp, pubkey.length());
-        if (wbytes != pubkey.length()) {
+        if (wbytes != static_cast<int>(pubkey.length())) {
             WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, hSession->sessionId);
             break;
         }

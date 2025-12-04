@@ -465,7 +465,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     if (bConnectOK) {
         bExitRepet = true;
         if (hChannel->isCheck) {
-            WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
+            WRITE_LOG(LOG_INFO, "check device success and remove %s", Hdc::MaskString(hChannel->key).c_str());
             thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
             thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
         } else {
@@ -983,9 +983,15 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
         EchoClient(hChannel, MSG_FAIL, "[E001005] Device not found or connected");
         return nullptr;
     }
-    if (hdi->hSession == nullptr || hdi->hSession->isDead) {
-        WRITE_LOG(LOG_WARN, "Bind tartget session is null or dead cid:%u", hChannel->channelId);
-        FillChannelResult(hChannel, false, "bind tartget session is null or dead");
+    if (hdi->hSession == nullptr) {
+        WRITE_LOG(LOG_WARN, "session is null cid:%u", hChannel->channelId);
+        FillChannelResult(hChannel, false, "bind target session is null");
+        EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
+        return nullptr;
+    }
+    if (hdi->hSession->isDead) {
+        WRITE_LOG(LOG_WARN, "session is dead cid:%u sid:%u", hChannel->channelId, hdi->hSession->sessionId);
+        FillChannelResult(hChannel, false, "bind target session is dead");
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }

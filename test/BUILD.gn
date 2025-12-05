@@ -28,6 +28,7 @@ hdc_common_sources = [
   "${hdc_path}/src/common/compress.cpp",
   "${hdc_path}/src/common/decompress.cpp",
   "${hdc_path}/src/common/entry.cpp",
+  "${hdc_path}/src/common/hdc_statistic_reporter.cpp",
   "${hdc_path}/src/common/file.cpp",
   "${hdc_path}/src/common/file_descriptor.cpp",
   "${hdc_path}/src/common/forward.cpp",
@@ -502,6 +503,7 @@ ohos_unittest("hdc_base_unittest") {
     "unittest/common/transfer_ut.cpp",
     "unittest/common/tlv_ut.cpp",
     "unittest/common/uv_status_ut.cpp",
+    "unittest/common/hdc_statistic_reporter_ut.cpp",
   ]
 
   configs = [
@@ -514,11 +516,14 @@ ohos_unittest("hdc_base_unittest") {
     "googletest:gmock_main",
     "init:libbegetutil",
     "huks:libhukssdk",
+    "hisysevent:libhisysevent",
   ]
 
   defines = [
     "HDC_SUPPORT_ENCRYPT_PRIVATE_KEY",
-    "MEMORY_POOL_ENABLE"
+    "MEMORY_POOL_ENABLE",
+    "HDC_STATISTIC_REPORT_ENABLE",
+    "private=public"
   ]
   if (hdc_unit_test) {
     defines += [ "HDC_UNIT_TEST" ]

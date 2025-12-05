@@ -179,7 +179,7 @@ bool Runtime::Initial(bool bConnectToDaemonIn)
 
     Base::StartWorkThread(&loopMain, StartServer, funcServerFinish, this);
     Base::StartWorkThread(&loopMain, StartDaemon, funcDaemonFinish, this);
-    Base::TimerUvTask(&loopMain, this, DoCheck, sleepTime);
+    Base::TimerUvTask(&loopMain, this, DoCheck, 0, sleepTime);
     return true;
 }
 

@@ -46,7 +46,8 @@
         "pin_auth",
         "rust_rust-openssl",
         "huks",
-        "rust_libc"
+        "rust_libc",
+        "hisysevent"
       ],
       "third_party": []
     },

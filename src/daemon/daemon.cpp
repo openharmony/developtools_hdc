@@ -28,6 +28,7 @@
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
 #include "command_event_report.h"
 #endif
+#include "hdc_statistic_reporter.h"
 
 namespace Hdc {
 #ifdef USE_CONFIG_UV_THREADS
@@ -1023,6 +1024,30 @@ static bool ReportCommandEvent(const uint16_t command, uint8_t *payload, const i
     return true;
 }
 
+static const std::unordered_map<uint16_t, STATISTIC_ITEM> commandToReportItem = {
+    {CMD_UNITY_EXECUTE,       STATISTIC_ITEM::SHELL_COUNT},           // shell xxx
+    {CMD_UNITY_EXECUTE_EX,    STATISTIC_ITEM::SHELL_COUNT},           // shell xxx
+    {CMD_SHELL_INIT,          STATISTIC_ITEM::INTERACT_SHELL_COUNT},  // interact shell
+    {CMD_APP_CHECK,           STATISTIC_ITEM::INSTALL_COUNT},         // install
+    {CMD_APP_UNINSTALL,       STATISTIC_ITEM::UNINSTALL_COUNT},       // uninstall
+    {CMD_FILE_CHECK,          STATISTIC_ITEM::FILE_SEND_COUNT},       // file send
+    {CMD_FILE_INIT,           STATISTIC_ITEM::FILE_RECV_COUNT},       // file recv
+    {CMD_FORWARD_CHECK,       STATISTIC_ITEM::FPORT_COUNT},           // fport
+    {CMD_FORWARD_INIT,        STATISTIC_ITEM::RPORT_COUNT},           // rport
+    {CMD_UNITY_HILOG,         STATISTIC_ITEM::HILOG_COUNT},           // hilog
+    {CMD_JDWP_LIST,           STATISTIC_ITEM::JPID_COUNT},            // jpid
+    {CMD_JDWP_TRACK,          STATISTIC_ITEM::TRACK_JPID_COUNT}       // track-jpid
+};
+
+void HdcDaemon::HandleCommandReport(const uint16_t command)
+
+{
+    auto it = commandToReportItem.find(command);
+    if (it != commandToReportItem.end()) {
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(it->second);
+    }
+}
+
 bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
 {
@@ -1063,6 +1088,7 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
             break;
         }
         default:
+            HandleCommandReport(command);
             ret = true;
             if (isNotIntercepted) {
                 ret = DispatchTaskData(hSession, channelId, command, payload, payloadSize);

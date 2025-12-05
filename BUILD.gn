@@ -33,6 +33,7 @@ hdc_common_sources = [
   "src/common/compress.cpp",
   "src/common/decompress.cpp",
   "src/common/entry.cpp",
+  "src/common/hdc_statistic_reporter.cpp",
   "src/common/file.cpp",
   "src/common/file_descriptor.cpp",
   "src/common/forward.cpp",
@@ -158,8 +159,14 @@ template("hdcd_source_set") {
         defines += [ "UPDATER_MODE" ]
       }
       if (image_name == "system") {
-        defines += [ "HDC_TRACE" ]
-        external_deps += [ "hitrace:hitrace_meter" ]
+        defines += [
+          "HDC_TRACE",
+          "HDC_STATISTIC_REPORT_ENABLE"
+        ]
+        external_deps += [
+          "hitrace:hitrace_meter",
+          "hisysevent:libhisysevent",
+        ]
       }
     }
 

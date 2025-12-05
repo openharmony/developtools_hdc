@@ -13,10 +13,13 @@
  * limitations under the License.
  */
 
-#include "log.h"
 #include "uv_status.h"
-#include <thread>
+#include <condition_variable>
 #include <mutex>
+#include <thread>
+#include "define.h"
+#include "hdc_statistic_reporter.h"
+#include "log.h"
 
 using namespace std;
 
@@ -104,10 +107,15 @@ bool LoopStatus::Busy(void) const
 }
 void LoopStatus::Display(const string &info, bool all) const
 {
+    int64_t duration = TimeSub(TimeNow(), mCallBackTime);
+    // same handle only report once
+    if (duration >= MAX_FREEZE_TIME && duration < MAX_FREEZE_TIME + LOOP_MONITOR_PERIOD) {
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::FREEZE_COUNT);
+    }
     if (Busy()) {
         WRITE_LOG(LOG_FATAL, "%s loop[%s] is busy for [%s] start[%llu] duration[%llu]",
                   info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
-                  mCallBackTime, TimeSub(TimeNow(), mCallBackTime));
+                  mCallBackTime, duration);
     } else if (all) {
         WRITE_LOG(LOG_INFO, "%s loop[%s] is idle", info.c_str(), mLoopName.c_str());
     }

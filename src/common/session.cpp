@@ -16,6 +16,7 @@
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
 #endif
+#include "hdc_statistic_reporter.h"
 #include "serial_struct.h"
 
 namespace Hdc {
@@ -61,6 +62,7 @@ HdcSessionBase::HdcSessionBase(bool serverOrDaemonIn, size_t uvThreadSize) : loo
         }
     }
 #endif
+    HdcStatisticReporter::GetInstance().Schedule(&loopMain);
 }
 
 HdcSessionBase::~HdcSessionBase()
@@ -127,6 +129,9 @@ void HdcSessionBase::TaskClassDeleteRetry(uv_timer_t *handle)
         return;
     }
     WRITE_LOG(LOG_WARN, "TaskDelay task remove finish, channelId:%u", hTask->channelId);
+    if (hTask->taskType == TASK_FORWARD) {
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::FPORT_RM_COUNT);
+    }
     if (hTask != nullptr) {
         delete hTask;
         hTask = nullptr;
@@ -150,7 +155,8 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
     }
 
     WRITE_LOG(LOG_WARN, "BeginRemoveTask taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
-    Base::TimerUvTask(hTask->runLoop, hTask, TaskClassDeleteRetry, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
+    Base::TimerUvTask(hTask->runLoop, hTask, TaskClassDeleteRetry,
+                      (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
 
     hTask->taskStop = true;
 }
@@ -385,6 +391,7 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
             WRITE_LOG(LOG_INFO, "MallocSessionByConnectType init hWorkTCP sid:%u", hSession->sessionId);
             ++hSession->uvHandleRef;
             hSession->hWorkTCP.data = hSession;
+            HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::TCONN_COUNT);
             break;
         }
         case CONN_USB: {
@@ -644,6 +651,12 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
     FreeSessionByConnectType(hSession);
     // finish
     Base::IdleUvTask(&loopMain, hSession, FreeSessionFinally);
+    HdcStatisticReporter& reporter = HdcStatisticReporter::GetInstance();
+    uint64_t freeTime = Base::GetRuntimeMSec() - freeBegin;
+    reporter.UpdateFreeSessionMaxCost(freeTime);
+    if (freeTime > MAX_FREEZE_TIME) {
+        reporter.IncrCommandInfo(STATISTIC_ITEM::FREEZE_COUNT);
+    }
 }
 
 void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
@@ -698,6 +711,7 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
     }
     HSession hSession = AdminSession(OP_QUERY, sessionId, nullptr);
     WRITE_LOG(LOG_INFO, "Begin to free session, sessionid:%u", sessionId);
+    freeBegin = Base::GetRuntimeMSec();
     do {
         if (!hSession || hSession->isDead) {
             WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%u", sessionId);
@@ -1200,9 +1214,13 @@ void HdcSessionBase::ReadCtrlFromSession(uv_poll_t *poll, int /* status */, int 
     delete[] buf;
 }
 
-void HdcSessionBase::SetFeature(SessionHandShake &handshake)
+void HdcSessionBase::SetFeature(SessionHandShake &handshake, const uint8_t connType)
 {
-    Base::HdcFeatureSet feature = {};
+    Base::HdcFeatureSet feature = {
+        Base::GetVersion(),
+        conTypeDetail[connType],
+        GetOs(),
+    };
     if (Base::GetheartbeatSwitch()) {
         feature.push_back(FEATURE_HEARTBEAT);
     }
@@ -1231,7 +1249,7 @@ void HdcSessionBase::WorkThreadInitSession(HSession hSession, SessionHandShake &
     // told daemon, we support RSA_3072_SHA512 auth
     Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
-    hSessionBase->SetFeature(handshake);
+    hSessionBase->SetFeature(handshake, hSession->connType);
 }
 
 bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
@@ -1425,8 +1443,8 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
         uv_close((uv_handle_t *)handle, Base::CloseTimerCallback);
         uv_stop(&hSession->childLoop);  // stop ReChildLoopForSessionClear pendding
     };
-    Base::TimerUvTask(
-        &hSession->childLoop, hSession, clearTaskForSessionFinish, (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
+    Base::TimerUvTask(&hSession->childLoop, hSession, clearTaskForSessionFinish,
+                      (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);
     // clear
     Base::TryCloseChildLoop(&hSession->childLoop, "Session childUV");
@@ -1640,6 +1658,22 @@ void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
         hSession->supportEncrypt = Base::IsSupportFeature(features, FEATURE_ENCRYPT_TCP);
 #endif
+        HdcStatisticReporter::GetInstance().SetConnectInfo(features);
     }
+}
+
+std::string HdcSessionBase::GetOs()
+{
+#ifdef _WIN32
+    return "win";
+#elif defined(HOST_LINUX)
+    return "linux";
+#elif defined(HOST_MAC)
+    return "mac";
+#elif defined(__OHOS__)
+    return "oh";
+#else
+    return "";
+#endif
 }
 }  // namespace Hdc

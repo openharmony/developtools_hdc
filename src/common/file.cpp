@@ -13,10 +13,11 @@
  * limitations under the License.
  */
 #include "file.h"
-#include "serial_struct.h"
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
 #include "command_event_report.h"
 #endif
+#include "hdc_statistic_reporter.h"
+#include "serial_struct.h"
 
 namespace Hdc {
 HdcFile::HdcFile(HTaskInfo hTaskInfo)
@@ -111,6 +112,9 @@ bool HdcFile::CheckBlacklistPath(CtxFile *context)
     std::unordered_set<std::string> blacklistFiles = {"/data/service/el1/public/hdc"};
     if (containsBlacklistedSubstring(context->localPath, blacklistFiles)) {
         LogMsg(MSG_FAIL, "[E005008] Operation not allowed");
+        STATISTIC_ITEM item = context->isSend ? STATISTIC_ITEM::FILE_SEND_FAIL_COUNT :
+                        STATISTIC_ITEM::FILE_RECV_FAIL_COUNT;
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(item);
         return false;
     }
     return true;
@@ -305,6 +309,7 @@ bool HdcFile::SetMasterParametersOnDaemon(CtxFile *context, int argc, char **arg
             context->transferConfig.reserve1.c_str());
         WRITE_LOG(LOG_DEBUG, "SetMasterParameters invalid bundleName:%s",
             context->transferConfig.reserve1.c_str());
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::FILE_RECV_FAIL_COUNT);
         return false;
     }
     if ((srcArgvIndex + 1) == argc) {
@@ -351,6 +356,7 @@ void HdcFile::TransferSummary(CtxFile *context)
     uint64_t nMSec = Base::GetRuntimeMSec() -
                      (context->fileCnt > 1 ? context->transferDirBegin : context->transferBegin);
     uint64_t fSize = context->fileCnt > 1 ? context->dirSize : context->indexIO;
+    HdcStatisticReporter::GetInstance().IncrFileTransferInfo(fSize, nMSec);
     double fRate = static_cast<double>(fSize) / nMSec; // / /1000 * 1000 = 0
     if (context->indexIO >= context->fileSize || context->lastErrno == 0) {
         LogMsg(MSG_OK, "FileTransfer finish, Size:%lld, File count = %d, time:%lldms rate:%.2lfkB/s",
@@ -478,6 +484,7 @@ bool HdcFile::CheckBundleAndPath()
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
         LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
             ctxNow.bundleName.c_str());
+        HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::FILE_SEND_FAIL_COUNT);
         if (Base::GetCaller() == Base::Caller::CLIENT) {
             WRITE_LOG(LOG_DEBUG, "Invalid bundle name: %s", ctxNow.bundleName.c_str());
         } else {
@@ -603,12 +610,14 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
     StartTraceScope("HdcFile::CommandDispatch");
     switch (command) {
         case CMD_FILE_INIT: {  // initial
+            ctxNow.isSend = false;
             string s = string(reinterpret_cast<char *>(payload), payloadSize);
             ret = BeginTransfer(&ctxNow, s);
             ctxNow.transferBegin = Base::GetRuntimeMSec();
             break;
         }
         case CMD_FILE_CHECK: {
+            ctxNow.isSend = true;
             ret = SlaveCheck(payload, payloadSize);
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
             if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportFileCommandEvent(
@@ -635,6 +644,10 @@ bool HdcFile::CommandDispatch(const uint16_t command, uint8_t *payload, const in
                     ctxNow.ioFinish = true;
                     ctxNow.transferDirBegin = 0;
                     --(*payload);
+                    uint64_t fileRecvTime = Base::GetRuntimeMSec() -
+                            (ctxNow.fileCnt > 1 ? ctxNow.transferDirBegin : ctxNow.transferBegin);
+                    uint64_t fileRecvSize = ctxNow.fileCnt > 1 ? ctxNow.dirSize : ctxNow.indexIO;
+                    HdcStatisticReporter::GetInstance().IncrFileTransferInfo(fileRecvSize, fileRecvTime);
                     SendToAnother(CMD_FILE_FINISH, payload, 1);
                 }
             } else {  // close-step3

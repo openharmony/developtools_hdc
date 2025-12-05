@@ -153,7 +153,7 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
     int ret = execl(cmd, cmd, arg0, arg1, nullptr);
     if (ret < 0) {
         WRITE_LOG(LOG_DEBUG, "execl failed, %s", strerror(errno));
-        return -1;
+        _exit(0);
     }
     return 0;
 }
@@ -228,7 +228,7 @@ void *HdcShell::ShellFork(void *arg)
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         strerror_r(errno, buf, bufSize);
-        WRITE_LOG(LOG_DEBUG, "Fork shell failed:%s", buf);
+        WRITE_LOG(LOG_FATAL, "Fork shell failed:%s", buf);
         return reinterpret_cast<void *>(ERR_GENERIC);
     }
     if (pid == 0) {

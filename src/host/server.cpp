@@ -225,12 +225,11 @@ bool HdcServer::PullupServer(const char *listenString)
     pid_t pc = fork();  // create process as daemon process
     if (pc < 0) {
         return false;
-    } else if (!pc) {
+    } else if (pc == 0) {
         Base::CloseOpenFd();
         Base::g_isBackgroundServer = true;
         execl(path, "hdc", "-m", "-s", listenString, nullptr);
-        exit(0);
-        return true;
+        _exit(0);
     }
     // orig process
 #endif

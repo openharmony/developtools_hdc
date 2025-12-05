@@ -307,7 +307,7 @@ bool HdcDaemon::ShowPermitDialog()
         if (ret < 0) {
             // if execl failed need return false
             WRITE_LOG(LOG_FATAL, "start user_permit failed %d: %s", ret, strerror(errno));
-            return false;
+            _exit(0);
         }
     } else {
             Base::CloseFd(fds[1]);

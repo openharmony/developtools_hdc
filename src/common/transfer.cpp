@@ -290,6 +290,8 @@ bool HdcTransferBase::ProcressFileIOWrite(uv_fs_t *req, CtxFile *context, HdcTra
         // end.Only slave receives complete talents Finish
         context->closeNotify = true;
         thisClass->SetFileTime(context);
+        WRITE_LOG(LOG_DEBUG, "write path:%s %" PRIu64 "/%" PRIu64 "",
+                  Hdc::MaskString(context->localPath).c_str(), context->indexIO, context->fileSize);
         return true;
     }
     return false;
@@ -318,6 +320,9 @@ bool HdcTransferBase::ProcressFileIORead(uv_fs_t *req, CtxFile *context, HdcTran
             (Base::GetMaxBufSizeStable() * thisClass->maxTransferBufFactor) :
             (Base::GetMaxBufSize() * thisClass->maxTransferBufFactor));
         return false;
+    } else {
+        WRITE_LOG(LOG_DEBUG, "read path:%s %" PRIu64 "/%" PRIu64 "",
+                  Hdc::MaskString(context->localPath).c_str(), context->indexIO, context->fileSize);
     }
     return true;
 }

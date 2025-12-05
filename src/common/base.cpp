@@ -374,11 +374,12 @@ namespace Base {
         pid_t pc = fork();  // create process
         chdir(GetLogDirName().c_str());
         if (pc < 0) {
-            WRITE_LOG(LOG_WARN, "fork subprocess failed.");
-        } else if (!pc) {
+            WRITE_LOG(LOG_FATAL, "fork subprocess failed.");
+        } else if (pc == 0) {
             if ((execlp(GetTarToolName().c_str(), GetTarToolName().c_str(), GetTarParams().c_str(),
                 GetCompressLogFileName(fileName).c_str(), fileName.c_str(), nullptr)) == -1) {
-                WRITE_LOG(LOG_WARN, "CompressLogFile execlp failed.");
+                WRITE_LOG(LOG_FATAL, "CompressLogFile execlp failed.");
+                _exit(0);
             }
         } else {
             int status;
@@ -2972,7 +2973,7 @@ void CloseOpenFd(void)
         pid_t pc = fork(); // create process
         chdir(filePath.c_str());
         if (pc < 0) {
-            WRITE_LOG(LOG_WARN, "fork subprocess failed");
+            WRITE_LOG(LOG_FATAL, "fork subprocess failed");
         } else if (pc == 0) {
             signal(SIGALRM, TimeoutHandler);
             alarm(MAX_PROCESS_TIMEOUT);
@@ -2982,7 +2983,8 @@ void CloseOpenFd(void)
                         targetFileName.c_str(),
                         sourceFileName.c_str(),
                         nullptr)) == -1) {
-                WRITE_LOG(LOG_WARN, "CompressLogFile execlp failed ");
+                WRITE_LOG(LOG_FATAL, "CompressLogFile execlp failed ");
+                _exit(0);
             }
         } else {
             int status = 0;

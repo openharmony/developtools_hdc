@@ -41,7 +41,7 @@ bool RestartDaemon(bool forkchild)
     int ret = execl(path, "hdcd", forkchild ? "-forkchild" : nullptr, nullptr);
     if (ret == -1) {
         WRITE_LOG(LOG_FATAL, "execl failed, %s", strerror(errno));
-        return false;
+        _exit(0);
     }
     return true;
 }
@@ -130,7 +130,7 @@ int BackgroundRun()
     pid_t pc = fork();  // create process as daemon process
     if (pc < 0) {
         return -1;
-    } else if (!pc) {
+    } else if (pc == 0) {
         int i;
         const int MAX_NUM = 64;
         for (i = 0; i < MAX_NUM; ++i) {

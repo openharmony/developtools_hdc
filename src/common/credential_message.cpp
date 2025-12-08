@@ -188,6 +188,11 @@ void SplitString(const std::string &origString, const std::string &seq,
     std::string::size_type p2 = origString.find(seq);
 
     while (p2 != std::string::npos) {
+        if (p2 == p1) {
+            ++p1;
+            p2 = origString.find(seq, p1);
+            continue;
+        }
         resultStrings.push_back(origString.substr(p1, p2 - p1));
         p1 = p2 + seq.size();
         p2 = origString.find(seq, p1);
@@ -195,7 +200,5 @@ void SplitString(const std::string &origString, const std::string &seq,
 
     if (p1 != origString.size()) {
         resultStrings.push_back(origString.substr(p1));
-    } else if (p1 == origString.size() && p2 == std::string::npos) {
-        resultStrings.push_back("");
     }
 }

@@ -504,6 +504,7 @@ ohos_unittest("hdc_base_unittest") {
     "unittest/common/tlv_ut.cpp",
     "unittest/common/uv_status_ut.cpp",
     "unittest/common/hdc_statistic_reporter_ut.cpp",
+    "unittest/common/command_event_report_test.cpp",
   ]
 
   configs = [

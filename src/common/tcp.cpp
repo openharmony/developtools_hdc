@@ -50,7 +50,7 @@ void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf
         thisClass->RecvUDPEntry(addr, handle, rcvbuf);
         break;
     }
-    delete[] rcvbuf->base;
+    delete[] (uint8_t*)rcvbuf->base;
 }
 
 void HdcTCPBase::AllocStreamUDP(uv_handle_t* /* handle */, size_t /* sizeWanted */, uv_buf_t *buf)

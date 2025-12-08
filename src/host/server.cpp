@@ -897,7 +897,7 @@ string HdcServer::AdminForwardMap(uint8_t opType, const string &taskString, HFor
 
 void HdcServer::CleanForwardMap(uint32_t sessionId)
 {
-    uv_rwlock_rdlock(&forwardAdmin);
+    uv_rwlock_wrlock(&forwardAdmin);
     map<string, HForwardInfo>::iterator iter;
     for (iter = mapForward.begin(); iter != mapForward.end();) {
         HForwardInfo di = iter->second;
@@ -910,7 +910,7 @@ void HdcServer::CleanForwardMap(uint32_t sessionId)
             iter++;
         }
     }
-    uv_rwlock_rdunlock(&forwardAdmin);
+    uv_rwlock_wrunlock(&forwardAdmin);
 }
 
 void HdcServer::UsbPreConnect(uv_timer_t *handle)

@@ -435,7 +435,7 @@ bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen)
                               RSA_TOKEN_SIZE, reinterpret_cast<const unsigned char *>(sig),
                               siglen, rsa);
         RSA_free(rsa);
-        if (childRet) {
+        if (childRet == 1) {
             ret = 1;
             break;
         }

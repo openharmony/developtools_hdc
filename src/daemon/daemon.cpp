@@ -287,7 +287,10 @@ bool HdcDaemon::ShowPermitDialog()
 {
     pid_t pid;
     int fds[2];
-    pipe(fds);
+    if (pipe(fds) != 0) {
+        WRITE_LOG(LOG_FATAL, "pipe failed %s", strerror(errno));
+        return false;
+    }
 
     if ((pid = fork()) == -1) {
         WRITE_LOG(LOG_FATAL, "fork failed %s", strerror(errno));
@@ -547,7 +550,17 @@ bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string
 {
     unsigned char tokenSha512[SHA512_DIGEST_LENGTH];
     try {
-        std::unique_ptr<unsigned char[]> tokenRsaSign = std::make_unique<unsigned char[]>(tokenSignBase64.length());
+        // Base64 divides every 3 bytes(8 bits) of the original data into 4 segments(6 bits),
+        const int scaleOfEncrypt = 4;
+        const int scaleOfDecrypt = 3;
+        // Invalid base64 format
+        const int base64BlockSize = 4; // base64 string must be a multiple of 4
+        if (tokenSignBase64.empty() || tokenSignBase64.length() % base64BlockSize != 0) {
+            WRITE_LOG(LOG_FATAL, "Invalid base64 format for session %u", hSession->sessionId);
+            return false;
+        }
+        size_t maxDecodedLen = (tokenSignBase64.length() / scaleOfEncrypt * scaleOfDecrypt);
+        std::unique_ptr<unsigned char[]> tokenRsaSign = std::make_unique<unsigned char[]>(maxDecodedLen);
         // Get the real token sign
         int tokenRsaSignLen = EVP_DecodeBlock(tokenRsaSign.get(),
             reinterpret_cast<const unsigned char *>(tokenSignBase64.c_str()), tokenSignBase64.length());
@@ -634,7 +647,7 @@ bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const 
             break;
         }
         int wbytes = BIO_write(bio, pubkeyp, pubkey.length());
-        if (wbytes <= 0) {
+        if (wbytes != static_cast<int>(pubkey.length())) {
             WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, hSession->sessionId);
             break;
         }

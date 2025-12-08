@@ -525,8 +525,15 @@ bool HdcFile::HandleFileExistenceAndNewness()
         ctxNow.transferConfig.optionalName.c_str());
     if (childRet && ctxNow.transferConfig.updateIfNew) {  // file exist and option need update
         uv_fs_t fs = {};
-        uv_fs_stat(nullptr, &fs, ctxNow.localPath.c_str(), nullptr);
+        int statRet = uv_fs_stat(nullptr, &fs, ctxNow.localPath.c_str(), nullptr);
         uv_fs_req_cleanup(&fs);
+        if (statRet != 0) {
+            constexpr int bufSize = 1024;
+            char buf[bufSize] = {0};
+            uv_strerror_r(statRet, buf, bufSize);
+            WRITE_LOG(LOG_WARN, "uv_fs_stat failed, file:%s error:%s", Hdc::MaskString(ctxNow.localPath).c_str(), buf);
+            return false;
+        }
         if ((uint64_t)fs.statbuf.st_mtim.tv_sec >= ctxNow.transferConfig.mtime) {
             LogMsg(MSG_FAIL, "Target file is the same date or newer,path: %s", ctxNow.localPath.c_str());
             return false;

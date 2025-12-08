@@ -832,6 +832,18 @@ void HdcClient::RetryTcpConnectWorker(uv_timer_t *handle)
             (const struct sockaddr *)&(thisClass->dest), thisClass->Connect);
     }
 }
+std::string HdcClient::CharPointToString(const char *buf, const int size)
+{
+    if (buf == nullptr || size <= 0) {
+        return std::string();
+    }
+    for (int i = 0; i < size; i++) {
+        if (buf[i] == '\0') {
+            return string(buf, i);
+        }
+    }
+    return string(buf, size);
+}
 
 int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
 {
@@ -870,9 +882,11 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
     // add check version
     if (!isCheckVersionCmd) { // do not check version cause user want to get server version
         string clientVer = Base::GetVersion() + HDC_MSG_HASH;
-        string serverVer(hShake->version);
+        string serverVer = CharPointToString(hShake->version, sizeof(hShake->version));
         if (clientVer != serverVer) {
-            serverVer = serverVer.substr(0, Base::GetVersion().size());
+            if (serverVer.size() >= Base::GetVersion().size()) {
+                serverVer = serverVer.substr(0, Base::GetVersion().size());
+            }
             WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());
             hChannel->availTailIndex = 0;
             return ERR_CHECK_VERSION;

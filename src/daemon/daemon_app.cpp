@@ -17,12 +17,18 @@
 #include "hdc_statistic_reporter.h"
 
 namespace Hdc {
+
+static bool FindCommandInject(const std::string& input)
+{
+    static const std::string injectChars = "|;&$<>`\\!\n";
+    return input.find_first_of(injectChars) != std::string::npos;
+}
+
 HdcDaemonApp::HdcDaemonApp(HTaskInfo hTaskInfo)
     : HdcTransferBase(hTaskInfo)
 {
     commandBegin = CMD_APP_BEGIN;
     commandData = CMD_APP_DATA;
-    funcAppModFinish = nullptr;
 }
 
 HdcDaemonApp::~HdcDaemonApp()
@@ -171,15 +177,21 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
         }
     }
 
-    funcAppModFinish = [this](bool /* finish */, int64_t exitStatus, const string result) -> bool {
-        return this->AsyncInstallFinish(exitStatus, result);
-    };
     if (installOrUninstall) {
         mode = APPMOD_INSTALL;
     } else {
         mode = APPMOD_UNINSTALL;
     }
-    asyncCommand.Initial(loopTask, funcAppModFinish, AsyncCmd::OPTION_COMMAND_ONETIME);
+
+    if (FindCommandInject(doBuf)) {
+        AsyncInstallFinish(true, "Incorrect package name or option");
+        return;
+    }
+
+    AsyncCmd::CmdResultCallback func = [this](bool /* finish */, int64_t exitStatus, const string result) -> bool {
+        return this->AsyncInstallFinish(exitStatus, result);
+    };
+    asyncCommand.Initial(loopTask, func, AsyncCmd::OPTION_COMMAND_ONETIME);
     if (!asyncCommand.ExecuteCommand(doBuf)) {
         STATISTIC_ITEM item = installOrUninstall ? STATISTIC_ITEM::INSTALL_FAIL_COUNT :
                         STATISTIC_ITEM::UNINSTALL_FAIL_COUNT;

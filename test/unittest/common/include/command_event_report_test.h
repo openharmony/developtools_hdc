@@ -24,7 +24,7 @@ public:
     static void TearDownTestCase();
     void SetUp();
     void TearDown();
-    std::string GetCallerName(base::Caller caller);
+    std::string GetCallerName(Base::Caller caller);
     bool GetCommandFromInputRaw(const char* inputRaw, std::string &command);
 };
 }   // namespace Hdc

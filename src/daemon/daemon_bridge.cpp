@@ -53,7 +53,7 @@ void HdcDaemonBridge::Stop()
 
 void HdcDaemonBridge::AllocBufferCallback(uv_handle_t* /* handle */, size_t /* sizeSuggested */, uv_buf_t *buf)
 {
-    buf->base = (char *)new int[1];
+    buf->base = new char[SOCKET_FD_LEN];
     buf->len = SOCKET_FD_LEN;
 }
 

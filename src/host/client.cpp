@@ -441,6 +441,7 @@ bool IsCaptureCommand(const string& cmd)
     return false;
 }
 
+#ifdef __OHOS__
 static int ReportCommandEvent(const string &commandIn, bool isIntercepted)
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
@@ -452,26 +453,25 @@ static int ReportCommandEvent(const string &commandIn, bool isIntercepted)
     }
 #endif
 
-#ifdef __OHOS__
     if (isIntercepted) {
         WRITE_LOG(LOG_FATAL, "[E00C001]Operation restricted by the organization.");
         return ENTERPRISE_HDC_DISABLE_ERR;
     }
-#endif
     return RET_SUCCESS;
 }
+#endif
 
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
     char ip[BUF_SIZE_TINY] = "";
-    bool isIntercepted = false;
+    int ret = 0;
 #ifdef __OHOS__
-    isIntercepted = IsNeedInterceptCommand();
-#endif
-    int ret = ReportCommandEvent(commandIn, isIntercepted);
+    bool isIntercepted = IsNeedInterceptCommand();
+    ret = ReportCommandEvent(commandIn, isIntercepted);
     if (ret != RET_SUCCESS) {
         return ret;
     }
+#endif
     uint16_t port = 0;
     ret = Base::ConnectKey2IPPort(channelHostPort.c_str(), ip, &port, sizeof(ip));
     if (ret < 0) {

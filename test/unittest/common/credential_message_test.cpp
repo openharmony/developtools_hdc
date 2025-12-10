@@ -251,4 +251,67 @@ HWTEST_F(HdcCredentialMessageTest, TestIntToStringWithPadding_WithPadding, TestS
 {
     EXPECT_EQ(IntToStringWithPadding(123, 4), "0123");
 }
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitString, TestSize.Level0) {
+    const string origString = "a,b,c";
+    const string seq = ",";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings);
+
+    EXPECT_EQ(resultStrings.size(), 3);
+    EXPECT_EQ(resultStrings[0], "a");
+    EXPECT_EQ(resultStrings[1], "b");
+    EXPECT_EQ(resultStrings[2], "c");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringNullArgs, TestSize.Level0) {
+    const string origString = "";
+    const string seq = ",";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings);
+
+    EXPECT_EQ(resultStrings.size(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringLeadingSep, TestSize.Level0) {
+    const string origString = ",b,c";
+    const string seq = ",";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings);
+
+    EXPECT_EQ(resultStrings.size(), 2);
+    EXPECT_EQ(resultStrings[0], "b");
+    EXPECT_EQ(resultStrings[1], "c");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringTrailingSep, TestSize.Level0) {
+    const string origString = "a,,,,,b,,,,,c";
+    const string seq = ",";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings);
+
+    EXPECT_EQ(resultStrings.size(), 3);
+    EXPECT_EQ(resultStrings[0], "a");
+    EXPECT_EQ(resultStrings[1], "b");
+    EXPECT_EQ(resultStrings[2], "c");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringNoSeq, TestSize.Level0) {
+    const string origString = "abcdefg";
+    const string seq = ",";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings);
+
+    EXPECT_EQ(resultStrings.size(), 1);
+    EXPECT_EQ(resultStrings[0], "abcdefg");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringSeqEmpty, TestSize.Level0) {
+    const string origString = "abcdefg";
+    const string seq = "";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings);
+
+    EXPECT_EQ(resultStrings.size(), 0);
+}
 }

@@ -35,7 +35,6 @@ private:
     void MakeCtxForAppCheck(uint8_t *payload, const int payloadSize);
 
     AsyncCmd asyncCommand;
-    AsyncCmd::CmdResultCallback funcAppModFinish;
     AppModType mode = APPMOD_NONE;
 };
 }  // namespace Hdc

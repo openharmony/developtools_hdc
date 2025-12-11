@@ -36,6 +36,13 @@ static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
 
 namespace Hdc {
 bool g_terminalStateChange = false;
+
+static bool FindCommandInject(const std::string& input)
+{
+    static const std::string injectChars = "|;&$<>`\\!\n";
+    return input.find_first_of(injectChars) != std::string::npos;
+}
+
 HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loop_t *loopMainIn, bool checkVersion)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
@@ -415,6 +422,10 @@ void HdcClient::RunCommand(const string& cmd)
 
 void HdcClient::RunExecuteCommand(const string& cmd)
 {
+    if (FindCommandInject(cmd)) {
+        printf("Incorrect command option\n");
+        return;
+    }
 #ifdef _WIN32
     RunCommandWin32(cmd);
 #else

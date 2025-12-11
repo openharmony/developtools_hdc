@@ -280,6 +280,21 @@ class TestHdcReturnValue:
         assert check_shell(f"install not_hap_file", "[Fail][E006001] Not any installation package was found")
 
     """
+    hdc install "-r; touch/data/local/tmp/test001" xxx.hap
+    """
+    @pytest.mark.L0
+    def test_hdc_install_inject(self):
+        run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+
+        get_shell_result(f"shell rm /data/local/tmp/test001")
+        result = get_shell_result(f"install \"-r; touch /data/local/tmp/test001\" {get_local_path('AACommandpackage.hap')}")
+        result = result.replace("\r\n", "")
+        pattern = r'.*Incorrect package name or option.*'
+        match_install = re.match(pattern, result)
+        assert match_install is not None
+        assert check_shell(f"shell ls /data/local/tmp/test001", "No such file or directory")
+
+    """
     hdc track-jpid
     hdc jpid
     """

@@ -57,12 +57,17 @@ bool ExtClient::Init()
 
 bool ExtClient::SharedLibraryExist()
 {
+#ifdef HOST_OHOS
+    return false;
+#else
     string path = GetPath();
     return Base::CheckDirectoryOrPath(path.c_str(), true, true);
+#endif
 }
 
 void ExtClient::ExecuteCommand(const string &command)
 {
+#ifndef HOST_OHOS
     if (!strncmp(command.c_str(), CMDSTR_SOFTWARE_VERSION.c_str(), CMDSTR_SOFTWARE_VERSION.size())) {
         Version(command);
     } else if (!strncmp(command.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size())) {
@@ -108,6 +113,7 @@ void ExtClient::ExecuteCommand(const string &command)
     } else {
         UnknowCommand(command);
     }
+#endif
 }
 
 void ExtClient::Version(const std::string &str)

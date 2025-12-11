@@ -45,7 +45,6 @@ HWTEST_F(HdcDaemonAppTest, Test_HdcDaemonApp, TestSize.Level0)
     HdcDaemonApp daemonApp1(taskInfo);
     EXPECT_EQ(daemonApp1.commandBegin, CMD_APP_BEGIN);
     EXPECT_EQ(daemonApp1.commandData, CMD_APP_DATA);
-    EXPECT_EQ(daemonApp1.funcAppModFinish, nullptr);
 
     delete taskInfo;
 }

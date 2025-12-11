@@ -22,7 +22,7 @@ namespace Hdc {
 class AsyncCmd {
 public:
     AsyncCmd();
-    virtual ~AsyncCmd();
+    ~AsyncCmd();
     enum AsyncCmdOption {
         OPTION_COMMAND_ONETIME = 1,
         USB_OPTION_RESERVE2 = 2,

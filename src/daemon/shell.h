@@ -20,7 +20,7 @@ namespace Hdc {
 class HdcShell : public HdcTaskBase {
 public:
     HdcShell(HTaskInfo hTaskInfo);
-    virtual ~HdcShell();
+    ~HdcShell();
     bool CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize) override;
     void StopTask() override;
     bool ReadyForRelease() override;

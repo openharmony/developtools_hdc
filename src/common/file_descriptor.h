@@ -49,7 +49,7 @@ public:
     using CallBackWhenRead = std::function<bool(const void *, uint8_t *, const int)>;
     HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *callerContextIn, CallBackWhenRead callbackReadIn,
                       CmdResultCallback callbackFinishIn, bool interactiveShell);
-    virtual ~HdcFileDescriptor();
+    ~HdcFileDescriptor();
     int Write(uint8_t *data, int size);
     int WriteWithMem(uint8_t *data, int size);
 

@@ -845,9 +845,11 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
     // add check version
     if (!isCheckVersionCmd) { // do not check version cause user want to get server version
         string clientVer = Base::GetVersion() + HDC_MSG_HASH;
-        string serverVer(hShake->version);
+        string serverVer(hShake->version, strnlen(hShake->version, BUF_SIZE_TINY));
         if (clientVer != serverVer) {
-            serverVer = serverVer.substr(0, Base::GetVersion().size());
+            if (serverVer.size() >= Base::GetVersion().size()) {
+                serverVer = serverVer.substr(0, Base::GetVersion().size());
+            }
             WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());
             hChannel->availTailIndex = 0;
             return ERR_CHECK_VERSION;

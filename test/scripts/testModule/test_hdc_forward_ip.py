@@ -139,3 +139,24 @@ class TestForwardIpSetting:
 
         check_shell(f"kill")
         time.sleep(1)
+
+    @pytest.mark.L1
+    def test_ip_valid_4(self):
+        check_shell(f"kill")
+        time.sleep(1)
+
+        p = multiprocessing.Process(target=self.new_process_run, args=("-e ::1 -m",))
+        p.start()
+        time.sleep(1)
+
+        result = self.netstat("127.0.0.1:8710")
+        assert len(result) > 0
+
+        assert check_shell(f"fport tcp:9988 tcp:8899", "Forwardport result:OK")
+        result = self.netstat("127.0.0.1:9988")
+        assert len(result) > 0
+
+        assert check_shell(f"fport rm tcp:9988 tcp:8899", "success")
+
+        check_shell(f"kill")
+        time.sleep(1)

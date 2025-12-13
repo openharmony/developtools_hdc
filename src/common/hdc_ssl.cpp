@@ -289,7 +289,7 @@ unsigned int HdcSSLBase::PskClientCallback(SSL *ssl, const char *hint, char *ide
         WRITE_LOG(LOG_FATAL, "Client identity buffer too small, maxIdentityLen = %d", maxIdentityLen);
         return 0;
     }
-    if (strcpy_s(identity, maxIdentityLen, "Client_identity") != EOK) {
+    if (strcpy_s(identity, maxIdentityLen, STR_PSK_IDENTITY.c_str()) != EOK) {
         WRITE_LOG(LOG_FATAL, "Client PSK key strcpy_s identity failed, maxIdentityLen is %u", maxIdentityLen);
         return 0;
     }

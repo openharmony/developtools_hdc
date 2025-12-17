@@ -22,7 +22,6 @@
 #endif
 #include "host_shell_option.h"
 namespace Hdc {
-static const int MAX_RETRY_COUNT = 500;
 static const int MAX_CONNECT_DEVICE_RETRY_COUNT = 100;
 #ifdef __OHOS__
 static const int MAX_CONNECTIONS_COUNT = 16;
@@ -411,6 +410,33 @@ void HdcServerForClient::OrderFindTargets(HChannel hChannel)
 #endif
 }
 
+static bool IsDisconnect(HDaemonInfo hdi, uint16_t count)
+{
+    if (hdi == nullptr) {
+        return true;
+    }
+#ifdef HDC_SUPPORT_UART
+    if (hdi->connType == CONN_SERIAL) {
+        const uint16_t maxRetryCount = 500;
+        if (count > maxRetryCount) {
+            WRITE_LOG(LOG_INFO, "uart retry count:%u", count);
+            return true;
+        }
+        return false;
+    }
+#endif
+    HSession hSession = hdi->hSession;
+    if (hSession == nullptr) {
+        WRITE_LOG(LOG_INFO, "hSession is nullptr connKey:%s", Hdc::MaskString(hdi->connectKey).c_str());
+        return true;
+    }
+    if (!hSession->isRunningOk) {
+        WRITE_LOG(LOG_INFO, "isRunningOk is false sessionId:%u", hSession->sessionId);
+        return true;
+    }
+    return false;
+}
+
 void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
 {
     HChannel hChannel = (HChannel)req->data;
@@ -429,34 +455,33 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     if (hdi && hdi->connStatus == STATUS_CONNECTED) {
         bConnectOK = true;
     }
-    while (true) {
-        if (bConnectOK) {
-            bExitRepet = true;
-            if (hChannel->isCheck) {
-                WRITE_LOG(LOG_INFO, "%s check device success and remove %s", __FUNCTION__, hChannel->key.c_str());
-                thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
-                thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
-            } else {
-                sRet = "Connect OK";
-                thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
-            }
-            break;
+    if (bConnectOK) {
+        bExitRepet = true;
+        if (hChannel->isCheck) {
+            WRITE_LOG(LOG_INFO, "check device success and remove %s", Hdc::MaskString(hChannel->key).c_str());
+            thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
+            thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
         } else {
-            uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
-            ++(*bRetryCount);
-            if (*bRetryCount > MAX_RETRY_COUNT ||
-                (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT)) {
-                // 5s or localDevice 1s
-                bExitRepet = true;
-                sRet = "Connect failed";
-                thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
-                hdi->inited = false;
-                hdi->connStatus = STATUS_OFFLINE;
-                ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
-                break;
-            }
+            sRet = "Connect OK";
+            thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
         }
-        break;
+    } else {
+        uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
+        ++(*bRetryCount);
+        if (hChannel->connectLocalDevice && *bRetryCount > MAX_CONNECT_DEVICE_RETRY_COUNT) {
+            bExitRepet = true;
+        } else {
+            bExitRepet = IsDisconnect(hdi, *bRetryCount);
+        }
+        if (bExitRepet) {
+            sRet = "Connect failed";
+            thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
+            hdi->inited = false;
+            hdi->connStatus = STATUS_OFFLINE;
+            ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
+            WRITE_LOG(LOG_INFO, "channelId:%u target:%s STATUS_OFFLINE",
+                      hChannel->channelId, Hdc::MaskString(target).c_str());
+        }
     }
     if (bExitRepet) {
         thisClass->FreeChannel(hChannel->channelId);

@@ -63,40 +63,40 @@ typedef enum : uint8_t {
 
 struct Header {
     /// 存储文件路径。tar只有100位，不够的使用prefix进行拼接
-    uint8_t name[100];
+    uint8_t name[100] = { 0 };
     /// 存储文件权限
-    uint8_t mode[8];
+    uint8_t mode[8] = { 0 };
     /// 用户ID。和tar格式保持一致。暂不使用，预留字段
-    uint8_t uid[8];
+    uint8_t uid[8] = { 0 };
     /// 组ID。和uid一样，预留
-    uint8_t gid[8];
+    uint8_t gid[8] = { 0 };
     /// 文件大小。以8进制进行存储
     /// 如果是目录，则填充11个0:00000000000+NUL
     /// 如果是文件，则取出文件的字节大小，假设文件大小为；1024byte，转换到8进制字符串为：2000，不足前面补0: 00000002000+NUL
-    uint8_t size[12];
+    uint8_t size[12] = { 0 };
     /// 文件最后修改时间，10位时间戳的8进制字符。UTC时间。暂不使用
-    uint8_t mtime[12];
+    uint8_t mtime[12] = { 0 };
     /// 完整性校验。暂不使用
-    uint8_t chksum[8];
+    uint8_t chksum[8] = { 0 };
     /// 文件类型
-    uint8_t typeflage[1];
+    uint8_t typeflage[1] = { 0 };
     /// 链接名。暂不使用
-    uint8_t linkname[100];
+    uint8_t linkname[100] = { 0 };
     /// TAR数据段标识字段。不需要填00000+NUL，否则填写：ustar+NUL，表示是TAR文件数据
-    uint8_t magic[6];
+    uint8_t magic[6] = { 0 };
     /// 表示TAR文件结构的版本号
-    uint8_t version[2];
+    uint8_t version[2] = { 0 };
     /// 计算机用户名。暂不使用
-    uint8_t uname[32];
+    uint8_t uname[32] = { 0 };
     /// 用户组名。暂不使用
-    uint8_t gname[32];
+    uint8_t gname[32] = { 0 };
     /// 主设备号，暂不使用
-    uint8_t devmajor[8];
+    uint8_t devmajor[8] = { 0 };
     /// 次设备号，暂不使用
-    uint8_t devminor[8];
+    uint8_t devminor[8] = { 0 };
     /// 文件路径前缀
-    uint8_t prefix[155];
-    uint8_t pad[12];
+    uint8_t prefix[155] = { 0 };
+    uint8_t pad[12] = { 0 };
 
     Header();
     explicit Header(uint8_t data[512], int dataLen);

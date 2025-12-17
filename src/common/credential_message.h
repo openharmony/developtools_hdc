@@ -40,7 +40,7 @@ private:
     int messageVersion = 0;
     int messageMethodType = 0;
     int messageBodyLen = 0;
-    std::string messageBody;
+    std::string messageBody = "";
 };
 
 bool IsNumeric(const std::string& str);

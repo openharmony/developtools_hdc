@@ -777,9 +777,6 @@ void HdcChannelBase::EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int 
     uv_stream_t *sendStream = nullptr;
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
     auto data = new uint8_t[sizeNewBuf]();
-    if (!data) {
-        return;
-    }
     *reinterpret_cast<uint32_t *>(data) = htonl(size);
     if (memcpy_s(data + DWORD_SERIALIZE_SIZE, sizeNewBuf - DWORD_SERIALIZE_SIZE, bufPtr, size)) {
         delete[] data;

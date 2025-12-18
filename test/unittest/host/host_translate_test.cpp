@@ -326,7 +326,7 @@ HWTEST_F(HdcTranslateTest, TestInstallHelp, TestSize.Level0)
 {
     std::string usage = TranslateCommand::Usage();
     EXPECT_FALSE(usage.empty());
-    EXPECT_NE(usage.find("install [option] src"), string::npos);
+    EXPECT_NE(usage.find("install [-r|-s|-cwd|option] src"), string::npos);
     EXPECT_NE(usage.find("-r: replace existing application"), string::npos);
     EXPECT_NE(usage.find("-s: install shared bundle for multi-apps"), string::npos);
     EXPECT_NE(usage.find("-w: specify waitting time for installation"), string::npos);
@@ -340,7 +340,7 @@ HWTEST_F(HdcTranslateTest, TestInstallHelpVerbose, TestSize.Level0)
 {
     std::string usage = TranslateCommand::Verbose();
     EXPECT_FALSE(usage.empty());
-    EXPECT_NE(usage.find("install [option] src"), string::npos);
+    EXPECT_NE(usage.find("install [-r|-s|-cwd|option] src"), string::npos);
     EXPECT_NE(usage.find("-r: replace existing application"), string::npos);
     EXPECT_NE(usage.find("-s: install shared bundle for multi-apps"), string::npos);
     EXPECT_NE(usage.find("-w: specify waitting time for installation"), string::npos);
@@ -354,7 +354,7 @@ HWTEST_F(HdcTranslateTest, TestUnintsallHelp, TestSize.Level0)
 {
     std::string usage = TranslateCommand::Usage();
     EXPECT_FALSE(usage.empty());
-    EXPECT_NE(usage.find("uninstall [option] package"), string::npos);
+    EXPECT_NE(usage.find("uninstall [-k|-s|option] package"), string::npos);
     EXPECT_NE(usage.find("-n: uninstall a bundle by bundle name"), string::npos);
     EXPECT_NE(usage.find("-m: uninstall a module by module name"), string::npos);
     EXPECT_NE(usage.find("-k: keep the data and cache directories"), string::npos);
@@ -368,7 +368,7 @@ HWTEST_F(HdcTranslateTest, TestUnintsallHelpVerbose, TestSize.Level0)
 {
     std::string usage = TranslateCommand::Verbose();
     EXPECT_FALSE(usage.empty());
-    EXPECT_NE(usage.find("uninstall [option] package"), string::npos);
+    EXPECT_NE(usage.find("uninstall [-k|-s|option] package"), string::npos);
     EXPECT_NE(usage.find("-n: uninstall a bundle by bundle name"), string::npos);
     EXPECT_NE(usage.find("-m: uninstall a module by module name"), string::npos);
     EXPECT_NE(usage.find("-k: keep the data and cache directories"), string::npos);

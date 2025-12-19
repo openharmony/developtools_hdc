@@ -292,8 +292,8 @@ bool CommandEventReport::GetCommandFromInputRaw(const char* inputRaw, std::strin
 std::string CommandEventReport::GetCurrentTimeStamp()
 {
     auto now = std::chrono::system_clock::now();
-    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
-    return std::to_string(seconds.count());
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    return std::to_string(milliseconds.count());
 }
 
 std::string CommandEventReport::GetCallerName(Base::Caller caller)

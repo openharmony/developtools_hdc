@@ -74,7 +74,7 @@ private:
     ~HdcStatisticReporter();
 
     static void HandleReport(uv_timer_t* timer);
-    void Report();
+    void Report() noexcept;
     void Clear();
     bool CanReport();
 

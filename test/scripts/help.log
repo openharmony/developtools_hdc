@@ -65,26 +65,32 @@ forward commands:
  fport rm taskstr                      - Remove forward/reverse task by taskstring
 
 app commands:
- install [option] src                  - Send package(s) to device and install them
+ install [-r|-s|-cwd|option] src       - Send package(s) to device and install them
                                          src examples: single or multiple packages and directories
                                          (.hap .hsp .app)
-                                         option is -r|-s|-w|-u|-p|-h|-cwd
                                          -r: replace existing application
                                          -s: install shared bundle for multi-apps
+                                         -cwd: specify the working directory
+                                         option is -w|-u|-p|-h
                                          -w: specify waitting time for installation
                                          -u: specify a user id
                                          -p: specify a bundle path or direction
                                          -h: list available options of 'bm install' command
-                                         -cwd: specify the working directory
- uninstall [option] package            - Remove application package from device
-                                         option is -n|-m|-k|-s|-v|-u|-h
-                                         -n: uninstall a bundle by bundle name
-                                         -m: uninstall a module by module name
+                                         Note: Each option and its corresponding option argument must
+                                         be placed inside the same pair of double quotation masks
+ uninstall [-k|-s|option] package      - Remove application package from device
                                          -k: keep the data and cache directories
                                          -s: remove shared bundle
+                                         option is -n|-m|-v|-u|-h
+                                         Note: Multiple options must be combined and placed inside the
+                                         same double quotation masks
+                                         -n: uninstall a bundle by bundle name
+                                         -m: uninstall a module by module name
                                          -v: uninstall a inter-application shared library by versionCode
                                          -u: specify a user id
                                          -h: list available options of 'bm uninstall' command
+                                         Note: Each option and its corresponding option argument must
+                                         be placed inside the same pair of double quotation masks
 
 debug commands:
  hilog [-h|parse]                      - Show device log, -h for detail

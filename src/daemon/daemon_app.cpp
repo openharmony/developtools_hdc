@@ -71,6 +71,28 @@ void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
     return;
 }
 
+void HdcDaemonApp::SplitCommand(uint8_t* payload, const int payloadSize, string& options, string& packages)
+{
+    // This maybe has a command implanting risk, since it is a controllable device, it can be ignored
+    string bufString(reinterpret_cast<char *>(payload), payloadSize);
+    int argc = 0;
+    char **argv = Base::SplitCommandToArgs(bufString.c_str(), &argc);
+    for (int i = 0; i < argc; i++) {
+        if (strncmp(argv[i], "-", 1) == 0) {
+            if (options.size() > 0) {
+                options += " ";
+            }
+            options += argv[i];
+        } else {
+            if (packages.size() > 0) {
+                packages += " ";
+            }
+            packages += argv[i];
+        }
+    }
+    delete[](reinterpret_cast<char *>(argv));
+}
+
 bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     if (!HdcTransferBase::CommandDispatch(command, payload, payloadSize)) {
@@ -99,19 +121,10 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
             break;
         }
         case CMD_APP_UNINSTALL: {
-            // This maybe has a command implanting risk, since it is a controllable device, it can be ignored
-            string bufString(reinterpret_cast<char *>(payload), payloadSize);
-            string options = "";
-            string packages = "";
-            vector<string> segments;
-            Base::SplitString(bufString, " ", segments);
-            for (auto seg: segments) {
-                if (seg[0] == '-') {
-                    options += " " + seg;
-                } else {
-                    packages += " " + seg;
-                }
-            }
+            string options;
+            string packages;
+            SplitCommand(payload, payloadSize, options, packages);
+
             PackageShell(false, options.c_str(), packages);
             break;
         }
@@ -156,7 +169,7 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
     string doBuf;
     string opts = string(options);
     if (installOrUninstall) { // either -p or -s is always required in install
-        if (opts.find("p") == string::npos && opts.find("s") == string::npos) {
+        if (opts.find("-p") == string::npos && opts.find("-s") == string::npos) {
             // basic mode: blank options or both "-s" / "-p" are omitted
             // eg. hdc install x.hap --> bm install -p x.hap
             // eg. hdc install -r x.hap --> bm install -r -p x.hap
@@ -166,7 +179,7 @@ void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, co
             doBuf = Base::StringFormat("bm install %s %s", options, package.c_str());
         }
     } else {  // -n is always required in uninstall
-        if (opts.find("n") == string::npos) {
+        if (opts.find("-n") == string::npos) {
             // basic mode: blank options or "-n" is omitted
             // eg. hdc uninstall com.xx.xx --> bm uninstall -n com.xx.xx
             // eg. hdc uninstall -s com.xx.xx --> bm uninstall -s -n com.xx.xx

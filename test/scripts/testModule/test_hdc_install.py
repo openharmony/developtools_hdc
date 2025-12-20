@@ -123,3 +123,72 @@ class TestInstallBase:
         package_haps_dir = "abcdef_dir_not_exist"
         hap_name_default_default = "com.abcedf.dir.not.exist"
         assert check_app_dir_not_exist(package_haps_dir, hap_name_default_default)
+
+    @pytest.mark.L0
+    def test_install_options_format(self):
+        package_hap = "AACommand07.hap"
+        hap_module_name = "com.example.aacommand07"
+        package_hsp = "libA_v10001.hsp"
+        hsp_module_name = "com.example.liba"
+        ### base cases ###
+        # no option
+        assert check_app_install(package_hap, hap_module_name)
+        # -r
+        assert check_app_install(package_hap, hap_module_name, '-r')
+        # -s
+        assert check_app_install(package_hsp, hsp_module_name, '-s')
+        # -cwd
+        assert not check_app_install(package_hap, hap_module_name, '-cwd F:\\')
+        # -w
+        assert check_app_install(package_hap, hap_module_name, '"-w 180"')
+        # -u
+        assert check_app_install(package_hap, hap_module_name, '"-u 100"')
+        # -p
+        assert check_app_install(package_hap, hap_module_name, '-p')
+        # -h
+        assert check_app_install(package_hap, hap_module_name, '-h')
+        ### multi options ###
+        # -r -s
+        assert check_app_install(package_hsp, hsp_module_name, "-r -s")
+        # -p -r -w -u
+        assert check_app_install(package_hap, hap_module_name, '-r "-w 180" "-u 100" -p')
+        ### wrong format ###
+        assert not check_app_install(package_hap, hap_module_name, '-p -r -w 180 -u 100')
+        assert not check_app_install(package_hap, hap_module_name, '-p -r "-w 180" "-u 100"')
+
+    @pytest.mark.L0
+    def test_uninstall_options_format(self):
+        package_hap = "AACommand07.hap"
+        hap_module_name = "com.example.aacommand07"
+        package_hsp = "libA_v10001.hsp"
+        hsp_module_name = "com.example.liba"
+        ### base cases ###
+        # no option
+        assert check_app_install(package_hap, hap_module_name)
+        assert check_app_uninstall(hap_module_name)
+        # -k
+        assert check_app_install(package_hap, hap_module_name)
+        assert check_app_uninstall(hap_module_name, '-k')
+        # -s
+        assert check_app_install(package_hsp, hsp_module_name, '-s')
+        assert check_app_uninstall(hsp_module_name, '-s')
+        # -n
+        assert check_app_install(package_hap, hap_module_name)
+        assert check_app_uninstall(hap_module_name, '-n')
+        # -v
+        assert check_app_install(package_hsp, hsp_module_name)
+        assert check_app_uninstall(hsp_module_name, '"-v 10001"')
+        # -u
+        assert check_app_install(package_hap, hap_module_name, '"-u 100"')
+        assert check_app_uninstall(hap_module_name, '"-u 100"')
+        # -h
+        assert check_app_install(package_hap, hap_module_name)
+        assert check_app_uninstall(hap_module_name, '-h')
+        ### multi options ###
+        # -k -s -u -v -n
+        assert check_app_install(package_hsp, hsp_module_name, '-s "-u 100"')
+        assert check_app_uninstall(hsp_module_name, '-k -s "-u 100" "-v 10001" -n')
+        ### wrong format ###
+        assert check_app_install(package_hsp, hsp_module_name, '-s "-u 100"')
+        assert not check_app_uninstall(hsp_module_name, '-k -s -u 100 -v 10001 -n')
+        assert not check_app_uninstall(hsp_module_name, '-n -k -s "-u 100" "-v 10001"')

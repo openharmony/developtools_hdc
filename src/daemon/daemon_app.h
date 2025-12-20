@@ -33,6 +33,7 @@ private:
     int RemoveDir(const string &dir);
     void RemovePath(const string &path);
     void MakeCtxForAppCheck(uint8_t *payload, const int payloadSize);
+    void SplitCommand(uint8_t* payload, const int payloadSize, string& options, string& packages);
 
     AsyncCmd asyncCommand;
     AppModType mode = APPMOD_NONE;

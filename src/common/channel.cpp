@@ -159,7 +159,7 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
             needExit = true;
             break;
         }
-        if (hChannel->availTailIndex - DWORD_SERIALIZE_SIZE < size) {
+        if (static_cast<uint32_t>(hChannel->availTailIndex - DWORD_SERIALIZE_SIZE) < size) {
             break;
         }
         childRet = thisClass->ReadChannel(hChannel, reinterpret_cast<uint8_t *>(hChannel->ioBuf) +
@@ -173,7 +173,8 @@ void HdcChannelBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t 
             }
         }
         // update io
-        hChannel->availTailIndex -= (DWORD_SERIALIZE_SIZE + size);
+        hChannel->availTailIndex -= DWORD_SERIALIZE_SIZE;
+        hChannel->availTailIndex -= static_cast<int>(size);
         indexBuf += DWORD_SERIALIZE_SIZE + size;
     }
     if (indexBuf > 0 && hChannel->availTailIndex > 0) {

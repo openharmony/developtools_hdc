@@ -287,7 +287,6 @@ bool AsyncCmd::ExecuteCommand(const string &command, string executePath)
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", cmd.c_str(), fd, pid);
 #endif
-    WRITE_LOG(LOG_DEBUG, "ExecuteCommand cmd:%s fd:%d pid:%d", Hdc::MaskString(cmd).c_str(), fd, pid);
     ++refCount;
     childShell = new(std::nothrow) HdcFileDescriptor(loop, fd, this, ChildReadCallback, FinishShellProc, false);
     if (childShell == nullptr) {

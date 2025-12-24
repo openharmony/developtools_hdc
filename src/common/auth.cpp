@@ -1131,7 +1131,7 @@ int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
             break;
         }
         int wbytes = BIO_write(bio, reinterpret_cast<const unsigned char *>(pubkey.c_str()), pubkey.length());
-        if (wbytes <= 0) {
+        if (wbytes != static_cast<int>(pubkey.length())) {
             WRITE_LOG(LOG_FATAL, "RsaPubkeyEncryptPsk bio write failed %d ", wbytes);
             break;
         }

@@ -235,7 +235,7 @@ int HdcSSLBase::Decrypt(const int nread, const int bufLen, uint8_t *bufPtr, int 
     }
     int left = nread;
     int retBio = DoBIOWrite(bufPtr + index, nread); // write to "in"
-    if (retBio < 0) {
+    if (retBio != nread) {
         WRITE_LOG(LOG_WARN, "BIO write failed, ret is %d", retBio);
         return ERR_GENERIC;
     }

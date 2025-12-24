@@ -44,6 +44,4 @@
 #endif
 // clang-format on
 
-namespace Hdc {
-}
 #endif

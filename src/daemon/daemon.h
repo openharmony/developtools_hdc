@@ -103,7 +103,7 @@ private:
     void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
                        uint32_t sessionid, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
     void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);
-    void EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
+    void HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
     bool AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey);
     bool AuthVerifyRsaSign(HSession hSession, const string &tokenSignBase64, const string &token, RSA *rsa);
     bool RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string &tokenSignBase64, const string &token);

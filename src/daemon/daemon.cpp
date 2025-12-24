@@ -71,13 +71,14 @@ void HdcDaemon::ClearInstanceResource()
 #ifdef HDC_EMULATOR
     if (clsBridgeServ) {
         delete (HdcDaemonBridge *)clsBridgeServ;
+        clsBridgeServ = nullptr;
     }
 #endif
 #ifdef HDC_SUPPORT_UART
     if (clsUARTServ) {
         delete (HdcDaemonUART *)clsUARTServ;
+        clsUARTServ = nullptr;
     }
-    clsUARTServ = nullptr;
 #endif
     if (clsJdwp) {
         delete (HdcJdwp *)clsJdwp;
@@ -380,8 +381,13 @@ bool HdcDaemon::GetHostPubkeyInfo(const string& buf, string& hostname, string& p
     // "\f" asicc is 0x0C
     char separator = '\x0C';
 
-    hostname = buf.substr(0, buf.find(separator));
-    pubkey = buf.substr(buf.find(separator) + 1);
+    size_t tmp = buf.find(separator);
+    if (tmp == string::npos) {
+        WRITE_LOG(LOG_FATAL, "get hostname or pubkey failed");
+        return false;
+    }
+    hostname = buf.substr(0, tmp);
+    pubkey = buf.substr(tmp + 1);
     WRITE_LOG(LOG_INFO, "hostname is [%s], pubkey is [%s]", Hdc::MaskString(hostname).c_str(),
         Hdc::MaskString(pubkey.substr(0, pubkey.size() / 2)).c_str());
 
@@ -512,7 +518,7 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
                                      "This server's public key is not set.\r\n"\
                                      "Please check for a confirmation dialog on your device.\r\n"\
                                      "Otherwise try 'hdc kill' if that seems wrong.";
-            this->EchoHandshakeMsg(handshake, channelId, sessionId, confirmmsg);
+            this->HandleAuthFailed(handshake, channelId, sessionId, confirmmsg);
         });
         notifymsg.detach();
 
@@ -537,7 +543,7 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
                             "The user denied the access for the device.\r\n"\
                              "Please execute 'hdc kill' and redo your command,\r\n"\
                              "then check for a confirmation dialog on your device.";
-        EchoHandshakeMsg(handshake, channelId, hSession->sessionId, notifymsg);
+        HandleAuthFailed(handshake, channelId, hSession->sessionId, notifymsg);
     }
     return true;
 }
@@ -720,7 +726,7 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     if (!AuthVerify(hSession, handshake.buf, token, pubkey)) {
         WRITE_LOG(LOG_FATAL, "auth failed for session %u", hSession->sessionId);
         // Next auth
-        EchoHandshakeMsg(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
+        HandleAuthFailed(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
         return true;
     }
 
@@ -1380,7 +1386,7 @@ void HdcDaemon::SendAuthEncryptPsk(SessionHandShake &handshake, const uint32_t c
     hssl->InitSSL();
 }
 #endif
-void HdcDaemon::EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg)
+void HdcDaemon::HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg)
 {
     SendAuthOkMsg(handshake, channelid, sessionid, msg, DAEOMN_UNAUTHORIZED);
     LogMsg(sessionid, channelid, MSG_FAIL, msg.c_str());
@@ -1389,7 +1395,7 @@ void HdcDaemon::EchoHandshakeMsg(SessionHandShake &handshake, uint32_t channelid
 void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid)
 {
     string msg = "[E000001]:The sdk hdc.exe version is too low, please upgrade to the latest version.";
-    EchoHandshakeMsg(handshake, channelid, sessionid, msg);
+    HandleAuthFailed(handshake, channelid, sessionid, msg);
 }
 void HdcDaemon::AddFeatureTagToEmgmsg(string &emgmsg)
 {

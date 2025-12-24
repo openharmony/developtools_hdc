@@ -35,7 +35,7 @@ CommandEventReport::~CommandEventReport()
 {
 }
 
-bool CommandEventReport::IsSupportReport() const
+bool CommandEventReport::IsSupportReport()
 {
     return OHOS::system::GetParameter("const.pc_security.fileguard_force_enable", "") == "true";
 }
@@ -125,7 +125,7 @@ bool CommandEventReport::ReportCommandEvent(const std::string &inputRaw, Base::C
 }
 
 bool CommandEventReport::ReportFileCommandEvent(
-    const std::string &localPath, const bool master, const bool serverOrDaemon) const
+    const std::string &localPath, bool master, bool serverOrDaemon)
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
     if (!IsSupportReport()) {
@@ -148,7 +148,7 @@ bool CommandEventReport::ReportFileCommandEvent(
 }
 
 bool CommandEventReport::Report(const std::string &command, const std::string &content,
-    const Base::Caller caller, const bool isIntercepted) const
+    Base::Caller caller, bool isIntercepted)
 {
 #ifdef DAEMON_ONLY
     OHOS::EventFwk::CommonEventPublishInfo publishInfo;
@@ -296,7 +296,7 @@ std::string CommandEventReport::GetCurrentTimeStamp()
     return std::to_string(milliseconds.count());
 }
 
-std::string CommandEventReport::GetCallerName(const Base::Caller caller)
+std::string CommandEventReport::GetCallerName(Base::Caller caller)
 {
 #ifdef HDC_HOST
     if (caller == Base::Caller::SERVER) {

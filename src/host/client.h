@@ -63,7 +63,6 @@ private:
     string ListTargetsAll(const string &str);
     void UpdateList(const string &str);
     bool KillMethodByUv(bool isStart);
-    std::string CharPointToString(const char *buf, const int size);
 
 #ifdef _WIN32
     static string GetHilogPath();

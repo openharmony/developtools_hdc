@@ -55,7 +55,7 @@ private:
     virtual void DeamonReadThread();
     virtual void DeamonWriteThread();
     std::vector<uint8_t> dataReadBuf; // from uart dev
-    virtual void ResetOldSession(uint32_t sessionId) override;
+    void ResetOldSession(uint32_t sessionId) override;
 
     uv_timer_t checkSerialPort; // server-use
     uint32_t currentSessionId = 0;

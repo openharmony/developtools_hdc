@@ -46,9 +46,9 @@ public:
     void SetCheckFlag(bool flag) { isCheck = flag; };
 
 protected:
-    virtual void OnTransferError(const HSession session) override;
-    virtual HSession GetSession(const uint32_t sessionId, bool create) override;
-    virtual void Restartession(const HSession session) override;
+    void OnTransferError(const HSession session) override;
+    HSession GetSession(const uint32_t sessionId, bool create) override;
+    void Restartession(const HSession session) override;
 
 private:
     enum UartCheckStatus {
@@ -86,7 +86,7 @@ private:
     // More importantly, the bootloader will output data. We use this to detect whether it is the
     // bootloader stage.
     virtual bool WaitUartIdle(HdcUART &uart, bool retry = true);
-    virtual void SendUartSoftReset(HSession hSession, uint32_t sessionId) override;
+    void SendUartSoftReset(HSession hSession, uint32_t sessionId) override;
 
     virtual bool EnumSerialPort(bool &portChange);
     virtual bool IsDeviceOpened(const HdcUART &uart);

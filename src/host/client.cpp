@@ -53,7 +53,13 @@ HdcClient::HdcClient(const bool serverOrClient, const string &addrString, uv_loo
         channel->isUds = (serverAddress.empty() || serverAddress == UDS_STR);
     }
 #endif
-    MallocChannel(&channel);  // free by logic
+    if (MallocChannel(&channel) == 0) {  // free by logic
+        WRITE_LOG(LOG_DEBUG, "init channel failed");
+        if (channel != nullptr) {
+            delete channel;
+            channel = nullptr;
+        }
+    }
     debugRetryCount = 0;
 #ifndef _WIN32
     (void)memset_s(&terminalState, sizeof(termios), 0, sizeof(termios));
@@ -133,7 +139,7 @@ bool HdcClient::StartServer(const string &cmd)
     return true;
 }
 
-bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
+bool HdcClient::ChannelCtrlServer(bool isRestart, const string &connectKey)
 {
     // new version build channle to send Ctrl command to server
     int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
@@ -141,18 +147,10 @@ bool HdcClient::ChannelCtrlServer(const string &cmd, string &connectKey)
         WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
         return false;
     }
-    bool isRestart = (cmd.find(" -r") != std::string::npos);
-    bool isKill = !strncmp(cmd.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size());
-    bool isStart = !strncmp(cmd.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size());
-    if (isKill) {
-        Base::PrintMessage("[E002201]Kill server failed, unsupport channel kill.");
-        return false;
+    int rc = Initial(connectKey);
+    if (rc < 0) {
+        WRITE_LOG(LOG_DEBUG, "Initial failed rc:%d", rc);
     }
-    if (!isStart) {
-        Base::PrintMessage("[E002202]Unsupport command or parameters");
-        return false;
-    }
-    Initial(connectKey);
     // server is not running, "hdc start [-r]" and "hdc kill -r" will start server directly.
     if (serverStatus == 0) {
         HdcServer::PullupServer(channelHostPort.c_str());
@@ -176,10 +174,10 @@ bool HdcClient::KillMethodByUv(bool isStart)
         return false;
     }
     int rc = uv_kill(pid, SIGKILL);
-    if (isStart) {
-        return true;
-    }
     if (rc == 0) {
+        if (isStart) {
+            return true;
+        }
         Base::PrintMessage("Kill server finish");
     } else {
         constexpr int size = 1024;

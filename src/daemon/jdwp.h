@@ -56,14 +56,7 @@ private:
     struct PollNode {
         _PollFd pollfd;
         uint32_t ppid;
-        PollNode(int fd, uint32_t pid)
-        {
-            pollfd = {};
-            pollfd.fd = fd;
-            pollfd.events = POLLNVAL | POLLRDHUP | POLLHUP | POLLERR;
-            pollfd.revents = 0;
-            ppid = pid;
-        }
+        PollNode(int fd, uint32_t pid) : pollfd{fd, POLLNVAL | POLLRDHUP | POLLHUP | POLLERR, 0}, ppid{pid} {};
     };
     struct ContextJdwp {
         uint32_t pid;

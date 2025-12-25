@@ -302,7 +302,7 @@ HWTEST_F(HdcExtTest, 20, TestSize.Level0)
     EXPECT_TRUE(compress->AddEntry(path));
 
     // Test with prefix matching path
-    compress->UpdataPrefix("/tmp");
+    compress->UpdatePrefix("/tmp");
     EXPECT_TRUE(compress->AddEntry("/tmp"));
 
     // Test with max count exceeded
@@ -334,14 +334,14 @@ HWTEST_F(HdcExtTest, 21, TestSize.Level0)
 }
 
 /**
- * TestUpdataPrefix
+ * TestUpdatePrefix
  * Verify the UpdataPrefix function.
  */
 HWTEST_F(HdcExtTest, 22, TestSize.Level0)
 {
     Compress* compress = new Compress();
     std::string prefix = "/test/prefix";
-    compress->UpdataPrefix(prefix);
+    compress->UpdatePrefix(prefix);
     EXPECT_EQ(compress->prefix, prefix);
 
     delete compress;

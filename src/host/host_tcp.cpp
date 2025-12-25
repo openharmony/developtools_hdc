@@ -166,21 +166,18 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
 void HdcHostTCP::FindLanDaemon()
 {
     uv_interface_address_t *info;
-    int count;
-    int i;
-    int ret;
+    int count = 0;
     char ipAddr[BUF_SIZE_TINY] = "";
     if (broadcastFindWorking) {
         return;
     }
     lstDaemonResult.clear();
-    ret = uv_interface_addresses(&info, &count);
+    int ret = uv_interface_addresses(&info, &count);
     if (ret != 0 || count <= 0) {
         WRITE_LOG(LOG_FATAL, "uv_interface_addresses failed %d, count is %d", ret, count);
         return;
     }
-    i = count;
-    while (--i) {
+    for (int i = 0; i < count; i++) {
         uv_interface_address_t interface = info[i];
         if (interface.address.address6.sin6_family == AF_INET6) {
             continue;

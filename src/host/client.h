@@ -30,7 +30,7 @@ public:
     int Initial(const string &connectKeyIn);
     int ExecuteCommand(const string &commandIn);
     int CtrlServiceWork(const char *commandIn);
-    bool ChannelCtrlServer(const string &cmd, string &connectKey);
+    bool ChannelCtrlServer(bool isRestart, const string &connectKey);
 
 protected:
 private:

@@ -489,9 +489,8 @@ void HdcTransferBase::RemoveSandboxRootPath(std::string &srcStr, const std::stri
         return;
     }
     string fullPath = SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep();
-    size_t pos = 0;
-    if ((pos = srcStr.find(fullPath)) != std::string::npos) {
-        srcStr = srcStr.replace(pos, fullPath.length(), "");
+    if ((srcStr.size() >= fullPath.size()) && (srcStr.compare(0, fullPath.size(), fullPath) == 0)) {
+        srcStr = srcStr.substr(fullPath.size());
     } else {
         if (Base::GetCaller() == Base::Caller::CLIENT) {
             WRITE_LOG(LOG_DEBUG, "fullPath:%s, srcStr:%s", fullPath.c_str(), srcStr.c_str());
@@ -1036,10 +1035,20 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
 
 void HdcTransferBase::ExtractRelativePath(string &cwd, string &path)
 {
-    bool absPath = Base::IsAbsolutePath(path);
-    if (!absPath) {
-        path = cwd + path;
+    if (Base::IsAbsolutePath(path)) {
+        return;
     }
+    if (cwd.empty()) {
+        return;
+    }
+
+    char lastChar = cwd.back();
+    if ((lastChar == '/') || (lastChar == '\\')) {
+        // cwd ending character is slash
+        path = cwd + path;
+        return;
+    }
+    path = cwd + Base::GetPathSep() + path;
 }
 
 bool HdcTransferBase::AddFeatures(FeatureFlagsUnion &feature)

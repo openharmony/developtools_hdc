@@ -899,6 +899,17 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
     return hRet;
 }
 
+static void PrintDefaultInfo(HSession hSession)
+{
+    static std::atomic<int> printCount(0);
+    if (printCount.load() <= 0) {
+        WRITE_LOG(LOG_WARN, "SendByProtocol enter default, type:%u, sid:%u",
+            hSession->connType, hSession->sessionId);
+        printCount.store(100); // 100 means print once for every 100 calls
+    }
+    printCount.fetch_sub(1);
+}
+
 int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int bufLen, bool echo)
 {
     StartTraceScope("HdcSessionBase::SendByProtocol");
@@ -937,6 +948,7 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
         }
 #endif
         default:
+            PrintDefaultInfo(hSession);
             delete[] bufPtr;
             break;
     }

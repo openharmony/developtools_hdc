@@ -20,7 +20,6 @@ namespace Hdc {
 // Only allow inheritance
 class HdcTaskBase {
 public:
-    HdcTaskBase(HTaskInfo hTaskInfo);
     virtual ~HdcTaskBase();
     virtual bool CommandDispatch(const uint16_t /* command */, uint8_t* /* payload */, const int /* payloadSize */)
     {
@@ -36,6 +35,7 @@ public:
     void TaskFinish();
 
 protected:                                                                        // D/S==daemon/server
+    HdcTaskBase(HTaskInfo hTaskInfo);
     bool SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size);  // D / S corresponds to the Task class
     void LogMsg(MessageLevel level, const char *msg, ...);                        // D / S log Send to Client
     bool ServerCommand(const uint16_t command, uint8_t *bufPtr, const int size);  // D / s command is sent to Server

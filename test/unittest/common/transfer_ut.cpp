@@ -110,12 +110,74 @@ HWTEST_F(HdcTransferTest, TestCommandDispatch, TestSize.Level0)
 
 HWTEST_F(HdcTransferTest, TestExtractRelativePath, TestSize.Level0)
 {
+    // normal windows slash
     string cwd = "D:\\";
     string resolvedPath = "test\\path";
-    std::stringstream ss;
-    ss << "D:\\test\\path";
+    string wantStr = "D:\\test\\path";
     mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
-    ASSERT_EQ(resolvedPath, ss.str());
+    ASSERT_EQ(resolvedPath, wantStr);
+
+    // normal unix slash
+    cwd = "/tmp/";
+    resolvedPath = "test/path";
+    wantStr = "/tmp/test/path";
+    mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
+    ASSERT_EQ(resolvedPath, wantStr);
+
+    cwd = "/tmp";
+    mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
+    ASSERT_EQ(resolvedPath, wantStr);
+
+    // test resolvedPath is absolute path
+    cwd = "/tmp/";
+    resolvedPath = "/test/path";
+    wantStr = "/test/path";
+    mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
+    ASSERT_EQ(resolvedPath, wantStr);
+
+    // test cwd is empty
+    cwd = "";
+    resolvedPath = "test/path";
+    wantStr = "test/path";
+    mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
+    ASSERT_EQ(resolvedPath, wantStr);
+}
+
+HWTEST_F(HdcTransferTest, TestRemoveSandboxRootPath, TestSize.Level0)
+{
+    const string bundleName = "com.example.myapplication";
+    const string testDir = "data/local/tmp/";
+    std::filesystem::path testPath = mockHdcdTransfer->SANDBOX_ROOT_DIR + bundleName + Base::GetPathSep() + testDir;
+    if (!std::filesystem::exists(testPath)) {
+        std::filesystem::create_directories(testPath);
+    }
+    ASSERT_TRUE(std::filesystem::exists(testPath));
+
+    // normal test, srcStr contains Sandbox Root Path
+    string srcStr = testPath;
+    string wantStr = testDir;
+    mockHdcdTransfer->RemoveSandboxRootPath(srcStr, bundleName);
+    ASSERT_EQ(srcStr, wantStr);
+
+    // srcStr not contains full Sandbox Root Path, missing slash, srcStr.size() < fullPath.size()
+    srcStr = mockHdcdTransfer->SANDBOX_ROOT_DIR + bundleName;
+    wantStr = srcStr;
+    mockHdcdTransfer->RemoveSandboxRootPath(srcStr, bundleName);
+    ASSERT_EQ(srcStr, wantStr);
+
+    // srcStr.size() > fullPath.size(), drop first slash
+    srcStr = testPath;
+    srcStr = srcStr.substr(1);
+    wantStr = srcStr;
+    mockHdcdTransfer->RemoveSandboxRootPath(srcStr, bundleName);
+    ASSERT_EQ(srcStr, wantStr);
+
+    // Invalid bundleName
+    const string bundleNameTest = "test-" + bundleName + "-test";
+    srcStr = testPath;
+    wantStr = srcStr;
+    mockHdcdTransfer->RemoveSandboxRootPath(srcStr, bundleNameTest);
+    ASSERT_EQ(srcStr, wantStr);
 }
 
 HWTEST_F(HdcTransferTest, TestAddFeatures, TestSize.Level0)

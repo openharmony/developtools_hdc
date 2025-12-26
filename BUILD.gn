@@ -150,6 +150,7 @@ template("hdcd_source_set") {
       "lz4:liblz4_static",
       "openssl:libcrypto_shared",
       "openssl:libssl_shared",
+      "hicollie:libhicollie",
     ]
 
     if (build_selinux) {
@@ -161,7 +162,8 @@ template("hdcd_source_set") {
       if (image_name == "system") {
         defines += [
           "HDC_TRACE",
-          "HDC_STATISTIC_REPORT_ENABLE"
+          "HDC_STATISTIC_REPORT_ENABLE",
+          "HDC_HICOLLIE_ENABLE",
         ]
         external_deps += [
           "hitrace:hitrace_meter",

@@ -18,26 +18,21 @@
 #include <poll.h>
 #include <unordered_map>
 namespace Hdc {
-class HdcJdwp {
+class HdcJdwp final {
 public:
     HdcJdwp(uv_loop_t *loopIn, LoopStatus *loopStatus);
-    virtual ~HdcJdwp();
+    ~HdcJdwp();
     int Initial();
     void Stop();
     bool CreateJdwpTracker(HTaskInfo taskInfo);
     void RemoveJdwpTracker(HTaskInfo taskInfo);
-    bool ReadyForRelease();
     string GetProcessList();
     bool SendJdwpNewFD(uint32_t targetPID, int fd);
     bool SendArkNewFD(const std::string str, int fd);
     bool CheckPIDExist(uint32_t targetPID);
-    bool SendFdToApp(int sockfd, uint8_t *buf, int size, int fd);
 
-#ifdef FUZZ_TEST
-public:
-#else
 private:
-#endif
+
 #ifdef JS_JDWP_CONNECT
     static constexpr uint8_t JS_PKG_MIN_SIZE = 7;
     static constexpr uint16_t JS_PKG_MAX_SIZE = 512;
@@ -48,6 +43,7 @@ private:
     };
     string GetProcessListExtendPkgName(uint8_t dr);
 #endif // JS_JDWP_CONNECT
+
     struct _PollFd {
         int fd;
         short events;
@@ -83,7 +79,6 @@ private:
     using HCtxJdwp = struct ContextJdwp *;
 
     bool JdwpListen();
-    static int UvPipeBind(uv_pipe_t* handle, const char* name, size_t size);
     static void AcceptClient(uv_stream_t *server, int status);
     static void ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf);
     static void SendCallbackJdwpNewFD(uv_write_t *req, int status);
@@ -92,24 +87,24 @@ private:
     size_t JdwpProcessListMsg(char *buffer, size_t bufferlen, uint8_t dr);
     void *MallocContext();
     void FreeContext(HCtxJdwp ctx);
+    void FreeContextRaw(HCtxJdwp ctx);
     void *AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJdwp);
     int CreateFdEventPoll();
     void ProcessListUpdated(HTaskInfo task = nullptr);
     void SendProcessList(HTaskInfo t, string data);
     void DrainAwakenPollThread() const;
     void WakePollThread();
+    void GetPollFd(std::vector<struct pollfd>& pollfds);
     uv_loop_t *loop;
     LoopStatus *loopStatus;
     uv_pipe_t listenPipe = {};
     uint32_t refCount;
     int32_t awakenPollFd;
     map<uint32_t, HCtxJdwp> mapCtxJdwp;
-    uv_rwlock_t lockMapContext;
-    uv_rwlock_t lockJdwpTrack;
     std::unordered_map<int, PollNode> pollNodeMap;  // fd, PollNode
     std::vector<HTaskInfo> jdwpTrackers;
     bool stop;
-    std::mutex freeContextMutex;
+    std::mutex mutex;
 };
 } // namespace Hdc
 #endif

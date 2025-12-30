@@ -114,7 +114,7 @@ bool Compress::SaveToFile(std::string localPath)
     return true;
 }
 
-void Compress::UpdataPrefix(std::string pathPrefix)
+void Compress::UpdatePrefix(std::string pathPrefix)
 {
     this->prefix = pathPrefix;
 }

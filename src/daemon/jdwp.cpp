@@ -336,6 +336,8 @@ void *HdcJdwp::AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJd
             const int maxMapSize = 1024;
             if (mapCtxJdwp.size() < maxMapSize) {
                 mapCtxJdwp[pid] = ctxJdwp;
+            } else {
+                WRITE_LOG(LOG_INFO, "jdwp map size:%zu over 1024", mapCtxJdwp.size());
             }
             uv_rwlock_wrunlock(&lockMapContext);
             break;

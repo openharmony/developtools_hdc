@@ -46,7 +46,7 @@ string HdcHostApp::Dir2Tar(const char *dir)
         tarpath = Base::GetTmpDir() + tarname;
         WRITE_LOG(LOG_DEBUG, "tarpath:%s", tarpath.c_str());
         Compress c;
-        c.UpdataPrefix(sdir);
+        c.UpdatePrefix(sdir);
         c.AddPath(sdir);
         c.SaveToFile(tarpath);
     }

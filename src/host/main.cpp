@@ -226,7 +226,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         return 0;
     }
     if (!strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
-        client.ChannelCtrlServer(commands, connectKey);
+        client.ChannelCtrlServer(commands.find(" -r") != std::string::npos, connectKey);
         return 0;
     }
     if (isPullServer && Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {

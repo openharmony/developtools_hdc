@@ -111,7 +111,7 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
 {
     switch (command) {
         case CMD_SHELL_INIT: {  // initial
-            if (StartShell()) {
+            if (StartShell() < 0) {
                 LogMsg(MSG_FAIL, "Shell initialize failed");
             }
             break;
@@ -192,6 +192,7 @@ int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 {
     auto params = new ShellParams(cmd, arg0, arg1, ptm, devname);
     if (!params) {
+        WRITE_LOG(LOG_DEBUG, "shell params nullptr ptm:%d", ptm);
         return -1;
     }
     pthread_t threadId;
@@ -276,7 +277,12 @@ int HdcShell::CreateSubProcessPTY(const char *cmd, const char *arg0, const char 
         Base::CloseFd(ptm);
         return ERR_API_FAIL;
     }
-    *pid = ThreadFork(cmd, arg0, arg1);
+    int rc = ThreadFork(cmd, arg0, arg1);
+    if (rc < 0) {
+        WRITE_LOG(LOG_WARN, "get pid failed rc:%d", rc);
+    } else {
+        *pid = rc;
+    }
     return ptm;
 }
 

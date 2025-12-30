@@ -302,6 +302,7 @@ int HdcServerForClient::Initial()
     } else {
         if (!SetTCPListen()) {
             WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
+            //ohos system needeed default uds listen
         }
     }
     if (!SetUdsListen()) {

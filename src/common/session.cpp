@@ -1388,7 +1388,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
             if (!serverOrDaemon) {
                 break;  // Only Server has this feature
             }
-            DeatchChannel(hSession, channelId);
+            DetachChannel(hSession, channelId);
             break;
         }
         default:

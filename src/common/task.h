@@ -49,7 +49,7 @@ protected:                                                                      
     bool childReady;  // Subcompulents have been prepared
     bool singalStop;  // Request stop signal
     HTaskInfo taskInfo;
-    uint32_t refCount;
+    std::atomic<uint32_t> refCount;
 
 private:
 };

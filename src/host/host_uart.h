@@ -24,7 +24,7 @@
 #elif defined(HOST_LINUX)||defined(HOST_MAC)
 #include <fcntl.h> // open close
 #include <pthread.h>
-#include <termios.h> // truct termios
+#include <termios.h> // struct termios
 #endif
 
 namespace Hdc {
@@ -55,7 +55,7 @@ private:
         HOST_UART_EMPTY = 0, // default value
         HOST_UART_IGNORE = 1,
         HOST_UART_READY,
-        HOST_UART_REGISTER,
+        HOST_UART_REGISTER
     };
     // review maybe merge to base ?
     virtual bool StartUartSendThread();

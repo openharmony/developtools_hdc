@@ -87,19 +87,18 @@ void HdcHostUnity::OnFileIO(uv_fs_t *req)
     uint8_t *bufIO = contextIO->bufIO;
     uv_fs_req_cleanup(req);
     --thisClass->refCount;
-    while (true) {
-        if (req->result <= 0) {
-            if (req->result < 0) {
-                constexpr int bufSize = 1024;
-                char buf[bufSize] = { 0 };
-                uv_strerror_r((int)req->result, buf, bufSize);
-                WRITE_LOG(LOG_DEBUG, "Error OnFileIO: %s", buf);
-            }
-            break;
-        }
+
+    if (req->result < 0) {
+        constexpr int bufSize = 1024;
+        char buf[bufSize] = { 0 };
+        uv_strerror_r((int)req->result, buf, bufSize);
+        WRITE_LOG(LOG_DEBUG, "Error OnFileIO: %s", buf);
+    } else if (req->result > 0) {
         context->fileIOIndex += req->result;
-        break;
+    } else {
+        // req->result == 0 , do nothing
     }
+
     delete[] bufIO;
     delete contextIO;  // req is part of contextIO, no need to release
 }
@@ -140,7 +139,7 @@ bool HdcHostUnity::CommandDispatch(const uint16_t command, uint8_t *payload, con
     // Both are executed, do not need to detect ChildReady
     switch (command) {
         case CMD_UNITY_BUGREPORT_INIT: {
-            if (strlen(reinterpret_cast<char *>(payload))) {  // enable local log
+            if (payloadSize > 0) {  // enable local log
                 if (!InitLocalLog(reinterpret_cast<const char *>(payload))) {
                     LogMsg(MSG_FAIL, "Cannot set locallog");
                     ret = false;

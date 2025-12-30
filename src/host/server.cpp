@@ -1100,7 +1100,7 @@ void HdcServer::AttachChannelInnerForUds(HSession hSession, const uint32_t chann
     WRITE_LOG(LOG_INFO, "AttachChannelInnerForUds");
 };
 
-void HdcServer::DeatchChannelInnerForUds(HSession hSession, const uint32_t channelId)
+void HdcServer::DetachChannelInnerForUds(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
     // childCleared has not set, no need OP_QUERY_REF
@@ -1109,7 +1109,7 @@ void HdcServer::DeatchChannelInnerForUds(HSession hSession, const uint32_t chann
         ClearOwnTasks(hSession, channelId);
         uint8_t count = 0;
         Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-        WRITE_LOG(LOG_WARN, "DeatchChannelInnerForUds hChannel null channelId:%u", channelId);
+        WRITE_LOG(LOG_WARN, "DetachChannelInnerForUds hChannel null channelId:%u", channelId);
         return;
     }
     if (hChannel->childCleared) {
@@ -1158,7 +1158,7 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     }
 }
 
-void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
+void HdcServer::DetachChannel(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
     if (hSfc == nullptr) {
@@ -1171,7 +1171,7 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
         ClearOwnTasks(hSession, channelId);
         uint8_t count = 0;
         Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-        WRITE_LOG(LOG_WARN, "DeatchChannel hChannel null channelId:%u", channelId);
+        WRITE_LOG(LOG_WARN, "DetachChannel hChannel null channelId:%u", channelId);
         return;
     }
     if (hChannel->childCleared) {
@@ -1179,9 +1179,9 @@ void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
         return;
     }
     if (hChannel->isUds) {
-        DeatchChannelInnerForUds(hSession, channelId);
+        DetachChannelInnerForUds(hSession, channelId);
     } else {
-        DeatchChannelInnerForTcp(hSession, channelId);
+        DetachChannelInnerForTcp(hSession, channelId);
     }
 }
 #else
@@ -1190,9 +1190,9 @@ void HdcServer::AttachChannel(HSession hSession, const uint32_t channelId)
     AttachChannelInnerForTcp(hSession, channelId);
 }
 
-void HdcServer::DeatchChannel(HSession hSession, const uint32_t channelId)
+void HdcServer::DetachChannel(HSession hSession, const uint32_t channelId)
 {
-    DeatchChannelInnerForTcp(hSession, channelId);
+    DetachChannelInnerForTcp(hSession, channelId);
 }
 #endif
 
@@ -1225,7 +1225,7 @@ void HdcServer::AttachChannelInnerForTcp(HSession hSession, const uint32_t chann
     --hChannel->ref;
 };
 
-void HdcServer::DeatchChannelInnerForTcp(HSession hSession, const uint32_t channelId)
+void HdcServer::DetachChannelInnerForTcp(HSession hSession, const uint32_t channelId)
 {
     HdcServerForClient *hSfc = static_cast<HdcServerForClient *>(clsServerForClient);
     // childCleared has not set, no need OP_QUERY_REF
@@ -1234,7 +1234,7 @@ void HdcServer::DeatchChannelInnerForTcp(HSession hSession, const uint32_t chann
         ClearOwnTasks(hSession, channelId);
         uint8_t count = 0;
         Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-        WRITE_LOG(LOG_WARN, "DeatchChannel hChannel null channelId:%u", channelId);
+        WRITE_LOG(LOG_WARN, "DetachChannel hChannel null channelId:%u", channelId);
         return;
     }
     if (hChannel->childCleared) {

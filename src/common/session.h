@@ -69,7 +69,7 @@ public:
     virtual void AttachChannel(HSession /* hSession */, const uint32_t /* channelId */)
     {
     }
-    virtual void DeatchChannel(HSession /* hSession */, const uint32_t /* channelId */)
+    virtual void DetachChannel(HSession /* hSession */, const uint32_t /* channelId */)
     {
     }
     virtual void NotifyInstanceSessionFree(HSession /* hSession */, bool /* freeOrClear */)

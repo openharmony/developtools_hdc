@@ -746,8 +746,8 @@ std::vector<std::string> HdcHostUART::StringSplit(std::string source, std::strin
 bool HdcHostUART::GetPortFromKey(const std::string &connectKey, std::string &portName,
                                  uint32_t &baudRate)
 {
-    // we support UART_NAME:UART_RATE format
-    // like COM5:115200
+    // we support UART_NAME,UART_RATE format
+    // like COM5,115200
     constexpr size_t TWO_ARGS = 2;
     std::vector<std::string> result = StringSplit(connectKey, ",");
     if (result.size() == TWO_ARGS) {

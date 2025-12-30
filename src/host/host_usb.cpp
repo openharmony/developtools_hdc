@@ -225,8 +225,9 @@ void HdcHostUSB::KickoutZombie(HSession hSession)
 
 void HdcHostUSB::RemoveIgnoreDevice(string &mountInfo)
 {
-    if (mapIgnoreDevice.count(mountInfo)) {
-        mapIgnoreDevice.erase(mountInfo);
+    auto it = mapIgnoreDevice.find(mountInfo);
+    if (it != mapIgnoreDevice.end()) {
+        mapIgnoreDevice.erase(it);
     }
 }
 

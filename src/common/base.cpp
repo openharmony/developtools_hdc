@@ -1100,7 +1100,7 @@ static void EchoLog(string &buf)
         HCRYPTPROV hCryptProv;
         BYTE pbData[randomByteCount];
         do {
-            if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, 0)) {
+            if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
                 if (GetLastError() != NTE_BAD_KEYSET) {
                     break;
                 }

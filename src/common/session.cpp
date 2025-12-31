@@ -1230,7 +1230,7 @@ void HdcSessionBase::SetFeature(SessionHandShake &handshake, const uint8_t connT
 {
     Base::HdcFeatureSet feature = {
         Base::GetVersion(),
-        conTypeDetail[connType],
+        conTypeDetail[connType >= CONN_UNKNOWN ? CONN_UNKNOWN : connType],
         GetOs(),
     };
     if (Base::GetheartbeatSwitch()) {

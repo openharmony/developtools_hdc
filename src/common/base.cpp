@@ -57,6 +57,9 @@ namespace Base {
     std::mutex g_threadCompressCmdLogsMutex;
     std::shared_ptr<std::thread> g_compressCmdLogsThread;
     std::atomic<bool> g_isServer = false;   // default false for client
+#ifndef _WIN32
+    constexpr int EXEC_FAILED_ERROR_CODE = 100; // 100 means exec run failed
+#endif
     uint8_t GetLogLevel()
     {
         return g_logLevel;
@@ -379,7 +382,7 @@ namespace Base {
             if ((execlp(GetTarToolName().c_str(), GetTarToolName().c_str(), GetTarParams().c_str(),
                 GetCompressLogFileName(fileName).c_str(), fileName.c_str(), nullptr)) == -1) {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile execlp failed.");
-                _exit(0);
+                _exit(EXEC_FAILED_ERROR_CODE);
             }
         } else {
             int status;
@@ -387,7 +390,7 @@ namespace Base {
             if (WIFEXITED(status)) {
                 int exitCode = WEXITSTATUS(status);
                 WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exitCode);
-                retVal = true;
+                retVal = (exitCode != EXEC_FAILED_ERROR_CODE);
             } else {
                 if (GetCaller() == Caller::CLIENT) {
                     WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
@@ -2984,15 +2987,15 @@ void CloseOpenFd(void)
                         sourceFileName.c_str(),
                         nullptr)) == -1) {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile execlp failed ");
-                _exit(0);
+                _exit(EXEC_FAILED_ERROR_CODE);
             }
         } else {
             int status = 0;
             waitpid(pc, &status, 0);
             if (WIFEXITED(status)) {
                 int exitCode = WEXITSTATUS(status);
-                WRITE_LOG(LOG_DEBUG, "subprocess exited withe status: %d", exitCode);
-                retVal = true;
+                WRITE_LOG(LOG_DEBUG, "subprocess exited with status: %d", exitCode);
+                retVal = (exitCode != EXEC_FAILED_ERROR_CODE);
             } else {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile failed, soiurceFileNameFull:%s, error:%s",
                           sourceFileNameFull.c_str(),

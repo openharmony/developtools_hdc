@@ -71,7 +71,7 @@ void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
     return;
 }
 
-void HdcDaemonApp::SplitCommand(uint8_t* payload, const int payloadSize, string& options, string& packages)
+static void SplitCommand(uint8_t* payload, const int payloadSize, string& options, string& packages)
 {
     // This maybe has a command implanting risk, since it is a controllable device, it can be ignored
     string bufString(reinterpret_cast<char *>(payload), payloadSize);

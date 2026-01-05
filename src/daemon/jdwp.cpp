@@ -12,129 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "jdwp.h"
-
-#include <thread>
 #include <sys/eventfd.h>
-
+#include <thread>
 #include "system_depend.h"
 
-#ifdef HDC_HICOLLIE_ENABLE
-#include "xcollie/xcollie.h"
-#endif
-
 namespace Hdc {
-
-class HdcHicollie {
-private:
-    [[maybe_unused]] int32_t id = -1;
-
-public:
-#ifdef HDC_HICOLLIE_ENABLE
-    HdcHicollie()
-    {
-        using namespace OHOS::HiviewDFX;
-        constexpr unsigned int timeoutSeconds = 6;
-        id = XCollie::GetInstance().SetTimer("HDC_MUTEX", timeoutSeconds, nullptr, nullptr,
-                                             XCOLLIE_FLAG_LOG | XCOLLIE_FLAG_RECOVERY);
-    }
-
-    ~HdcHicollie()
-    {
-        if (id != -1) {
-            OHOS::HiviewDFX::XCollie::GetInstance().CancelTimer(id);
-        }
-    }
-#endif
-};
-
-static int UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
-{
-    char buffer[BUF_SIZE_DEFAULT] = { 0 };
-
-    if (handle->io_watcher.fd >= 0) {
-        WRITE_LOG(LOG_FATAL, "socket already bound %d", handle->io_watcher.fd);
-        return -1;
-    }
-
-    int type = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
-    int sockfd = socket(AF_UNIX, type, 0);
-    if (sockfd < 0) {
-        strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
-        WRITE_LOG(LOG_FATAL, "socket failed errno:%d %s", errno, buffer);
-        return -1;
-    }
-
-#if defined(SO_NOSIGPIPE)
-    int on = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
-#endif
-
-    struct sockaddr_un saddr;
-    memset_s(&saddr, sizeof(sockaddr_un), 0, sizeof(sockaddr_un));
-    size_t capacity = sizeof(saddr.sun_path);
-    size_t min = size < capacity ? size : capacity;
-    for (size_t i = 0; i < min; i++) {
-        saddr.sun_path[i] = name[i];
-    }
-    saddr.sun_path[capacity - 1] = '\0';
-    saddr.sun_family = AF_UNIX;
-    size_t saddrLen = sizeof(saddr.sun_family) + size - 1;
-    int err = bind(sockfd, reinterpret_cast<struct sockaddr*>(&saddr), saddrLen);
-    if (err != 0) {
-        strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
-        WRITE_LOG(LOG_FATAL, "bind failed errno:%d %s", errno, buffer);
-        close(sockfd);
-        return -1;
-    }
-    constexpr uint32_t uvHandleBound = 0x00002000;
-    handle->flags |= uvHandleBound;
-    handle->io_watcher.fd = sockfd;
-    return 0;
-}
-
-static bool SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
-{
-    struct iovec iov;
-    iov.iov_base = buf;
-    iov.iov_len = static_cast<unsigned int>(size);
-    struct msghdr msg;
-    msg.msg_name = nullptr;
-    msg.msg_namelen = 0;
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-
-    int len = CMSG_SPACE(static_cast<unsigned int>(sizeof(fd)));
-    char ctlBuf[len];
-    msg.msg_control = ctlBuf;
-    msg.msg_controllen = sizeof(ctlBuf);
-
-    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-    if (cmsg == nullptr) {
-        WRITE_LOG(LOG_FATAL, "SendFdToApp cmsg is nullptr");
-        return false;
-    }
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
-    if (memcpy_s(CMSG_DATA(cmsg), sizeof(fd), &fd, sizeof(fd)) != 0) {
-        WRITE_LOG(LOG_FATAL, "SendFdToApp memcpy error:%d", errno);
-        return false;
-    }
-    if (sendmsg(sockfd, &msg, 0) < 0) {
-        WRITE_LOG(LOG_FATAL, "SendFdToApp sendmsg errno:%d", errno);
-        return false;
-    }
-    return true;
-}
-
 HdcJdwp::HdcJdwp(uv_loop_t *loopIn, LoopStatus *ls) : loopStatus(ls)
 {
     listenPipe.data = this;
     loop = loopIn;
     loopStatus = ls;
     refCount = 0;
+    uv_rwlock_init(&lockMapContext);
+    uv_rwlock_init(&lockJdwpTrack);
     awakenPollFd = -1;
     stop = false;
 }
@@ -142,6 +33,13 @@ HdcJdwp::HdcJdwp(uv_loop_t *loopIn, LoopStatus *ls) : loopStatus(ls)
 HdcJdwp::~HdcJdwp()
 {
     Base::CloseFd(awakenPollFd);
+    uv_rwlock_destroy(&lockMapContext);
+    uv_rwlock_destroy(&lockJdwpTrack);
+}
+
+bool HdcJdwp::ReadyForRelease()
+{
+    return refCount == 0;
 }
 
 void HdcJdwp::Stop()
@@ -150,24 +48,20 @@ void HdcJdwp::Stop()
     WakePollThread();
     auto funcListenPipeClose = [](uv_handle_t *handle) -> void {
         HdcJdwp *thisClass = (HdcJdwp *)handle->data;
-        [[maybe_unused]] HdcHicollie hicollie;
-        std::unique_lock<std::mutex> lock(thisClass->mutex);
         --thisClass->refCount;
     };
     Base::TryCloseHandle((const uv_handle_t *)&listenPipe, funcListenPipeClose);
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
+    freeContextMutex.lock();
     for (auto &&obj : mapCtxJdwp) {
         HCtxJdwp v = obj.second;
-        FreeContextRaw(v);
+        FreeContext(v);
     }
     AdminContext(OP_CLEAR, 0, nullptr);
+    freeContextMutex.unlock();
 }
 
 void *HdcJdwp::MallocContext()
 {
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = nullptr;
     if ((ctx = new ContextJdwp()) == nullptr) {
         return nullptr;
@@ -185,55 +79,14 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
     if (ctx->finish) {
         return;
     }
-    {
-        [[maybe_unused]] HdcHicollie hicollie;
-        std::unique_lock<std::mutex> lock(mutex);
-        ctx->finish = true;
-        WRITE_LOG(LOG_INFO, "FreeContext for targetPID :%d", ctx->pid);
-        if (!stop) {
-            AdminContext(OP_REMOVE, ctx->pid, nullptr);
-        }
+    ctx->finish = true;
+    WRITE_LOG(LOG_INFO, "FreeContext for targetPID :%d", ctx->pid);
+    if (!stop) {
+        AdminContext(OP_REMOVE, ctx->pid, nullptr);
     }
-
     auto funcReqClose = [](uv_idle_t *handle) -> void {
         HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
-        [[maybe_unused]] HdcHicollie hicollie;
-        std::unique_lock<std::mutex> lock(ctxIn->thisClass->mutex);
         --ctxIn->thisClass->refCount;
-        Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
-
-        Base::TryCloseHandle((const uv_handle_t *)&ctxIn->pipe, [](uv_handle_t *handle) {
-#ifndef HDC_EMULATOR
-            HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
-            if (ctxIn != nullptr) {
-                delete ctxIn;
-                ctxIn = nullptr;
-            }
-#endif
-        });
-    };
-    Base::IdleUvTask(loop, ctx, funcReqClose);
-}
-
-void HdcJdwp::FreeContextRaw(HCtxJdwp ctx)
-{
-    if (ctx->finish) {
-        return;
-    }
-    {
-        ctx->finish = true;
-        WRITE_LOG(LOG_INFO, "FreeContext for targetPID :%d", ctx->pid);
-        if (!stop) {
-            AdminContext(OP_REMOVE, ctx->pid, nullptr);
-        }
-    }
-    auto funcReqClose = [](uv_idle_t *handle) -> void {
-        HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
-        {
-            [[maybe_unused]] HdcHicollie hicollie;
-            std::unique_lock<std::mutex> lock(ctxIn->thisClass->mutex);
-            --ctxIn->thisClass->refCount;
-        }
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
 
         Base::TryCloseHandle((const uv_handle_t *)&ctxIn->pipe, [](uv_handle_t *handle) {
@@ -312,16 +165,15 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 #else
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d", pid);
 #endif  // JS_JDWP_CONNECT
-            [[maybe_unused]] HdcHicollie hicollie;
-            std::unique_lock<std::mutex> lock(thisClass->mutex);
             thisClass->AdminContext(OP_ADD, pid, ctxJdwp);
             ret = true;
             int fd = -1;
             if (uv_fileno(reinterpret_cast<uv_handle_t *>(&(ctxJdwp->pipe)), &fd) < 0) {
                 WRITE_LOG(LOG_DEBUG, "HdcJdwp::ReadStream uv_fileno fail.");
             } else {
+                thisClass->freeContextMutex.lock();
                 thisClass->pollNodeMap.emplace(fd, PollNode(fd, pid));
-                lock.unlock();
+                thisClass->freeContextMutex.unlock();
                 thisClass->WakePollThread();
             }
         }
@@ -329,7 +181,9 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
     (void)memset_s(ctxJdwp->buf, sizeof(ctxJdwp->buf), 0, sizeof(ctxJdwp->buf));
     if (!ret) {
         WRITE_LOG(LOG_INFO, "ReadStream proc:%u err, free it.", ctxJdwp->pid);
+        thisClass->freeContextMutex.lock();
         thisClass->FreeContext(ctxJdwp);
+        thisClass->freeContextMutex.unlock();
     }
 }
 
@@ -339,8 +193,7 @@ string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
     constexpr uint8_t releaseApp = 2;
     constexpr uint8_t allAppWithDr = 3;
     string ret;
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
+    uv_rwlock_rdlock(&lockMapContext);
     for (auto &&v : mapCtxJdwp) {
         HCtxJdwp hj = v.second;
         if (dr == 0) {
@@ -365,6 +218,7 @@ string HdcJdwp::GetProcessListExtendPkgName(uint8_t dr)
             ret += std::to_string(v.first) + " " + hj->pkgName + " " + apptype + "\n";
         }
     }
+    uv_rwlock_rdunlock(&lockMapContext);
     return ret;
 }
 #endif  // JS_JDWP_CONNECT
@@ -381,7 +235,9 @@ void HdcJdwp::AcceptClient(uv_stream_t *server, int /* status */)
     uv_pipe_init(thisClass->loop, &ctxJdwp->pipe, 1);
     if (uv_accept(server, (uv_stream_t *)&ctxJdwp->pipe) < 0) {
         WRITE_LOG(LOG_DEBUG, "uv_accept failed");
+        thisClass->freeContextMutex.lock();
         thisClass->FreeContext(ctxJdwp);
+        thisClass->freeContextMutex.unlock();
         return;
     }
     auto funAlloc = [](uv_handle_t *handle, size_t /* sizeSuggested */, uv_buf_t *buf) -> void {
@@ -405,20 +261,69 @@ bool HdcJdwp::JdwpListen()
     const char jdwpCtrlName[] = { '\0', 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
 #endif
     const int DEFAULT_BACKLOG = 4;
-
-    uv_pipe_init(loop, &listenPipe, 0);
-    listenPipe.data = this;
-    if (UvPipeBind(&listenPipe, jdwpCtrlName, sizeof(jdwpCtrlName))) {
-        WRITE_LOG(LOG_FATAL, "UvPipeBind failed");
-        return false;
+    bool ret = false;
+    while (true) {
+        uv_pipe_init(loop, &listenPipe, 0);
+        listenPipe.data = this;
+        if (UvPipeBind(&listenPipe, jdwpCtrlName, sizeof(jdwpCtrlName))) {
+            WRITE_LOG(LOG_FATAL, "UvPipeBind failed");
+            return ret;
+        }
+        if (uv_listen((uv_stream_t *)&listenPipe, DEFAULT_BACKLOG, AcceptClient)) {
+            WRITE_LOG(LOG_FATAL, "uv_listen failed");
+            break;
+        }
+        ++refCount;
+        ret = true;
+        break;
     }
-    if (uv_listen((uv_stream_t *)&listenPipe, DEFAULT_BACKLOG, AcceptClient)) {
-        WRITE_LOG(LOG_FATAL, "uv_listen failed");
-        return false;
-    }
-    ++refCount;
     // listenPipe close by stop
-    return true;
+    return ret;
+}
+
+int HdcJdwp::UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
+{
+    char buffer[BUF_SIZE_DEFAULT] = { 0 };
+
+    if (handle->io_watcher.fd >= 0) {
+        WRITE_LOG(LOG_FATAL, "socket already bound %d", handle->io_watcher.fd);
+        return -1;
+    }
+
+    int type = SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC;
+    int sockfd = socket(AF_UNIX, type, 0);
+    if (sockfd < 0) {
+        strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "socket failed errno:%d %s", errno, buffer);
+        return -1;
+    }
+
+#if defined(SO_NOSIGPIPE)
+    int on = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
+#endif
+
+    struct sockaddr_un saddr;
+    memset_s(&saddr, sizeof(sockaddr_un), 0, sizeof(sockaddr_un));
+    size_t capacity = sizeof(saddr.sun_path);
+    size_t min = size < capacity ? size : capacity;
+    for (size_t i = 0; i < min; i++) {
+        saddr.sun_path[i] = name[i];
+    }
+    saddr.sun_path[capacity - 1] = '\0';
+    saddr.sun_family = AF_UNIX;
+    size_t saddrLen = sizeof(saddr.sun_family) + size - 1;
+    int err = bind(sockfd, reinterpret_cast<struct sockaddr*>(&saddr), saddrLen);
+    if (err != 0) {
+        strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
+        WRITE_LOG(LOG_FATAL, "bind failed errno:%d %s", errno, buffer);
+        close(sockfd);
+        return -1;
+    }
+    constexpr uint32_t uvHandleBound = 0x00002000;
+    handle->flags |= uvHandleBound;
+    handle->io_watcher.fd = sockfd;
+    return 0;
 }
 
 // Working in the main thread, but will be accessed by each session thread, so we need to set thread lock
@@ -427,34 +332,44 @@ void *HdcJdwp::AdminContext(const uint8_t op, const uint32_t pid, HCtxJdwp ctxJd
     HCtxJdwp hRet = nullptr;
     switch (op) {
         case OP_ADD: {
+            uv_rwlock_wrlock(&lockMapContext);
             const int maxMapSize = 1024;
             if (mapCtxJdwp.size() < maxMapSize) {
                 mapCtxJdwp[pid] = ctxJdwp;
             } else {
                 WRITE_LOG(LOG_INFO, "jdwp map size:%zu over 1024", mapCtxJdwp.size());
             }
+            uv_rwlock_wrunlock(&lockMapContext);
             break;
         }
         case OP_REMOVE:
+            uv_rwlock_wrlock(&lockMapContext);
             mapCtxJdwp.erase(pid);
             RemoveFdFromPollList(pid);
+            uv_rwlock_wrunlock(&lockMapContext);
             break;
         case OP_QUERY: {
+            uv_rwlock_rdlock(&lockMapContext);
             if (mapCtxJdwp.count(pid)) {
                 hRet = mapCtxJdwp[pid];
             }
+            uv_rwlock_rdunlock(&lockMapContext);
             break;
         }
         case OP_CLEAR: {
+            uv_rwlock_wrlock(&lockMapContext);
             mapCtxJdwp.clear();
             pollNodeMap.clear();
+            uv_rwlock_wrunlock(&lockMapContext);
             break;
         }
         default:
             break;
     }
     if (op == OP_ADD || op == OP_REMOVE || op == OP_CLEAR) {
+        uv_rwlock_wrlock(&lockJdwpTrack);
         ProcessListUpdated();
+        uv_rwlock_wrunlock(&lockJdwpTrack);
     }
     return hRet;
 }
@@ -477,76 +392,118 @@ void HdcJdwp::SendCallbackJdwpNewFD(uv_write_t *req, int status)
 // work on main thread
 bool HdcJdwp::SendJdwpNewFD(uint32_t targetPID, int fd)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
-    HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, targetPID, nullptr);
-    if (ctx == nullptr) {
-        return false;
+    bool ret = false;
+    while (true) {
+        HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, targetPID, nullptr);
+        if (!ctx) {
+            break;
+        }
+        ctx->dummy = static_cast<uint8_t>('!');
+        if (uv_tcp_init(loop, &ctx->jvmTCP)) {
+            break;
+        }
+        if (uv_tcp_open(&ctx->jvmTCP, fd)) {
+            break;
+        }
+        // transfer fd to jvm
+        // clang-format off
+        if (Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, (uint8_t *)&ctx->dummy, 1, (uv_stream_t *)&ctx->jvmTCP,
+            (void *)SendCallbackJdwpNewFD, (const void *)ctx) < 0) {
+            break;
+        }
+        // clang-format on
+        ++refCount;
+        ret = true;
+        WRITE_LOG(LOG_DEBUG, "SendJdwpNewFD successful targetPID:%d fd%d", targetPID, fd);
+        break;
     }
-    ctx->dummy = static_cast<uint8_t>('!');
-    if (uv_tcp_init(loop, &ctx->jvmTCP)) {
-        return false;
-    }
-    if (uv_tcp_open(&ctx->jvmTCP, fd)) {
-        return false;
-    }
-    // transfer fd to jvm
-    // clang-format off
-    if (Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, (uint8_t *)&ctx->dummy, 1, (uv_stream_t *)&ctx->jvmTCP,
-        (void *)SendCallbackJdwpNewFD, (const void *)ctx) < 0) {
-        return false;
-    }
-    // clang-format on
-    ++refCount;
-    WRITE_LOG(LOG_DEBUG, "SendJdwpNewFD successful targetPID:%d fd%d", targetPID, fd);
-    return true;
+    return ret;
 }
 
 bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
 {
-    // str(ark:pid@tid@Debugger)
-    size_t pos = str.find_first_of(':');
-    std::string right = str.substr(pos + 1);
-    pos = right.find_first_of("@");
-    std::string pidstr = right.substr(0, pos);
-    uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
-    HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
-    if (!ctx) {
-        WRITE_LOG(LOG_FATAL, "SendArkNewFD query pid:%u failed", pid);
-        return false;
-    }
-    uint32_t size = sizeof(int32_t) + str.size();
-    // fd | str(ark:pid@tid@Debugger)
-    std::unique_ptr<uint8_t[]> buf(new(std::nothrow) uint8_t[size]);
-    if (buf == nullptr) {
-        WRITE_LOG(LOG_FATAL, "out of memory size:%u", size);
+    bool ret = false;
+    while (true) {
+        // str(ark:pid@tid@Debugger)
+        size_t pos = str.find_first_of(':');
+        std::string right = str.substr(pos + 1);
+        pos = right.find_first_of("@");
+        std::string pidstr = right.substr(0, pos);
+        uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
+        HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
+        if (!ctx) {
+            WRITE_LOG(LOG_FATAL, "SendArkNewFD query pid:%u failed", pid);
+            break;
+        }
+        uint32_t size = sizeof(int32_t) + str.size();
+        // fd | str(ark:pid@tid@Debugger)
+        uint8_t *buf = new(std::nothrow) uint8_t[size];
+        if (buf == nullptr) {
+            WRITE_LOG(LOG_FATAL, "out of memory size:%u", size);
+            Base::CloseFd(fd);
+            return false;
+        }
+        if (memcpy_s(buf, sizeof(int32_t), &fd, sizeof(int32_t)) != EOK) {
+            WRITE_LOG(LOG_WARN, "From fd Create buf failed, fd:%d", fd);
+            Base::CloseFd(fd);
+            delete[] buf;
+            return false;
+        }
+        if (memcpy_s(buf + sizeof(int32_t), str.size(), str.c_str(), str.size()) != EOK) {
+            WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
+            Base::CloseFd(fd);
+            delete[] buf;
+            return false;
+        }
+        uv_stream_t *stream = (uv_stream_t *)&ctx->pipe;
+        SendFdToApp(stream->io_watcher.fd, buf, size, fd);
+        delete[] buf;
+        ret = true;
+        WRITE_LOG(LOG_DEBUG, "SendArkNewFD successful str:%s fd%d", str.c_str(), fd);
         Base::CloseFd(fd);
+        break;
+    }
+    return ret;
+}
+
+bool HdcJdwp::SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
+{
+    struct iovec iov;
+    iov.iov_base = buf;
+    iov.iov_len = static_cast<unsigned int>(size);
+    struct msghdr msg;
+    msg.msg_name = nullptr;
+    msg.msg_namelen = 0;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    int len = CMSG_SPACE(static_cast<unsigned int>(sizeof(fd)));
+    char ctlBuf[len];
+    msg.msg_control = ctlBuf;
+    msg.msg_controllen = sizeof(ctlBuf);
+
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+    if (cmsg == nullptr) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp cmsg is nullptr");
         return false;
     }
-    if (memcpy_s(buf.get(), size, &fd, sizeof(int32_t)) != EOK) {
-        WRITE_LOG(LOG_WARN, "From fd Create buf failed, fd:%d", fd);
-        Base::CloseFd(fd);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+    if (memcpy_s(CMSG_DATA(cmsg), sizeof(fd), &fd, sizeof(fd)) != 0) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp memcpy error:%d", errno);
         return false;
     }
-    if (memcpy_s(buf.get() + sizeof(int32_t), size - sizeof(int32_t), str.c_str(), str.size()) != EOK) {
-        WRITE_LOG(LOG_WARN, "SendArkNewFD failed fd:%d str:%s", fd, str.c_str());
-        Base::CloseFd(fd);
+    if (sendmsg(sockfd, &msg, 0) < 0) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp sendmsg errno:%d", errno);
         return false;
     }
-    uv_stream_t *stream = (uv_stream_t *)&ctx->pipe;
-    SendFdToApp(stream->io_watcher.fd, buf.get(), size, fd);
-    WRITE_LOG(LOG_DEBUG, "SendArkNewFD successful str:%s fd%d", str.c_str(), fd);
-    Base::CloseFd(fd);
     return true;
 }
 
 // cross thread call begin
 bool HdcJdwp::CheckPIDExist(uint32_t targetPID)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, targetPID, nullptr);
     return ctx != nullptr;
 }
@@ -554,11 +511,11 @@ bool HdcJdwp::CheckPIDExist(uint32_t targetPID)
 string HdcJdwp::GetProcessList()
 {
     string ret;
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
+    uv_rwlock_rdlock(&lockMapContext);
     for (auto &&v : mapCtxJdwp) {
         ret += std::to_string(v.first) + "\n";
     }
+    uv_rwlock_rdunlock(&lockMapContext);
     return ret;
 }
 // cross thread call finish
@@ -652,13 +609,13 @@ bool HdcJdwp::CreateJdwpTracker(HTaskInfo taskInfo)
     if (taskInfo == nullptr) {
         return false;
     }
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
+    uv_rwlock_wrlock(&lockJdwpTrack);
     auto it = std::find(jdwpTrackers.begin(), jdwpTrackers.end(), taskInfo);
     if (it == jdwpTrackers.end()) {
         jdwpTrackers.push_back(taskInfo);
     }
     ProcessListUpdated(taskInfo);
+    uv_rwlock_wrunlock(&lockJdwpTrack);
     return true;
 }
 
@@ -667,13 +624,13 @@ void HdcJdwp::RemoveJdwpTracker(HTaskInfo taskInfo)
     if (taskInfo == nullptr) {
         return;
     }
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
+    uv_rwlock_wrlock(&lockJdwpTrack);
     auto it = std::find(jdwpTrackers.begin(), jdwpTrackers.end(), taskInfo);
     if (it != jdwpTrackers.end()) {
         WRITE_LOG(LOG_DEBUG, "RemoveJdwpTracker channelId:%d, taskType:%d.", taskInfo->channelId, taskInfo->taskType);
         jdwpTrackers.erase(remove(jdwpTrackers.begin(), jdwpTrackers.end(), *it), jdwpTrackers.end());
     }
+    uv_rwlock_wrunlock(&lockJdwpTrack);
 }
 
 void HdcJdwp::DrainAwakenPollThread() const
@@ -704,13 +661,28 @@ void *HdcJdwp::FdEventPollThread(void *args)
     std::vector<struct pollfd> pollfds;
     size_t size = 0;
     while (!thisClass->stop) {
-        thisClass->GetPollFd(pollfds);
+        thisClass->freeContextMutex.lock();
+        if (size != thisClass->pollNodeMap.size() || thisClass->pollNodeMap.size() == 0) {
+            pollfds.clear();
+            struct pollfd pollFd;
+            for (const auto &pair : thisClass->pollNodeMap) {
+                pollFd.fd = pair.second.pollfd.fd;
+                pollFd.events = pair.second.pollfd.events;
+                pollFd.revents = pair.second.pollfd.revents;
+                pollfds.push_back(pollFd);
+            }
+            pollFd.fd = thisClass->awakenPollFd;
+            pollFd.events = POLLIN;
+            pollFd.revents = 0;
+            pollfds.push_back(pollFd);
+            size = pollfds.size();
+        }
+        thisClass->freeContextMutex.unlock();
         poll(&pollfds[0], size, -1);
         for (const auto &pollfdsing : pollfds) {
             // POLLNVAL:fd not open
             if ((static_cast<unsigned short>(pollfdsing.revents) & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR)) != 0) {
-                [[maybe_unused]] HdcHicollie hicollie;
-                std::unique_lock<std::mutex> lock(thisClass->mutex);
+                thisClass->freeContextMutex.lock();
                 auto it = thisClass->pollNodeMap.find(pollfdsing.fd);
                 if (it != thisClass->pollNodeMap.end()) {
                     uint32_t targetPID = it->second.ppid;
@@ -719,6 +691,7 @@ void *HdcJdwp::FdEventPollThread(void *args)
                         thisClass->AdminContext(OP_REMOVE, targetPID, nullptr);
                     }
                 }
+                thisClass->freeContextMutex.unlock();
             } else if ((static_cast<unsigned short>(pollfdsing.revents) & POLLIN) != 0) {
                 if (pollfdsing.fd == thisClass->awakenPollFd) {
                     thisClass->DrainAwakenPollThread();
@@ -749,9 +722,9 @@ int HdcJdwp::CreateFdEventPoll()
 // jdb -connect com.sun.jdi.SocketAttach:hostname=localhost,port=8000
 int HdcJdwp::Initial()
 {
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
+    freeContextMutex.lock();
     pollNodeMap.clear();
+    freeContextMutex.unlock();
     if (!JdwpListen()) {
         WRITE_LOG(LOG_FATAL, "JdwpListen failed");
         return ERR_MODULE_JDWP_FAILED;
@@ -763,27 +736,4 @@ int HdcJdwp::Initial()
     }
     return RET_SUCCESS;
 }
-
-void HdcJdwp::GetPollFd(std::vector<struct pollfd>& pollfds)
-{
-    [[maybe_unused]] HdcHicollie hicollie;
-    std::unique_lock<std::mutex> lock(mutex);
-    if (pollfds.size() == pollNodeMap.size() || pollNodeMap.size() == 0) {
-        return;
-    }
-
-    pollfds.clear();
-    struct pollfd pollFd;
-    for (const auto &pair : pollNodeMap) {
-        pollFd.fd = pair.second.pollfd.fd;
-        pollFd.events = pair.second.pollfd.events;
-        pollFd.revents = pair.second.pollfd.revents;
-        pollfds.push_back(pollFd);
-    }
-    pollFd.fd = awakenPollFd;
-    pollFd.events = POLLIN;
-    pollFd.revents = 0;
-    pollfds.push_back(pollFd);
-}
-
 }

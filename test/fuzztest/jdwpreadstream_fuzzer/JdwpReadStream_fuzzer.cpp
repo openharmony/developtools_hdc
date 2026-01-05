@@ -18,11 +18,13 @@
 #include <uv_status.h>
 
 namespace Hdc {
-class HdcJdwpFuzzer {
+class HdcJdwpFuzzer : public HdcJdwp {
 public:
-    static std::unique_ptr<HdcJdwp> Instance(uv_loop_t *loop, LoopStatus *loopStatus)
+    explicit HdcJdwpFuzzer(uv_loop_t *loop, LoopStatus *loopStatus) : HdcJdwp(loop, loopStatus) {}
+
+    static std::unique_ptr<HdcJdwpFuzzer> Instance(uv_loop_t *loop, LoopStatus *loopStatus)
     {
-        std::unique_ptr<HdcJdwp> jdwp = std::make_unique<HdcJdwp>(loop, loopStatus);
+        std::unique_ptr<HdcJdwpFuzzer> jdwp = std::make_unique<HdcJdwpFuzzer>(loop, loopStatus);
         return jdwp;
     }
 };

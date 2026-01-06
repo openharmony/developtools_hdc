@@ -97,8 +97,9 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
 bool HdcFile::containsBlacklistedSubstring(const std::string& input,
     const std::unordered_set<std::string>& blacklistFiles)
 {
+    std::string inputPath = PathSimplify(input);
     for (const auto& blacklisted : blacklistFiles) {
-        if (input.find(blacklisted) != std::string::npos) {
+        if (inputPath.find(blacklisted) != std::string::npos) {
             return true;
         }
     }

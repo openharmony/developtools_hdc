@@ -116,12 +116,24 @@ HWTEST_F(HdcFileTest, TestBegintarnsfer, TestSize.Level0)
 HWTEST_F(HdcFileTest, TestCheckBlacklistPath, TestSize.Level0)
 {
     HdcFile::CtxFile context;
-    // case 1: path not in balcklist
+    // case 1: path not in blacklist
     context.localPath = "/data/service/el1/public/validpath";
     ASSERT_EQ(mockHdcdFile->CheckBlacklistPath(&context), true);
 
-    // case 2: path in balcklist
+    // case 2: path in blacklist
     context.localPath = "/data/service/el1/public/hdc";
+    ASSERT_EQ(mockHdcdFile->CheckBlacklistPath(&context), false);
+
+    // case 3: path in blacklist
+    context.localPath = "/data/service/el1/public/../public/hdc";
+    ASSERT_EQ(mockHdcdFile->CheckBlacklistPath(&context), false);
+
+    // case 4: path in blacklist
+    context.localPath = "/data/service/../service/el1/public/hdc";
+    ASSERT_EQ(mockHdcdFile->CheckBlacklistPath(&context), false);
+
+    // case 5: path in blacklist
+    context.localPath = "/data/service/el1/public/../../../service/el1/public/hdc";
     ASSERT_EQ(mockHdcdFile->CheckBlacklistPath(&context), false);
 }
 

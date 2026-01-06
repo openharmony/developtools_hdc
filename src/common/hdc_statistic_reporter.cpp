@@ -119,7 +119,7 @@ void HdcStatisticReporter::HandleReport(uv_timer_t* timer)
 #endif
 }
 
-void HdcStatisticReporter::Report()
+void HdcStatisticReporter::Report() noexcept
 {
 #ifdef HDC_STATISTIC_REPORT_ENABLE
     std::lock_guard<std::mutex> lock(mutex_);

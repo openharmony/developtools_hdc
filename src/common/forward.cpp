@@ -773,10 +773,10 @@ bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
             if (fds[0] > 0) {
                 uv_tcp_init(loopTask, &ctx->tcp);
                 uv_tcp_open(&ctx->tcp, fds[0]);
+                uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
+                uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
                 fds[0] = -1;
             }
-            uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
-            uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
             break;
         case FORWARD_ABSTRACT:
         case FORWARD_RESERVED:

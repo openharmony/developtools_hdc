@@ -40,21 +40,21 @@ void ZigzagTest::TearDown() {}
 // 测试 32 位 Zigzag 编码
 HWTEST_F(ZigzagTest, TestMakeZigzag32_PositiveNumbers, TestSize.Level0)
 {
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(0), 0u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(1), 2u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(2), 4u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(100), 200u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(1000), 2000u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(0)), 0u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(1)), 2u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(2)), 4u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(100)), 200u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(1000)), 2000u);
     EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(std::numeric_limits<int32_t>::max()),
                 static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) * 2);
 }
 
 HWTEST_F(ZigzagTest, TestMakeZigzag32_NegativeNumbers, TestSize.Level0)
 {
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-1), 1u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-2), 3u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-100), 199u);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-1000), 1999u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(-1)), 1u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(-2)), 3u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(-100)), 199u);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int32_t>(-1000)), 1999u);
     EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(std::numeric_limits<int32_t>::min()),
                 static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) * 2 + 1);
 }
@@ -62,21 +62,21 @@ HWTEST_F(ZigzagTest, TestMakeZigzag32_NegativeNumbers, TestSize.Level0)
 // 测试64位Zigzag编码
 HWTEST_F(ZigzagTest, TestMakeZigzag64_PositiveNumbers, TestSize.Level0)
 {
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(0LL), 0ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(1LL), 2ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(2LL), 4ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(100LL), 200ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(1000LL), 2000ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(0LL)), 0ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(1LL)), 2ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(2LL)), 4ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(100LL)), 200ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(1000LL)), 2000ULL);
     EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(std::numeric_limits<int64_t>::max()),
                 static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) * 2);
 }
 
 HWTEST_F(ZigzagTest, TestMakeZigzag64_NegativeNumbers, TestSize.Level0)
 {
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-1LL), 1ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-2LL), 3ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-100LL), 199ULL);
-    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(-1000LL), 1999ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(-1LL)), 1ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(-2LL)), 3ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(-100LL)), 199ULL);
+    EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(static_cast<int64_t>(-1000LL)), 1999ULL);
     EXPECT_EQ(SerialStruct::SerialDetail::MakeZigzagValue(std::numeric_limits<int64_t>::min()),
                 static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) * 2 + 1);
 }
@@ -102,19 +102,19 @@ HWTEST_F(ZigzagTest, TestReadZigzag32_NegativeNumbers, TestSize.Level0)
 // 测试64位Zigzag解码
 HWTEST_F(ZigzagTest, TestReadZigzag64_PositiveNumbers, TestSize.Level0)
 {
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(0ULL), 0LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(2ULL), 1LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(4ULL), 2LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(200ULL), 100LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(2000ULL), 1000LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(0ULL)), 0LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(2ULL)), 1LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(4ULL)), 2LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(200ULL)), 100LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(2000ULL)), 1000LL);
 }
 
 HWTEST_F(ZigzagTest, TestReadZigzag64_NegativeNumbers, TestSize.Level0)
 {
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(1ULL), -1LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(3ULL), -2LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(199ULL), -100LL);
-    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(1999ULL), -1000LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(1ULL)), -1LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(3ULL)), -2LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(199ULL)), -100LL);
+    EXPECT_EQ(SerialStruct::SerialDetail::ReadZigzagValue(static_cast<uint64_t>(1999ULL)), -1000LL);
 }
 
 // 测试编解码的往返一致性

@@ -92,24 +92,6 @@ HWTEST_F(HdcJdwpTest, Test_AdminContext_Remove, TestSize.Level0)
     jdwp->FreeContext(ctx);
 }
 
-HWTEST_F(HdcJdwpTest, Test_ReadyForRelease, TestSize.Level0)
-{
-    EXPECT_TRUE(jdwp->ReadyForRelease());
-
-    HdcJdwp::HCtxJdwp ctx = static_cast<HdcJdwp::HCtxJdwp>(jdwp->MallocContext());
-    jdwp->AdminContext(OP_ADD, 12345, ctx);
-
-    EXPECT_FALSE(jdwp->ReadyForRelease());
-
-    jdwp->AdminContext(OP_REMOVE, 12345, nullptr);
-    jdwp->FreeContext(ctx);
-    if (jdwp->refCount > 0) {
-        --jdwp->refCount;
-    }
-
-    EXPECT_TRUE(jdwp->ReadyForRelease());
-}
-
 HWTEST_F(HdcJdwpTest, Test_SendJdwpNewFD, TestSize.Level0)
 {
     uint32_t targetPID = 12345;

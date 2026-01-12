@@ -1298,3 +1298,27 @@ def client_get_file(port_num, file_name, file_save_name):
         logger.info("client socket close")
         client_socket.close()
     logger.info("client exit")
+
+def get_bundle_info(bundle_name, key, is_shared=False):
+    dump = "dump-shared" if is_shared else "dump"
+    cmd = f"hdc shell bm {dump} -n {bundle_name}"
+    """
+    cmd output example:
+    com.example.xxx:
+    {
+        "k1": v1,
+        "k2": v2,
+        ...
+    }
+    """
+    try:
+        output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
+        result = output.decode("utf-8")
+        if "error" in result:
+            return ""
+        # clear first unused content
+        infos = json.loads("".join((result.split("\n")[1:])))
+        return infos if key == "" else infos[key]
+    except subprocess.CalledProcessError as e:
+        logger.error(f"bm dump failed: {e.stderr.decode()}")
+        return ""

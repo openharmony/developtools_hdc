@@ -15,7 +15,7 @@
 import pytest
 from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall, \
     check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp, check_app_not_exist, \
-    check_app_dir_not_exist
+    check_app_dir_not_exist, get_bundle_info
 
 
 class TestInstallBase:
@@ -133,20 +133,29 @@ class TestInstallBase:
         ### base cases ###
         # no option
         assert check_app_install(package_hap, hap_module_name)
+        updateTime1 = int(get_bundle_info(hap_module_name, "updateTime"))
         # -r
         assert check_app_install(package_hap, hap_module_name, '-r')
+        updateTime2 = (get_bundle_info(hap_module_name, "updateTime"))
+        assert updateTime1 != 0 and updateTime2 != 0 and updateTime2 > updateTime1
         # -s
         assert check_app_install(package_hsp, hsp_module_name, '-s')
         # -cwd
+        assert check_app_install(package_hap, hap_module_name, '-cwd .\\')
         assert not check_app_install(package_hap, hap_module_name, '-cwd F:\\')
         # -w
         assert check_app_install(package_hap, hap_module_name, '"-w 180"')
         # -u
         assert check_app_install(package_hap, hap_module_name, '"-u 100"')
+        assert get_bundle_info(hap_module_name, 'userInfo')[0]['bundleUserInfo']['userId'] == 100
+        assert check_app_install(package_hap, hap_module_name, '"-u 102"')
+        # install default active user when -u with nonexistent userId
+        assert get_bundle_info(hap_module_name, 'userInfo')[0]['bundleUserInfo']['userId'] == 100
+
         # -p
         assert check_app_install(package_hap, hap_module_name, '-p')
-        # -h
-        assert check_app_install(package_hap, hap_module_name, '-h')
+        # -h: -h not install bundlename
+        assert not check_app_install(package_hap, hap_module_name, '-h')
         ### multi options ###
         # -r -s
         assert check_app_install(package_hsp, hsp_module_name, "-r -s")
@@ -175,20 +184,23 @@ class TestInstallBase:
         # -n
         assert check_app_install(package_hap, hap_module_name)
         assert check_app_uninstall(hap_module_name, '-n')
+        assert not check_app_uninstall(hap_module_name, '-n')
         # -v
-        assert check_app_install(package_hsp, hsp_module_name)
-        assert check_app_uninstall(hsp_module_name, '"-v 10001"')
+        assert check_app_install(package_hsp, hsp_module_name, '-s')
+        assert check_app_uninstall(hsp_module_name, '-s "-v 10001"')
         # -u
         assert check_app_install(package_hap, hap_module_name, '"-u 100"')
         assert check_app_uninstall(hap_module_name, '"-u 100"')
-        # -h
+        assert check_app_install(package_hap, hap_module_name, '"-u 100"')
+        assert check_app_uninstall(hap_module_name, '"-u 102"')
+        # -h: -h not install bundlename
         assert check_app_install(package_hap, hap_module_name)
-        assert check_app_uninstall(hap_module_name, '-h')
+        assert not check_app_uninstall(hap_module_name, '-h')
         ### multi options ###
         # -k -s -u -v -n
-        assert check_app_install(package_hsp, hsp_module_name, '-s "-u 100"')
+        assert check_app_install(package_hsp, hsp_module_name, '-s')
         assert check_app_uninstall(hsp_module_name, '-k -s "-u 100" "-v 10001" -n')
         ### wrong format ###
-        assert check_app_install(package_hsp, hsp_module_name, '-s "-u 100"')
+        assert check_app_install(package_hsp, hsp_module_name, '-s')
         assert not check_app_uninstall(hsp_module_name, '-k -s -u 100 -v 10001 -n')
         assert not check_app_uninstall(hsp_module_name, '-n -k -s "-u 100" "-v 10001"')

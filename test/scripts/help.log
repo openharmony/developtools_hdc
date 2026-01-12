@@ -82,8 +82,6 @@ app commands:
                                          -k: keep the data and cache directories
                                          -s: remove shared bundle
                                          option is -n|-m|-v|-u|-h
-                                         Note: Multiple options must be combined and placed inside the
-                                         same double quotation masks
                                          -n: uninstall a bundle by bundle name
                                          -m: uninstall a module by module name
                                          -v: uninstall a inter-application shared library by versionCode

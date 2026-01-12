@@ -58,7 +58,7 @@ HWTEST_F(HdcDefineTest, TestToDisplayConnectionStr, TestSize.Level1)
 
 /*
  * @tc.name: TestToDisplayChannelStr1
- * @tc.desc: Check the return of ToDisplayConnectionStr method.
+ * @tc.desc: Check the return of ToDisplayChannelStr method.
  * @tc.type: FUNC
  */
 HWTEST_F(HdcDefineTest, TestToDisplayChannelStr1, TestSize.Level1)
@@ -81,7 +81,7 @@ HWTEST_F(HdcDefineTest, TestToDisplayChannelStr1, TestSize.Level1)
 
 /*
  * @tc.name: TestToDisplayChannelStr2
- * @tc.desc: Check the return of ToDisplayConnectionStr method.
+ * @tc.desc: Check the return of ToDisplayChannelStr method.
  * @tc.type: FUNC
  */
 HWTEST_F(HdcDefineTest, TestToDisplayChannelStr2, TestSize.Level1)

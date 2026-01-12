@@ -248,9 +248,9 @@ if (product_name != "ohos-sdk") {
     }
     external_deps = [
       "hilog:hilog_rust",
+      "rust_libc:lib",
       "rust_rust-openssl:lib",
       "ylong_runtime:ylong_runtime",
-      "rust_libc:lib",
     ]
     subsystem_name = "developtools"
     part_name = "hdc"

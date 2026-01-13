@@ -507,14 +507,14 @@ bool HdcFile::CheckLocalPathAndFilename()
     if (!CheckLocalPath(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
-        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
+        WRITE_LOG(LOG_WARN, "SlaveCheck CheckLocalPath error:%s", errStr.c_str());
         return false;
     }
 
     if (!CheckFilename(ctxNow.localPath, ctxNow.transferConfig.optionalName, errStr)) {
         RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
         LogMsg(MSG_FAIL, "%s", errStr.c_str());
-        WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckFilename error:%s", errStr.c_str());
+        WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
     return true;

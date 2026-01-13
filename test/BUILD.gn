@@ -261,13 +261,15 @@ ohos_unittest("hdc_jdwp_unittest") {
   if (js_jdwp_connect) {
     defines += [ "JS_JDWP_CONNECT" ]
   }
-  public_deps = [ ":hdc_daemon_platform" ]
+  deps = [
+    ":hdc_daemon_platform",
+    ":hdc_common",
+  ]
 
   sources = [
     "${hdc_path}/src/daemon/system_depend.cpp",
     "unittest/common/HdcJdwpTest.cpp",
   ]
-  deps = [ ":hdc_common" ]
 
   include_dirs = [
     "${hdc_path}/test/unittest/common/include",

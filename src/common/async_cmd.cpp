@@ -23,6 +23,48 @@
 #endif
 
 namespace Hdc {
+
+#if !defined(_WIN32) && !defined(HDC_HOST)
+static bool GetDevItem(const char *key, string &out)
+{
+    bool ret = true;
+    char tmpStringBuf[BUF_SIZE_MEDIUM] = "";
+#ifdef HARMONY_PROJECT
+    auto res = GetParameter(key, nullptr, tmpStringBuf, BUF_SIZE_MEDIUM);
+    if (res <= 0) {
+        WRITE_LOG(LOG_WARN, "GetDevItem false key:%s", key);
+        return false;
+    }
+#else
+    string sFailString = Base::StringFormat("Get parameter \"%s\" fail", key);
+    string stringBuf = "param get " + string(key);
+    Base::RunPipeComand(stringBuf.c_str(), tmpStringBuf, BUF_SIZE_MEDIUM - 1, true);
+    if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
+        WRITE_LOG(LOG_WARN, "GetDevItem false tmpStringBuf:%s", tmpStringBuf);
+        ret = false;
+        (void)memset_s(tmpStringBuf, sizeof(tmpStringBuf), 0, sizeof(tmpStringBuf));
+    }
+#endif
+    out = tmpStringBuf;
+    return ret;
+}
+#endif
+
+#ifndef _WIN32
+static bool IsRoot()
+{
+#ifndef HDC_HOST
+    string debugMode = "";
+    string rootMode = "";
+    GetDevItem("const.debuggable", debugMode);
+    GetDevItem("persist.hdc.root", rootMode);
+    return debugMode == "1" && rootMode == "1";
+#else
+    return false;
+#endif
+}
+#endif
+
 // Do not add thread-specific init op in the following methods as it's running in child thread.
 AsyncCmd::AsyncCmd()
 {
@@ -104,30 +146,6 @@ bool AsyncCmd::ChildReadCallback(const void *context, uint8_t *buf, const int si
 };
 
 #if !defined(_WIN32) && !defined(HDC_HOST)
-bool AsyncCmd::GetDevItem(const char *key, string &out)
-{
-    bool ret = true;
-    char tmpStringBuf[BUF_SIZE_MEDIUM] = "";
-#ifdef HARMONY_PROJECT
-    auto res = GetParameter(key, nullptr, tmpStringBuf, BUF_SIZE_MEDIUM);
-    if (res <= 0) {
-        WRITE_LOG(LOG_WARN, "GetDevItem false key:%s", key);
-        return false;
-    }
-#else
-    string sFailString = Base::StringFormat("Get parameter \"%s\" fail", key);
-    string stringBuf = "param get " + string(key);
-    Base::RunPipeComand(stringBuf.c_str(), tmpStringBuf, BUF_SIZE_MEDIUM - 1, true);
-    if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
-        WRITE_LOG(LOG_WARN, "GetDevItem false tmpStringBuf:%s", tmpStringBuf);
-        ret = false;
-        (void)memset_s(tmpStringBuf, sizeof(tmpStringBuf), 0, sizeof(tmpStringBuf));
-    }
-#endif
-    out = tmpStringBuf;
-    return ret;
-}
-
 static void SetSelinuxLabel(bool isRoot)
 {
 #if defined(SURPPORT_SELINUX)
@@ -151,91 +169,33 @@ static void SetSelinuxLabel(bool isRoot)
 }
 #endif
 
-int AsyncCmd::ThreadFork(const string &command, const string &optionPath, bool readWrite, int &cpid)
-{
-    string debugMode = "";
-    string rootMode = "";
-    bool isRoot = false;
-#if !defined(_WIN32) && !defined(HDC_HOST)
-    GetDevItem("const.debuggable", debugMode);
-    GetDevItem("persist.hdc.root", rootMode);
-#endif
-    if (debugMode == "1" && rootMode == "1") {
-        isRoot = true;
-    }
-    auto params = new AsyncParams(command, readWrite, cpid, isRoot, optionPath);
-    if (!params) {
-        return -1;
-    }
-    pthread_t threadId;
-    void *popenRes;
-    int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(Popen), params);
-    if (ret != 0) {
-        constexpr int bufSize = 1024;
-        char buf[bufSize] = { 0 };
-#ifdef _WIN32
-        strerror_s(buf, bufSize, errno);
-#else
-        strerror_r(errno, buf, bufSize);
-#endif
-        WRITE_LOG(LOG_DEBUG, "fork Thread create failed:%s", buf);
-        delete params;
-        return ERR_GENERIC;
-    }
-    pthread_join(threadId, &popenRes);
-    delete params;
-    return static_cast<int>(reinterpret_cast<size_t>(popenRes));
-}
-
-void *AsyncCmd::Popen(void *arg)
+int AsyncCmd::ThreadFork(const string &command, const string &optionPath, int &cpid)
 {
 #ifdef _WIN32
-    return reinterpret_cast<void *>(ERR_NO_SUPPORT);
+    return ERR_NO_SUPPORT;
 #else
-#ifndef HOST_MAC
-    int ret = pthread_setname_np(pthread_self(), "hdcd_popen");
-    if (ret != 0) {
-        WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
-    }
-#else
-    int ret = pthread_setname_np("hdcd_popen");
-    if (ret != 0) {
-        WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
-    }
-#endif
-    auto param = reinterpret_cast<AsyncParams *>(arg);
-    if (param == nullptr) {
-        WRITE_LOG(LOG_FATAL, "get param is nullptr.");
-        return reinterpret_cast<void *>(ERR_PARAM_NULLPTR);
-    }
-    AsyncParams params = *param;
-    string command = params.commandParam;
-    bool readWrite = params.readWriteParam;
-    int &cpid = params.cpidParam;
-    bool isRoot = params.isRoot;
+    bool isRoot = IsRoot();
     constexpr uint8_t pipeRead = 0;
     constexpr uint8_t pipeWrite = 1;
     pid_t childPid;
     int fds[2];
     if (pipe(fds) != 0) {
         WRITE_LOG(LOG_FATAL, "Popen pipe failed errno:%d", errno);
-        return reinterpret_cast<void *>(ERR_GENERIC);
+        return ERR_GENERIC;
     }
     WRITE_LOG(LOG_DEBUG, "Popen pipe fds[pipeRead]:%d fds[pipeWrite]:%d, mode %d",
         fds[pipeRead], fds[pipeWrite], isRoot);
 
     if ((childPid = fork()) == -1) {
         WRITE_LOG(LOG_FATAL, "Popen fork failed errno:%d", errno);
-        return reinterpret_cast<void *>(ERR_GENERIC);
+        return ERR_GENERIC;
     }
     if (childPid == 0) {
         Base::DeInitProcess();
         // avoid cpu 100% when watch -n 2 ls command
         dup2(fds[pipeRead], STDIN_FILENO);
-        if (readWrite) {
-            dup2(fds[pipeWrite], STDOUT_FILENO);
-            dup2(fds[pipeWrite], STDERR_FILENO);
-        }
+        dup2(fds[pipeWrite], STDOUT_FILENO);
+        dup2(fds[pipeWrite], STDERR_FILENO);
         close(fds[pipeRead]);
         close(fds[pipeWrite]);
 
@@ -244,32 +204,31 @@ void *AsyncCmd::Popen(void *arg)
 #if !defined(_WIN32) && !defined(HDC_HOST)
         SetSelinuxLabel(isRoot);
 #endif
-        string shellPath = Base::GetShellPath();
-        int execlRet = 0;
-        if (!params.optionPath.empty() && chdir(params.optionPath.c_str()) != 0) {
-            string cmdEcho = "echo \"[E003006] Internal error: AsyncCmd chdir failed:" + params.optionPath + "\"";
-            execlRet = execl(shellPath.c_str(), shellPath.c_str(), "-c", cmdEcho.c_str(), NULL);
-        } else {
-            execlRet = execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
-        }
-        if (execlRet < 0) {
-            WRITE_LOG(LOG_FATAL, "start shell failed %d: %s", execlRet, strerror(errno));
-            _exit(0);
-        }
+        ChildProcessExecute(command, optionPath);
     } else {
-        if (readWrite) {
-            Base::CloseFd(fds[pipeWrite]);
-            fcntl(fds[pipeRead], F_SETFD, FD_CLOEXEC);
-        } else {
-            Base::CloseFd(fds[pipeRead]);
-            fcntl(fds[pipeWrite], F_SETFD, FD_CLOEXEC);
-        }
+        Base::CloseFd(fds[pipeWrite]);
+        fcntl(fds[pipeRead], F_SETFD, FD_CLOEXEC);
     }
     cpid = childPid;
-    if (readWrite) {
-        return reinterpret_cast<void *>(fds[pipeRead]);
+    return fds[pipeRead];
+#endif
+}
+
+void AsyncCmd::ChildProcessExecute(const string &command, const string &optionPath)
+{
+#ifndef _WIN32
+
+    string shellPath = Base::GetShellPath();
+    int execlRet = 0;
+    if (!optionPath.empty() && chdir(optionPath.c_str()) != 0) {
+        string cmdEcho = "echo \"[E003006] Internal error: AsyncCmd chdir failed:" + optionPath + "\"";
+        execlRet = execl(shellPath.c_str(), shellPath.c_str(), "-c", cmdEcho.c_str(), NULL);
     } else {
-        return reinterpret_cast<void *>(fds[pipeWrite]);
+        execlRet = execl(shellPath.c_str(), shellPath.c_str(), "-c", command.c_str(), NULL);
+    }
+    if (execlRet < 0) {
+        WRITE_LOG(LOG_FATAL, "start shell failed %d: %s", execlRet, strerror(errno));
+        _exit(0);
     }
 #endif
 }
@@ -278,7 +237,7 @@ bool AsyncCmd::ExecuteCommand(const string &command, string executePath)
 {
     string cmd = command;
     cmd = Base::ShellCmdTrim(cmd);
-    if ((fd = ThreadFork(cmd, executePath, true, pid)) < 0) {
+    if ((fd = ThreadFork(cmd, executePath, pid)) < 0) {
 #ifdef IS_RELEASE_VERSION
         WRITE_LOG(LOG_FATAL, "ExecuteCommand failed cmd:%s fd:%d", Hdc::MaskString(cmd).c_str(), fd);
         return false;

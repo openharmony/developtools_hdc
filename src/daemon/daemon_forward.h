@@ -20,7 +20,7 @@ namespace Hdc {
 class HdcDaemonForward : public HdcForwardBase {
 public:
     explicit HdcDaemonForward(HTaskInfo hTaskInfo);
-    ~HdcDaemonForward();
+    ~HdcDaemonForward() override;
 
 private:
     bool SetupJdwpPoint(HCtxForward ctxPoint) override;

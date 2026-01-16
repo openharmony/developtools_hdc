@@ -286,14 +286,14 @@ namespace Base {
         }
         if ((access(bakPath.c_str(), F_OK) != 0) || !CompressLogFile(bakName)) {
             if (GetCaller() == Caller::SERVER) {
-                WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", HdcMaskString(bakPath).c_str());
+                WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", Hdc::MaskString(bakPath).c_str());
             } else {
                 WRITE_LOG(LOG_FATAL, "ThreadCompressLog file %s not exist", bakPath.c_str());
             }
             return;
         }
         if (GetCaller() == Caller::SERVER) {
-            WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", HdcMaskString(bakPath).c_str());
+            WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", Hdc::MaskString(bakPath).c_str());
         } else {
             WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
         }

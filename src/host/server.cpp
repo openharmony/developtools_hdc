@@ -448,20 +448,6 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
         CleanForwardMap(hSession->sessionId);
-    } else {  // step2
-        string usbMountPoint = hdiOld->usbMountPoint;
-        // The waiting time must be longer than DEVICE_CHECK_INTERVAL. Wait the method WatchUsbNodeChange
-        // to finish execution. Otherwise, the main thread and the session worker thread will conflict
-        constexpr int waitDaemonReconnect = DEVICE_CHECK_INTERVAL + DEVICE_CHECK_INTERVAL;
-        auto funcDelayUsbNotify = [this, usbMountPoint](const uint8_t flag, string &msg, const void *) -> void {
-            string s = usbMountPoint;
-            clsUSBClt->RemoveIgnoreDevice(s);
-        };
-        if (usbMountPoint.size() > 0) {
-            // wait time for daemon reconnect
-            // If removed from maplist, the USB module will be reconnected, so it needs to wait for a while
-            Base::DelayDoSimple(&loopMain, waitDaemonReconnect, funcDelayUsbNotify);
-        }
     }
 }
 

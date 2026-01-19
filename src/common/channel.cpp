@@ -523,13 +523,14 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
 {
     HChannel hChannel = (HChannel)handle->data;
     HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hChannel->targetSessionId);
     if (hChannel->uvHandleRef > 0) {
         if (hChannel->serverOrClient) {
-            WRITE_LOG(LOG_INFO, "FreeChannelFinally uvHandleRef:%d channelId:%u sid:%u",
-                hChannel->uvHandleRef, hChannel->channelId, hChannel->targetSessionId);
+            WRITE_LOG(LOG_INFO, "FreeChannelFinally uvHandleRef:%d channelId:%u sid:%s",
+                hChannel->uvHandleRef, hChannel->channelId, sessionIdMaskStr.c_str());
         } else {
-            WRITE_LOG(LOG_DEBUG, "FreeChannelFinally uvHandleRef:%d channelId:%u sid:%u",
-                hChannel->uvHandleRef, hChannel->channelId, hChannel->targetSessionId);
+            WRITE_LOG(LOG_DEBUG, "FreeChannelFinally uvHandleRef:%d channelId:%u sid:%s",
+                hChannel->uvHandleRef, hChannel->channelId, sessionIdMaskStr.c_str());
         }
         return;
     }
@@ -543,12 +544,12 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
     thisClass->AdminChannel(OP_REMOVE, hChannel->channelId, nullptr);
 
     if (!hChannel->serverOrClient) {
-        WRITE_LOG(LOG_DEBUG, "!!!FreeChannelFinally channelId:%u sid:%u finish",
-            hChannel->channelId, hChannel->targetSessionId);
+        WRITE_LOG(LOG_DEBUG, "!!!FreeChannelFinally channelId:%u sid:%s finish",
+            hChannel->channelId, sessionIdMaskStr.c_str());
         uv_stop(thisClass->loopMain);
     } else {
-        WRITE_LOG(LOG_INFO, "!!!FreeChannelFinally channelId:%u sid:%u finish",
-            hChannel->channelId, hChannel->targetSessionId);
+        WRITE_LOG(LOG_INFO, "!!!FreeChannelFinally channelId:%u sid:%s finish",
+            hChannel->channelId, sessionIdMaskStr.c_str());
     }
 #ifdef HDC_HOST
     auto deleteChannel = [](uv_handle_t *handle) -> void {
@@ -623,20 +624,21 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
         return;
     }
     thisClass->DispMntnInfo(hChannel);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hChannel->targetSessionId);
     if (hChannel->hChildWorkTCP.loop || hChannel->hChildWorkUds.loop) {
         auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
         bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
         if (!ret) {
-            WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u",
-                hChannel->channelId, hChannel->targetSessionId);
+            WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%s",
+                hChannel->channelId, sessionIdMaskStr.c_str());
             hChannel->childCleared = true;
         }
         auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
             if (!hChannel->childCleared) {
-                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
-                    hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
+                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%s", hChannel->childCleared,
+                    hChannel->channelId, Hdc::MaskSessionIdToString(hChannel->targetSessionId).c_str());
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
@@ -661,20 +663,21 @@ void HdcChannelBase::FreeChannelOpeate(uv_timer_t *handle)
         return;
     }
     thisClass->DispMntnInfo(hChannel);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hChannel->targetSessionId);
     if (hChannel->hChildWorkTCP.loop) {
         auto ctrl = HdcSessionBase::BuildCtrlString(SP_DEATCH_CHANNEL, hChannel->channelId, nullptr, 0);
         bool ret = thisClass->ChannelSendSessionCtrlMsg(ctrl, hChannel->targetSessionId);
         if (!ret) {
-            WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%u",
-                hChannel->channelId, hChannel->targetSessionId);
+            WRITE_LOG(LOG_WARN, "FreeChannelOpeate deatch failed channelId:%u sid:%s",
+                hChannel->channelId, sessionIdMaskStr.c_str());
             hChannel->childCleared = true;
         }
         auto callbackCheckFreeChannelContinue = [](uv_timer_t *handle) -> void {
             HChannel hChannel = (HChannel)handle->data;
             HdcChannelBase *thisClass = (HdcChannelBase *)hChannel->clsChannel;
             if (!hChannel->childCleared) {
-                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%u",
-                    hChannel->childCleared, hChannel->channelId, hChannel->targetSessionId);
+                WRITE_LOG(LOG_WARN, "FreeChannelOpeate childCleared:%d channelId:%u sid:%s", hChannel->childCleared,
+                    hChannel->channelId, Hdc::MaskSessionIdToString(hChannel->targetSessionId).c_str());
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
@@ -798,7 +801,8 @@ void HdcChannelBase::EchoToAllChannelsViaSessionId(uint32_t targetSessionId, con
     for (auto v : mapChannel) {
         HChannel hChannel = (HChannel)v.second;
         if (!hChannel->isDead && hChannel->targetSessionId == targetSessionId) {
-            WRITE_LOG(LOG_INFO, "%s:%u %s", __FUNCTION__, targetSessionId, echo.c_str());
+            WRITE_LOG(LOG_INFO, "%s:%s %s", __FUNCTION__,
+                Hdc::MaskSessionIdToString(targetSessionId).c_str(), echo.c_str());
             EchoToClient(hChannel, (uint8_t *)echo.c_str(), echo.size());
         }
     }

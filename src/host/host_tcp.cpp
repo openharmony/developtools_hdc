@@ -100,6 +100,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     HSession hSession = (HSession)connection->data;
     delete connection;
     HdcSessionBase *ptrConnect = (HdcSessionBase *)hSession->classInstance;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     auto ctrl = ptrConnect->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
     if (status < 0) {
         WRITE_LOG(LOG_FATAL, "Connect status:%d", status);
@@ -115,7 +116,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     }
     uv_read_stop((uv_stream_t *)&hSession->hWorkTCP);
     Base::SetTcpOptions((uv_tcp_t *)&hSession->hWorkTCP);
-    WRITE_LOG(LOG_INFO, "HdcHostTCP::Connect start session work thread, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "HdcHostTCP::Connect start session work thread, sid:%s", sessionIdMaskStr.c_str());
     Base::StartWorkThread(&ptrConnect->loopMain, ptrConnect->SessionWorkThread, Base::FinishWorkThread, hSession);
     // wait for thread up
     while (hSession->childLoop.active_handles == 0) {
@@ -124,7 +125,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
     return;
 Finish:
-    WRITE_LOG(LOG_FATAL, "Connect failed sessionId:%u", hSession->sessionId);
+    WRITE_LOG(LOG_FATAL, "Connect failed sessionId:%s", sessionIdMaskStr.c_str());
     hSession->childCleared = true;
     ptrConnect->FreeSession(hSession->sessionId);
 }
@@ -157,8 +158,8 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
         return nullptr;
     }
     conn->data = hSession;
-    WRITE_LOG(LOG_INFO, "start tcp connect, connectKey:%s sid:%u", Hdc::MaskString(connectKey).c_str(),
-        hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "start tcp connect, connectKey:%s sid:%s", Hdc::MaskString(connectKey).c_str(),
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     uv_tcp_connect(conn, (uv_tcp_t *)&hSession->hWorkTCP, (const struct sockaddr *)&dest, Connect);
     return hSession;
 }

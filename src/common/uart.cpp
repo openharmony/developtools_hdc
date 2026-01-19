@@ -449,6 +449,28 @@ RetErrCode HdcUARTBase::DispatchToWorkThread(HSession hSession, uint8_t *readBuf
     return RET_SUCCESS;
 }
 
+void HdcUARTBase::DispatchPackageData(HSession hSession, std::vector<uint8_t> &data,
+    size_t packetSize, uint32_t packageIndex)
+{
+    if (hSession->hUART->dispatchedPackageIndex == packageIndex) {
+        // we need check if the duplication package we have already send
+        WRITE_LOG(LOG_WARN, "dup package %u, skip send to session logic", packageIndex);
+    } else {
+        // update the last package we will send to hdc
+        hSession->hUART->dispatchedPackageIndex = packageIndex;
+        RetErrCode ret = DispatchToWorkThread(hSession, data.data(), packetSize);
+        if (ret == RET_SUCCESS) {
+            WRITE_LOG(LOG_DEBUG, "%s DispatchToWorkThread successful", __FUNCTION__);
+        } else {
+            // send to logic failed.
+            // this kind of issue unable handle in link layer
+            WRITE_LOG(LOG_FATAL, "%s DispatchToWorkThread fail %d. request free session in other side",
+                __FUNCTION__, ret);
+            ResponseUartTrans(hSession->sessionId, ++hSession->hUART->packageIndex, PKG_OPTION_FREE);
+        }
+    }
+}
+
 size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
 {
     while (data.size() >= sizeof(UartHead)) {
@@ -458,13 +480,12 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
         uint32_t packageIndex = 0;
         // we erase all buffer. wait next read.
         if (ValidateUartPacket(data, sessionId, packageIndex, packetSize) != RET_SUCCESS) {
-            WRITE_LOG(LOG_WARN, "%s package error. clean the read buffer.", __FUNCTION__);
+            WRITE_LOG(LOG_WARN, "package error. clean the read buffer.");
             data.clear();
         } else if (packetSize == sizeof(UartHead)) {
             // nothing need to send, this is a head only package
             // only used in link layer
-            WRITE_LOG(LOG_ALL, "%s headonly Package(%zu). dont send to session, erase it",
-                      __FUNCTION__, packetSize);
+            WRITE_LOG(LOG_ALL, "headonly Package(%zu). dont send to session, erase it", packetSize);
         } else {
             // at least we got one package
             // if the size of package have all received ?
@@ -479,34 +500,13 @@ size_t HdcUARTBase::PackageProcess(vector<uint8_t> &data, HSession hSession)
 #endif
                 }
                 if (hSession == nullptr) {
-                    WRITE_LOG(LOG_WARN, "%s have not found session (%u). skip it", __FUNCTION__, sessionId);
+                    WRITE_LOG(LOG_WARN, "have not found session (%s). skip it",
+                        Hdc::MaskSessionIdToString(sessionId).c_str());
                 } else {
-                    if (hSession->hUART->dispatchedPackageIndex == packageIndex) {
-                        // we need check if the duplication package we have already send
-                        WRITE_LOG(LOG_WARN, "%s dup package %u, skip send to session logic",
-                                  __FUNCTION__, packageIndex);
-                    } else {
-                        // update the last package we will send to hdc
-                        hSession->hUART->dispatchedPackageIndex = packageIndex;
-                        RetErrCode ret = DispatchToWorkThread(hSession, data.data(), packetSize);
-                        if (ret == RET_SUCCESS) {
-                            WRITE_LOG(LOG_DEBUG, "%s DispatchToWorkThread successful",
-                                      __FUNCTION__);
-                        } else {
-                            // send to logic failed.
-                            // this kind of issue unable handle in link layer
-                            WRITE_LOG(LOG_FATAL,
-                                      "%s DispatchToWorkThread fail %d. request free session in "
-                                      "other side",
-                                      __FUNCTION__, ret);
-                            ResponseUartTrans(hSession->sessionId, ++hSession->hUART->packageIndex,
-                                              PKG_OPTION_FREE);
-                        }
-                    }
+                    DispatchPackageData(hSession, data, packetSize, packageIndex);
                 }
             } else {
-                WRITE_LOG(LOG_DEBUG, "%s valid package, however size not enough. expect %zu",
-                          __FUNCTION__, packetSize);
+                WRITE_LOG(LOG_DEBUG, "valid package, however size not enough. expect %zu", packetSize);
                 return packetSize;
             }
         }
@@ -542,7 +542,8 @@ bool HdcUARTBase::SendUARTRaw(HSession hSession, uint8_t *data, const size_t len
         hSession = GetSession(uartHeader->sessionId);
         if (hSession == nullptr) {
             // session is not found
-            WRITE_LOG(LOG_WARN, "%s hSession not found:%zu", __FUNCTION__, uartHeader->sessionId);
+            WRITE_LOG(LOG_WARN, "%s hSession not found:%s", __FUNCTION__,
+                Hdc::MaskSessionIdToString(uartHeader->sessionId).c_str());
             return false;
         }
     }
@@ -580,8 +581,8 @@ bool HdcUARTBase::UartSendToHdcStream(HSession hSession, uint8_t *data, size_t s
     // review need check logic again here or err process
     if (head->sessionId != hSession->sessionId) {
         if (hSession->serverOrDaemon && !hSession->hUART->resetIO) {
-            WRITE_LOG(LOG_FATAL, "%s sessionId not matched, reset sessionId:%d.", __FUNCTION__,
-                      head->sessionId);
+            WRITE_LOG(LOG_FATAL, "%s sessionId not matched, reset sessionId:%s.", __FUNCTION__,
+                Hdc::MaskSessionIdToString(head->sessionId).c_str());
             SendUartSoftReset(hSession, head->sessionId);
             hSession->hUART->resetIO = true;
             ret = ERR_IO_SOFT_RESET;
@@ -769,8 +770,8 @@ void HdcUARTBase::SendPkgInUARTOutMap()
                     // the response it timeout and retry counx is 0
                     // the link maybe not stable
                     // let's free this session
-                    WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the session %u",
-                              it->sessionId);
+                    WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the session %s",
+                              Hdc::MaskSessionIdToString(it->sessionId).c_str());
                     OnTransferError(GetSession(it->sessionId));
                     // dont reschedule here
                     // wait next schedule from this path
@@ -801,8 +802,8 @@ void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
             it++;
         }
     }
-    WRITE_LOG(LOG_DEBUG, "%s UartPackageManager clean for sessionId %u, erased %zu",
-              __FUNCTION__, sessionId, erased);
+    WRITE_LOG(LOG_DEBUG, "%s UartPackageManager clean for sessionId %s, erased %zu",
+              __FUNCTION__, Hdc::MaskSessionIdToString(sessionId).c_str(), erased);
 
     NotifyTransfer(); // tell transfer we maybe have some change
 }
@@ -845,8 +846,8 @@ RetErrCode HdcUARTBase::ValidateUartPacket(vector<uint8_t> &data, uint32_t &sess
 
     if ((head->option & PKG_OPTION_RESET)) {
         // The Host end program is restarted, but the UART cable is still connected
-        WRITE_LOG(LOG_WARN, "%s host side want restart daemon, restart old sessionId:%u",
-                  __FUNCTION__, head->sessionId);
+        WRITE_LOG(LOG_WARN, "%s host side want restart daemon, restart old sessionId:%s",
+                  __FUNCTION__, Hdc::MaskSessionIdToString(head->sessionId).c_str());
         ResetOldSession(head->sessionId);
         return ERR_IO_SOFT_RESET;
     }
@@ -854,8 +855,8 @@ RetErrCode HdcUARTBase::ValidateUartPacket(vector<uint8_t> &data, uint32_t &sess
     if ((head->option & PKG_OPTION_FREE)) {
         // other side tell us the session need reset
         // we should free it
-        WRITE_LOG(LOG_WARN, "%s other side tell us the session need free:%u", __FUNCTION__,
-                  head->sessionId);
+        WRITE_LOG(LOG_WARN, "%s other side tell us the session need free:%s", __FUNCTION__,
+                  Hdc::MaskSessionIdToString(head->sessionId).c_str());
         Restartession(GetSession(head->sessionId));
     }
 
@@ -889,7 +890,8 @@ void HdcUARTBase::ResponseUartTrans(uint32_t sessionId, uint32_t packageIndex,
 int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t length)
 {
     constexpr int maxIOSize = MAX_UART_SIZE_IOBUF;
-    WRITE_LOG(LOG_DEBUG, "SendUARTData hSession:%u, total length:%d", hSession->sessionId, length);
+    WRITE_LOG(LOG_DEBUG, "SendUARTData hSession:%s, total length:%d",
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), length);
     const int packageDataMaxSize = maxIOSize - sizeof(UartHead);
     size_t offset = 0;
     uint8_t sendDataBuf[MAX_UART_SIZE_IOBUF];
@@ -946,8 +948,8 @@ void HdcUARTBase::ReadDataFromUARTStream(uv_stream_t *stream, ssize_t nread, con
     if (nread < 0) {
         uv_err_name_r(nread, buffer, bufSize);
     }
-    WRITE_LOG(LOG_DEBUG, "%s sessionId:%u, nread:%zd %s streamSize %zu", __FUNCTION__,
-              hSession->sessionId, nread, buffer,
+    WRITE_LOG(LOG_DEBUG, "%s sessionId:%s, nread:%zd %s streamSize %zu", __FUNCTION__,
+              Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), nread, buffer,
               hSession->hUART->streamSize.load());
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     if (nread <= 0 or nread > signed(hSession->hUART->streamSize)) {

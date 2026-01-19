@@ -172,7 +172,8 @@ void HdcDaemonUART::ResetOldSession(uint32_t sessionId)
         hSession->hUART->resetIO = true;
     }
     // The Host side is restarted, but the USB cable is still connected
-    WRITE_LOG(LOG_WARN, "Hostside softreset to restart daemon, old sessionId:%u", sessionId);
+    WRITE_LOG(LOG_WARN, "Hostside softreset to restart daemon, old sessionId:%s",
+        Hdc::MaskSessionIdToString(sessionId).c_str());
     OnTransferError(hSession);
 }
 
@@ -202,16 +203,19 @@ void HdcDaemonUART::OnNewHandshakeOK(const uint32_t sessionId)
 
 HSession HdcDaemonUART::PrepareNewSession(uint32_t sessionId)
 {
-    WRITE_LOG(LOG_FATAL, "%s sessionId:%u", __FUNCTION__, sessionId);
+    WRITE_LOG(LOG_FATAL, "%s sessionId:%s", __FUNCTION__,
+        Hdc::MaskSessionIdToString(sessionId).c_str());
     HSession hSession = daemon.MallocSession(false, CONN_SERIAL, this, sessionId);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "new session malloc failed for sessionId:%u", sessionId);
+        WRITE_LOG(LOG_FATAL, "new session malloc failed for sessionId:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return nullptr;
     }
     if (currentSessionId != 0) {
         // reset old session
         // The Host side is restarted, but the cable is still connected
-        WRITE_LOG(LOG_WARN, "New session coming, restart old sessionId:%u", currentSessionId);
+        WRITE_LOG(LOG_WARN, "New session coming, restart old sessionId:%s",
+            Hdc::MaskSessionIdToString(currentSessionId).c_str());
         daemon.PushAsyncMessage(currentSessionId, ASYNC_FREE_SESSION, nullptr, 0);
     }
     externInterface.StartWorkThread(&daemon.loopMain, daemon.SessionWorkThread,

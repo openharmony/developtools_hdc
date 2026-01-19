@@ -30,14 +30,14 @@ HdcTaskBase::HdcTaskBase(HTaskInfo hTaskInfo)
     if (taskInfo->masterSlave) {
         SendToAnother(CMD_KERNEL_WAKEUP_SLAVETASK, nullptr, 0);
     }
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase type:%u cid:%u sid:%u", taskInfo->taskType, taskInfo->channelId,
-        taskInfo->sessionId);
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase type:%u cid:%u sid:%s", taskInfo->taskType, taskInfo->channelId,
+        Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str());
 }
 
 HdcTaskBase::~HdcTaskBase()
 {
-    WRITE_LOG(LOG_DEBUG, "~HdcTaskBase type:%u cid:%u sid:%u", taskInfo->taskType, taskInfo->channelId,
-        taskInfo->sessionId);
+    WRITE_LOG(LOG_DEBUG, "~HdcTaskBase type:%u cid:%u sid:%s", taskInfo->taskType, taskInfo->channelId,
+        Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str());
 }
 
 bool HdcTaskBase::ReadyForRelease()
@@ -50,11 +50,12 @@ void HdcTaskBase::TaskFinish()
 {
     StartTraceScope("HdcTaskBase::TaskFinish");
     uint8_t count = 1;
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify begin type:%u cid:%u sid:%u", taskInfo->taskType,
-        taskInfo->channelId, taskInfo->sessionId);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(taskInfo->sessionId);
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify begin type:%u cid:%u sid:%s", taskInfo->taskType,
+        taskInfo->channelId, sessionIdMaskStr.c_str());
     SendToAnother(CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify end type:%u cid:%u sid:%u", taskInfo->taskType,
-        taskInfo->channelId, taskInfo->sessionId);
+    WRITE_LOG(LOG_DEBUG, "HdcTaskBase::TaskFinish notify end type:%u cid:%u sid:%s", taskInfo->taskType,
+        taskInfo->channelId, sessionIdMaskStr.c_str());
 }
 
 bool HdcTaskBase::SendToAnother(const uint16_t command, uint8_t *bufPtr, const int size)
@@ -119,7 +120,8 @@ int HdcTaskBase::ThreadCtrlCommunicate(const uint8_t *bufPtr, const int size)
     HdcSessionBase *sessionBase = (HdcSessionBase *)taskInfo->ownerSessionClass;
     HSession hSession = sessionBase->AdminSession(OP_QUERY, taskInfo->sessionId, nullptr);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "ThreadCtrlCommunicate hSession nullptr sessionId:%u", taskInfo->sessionId);
+        WRITE_LOG(LOG_FATAL, "ThreadCtrlCommunicate hSession nullptr sessionId:%s",
+            Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str());
         return -1;
     }
     int fd = hSession->ctrlFd[STREAM_WORK];

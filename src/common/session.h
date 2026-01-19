@@ -38,7 +38,7 @@ public:
             std::ostringstream oss;
             oss << "SessionHandShake [";
             oss << " banner:" << banner;
-            oss << " sessionId:" << sessionId;
+            oss << " sessionId:" << Hdc::MaskSessionIdToString(sessionId).c_str();
             oss << " authType:" << unsigned(authType);
             oss << " connectKey:" << Hdc::MaskString(connectKey);
             oss << " version:" << version;
@@ -232,6 +232,7 @@ private:
     void SetFeature(SessionHandShake &handshake, const uint8_t connType);
     void StopHeartbeatWork(HSession hSession);
     static void TaskClassDeleteRetry(uv_timer_t *handle);
+    bool AddTaskWithRetry(HSession hSession, TaskInformation* hTaskInfo);
     std::string GetOs();
     map<uint32_t, HSession> mapSession;
     uv_rwlock_t lockMapSession;

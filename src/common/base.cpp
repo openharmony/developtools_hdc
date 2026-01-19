@@ -2684,11 +2684,12 @@ void CloseOpenFd(void)
     void AddDeletedSessionId(uint32_t sessionId)
     {
         std::lock_guard<std::mutex> lock(g_deletedSessionIdRecordMutex);
+        std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(sessionId);
         if (g_deletedSessionIdSet.find(sessionId) != g_deletedSessionIdSet.end()) {
-            WRITE_LOG(LOG_INFO, "SessionId:%u is already in the cache", sessionId);
+            WRITE_LOG(LOG_INFO, "SessionId:%s is already in the cache", sessionIdMaskStr.c_str());
             return;
         }
-        WRITE_LOG(LOG_INFO, "AddDeletedSessionId:%u", sessionId);
+        WRITE_LOG(LOG_INFO, "AddDeletedSessionId:%s", sessionIdMaskStr.c_str());
         g_deletedSessionIdSet.insert(sessionId);
         g_deletedSessionIdQueue.push(sessionId);
 

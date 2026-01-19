@@ -33,7 +33,8 @@ void HdcUSBBase::ReadUSB(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     CALLSTAT_GUARD(hSession->childLoopStatus, stream->loop, "HdcUSBBase::ReadUSB");
     if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
-        WRITE_LOG(LOG_FATAL, "ReadUSB FetchIOBuf error sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "ReadUSB FetchIOBuf error sessionId:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         hSessionBase->FreeSession(hSession->sessionId);
     }
 }
@@ -42,10 +43,11 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
 {
     // Server-end USB IO is handed over to each sub-thread, only the daemon is still read by the main IO to distribute
     // to each sub-thread by DataPipe.
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     uv_tcp_t *stream = &hSession->dataPipe[STREAM_WORK];
     if (uv_tcp_init(&hSession->childLoop, stream) ||
         uv_tcp_open(stream, hSession->dataFd[STREAM_WORK])) {
-        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread init child TCP failed, sid:%s", sessionIdMaskStr.c_str());
         return false;
     }
     stream->data = hSession;
@@ -56,11 +58,11 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
     Base::SetTcpOptions(stream);
 #endif
     if (uv_read_start((uv_stream_t *)stream, pSession->AllocCallback, ReadUSB)) {
-        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "USBBase ReadyForWorkThread child TCP read failed, sid:%s", sessionIdMaskStr.c_str());
         return false;
     }
-    WRITE_LOG(LOG_INFO, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d, sid:%u",
-        hSession->dataFd[STREAM_WORK], hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "USBBase ReadyForWorkThread finish dataFd[STREAM_WORK]:%d, sid:%s",
+        hSession->dataFd[STREAM_WORK], sessionIdMaskStr.c_str());
     return true;
 };
 
@@ -157,8 +159,9 @@ int HdcUSBBase::CheckPacketOption(HSession hSession, uint8_t *appendData, int da
         //
         // Because the USB-reset API does not work on all platforms, the last session IO data may be
         // recveived, we need to ignore it.
-        WRITE_LOG(LOG_WARN, "CheckPacketOption softreset header->sessionId:%u sessionId:%u",
-            header->sessionId, hSession->sessionId);
+        WRITE_LOG(LOG_WARN, "CheckPacketOption softreset header->sessionId:%s sessionId:%s",
+            Hdc::MaskSessionIdToString(header->sessionId).c_str(),
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         PreSendUsbSoftReset(hSession, header->sessionId);
         return 0;
     }

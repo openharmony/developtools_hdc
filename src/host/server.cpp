@@ -461,17 +461,19 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
     */
     std::map<string, string> tlvmap;
     hSession->verifyType = AuthVerifyType::RSA_ENCRYPT;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     if (!Base::TlvToStringMap(handshake.buf, tlvmap)) {
-        WRITE_LOG(LOG_INFO, "the deamon maybe old version for %u session, so use rsa encrypt", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "the deamon maybe old version for %s session, so use rsa encrypt",
+            sessionIdMaskStr.c_str());
         return;
     }
     if (tlvmap.find(TAG_AUTH_TYPE) == tlvmap.end() ||
         tlvmap[TAG_AUTH_TYPE] != std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
-        WRITE_LOG(LOG_FATAL, "the buf is invalid for %u session, so use rsa encrypt", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "the buf is invalid for %s session, so use rsa encrypt", sessionIdMaskStr.c_str());
         return;
     }
     hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
-    WRITE_LOG(LOG_INFO, "daemon auth type is rsa_3072_sha512 for %u session", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "daemon auth type is rsa_3072_sha512 for %s session", sessionIdMaskStr.c_str());
 }
 
 bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
@@ -659,11 +661,13 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handsh
     int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload),
         payloadSize, out.get(), BUF_SIZE_DEFAULT2);
     if (outLen <= 0) {
-        WRITE_LOG(LOG_WARN, "RsaPrivatekeyDecrypt failed, sid:%d", hSession->sessionId);
+        WRITE_LOG(LOG_WARN, "RsaPrivatekeyDecrypt failed, sid:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return false;
     }
     if (!hssl->InputPsk(out.get(), outLen)) {
-        WRITE_LOG(LOG_WARN, "InputPsk failed, sid:%d", hSession->sessionId);
+        WRITE_LOG(LOG_WARN, "InputPsk failed, sid:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return false;
     }
     int initRet = hssl->InitSSL();
@@ -716,14 +720,15 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
     HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
     if (command == CMD_KERNEL_HANDSHAKE) {
         ret = ServerSessionHandshake(hSession, payload, payloadSize);
-        WRITE_LOG(LOG_INFO, "Session handshake %s connType:%d sid:%u", ret ? "successful" : "failed",
-                  hSession->connType, hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "Session handshake %s connType:%d sid:%s", ret ? "successful" : "failed",
+                  hSession->connType, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return ret;
     }
     if (command == CMD_HEARTBEAT_MSG) {
         // heartbeat msg
         std::string str = hSession->heartbeat.HandleRecvHeartbeatMsg(payload, payloadSize);
-        WRITE_LOG(LOG_INFO, "recv %s for session %u", str.c_str(), hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "recv %s for session %s", str.c_str(),
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return ret;
     }
     // When you first initialize, ChannelID may be 0
@@ -757,12 +762,13 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             MessageLevel level = static_cast<MessageLevel>(*payload);
             string s(reinterpret_cast<char *>(payload + 1), payloadSize - 1);
             sfc->EchoClient(hChannel, level, s.c_str());
-            WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d cid:%u sid:%u", payloadSize - 1, channelId,
-                hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d cid:%u sid:%s", payloadSize - 1, channelId,
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             break;
         }
         case CMD_KERNEL_CHANNEL_CLOSE: {
-            WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%u", channelId, hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%s", channelId,
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             // Forcibly closing the tcp handle here may result in incomplete data reception on the client side
             ClearOwnTasks(hSession, channelId);
             // crossthread free
@@ -1120,7 +1126,8 @@ void HdcServer::DetachChannelInnerForUds(HSession hSession, const uint32_t chann
     ClearOwnTasks(hSession, channelId);
     uint8_t count = 0;
     Send(hSession->sessionId, hChannel->channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u, sid:%u", hChannel->channelId, hSession->sessionId);
+    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u, sid:%s", hChannel->channelId,
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     if (uv_is_closing((const uv_handle_t *)&hChannel->hChildWorkUds)) {
         Base::DoNextLoop(&hSession->childLoop, hChannel, [](const uint8_t flag, string &msg, const void *data) {
             HChannel hChannel = (HChannel)data;
@@ -1245,7 +1252,8 @@ void HdcServer::DetachChannelInnerForTcp(HSession hSession, const uint32_t chann
     ClearOwnTasks(hSession, channelId);
     uint8_t count = 0;
     Send(hSession->sessionId, hChannel->channelId, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
-    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u, sid:%u", hChannel->channelId, hSession->sessionId);
+    WRITE_LOG(LOG_DEBUG, "Childchannel begin close, cid:%u, sid:%s", hChannel->channelId,
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     if (uv_is_closing((const uv_handle_t *)&hChannel->hChildWorkTCP)) {
         Base::DoNextLoop(&hSession->childLoop, hChannel, [](const uint8_t flag, string &msg, const void *data) {
             HChannel hChannel = (HChannel)data;

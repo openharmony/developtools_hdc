@@ -30,7 +30,7 @@
 #include <list>
 
 namespace Hdc {
-    
+
 static string MaskString(const string &str)
 {
     if (str.empty()) {
@@ -43,6 +43,11 @@ static string MaskString(const string &str)
         // 3, 6: 对于较长的字符串，保留首尾各三个字符，掩码的个数为6
         return str.substr(0, 3) + std::string(6, '*') + str.substr(len - 3)  + "(L:" + std::to_string(len) + ")";
     }
+}
+
+inline std::string MaskSessionIdToString(uint32_t sessionId)
+{
+    return MaskString(std::to_string(sessionId));
 }
 
 #ifndef TEMP_FAILURE_RETRY
@@ -271,7 +276,7 @@ struct HdcSession {
     {
         std::ostringstream oss;
         oss << "HdcServer [";
-        oss << " sessionId:" << sessionId;
+        oss << " sessionId:" << Hdc::MaskSessionIdToString(sessionId).c_str();
         oss << " connectKey:" << Hdc::MaskString(connectKey);
         oss << " connType:" << unsigned(connType);
         oss << " connect state:" << isRunningOk;
@@ -286,7 +291,7 @@ struct HdcSession {
         std::ostringstream oss;
         oss << "HdcSession [";
         oss << " serverOrDaemon:" << serverOrDaemon;
-        oss << " sessionId:" << sessionId;
+        oss << " sessionId:" << Hdc::MaskSessionIdToString(sessionId).c_str();
         oss << " handshakeOK:" << handshakeOK;
         oss << " connectKey:" << Hdc::MaskString(connectKey);
         oss << " connType:" << unsigned(connType);

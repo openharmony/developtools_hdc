@@ -83,7 +83,8 @@ void HdcDaemonTCP::AcceptClient(uv_stream_t *server, int /* status */)
         return;
     }
     if (uv_accept(server, (uv_stream_t *)&hSession->hWorkTCP) < 0) {
-        WRITE_LOG(LOG_FATAL, "uv_accept error sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "uv_accept error sessionId:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {

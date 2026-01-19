@@ -76,18 +76,19 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
     HdcSessionBase *hSessionBase = (HdcSessionBase *)thisClass->clsMainBase;
     CALLSTAT_GUARD(hSession->childLoopStatus, tcp->loop, "HdcTCPBase::ReadStream");
     bool ret = false;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     while (true) {
         if (nread < 0) {
             break;
         }
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
         if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread, hSession->sslHandshake) < 0) {
-            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%s", nread, sessionIdMaskStr.c_str());
             break;
         }
 #else
         if (hSessionBase->FetchIOBuf(hSession, hSession->ioBuf, nread) < 0) {
-            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", nread, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%s", nread, sessionIdMaskStr.c_str());
             break;
         }
 #endif
@@ -98,7 +99,7 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
         char buffer[BUF_SIZE_DEFAULT] = { 0 };
         if (nread < 0) {
             uv_strerror_r(static_cast<int>(nread), buffer, BUF_SIZE_DEFAULT);
-            WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%u", buffer, hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "HdcTCPBase::ReadStream < 0 %s sid:%s", buffer, sessionIdMaskStr.c_str());
         }
 #ifdef HDC_HOST
         hSession->isRunningOk = false;

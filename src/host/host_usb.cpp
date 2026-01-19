@@ -487,7 +487,8 @@ void HdcHostUSB::CheckUsbEndpoint(int& ret, HUSB hUSB, libusb_config_descriptor 
 // multi-thread calll
 void HdcHostUSB::CancelUsbIo(HSession hSession)
 {
-    WRITE_LOG(LOG_INFO, "HostUSB CancelUsbIo, sid:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
+    WRITE_LOG(LOG_INFO, "HostUSB CancelUsbIo, sid:%s ref:%u",
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), uint32_t(hSession->ref));
     HUSB hUSB = hSession->hUSB;
     std::unique_lock<std::mutex> lock(hUSB->lockDeviceHandle);
     if (!hUSB->hostBulkIn.isShutdown) {
@@ -616,8 +617,8 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
             hSession->isRunningOk = false;
             hSession->faultInfo += libusb_error_name(ep->transfer->status);
             hSession->faultInfo += " ";
-            WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, sid:%u ret:%d",
-                hSession->sessionId, childRet);
+            WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, sid:%s ret:%d",
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), childRet);
             break;
         }
         ep->cv.wait(lock, [ep]() { return ep->isComplete; });
@@ -625,8 +626,8 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
             hSession->isRunningOk = false;
             hSession->faultInfo += libusb_error_name(ep->transfer->status);
             hSession->faultInfo += " ";
-            WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, sid:%u status:%d",
-                hSession->sessionId, ep->transfer->status);
+            WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, sid:%s status:%d",
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), ep->transfer->status);
             break;
         }
         ret = ep->transfer->actual_length;
@@ -645,24 +646,25 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         int childRet = 0;
         int nextReadSize = 0;
         int bulkInSize = hUSB->hostBulkIn.sizeEpBuf;
+        std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
         while (!hSession->isDead) {
             // if readIO < wMaxPacketSizeSend, libusb report overflow
             nextReadSize = (childRet < hUSB->wMaxPacketSizeSend ?
                                        hUSB->wMaxPacketSizeSend : std::min(childRet, bulkInSize));
             childRet = SubmitUsbBio(hSession, false, hUSB->hostBulkIn.buf, nextReadSize);
             if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "Read usb failed, sid:%u ret:%d", hSession->sessionId, childRet);
+                WRITE_LOG(LOG_FATAL, "Read usb failed, sid:%s ret:%d", sessionIdMaskStr.c_str(), childRet);
                 break;
             }
             if (childRet == 0) {
-                WRITE_LOG(LOG_WARN, "Read usb return 0, continue read, sid:%u", hSession->sessionId);
+                WRITE_LOG(LOG_WARN, "Read usb return 0, continue read, sid:%s", sessionIdMaskStr.c_str());
                 childRet = nextReadSize;
                 continue;
             }
             childRet = SendToHdcStream(hSession, reinterpret_cast<uv_stream_t *>(&hSession->dataPipe[STREAM_MAIN]),
                                        hUSB->hostBulkIn.buf, childRet);
             if (childRet < 0) {
-                WRITE_LOG(LOG_FATAL, "SendToHdcStream failed, sid:%u ret:%d", hSession->sessionId, childRet);
+                WRITE_LOG(LOG_FATAL, "SendToHdcStream failed, sid:%s ret:%d", sessionIdMaskStr.c_str(), childRet);
                 break;
             }
         }
@@ -673,7 +675,7 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
             "[Fail][E001003] USB communication abnormal, please check the USB communication link.");
         server->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
-        WRITE_LOG(LOG_INFO, "Usb loop read finish sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "Usb loop read finish sid:%s", sessionIdMaskStr.c_str());
     }).detach();
 }
 
@@ -718,7 +720,8 @@ int HdcHostUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     ++hSession->ref;
     ret = SubmitUsbBio(hSession, true, data, length);
     if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "Send usb failed, sid:%u ret:%d", hSession->sessionId, ret);
+        WRITE_LOG(LOG_FATAL, "Send usb failed, sid:%s ret:%d",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), ret);
         CancelUsbIo(hSession);
         hSession->hUSB->hostBulkOut.isShutdown = true;
         server->FreeSession(hSession->sessionId);
@@ -800,23 +803,24 @@ HSession HdcHostUSB::ConnectDetectDaemon(const HSession hSession, const HDaemonI
         return nullptr;
     }
     UpdateUSBDaemonInfo(hUSB, hSession, STATUS_CONNECTED);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
 
     // Read the USB channel for a period of time to clear the data inside
     HClearUsbChannelWorkInfo hClearUsbChannelWorkInfo = new(std::nothrow) ClearUsbChannelWorkInfo();
     if (hClearUsbChannelWorkInfo == nullptr) {
-        WRITE_LOG(LOG_FATAL, "ConnectDetectDaemon new hClearUsbChannelWorkInfo failed sid:%u",
-            hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "ConnectDetectDaemon new hClearUsbChannelWorkInfo failed sid:%s",
+            sessionIdMaskStr.c_str());
         pServer->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
         return nullptr;
     }
     hClearUsbChannelWorkInfo->hSession = hSession;
     hClearUsbChannelWorkInfo->pDaemonInfo = pdi;
-    WRITE_LOG(LOG_INFO, "Start ClearUsbChannel WorkThread sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "Start ClearUsbChannel WorkThread sid:%s", sessionIdMaskStr.c_str());
     int rc = Base::StartWorkThread(&pServer->loopMain, ClearUsbChannel, ClearUsbChannelFinished,
         hClearUsbChannelWorkInfo);
     if (rc < 0) {
-        WRITE_LOG(LOG_FATAL, "Start ClearUsbChannel WorkThread failed sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "Start ClearUsbChannel WorkThread failed sid:%s", sessionIdMaskStr.c_str());
         pServer->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
         return nullptr;
@@ -833,13 +837,14 @@ void HdcHostUSB::ClearUsbChannel(uv_work_t *req)
     HClearUsbChannelWorkInfo hClearUsbChannelWorkInfo = (HClearUsbChannelWorkInfo)req->data;
     HSession hSession = hClearUsbChannelWorkInfo->hSession;
     hClearUsbChannelWorkInfo->result = 0;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
 
     // sent soft reset to daemon
-    WRITE_LOG(LOG_INFO, "ClearUsbChannel start send reset to daemon, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "ClearUsbChannel start send reset to daemon, sid:%s", sessionIdMaskStr.c_str());
     SendSoftResetToDaemonSync(hSession, 0);
 
     // do read loop,clear usb channel
-    WRITE_LOG(LOG_INFO, "ClearUsbChannel start read loop, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "ClearUsbChannel start read loop, sid:%s", sessionIdMaskStr.c_str());
     HUSB hUSB = hSession->hUSB;
     libusb_device_handle *devHandle = hUSB->devHandle;
     uint8_t endpointRead = hUSB->hostBulkIn.endpoint;
@@ -848,7 +853,7 @@ void HdcHostUSB::ClearUsbChannel(uv_work_t *req)
     const uint32_t bufferSize = static_cast<uint32_t>(513) * 1024; // 513kB
     uint8_t *buffer = new (std::nothrow) uint8_t[bufferSize];
     if (buffer == nullptr) {
-        WRITE_LOG(LOG_FATAL, "ClearUsbChannel alloc buffer failed sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "ClearUsbChannel alloc buffer failed sid:%s", sessionIdMaskStr.c_str());
         hClearUsbChannelWorkInfo->result = -1;
         return;
     }
@@ -871,28 +876,28 @@ void HdcHostUSB::ClearUsbChannel(uv_work_t *req)
         timeCost = std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - timeStart);
         if ((transferred > 0) || (rc == LIBUSB_SUCCESS)) {
             dropBytes += transferred;
-            WRITE_LOG(LOG_DEBUG, "ClearUsbChannel read sid:%u, rc:%d, timeCost:%d, transferred:%d, dropBytes:%lld",
-                hSession->sessionId, rc, timeCost.count(), transferred, dropBytes);
+            WRITE_LOG(LOG_DEBUG, "ClearUsbChannel read sid:%s, rc:%d, timeCost:%d, transferred:%d, dropBytes:%lld",
+                sessionIdMaskStr.c_str(), rc, timeCost.count(), transferred, dropBytes);
             if ((softResetSendFlag == false) && (dropBytes > retrySoftResetSize)) {
-                WRITE_LOG(LOG_INFO, "ClearUsbChannel retry send reset to daemon, sid:%u", hSession->sessionId);
+                WRITE_LOG(LOG_INFO, "ClearUsbChannel retry send reset to daemon, sid:%s", sessionIdMaskStr.c_str());
                 SendSoftResetToDaemonSync(hSession, 0);
                 softResetSendFlag = true;
             }
             continue;
         }
         if (rc == LIBUSB_ERROR_TIMEOUT) {
-            WRITE_LOG(LOG_INFO, "ClearUsbChannel read timeout normal exit sid:%u, timeCost:%d, dropBytes:%lld",
-                hSession->sessionId, timeCost.count(), dropBytes);
+            WRITE_LOG(LOG_INFO, "ClearUsbChannel read timeout normal exit sid:%s, timeCost:%d, dropBytes:%lld",
+                sessionIdMaskStr.c_str(), timeCost.count(), dropBytes);
             hClearUsbChannelWorkInfo->result = 0;
             break;
         }
         hClearUsbChannelWorkInfo->result = -2; // -2 means usb read failed
-        WRITE_LOG(LOG_FATAL, "ClearUsbChannel read failed, sid:%u, rc:%d", hSession->sessionId, rc);
+        WRITE_LOG(LOG_FATAL, "ClearUsbChannel read failed, sid:%s, rc:%d", sessionIdMaskStr.c_str(), rc);
         break;
     }
     delete[] buffer;
-    WRITE_LOG(LOG_INFO, "ClearUsbChannel exit, sid:%u, rc:%d, timeCost:%d, transferred:%d, dropBytes:%lld",
-        hSession->sessionId, rc, timeCost.count(), transferred, dropBytes);
+    WRITE_LOG(LOG_INFO, "ClearUsbChannel exit, sid:%s, rc:%d, timeCost:%d, transferred:%d, dropBytes:%lld",
+        sessionIdMaskStr.c_str(), rc, timeCost.count(), transferred, dropBytes);
 }
 
 // run in main loop
@@ -902,8 +907,10 @@ void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
     HSession hSession = hClearUsbChannelWorkInfo->hSession;
     int result = hClearUsbChannelWorkInfo->result;
     HDaemonInfo pDaemonInfo = hClearUsbChannelWorkInfo->pDaemonInfo;
-    WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished sid:%u status:%d result:%d",
-        hSession->sessionId, status, result);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
+
+    WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished sid:%s status:%d result:%d",
+        sessionIdMaskStr.c_str(), status, result);
     delete hClearUsbChannelWorkInfo;
     delete req;
 
@@ -913,7 +920,8 @@ void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
 
     // read usb failed
     if ((status != 0) || (result < 0)) {
-        WRITE_LOG(LOG_FATAL, "ClearUsbChannelFinished status or result is not correct, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "ClearUsbChannelFinished status or result is not correct, sid:%s",
+            sessionIdMaskStr.c_str());
         pServer->FreeSession(hSession->sessionId);
         hdcHostUSB->RemoveIgnoreDevice(hUSB->usbMountPoint);
         return;
@@ -921,10 +929,10 @@ void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
 
     hdcHostUSB->BeginUsbRead(hSession);
     hUSB->usbMountPoint = pDaemonInfo->usbMountPoint;
-    WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished start child workthread, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished start child workthread, sid:%s", sessionIdMaskStr.c_str());
     int rc = Base::StartWorkThread(&pServer->loopMain, pServer->SessionWorkThread, Base::FinishWorkThread, hSession);
     if (rc < 0) {
-        WRITE_LOG(LOG_FATAL, "Start SessionWorkThread failed sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "Start SessionWorkThread failed sid:%s", sessionIdMaskStr.c_str());
         pServer->FreeSession(hSession->sessionId);
         hdcHostUSB->RemoveIgnoreDevice(hUSB->usbMountPoint);
         return;
@@ -936,7 +944,8 @@ void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
     }
 
     auto ctrl = pServer->BuildCtrlString(SP_START_SESSION, 0, nullptr, 0);
-    WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished send start session to child workthread, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished send start session to child workthread, sid:%s",
+        sessionIdMaskStr.c_str());
     Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
 }
 
@@ -954,20 +963,22 @@ void HdcHostUSB::SendSoftResetToDaemonSync(HSession hSession, uint32_t sessionId
     auto header = hdcHostUSB->BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
     int rc = libusb_bulk_transfer(devHandle, endpointSend, header.data(), header.size(),
         &transferred, usbBulkSendTimeout);
-    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemonSync sid:%u send reset rc:%d, send size:%d",
-        hSession->sessionId, rc, transferred);
+    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemonSync sid:%s send reset rc:%d, send size:%d",
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), rc, transferred);
 }
 
 void HdcHostUSB::SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld)
 {
     HUSB hUSB = hSession->hUSB;
     hUSB->lockSendUsbBlock.lock();
-    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%u sidOld:%u", hSession->sessionId, sessionIdOld);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%s sidOld:%s",
+        sessionIdMaskStr.c_str(), Hdc::MaskSessionIdToString(sessionIdOld).c_str());
     auto header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
     if (SendUSBRaw(hSession, header.data(), header.size()) <= 0) {
         WRITE_LOG(LOG_FATAL, "SendSoftResetToDaemon send failed");
     }
     hUSB->lockSendUsbBlock.unlock();
-    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%u finished", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%s finished", sessionIdMaskStr.c_str());
 }
 }  // namespace Hdc

@@ -71,9 +71,9 @@ bool HdcFile::BeginTransfer(CtxFile *context, const string &command)
     openReq->data = context;
     do {
         ++refCount;
-        WRITE_LOG_DAEMON(LOG_INFO, "BeginTransfer cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, Hdc::MaskString(context->localPath).c_str(),
-            Hdc::MaskString(context->remotePath).c_str());
+        WRITE_LOG_DAEMON(LOG_INFO, "BeginTransfer cid:%u sid:%s uv_fs_open local:%s remote:%s", taskInfo->channelId,
+            Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
+            Hdc::MaskString(context->localPath).c_str(), Hdc::MaskString(context->remotePath).c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
             if (Base::GetCaller() == Base::Caller::CLIENT) {
@@ -553,8 +553,9 @@ bool HdcFile::BeginFileOperations()
     (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = &ctxNow;
     ++refCount;
-    WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-        taskInfo->sessionId, Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
+    WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%s uv_fs_open local:%s remote:%s", taskInfo->channelId,
+        Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
+        Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
     int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
                         S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {
@@ -595,9 +596,9 @@ void HdcFile::TransferNext(CtxFile *context)
     openReq->data = context;
     do {
         ++refCount;
-        WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%u uv_fs_open local:%s remote:%s", taskInfo->channelId,
-            taskInfo->sessionId, Hdc::MaskString(context->localPath).c_str(),
-            Hdc::MaskString(context->remotePath).c_str());
+        WRITE_LOG_DAEMON(LOG_INFO, "TransferNext cid:%u sid:%s uv_fs_open local:%s remote:%s", taskInfo->channelId,
+            Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
+            Hdc::MaskString(context->localPath).c_str(), Hdc::MaskString(context->remotePath).c_str());
         int rc = uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, S_IWUSR | S_IRUSR, OnFileOpen);
         if (rc < 0) {
             if (Base::GetCaller() == Base::Caller::CLIENT) {

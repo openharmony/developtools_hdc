@@ -257,6 +257,7 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
             return;
         }
         thisClass->logRePrintCount = 0;
+        thisClass->InitLogging(thisClass->ctxUSB);
     }
     HdcServer *ptrConnect = static_cast<HdcServer *>(thisClass->clsMainBase);
     CALLSTAT_GUARD(ptrConnect->loopMainStatus, handle->loop, "HdcHostUSB::WatchUsbNodeChange");

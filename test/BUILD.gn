@@ -493,20 +493,20 @@ ohos_unittest("hdc_base_unittest") {
     "${hdc_path}/src/common/credential_message.cpp",
     "${hdc_path}/src/common/hdc_huks.cpp",
     "unittest/common/base_ut.cpp",
+    "unittest/common/command_event_report_test.cpp",
     "unittest/common/credential_message_test.cpp",
     "unittest/common/file_ut.cpp",
     "unittest/common/forward_ut.cpp",
     "unittest/common/header_test.cpp",
     "unittest/common/heartbeat_ut.cpp",
     "unittest/common/hdc_huks_ut.cpp",
+    "unittest/common/hdc_statistic_reporter_ut.cpp",
     "unittest/common/password_ut.cpp",
     "unittest/common/serial_struct_define_test.cpp",
     "unittest/common/server_cmd_log_ut.cpp",
     "unittest/common/transfer_ut.cpp",
     "unittest/common/tlv_ut.cpp",
     "unittest/common/uv_status_ut.cpp",
-    "unittest/common/hdc_statistic_reporter_ut.cpp",
-    "unittest/common/command_event_report_test.cpp",
   ]
 
   configs = [

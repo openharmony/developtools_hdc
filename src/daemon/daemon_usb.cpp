@@ -223,13 +223,14 @@ void HdcDaemonUSB::ResetOldSession(uint32_t sessionId, bool isSoftReset)
     }
     HSession hSession = daemon->AdminSession(OP_QUERY, sessionId, nullptr);
     if (hSession == nullptr) {
-        WRITE_LOG(LOG_FATAL, "ResetOldSession hSession nullptr sessionId:%u", sessionId);
+        WRITE_LOG(LOG_FATAL, "ResetOldSession hSession nullptr sessionId:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return;
     }
     // The Host side is restarted, but the USB cable is still connected
     hSession->isSoftReset = isSoftReset;
-    WRITE_LOG(LOG_WARN, "Hostside softreset to restart daemon, old sessionId:%u isSoftReset:%d",
-        sessionId, isSoftReset);
+    WRITE_LOG(LOG_WARN, "Hostside softreset to restart daemon, old sessionId:%s isSoftReset:%d",
+        Hdc::MaskSessionIdToString(sessionId).c_str(), isSoftReset);
     daemon->FreeSession(sessionId);
 }
 
@@ -245,8 +246,9 @@ int HdcDaemonUSB::AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *session
         USBHead *usbPayloadHeader = reinterpret_cast<struct USBHead *>(ioBuf);
         uint32_t inSessionId = ntohl(usbPayloadHeader->sessionId);
         if ((usbPayloadHeader->option & USB_OPTION_RESET)) {
-            WRITE_LOG(LOG_INFO, "USB_OPTION_RESET inSessionId:%u, currentSessionId:%u",
-                inSessionId, currentSessionId);
+            WRITE_LOG(LOG_INFO, "USB_OPTION_RESET inSessionId:%s, currentSessionId:%s",
+                Hdc::MaskSessionIdToString(inSessionId).c_str(),
+                Hdc::MaskSessionIdToString(currentSessionId).c_str());
             ResetOldSession(inSessionId, true);
             ret = ERR_IO_SOFT_RESET;
             break;
@@ -341,14 +343,16 @@ int HdcDaemonUSB::SendUSBRaw(HSession hSession, uint8_t *data, const int length)
     uint32_t sessionId = hSession->sessionId;
     std::unique_lock<std::mutex> lock(mutexUsbFfs);
     if (Base::IsSessionDeleted(sessionId)) {
-        WRITE_LOG(LOG_DEBUG, "SendUSBRaw session %u is deleted", sessionId);
+        WRITE_LOG(LOG_DEBUG, "SendUSBRaw session %s is deleted",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return ERR_SESSION_DEAD;
     }
     ++hSession->ref;
     int ret = SendUSBIOSync(hSession, &usbHandle, data, length);
     --hSession->ref;
     if (ret < 0) {
-        WRITE_LOG(LOG_FATAL, "SendUSBRaw SendUSBIOSync failed, try to freesession sid:%u", sessionId);
+        WRITE_LOG(LOG_FATAL, "SendUSBRaw SendUSBIOSync failed, try to freesession sid:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         daemon->FreeSession(hSession->sessionId);
     }
     return ret;
@@ -363,9 +367,11 @@ void HdcDaemonUSB::OnNewHandshakeOK(const uint32_t sessionId)
 // MainThreadCall, when seession was freed
 void HdcDaemonUSB::OnSessionFreeFinally(const HSession hSession)
 {
-    WRITE_LOG(LOG_DEBUG, "OnSessionFreeFinally sid:%u currentsid:%u", hSession->sessionId, currentSessionId);
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
+    WRITE_LOG(LOG_DEBUG, "OnSessionFreeFinally sid:%s currentsid:%s", sessionIdMaskStr.c_str(),
+        Hdc::MaskSessionIdToString(currentSessionId).c_str());
     if (hSession->isSoftReset) {
-        WRITE_LOG(LOG_INFO, "OnSessionFreeFinally sid:%u softreset", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "OnSessionFreeFinally sid:%s softreset", sessionIdMaskStr.c_str());
         return;
     }
     if (currentSessionId == hSession->sessionId) {
@@ -411,7 +417,8 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId)
     StartTraceScope("HdcDaemonUSB::PrepareNewSession");
     HSession hChildSession = daemon->MallocSession(false, CONN_USB, this, sessionId);
     if (!hChildSession) {
-        WRITE_LOG(LOG_FATAL, "malloc session failed sessionId:%u", sessionId);
+        WRITE_LOG(LOG_FATAL, "malloc session failed sessionId:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return nullptr;
     }
     currentSessionId = sessionId;
@@ -553,7 +560,8 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
         sessionId = currentSessionId;
     }
     if (currentSessionId != 0 && sessionId != currentSessionId) {
-        WRITE_LOG(LOG_WARN, "New session coming, restart old sessionId:%u", currentSessionId);
+        WRITE_LOG(LOG_WARN, "New session coming, restart old sessionId:%s",
+            Hdc::MaskSessionIdToString(currentSessionId).c_str());
         ResetOldSession(currentSessionId);
         currentSessionId = 0;
     }
@@ -561,7 +569,8 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
     if (!hChildSession) {
         hChildSession = PrepareNewSession(sessionId);
         if (!hChildSession) {
-            WRITE_LOG(LOG_WARN, "prep new session err for sessionId:%u", sessionId);
+            WRITE_LOG(LOG_WARN, "prep new session err for sessionId:%s",
+                Hdc::MaskSessionIdToString(sessionId).c_str());
             return ERR_SESSION_NOFOUND;
         }
     }

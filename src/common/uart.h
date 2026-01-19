@@ -59,7 +59,7 @@ struct UartHead {
         if (responsePackage) {
             oss << "R-";
         }
-        oss << "Id:" << sessionId;
+        oss << "Id:" << Hdc::MaskSessionIdToString(sessionId).c_str();
         oss << "pkgIdx:" << packageIndex;
         return oss.str();
     };
@@ -69,7 +69,7 @@ struct UartHead {
         oss << "UartHead [";
         oss << " flag:" << std::hex << unsigned(flag[0]) << " " << unsigned(flag[1]) << std::dec;
         oss << " option:" << unsigned(option);
-        oss << " sessionId:" << sessionId;
+        oss << " sessionId:" << Hdc::MaskSessionIdToString(sessionId).c_str();
         oss << " dataSize:" << dataSize;
         oss << " packageIndex:" << packageIndex;
         if (dataSize != 0) {
@@ -209,6 +209,8 @@ protected:
 
     virtual void OnTransferError(const HSession session) = 0;
     virtual HSession GetSession(const uint32_t sessionId, bool create = false) = 0;
+    void DispatchPackageData(HSession hSession, std::vector<uint8_t> &data,
+        size_t packetSize, uint32_t packageIndex);
 
     /*
         read data from uart devices

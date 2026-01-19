@@ -49,7 +49,7 @@ HdcSSLBase::~HdcSSLBase()
     ssl = nullptr;
     SSL_CTX_free(sslCtx);
     sslCtx = nullptr;
-    WRITE_LOG(LOG_INFO, "SSL free finished for sid:%u", sessionId);
+    WRITE_LOG(LOG_INFO, "SSL free finished for sid:%s", Hdc::MaskSessionIdToString(sessionId).c_str());
     isInited = false;
 }
 
@@ -84,7 +84,7 @@ int HdcSSLBase::InitSSL()
     SetSSLState();
     SSL_set_bio(ssl, inBIO, outBIO);
     isInited = true;
-    WRITE_LOG(LOG_DEBUG, "SSL init finished for sid:%u", sessionId);
+    WRITE_LOG(LOG_DEBUG, "SSL init finished for sid:%s", Hdc::MaskSessionIdToString(sessionId).c_str());
     return RET_SUCCESS;
 }
 
@@ -222,7 +222,8 @@ int HdcSSLBase::GetPskEncrypt(unsigned char *bufPtr, const int bufLen, const str
     }
     unsigned char* buf = preSharedKey;
     int payloadSize = RsaPubkeyEncrypt(buf, BUF_SIZE_PSK, bufPtr, bufLen, pubkey);
-    WRITE_LOG(LOG_INFO, "RsaPubkeyEncrypt payloadSize = %d, sid: %u", payloadSize, sessionId);
+    WRITE_LOG(LOG_INFO, "RsaPubkeyEncrypt payloadSize = %d, sid: %s", payloadSize,
+        Hdc::MaskSessionIdToString(sessionId).c_str());
     return payloadSize; // return the size of encrypted psk
 }
 

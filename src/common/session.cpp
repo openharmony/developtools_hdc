@@ -106,21 +106,22 @@ void HdcSessionBase::TaskClassDeleteRetry(uv_timer_t *handle)
     StartTraceScope("HdcSessionBase::BeginRemoveTask taskClassDeleteRetry");
     HTaskInfo hTask = (HTaskInfo)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hTask->sessionId);
     if (hTask->isCleared == false) {
         hTask->isCleared = true;
-        WRITE_LOG(LOG_WARN, "taskClassDeleteRetry start clear task, taskType:%d cid:%u sid:%u",
-            hTask->taskType, hTask->channelId, hTask->sessionId);
+        WRITE_LOG(LOG_WARN, "taskClassDeleteRetry start clear task, taskType:%d cid:%u sid:%s",
+            hTask->taskType, hTask->channelId, sessionIdMaskStr.c_str());
         bool ret = thisClass->RemoveInstanceTask(OP_CLEAR, hTask);
         if (!ret) {
-            WRITE_LOG(LOG_WARN, "taskClassDeleteRetry RemoveInstanceTask return false taskType:%d cid:%u sid:%u",
-                hTask->taskType, hTask->channelId, hTask->sessionId);
+            WRITE_LOG(LOG_WARN, "taskClassDeleteRetry RemoveInstanceTask return false taskType:%d cid:%u sid:%s",
+                hTask->taskType, hTask->channelId, sessionIdMaskStr.c_str());
         }
     }
 
     constexpr uint32_t count = 1000;
     if (hTask->closeRetryCount == 0 || hTask->closeRetryCount > count) {
-        WRITE_LOG(LOG_DEBUG, "TaskDelay task remove retry count %d/%d, taskType:%d channelId:%u, sessionId:%u",
-            hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->taskType, hTask->channelId, hTask->sessionId);
+        WRITE_LOG(LOG_DEBUG, "TaskDelay task remove retry count %d/%d, taskType:%d channelId:%u, sessionId:%s",
+            hTask->closeRetryCount, GLOBAL_TIMEOUT, hTask->taskType, hTask->channelId, sessionIdMaskStr.c_str());
         hTask->closeRetryCount = 1;
     }
     hTask->closeRetryCount++;
@@ -183,8 +184,8 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
                 continue;
             }
             BeginRemoveTask(hTask);
-            WRITE_LOG(LOG_WARN, "ClearOwnTasks OP_CLEAR finish, sessionId:%u channelIDInput:%u",
-                hSession->sessionId, channelIDInput);
+            WRITE_LOG(LOG_WARN, "ClearOwnTasks OP_CLEAR finish, sessionId:%s channelIDInput:%u",
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), channelIDInput);
             iter = hSession->mapTask->erase(iter);
             break;
         }
@@ -388,7 +389,8 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
     switch (hSession->connType) {
         case CONN_TCP: {
             uv_tcp_init(&loopMain, &hSession->hWorkTCP);
-            WRITE_LOG(LOG_INFO, "MallocSessionByConnectType init hWorkTCP sid:%u", hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "MallocSessionByConnectType init hWorkTCP sid:%s",
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             ++hSession->uvHandleRef;
             hSession->hWorkTCP.data = hSession;
             HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::TCONN_COUNT);
@@ -473,8 +475,8 @@ HSession HdcSessionBase::MallocSession(bool serverOrDaemon, const ConnType connT
     hSession->childLoopStatus.StartReportTimer();
     hSession->uvHandleRef = 0;
     // pullup child
-    WRITE_LOG(LOG_INFO, "HdcSessionBase NewSession, sessionId:%u, connType:%d.",
-              hSession->sessionId, hSession->connType);
+    WRITE_LOG(LOG_INFO, "HdcSessionBase NewSession, sessionId:%s, connType:%d.",
+              Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), hSession->connType);
     ++hSession->uvHandleRef;
     Base::CreateSocketPair(hSession->ctrlFd);
     size_t handleSize = sizeof(uv_poll_t);
@@ -592,8 +594,8 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     HSession hSession = (HSession)handle->data;
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->uvHandleRef > 0) {
-        WRITE_LOG(LOG_INFO, "FreeSessionFinally uvHandleRef:%d sessionId:%u",
-            hSession->uvHandleRef, hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "FreeSessionFinally uvHandleRef:%d sessionId:%s",
+            hSession->uvHandleRef, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return;
     }
     // Notify Server or Daemon, just UI or display commandline
@@ -610,7 +612,8 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
 #endif
     // all hsession uv handle has been clear
     thisClass->AdminSession(OP_REMOVE, hSession->sessionId, nullptr);
-    WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%u finish", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%s finish",
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     HdcAuth::FreeKey(!hSession->serverOrDaemon, hSession->listKey);
     delete hSession;
     hSession = nullptr;  // fix CodeMars SetNullAfterFree issue
@@ -626,14 +629,16 @@ void HdcSessionBase::FreeSessionContinue(HSession hSession)
         --hSession->uvHandleRef;
         Base::TryCloseHandle((uv_handle_t *)handle);
         if (handle == reinterpret_cast<uv_handle_t *>(hSession->pollHandle[STREAM_MAIN])) {
-            WRITE_LOG(LOG_INFO, "closeSessionTCPHandle CloseSocketPair ctrlFd, sid:%u", hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "closeSessionTCPHandle CloseSocketPair ctrlFd, sid:%s",
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             Base::CloseSocketPair(hSession->ctrlFd);
             free(hSession->pollHandle[STREAM_MAIN]);
         }
     };
     if (hSession->connType == CONN_TCP) {
         // Turn off TCP to prevent continuing writing
-        WRITE_LOG(LOG_INFO, "FreeSessionContinue start close hWorkTCP, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "FreeSessionContinue start close hWorkTCP, sid:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         Base::TryCloseHandle((uv_handle_t *)&hSession->hWorkTCP, true, closeSessionTCPHandle);
 #ifdef _WIN32
         closesocket(hSession->dataFd[STREAM_WORK]);
@@ -671,23 +676,24 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
         return;
     }
 #endif
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (hSession->ref > 0) {
-        WRITE_LOG(LOG_WARN, "FreeSessionOpeate sid:%u ref:%u > 0", hSession->sessionId, uint32_t(hSession->ref));
+        WRITE_LOG(LOG_WARN, "FreeSessionOpeate sid:%s ref:%u > 0", sessionIdMaskStr.c_str(), uint32_t(hSession->ref));
         return;
     }
-    WRITE_LOG(LOG_INFO, "FreeSessionOpeate sid:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
+    WRITE_LOG(LOG_INFO, "FreeSessionOpeate sid:%s ref:%u", sessionIdMaskStr.c_str(), uint32_t(hSession->ref));
     // wait workthread to free
     if (hSession->pollHandle[STREAM_WORK]->loop) {
         auto ctrl = BuildCtrlString(SP_STOP_SESSION, 0, nullptr, 0);
         Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrl.data(), ctrl.size());
-        WRITE_LOG(LOG_INFO, "FreeSessionOpeate, send workthread for free. sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "FreeSessionOpeate, send workthread for free. sessionId:%s", sessionIdMaskStr.c_str());
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
             HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
             if (!hSession->childCleared) {
-                WRITE_LOG(LOG_INFO, "FreeSessionOpeate childCleared:%d sessionId:%u",
-                    hSession->childCleared, hSession->sessionId);
+                WRITE_LOG(LOG_INFO, "FreeSessionOpeate childCleared:%d sessionId:%s",
+                    hSession->childCleared, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
@@ -703,18 +709,19 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
 void HdcSessionBase::FreeSession(const uint32_t sessionId)
 {
     StartTraceScope("HdcSessionBase::FreeSession");
-    DispAllLoopStatus("FreeSession-" + std::to_string(sessionId));
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(sessionId);
+    DispAllLoopStatus("FreeSession-" + sessionIdMaskStr);
     Base::AddDeletedSessionId(sessionId);
     if (threadSessionMain != uv_thread_self()) {
         PushAsyncMessage(sessionId, ASYNC_FREE_SESSION, nullptr, 0);
         return;
     }
     HSession hSession = AdminSession(OP_QUERY, sessionId, nullptr);
-    WRITE_LOG(LOG_INFO, "Begin to free session, sessionid:%u", sessionId);
+    WRITE_LOG(LOG_INFO, "Begin to free session, sessionid:%s", sessionIdMaskStr.c_str());
     freeBegin = Base::GetRuntimeMSec();
     do {
         if (!hSession || hSession->isDead) {
-            WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%u", sessionId);
+            WRITE_LOG(LOG_WARN, "FreeSession hSession nullptr or isDead sessionId:%s", sessionIdMaskStr.c_str());
             break;
         }
         WRITE_LOG(LOG_INFO, "dataFdSend:%llu, dataFdRecv:%llu",
@@ -723,7 +730,7 @@ void HdcSessionBase::FreeSession(const uint32_t sessionId)
         hSession->isDead = true;
         Base::TimerUvTask(&loopMain, hSession, FreeSessionOpeate);
         NotifyInstanceSessionFree(hSession, false);
-        WRITE_LOG(LOG_INFO, "FreeSession sessionId:%u ref:%u", hSession->sessionId, uint32_t(hSession->ref));
+        WRITE_LOG(LOG_INFO, "FreeSession sessionId:%s ref:%u", sessionIdMaskStr.c_str(), uint32_t(hSession->ref));
     } while (false);
 }
 
@@ -754,6 +761,7 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
 {
     HSession hRet = nullptr;
     bool needReset = true;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(sessionId);
     if (serverOrDaemon) {
         uv_rwlock_wrlock(&lockMapSession);
         hRet = mapSession[sessionId];
@@ -762,8 +770,8 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
             if (sessionId == kv.first) {
                 continue;
             }
-            WRITE_LOG(LOG_DEBUG, "session:%u vote reset, session %u is %s",
-                sessionId, kv.first, kv.second->voteReset ? "YES" : "NO");
+            WRITE_LOG(LOG_DEBUG, "session:%s vote reset, session %s is %s", sessionIdMaskStr.c_str(),
+                Hdc::MaskSessionIdToString(kv.first).c_str(), kv.second->voteReset ? "YES" : "NO");
             if (!kv.second->voteReset) {
                 needReset = false;
             }
@@ -771,7 +779,7 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
         uv_rwlock_wrunlock(&lockMapSession);
     }
     if (needReset) {
-        WRITE_LOG(LOG_FATAL, "!! session:%u vote reset, passed unanimously !!", sessionId);
+        WRITE_LOG(LOG_FATAL, "!! session:%s vote reset, passed unanimously !!", sessionIdMaskStr.c_str());
         abort();
     }
     return hRet;
@@ -876,14 +884,15 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
             mapTask[channelId] = hInput;
             hRet = hInput;
 
-            WRITE_LOG(LOG_INFO, "AdminTask add task type:%u cid:%u sid:%u mapsize:%zu",
-                      hInput->taskType, channelId, hSession->sessionId, mapTask.size());
+            WRITE_LOG(LOG_INFO, "AdminTask add task type:%u cid:%u sid:%s mapsize:%zu",
+                      hInput->taskType, channelId,
+                      Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), mapTask.size());
 
             break;
         case OP_REMOVE:
             mapTask.erase(channelId);
-            WRITE_LOG(LOG_INFO, "AdminTask rm cid:%u sid:%u mapsize:%zu",
-                      channelId, hSession->sessionId, mapTask.size());
+            WRITE_LOG(LOG_INFO, "AdminTask rm cid:%u sid:%s mapsize:%zu",
+                      channelId, Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), mapTask.size());
             break;
         case OP_QUERY:
             if (mapTask.count(channelId)) {
@@ -903,8 +912,8 @@ static void PrintDefaultInfo(HSession hSession)
 {
     static std::atomic<int> printCount(0);
     if (printCount.load() <= 0) {
-        WRITE_LOG(LOG_WARN, "SendByProtocol enter default, type:%u, sid:%u",
-            hSession->connType, hSession->sessionId);
+        WRITE_LOG(LOG_WARN, "SendByProtocol enter default, type:%u, sid:%s",
+            hSession->connType, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         printCount.store(100); // 100 means print once for every 100 calls
     }
     printCount.fetch_sub(1);
@@ -961,7 +970,8 @@ int HdcSessionBase::Send(const uint32_t sessionId, const uint32_t channelId, con
     StartTraceScope("HdcSessionBase::Send");
     HSession hSession = AdminSession(OP_QUERY_REF, sessionId, nullptr);
     if (!hSession) {
-        WRITE_LOG(LOG_WARN, "Send to offline device, drop it, sessionId:%u", sessionId);
+        WRITE_LOG(LOG_WARN, "Send to offline device, drop it, sessionId:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return ERR_SESSION_NOFOUND;
     }
     PayloadProtect protectBuf;  // noneed convert to big-endian
@@ -1111,7 +1121,8 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read)
             // Not enough a IO
             break;
         } else {                           // <0
-            WRITE_LOG(LOG_FATAL, "FetchIOBuf error childRet:%d sessionId:%u", childRet, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "FetchIOBuf error childRet:%d sessionId:%s", childRet,
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             hSession->availTailIndex = 0;  // Preventing malicious data packages
             indexBuf = ERR_BUF_SIZE;
             break;
@@ -1142,7 +1153,8 @@ int HdcSessionBase::FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool
         }
         // for the SSL_ERR_WANT_READ branch, do next read.
         if (ret == RET_SUCCESS && FetchIOBuf(hSession, hSession->ioBuf, 0) < 0) {
-            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%u", read, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "ReadStream FetchIOBuf error nread:%zd, sid:%s", read,
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             ret = ERR_GENERIC;
         }
         return ret;
@@ -1165,13 +1177,14 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
 {
     HSession hSession = (HSession)req->handle->data;
     --hSession->ref;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (status < 0) {
-        WRITE_LOG(LOG_WARN, "FinishWriteSessionTCP status:%d sessionId:%u isDead:%d ref:%u",
-            status, hSession->sessionId, hSession->isDead, uint32_t(hSession->ref));
+        WRITE_LOG(LOG_WARN, "FinishWriteSessionTCP status:%d sessionId:%s isDead:%d ref:%u",
+            status, sessionIdMaskStr.c_str(), hSession->isDead, uint32_t(hSession->ref));
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hSession->isDead && !hSession->ref) {
-            WRITE_LOG(LOG_INFO, "FinishWriteSessionTCP freesession:%u", hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "FinishWriteSessionTCP freesession:%s", sessionIdMaskStr.c_str());
             thisClass->FreeSession(hSession->sessionId);
         }
     }
@@ -1268,20 +1281,21 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
 {
     bool regOK = false;
     int childRet = 0;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     if (hSession->connType == CONN_TCP) {
         HdcTCPBase *pTCPBase = (HdcTCPBase *)hSession->classModule;
         hSession->hChildWorkTCP.data = hSession;
         if (uv_tcp_init(&hSession->childLoop, &hSession->hChildWorkTCP) < 0) {
-            WRITE_LOG(LOG_FATAL, "WorkThreadStartSession uv_tcp_init failed sid:%u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "WorkThreadStartSession uv_tcp_init failed sid:%s", sessionIdMaskStr.c_str());
             return false;
         }
-        WRITE_LOG(LOG_INFO, "start tcp open fdChildWorkTCP, sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "start tcp open fdChildWorkTCP, sid:%s", sessionIdMaskStr.c_str());
         if ((childRet = uv_tcp_open(&hSession->hChildWorkTCP, hSession->fdChildWorkTCP)) < 0) {
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(childRet, buf, bufSize);
-            WRITE_LOG(LOG_FATAL, "WorkThreadStartSession uv_tcp_open failed fd:%d str:%s sid:%u",
-                hSession->fdChildWorkTCP, buf, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "WorkThreadStartSession uv_tcp_open failed fd:%d str:%s sid:%s",
+                hSession->fdChildWorkTCP, buf, sessionIdMaskStr.c_str());
             return false;
         }
         Base::SetTcpOptions((uv_tcp_t *)&hSession->hChildWorkTCP);
@@ -1290,12 +1304,12 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
 #ifdef HDC_SUPPORT_UART
     } else if (hSession->connType == CONN_SERIAL) { // UART
         HdcUARTBase *pUARTBase = (HdcUARTBase *)hSession->classModule;
-        WRITE_LOG(LOG_INFO, "UART ReadyForWorkThread sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "UART ReadyForWorkThread sid:%s", sessionIdMaskStr.c_str());
         regOK = pUARTBase->ReadyForWorkThread(hSession);
 #endif
     } else {  // USB
         HdcUSBBase *pUSBBase = (HdcUSBBase *)hSession->classModule;
-        WRITE_LOG(LOG_INFO, "USB ReadyForWorkThread sid:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "USB ReadyForWorkThread sid:%s", sessionIdMaskStr.c_str());
         regOK = pUSBBase->ReadyForWorkThread(hSession);
     }
 
@@ -1305,8 +1319,8 @@ bool HdcSessionBase::WorkThreadStartSession(HSession hSession)
         WorkThreadInitSession(hSession, handshake);
         string hs = SerialStruct::SerializeToString(handshake);
 #ifdef HDC_SUPPORT_UART
-        WRITE_LOG(LOG_INFO, "WorkThreadStartSession session %u auth %u send handshake hs: %s",
-                  hSession->sessionId, handshake.authType, hs.c_str());
+        WRITE_LOG(LOG_INFO, "WorkThreadStartSession session %s auth %u send handshake hs: %s",
+            sessionIdMaskStr.c_str(), handshake.authType, hs.c_str());
 #endif
         Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
              reinterpret_cast<uint8_t *>(const_cast<char *>(hs.c_str())), hs.size());
@@ -1341,15 +1355,16 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
 {
     bool ret = true;
     uint32_t channelId = ctrl->channelId;  // if send not set, it is zero
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     switch (ctrl->command) {
         case SP_START_SESSION: {
-            WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand  START_SESSION sessionId:%u instance:%s",
-                      hSession->sessionId, hSession->serverOrDaemon ? "server" : "daemon");
+            WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand  START_SESSION sessionId:%s instance:%s",
+                sessionIdMaskStr.c_str(), hSession->serverOrDaemon ? "server" : "daemon");
             ret = WorkThreadStartSession(hSession);
             break;
         }
         case SP_STOP_SESSION: {
-            WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand STOP_SESSION sessionId:%u", hSession->sessionId);
+            WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand STOP_SESSION sessionId:%s", sessionIdMaskStr.c_str());
             HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
             hSessionBase->StopHeartbeatWork(hSession);
             auto closeSessionChildThreadTCPHandle = [](uv_handle_t *handle) -> void {
@@ -1359,8 +1374,8 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
                     free(hSession->pollHandle[STREAM_WORK]);
                 }
                 if (--hSession->uvChildRef == 0) {
-                    WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand uv stop childLoop sessionId:%u",
-                        hSession->sessionId);
+                    WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand uv stop childLoop sessionId:%s",
+                        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
                     uv_stop(&hSession->childLoop);
                 };
             };
@@ -1368,7 +1383,8 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
             hSession->uvChildRef += uvChildRefOffset;
             if (hSession->connType == CONN_TCP && hSession->hChildWorkTCP.loop) {  // maybe not use it
                 ++hSession->uvChildRef;
-                WRITE_LOG(LOG_INFO, "Dispatch MainThreadCommand try close hChildWorkTCP, sid:%u", hSession->sessionId);
+                WRITE_LOG(LOG_INFO, "Dispatch MainThreadCommand try close hChildWorkTCP, sid:%s",
+                    sessionIdMaskStr.c_str());
                 Base::TryCloseHandle((uv_handle_t *)&hSession->hChildWorkTCP, true, closeSessionChildThreadTCPHandle);
             }
             Base::TryCloseHandle((uv_handle_t *)hSession->pollHandle[STREAM_WORK], true,
@@ -1424,8 +1440,9 @@ void HdcSessionBase::ReadCtrlFromMain(uv_poll_t *poll, int /* status */, int /* 
         }
         CtrlStruct *ctrl = reinterpret_cast<CtrlStruct *>(buf + index);
         if (!hSessionBase->DispatchMainThreadCommand(hSession, ctrl)) {
-            WRITE_LOG(LOG_FATAL, "ReadCtrlFromMain failed sessionId:%u channelId:%u command:%u",
-                      hSession->sessionId, ctrl->channelId, ctrl->command);
+            WRITE_LOG(LOG_FATAL, "ReadCtrlFromMain failed sessionId:%s channelId:%u command:%u",
+                      Hdc::MaskSessionIdToString(hSession->sessionId).c_str(),
+                      ctrl->channelId, ctrl->command);
             break;
         }
         index += sizeof(CtrlStruct);
@@ -1440,7 +1457,8 @@ void HdcSessionBase::ReChildLoopForSessionClear(HSession hSession)
 {
     // Restart loop close task
     ClearOwnTasks(hSession, 0);
-    WRITE_LOG(LOG_INFO, "ReChildLoopForSessionClear sessionId:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "ReChildLoopForSessionClear sessionId:%s",
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     auto clearTaskForSessionFinish = [](uv_timer_t *handle) -> void {
         HSession hSession = (HSession)handle->data;
         hSession->clearTaskTimes++;
@@ -1467,7 +1485,8 @@ void HdcSessionBase::StopHeartbeatWork(HSession hSession)
 {
     hSession->heartbeat.SetSupportHeartbeat(false);
     if (Base::GetheartbeatSwitch()) {
-        WRITE_LOG(LOG_INFO, "session %u stop heartbeatTimer", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "session %s stop heartbeatTimer",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         uv_timer_stop(&hSession->heartbeatTimer);
     }
 }
@@ -1477,7 +1496,8 @@ void HdcSessionBase::SendHeartbeatMsg(uv_timer_t *handle)
 {
     HSession hSession = (HSession)handle->data;
     if (!hSession->heartbeat.GetSupportHeartbeat()) {
-        WRITE_LOG(LOG_INFO, "session %u not support heatbeat", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "session %s not support heatbeat",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         if (hSession->handshakeOK) {
             uv_timer_stop(&hSession->heartbeatTimer);
         }
@@ -1485,7 +1505,8 @@ void HdcSessionBase::SendHeartbeatMsg(uv_timer_t *handle)
     }
 
     std::string str = hSession->heartbeat.ToString();
-    WRITE_LOG(LOG_INFO, "send %s for session %u", str.c_str(), hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "send %s for session %s", str.c_str(),
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
 
     HeartbeatMsg heartbeat = {};
     heartbeat.heartbeatCount = hSession->heartbeat.GetHeartbeatCount();
@@ -1524,14 +1545,15 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     // start heartbeat rimer
     HdcSessionBase *hSessionBase = (HdcSessionBase *)hSession->classInstance;
     hSessionBase->StartHeartbeatWork(hSession);
-    WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sid:%u instance:%s", hSession->sessionId,
-              thisClass->serverOrDaemon ? "server" : "daemon");
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "!!!Workthread run begin, sid:%s instance:%s", sessionIdMaskStr.c_str(),
+        thisClass->serverOrDaemon ? "server" : "daemon");
     uv_run(&hSession->childLoop, UV_RUN_DEFAULT);  // work pendding
-    WRITE_LOG(LOG_INFO, "!!!Workthread run again, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "!!!Workthread run again, sid:%s", sessionIdMaskStr.c_str());
     // main loop has exit
     thisClass->ReChildLoopForSessionClear(hSession);  // work pending again
     hSession->childCleared = true;
-    WRITE_LOG(LOG_INFO, "!!!Workthread run finish, sid:%u", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "!!!Workthread run finish, sid:%s", sessionIdMaskStr.c_str());
 }
 
 // clang-format off
@@ -1587,6 +1609,20 @@ bool HdcSessionBase::NeedNewTaskInfo(const uint16_t command, bool &masterTask)
     }
     return ret;
 }
+
+bool HdcSessionBase::AddTaskWithRetry(HSession hSession, TaskInformation* hTaskInfo)
+{
+    int addTaskRetry = 3; // try 3 time
+    while (addTaskRetry > 0) {
+        if (AdminTask(OP_ADD, hSession, hTaskInfo->channelId, hTaskInfo)) {
+            return true;
+        }
+        sleep(1);
+        --addTaskRetry;
+    }
+    return false;
+}
+
 // Heavy and time-consuming work was putted in the new thread to do, and does
 // not occupy the main thread
 bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command,
@@ -1596,10 +1632,12 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
     bool ret = true;
     HTaskInfo hTaskInfo = nullptr;
     bool masterTask = false;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     while (true) {
         // Some basic commands do not have a local task constructor. example: Interactive shell, some uinty commands
         if (NeedNewTaskInfo(command, masterTask)) {
-            WRITE_LOG(LOG_INFO, "New HTaskInfo cid:%u sid:%u command:%u", channelId, hSession->sessionId, command);
+            WRITE_LOG(LOG_INFO, "New HTaskInfo cid:%u sid:%s command:%u", channelId,
+                sessionIdMaskStr.c_str(), command);
             hTaskInfo = new(std::nothrow) TaskInformation();
             if (hTaskInfo == nullptr) {
                 WRITE_LOG(LOG_FATAL, "DispatchTaskData new hTaskInfo failed");
@@ -1615,19 +1653,10 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo->channelTask = false;
             hTaskInfo->isCleared = false;
 
-            int addTaskRetry = 3; // try 3 time
-            while (addTaskRetry > 0) {
-                if (AdminTask(OP_ADD, hSession, channelId, hTaskInfo)) {
-                    break;
-                }
-                sleep(1);
-                --addTaskRetry;
-            }
-
-            if (addTaskRetry == 0) {
+            if (!AddTaskWithRetry(hSession, hTaskInfo)) {
 #ifndef HDC_HOST
                 LogMsg(hTaskInfo->sessionId, hTaskInfo->channelId,
-                       MSG_FAIL, "hdc thread pool busy, may cause reset later");
+                    MSG_FAIL, "hdc thread pool busy, may cause reset later");
 #endif
                 delete hTaskInfo;
                 hTaskInfo = nullptr;
@@ -1638,7 +1667,8 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
             hTaskInfo = AdminTask(OP_QUERY, hSession, channelId, nullptr);
         }
         if (!hTaskInfo || hTaskInfo->taskStop || hTaskInfo->taskFree) {
-            WRITE_LOG(LOG_WARN, "hTaskInfo null cid:%u sid:%u command:%u", channelId, hSession->sessionId, command);
+            WRITE_LOG(LOG_WARN, "hTaskInfo null cid:%u sid:%s command:%u", channelId,
+                sessionIdMaskStr.c_str(), command);
             break;
         }
         ret = RedirectToTask(hTaskInfo, hSession, channelId, command, payload, payloadSize);
@@ -1663,8 +1693,8 @@ void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::
 
     if (tlvMap.find(TAG_SUPPORT_FEATURE) != tlvMap.end()) {
         std::vector<std::string> features;
-        WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
-            tlvMap[TAG_SUPPORT_FEATURE].c_str(), hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "peer support features are %s for session %s",
+            tlvMap[TAG_SUPPORT_FEATURE].c_str(), Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         Base::SplitString(tlvMap[TAG_SUPPORT_FEATURE], ",", features);
         hSession->heartbeat.SetSupportHeartbeat(Base::IsSupportFeature(features, FEATURE_HEARTBEAT));
 #ifdef HDC_SUPPORT_ENCRYPT_TCP

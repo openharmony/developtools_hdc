@@ -487,7 +487,8 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
     if (hSession->verifyType == AuthVerifyType::RSA_3072_SHA512) {
         handshake.buf.clear();
         Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
-        WRITE_LOG(LOG_INFO, "client support RSA_3072_SHA512 auth for %u session", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "client support RSA_3072_SHA512 auth for %s session",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     }
     string bufString = SerialStruct::SerializeToString(handshake);
     Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE,
@@ -502,10 +503,11 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
 {
     bool ret = false;
     string hostname, pubkey;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
 
     do {
         if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkey)) {
-            WRITE_LOG(LOG_FATAL, "get pubkey failed for %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "get pubkey failed for %s", sessionIdMaskStr.c_str());
             break;
         }
         if (AlreadyInKnownHosts(pubkey)) {
@@ -524,14 +526,14 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
 
         UserPermit permit = PostUIConfirm(hostname, pubkey);
         if (permit == ALLOWONCE) {
-            WRITE_LOG(LOG_FATAL, "user allow onece for %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "user allow onece for %s", sessionIdMaskStr.c_str());
             ret = true;
         } else if (permit == ALLOWFORVER) {
-            WRITE_LOG(LOG_FATAL, "user allow forever for %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "user allow forever for %s", sessionIdMaskStr.c_str());
             UpdateKnownHosts(pubkey);
             ret = true;
         } else {
-            WRITE_LOG(LOG_FATAL, "user refuse for %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "user refuse for %s", sessionIdMaskStr.c_str());
             ret = false;
         }
     } while (0);
@@ -555,6 +557,7 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
 bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string &tokenSignBase64, const string &token)
 {
     unsigned char tokenSha512[SHA512_DIGEST_LENGTH];
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     try {
         // Base64 divides every 3 bytes(8 bits) of the original data into 4 segments(6 bits),
         const int scaleOfEncrypt = 4;
@@ -562,7 +565,7 @@ bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string
         // Invalid base64 format
         const int base64BlockSize = 4; // base64 string must be a multiple of 4
         if (tokenSignBase64.empty() || tokenSignBase64.length() % base64BlockSize != 0) {
-            WRITE_LOG(LOG_FATAL, "Invalid base64 format for session %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "Invalid base64 format for session %s", sessionIdMaskStr.c_str());
             return false;
         }
         size_t maxDecodedLen = (tokenSignBase64.length() / scaleOfEncrypt * scaleOfDecrypt);
@@ -571,20 +574,21 @@ bool HdcDaemon::RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string
         int tokenRsaSignLen = EVP_DecodeBlock(tokenRsaSign.get(),
             reinterpret_cast<const unsigned char *>(tokenSignBase64.c_str()), tokenSignBase64.length());
         if (tokenRsaSignLen <= 0) {
-            WRITE_LOG(LOG_FATAL, "base64 decode token sign failed for session %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "base64 decode token sign failed for session %s", sessionIdMaskStr.c_str());
             return false;
         }
         SHA512(reinterpret_cast<const unsigned char *>(token.c_str()), token.size(), tokenSha512);
         if (EVP_PKEY_verify(ctx, tokenRsaSign.get(), tokenRsaSignLen, tokenSha512, sizeof(tokenSha512)) <= 0) {
-            WRITE_LOG(LOG_FATAL, "verify failed for session %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "verify failed for session %s", sessionIdMaskStr.c_str());
             return false;
         }
     } catch (std::exception &e) {
-        WRITE_LOG(LOG_FATAL, "sign verify failed for session %u with exception %s", hSession->sessionId, e.what());
+        WRITE_LOG(LOG_FATAL, "sign verify failed for session %s with exception %s",
+            sessionIdMaskStr.c_str(), e.what());
         return false;
     }
 
-    WRITE_LOG(LOG_FATAL, "sign verify success for session %u", hSession->sessionId);
+    WRITE_LOG(LOG_FATAL, "sign verify success for session %s", sessionIdMaskStr.c_str());
     return true;
 }
 
@@ -606,7 +610,8 @@ bool HdcDaemon::AuthVerifyRsaSign(HSession hSession, const string &tokenSign, co
         }
         // the length of vaild sign result for BASE64 can't bigger than  EVP_PKEY_size(signKey) * 2
         if (tokenSign.size() > ((size_t)EVP_PKEY_size(signKey) * (size_t)2)) {
-            WRITE_LOG(LOG_FATAL, "invalid base64 sign size %zd for session %u", tokenSign.size(), hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "invalid base64 sign size %zd for session %s", tokenSign.size(),
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             break;
         }
         ctx = EVP_PKEY_CTX_new(signKey, nullptr);
@@ -645,21 +650,22 @@ bool HdcDaemon::AuthVerify(HSession hSession, const string &encryptToken, const 
     RSA *rsa = nullptr;
     const unsigned char *pubkeyp = reinterpret_cast<const unsigned char *>(pubkey.c_str());
     bool verifyResult = false;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
 
     do {
         bio = BIO_new(BIO_s_mem());
         if (bio == nullptr) {
-            WRITE_LOG(LOG_FATAL, "bio failed for session %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "bio failed for session %s", sessionIdMaskStr.c_str());
             break;
         }
         int wbytes = BIO_write(bio, pubkeyp, pubkey.length());
         if (wbytes != static_cast<int>(pubkey.length())) {
-            WRITE_LOG(LOG_FATAL, "bio write failed %d for session %u", wbytes, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "bio write failed %d for session %s", wbytes, sessionIdMaskStr.c_str());
             break;
         }
         rsa = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
         if (rsa == nullptr) {
-            WRITE_LOG(LOG_FATAL, "rsa failed for session %u", hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "rsa failed for session %s", sessionIdMaskStr.c_str());
             break;
         }
         if (hSession->verifyType == AuthVerifyType::RSA_3072_SHA512) {
@@ -701,12 +707,14 @@ bool HdcDaemon::AuthVerifyRsa(HSession hSession, const string &encryptToken, con
     }
     int bytes = RSA_public_decrypt(tbytes, tokenDecode, decryptToken, rsa, RSA_PKCS1_PADDING);
     if (bytes < 0) {
-        WRITE_LOG(LOG_FATAL, "decrypt failed(%lu) for session %u", ERR_get_error(), hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "decrypt failed(%lu) for session %s", ERR_get_error(),
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return false;
     }
     string sdecryptToken(reinterpret_cast<const char *>(decryptToken), bytes);
     if (sdecryptToken != token) {
-        WRITE_LOG(LOG_FATAL, "auth failed for session %u)", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "auth failed for session %s)",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return false;
     }
     return true;
@@ -724,13 +732,15 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
     string token = GetSessionAuthToken(hSession->sessionId);
     string pubkey = GetSessionAuthPubkey(hSession->sessionId);
     if (!AuthVerify(hSession, handshake.buf, token, pubkey)) {
-        WRITE_LOG(LOG_FATAL, "auth failed for session %u", hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "auth failed for session %s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         // Next auth
         HandleAuthFailed(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
         return true;
     }
 
-    WRITE_LOG(LOG_FATAL, "auth success for session %u", hSession->sessionId);
+    WRITE_LOG(LOG_FATAL, "auth success for session %s",
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
 
     UpdateSessionAuthOk(hSession->sessionId);
     SendAuthOkMsg(handshake, channelId, hSession->sessionId);
@@ -748,13 +758,15 @@ bool HdcDaemon::HandDaemonAuthBypass(void)
 bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     if (!authEnable) {
-        WRITE_LOG(LOG_INFO, "not enable secure, allow access for %u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "not enable secure, allow access for %s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         UpdateSessionAuthOk(hSession->sessionId);
         SendAuthOkMsg(handshake, channelId, hSession->sessionId);
         return true;
     } else if (handshake.version < "Ver: 3.0.0b") {
-        WRITE_LOG(LOG_INFO, "session %u client version %s is too low %u authType %d",
-                    hSession->sessionId, handshake.version.c_str(), handshake.authType);
+        WRITE_LOG(LOG_INFO, "session %s client version %s is too low,authType %d",
+                    Hdc::MaskSessionIdToString(hSession->sessionId).c_str(),
+                    handshake.version.c_str(), handshake.authType);
         AuthRejectLowClient(handshake, channelId, hSession->sessionId);
         return true;
     } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_OK) {
@@ -775,7 +787,8 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
         return DaemonSSLHandshake(hSession, channelId, handshake);
 #endif
     } else {
-        WRITE_LOG(LOG_FATAL, "invalid auth state %d for session %u", handshake.authType, hSession->sessionId);
+        WRITE_LOG(LOG_FATAL, "invalid auth state %d for session %s", handshake.authType,
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return false;
     }
 }
@@ -792,14 +805,16 @@ void HdcDaemon::GetServerCapability(HSession &hSession, SessionHandShake &handsh
     std::map<string, string> tlvMap;
     hSession->verifyType = AuthVerifyType::RSA_ENCRYPT;
     if (!Base::TlvToStringMap(handshake.buf, tlvMap)) {
-        WRITE_LOG(LOG_INFO, "maybe old version client for %u session", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "maybe old version client for %s session",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return;
     }
     if (tlvMap.find(TAG_AUTH_TYPE) != tlvMap.end() &&
         tlvMap[TAG_AUTH_TYPE] == std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
         hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
     }
-    WRITE_LOG(LOG_INFO, "client auth type is %u for %u session", hSession->verifyType, hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "client auth type is %u for %s session", hSession->verifyType,
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
 
     //Get server support features
     ParsePeerSupportFeatures(hSession, tlvMap);
@@ -889,7 +904,7 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     // session handshake step2
     string s = string(reinterpret_cast<char *>(payload), payloadSize);
     SessionHandShake handshake;
-    string err;
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     SerialStruct::ParseFromString(handshake, s);
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_DEBUG, "session %s try to handshake", hSession->ToDebugString().c_str());
@@ -902,8 +917,8 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     }
     if (handshake.authType == AUTH_NONE) {
         if (GetSessionAuthStatus(handshake.sessionId) != AUTH_NONE) {
-            WRITE_LOG(LOG_FATAL, "session %u is already, But now session is %u, refused!",
-                handshake.sessionId, hSession->sessionId);
+            WRITE_LOG(LOG_FATAL, "session %s is already, But now session is %s, refused!",
+                Hdc::MaskSessionIdToString(handshake.sessionId).c_str(), sessionIdMaskStr.c_str());
             return false;
         }
         DaemonSessionHandshakeInit(hSession, handshake);
@@ -934,7 +949,7 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
     }
     // handshake auth OK.Can append the sending device information to HOST
 #ifdef HDC_DEBUG
-    WRITE_LOG(LOG_INFO, "session %u handshakeOK send back CMD_KERNEL_HANDSHAKE", hSession->sessionId);
+    WRITE_LOG(LOG_INFO, "session %s handshakeOK send back CMD_KERNEL_HANDSHAKE", sessionIdMaskStr.c_str());
 #endif
     hSession->handshakeOK = true;
     return true;
@@ -1000,8 +1015,8 @@ bool HdcDaemon::CheckAuthStatus(HSession hSession, const uint32_t channelId, con
     if (authEnable && (GetSessionAuthStatus(hSession->sessionId) != AUTH_OK) &&
         command != CMD_KERNEL_HANDSHAKE && command != CMD_KERNEL_CHANNEL_CLOSE && command != CMD_SSL_HANDSHAKE) {
         string authmsg = GetSessionAuthmsg(hSession->sessionId);
-        WRITE_LOG(LOG_WARN, "session %u auth failed: %s for command %u",
-                  hSession->sessionId, authmsg.c_str(), command);
+        WRITE_LOG(LOG_WARN, "session %s auth failed: %s for command %u",
+                  Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), authmsg.c_str(), command);
         if (!authmsg.empty()) {
             LogMsg(hSession->sessionId, channelId, MSG_FAIL, authmsg.c_str());
         }
@@ -1103,7 +1118,8 @@ bool HdcDaemon::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_HEARTBEAT_MSG: {
             // heartbeat msg
             std::string str = hSession->heartbeat.HandleRecvHeartbeatMsg(payload, payloadSize);
-            WRITE_LOG(LOG_INFO, "recv %s for session %u", str.c_str(), hSession->sessionId);
+            WRITE_LOG(LOG_INFO, "recv %s for session %s", str.c_str(),
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             break;
         }
         default:

@@ -349,8 +349,9 @@ void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint
                                              uint8_t *payload, const int payloadSize)
 {
     if (Base::CanPrintCmd(commandFlag)) {
-        WRITE_LOG(LOG_INFO, "SendCommandToClient cid:%u sid:%u commandID:%u payloadSize:%d",
-            hChannel->channelId, hChannel->targetSessionId, commandFlag, payloadSize);
+        WRITE_LOG(LOG_INFO, "SendCommandToClient cid:%u sid:%s commandID:%u payloadSize:%d",
+            hChannel->channelId, Hdc::MaskSessionIdToString(hChannel->targetSessionId).c_str(),
+            commandFlag, payloadSize);
     }
     SendChannelWithCmd(hChannel, commandFlag, payload, payloadSize);
 }
@@ -362,8 +363,9 @@ bool HdcServerForClient::SendToDaemon(HChannel hChannel, const uint16_t commandF
     bool ret = false;
     HdcServer *ptrServer = (HdcServer *)clsServer;
     if (Base::CanPrintCmd(commandFlag)) {
-        WRITE_LOG(LOG_INFO, "SendToDaemon cid:%u sid:%u key:%s commandID:%u sizeSend:%d", hChannel->channelId,
-            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str(), commandFlag, bufSize);
+        WRITE_LOG(LOG_INFO, "SendToDaemon cid:%u sid:%s key:%s commandID:%u sizeSend:%d", hChannel->channelId,
+            Hdc::MaskSessionIdToString(hChannel->targetSessionId).c_str(),
+            Hdc::MaskString(hChannel->connectKey).c_str(), commandFlag, bufSize);
     }
     while (true) {
         ptrServer->AdminDaemonMap(OP_QUERY, hChannel->connectKey, hdi);
@@ -439,7 +441,8 @@ static bool IsDisconnect(HDaemonInfo hdi, uint16_t count)
         return true;
     }
     if (!hSession->isRunningOk) {
-        WRITE_LOG(LOG_INFO, "isRunningOk is false sessionId:%u", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "isRunningOk is false sessionId:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return true;
     }
     return false;
@@ -566,7 +569,8 @@ bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
     }
     HSession hSession = ptrServer->AdminSession(OP_QUERY, hfi->sessionId, nullptr);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "CommandRemoveForward hSession nullptr sessionId:%u", hfi->sessionId);
+        WRITE_LOG(LOG_FATAL, "CommandRemoveForward hSession nullptr sessionId:%s",
+            Hdc::MaskSessionIdToString(hfi->sessionId).c_str());
         ptrServer->AdminForwardMap(OP_REMOVE, forwardKey, hfi);
         return true;
     }
@@ -991,14 +995,15 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
         return nullptr;
     }
     if (hdi->hSession->isDead) {
-        WRITE_LOG(LOG_WARN, "session is dead cid:%u sid:%u", hChannel->channelId, hdi->hSession->sessionId);
+        WRITE_LOG(LOG_WARN, "session is dead cid:%u sid:%s", hChannel->channelId,
+            Hdc::MaskSessionIdToString(hdi->hSession->sessionId).c_str());
         FillChannelResult(hChannel, false, "bind target session is dead");
         EchoClient(hChannel, MSG_FAIL, "Bind tartget session is dead");
         return nullptr;
     }
     if (!hdi->hSession->handshakeOK) {
-        WRITE_LOG(LOG_WARN, "hSession handShake is false sid:%u cid:%u",
-            hdi->hSession->sessionId, hChannel->channelId);
+        WRITE_LOG(LOG_WARN, "hSession handShake is false sid:%s cid:%u",
+            Hdc::MaskSessionIdToString(hdi->hSession->sessionId).c_str(), hChannel->channelId);
         FillChannelResult(hChannel, false, "handshake is not ready");
         const string errMsg = "[E000004]:The communication channel is being established.\r\n"\
             "Please wait for several seconds and try again.";
@@ -1117,7 +1122,8 @@ bool HdcServerForClient::CheckAutoFillTarget(HChannel hChannel)
             return false;
         }
         if (!hdiOld->hSession->handshakeOK) {
-            WRITE_LOG(LOG_WARN, "hSession handShake is false SessionId:%u", hdiOld->hSession->sessionId);
+            WRITE_LOG(LOG_WARN, "hSession handShake is false SessionId:%s",
+                Hdc::MaskSessionIdToString(hdiOld->hSession->sessionId).c_str());
             return false;
         }
         hChannel->connectKey = hdiOld->connectKey;
@@ -1143,9 +1149,9 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
         WRITE_LOG(LOG_DEBUG, "Connectkey's size incorrect");
         return ERR_HANDSHAKE_CONNECTKEY_FAILED;
     }
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hChannel->targetSessionId);
     // channel handshake step3
-    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%u handshake finished",
-        hChannel->channelId, hChannel->targetSessionId);
+    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%s handshake finished", sessionIdMaskStr.c_str());
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
     if (handShake->banner[WAIT_TAG_OFFSET] == WAIT_DEVICE_TAG || !CheckAutoFillTarget(hChannel)) {
@@ -1155,8 +1161,8 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     // channel handshake stBindChannelToSession
     if (BindChannelToSession(hChannel)) {
         hChannel->availTailIndex = 0;
-        WRITE_LOG(LOG_FATAL, "BindChannelToSession failed channelId:%u sid:%u",
-            hChannel->channelId, hChannel->targetSessionId);
+        WRITE_LOG(LOG_FATAL, "BindChannelToSession failed channelId:%u sid:%s",
+            hChannel->channelId, sessionIdMaskStr.c_str());
         return ERR_GENERIC;
     }
     return 0;
@@ -1234,8 +1240,9 @@ int HdcServerForClient::ReadChannel(HChannel hChannel, uint8_t *bufPtr, const in
             }
         }
 
-        WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%u key:%s", hChannel->channelId,
-            hChannel->targetSessionId, Hdc::MaskString(hChannel->connectKey).c_str());
+        WRITE_LOG(LOG_INFO, "ReadChannel cid:%u sid:%s key:%s", hChannel->channelId,
+            Hdc::MaskSessionIdToString(hChannel->targetSessionId).c_str(),
+            Hdc::MaskString(hChannel->connectKey).c_str());
 
         if (Hdc::Base::GetCmdLogSwitch()) {
 #ifdef SUPPORT_DETAILE_HDC_CMD_LOG
@@ -1269,7 +1276,8 @@ HSession HdcServerForClient::FindAliveSession(uint32_t sessionId)
     HdcServer *ptrServer = (HdcServer *)clsServer;
     HSession hSession = ptrServer->AdminSession(OP_QUERY, sessionId, nullptr);
     if (!hSession || hSession->isDead) {
-        WRITE_LOG(LOG_FATAL, "FindAliveSession hSession nullptr or isDead sessionId:%u", sessionId);
+        WRITE_LOG(LOG_FATAL, "FindAliveSession hSession nullptr or isDead sessionId:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return nullptr;
     } else {
         return hSession;
@@ -1280,12 +1288,14 @@ bool HdcServerForClient::ChannelSendSessionCtrlMsg(vector<uint8_t> &ctrlMsg, uin
 {
     HSession hSession = FindAliveSession(sessionId);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "ChannelSendSessionCtrlMsg hSession nullptr sessionId:%u", sessionId);
+        WRITE_LOG(LOG_FATAL, "ChannelSendSessionCtrlMsg hSession nullptr sessionId:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
         return false;
     }
     int rc = Base::SendToPollFd(hSession->ctrlFd[STREAM_MAIN], ctrlMsg.data(), ctrlMsg.size());
     if (rc <= 0) {
-        WRITE_LOG(LOG_FATAL, "send ctrlmsg failed sessionId:%u rc:%d", sessionId, rc);
+        WRITE_LOG(LOG_FATAL, "send ctrlmsg failed sessionId:%s rc:%d",
+            Hdc::MaskSessionIdToString(sessionId).c_str(), rc);
     }
     return rc > 0;
 }

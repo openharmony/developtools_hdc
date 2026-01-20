@@ -86,7 +86,7 @@ void HdcServer::TryStopInstance()
 bool HdcServer::Initial(const char *listenString)
 {
     bool ret = false;
-    if (Base::ProgramMutex(SERVER_NAME.c_str(), false) != 0) {
+    if (Base::ProgramMutex(false) != 0) {
         WRITE_LOG(LOG_FATAL, "Other instance already running, program mutex failed");
         return false;
     }

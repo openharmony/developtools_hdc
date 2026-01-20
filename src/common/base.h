@@ -109,7 +109,7 @@ namespace Base {
     int WriteBinFile(const char *pathName, const uint8_t *buf, const size_t bufLen, bool newFile = false);
     void CloseIdleCallback(uv_handle_t *handle);
     void CloseTimerCallback(uv_handle_t *handle);
-    int ProgramMutex(const char *procname, bool checkOrNew);
+    int ProgramMutex(bool checkOrNew);
     // result needs to save results which can't be const
     void SplitString(const string &origString, const string &seq, vector<string> &resultStrings);
     string GetShellPath();

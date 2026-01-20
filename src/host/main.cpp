@@ -229,7 +229,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         client.ChannelCtrlServer(commands, connectKey);
         return 0;
     }
-    if (isPullServer && Base::ProgramMutex(SERVER_NAME.c_str(), true) == 0) {
+    if (isPullServer && Base::ProgramMutex(true) == 0) {
 #ifdef HOST_OHOS
         if (!strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(),
             CMDSTR_SERVICE_KILL.size())) {

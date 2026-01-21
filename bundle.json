@@ -15,7 +15,8 @@
     "features": [
       "hdc_feature_support_sudo",
       "hdc_feature_support_credential",
-      "hdc_feature_support_report_command_event"
+      "hdc_feature_support_report_command_event",
+      "hdc_feature_support_usr_symlink"
     ],
     "adapted_system_type": [
       "standard"

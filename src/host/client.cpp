@@ -110,7 +110,7 @@ uint32_t HdcClient::GetLastPID()
 
 bool HdcClient::StartServer(const string &cmd)
 {
-    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    int serverStatus = Base::ProgramMutex(true);
     if (serverStatus < 0) {
         WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
         return false;
@@ -142,7 +142,7 @@ bool HdcClient::StartServer(const string &cmd)
 bool HdcClient::ChannelCtrlServer(bool isRestart, const string &connectKey)
 {
     // new version build channle to send Ctrl command to server
-    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    int serverStatus = Base::ProgramMutex(true);
     if (serverStatus < 0) {
         WRITE_LOG(LOG_DEBUG, "get server status failed, serverStatus:%d", serverStatus);
         return false;
@@ -191,7 +191,7 @@ bool HdcClient::KillMethodByUv(bool isStart)
 
 bool HdcClient::KillServer(const string &cmd)
 {
-    int serverStatus = Base::ProgramMutex(SERVER_NAME.c_str(), true);
+    int serverStatus = Base::ProgramMutex(true);
     if (serverStatus < 0) {
         WRITE_LOG(LOG_FATAL, "get server status failed, serverStatus:%d", serverStatus);
         return false;

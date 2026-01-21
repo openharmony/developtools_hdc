@@ -1479,7 +1479,7 @@ static void EchoLog(string &buf)
     };
 
     // return value: <0 error; 0 can start new server instance; >0 server already exists
-    int ProgramMutex(const char *procname, bool checkOrNew)
+    int ProgramMutex(bool checkOrNew)
     {
         char bufPath[BUF_SIZE_DEFAULT] = "";
         char buf[BUF_SIZE_DEFAULT] = "";
@@ -1496,13 +1496,18 @@ static void EchoLog(string &buf)
             return ERR_API_FAIL;
         }
 #endif
-        if (snprintf_s(bufPath, sizeof(bufPath), sizeof(bufPath) - 1, "%s%c.%s.pid", buf, Base::GetPathSep(), procname)
-            < 0) {
+        if (snprintf_s(bufPath, sizeof(bufPath), sizeof(bufPath) - 1, "%s%c.%s.pid",
+                       buf, Base::GetPathSep(), SERVER_NAME.c_str()) < 0) {
             return ERR_BUF_OVERFLOW;
         }
         int pid = static_cast<int>(getpid());
         if (snprintf_s(pidBuf, sizeof(pidBuf), sizeof(pidBuf) - 1, "%d", pid) < 0) {
             return ERR_BUF_OVERFLOW;
+        }
+        if (GetCaller() == Caller::CLIENT) {
+            WRITE_LOG(LOG_DEBUG, "bufPath:%s pidBuf:%s", bufPath, pidBuf);
+        } else {
+            WRITE_LOG(LOG_DEBUG, "bufPath:%s pidBuf:%s", Hdc::MaskString(string(bufPath)).c_str(), pidBuf);
         }
         // no need to CanonicalizeSpecPath, else not work
         umask(0);
@@ -1521,7 +1526,7 @@ static void EchoLog(string &buf)
             return ERR_FILE_OPEN;
         }
 #ifdef _WIN32
-        if (snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "Global\\%s", procname) < 0) {
+        if (snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "Global\\%s", SERVER_NAME.c_str()) < 0) {
             uv_fs_close(nullptr, &req, fd, nullptr);
             return ERR_BUF_OVERFLOW;
         }
@@ -1531,18 +1536,28 @@ static void EchoLog(string &buf)
             HANDLE hMutex = OpenMutex(SYNCHRONIZE, FALSE, buf);
             if (hMutex != nullptr) {
                 CloseHandle(hMutex);
-                WRITE_LOG(LOG_DEBUG, "Mutex \"%s\" locked. Server already exist.", procname);
+                WRITE_LOG(LOG_DEBUG, "Mutex \"%s\" locked. Server already exist.", buf);
                 return 1;
             } else {
-                WRITE_LOG(LOG_DEBUG, "Server is not exist");
+                WRITE_LOG(LOG_DEBUG, "Server is not exist %s error:%d", buf, GetLastError());
                 return 0;
             }
         } else {
-            HANDLE hMutex = CreateMutex(nullptr, TRUE, buf);
+            SECURITY_DESCRIPTOR sd;
+            if (!InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)) {
+                WRITE_LOG(LOG_DEBUG, "init security descriptor error:%d", GetLastError());
+                return 1;
+            }
+            if (!SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE)) {
+                WRITE_LOG(LOG_DEBUG, "set security descriptor dacl error:%d", GetLastError());
+                return 1;
+            }
+            SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), &sd, FALSE };
+            HANDLE hMutex = CreateMutex(&sa, TRUE, buf);
             DWORD dwError = GetLastError();
             if (ERROR_ALREADY_EXISTS == dwError || ERROR_ACCESS_DENIED == dwError) {
                 uv_fs_close(nullptr, &req, fd, nullptr);
-                WRITE_LOG(LOG_DEBUG, "Creat mutex, \"%s\" locked. proc already exit!!!\n", procname);
+                WRITE_LOG(LOG_DEBUG, "Creat mutex, \"%s\" locked. proc already exit!!!\n", SERVER_NAME.c_str());
                 return 1;
             }
         }

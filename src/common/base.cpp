@@ -390,7 +390,7 @@ namespace Base {
             if (WIFEXITED(status)) {
                 int exitCode = WEXITSTATUS(status);
                 WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exitCode);
-                retVal = (exitCode != EXEC_FAILED_ERROR_CODE);
+                retVal = true;
             } else {
                 if (GetCaller() == Caller::CLIENT) {
                     WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
@@ -2997,7 +2997,7 @@ void CloseOpenFd(void)
             if (WIFEXITED(status)) {
                 int exitCode = WEXITSTATUS(status);
                 WRITE_LOG(LOG_DEBUG, "subprocess exited with status: %d", exitCode);
-                retVal = (exitCode != EXEC_FAILED_ERROR_CODE);
+                retVal = true;
             } else {
                 WRITE_LOG(LOG_FATAL, "CompressLogFile failed, soiurceFileNameFull:%s, error:%s",
                           sourceFileNameFull.c_str(),

@@ -1151,7 +1151,8 @@ int HdcServerForClient::ChannelHandShake(HChannel hChannel, uint8_t *bufPtr, con
     }
     std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hChannel->targetSessionId);
     // channel handshake step3
-    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%s handshake finished", sessionIdMaskStr.c_str());
+    WRITE_LOG(LOG_DEBUG, "ServerForClient cid:%u sid:%s handshake finished", hChannel->channelId,
+        sessionIdMaskStr.c_str());
     hChannel->connectKey = handShake->connectKey;
     hChannel->handshakeOK = true;
     if (handShake->banner[WAIT_TAG_OFFSET] == WAIT_DEVICE_TAG || !CheckAutoFillTarget(hChannel)) {

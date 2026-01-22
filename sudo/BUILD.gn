@@ -50,6 +50,12 @@ ohos_executable("exec_sudo") {
       defines += [ "SURPPORT_ACCOUNT_CONSTRAINT" ]
     }
 
+    if (hdc_feature_support_usr_symlink) {
+      symlink_target_name = [
+        "../usr/bin/sudo",
+      ]
+    }
+
     subsystem_name = "developtools"
     output_name = "sudo"
     part_name = "hdc"

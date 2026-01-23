@@ -293,7 +293,7 @@ void HdcForwardBase::ReadForwardBuf(uv_stream_t *stream, ssize_t nread, const uv
         return;
     }
     if (nread == 0) {
-        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:0 id:%u cid:%u sid:%s", nread, ctx->id,
+        WRITE_LOG(LOG_INFO, "ReadForwardBuf nread:0 id:%u cid:%u sid:%s", ctx->id,
             ctx->thisClass->taskInfo->channelId,
             Hdc::MaskSessionIdToString(ctx->thisClass->taskInfo->sessionId).c_str());
         delete[] buf->base;

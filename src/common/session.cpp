@@ -12,6 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "connect_validation.h"
 #include "session.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"

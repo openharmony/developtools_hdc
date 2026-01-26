@@ -16,6 +16,7 @@
 #include <want.h>
 #include <common_event_manager.h>
 #include <common_event_publish_info.h>
+#include <parameters.h>
 
 #include "credential_base.h"
 #include "credential_message.h"

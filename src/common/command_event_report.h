@@ -26,7 +26,6 @@ namespace Hdc {
 using namespace OHOS;
 
 const int32_t BASE_ID = 200000;
-const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
 
 class CommandEventReport : public std::enable_shared_from_this<CommandEventReport> {
     DECLARE_DELAYED_SINGLETON(CommandEventReport)
@@ -37,8 +36,6 @@ public:
         const std::string &localPath, bool master, bool serverOrDaemon);
 private:
     bool IsSupportReport();
-    std::string SplicMessageStr(const std::string &command, const std::string &raw,
-        Base::Caller caller, bool isIntercepted);
     std::string FormatMessage(const std::string &command, const std::string &raw,
         Base::Caller caller, bool isIntercepted);
     bool GetCommandFromInputRaw(const char* inputRaw, std::string &command);

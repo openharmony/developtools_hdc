@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "connect_validation.h"
 #include "server.h"
 #include "host_updater.h"
 #include "server_cmd_log.h"

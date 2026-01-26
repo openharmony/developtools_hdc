@@ -26,6 +26,7 @@ public:
     std::pair<uint8_t*, int> AesGcmDecrypt(const std::string& inputData);
     static int CaculateGcmEncryptLen(int palinDataLen);
     bool ResetHuksKey(void);
+    int32_t 
 private:
     bool MakeHuksParamSet(struct HksParamSet **paramSet,
         const struct HksParam *baseParams, int baseParamCount, const struct HksParam *params, int paramCount);

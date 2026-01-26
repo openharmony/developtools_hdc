@@ -12,6 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "base.h"
+#include "credential_message.h"
 #include "hdc_huks.h"
 #include "hks_param.h"
 #include "hks_api.h"
@@ -19,6 +21,8 @@
 #if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
 #include "os_account_manager.h"
 #endif
+#include <fstream>
+
 namespace Hdc {
 static const int AES_GCM_NONCE_BYTE_LEN = 12;
 static const int AES_GCM_TAG_BYTE_LEN = 16;

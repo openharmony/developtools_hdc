@@ -14,6 +14,8 @@
  */
 #include <charconv>
 #include "credential_message.h"
+#include "sys/socket.h"
+#include "base.h"
 
 using namespace Hdc;
 

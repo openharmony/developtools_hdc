@@ -905,7 +905,7 @@ static bool MakeRsaSign(EVP_PKEY_CTX *ctx, string &result, unsigned char *digest
     return true;
 }
 
-static bool RsaSign(string &buf, EVP_PKEY *signKey)
+bool RsaSign(string &buf, EVP_PKEY *signKey)
 {
     unsigned char sha512Hash[SHA512_DIGEST_LENGTH];
     EVP_PKEY_CTX *ctx = nullptr;
@@ -940,7 +940,7 @@ static bool RsaSign(string &buf, EVP_PKEY *signKey)
     return signRet;
 }
 
-static bool RsaEncrypt(string &buf, RSA *rsa)
+bool RsaEncrypt(string &buf, RSA *rsa)
 {
     int signOriSize;
     int signOutSize;

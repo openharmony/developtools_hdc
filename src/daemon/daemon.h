@@ -101,8 +101,8 @@ private:
     void SendAuthEncryptPsk(SessionHandShake &handshake, const uint32_t channelid,
             HSession &hSession, string pubkey);
     void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
-                       uint32_t sessionid, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
-    void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid);
+                       HSession hSession, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
+    void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, HSession hSession);
     void HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
     bool AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey);
     bool AuthVerifyRsaSign(HSession hSession, const string &tokenSignBase64, const string &token, RSA *rsa);

@@ -97,6 +97,7 @@ template("hdcd_source_set") {
       "src/daemon/system_depend.cpp",
     ]
     sources += hdc_common_sources
+    sources += [ "src/common/connect_validation.cpp" ]
 
     defines = [
       "HARMONY_PROJECT",
@@ -431,6 +432,7 @@ ohos_executable("hdc") {
     defines += [ "IS_RELEASE_VERSION" ]
     sources += [
       "src/common/credential_message.cpp",
+      "src/common/connect_validation.cpp",
       "src/host/system_depend.cpp",
     ]
     sources += [ "src/common/hdc_huks.cpp" ]

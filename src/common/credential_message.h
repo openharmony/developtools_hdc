@@ -50,7 +50,7 @@ std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
 void SplitString(const std::string &origString, const std::string &seq,
                  std::vector<std::string> &resultStrings);
 
-constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
+constexpr size_t MESSAGE_STR_MAX_LEN = 4096;
 constexpr size_t MESSAGE_VERSION_POS = 0;
 constexpr size_t MESSAGE_METHOD_POS = 1;
 constexpr size_t MESSAGE_METHOD_LEN = 3;

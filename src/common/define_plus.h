@@ -266,6 +266,8 @@ struct HdcSession {
     HdcHeartbeat heartbeat;
     bool supportEncrypt = false;
     uv_timer_t heartbeatTimer;
+    bool supportConnValidation = false;
+    bool isAuthenticated = false;
 
     HdcSessionStat stat;
 #ifdef HDC_HOST

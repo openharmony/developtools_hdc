@@ -111,6 +111,7 @@ bool HdcFile::CheckBlacklistPath(CtxFile *context)
     // Initialize blacklistFiles,
     // if you need to add blacklistFiles content, you can use blacklistFiles.insert("");
     std::unordered_set<std::string> blacklistFiles = {"/data/service/el1/public/hdc"};
+    blacklistFiles.insert("/data/service/el2/public/hdc_service");
     if (containsBlacklistedSubstring(context->localPath, blacklistFiles)) {
         LogMsg(MSG_FAIL, "[E005008] Operation not allowed");
         STATISTIC_ITEM item = context->isSend ? STATISTIC_ITEM::FILE_SEND_FAIL_COUNT :

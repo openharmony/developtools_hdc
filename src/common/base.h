@@ -295,6 +295,7 @@ namespace Base {
     void UpdateEnvCache();
     #define FEATURE_HEARTBEAT "heartbeat"
     #define FEATURE_ENCRYPT_TCP "encrypt_tcp"
+    #define FEATURE_CONN_VALIDATION "conn_validation"
     using HdcFeatureSet = std::vector<std::string>;
     const HdcFeatureSet& GetSupportFeature(void);
     std::string FeatureToString(const HdcFeatureSet& feature);

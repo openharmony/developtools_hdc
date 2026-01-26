@@ -1,0 +1,139 @@
+
+                         OpenHarmony device connector(hdc) ...
+
+---------------------------------global commands:----------------------------------
+ -h/help [verbose]                     - Print hdc help, 'verbose' for more other cmds
+ -v/version                            - Print hdc version
+ -l[0-6]                               - Set runtime log level
+ -t connectkey                         - Use device with given connect key
+ checkserver                           - Check client-server version
+ checkdevice key                       - Check given serial port is properly and whether
+                                         any devices are connected(only uart)
+ any                                   - Try to connect the first ready device(only uart)
+
+---------------------------------component commands:-------------------------------
+session commands(on server):
+ discover                              - Discover devices listening on TCP via LAN broadcast
+ list targets [-v]                     - List all devices status, -v for detail
+ tconn key [-remove]                   - Connect device via key, TCP use ip:port
+                                         example:192.168.0.100:10178/192.168.0.100
+                                         USB connect automatic, TCP need to connect manually
+                                         If with '-remove', will remove connection
+                                         UART connect need connect manually
+                                         Baud Rate can be specified with commas
+                                         key format: <Port Name>[,Baud Rate]
+                                         example: tconn COM5,921600
+                                         Default Baud Rate is 921600
+
+ start [-r]                            - Start server. If with '-r', will be restart server
+ kill [-r]                             - Kill server. If with '-r', will be restart server
+ -s [ip:]port                          - Set hdc server listen config
+ -e ip                                 - Set the IP address for which the host listens during TCP
+                                         port forwarding. The default value is 127.0.0.1,
+                                         cannot run in single client mode
+ -m                                    - Start server at foreground
+ -p                                    - Skip the server startup, run in single client mode
+
+service commands(on daemon):
+ wait                                  - Wait for the device to become available
+ target mount                          - Set /system /vendor partition read-write
+ target boot [-bootloader|-recovery]   - Reboot the device or boot into bootloader\recovery
+ target boot [MODE]                    - Reboot the into MODE
+ smode [-r]                            - Restart daemon with root permissions, '-r' to cancel root
+                                         permissions
+ tmode usb                             - Reboot the device, listening on USB
+ tmode port [port]                     - Reboot the device, listening on TCP port
+ tmode port close                      - Close TCP port
+
+---------------------------------task commands:-------------------------------------
+file commands:
+ file send [option] local remote       - Send file to device
+ file recv [option] remote local       - Recv file from device
+                                         option is -a|-s|-z
+                                         -a: hold target file timestamp
+                                         -sync: just update newer file
+                                         -z: compress transfer, not improve transmission efficiency
+                                         for compressed files
+                                         -m: mode sync
+                                         -cwd: specify the working directory
+                                         -b: send/receive file to debug application directory
+
+forward commands:
+ fport localnode remotenode            - Forward local traffic to remote device
+ rport remotenode localnode            - Reserve remote traffic to local host
+                                         node config name format 'schema:content'
+                                         examples are below:
+                                         tcp:<port>
+                                         localfilesystem:<unix domain socket name>
+                                         localreserved:<unix domain socket name>
+                                         localabstract:<unix domain socket name>
+                                         dev:<device name>
+                                         jdwp:<pid> (remote only)
+                                         ark:pid@tid@Debugger
+ fport ls                              - Display forward/reverse tasks
+ fport rm taskstr                      - Remove forward/reverse task by taskstring
+
+app commands:
+ install [-r|-s|-cwd|option] src       - Send package(s) to device and install them
+                                         src examples: single or multiple packages and directories
+                                         (.hap .hsp .app)
+                                         -r: replace existing application
+                                         -s: install shared bundle for multi-apps
+                                         -cwd: specify the working directory
+                                         option is -w|-u|-p|-h
+                                         -w: specify waitting time for installation
+                                         -u: specify a user id
+                                         -p: specify a bundle path or direction
+                                         -h: list available options of 'bm install' command
+                                         Note: Each option and its corresponding option argument must
+                                         be placed inside the same pair of double quotation masks
+                                         example: "-w 180", "-u 100"
+ uninstall [-k|-s|option] package      - Remove application package from device
+                                         -k: keep the data and cache directories
+                                         -s: remove shared bundle
+                                         option is -n|-m|-v|-u|-h
+                                         -n: uninstall a bundle by bundle name
+                                         -m: uninstall a module by module name
+                                         -v: uninstall a inter-application shared library by versionCode
+                                         -u: specify a user id
+                                         -h: list available options of 'bm uninstall' command
+                                         Note: Each option and its corresponding option argument must
+                                         be placed inside the same pair of double quotation masks
+                                         example: "-m entry", "-v 10001", "-u 100"
+
+debug commands:
+ hilog [-h|parse]                      - Show device log, -h for detail
+                                         parse: parse local hilog files
+ shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)
+                                         -b: run command in specified debug application bundle path
+                                             bundle parameter only support non-interactive shell
+ bugreport [FILE]                      - Return all information from the device, stored in file if FILE is specified
+ jpid                                  - List PIDs of processes hosting a JDWP transport
+ track-jpid [-a|-p]                    - Track PIDs of debug processes hosting a JDWP transport
+                                         -a: include debug and release processes
+                                         -p: don't display debug and release tags
+ sideload [PATH]                       - Sideload the given full OTA package
+
+security commands:
+ keygen FILE                           - Generate public/private key; key stored in FILE and FILE.pub
+
+---------------------------------flash commands:------------------------------------
+flash commands:
+ update packagename                    - Update system by package
+ flash [-f] partition imagename        - Flash partition by image
+ erase [-f] partition                  - Erase partition
+ format [-f] partition                 - Format partition
+---------------------------------external commands:------------------------------------
+extconn key                            - Connect external device via key, TCP use ip:port(remian)
+-S [ip:]port                           - Set hdc external server listen config
+
+---------------------------------environment variables:-----------------------------
+OHOS_HDC_SERVER_PORT                   - Set hdc server listen port(range 1~65535, default 8710)
+OHOS_HDC_LOG_LEVEL                     - Set hdc server log level(range 0~5, default 5)
+OHOS_HDC_HEARTBEAT                     - Set whether the hdc heartbeat function is disabled
+                                         (1: disabled, other: enabled, default: enabled)
+OHOS_HDC_CMD_RECORD                    - Set whether the hdc command record function is enabled
+                                         (1: enabled, other: disabled, default: disabled)
+OHOS_HDC_ENCRYPT_CHANNEL               - Set whether to use an encrypted channel when using a TCP connection
+                                         (1: enabled, other: disabled, default: disabled)
+

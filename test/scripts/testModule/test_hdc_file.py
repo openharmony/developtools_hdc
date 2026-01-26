@@ -14,9 +14,11 @@
 # limitations under the License.
 import os
 import pytest
+import sys
 
 from utils import GP, check_hdc_cmd, check_hdc_targets, check_soft_local, check_soft_remote, \
-    check_shell, rmdir, check_version, get_local_path, get_remote_path, make_multiprocess_file, load_gp
+    check_shell, rmdir, check_version, get_local_path, get_remote_path, make_multiprocess_file, \
+    load_gp, get_md5sum_local, generate_random_string, get_shell_result
 
 
 def clear_env():
@@ -27,6 +29,52 @@ def clear_env():
 def list_targets():
     assert check_hdc_targets()
 
+
+# prehandle: generate file in device dir(/local/tmp/local)
+def gen_file_in_tmp_dir(dir_name, file_name, file_size, unit, count, file_count):
+    check_hdc_cmd(f"shell mkdir -p /data/local/tmp/{dir_name}")
+    remote_path = dir_name + "/" + file_name
+    if file_count == 1:
+        check_hdc_cmd(f"shell dd if=/dev/urandom of=/data/local/tmp/{remote_path} bs={file_size}{unit} count={count}")
+    else:
+        for i in range(file_count):
+            check_hdc_cmd(f"shell dd if=/dev/urandom of=/data/local/tmp/{remote_path}_{i} bs={file_size}{unit} count={count}")
+
+
+# posthandle: delete file in device dir(/local/tmp/local)
+def del_file_in_tmp_dir(dir_name, file_name_prefix, file_only=True):
+    if file_only:
+        remote_path = dir_name + "/" + file_name_prefix
+        check_hdc_cmd(f"shell rm /data/local/tmp/{remote_path}*")
+    else:
+        check_hdc_cmd(f"shell rm -r /data/local/tmp/{dir_name}")
+
+
+# file transfer rate baseline params
+file_transfer_count = 5
+file_transfer_avg_rate = 0.0
+
+
+def get_file_transfer_rate():
+    global file_transfer_count, file_transfer_avg_rate
+    file_send_avg_rate = 0.0
+    file_recv_avg_rate = 0.0
+    for i in range(file_transfer_count):
+        file_name = "large"
+        send_remote_path = ""
+        send_output = get_shell_result(f"file send {get_local_path(file_name)} {get_remote_path(send_remote_path)}")
+        
+        recv_local_file_name = f"{file_name}_recv"
+        recv_output = get_shell_result(f"file recv {get_remote_path(file_name)} {get_local_path(recv_local_file_name)}")
+
+        send_rate_str = send_output[send_output.rfind("rate:") + 5: send_output.rfind("kB/s")]
+        recv_rate_str = recv_output[recv_output.rfind("rate:") + 5: recv_output.rfind("kB/s")]
+
+        file_send_avg_rate += float(send_rate_str)
+        file_recv_avg_rate += float(recv_rate_str)
+    
+    file_transfer_avg_rate = (file_send_avg_rate + file_recv_avg_rate) / (file_transfer_count * 2)
+    del_file_in_tmp_dir("", file_name)
 
 class TestFileCompress:
     compress_file_table = [
@@ -41,25 +89,332 @@ class TestFileCompress:
     def test_file_compress(self, local_path, remote_path):
         clear_env()
         assert check_hdc_cmd(f"file send -z {get_local_path(local_path)} {get_remote_path(remote_path)}")
-        assert check_hdc_cmd(f"file recv -z {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")   
+        assert check_hdc_cmd(f"file recv -z {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
+        del_file_in_tmp_dir("", remote_path)
 
 
 class TestFileBase:
     base_file_table = [
-        ("empty", "it_empty"),
         ("small", "it_small"),
         ("medium", "it_medium"),
         ("large", "it_large"),
         ("word_100M.txt", "word_100M")
     ]
 
+    @classmethod
+    def setup_class(self):
+        clear_env()
+        get_file_transfer_rate()
+
+
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     @pytest.mark.parametrize("local_path, remote_path", base_file_table)
-    def test_file_normal(self, local_path, remote_path):
-        clear_env()
+    def test_file_normal(self, local_path, remote_path): 
         assert check_hdc_cmd(f"file send {get_local_path(local_path)} {get_remote_path(remote_path)}")
-        assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")   
+        md5_local = get_md5sum_local(get_local_path(local_path))
+        assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
+        md5_local_recv = get_md5sum_local(get_local_path(f'{local_path}_recv'))
+        del_file_in_tmp_dir("", remote_path)
+        assert md5_local == md5_local_recv
+
+
+    @pytest.mark.L0
+    def test_chinese_file_name_md5(self):
+        filename = "中文"
+        gen_file_in_tmp_dir("", filename, 100, "M", 1, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+    
+    @pytest.mark.L0
+    def test_chinese_file_name_md5_2(self):
+        filename = "中文chinese"
+        gen_file_in_tmp_dir("", filename, 100, "M", 1, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+    
+    @pytest.mark.L0
+    def test_chinese_file_name_md5_with_chinese_dir(self):
+        filename = "中文"
+        dirname = "中文目录"
+        gen_file_in_tmp_dir(dirname, filename, 100, "M", 1, 1)
+
+        remote_path = dirname + "/" + filename
+        local_path = ""
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(dirname)} {get_local_path(local_path)}")
+        md5_local = get_md5sum_local(get_local_path(os.path.join(dirname, filename)))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir(dirname, "", False)
+
+    
+    @pytest.mark.L0
+    def test_chinese_file_name_md5_with_chinese_dir_2(self):
+        filename = "中文chinese"
+        dirname = "中文目录chinese"
+        gen_file_in_tmp_dir(dirname, filename, 100, "M", 1, 1)
+
+        remote_path = dirname + "/" + filename
+        local_path = ""
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(dirname)} {get_local_path(local_path)}")
+        md5_local = get_md5sum_local(get_local_path(os.path.join(dirname, filename)))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir(dirname, "", False)
+
+    
+    @pytest.mark.L0
+    def test_file_md5_with_long_dir_file(self):
+        file_name_10 = generate_random_string(10)
+        dir_name_10 = generate_random_string(10)
+        gen_file_in_tmp_dir(dir_name_10, file_name_10, 100, "M", 1, 1)
+        
+        remote_path = dir_name_10 + "/" + file_name_10
+        local_path = ""
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(dir_name_10)} {get_local_path(local_path)}")
+        md5_local = get_md5sum_local(get_local_path(os.path.join(dir_name_10, file_name_10)))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir(dir_name_10, "", False)
+
+
+    @pytest.mark.L0
+    def test_file_md5_with_long_dir_file_1(self):
+        file_name_30 = generate_random_string(30)
+        dir_name_30 = generate_random_string(30)
+        gen_file_in_tmp_dir(dir_name_30, file_name_30, 100, "M", 1, 1)
+        
+        remote_path = dir_name_30 + "/" + file_name_30
+        local_path = ""
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(dir_name_30)} {get_local_path(local_path)}")
+        md5_local = get_md5sum_local(get_local_path(os.path.join(dir_name_30, file_name_30)))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir(dir_name_30, "", False)
+
+    
+    @pytest.mark.L0
+    def test_file_md5_with_long_dir_file_2(self):
+        file_name_64 = generate_random_string(64)
+        dir_name_64 = generate_random_string(64)
+        gen_file_in_tmp_dir(dir_name_64, file_name_64, 100, "M", 1, 1)
+        
+        remote_path = dir_name_64 + "/" + file_name_64
+        local_path = ""
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(dir_name_64)} {get_local_path(local_path)}")
+        md5_local = get_md5sum_local(get_local_path(os.path.join(dir_name_64, file_name_64)))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir(dir_name_64, "", False)
+
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_file_md5_with_option_cwd(self):
+        file_name = "test_file"
+        gen_file_in_tmp_dir("", file_name, 1, "M", 1, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(file_name)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(file_name)} {get_local_path(file_name)}")
+        md5_local = get_md5sum_local(get_local_path(file_name))
+        assert md5_remote == md5_local
+        check_hdc_cmd(f"file send -cwd {get_local_path(file_name)} {get_remote_path(file_name)}")
+        
+        del_file_in_tmp_dir("", file_name)
+
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_1G_file_md5(self):
+        filename = "test_1G_file"
+        gen_file_in_tmp_dir("", filename, 1024, "M", 1, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+    
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_2G_file_md5(self):
+        filename = "test_2G_file"
+        gen_file_in_tmp_dir("", filename, 1024, "M", 2, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_4G_file_md5(self):
+        filename = "test_4G_file"
+        gen_file_in_tmp_dir("", filename, 1024, "M", 4, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+    
+    @pytest.mark.L0
+    def test_6G_file_md5(self):
+        filename = "test_6G_file"
+        gen_file_in_tmp_dir("", filename, 1024, "M", 6, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+    
+    @pytest.mark.L0
+    def test_10G_file_md5(self):
+        filename = "test_10G_file"
+        gen_file_in_tmp_dir("", filename, 1024, "M", 10, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+
+    @pytest.mark.L0
+    def test_16G_file_md5(self):
+        filename = "test_16G_file"
+        gen_file_in_tmp_dir("", filename, 1024, "M", 16, 1)
+
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
+        md5_local = get_md5sum_local(get_local_path(filename))
+        assert md5_remote == md5_local
+        
+        del_file_in_tmp_dir("", filename)
+
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_file_md5_with_10_depth_dir(self):
+        depth = 10
+        dir_name, dir_name_tmp = "0", "0"
+        for i in range(1, depth):
+            dir_name = dir_name + "/" + str(i)
+            if sys.platform == 'win32':
+                dir_name_tmp = dir_name_tmp + "\\" + str(i)
+            else:
+                dir_name_tmp = dir_name_tmp + "/" + str(i)
+        filename = "test_10G_file"
+        gen_file_in_tmp_dir(dir_name, filename, 1, "M", 10, 1)
+
+        remote_full_path = dir_name + "/" + filename
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_full_path)}").split()[0]
+        remote_path = "0"
+        local_path = ""
+        check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(local_path)}")
+        file_full_path = os.path.join(dir_name_tmp, filename)
+        md5_local = get_md5sum_local(get_local_path(file_full_path))
+        assert md5_remote == md5_local
+
+        del_file_in_tmp_dir(dir_name, filename)
+
+    
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_file_md5_with_20_depth_dir(self):
+        depth = 20
+        dir_name, dir_name_tmp = "0", "0"
+        for i in range(1, depth):
+            dir_name = dir_name + "/" + str(i)
+            if sys.platform == 'win32':
+                dir_name_tmp = dir_name_tmp + "\\" + str(i)
+            else:
+                dir_name_tmp = dir_name_tmp + "/" + str(i)
+        filename = "test_10G_file"
+        gen_file_in_tmp_dir(dir_name, filename, 1, "M", 10, 1)
+
+        remote_full_path = dir_name + "/" + filename
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_full_path)}").split()[0]
+        remote_path = "0"
+        local_path = ""
+        check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(local_path)}")
+        file_full_path = os.path.join(dir_name_tmp, filename)
+        md5_local = get_md5sum_local(get_local_path(file_full_path))
+        assert md5_remote == md5_local
+
+        del_file_in_tmp_dir(dir_name, filename)
+
+    
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_file_md5_with_32_depth_dir(self):
+        depth = 32
+        dir_name, dir_name_tmp = "0", "0"
+        for i in range(1, depth):
+            dir_name = dir_name + "/" + str(i)
+            if sys.platform == 'win32':
+                dir_name_tmp = dir_name_tmp + "\\" + str(i)
+            else:
+                dir_name_tmp = dir_name_tmp + "/" + str(i)
+        filename = "test_10G_file"
+        gen_file_in_tmp_dir(dir_name, filename, 1, "M", 10, 1)
+
+        remote_full_path = dir_name + "/" + filename
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_full_path)}").split()[0]
+        remote_path = "0"
+        local_path = ""
+        check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(local_path)}")
+        file_full_path = os.path.join(dir_name_tmp, filename)
+        md5_local = get_md5sum_local(get_local_path(file_full_path))
+        assert md5_remote == md5_local
+
+        del_file_in_tmp_dir(dir_name, filename)
+
+    
+    @pytest.mark.L0
+    def test_file_rate_60M(self):
+        rate_60M = 1.0 * 60 * 1024
+        assert file_transfer_avg_rate >= rate_60M
+
+
+    @pytest.mark.L0
+    def test_file_rate_80M(self):
+        rate_80M = 1.0 * 80 * 1024
+        assert file_transfer_avg_rate >= rate_80M
+
+
+    @pytest.mark.L0
+    def test_file_rate_120M(self):
+        rate_120M = 1.0 * 120 * 1024
+        assert file_transfer_avg_rate >= rate_120M
 
 
 class TestDirBase:

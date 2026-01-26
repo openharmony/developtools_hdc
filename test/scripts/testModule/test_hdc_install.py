@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
+import sys
 from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall, \
     check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp, check_app_not_exist, \
     check_app_dir_not_exist, get_bundle_info
@@ -141,8 +142,10 @@ class TestInstallBase:
         # -s
         assert check_app_install(package_hsp, hsp_module_name, '-s')
         # -cwd
-        assert check_app_install(package_hap, hap_module_name, '-cwd .\\')
-        assert not check_app_install(package_hap, hap_module_name, '-cwd F:\\')
+        if sys.platform == 'win32':
+            assert check_app_install(package_hap, hap_module_name, '-cwd .\\')
+        else:
+            assert check_app_install(package_hap, hap_module_name, '-cwd ./')
         # -w
         assert check_app_install(package_hap, hap_module_name, '"-w 180"')
         # -u

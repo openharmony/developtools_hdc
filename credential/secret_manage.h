@@ -12,3 +12,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifndef HDC_SECRET_MANAGE_H
+#define HDC_SECRET_MANAGE_H
+
+
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <iomanip>
+#include <unistd.h>
+#include "hdc_huks.h"
+
+const std::string HDC_RAS_KEY_FILE_PWD_KEY_ALIAS = "hdc_ras_key_file_key_alias";
+
+class HdcSecretManage {
+public:
+    explicit HdcSecretManage(const std::string &pwdKeyAlias);
+    int TryLoadPublicKeyInfo();
+    int TryLoadPrivateKeyInfo(std::string &processMessageValue);
+    uint8_t *GetPublicKeyHash();
+
+private:
+    bool LoadPrivateKeyInfo();
+    void ClearPrivateKeyInfo();
+    void LoadPublicKeyInfo();
+    void ClearPublicKeyInfo();
+    bool GetPublicKeyFingerprint();
+    bool CheckPubkeyAndPrivKeyMatch();
+    bool LoadPublicKeyHash();
+    bool SignatureByPrivKey(const char *testData, std::vector<unsigned char> &signature, size_t &reqLen);
+    bool VerifyByPublicKey(const char *testData, std::vector<unsigned char> &signature, const size_t reqLen);
+    bool ReadEncryptKeyFile(std::vector<uint8_t>& fileData);
+    bool derToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo);
+
+    EVP_PKEY *pubKey;
+    EVP_PKEY *privKey;
+    uint8_t publicKeyHash[SHA256_DIGEST_LENGTH] = {0};
+    Hdc::HdcHuks hdcRsaHuks;
+};
+
+int HandleGetPubkeyMessage(std::string &processMessageValue);
+int HandleGetSignatureMessage(std::string &processMessageValue);
+#endif  // HDC_SECRET_MANAGE_H

@@ -204,3 +204,115 @@ void SplitString(const std::string &origString, const std::string &seq,
         resultStrings.push_back(origString.substr(p1));
     }
 }
+
+std::string SplicMessageStr(const std::string &str, const size_t methodType, const size_t methonVersion)
+{
+    if (str.empty()) {
+        WRITE_LOG(LOG_FATAL, "Input string is empty.");
+        return "";
+    }
+    const size_t bodyLen = str.size();
+    size_t totalLength = MESSAGE_METHOD_POS + MESSAGE_METHOD_LEN +
+                         MESSAGE_LENGTH_LEN + bodyLen;
+
+    std::string messageMethodTypeStr = IntToStringWithPadding(methodType, MESSAGE_METHOD_LEN);
+    if (messageMethodTypeStr.length() != MESSAGE_METHOD_LEN) {
+        WRITE_LOG(LOG_FATAL, "messageMethodTypeStr length must be:%d,now is:%s",
+            MESSAGE_METHOD_LEN, messageMethodTypeStr.c_str());
+        return "";
+    }
+
+    std::string messageBodyLen = IntToStringWithPadding(str.length(), MESSAGE_LENGTH_LEN);
+    if (messageBodyLen.empty() || (messageBodyLen.length() > MESSAGE_LENGTH_LEN)) {
+        WRITE_LOG(LOG_FATAL, "messageBodyLen length must be:%d,now is:%s", MESSAGE_LENGTH_LEN, messageBodyLen.c_str());
+        return "";
+    }
+
+    std::string result;
+    result.reserve(totalLength);
+    result.push_back('0' + methonVersion);
+    result.append(messageMethodTypeStr);
+    result.append(messageBodyLen);
+    result.append(str);
+    if (result.size() != totalLength) {
+        WRITE_LOG(LOG_FATAL, "size mismatch. Expected: %zu, Actual: %zu", totalLength, result.size());
+        return "";
+    }
+    return result;
+}
+
+bool SendMessageByUnixSocket(const int sockfd, const std::string &messageStr)
+{
+    struct sockaddr_un addr = {.sun_family = AF_UNIX};
+    size_t maxPathLen = sizeof(addr.sun_path) - 1;
+    size_t pathLen = strlen(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str());
+    if (pathLen > maxPathLen) {
+        WRITE_LOG(LOG_FATAL, "Socket path too long.");
+        return false;
+    }
+
+    if (memcpy_s(addr.sun_path, maxPathLen, HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), pathLen) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to memcpy_st.");
+        return false;
+    }
+
+    if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
+        return false;
+    }
+
+    if (send(sockfd, messageStr.c_str(), messageStr.size(), 0) < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to send message.");
+        return false;
+    }
+
+    return true;
+}
+
+ssize_t RecvMessageByUnixSocket(const int sockfd, char data[], ssize_t size)
+{
+    ssize_t count = 0;
+    ssize_t bytesRead = 0;
+    while ((bytesRead = recv(sockfd, data + count, size - 1 - count, 0)) > 0) {
+        count += bytesRead;
+        if (count >= size - 1) {
+            WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
+            return false;
+        }
+    }
+
+    data[count] = '\0';
+    if (bytesRead < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
+        return -1;
+    }
+    return count;
+}
+
+ssize_t GetCredential(const std::string &messageStr, char data[], ssize_t size)
+{
+    if (data == nullptr || size < static_cast<ssize_t>(MESSAGE_STR_MAX_LEN)) {
+        WRITE_LOG(LOG_FATAL, "data is null or size:%d out of range", size);
+        return -1;
+    }
+
+    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+        return -1;
+    }
+
+    if (!SendMessageByUnixSocket(sockfd, messageStr)) {
+        close(sockfd);
+        return -1;
+    }
+
+    ssize_t count = RecvMessageByUnixSocket(sockfd, data, size);
+    if (count < 0){
+        close(sockfd);
+        return -1;
+    }
+    
+    close(sockfd);
+    return count;
+}

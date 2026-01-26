@@ -140,25 +140,29 @@ bool CommandEventReport::Report(const std::string &command, const std::string &c
 bool CommandEventReport::ReportByUnixSocket(const std::string &command,
     const std::string &inputRaw, Base::Caller caller, bool isIntercepted)
 {
-    std::string messageStr = SplicMessageStr(command, inputRaw, caller, isIntercepted);
+    std::string str = FormatMessage(command, inputRaw, caller, isIntercepted);
+    if (str.empty()) {
+        WRITE_LOG(LOG_FATAL, "Input command is empty.");
+        return false;
+    }
+
+    std::string messageStr = SplicMessageStr(str, METHOD_COMMAND_EVENT_REPORT, METHOD_REPORT);
     if (messageStr.empty()) {
         WRITE_LOG(LOG_FATAL, "Failed to format message.");
         return false;
     }
 
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+    char data[MESSAGE_STR_MAX_LEN] = {0};
+    ssize_t count = GetCredential(messageStr, data, MESSAGE_STR_MAX_LEN);
+    if (count <= 0) {
+        WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
         return false;
     }
 
-    if (!SendMessageByUnixSocket(sockfd, messageStr)) {
-        close(sockfd);
-        return false;
-    }
-
-    if (!RecvMessageByUnixSocket(sockfd)) {
-        close(sockfd);
+    std::string receiveStr(data, count);
+    CredentialMessage messageStruct(receiveStr);
+    if (messageStruct.GetMessageBody() == EVENT_PARAM_RETURN_FAILED) {
+        WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
         return false;
     }
 

@@ -891,7 +891,11 @@ static bool MakeRsaSign(EVP_PKEY_CTX *ctx, string &result, unsigned char *digest
         std::unique_ptr<unsigned char[]> signResult = std::make_unique<unsigned char[]>(signResultLen);
         std::unique_ptr<unsigned char[]> signOut = std::make_unique<unsigned char[]>(signResultLen * 2);
         if (EVP_PKEY_sign(ctx, signResult.get(), &signResultLen, digest, digestLen) <=0) {
-            WRITE_LOG(LOG_FATAL, "sign failed");
+            unsigned long err = ERR_get_error();
+            if (err != 0) {
+                char *err_str = ERR_error_string(err, NULL);
+                WRITE_LOG(LOG_FATAL, "sign failed: %s", err_str);
+            }
             return false;
         }
         signOutLen = EVP_EncodeBlock(signOut.get(), signResult.get(), signResultLen);

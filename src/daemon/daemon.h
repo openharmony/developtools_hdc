@@ -84,6 +84,7 @@ private:
     bool ShowPermitDialog();
     bool HandDaemonAuthInit(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
+    bool HandConnectValidationPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool HandDaemonAuthSignature(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
     bool DaemonSSLHandshake(HSession hSession, const uint32_t channelId, SessionHandShake &handshake);
 // deprecated, remove later
@@ -103,7 +104,8 @@ private:
     void SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
                        HSession hSession, string msg = "", string daemonAuthResult = DAEOMN_AUTH_SUCCESS);
     void AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, HSession hSession);
-    void HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg);
+    void AuthRejectNotSupportConnValidation(SessionHandShake &handshake, uint32_t channelid, HSession hSession);
+    void HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, HSession hSession, string msg);
     bool AuthVerify(HSession hSession, const string &encryptToken, const string &token, const string &pubkey);
     bool AuthVerifyRsaSign(HSession hSession, const string &tokenSignBase64, const string &token, RSA *rsa);
     bool RsaSignVerify(HSession hSession, EVP_PKEY_CTX *ctx, const string &tokenSignBase64, const string &token);

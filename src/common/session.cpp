@@ -1256,6 +1256,13 @@ void HdcSessionBase::SetFeature(SessionHandShake &handshake, const uint8_t connT
         feature.push_back(FEATURE_ENCRYPT_TCP);
     }
 #endif
+#ifdef HOST_OHOS
+    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+    if (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
+        WRITE_LOG(LOG_INFO, "tttttttttttttttttttt HdcValidation::GetConnectValidationParam()");
+        feature.push_back(FEATURE_CONN_VALIDATION);
+    }
+#endif
     // told daemon, we support features
     if (feature.size() == 0) {
         return;
@@ -1506,6 +1513,10 @@ void HdcSessionBase::SendHeartbeatMsg(uv_timer_t *handle)
         return;
     }
 
+    if (!hSession->handshakeOK) {
+        return;
+    }
+
     std::string str = hSession->heartbeat.ToString();
     WRITE_LOG(LOG_INFO, "send %s for session %s", str.c_str(),
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
@@ -1701,6 +1712,12 @@ void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::
         hSession->heartbeat.SetSupportHeartbeat(Base::IsSupportFeature(features, FEATURE_HEARTBEAT));
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
         hSession->supportEncrypt = Base::IsSupportFeature(features, FEATURE_ENCRYPT_TCP);
+#endif
+#ifndef HDC_HOST
+        int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+        if (connectValidationStatus == VALIDATION_HDC_DAEMON || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
+            hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
+        }
 #endif
         HdcStatisticReporter::GetInstance().SetConnectInfo(features);
     }

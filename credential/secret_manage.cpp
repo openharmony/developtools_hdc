@@ -62,11 +62,11 @@ bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
     return true;
 }
 
-bool HdcSecretManage::derToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo)
+bool HdcSecretManage::DerToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo)
 {
     std::string pemStr(reinterpret_cast<const char*>(privKeyInfo.first), privKeyInfo.second);
 
-    WRITE_LOG(LOG_FATAL, "derToEvpPkey %s", pemStr.c_str());
+    WRITE_LOG(LOG_FATAL, "DerToEvpPkey %s", pemStr.c_str());
     BIO* bio = BIO_new_mem_buf(pemStr.c_str(), pemStr.size());
     if (!bio) {
         WRITE_LOG(LOG_FATAL, "Failed to create BIO");
@@ -97,7 +97,7 @@ bool HdcSecretManage::LoadPrivateKeyInfo()
         return false;
     }
 
-    bool ret = derToEvpPkey(privKeyInfo);
+    bool ret = DerToEvpPkey(privKeyInfo);
 
     if (memset_s(privKeyInfo.first, privKeyInfo.second, 0, privKeyInfo.second) != EOK) {
         WRITE_LOG(LOG_FATAL, "memset_s failed.");
@@ -122,8 +122,8 @@ void HdcSecretManage::LoadPublicKeyInfo()
         return;
     }
 
-    pubKey = PEM_read_PUBKEY(pubFile, NULL, NULL, NULL);
-    fclose(pubFile);
+    pubKey = PEM_read_PUBKEY(pubFile, nullptr, nullptr, nullptr);
+    (void)fclose(pubFile);
 }
 
 void HdcSecretManage::ClearPublicKeyInfo()
@@ -136,7 +136,7 @@ void HdcSecretManage::ClearPublicKeyInfo()
 
 bool HdcSecretManage::GetPublicKeyFingerprint()
 {
-    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pubKey, NULL);
+    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pubKey, nullptr);
     if (!pctx) {
         WRITE_LOG(LOG_WARN, "Failed to create EVP_PKEY_CTX");
         return false;
@@ -150,7 +150,7 @@ bool HdcSecretManage::GetPublicKeyFingerprint()
 
     EVP_PKEY_CTX_free(pctx);
 
-    unsigned char *pubKeyData = NULL;
+    unsigned char *pubKeyData = nullptr;
     int pubKeyLen = i2d_PUBKEY(pubKey, &pubKeyData);
     if (pubKeyLen <= 0) {
         WRITE_LOG(LOG_WARN, "Failed to convert public key to data");
@@ -175,14 +175,14 @@ bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsig
         return false;
     }
 
-    if (1 != EVP_DigestSignInit(mdctx, NULL, EVP_sha256(), NULL, privKey)) {
+    if (1 != EVP_DigestSignInit(mdctx, nullptr, EVP_sha256(), nullptr, privKey)) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSignInit failed");
         EVP_MD_CTX_free(mdctx);
         return false;
     }
 
     reqLen = 0;
-    if (1 != EVP_DigestSign(mdctx, NULL, &reqLen, (const unsigned char *)testData, strlen(testData))) {
+    if (1 != EVP_DigestSign(mdctx, nullptr, &reqLen, (const unsigned char *)testData, strlen(testData))) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSign failed");
         EVP_MD_CTX_free(mdctx);
         return false;
@@ -198,14 +198,15 @@ bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsig
     return true;
 }
 
-bool HdcSecretManage::VerifyByPublicKey(const char *testData, std::vector<unsigned char> &signature, const size_t reqLen)
+bool HdcSecretManage::VerifyByPublicKey(const char *testData,
+    std::vector<unsigned char> &signature, const size_t reqLen)
 {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx) {
         return false;
     }
 
-    if (1 != EVP_DigestVerifyInit(mdctx, NULL, EVP_sha256(), NULL, pubKey)) {
+    if (1 != EVP_DigestVerifyInit(mdctx, nullptr, EVP_sha256(), nullptr, pubKey)) {
         WRITE_LOG(LOG_WARN, "EVP_DigestVerifyInit failed");
         EVP_MD_CTX_free(mdctx);
         return false;
@@ -219,7 +220,7 @@ bool HdcSecretManage::VerifyByPublicKey(const char *testData, std::vector<unsign
 bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
 {
     LoadPublicKeyInfo();
-    if(!LoadPrivateKeyInfo()) {
+    if (!LoadPrivateKeyInfo()) {
         WRITE_LOG(LOG_FATAL, "LoadPrivateKeyInfo failed.");
         return false;
     }
@@ -268,7 +269,7 @@ int HdcSecretManage::TryLoadPublicKeyInfo()
     }
 
     if (stat(ENCRYPT_PRIVATE_KEY_PATH.c_str(), &status) == -1) {
-        WRITE_LOG(LOG_FATAL, "The privkey file %s does not exist or is inaccessible: %s", ENCRYPT_PRIVATE_KEY_PATH.c_str(), strerror(errno));
+        WRITE_LOG(LOG_FATAL, "The privkey file does not exist or is inaccessible: %s", strerror(errno));
         return GET_PRIVKEY_FAILED;
     }
 
@@ -306,7 +307,7 @@ int HdcSecretManage::TryLoadPrivateKeyInfo(std::string &processMessageValue)
         return GET_PRIVKEY_FAILED;
     }
 
-    if(!LoadPrivateKeyInfo()) {
+    if (!LoadPrivateKeyInfo()) {
         WRITE_LOG(LOG_FATAL, "LoadPrivateKeyInfo failed.");
         return false;
     }

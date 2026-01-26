@@ -27,7 +27,7 @@ public:
     static int CaculateGcmEncryptLen(int palinDataLen);
     bool ResetHuksKey(void);
     int32_t GenerateAndExportHuksRSAPublicKey(void);
-    std::pair<uint8_t*, int> RsaDecryptPrivateKey(std::vector<uint8_t>& inputData); 
+    std::pair<uint8_t*, int> RsaDecryptPrivateKey(std::vector<uint8_t>& inputData);
 private:
     bool MakeHuksParamSet(struct HksParamSet **paramSet,
         const struct HksParam *baseParams, int baseParamCount, const struct HksParam *params, int paramCount);

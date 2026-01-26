@@ -800,8 +800,8 @@ bool HdcDaemon::HandDaemonAuthBypass(void)
 bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-    bool connectstatus = (connectValidationStatus == VALIDATION_HDC_DAEMON || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
-    WRITE_LOG(LOG_INFO, "connectValidationStatus %d, connectstatus %d", connectValidationStatus, connectstatus);
+    bool connectstatus = (connectValidationStatus == VALIDATION_HDC_DAEMON
+        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
  
     if (!connectstatus && !authEnable) {
         WRITE_LOG(LOG_INFO, "not enable secure, allow access for %s",
@@ -1001,7 +1001,6 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_INFO, "session %s handshakeOK send back CMD_KERNEL_HANDSHAKE", sessionIdMaskStr.c_str());
 #endif
-    // hSession->handshakeOK = true;
     return true;
 }
 
@@ -1380,7 +1379,8 @@ void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
         Base::TlvAppend(emgmsg, TAG_DAEOMN_AUTHSTATUS, daemonAuthResult);
         
         int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-        bool connectstatus = (connectValidationStatus == VALIDATION_HDC_DAEMON || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
+        bool connectstatus = (connectValidationStatus == VALIDATION_HDC_DAEMON
+            || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
         if (!connectstatus || hSession->supportConnValidation) {
             AddFeatureTagToEmgmsg(emgmsg);
             hSession->handshakeOK = true;

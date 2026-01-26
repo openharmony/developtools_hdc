@@ -308,7 +308,7 @@ ssize_t GetCredential(const std::string &messageStr, char data[], ssize_t size)
     }
 
     ssize_t count = RecvMessageByUnixSocket(sockfd, data, size);
-    if (count < 0){
+    if (count < 0) {
         close(sockfd);
         return -1;
     }

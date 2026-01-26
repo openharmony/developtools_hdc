@@ -40,7 +40,6 @@ int GetConnectValidationParam()
 
     uint8_t result = VALIDATION_CLOSE;
     result = static_cast<uint8_t>(std::stoul(parameterValue));
-
     if (result > VALIDATION_HDC_HOST_AND_DAEMON) {
         result = VALIDATION_CLOSE;
     }
@@ -69,18 +68,18 @@ bool GetPubKeyHash(string &pubkeyInfo)
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     memset_s(data, sizeof(data), 0, sizeof(data));
     switch (messageStruct.GetMessageMethodType()) {
-            case GET_PUBKEY_FAILED:
-                pubkeyInfo = "[E000008]: The sdk hdc.exe failed to read the public key.";
-                break;
-            case GET_PRIVKEY_FAILED:
-                pubkeyInfo = "[E000009]: The sdk hdc.exe failed to read the private key.";
-                break;
-            case MISMATCH_PUBKEY_PRIVKEY:
-                pubkeyInfo = "[E00000A]: The sdk hdc.exe public and private keys do not match.";
-                break;
-            default:
-                break;
-        }
+        case GET_PUBKEY_FAILED:
+            pubkeyInfo = "[E000008]: The sdk hdc.exe failed to read the public key.";
+            break;
+        case GET_PRIVKEY_FAILED:
+            pubkeyInfo = "[E000009]: The sdk hdc.exe failed to read the private key.";
+            break;
+        case MISMATCH_PUBKEY_PRIVKEY:
+            pubkeyInfo = "[E00000A]: The sdk hdc.exe public and private keys do not match.";
+            break;
+        default:
+            break;
+    }
     if (messageStruct.GetMessageBodyLen() > 0) {
         pubkeyInfo = messageStruct.GetMessageBody();
         return true;
@@ -136,7 +135,7 @@ bool GetPrivateKeyInfo(string &privkey_info)
     CredentialMessage messageStruct(recvStr);
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     memset_s(data, sizeof(data), 0, sizeof(data));
-    switch ( messageStruct.GetMessageMethodType()) {
+    switch (messageStruct.GetMessageMethodType()) {
         case GET_PRIVKEY_FAILED:
             privkey_info = "[E000009]: The sdk hdc.exe failed to read the private key.";
             break;
@@ -145,7 +144,6 @@ bool GetPrivateKeyInfo(string &privkey_info)
     }
     if (messageStruct.GetMessageBodyLen() > 0) {
         privkey_info = messageStruct.GetMessageBody();
-        // WRITE_LOG(LOG_FATAL, "privkey_info %s", privkey_info.c_str());
         return true;
     } else {
         WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
@@ -208,7 +206,8 @@ bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr)
 
 #else
 
-std::vector<EVP_PKEY*> ReadMultiplePublicKeys() {
+std::vector<EVP_PKEY*> ReadMultiplePublicKeys()
+{
     std::vector<EVP_PKEY*> keys;
     
     FILE* fp = fopen(DAEMON_PUBLICKEY_PATH.c_str(), "r");
@@ -220,7 +219,7 @@ std::vector<EVP_PKEY*> ReadMultiplePublicKeys() {
     BIO* bio = BIO_new_fp(fp, BIO_NOCLOSE);
     if (!bio) {
         WRITE_LOG(LOG_FATAL, "Failed to create BIO object");
-        fclose(fp);
+        (void)fclose(fp);
         return keys;
     }
     
@@ -230,14 +229,14 @@ std::vector<EVP_PKEY*> ReadMultiplePublicKeys() {
     }
 
     BIO_free(bio);
-    fclose(fp);
+    (void)fclose(fp);
     
     return keys;
 }
 
 bool GetPublicKeyFingerprint(EVP_PKEY* pubKey, uint8_t* publicKeyHash)
 {
-    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pubKey, NULL);
+    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pubKey, nullptr);
     if (!pctx) {
         WRITE_LOG(LOG_WARN, "Failed to create EVP_PKEY_CTX");
         return false;
@@ -251,7 +250,7 @@ bool GetPublicKeyFingerprint(EVP_PKEY* pubKey, uint8_t* publicKeyHash)
 
     EVP_PKEY_CTX_free(pctx);
 
-    unsigned char *pubKeyData = NULL;
+    unsigned char *pubKeyData = nullptr;
     int pubKeyLen = i2d_PUBKEY(pubKey, &pubKeyData);
     if (pubKeyLen <= 0) {
         WRITE_LOG(LOG_WARN, "Failed to convert public key to data");

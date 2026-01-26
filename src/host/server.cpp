@@ -481,7 +481,7 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
             WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
                 tlvmap[TAG_SUPPORT_FEATURE].c_str(), hSession->sessionId);
             Base::SplitString(tlvmap[TAG_SUPPORT_FEATURE], ",", features);
-            hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);  
+            hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
         }
     }
 #endif
@@ -519,10 +519,9 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
         }
     }
     handshake.authType = AUTH_PUBLICKEY;
-    string bufString;
-    bufString = SerialStruct::SerializeToString(handshake);
+    string bufString = SerialStruct::SerializeToString(handshake);
     Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
-            reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+         reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
 
     WRITE_LOG(LOG_INFO, "send pubkey over");
     return true;
@@ -549,10 +548,9 @@ bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &hand
     }
 
     handshake.authType = AUTH_SIGNATURE;
-    string bufString;
-    bufString = SerialStruct::SerializeToString(handshake);
+    string bufString = SerialStruct::SerializeToString(handshake);
     Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
-            reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+         reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
     WRITE_LOG(LOG_INFO, "response auth signture success");
     return true;
 }
@@ -766,7 +764,8 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     }
 #ifdef HOST_OHOS
     int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-    bool connectstatus = (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
+    bool connectstatus = (connectValidationStatus == VALIDATION_HDC_HOST
+        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
     if (connectstatus && (handshake.authType == AUTH_OK)) {
         if (!hSession->isAuthenticated) {
             WRITE_LOG(LOG_WARN, "[E000007]: The device is not permitted for debugging by the enterprise management.");

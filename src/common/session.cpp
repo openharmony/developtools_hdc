@@ -1715,7 +1715,8 @@ void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::
 #endif
 #ifndef HDC_HOST
         int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-        if (connectValidationStatus == VALIDATION_HDC_DAEMON || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
+        if (connectValidationStatus == VALIDATION_HDC_DAEMON ||
+            connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
             hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
         }
 #endif

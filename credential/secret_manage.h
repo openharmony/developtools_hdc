@@ -49,7 +49,7 @@ private:
     bool SignatureByPrivKey(const char *testData, std::vector<unsigned char> &signature, size_t &reqLen);
     bool VerifyByPublicKey(const char *testData, std::vector<unsigned char> &signature, const size_t reqLen);
     bool ReadEncryptKeyFile(std::vector<uint8_t>& fileData);
-    bool derToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo);
+    bool DerToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo);
 
     EVP_PKEY *pubKey;
     EVP_PKEY *privKey;

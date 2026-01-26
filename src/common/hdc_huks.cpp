@@ -325,8 +325,9 @@ int HdcHuks::CaculateGcmEncryptLen(int palinDataLen)
 
 std::string HdcHuks::base64Encode(const std::vector<unsigned char> &data)
 {
-    BIO *bio, *b64;
-    BUF_MEM *bufferPtr;
+    BIO *bio = nullptr;
+    BIO *b64 = nullptr;
+    BUF_MEM *bufferPtr = nullptr;
 
     b64 = BIO_new(BIO_f_base64());
     bio = BIO_new(BIO_s_mem());
@@ -388,17 +389,14 @@ int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
     WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
 #endif
     struct HksParam genRsaKeyPara[] = {
-        {.tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT},               // 密钥用途
+        {.tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT},
 #if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
         {.tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId},
 #endif
     };
 
-    if (!MakeHuksParamSet(&generateParamSet,
-            rsaBasePara,
-            sizeof(rsaBasePara) / sizeof(HksParam),
-            genRsaKeyPara,
-            sizeof(genRsaKeyPara) / sizeof(HksParam))) {
+    if (!MakeHuksParamSet(&generateParamSet, rsaBasePara, sizeof(rsaBasePara) / sizeof(HksParam),
+        genRsaKeyPara, sizeof(genRsaKeyPara) / sizeof(HksParam))) {
         return result;
     }
 
@@ -432,11 +430,8 @@ struct HksParamSet *HdcHuks::MakeRsaDecryptParamSets()
         {.tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId},
 #endif
     };
-    if (!MakeHuksParamSet(&paramSet,
-            rsaBasePara,
-            sizeof(rsaBasePara) / sizeof(HksParam),
-            rsaDecryptPara,
-            sizeof(rsaDecryptPara) / sizeof(HksParam))) {
+    if (!MakeHuksParamSet(&paramSet, rsaBasePara, sizeof(rsaBasePara) / sizeof(HksParam),
+        rsaDecryptPara, sizeof(rsaDecryptPara) / sizeof(HksParam))) {
         return nullptr;
     }
     return paramSet;
@@ -444,8 +439,11 @@ struct HksParamSet *HdcHuks::MakeRsaDecryptParamSets()
 
 std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &inputData)
 {
-    WRITE_LOG(LOG_FATAL, "inputData size %d ", inputData.size());
     const size_t totalSize = inputData.size();
+    if (totalSize == 0) {
+        WRITE_LOG(LOG_FATAL, "inputData size %d ", inputData.size());
+        return std::make_pair(nullptr, 0);
+    }
 
     std::vector<uint8_t> decryptedData;
     decryptedData.reserve(totalSize);
@@ -463,7 +461,7 @@ std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &in
 
         struct HksBlob encryptBlob = {currentSegmentSize, reinterpret_cast<uint8_t*>(&(*segmentStart))};
 
-        std::unique_ptr<uint8_t[]> plainData(new uint8_t[currentSegmentSize]);
+        std::unique_ptr<uint8_t[]> plainData = std::make_unique<uint8_t[]>(currentSegmentSize);
         struct HksBlob plainBlob = {currentSegmentSize, plainData.get()};
 
         int32_t ret = HksDecrypt(&(this->keyBlobAlias), paramSet, &encryptBlob, &plainBlob);

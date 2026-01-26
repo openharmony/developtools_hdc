@@ -26,7 +26,8 @@ public:
     std::pair<uint8_t*, int> AesGcmDecrypt(const std::string& inputData);
     static int CaculateGcmEncryptLen(int palinDataLen);
     bool ResetHuksKey(void);
-    int32_t 
+    int32_t GenerateAndExportHuksRSAPublicKey(void);
+    std::pair<uint8_t*, int> RsaDecryptPrivateKey(std::vector<uint8_t>& inputData); 
 private:
     bool MakeHuksParamSet(struct HksParamSet **paramSet,
         const struct HksParam *baseParams, int baseParamCount, const struct HksParam *params, int paramCount);
@@ -37,6 +38,11 @@ private:
     bool CreateAesKey(struct HksParamSet *paramSet);
     bool DeleteAesKey(HksParamSet *paramSet);
     void GenerateNonce(uint8_t *nonce, int nonceBufLen);
+    int32_t InitRsaParamSet(struct HksParamSet **paramSet, const struct HksParam *params,
+                            uint32_t paramCount);
+    int32_t ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetIn);
+    std::string base64Encode(const std::vector<unsigned char>& data);
+    struct HksParamSet* MakeRsaDecryptParamSets();
     std::string keyAlias;
     struct HksBlob keyBlobAlias;
 };

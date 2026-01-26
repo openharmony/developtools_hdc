@@ -14,6 +14,7 @@
  */
 
 #include "command_event_report.h"
+#include "credential_message.h"
 
 #include <parameters.h>
 #include "sys/socket.h"

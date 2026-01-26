@@ -24,13 +24,13 @@ static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
 std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd)
 {
-    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT);
+    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT, METHOD_VERSION_V1);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
     }
     char data[MESSAGE_STR_MAX_LEN] = {0};
-    ssize_t count = GetCredential(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr, data, MESSAGE_STR_MAX_LEN);
+    ssize_t count = GetCredential(sendStr, data, MESSAGE_STR_MAX_LEN);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (count <= 0) {
         WRITE_LOG(LOG_FATAL, "recv data is empty.");
@@ -55,13 +55,13 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd)
 
 std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encryptData)
 {
-    std::string sendStr = SplicMessageStr(encryptData, METHOD_DECRYPT);
+    std::string sendStr = SplicMessageStr(encryptData, METHOD_DECRYPT, METHOD_VERSION_V1);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);
     }
     char data[MESSAGE_STR_MAX_LEN] = {0};
-    ssize_t count = GetCredential(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), sendStr, data, MESSAGE_STR_MAX_LEN);
+    ssize_t count = GetCredential(sendStr, data, MESSAGE_STR_MAX_LEN);
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (count <= 0) {
         WRITE_LOG(LOG_FATAL, "recv data is empty.");

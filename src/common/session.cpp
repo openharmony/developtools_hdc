@@ -1259,7 +1259,6 @@ void HdcSessionBase::SetFeature(SessionHandShake &handshake, const uint8_t connT
 #ifdef HOST_OHOS
     int connectValidationStatus = HdcValidation::GetConnectValidationParam();
     if (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
-        WRITE_LOG(LOG_INFO, "tttttttttttttttttttt HdcValidation::GetConnectValidationParam()");
         feature.push_back(FEATURE_CONN_VALIDATION);
     }
 #endif

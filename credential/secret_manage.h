@@ -16,16 +16,15 @@
 #ifndef HDC_SECRET_MANAGE_H
 #define HDC_SECRET_MANAGE_H
 
-
-#include <string>
 #include <fstream>
-#include <sstream>
+#include <iomanip>
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
-#include <iomanip>
+#include <string>
+#include <sstream>
 #include <unistd.h>
 #include "hdc_huks.h"
 

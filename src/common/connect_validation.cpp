@@ -100,7 +100,6 @@ bool GetPublicKeyHashInfo(string &buf)
 
     std::string pubkeyInfo;
     if (!GetPubKeyHash(pubkeyInfo)) {
-        WRITE_LOG(LOG_FATAL, "%s", pubkeyInfo.c_str());
         string msg = pubkeyInfo;
         Base::TlvAppend(buf, TAG_EMGMSG, msg);
         Base::TlvAppend(buf, TAG_DAEOMN_AUTHSTATUS, DAEOMN_UNAUTHORIZED);

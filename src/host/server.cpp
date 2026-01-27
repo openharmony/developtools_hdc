@@ -479,7 +479,7 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
         if (tlvmap.find(TAG_SUPPORT_FEATURE) != tlvmap.end()) {
             std::vector<std::string> features;
             WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
-                tlvmap[TAG_SUPPORT_FEATURE].c_str(), hSession->sessionId);
+                tlvmap[TAG_SUPPORT_FEATURE].c_str(), sessionIdMaskStr.c_str());
             Base::SplitString(tlvmap[TAG_SUPPORT_FEATURE], ",", features);
             hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
         }
@@ -500,13 +500,12 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
 #endif
     if (connectValidation == VALIDATION_HDC_HOST || connectValidation == VALIDATION_HDC_HOST_AND_DAEMON) {
         if (!hSession->supportConnValidation) {
-            WRITE_LOG(LOG_FATAL, "[E000007]: The device is not permitted for debugging by the enterprise management.");
             string msg = "[E000007]: The device is not permitted for debugging by the enterprise management.";
+            WRITE_LOG(LOG_FATAL, "%s", msg.c_str);
             Base::TlvAppend(handshake.buf, TAG_EMGMSG, msg);
             Base::TlvAppend(handshake.buf, TAG_DAEOMN_AUTHSTATUS, DAEOMN_UNAUTHORIZED);
             return false;
         }
-        // 通过hdc_credential获取公钥hash
         if (!HdcValidation::GetPublicKeyHashInfo(handshake.buf)) {
             WRITE_LOG(LOG_FATAL, "load public key failed");
             return false;
@@ -529,7 +528,7 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
 
 bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &handshake)
 {
-    int connectValidation = 0; //仅ohos平台获取该参数。
+    int connectValidation = 0; // 仅ohos平台获取该参数。
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
 #endif

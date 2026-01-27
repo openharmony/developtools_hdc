@@ -528,8 +528,8 @@ bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t ch
     if (ret) {
         SendAuthMsg(handshake, channelId, hSession, pubkey);
     } else {
-        WRITE_LOG(LOG_FATAL, "[E000010]:Auth failed, cannt login the device.");
         string notifymsg = "[E000010]:Auth failed, cannt login the device.";
+        WRITE_LOG(LOG_FATAL, "%s", notifymsg.c_str());
         HandleAuthFailed(handshake, channelId, hSession, notifymsg);
     }
     return true;
@@ -540,7 +540,6 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
     int connectValidationStatus = HdcValidation::GetConnectValidationParam();
     if (connectValidationStatus == VALIDATION_HDC_DAEMON
         || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
-        WRITE_LOG(LOG_FATAL, "HdcValidation::GetConnectValidationParam()");
         return HandConnectValidationPubkey(hSession, channelId, handshake);
     }
     bool ret = false;

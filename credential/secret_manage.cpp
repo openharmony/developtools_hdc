@@ -14,8 +14,8 @@
  */
 
 #include "auth.h"
-#include "log.h"
 #include "credential_message.h"
+#include "log.h"
 #include "secret_manage.h"
 
 using namespace Hdc;
@@ -44,14 +44,12 @@ bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
     inFile.seekg(0, std::ios::end);
     std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, std::ios::beg);
-
     if (fileSize == 0) {
         WRITE_LOG(LOG_FATAL, "the private key is empty.");
         return false;
     }
     
     fileData.resize(fileSize);
-
     inFile.read(reinterpret_cast<char*>(fileData.data()), fileSize);
     if (inFile.eof() || inFile.fail()) {
         WRITE_LOG(LOG_FATAL, "read file private key failed");
@@ -66,7 +64,6 @@ bool HdcSecretManage::DerToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo)
 {
     std::string pemStr(reinterpret_cast<const char*>(privKeyInfo.first), privKeyInfo.second);
 
-    WRITE_LOG(LOG_FATAL, "DerToEvpPkey %s", pemStr.c_str());
     BIO* bio = BIO_new_mem_buf(pemStr.c_str(), pemStr.size());
     if (!bio) {
         WRITE_LOG(LOG_FATAL, "Failed to create BIO");
@@ -229,6 +226,8 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
         return false;
     }
 
+    /* Encrypt the data using private key and decrypt the data using the public key to check
+       whether the public and private keys match each other. */
     const char *testData = "Test data for key matching";
     std::vector<unsigned char> signature;
     size_t reqLen = 0;
@@ -338,7 +337,6 @@ int HdcSecretManage::TryLoadPrivateKeyInfo(std::string &processMessageValue)
             break;
         }
         processMessageValue = string(buf, len);
-        WRITE_LOG(LOG_INFO, "load Private success %s", processMessageValue.c_str());
     } while (0);
 
     if (bio) {

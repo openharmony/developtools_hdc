@@ -216,7 +216,6 @@ void HandleAuthVerifyMessage(CredentialMessage& messageStruct, std::string& need
             messageStruct.SetMessageMethodType(HandleGetSignatureMessage(processMessageValue));
             break;
         }
- 
         default: {
             WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
             return;

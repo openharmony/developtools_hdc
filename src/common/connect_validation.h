@@ -22,21 +22,16 @@
 #include "credential_message.h"
 #include "log.h"
 
-
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 
 namespace HdcValidation {
-
 int GetConnectValidationParam();
-
 #ifdef HDC_HOST
 bool GetPublicKeyHashInfo(string &pubkey_info);
 bool GetPrivateKeyInfo(string &privkey_info);
 bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr);
-
 #else
-
 bool CheckAuthPubKeyIsValid(string &pubkeyHash, string &pubkey);
 #endif
 }  // namespace HdcValidation

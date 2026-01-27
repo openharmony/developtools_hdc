@@ -71,6 +71,7 @@ public:
         MOCK_METHOD3(ResponseUartTrans, void(uint32_t, uint32_t, UartProtocolOption));
         MOCK_METHOD3(UartToHdcProtocol, int(uv_stream_t *, uint8_t *, int));
         MOCK_METHOD1(OnTransferError, void(const HSession));
+        MOCK_METHOD1(OnTransferErrorRaw, void(const HSession));
         MOCK_METHOD2(GetSession, HSession(uint32_t, bool));
         MOCK_METHOD1(ClearUARTOutMap, void(uint32_t));
 

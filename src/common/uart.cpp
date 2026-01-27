@@ -24,8 +24,36 @@
 #define B921600 921600
 #endif
 
+#ifdef HDC_HICOLLIE_ENABLE
+#include "xcollie/xcollie.h"
+#endif
+
 using namespace std::chrono;
 namespace Hdc {
+
+class HdcHicollie {
+private:
+    [[maybe_unused]] int32_t id = -1;
+
+public:
+#ifdef HDC_HICOLLIE_ENABLE
+    HdcHicollie()
+    {
+        using namespace OHOS::HiviewDFX;
+        constexpr unsigned int timeoutSeconds = 6;
+        id = XCollie::GetInstance().SetTimer("HDC_MUTEX", timeoutSeconds, nullptr, nullptr,
+                                             XCOLLIE_FLAG_LOG | XCOLLIE_FLAG_RECOVERY);
+    }
+
+    ~HdcHicollie()
+    {
+        if (id != -1) {
+            OHOS::HiviewDFX::XCollie::GetInstance().CancelTimer(id);
+        }
+    }
+#endif
+};
+
 ExternInterface HdcUARTBase::defaultInterface;
 
 void ExternInterface::SetTcpOptions(uv_tcp_t *tcpHandle)
@@ -556,7 +584,7 @@ bool HdcUARTBase::SendUARTRaw(HSession hSession, uint8_t *data, const size_t len
     WRITE_LOG(LOG_DEBUG, "%s length:%d, sendBytes %zu", __FUNCTION__, length, sendBytes);
     if (sendBytes < 0) {
         WRITE_LOG(LOG_DEBUG, "%s send fail. try to freesession", __FUNCTION__);
-        OnTransferError(hSession);
+        OnTransferErrorRaw(hSession);
     }
     hSession->ref--;
     return sendBytes > 0;
@@ -662,7 +690,8 @@ void HdcUARTBase::RequestSendPackage(uint8_t *data, const size_t length, bool qu
         slots.Wait(head->sessionId);
     }
 
-    std::lock_guard<std::recursive_mutex> lock(mapOutPkgsMutex);
+    [[maybe_unused]] HdcHicollie hicollie;
+    std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
 
     std::string pkgId = head->ToPkgIdentityString(response);
     auto it = std::find_if(outPkgs.begin(), outPkgs.end(), HandleOutputPkgKeyFinder(pkgId));
@@ -682,7 +711,8 @@ void HdcUARTBase::RequestSendPackage(uint8_t *data, const size_t length, bool qu
 
 void HdcUARTBase::ProcessResponsePackage(const UartHead &head)
 {
-    std::lock_guard<std::recursive_mutex> lock(mapOutPkgsMutex);
+    [[maybe_unused]] HdcHicollie hicollie;
+    std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
     bool ack = head.option & PKG_OPTION_ACK;
     // response package
     std::string pkgId = head.ToPkgIdentityString();
@@ -710,7 +740,8 @@ void HdcUARTBase::ProcessResponsePackage(const UartHead &head)
 
 void HdcUARTBase::SendPkgInUARTOutMap()
 {
-    std::lock_guard<std::recursive_mutex> lock(mapOutPkgsMutex);
+    [[maybe_unused]] HdcHicollie hicollie;
+    std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
     if (outPkgs.empty()) {
         WRITE_LOG(LOG_ALL, "UartPackageManager: No pkgs needs to be sent.");
         return;
@@ -772,7 +803,7 @@ void HdcUARTBase::SendPkgInUARTOutMap()
                     // let's free this session
                     WRITE_LOG(LOG_WARN, "UartPackageManager: reach max retry ,free the session %s",
                               Hdc::MaskSessionIdToString(it->sessionId).c_str());
-                    OnTransferError(GetSession(it->sessionId));
+                    OnTransferErrorRaw(GetSession(it->sessionId));
                     // dont reschedule here
                     // wait next schedule from this path
                     // OnTransferError -> FreeSession -> ClearUARTOutMap -> NotifyTransfer
@@ -786,10 +817,9 @@ void HdcUARTBase::SendPkgInUARTOutMap()
     WRITE_LOG(LOG_DEBUG, "UartPackageManager: send finish, have %zu pkgs", outPkgs.size());
 }
 
-void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
+void HdcUARTBase::ClearUARTOutMapRaw(uint32_t sessionId)
 {
     size_t erased = 0;
-    std::lock_guard<std::recursive_mutex> lock(mapOutPkgsMutex);
     auto it = outPkgs.begin();
     while (it != outPkgs.end()) {
         if (it->sessionId == sessionId) {
@@ -806,6 +836,13 @@ void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
               __FUNCTION__, Hdc::MaskSessionIdToString(sessionId).c_str(), erased);
 
     NotifyTransfer(); // tell transfer we maybe have some change
+}
+
+void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
+{
+    [[maybe_unused]] HdcHicollie hicollie;
+    std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
+    ClearUARTOutMapRaw(sessionId);
 }
 
 void HdcUARTBase::EnsureAllPkgsSent()

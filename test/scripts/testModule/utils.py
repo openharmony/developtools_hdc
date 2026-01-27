@@ -29,6 +29,8 @@ import socket
 import platform
 import pytest
 import importlib
+import random
+import string
 
 logger = logging.getLogger(__name__)
 
@@ -1322,3 +1324,22 @@ def get_bundle_info(bundle_name, key, is_shared=False):
     except subprocess.CalledProcessError as e:
         logger.error(f"bm dump failed: {e.stderr.decode()}")
         return ""
+
+
+def get_md5sum_local(file_name):
+    if sys.platform == "win32":
+        cmd = "certutil -hashfile " + file_name + " MD5"
+        output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
+        result = output.decode(encoding="gbk", errors="ignore")
+        return str(result).split("\r\n")[1]
+    else:
+        cmd = "md5sum " + file_name
+        output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
+        result = output.decode(encoding="gbk", errors="ignore")
+        return str(result).split(" ")[0]
+
+
+def generate_random_string(length=128):
+    # 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    characters = string.ascii_letters
+    return ''.join(random.choices(characters, k=length))

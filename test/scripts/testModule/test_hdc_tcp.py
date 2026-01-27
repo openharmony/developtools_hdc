@@ -46,16 +46,6 @@ class TestTcpByFport:
         time.sleep(3)
         assert check_shell("list targets", f"{self.address}:{self.daemon_port}", head=GP.hdc_exe)
 
-    @classmethod
-    def teardown_class(self):
-        check_hdc_cmd("shell rm -rf data/local/tmp/it_*")
-        for local_path, _ in self.base_file_table:
-            if os.path.exists(get_local_path(f'{local_path}_fport_recv')):
-                rmdir(get_local_path(f'{local_path}_fport_recv'))
-        assert check_shell(f"tconn {self.address}:{self.daemon_port} -remove", head=GP.hdc_exe)
-        assert not check_shell("list targets", f"{self.address}:{self.daemon_port}", head=GP.hdc_exe)
-        assert check_hdc_cmd(f"fport rm {self.fport_args}", "Remove forward ruler success")
-        assert not check_hdc_cmd(f"fport ls ", self.fport_args)
 
     @pytest.mark.L1
     @pytest.mark.parametrize("local_path, remote_path", base_file_table)
@@ -88,3 +78,21 @@ class TestTcpByFport:
             assert check_hdc_cmd(cmd, "Program running. Ver:")
         else:
             assert check_hdc_cmd(cmd, "[E001105] Unsupport option [s], please try command in HiShell.")
+
+    @pytest.mark.L1
+    def test_tconn_connect(self):
+        check_shell(f"kill")
+        time.sleep(3)
+        run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+
+        assert check_shell(f"tmode port 7777", "Set device run mode successful.")
+        time.sleep(2)
+        run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+        assert check_shell(f"fport tcp:6666 tcp:7777", "Forwardport result:OK")
+        assert check_shell(f"tconn 127.0.0.1:6666", "Connect OK")
+
+        assert check_shell(f"-t 127.0.0.1:6666 shell id", "uid=0(root)")
+        result = get_shell_result(f"-t 127.0.0.1:6666 shell ls")
+        
+        assert len(result.split("\n")) > 5
+

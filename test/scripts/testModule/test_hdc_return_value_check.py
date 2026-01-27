@@ -73,6 +73,27 @@ class TestHdcReturnValue:
                     index = index + 1
         return
 
+    @pytest.mark.L0
+    @check_unsupport_systems(["Linux", "Harmony", "Darwin"])
+    def test_hdc_help_verbose(self):
+        result = get_shell_result(f"-h verbose")
+        result_lines = re.split("\r|\n", result)
+        help_file = f"help_verbose.log"
+        index = 0
+        with open(help_file, 'r') as file:
+            for line in file.readlines():
+                line = line.replace("\n", "")
+                while len(result_lines[index]) == 0:
+                    index = index + 1
+                    if index >= len(result_lines):
+                        return
+                if line:
+                    if line != result_lines[index]:
+                        logger.warning(f"line:{line}, result line:{result_lines[index]}")
+                        assert False
+                    index = index + 1
+        return
+
     """
     格式形如：    Ver: 3.1.0e
     """

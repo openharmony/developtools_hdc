@@ -347,8 +347,8 @@ std::string HdcHuks::base64Encode(const std::vector<unsigned char> &data)
 int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetIn)
 {
     int32_t result = -1;
-    struct HksBlob publicKey = {.size = HKS_RSA_KEY_SIZE_3072, .data = (uint8_t *)malloc(HKS_RSA_KEY_SIZE_3072)};
-    ;
+    std::vector<uint8_t> publicKeyData(HKS_RSA_KEY_SIZE_3072);
+    struct HksBlob publicKey = {.size = HKS_RSA_KEY_SIZE_3072, .data = publicKeyData.data()};
     result = HksExportPublicKey(&keyBlobAlias, paramSetIn, &publicKey);
     if (result != HKS_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "Failed to export public key, result: %d", result);

@@ -499,13 +499,6 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
     WRITE_LOG(LOG_FATAL, "connectValidation %d", connectValidation);
 #endif
     if (connectValidation == VALIDATION_HDC_HOST || connectValidation == VALIDATION_HDC_HOST_AND_DAEMON) {
-        if (!hSession->supportConnValidation) {
-            string msg = "[E000007]: The device is not permitted for debugging by the enterprise management.";
-            WRITE_LOG(LOG_FATAL, "%s", msg.c_str);
-            Base::TlvAppend(handshake.buf, TAG_EMGMSG, msg);
-            Base::TlvAppend(handshake.buf, TAG_DAEOMN_AUTHSTATUS, DAEOMN_UNAUTHORIZED);
-            return false;
-        }
         if (!HdcValidation::GetPublicKeyHashInfo(handshake.buf)) {
             WRITE_LOG(LOG_FATAL, "load public key failed");
             return false;
@@ -558,7 +551,6 @@ bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
 {
     switch (handshake.authType) {
         case AUTH_PUBLICKEY: {
-            hSession->isAuthenticated = true;
             return HandleAuthPubkeyMsg(hSession, handshake);
         }
         case AUTH_SIGNATURE: {
@@ -761,17 +753,6 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
         }
         return true;
     }
-#ifdef HOST_OHOS
-    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-    bool connectstatus = (connectValidationStatus == VALIDATION_HDC_HOST
-        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
-    if (connectstatus && (handshake.authType == AUTH_OK)) {
-        if (!hSession->isAuthenticated) {
-            WRITE_LOG(LOG_WARN, "[E000007]: The device is not permitted for debugging by the enterprise management.");
-            return false;
-        }
-    }
-#endif
     // handshake auth OK
     UpdateHdiInfo(handshake, hSession);
     hSession->handshakeOK = true;

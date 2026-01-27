@@ -499,12 +499,6 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
         WRITE_LOG(LOG_INFO, "client support RSA_3072_SHA512 auth for %s session",
             Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     }
-
-    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-    if ((connectValidationStatus == VALIDATION_HDC_DAEMON
-        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON)) {
-        Base::TlvAppend(handshake.buf, TAG_SUPPORT_FEATURE, FEATURE_CONN_VALIDATION);
-    }
     string bufString = SerialStruct::SerializeToString(handshake);
     Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE,
             reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())),
@@ -517,14 +511,14 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
 bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     bool ret = false;
-    string hostname, pubkeyHash, pubkey;
+    string hostname, pubkey;
     //parse recv pubkey
-    if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkeyHash)) {
+    if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkey)) {
         WRITE_LOG(LOG_FATAL, "get pubkey failed for %u", hSession->sessionId);
         ret = false;
     }
  
-    ret = HdcValidation::CheckAuthPubKeyIsValid(pubkeyHash, pubkey);
+    ret = HdcValidation::CheckAuthPubKeyIsValid(pubkey);
     if (ret) {
         SendAuthMsg(handshake, channelId, hSession, pubkey);
     } else {

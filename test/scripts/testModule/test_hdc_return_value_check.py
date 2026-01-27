@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import os
 import re
 import time
 import pytest
@@ -312,20 +313,52 @@ class TestHdcReturnValue:
 
 
     """
-    hdc shell ls
+    hdc shell
     """
 
     @pytest.mark.L0
     def test_hdc_shell(self):
         check_shell(f"smode")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
-        result = get_shell_result(f"shell ls")
-        result = result.split(get_end_symbol())
-        assert len(result) > 5
 
         result = get_cmd_block_output(f"{GP.hdc_head} shell", 10)
         result = re.sub("[\r\n]", "", result)
         assert result.find("#") > 0
+
+    """
+    hdc shell find /nosuchfilename -name nosuchfilename
+    """
+
+    @pytest.mark.L0
+    def test_hdc_shell_find(self):
+        find_cmd = "shell find /nosuchfilename -name nosuchfilename"
+        assert check_shell(find_cmd, "No such file or directory")
+
+    """
+    hdc shell ls
+    """
+
+    @pytest.mark.L0
+    def test_hdc_shell_ls(self):
+        file_list = []
+        for count in range(10):
+            file_list.append(f"testfile{count}")
+        test_path = "/data/local/tmp/testdir"
+        try:
+            get_shell_result(f"shell mkdir {test_path}")
+            for file_name in file_list:
+                file_path = f"{test_path}/{file_name}"
+                get_shell_result(f"shell touch {file_path}")
+            ls_result = get_shell_result(f"shell ls {test_path}")
+            print(f"ls_result:{ls_result}")
+            ls_result_list = ls_result.splitlines()
+            print(f"ls_result_list:{ls_result_list}")
+            assert len(ls_result_list) == len(file_list)
+            for file_read_name in ls_result_list:
+                assert file_read_name in file_list
+        finally:
+            rm_result = get_shell_result(f"shell rm -fr {test_path}")
+            print(f"finally rm -fr {test_path}, result:{rm_result}")
 
     """
     hdc tconn [ip]:[port]

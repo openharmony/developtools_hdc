@@ -21,10 +21,13 @@ import time
 
 def pytest_configure(config):
     file_time = time.strftime('%Y%m%d_%H%M%S', time.localtime(time.time()))
+    file_dir = "reports"
+    if not os.path.exists(file_dir):
+        os.mkdir(file_dir)
     log_file_name = f"hdc_test_{file_time}.log"
     logging.basicConfig(
         level=logging.DEBUG,
-        filename=os.path.join("reports", log_file_name),
+        filename=os.path.join(file_dir, log_file_name),
         format="[%(asctime)s %(name)s %(funcName)s %(lineno)d %(levelname)s][%(process)d][%(thread)d][%(threadName)s]"
                "%(message)s"
     )

@@ -35,14 +35,13 @@ public:
     explicit HdcSecretManage(const std::string &pwdKeyAlias);
     int TryLoadPublicKeyInfo();
     int TryLoadPrivateKeyInfo(std::string &processMessageValue);
-    uint8_t *GetPublicKeyHash();
+    std::string GetPublicKeyInfo();
 
 private:
     bool LoadPrivateKeyInfo();
     void ClearPrivateKeyInfo();
-    void LoadPublicKeyInfo();
+    bool LoadPublicKeyInfo();
     void ClearPublicKeyInfo();
-    bool GetPublicKeyFingerprint();
     bool CheckPubkeyAndPrivKeyMatch();
     bool LoadPublicKeyHash();
     bool SignatureByPrivKey(const char *testData, std::vector<unsigned char> &signature, size_t &reqLen);
@@ -52,7 +51,7 @@ private:
 
     EVP_PKEY *pubKey;
     EVP_PKEY *privKey;
-    uint8_t publicKeyHash[SHA256_DIGEST_LENGTH] = {0};
+    std::string publicKeyInfo;
     Hdc::HdcHuks hdcRsaHuks;
 };
 

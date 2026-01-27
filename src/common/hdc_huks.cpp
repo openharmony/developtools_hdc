@@ -366,7 +366,6 @@ int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetI
     file << "-----END PUBLIC KEY-----\n";
     file.close();
 
-    delete[] publicKey.data;
     return result;
 }
 

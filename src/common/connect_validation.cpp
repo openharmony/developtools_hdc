@@ -14,9 +14,11 @@
  */
 
 #include "connect_validation.h"
+#include "sys/socket.h"
 
 #include <fstream>
-#include "sys/socket.h"
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
 #include <parameters.h>
 #include <regex>
 
@@ -24,8 +26,6 @@ using namespace Hdc;
 using namespace HdcAuth;
 
 namespace HdcValidation {
-
-static const std::string DAEMON_PUBLICKEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
 
 int GetConnectValidationParam()
 {
@@ -71,13 +71,13 @@ bool GetPubKeyHash(string &pubkeyInfo)
     memset_s(data, sizeof(data), 0, sizeof(data));
     switch (messageStruct.GetMessageMethodType()) {
         case GET_PUBKEY_FAILED:
-            pubkeyInfo = "[E000008]: The sdk hdc.exe failed to read the public key.";
+            WRITE_LOG(LOG_INFO, "[E000008]: The sdk hdc.exe failed to read the public key.");
             break;
         case GET_PRIVKEY_FAILED:
-            pubkeyInfo = "[E000009]: The sdk hdc.exe failed to read the private key.";
+            WRITE_LOG(LOG_INFO, "[E000009]: The sdk hdc.exe failed to read the private key.");
             break;
         case MISMATCH_PUBKEY_PRIVKEY:
-            pubkeyInfo = "[E00000A]: The sdk hdc.exe public and private keys do not match.";
+            WRITE_LOG(LOG_INFO, "[E00000A]: The sdk hdc.exe public and private keys do not match.");
             break;
         default:
             break;
@@ -86,7 +86,7 @@ bool GetPubKeyHash(string &pubkeyInfo)
         pubkeyInfo = messageStruct.GetMessageBody();
         return true;
     } else {
-        WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
+        WRITE_LOG(LOG_INFO, "[E000008]: The sdk hdc.exe failed to read the public key.");
         return false;
     }
     return true;
@@ -102,9 +102,7 @@ bool GetPublicKeyHashInfo(string &buf)
 
     std::string pubkeyInfo;
     if (!GetPubKeyHash(pubkeyInfo)) {
-        string msg = pubkeyInfo;
-        Base::TlvAppend(buf, TAG_EMGMSG, msg);
-        Base::TlvAppend(buf, TAG_DAEOMN_AUTHSTATUS, DAEOMN_UNAUTHORIZED);
+        WRITE_LOG(LOG_INFO, "Get pubkey info failed");
         return false;
     }
 
@@ -138,7 +136,7 @@ bool GetPrivateKeyInfo(string &privkey_info)
     memset_s(data, sizeof(data), 0, sizeof(data));
     switch (messageStruct.GetMessageMethodType()) {
         case GET_PRIVKEY_FAILED:
-            privkey_info = "[E000009]: The sdk hdc.exe failed to read the private key.";
+            WRITE_LOG(LOG_INFO, "[E000009]: The sdk hdc.exe failed to read the private key.");
             break;
         default:
             break;
@@ -147,7 +145,7 @@ bool GetPrivateKeyInfo(string &privkey_info)
         privkey_info = messageStruct.GetMessageBody();
         return true;
     } else {
-        WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
+        WRITE_LOG(LOG_INFO, "[E000009]: The sdk hdc.exe failed to read the private key.");
         return false;
     }
     return true;

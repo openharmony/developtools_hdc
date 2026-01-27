@@ -22,9 +22,6 @@
 #include "credential_message.h"
 #include "log.h"
 
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-
 namespace HdcValidation {
 int GetConnectValidationParam();
 #ifdef HDC_HOST

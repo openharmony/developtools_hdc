@@ -16,16 +16,13 @@
 #ifndef HDC_SECRET_MANAGE_H
 #define HDC_SECRET_MANAGE_H
 
-#include <fstream>
-#include <iomanip>
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <string>
-#include <sstream>
-#include <unistd.h>
+
 #include "hdc_huks.h"
 
 const std::string HDC_RAS_KEY_FILE_PWD_KEY_ALIAS = "hdc_ras_key_file_key_alias";

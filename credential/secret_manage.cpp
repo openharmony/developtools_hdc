@@ -13,6 +13,11 @@
  * limitations under the License.
  */
 
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <unistd.h>
+
 #include "auth.h"
 #include "credential_message.h"
 #include "log.h"
@@ -246,6 +251,9 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
     }
 
     bool ret = VerifyByPublicKey(testData, signature, reqLen);
+    if (!ret) {
+        WRITE_LOG(LOG_WARN, "VerifyByPublicKey failed");
+    }
 
     ClearPublicKeyInfo();
     ClearPrivateKeyInfo();

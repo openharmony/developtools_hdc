@@ -14,6 +14,8 @@
  */
 
 #include "connect_validation.h"
+
+#include <fstream>
 #include "sys/socket.h"
 #include <parameters.h>
 #include <regex>
@@ -205,133 +207,28 @@ bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr)
 
 #else
 
-std::vector<EVP_PKEY*> ReadMultiplePublicKeys()
+bool CheckAuthPubKeyIsValid(string &key)
 {
-    std::vector<EVP_PKEY*> keys;
-    
-    FILE* fp = fopen(DAEMON_PUBLICKEY_PATH.c_str(), "r");
-    if (!fp) {
-        WRITE_LOG(LOG_FATAL, "Failed to open key file");
-        return keys;
-    }
+    char const *keyfile = "/data/service/el2/public/hdc_service/verify_public_key.pem";
 
-    BIO* bio = BIO_new_fp(fp, BIO_NOCLOSE);
-    if (!bio) {
-        WRITE_LOG(LOG_FATAL, "Failed to create BIO object");
-        (void)fclose(fp);
-        return keys;
-    }
-    
-    EVP_PKEY* pkey = nullptr;
-    while ((pkey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr)) != nullptr) {
-        keys.push_back(pkey);
-    }
-
-    BIO_free(bio);
-    (void)fclose(fp);
-    
-    return keys;
-}
-
-bool GetPublicKeyFingerprint(EVP_PKEY* pubKey, uint8_t* publicKeyHash)
-{
-    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pubKey, nullptr);
-    if (!pctx) {
-        WRITE_LOG(LOG_WARN, "Failed to create EVP_PKEY_CTX");
+    std::ifstream keyifs(keyfile);
+    if (!keyifs.is_open()) {
+        WRITE_LOG(LOG_FATAL, "open public keyfile error");
         return false;
     }
 
-    if (EVP_PKEY_keygen_init(pctx) <= 0) {
-        WRITE_LOG(LOG_WARN, "Failed to initialize key generation context");
-        EVP_PKEY_CTX_free(pctx);
-        return false;
+    std::string keys((std::istreambuf_iterator<char>(keyifs)), std::istreambuf_iterator<char>());
+    // the length of pubkey is 625
+    const int keyLength = 625;
+    if (key.size() == keyLength && keys.find(key) != string::npos) {
+        keyifs.close();
+        return true;
     }
 
-    EVP_PKEY_CTX_free(pctx);
+    WRITE_LOG(LOG_FATAL, "pubkey is invalid");
 
-    unsigned char *pubKeyData = nullptr;
-    int pubKeyLen = i2d_PUBKEY(pubKey, &pubKeyData);
-    if (pubKeyLen <= 0) {
-        WRITE_LOG(LOG_WARN, "Failed to convert public key to data");
-        return false;
-    }
-
-    if (SHA256(pubKeyData, pubKeyLen, publicKeyHash) == nullptr) {
-        WRITE_LOG(LOG_WARN, "SHA256 calculation of public key failed");
-        OPENSSL_free(pubKeyData);
-        return false;
-    }
-
-    OPENSSL_free(pubKeyData);
-
-    return true;
-}
-
-bool EvpkeyConvert2String(EVP_PKEY* key, string &pubkey)
-{
-    bool ret = false;
-    BIO *bio = nullptr;
-    do {
-        bio = BIO_new(BIO_s_mem());
-        if (!bio) {
-            ret = false;
-            WRITE_LOG(LOG_FATAL, "alloc bio mem failed");
-            break;
-        }
-        if (!PEM_write_bio_PUBKEY(bio, key)) {
-            ret = false;
-            WRITE_LOG(LOG_FATAL, "write bio failed");
-            break;
-        }
-        size_t len = 0;
-        char buf[RSA_KEY_BITS] = {0};
-        if (BIO_read_ex(bio, buf, sizeof(buf), &len) <= 0) {
-            ret = false;
-            WRITE_LOG(LOG_FATAL, "read bio failed");
-            break;
-        }
-        pubkey = string(buf, len);
-        ret = true;
-        WRITE_LOG(LOG_INFO, "load pubkey success");
-    } while (0);
-
-    if (bio) {
-        BIO_free(bio);
-        bio = nullptr;
-    }
-
-    return ret;
-}
-
-bool CheckAuthPubKeyIsValid(string &pubkeyHash, string &pubkey)
-{
-    bool ret = false;
-    uint8_t publicKeyHash[SHA256_DIGEST_LENGTH] = {0};
-    string keyHashInfo;
-    auto keys = ReadMultiplePublicKeys();
-    if (keys.empty()) {
-        WRITE_LOG(LOG_INFO, "ReadMultiplePublicKeys failed");
-        return false;
-    }
-
-    for (EVP_PKEY* key : keys) {
-        memset_s(publicKeyHash, SHA256_DIGEST_LENGTH, 0, SHA256_DIGEST_LENGTH);
-        // get key hash
-        if (!GetPublicKeyFingerprint(key, publicKeyHash)) {
-            continue;
-        }
-        keyHashInfo = Base::Convert2HexStr(publicKeyHash, SHA256_DIGEST_LENGTH);
-        if (0 == keyHashInfo.compare(pubkeyHash)) {
-            ret = EvpkeyConvert2String(key, pubkey);
-            break;
-        }
-    }
-
-    for (EVP_PKEY* key : keys) {
-        EVP_PKEY_free(key);
-    }
-    
-    return ret;
+    keyifs.close();
+    return false;
 }
 #endif
 }  // namespace HdcValidation

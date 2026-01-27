@@ -29,9 +29,9 @@ HdcSecretManage::HdcSecretManage(const std::string &keyAlias):hdcRsaHuks(keyAlia
 {
 }
 
-uint8_t *HdcSecretManage::GetPublicKeyHash()
+std::string HdcSecretManage::GetPublicKeyInfo()
 {
-    return publicKeyHash;
+    return publicKeyInfo;
 }
 
 bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
@@ -112,15 +112,52 @@ void HdcSecretManage::ClearPrivateKeyInfo()
     EVP_PKEY_free(privKey);
 }
 
-void HdcSecretManage::LoadPublicKeyInfo()
+bool HdcSecretManage::LoadPublicKeyInfo()
 {
-    FILE *pubFile = fopen(VERIFY_PUBLIC_KEY_PATH.c_str(), "r");
-    if (!pubFile) {
-        return;
-    }
+    bool ret = false;
+    BIO *bio = nullptr;
+    FILE *file_pubkey = nullptr;
 
-    pubKey = PEM_read_PUBKEY(pubFile, nullptr, nullptr, nullptr);
-    (void)fclose(pubFile);
+    do {
+        file_pubkey = Base::Fopen(VERIFY_PUBLIC_KEY_PATH.c_str(), "r");
+        if (!file_pubkey) {
+            WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
+            break;
+        }
+        pubKey = PEM_read_PUBKEY(file_pubkey, NULL, NULL, NULL);
+        if (!pubKey) {
+            WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
+            break;
+        }
+        bio = BIO_new(BIO_s_mem());
+        if (!bio) {
+            WRITE_LOG(LOG_FATAL, "alloc bio mem failed");
+            break;
+        }
+        if (!PEM_write_bio_PUBKEY(bio, pubKey)) {
+            WRITE_LOG(LOG_FATAL, "write bio failed");
+            break;
+        }
+        size_t len = 0;
+        char buf[RSA_KEY_BITS] = {0};
+        if (BIO_read_ex(bio, buf, sizeof(buf), &len) <= 0) {
+            WRITE_LOG(LOG_FATAL, "read bio failed");
+            break;
+        }
+        publicKeyInfo = string(buf, len);
+        ret = true;
+        WRITE_LOG(LOG_INFO, "load pubkey from file(%s) success", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
+    } while (0);
+
+    if (bio) {
+        BIO_free(bio);
+        bio = nullptr;
+    }
+    if (file_pubkey) {
+        fclose(file_pubkey);
+        file_pubkey = nullptr;
+    }
+    return ret;
 }
 
 void HdcSecretManage::ClearPublicKeyInfo()
@@ -129,40 +166,6 @@ void HdcSecretManage::ClearPublicKeyInfo()
         return;
     }
     EVP_PKEY_free(pubKey);
-}
-
-bool HdcSecretManage::GetPublicKeyFingerprint()
-{
-    EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new(pubKey, nullptr);
-    if (!pctx) {
-        WRITE_LOG(LOG_WARN, "Failed to create EVP_PKEY_CTX");
-        return false;
-    }
-
-    if (EVP_PKEY_keygen_init(pctx) <= 0) {
-        WRITE_LOG(LOG_WARN, "Failed to initialize key generation context");
-        EVP_PKEY_CTX_free(pctx);
-        return false;
-    }
-
-    EVP_PKEY_CTX_free(pctx);
-
-    unsigned char *pubKeyData = nullptr;
-    int pubKeyLen = i2d_PUBKEY(pubKey, &pubKeyData);
-    if (pubKeyLen <= 0) {
-        WRITE_LOG(LOG_WARN, "Failed to convert public key to data");
-        return false;
-    }
-
-    if (SHA256(pubKeyData, pubKeyLen, publicKeyHash) == nullptr) {
-        WRITE_LOG(LOG_WARN, "SHA256 calculation of public key failed");
-        OPENSSL_free(pubKeyData);
-        return false;
-    }
-
-    OPENSSL_free(pubKeyData);
-
-    return true;
 }
 
 bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsigned char> &signature, size_t &reqLen)
@@ -216,7 +219,10 @@ bool HdcSecretManage::VerifyByPublicKey(const char *testData,
 
 bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
 {
-    LoadPublicKeyInfo();
+    if (!LoadPublicKeyInfo()) {
+        WRITE_LOG(LOG_FATAL, "LoadPublicKeyInfo failed.");
+        return false;
+    }
     if (!LoadPrivateKeyInfo()) {
         WRITE_LOG(LOG_FATAL, "LoadPrivateKeyInfo failed.");
         return false;
@@ -246,19 +252,6 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
     return ret;
 }
 
-bool HdcSecretManage::LoadPublicKeyHash()
-{
-    LoadPublicKeyInfo();
-    if (!pubKey) {
-        WRITE_LOG(LOG_FATAL, "load key failed");
-        return false;
-    }
-
-    bool ret = GetPublicKeyFingerprint();
-    ClearPublicKeyInfo();
-    return ret;
-}
-
 int HdcSecretManage::TryLoadPublicKeyInfo()
 {
     struct stat status;
@@ -277,7 +270,7 @@ int HdcSecretManage::TryLoadPublicKeyInfo()
         return MISMATCH_PUBKEY_PRIVKEY;
     }
 
-    if (!LoadPublicKeyHash()) {
+    if (!LoadPublicKeyInfo()) {
         WRITE_LOG(LOG_FATAL, "load Pubkey failed");
         return GET_PUBKEY_FAILED;
     }
@@ -293,8 +286,7 @@ int HandleGetPubkeyMessage(std::string &processMessageValue)
         WRITE_LOG(LOG_FATAL, "LoadPublicKey failed.");
         return ret;
     }
-    auto sha256Result = secretManage->GetPublicKeyHash();
-    processMessageValue = Base::Convert2HexStr(sha256Result, SHA256_DIGEST_LENGTH);
+    processMessageValue = secretManage->GetPublicKeyInfo();
     return GET_PUBKEY_SUCCESSED;
 }
 

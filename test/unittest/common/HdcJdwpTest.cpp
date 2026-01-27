@@ -15,6 +15,7 @@
 
 #include <HdcJdwpTest.h>
 using namespace testing::ext;
+using namespace testing;
 using namespace std;
 namespace Hdc {
 void HdcJdwpTest::SetUpTestCase() {}
@@ -35,17 +36,16 @@ std::unique_ptr<HdcJdwp> HdcJdwpTest::InstanceHdcJdwp()
 }
 
 /*
- * @tc.name: TestCreateFdEventPoll
- * @tc.desc: Check the poll thread.
+ * @tc.name: TestInitial
+ * @tc.desc: Check Initial return 0
  * @tc.type: FUNC
  */
-HWTEST_F(HdcJdwpTest, TestCreateFdEventPoll, TestSize.Level1)
+HWTEST_F(HdcJdwpTest, TestInitial, TestSize.Level1)
 {
-    std::unique_ptr<HdcJdwp> mJdwpTest = HdcJdwpTest::InstanceHdcJdwp();
-    ASSERT_NE(mJdwpTest, nullptr) << "Instanse HdcJdwp fail.";
-    ASSERT_EQ(mJdwpTest->Initial(), 0) << " Jdwp init instance fail.";
-    EXPECT_GE(mJdwpTest->pollNodeMap.size(), 0u) << " Jdwp pollNodeMap is null.";
-    mJdwpTest->Stop();
+    EXPECT_CALL(mockJdwp, JdwpListen).WillOnce(Return(true));
+    EXPECT_EQ(mockJdwp.Initial(), 0);
+    EXPECT_GE(mockJdwp.pollNodeMap.size(), 0u);
+    mockJdwp.Stop();
 }
 
 /*
@@ -55,16 +55,14 @@ HWTEST_F(HdcJdwpTest, TestCreateFdEventPoll, TestSize.Level1)
  */
 HWTEST_F(HdcJdwpTest, TestCreateJdwpTracker, TestSize.Level1)
 {
-    std::unique_ptr<HdcJdwp> mJdwpTest = HdcJdwpTest::InstanceHdcJdwp();
-    ASSERT_NE(mJdwpTest, nullptr) << "Instanse HdcJdwp fail.";
-    ASSERT_EQ(mJdwpTest->Initial(), 0) << "Instanse HdcJdwp fail.";
-    ASSERT_EQ(mJdwpTest->CreateJdwpTracker(nullptr), 0) << "CreateJdwpTracker nullptr fail.";
+    EXPECT_FALSE(mockJdwp.CreateJdwpTracker(nullptr));
+
     HTaskInfo hTaskInfo = new TaskInformation();
     HdcSessionBase HdcSessionTest(false);
     hTaskInfo->ownerSessionClass = &HdcSessionTest;
-    ASSERT_EQ(mJdwpTest->CreateJdwpTracker(hTaskInfo), 1) << "CreateJdwpTracker valid param fail.";
+    EXPECT_TRUE(mockJdwp.CreateJdwpTracker(hTaskInfo));
     delete hTaskInfo;
-    mJdwpTest->Stop();
+    mockJdwp.Stop();
 }
 
 /*

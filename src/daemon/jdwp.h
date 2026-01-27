@@ -18,10 +18,17 @@
 #include <poll.h>
 #include <unordered_map>
 namespace Hdc {
-class HdcJdwp final {
+
+#ifdef HDC_UNIT_TEST
+    #define ONLY_TEST_VIRTUAL virtual
+#else
+    #define ONLY_TEST_VIRTUAL
+#endif
+
+class HdcJdwp {
 public:
     HdcJdwp(uv_loop_t *loopIn, LoopStatus *loopStatus);
-    ~HdcJdwp();
+    ONLY_TEST_VIRTUAL ~HdcJdwp();
     int Initial();
     void Stop();
     bool CreateJdwpTracker(HTaskInfo taskInfo);
@@ -70,8 +77,7 @@ private:
         uint8_t isDebug;
     };
     using HCtxJdwp = struct ContextJdwp *;
-
-    bool JdwpListen();
+    ONLY_TEST_VIRTUAL bool JdwpListen();
     static void AcceptClient(uv_stream_t *server, int status);
     static void ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf);
     static void SendCallbackJdwpNewFD(uv_write_t *req, int status);

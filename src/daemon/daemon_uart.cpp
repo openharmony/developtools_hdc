@@ -196,6 +196,15 @@ void HdcDaemonUART::OnTransferError(const HSession session)
     }
 }
 
+void HdcDaemonUART::OnTransferErrorRaw(const HSession session)
+{
+    if (session != nullptr) {
+        WRITE_LOG(LOG_FATAL, "%s %s", __FUNCTION__, session->ToDebugString().c_str());
+        daemon.FreeSession(session->sessionId);
+        ClearUARTOutMapRaw(session->sessionId);
+    }
+}
+
 void HdcDaemonUART::OnNewHandshakeOK(const uint32_t sessionId)
 {
     currentSessionId = sessionId;

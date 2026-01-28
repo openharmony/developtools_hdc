@@ -178,7 +178,7 @@ protected:
 
     // review how about make a HUART in daemon side and put the devhandle in it ?
     int uartHandle = -1;
-    virtual bool SendUARTRaw(HSession hSession, uint8_t *data, const size_t length);
+    bool SendUARTRaw(HSession hSession, uint8_t *data, const size_t length);
     virtual void SendUartSoftReset(HSession /* hUART */, uint32_t /* sessionId */) {};
     virtual RetErrCode ValidateUartPacket(vector<uint8_t> &data, uint32_t &sessionId,
                                           uint32_t &packageIndex, size_t &fullPackageLength);
@@ -208,6 +208,7 @@ protected:
     virtual RetErrCode DispatchToWorkThread(HSession hSession, uint8_t *readBuf, int readBytes);
 
     virtual void OnTransferError(const HSession session) = 0;
+    virtual void OnTransferErrorRaw(const HSession session) = 0;
     virtual HSession GetSession(const uint32_t sessionId, bool create = false) = 0;
     void DispatchPackageData(HSession hSession, std::vector<uint8_t> &data,
         size_t packetSize, uint32_t packageIndex);
@@ -234,7 +235,8 @@ protected:
     virtual void RequestSendPackage(uint8_t *data, const size_t length, bool queue = true);
     virtual void ProcessResponsePackage(const UartHead &head);
     virtual void SendPkgInUARTOutMap();
-    virtual void ClearUARTOutMap(uint32_t sessionId);
+    void ClearUARTOutMap(uint32_t sessionId);
+    void ClearUARTOutMapRaw(uint32_t sessionId);
     virtual void EnsureAllPkgsSent();
     static constexpr int WAIT_RESPONSE_TIME_OUT_MS = 1000; // 1000ms
     static constexpr int OneMoreMs = 1;
@@ -353,7 +355,7 @@ private:
     } slots;
 
     vector<HandleOutputPkg> outPkgs; // Pkg label, HOutPkg
-    std::recursive_mutex mapOutPkgsMutex;
+    std::mutex mapOutPkgsMutex;
     struct HandleOutputPkgKeyFinder {
         const std::string &key;
         HandleOutputPkgKeyFinder(const std::string &keyIn) : key(keyIn) {}

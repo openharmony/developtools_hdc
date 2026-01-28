@@ -47,10 +47,13 @@ public:
 
 protected:
     void OnTransferError(const HSession session) override;
+    void OnTransferErrorRaw(const HSession session) override;
     HSession GetSession(const uint32_t sessionId, bool create) override;
     void Restartession(const HSession session) override;
 
 private:
+    void OnTransferErrorInner(const HSession session, bool lock);
+
     enum UartCheckStatus {
         HOST_UART_EMPTY = 0, // default value
         HOST_UART_IGNORE = 1,

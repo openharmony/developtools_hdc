@@ -31,6 +31,7 @@ public:
 protected:
     HSession GetSession(const uint32_t sessionId, bool create) override;
     void OnTransferError(const HSession session) override;
+    void OnTransferErrorRaw(const HSession session) override;
 
 private:
     static inline void UvWatchTimer(uv_timer_t *handle)

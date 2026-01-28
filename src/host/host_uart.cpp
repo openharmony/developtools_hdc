@@ -650,7 +650,7 @@ void HdcHostUART::CloseSerialPort(const HUART hUART)
 #endif
 }
 
-void HdcHostUART::OnTransferError(const HSession session)
+void HdcHostUART::OnTransferErrorInner(const HSession session, bool lock)
 {
     if (session != nullptr) {
         WRITE_LOG(LOG_FATAL, "%s:%s", __FUNCTION__, session->ToDebugString().c_str());
@@ -670,8 +670,22 @@ void HdcHostUART::OnTransferError(const HSession session)
         }
 
         server.FreeSession(session->sessionId);
-        ClearUARTOutMap(session->sessionId);
+        if (lock) {
+            ClearUARTOutMap(session->sessionId);
+        } else {
+            ClearUARTOutMapRaw(session->sessionId);
+        }
     }
+}
+
+void HdcHostUART::OnTransferError(const HSession session)
+{
+    OnTransferErrorInner(session, true);
+}
+
+void HdcHostUART::OnTransferErrorRaw(const HSession session)
+{
+    OnTransferErrorInner(session, false);
 }
 
 // review what about merge Restartession with OnTransferError ?

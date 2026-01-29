@@ -47,8 +47,6 @@ private:
     bool HexToByte(std::vector<uint8_t>& hexData);
     uint8_t HexCharToInt(uint8_t data);
     void ClearEncryptPwd(void);
-    std::string SplicMessageStr(const std::string& str, const size_t type);
-    ssize_t GetCredential(const char* socketPath, const std::string& messageStr, char data[], ssize_t size);
     std::vector<uint8_t> EncryptGetPwdValue(uint8_t* pwd);
     std::pair<uint8_t*, int> DecryptGetPwdValue(const std::string& encryptData);
 };

@@ -28,6 +28,9 @@ void FreeKey(bool publicOrPrivate, list<void *> *listKey);
 bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type);
 bool GetPublicKeyinfo(string &pubkey_info);
 int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize);
+bool RsaSign(string &buf, EVP_PKEY *signKey);
+bool RsaEncrypt(string &buf, RSA *rsa);
+bool GetHostName(string &hostname);
 #else
 int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize, const string& pubkey);
 #endif

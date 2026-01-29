@@ -14,6 +14,7 @@
  */
 
 #include "command_event_report.h"
+#include "credential_message.h"
 
 #include <parameters.h>
 #include "sys/socket.h"
@@ -58,45 +59,6 @@ std::string CommandEventReport::FormatMessage(const std::string &command, const 
         result.append(content.substr(content.length() - maxContentSize));
     } else {
         result.append(content);
-    }
-
-    return result;
-}
-
-std::string CommandEventReport::SplicMessageStr(const std::string &command, const std::string &raw,
-    Base::Caller caller, bool isIntercepted)
-{
-    std::string str = FormatMessage(command, raw, caller, isIntercepted);
-    if (str.empty()) {
-        WRITE_LOG(LOG_FATAL, "Input command is empty.");
-        return "";
-    }
-
-    std::string messageMethodTypeStr = IntToStringWithPadding(METHOD_COMMAND_EVENT_REPORT, MESSAGE_METHOD_LEN);
-    if (messageMethodTypeStr.length() != MESSAGE_METHOD_LEN) {
-        WRITE_LOG(LOG_FATAL, "messageMethodTypeStr length must be:%d,now is:%s",
-            MESSAGE_METHOD_LEN, messageMethodTypeStr.c_str());
-        return "";
-    }
-
-    std::string messageBodyLen = IntToStringWithPadding(str.length(), MESSAGE_LENGTH_LEN);
-    if (messageBodyLen.empty() || (messageBodyLen.length() > MESSAGE_LENGTH_LEN)) {
-        WRITE_LOG(LOG_FATAL, "messageBodyLen length must be:%d,now is:%s", MESSAGE_LENGTH_LEN, messageBodyLen.c_str());
-        return "";
-    }
-
-    std::string result;
-    const size_t bodyLen = str.size();
-    size_t totalLength = MESSAGE_METHOD_POS + MESSAGE_METHOD_LEN +
-                         MESSAGE_LENGTH_LEN + bodyLen;
-    result.reserve(totalLength);
-    result.push_back('0' + METHOD_REPORT);
-    result.append(messageMethodTypeStr);
-    result.append(messageBodyLen);
-    result.append(str);
-    if (result.size() != totalLength) {
-        WRITE_LOG(LOG_FATAL, "size mismatch. Expected: %zu, Actual: %zu", totalLength, result.size());
-        return "";
     }
 
     return result;
@@ -176,80 +138,32 @@ bool CommandEventReport::Report(const std::string &command, const std::string &c
     return true;
 }
 
-bool SendMessageByUnixSocket(const int sockfd, const std::string &messageStr)
-{
-    struct sockaddr_un addr = {.sun_family = AF_UNIX};
-    size_t maxPathLen = sizeof(addr.sun_path) - 1;
-    size_t pathLen = strlen(HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str());
-    if (pathLen > maxPathLen) {
-        WRITE_LOG(LOG_FATAL, "Socket path too long.");
-        return false;
-    }
-
-    if (memcpy_s(addr.sun_path, maxPathLen, HDC_CREDENTIAL_SOCKET_SANDBOX_PATH.c_str(), pathLen) != 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to memcpy_st.");
-        return false;
-    }
-
-    if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to connect to socket.");
-        return false;
-    }
-
-    if (send(sockfd, messageStr.c_str(), messageStr.size(), 0) < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to send message.");
-        return false;
-    }
-
-    return true;
-}
-
-bool RecvMessageByUnixSocket(const int sockfd)
-{
-    ssize_t count = 0;
-    ssize_t bytesRead = 0;
-    char buffer[MESSAGE_PARAM_RETURN_MAX_SIZE];
-    while ((bytesRead = recv(sockfd, buffer + count, MESSAGE_PARAM_RETURN_MAX_SIZE - 1 - count, 0)) > 0) {
-        count += bytesRead;
-        if (count >= MESSAGE_PARAM_RETURN_MAX_SIZE - 1) {
-            WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
-            return false;
-        }
-    }
-
-    buffer[count] = '\0';
-    std::string reciveStr(buffer, count);
-    CredentialMessage messageStruct(reciveStr);
-    if (messageStruct.GetMessageBody() == EVENT_PARAM_RETURN_FAILED) {
-        WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
-        return false;
-    }
-
-    return true;
-}
-
 bool CommandEventReport::ReportByUnixSocket(const std::string &command,
     const std::string &inputRaw, Base::Caller caller, bool isIntercepted)
 {
-    std::string messageStr = SplicMessageStr(command, inputRaw, caller, isIntercepted);
+    std::string str = FormatMessage(command, inputRaw, caller, isIntercepted);
+    if (str.empty()) {
+        WRITE_LOG(LOG_FATAL, "Input command is empty.");
+        return false;
+    }
+
+    std::string messageStr = SplicMessageStr(str, METHOD_COMMAND_EVENT_REPORT, METHOD_REPORT);
     if (messageStr.empty()) {
         WRITE_LOG(LOG_FATAL, "Failed to format message.");
         return false;
     }
 
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to create socket.");
+    char data[MESSAGE_STR_MAX_LEN] = {0};
+    ssize_t count = GetCredential(messageStr, data, MESSAGE_STR_MAX_LEN);
+    if (count <= 0) {
+        WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
         return false;
     }
 
-    if (!SendMessageByUnixSocket(sockfd, messageStr)) {
-        close(sockfd);
-        return false;
-    }
-
-    if (!RecvMessageByUnixSocket(sockfd)) {
-        close(sockfd);
+    std::string receiveStr(data, count);
+    CredentialMessage messageStruct(receiveStr);
+    if (messageStruct.GetMessageBody() == EVENT_PARAM_RETURN_FAILED) {
+        WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
         return false;
     }
 

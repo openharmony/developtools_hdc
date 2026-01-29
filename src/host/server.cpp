@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "connect_validation.h"
 #include "server.h"
 #include "host_updater.h"
 #include "server_cmd_log.h"
@@ -472,42 +473,88 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
         WRITE_LOG(LOG_FATAL, "the buf is invalid for %s session, so use rsa encrypt", sessionIdMaskStr.c_str());
         return;
     }
+#ifdef HOST_OHOS
+    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+    if (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
+        if (tlvmap.find(TAG_SUPPORT_FEATURE) != tlvmap.end()) {
+            std::vector<std::string> features;
+            WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
+                tlvmap[TAG_SUPPORT_FEATURE].c_str(), sessionIdMaskStr.c_str());
+            Base::SplitString(tlvmap[TAG_SUPPORT_FEATURE], ",", features);
+            hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
+        }
+    }
+#endif
     hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
     WRITE_LOG(LOG_INFO, "daemon auth type is rsa_3072_sha512 for %s session", sessionIdMaskStr.c_str());
 }
 
+bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handshake)
+{
+    WRITE_LOG(LOG_INFO, "recive get publickey cmd");
+    GetDaemonAuthType(hSession, handshake);
+    int connectValidation = 0;
+#ifdef HOST_OHOS
+    connectValidation = HdcValidation::GetConnectValidationParam();
+    WRITE_LOG(LOG_FATAL, "connectValidation %d", connectValidation);
+#endif
+    if (connectValidation == VALIDATION_HDC_HOST || connectValidation == VALIDATION_HDC_HOST_AND_DAEMON) {
+        if (!HdcValidation::GetPublicKeyHashInfo(handshake.buf)) {
+            WRITE_LOG(LOG_FATAL, "load public key failed");
+            return false;
+        }
+    } else {
+        if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
+            WRITE_LOG(LOG_FATAL, "load public key failed");
+            lastErrorNum = 0x000005; // E000005: load public key failed
+            return false;
+        }
+    }
+    handshake.authType = AUTH_PUBLICKEY;
+    string bufString = SerialStruct::SerializeToString(handshake);
+    Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
+         reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+
+    WRITE_LOG(LOG_INFO, "send pubkey over");
+    return true;
+}
+
+bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &handshake)
+{
+    int connectValidation = 0; // 仅ohos平台获取该参数。
+#ifdef HOST_OHOS
+    connectValidation = HdcValidation::GetConnectValidationParam();
+#endif
+    if (connectValidation) {
+        std::string pemStr;
+        HdcValidation::GetPrivateKeyInfo(pemStr);
+        if (!HdcValidation::RsaSignAndBase64(handshake.buf, hSession->verifyType, pemStr)) {
+            WRITE_LOG(LOG_FATAL, "sign failed");
+            return false;
+        }
+    } else {
+        if (!HdcAuth::RsaSignAndBase64(handshake.buf, hSession->verifyType)) {
+            WRITE_LOG(LOG_FATAL, "sign failed");
+            return false;
+        }
+    }
+
+    handshake.authType = AUTH_SIGNATURE;
+    string bufString = SerialStruct::SerializeToString(handshake);
+    Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
+         reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
+    WRITE_LOG(LOG_INFO, "response auth signture success");
+    return true;
+}
+
 bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
 {
-    string bufString;
     switch (handshake.authType) {
         case AUTH_PUBLICKEY: {
-            WRITE_LOG(LOG_INFO, "recive get publickey cmd");
-            GetDaemonAuthType(hSession, handshake);
-            if (!HdcAuth::GetPublicKeyinfo(handshake.buf)) {
-                WRITE_LOG(LOG_FATAL, "load public key failed");
-                lastErrorNum = 0x000005; // E000005: load public key failed
-                return false;
-            }
-            handshake.authType = AUTH_PUBLICKEY;
-            bufString = SerialStruct::SerializeToString(handshake);
-            Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
-                 reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
-
-            WRITE_LOG(LOG_INFO, "send pubkey over");
-            return true;
+            return HandleAuthPubkeyMsg(hSession, handshake);
         }
         case AUTH_SIGNATURE: {
-            WRITE_LOG(LOG_INFO, "recive auth signture cmd");
-            if (!HdcAuth::RsaSignAndBase64(handshake.buf, hSession->verifyType)) {
-                WRITE_LOG(LOG_FATAL, "sign failed");
-                return false;
-            }
-            handshake.authType = AUTH_SIGNATURE;
-            bufString = SerialStruct::SerializeToString(handshake);
-            Send(hSession->sessionId, 0, CMD_KERNEL_HANDSHAKE,
-                 reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
-            WRITE_LOG(LOG_INFO, "response auth signture success");
-            return true;
+            return HandleAuthSignatureMsg(hSession, handshake);
         }
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
         case AUTH_SSL_TLS_PSK: {

@@ -46,11 +46,15 @@ private:
 bool IsNumeric(const std::string& str);
 int StripLeadingZeros(const std::string& input);
 std::string IntToStringWithPadding(int length, int maxLen);
+std::string SplicMessageStr(const std::string& str, const size_t methodType, const size_t methonVersion);
+ssize_t GetCredential(const std::string &messageStr, char data[], ssize_t size);
+bool SendMessageByUnixSocket(const int sockfd, const std::string &messageStr);
+ssize_t RecvMessageByUnixSocket(const int sockfd, char data[], ssize_t size);
 std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
 void SplitString(const std::string &origString, const std::string &seq,
                  std::vector<std::string> &resultStrings);
 
-constexpr size_t MESSAGE_STR_MAX_LEN = 1024;
+constexpr size_t MESSAGE_STR_MAX_LEN = 4096;
 constexpr size_t MESSAGE_VERSION_POS = 0;
 constexpr size_t MESSAGE_METHOD_POS = 1;
 constexpr size_t MESSAGE_METHOD_LEN = 3;
@@ -69,6 +73,7 @@ const std::string EVENT_PARAM_REPORT_COMMAND = "command";
 const std::string EVENT_PARAM_REPORT_CONTENT = "content";
 const std::string EVENT_PARAM_RETURN_SUCCESS = "success";
 const std::string EVENT_PARAM_RETURN_FAILED = "failed";
+const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
 
 enum V1MethodID {
     METHOD_ENCRYPT = 1,
@@ -88,9 +93,23 @@ enum MethodCommandEventReportParamIndex {
     PARAM_REPORT_CONTENT,
 };
 
+enum MethodAuthResult {
+    GET_PUBKEY_SUCCESSED = 0,
+    GET_PUBKEY_FAILED,
+    GET_PRIVKEY_FAILED,
+    MISMATCH_PUBKEY_PRIVKEY,
+    GET_PRIVATE_SUCCESSED
+};
+ 
+enum MethodAuthVerify {
+    GET_PUBKEY = 0,
+    GET_SIGNATURE
+};
+ 
 enum MethodVersion {
     METHOD_VERSION_V1 = 1,
     METHOD_REPORT = 2,
+    METHOD_AUTHVERIFY = 3,
     METHOD_VERSION_MAX = 9,
 };
 

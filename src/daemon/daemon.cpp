@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "connect_validation.h"
 #include "daemon.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
@@ -118,6 +119,14 @@ void HdcDaemon::TryStopInstance()
 
 bool HdcDaemon::GetAuthByPassValue()
 {
+    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+    if ((connectValidationStatus == VALIDATION_HDC_DAEMON
+        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON)) {
+        WRITE_LOG(LOG_INFO, "If the connection verification function is enabled on the device side, "
+            "authentication is required.");
+        return true;
+    }
+
     // enable security
     string secure;
 #ifdef CONFIG_HDC_OSPM_AUTH_DISABLE
@@ -499,8 +508,34 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
     return true;
 }
 
+bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
+{
+    bool ret = false;
+    string hostname, pubkey;
+    //parse recv pubkey
+    if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkey)) {
+        WRITE_LOG(LOG_FATAL, "get pubkey failed for %u", hSession->sessionId);
+        ret = false;
+    }
+ 
+    ret = HdcValidation::CheckAuthPubKeyIsValid(pubkey);
+    if (ret) {
+        SendAuthMsg(handshake, channelId, hSession, pubkey);
+    } else {
+        string notifymsg = "[E000010]:Auth failed, cannt login the device.";
+        WRITE_LOG(LOG_FATAL, "%s", notifymsg.c_str());
+        HandleAuthFailed(handshake, channelId, hSession, notifymsg);
+    }
+    return true;
+}
+
 bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
+    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+    if (connectValidationStatus == VALIDATION_HDC_DAEMON
+        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
+        return HandConnectValidationPubkey(hSession, channelId, handshake);
+    }
     bool ret = false;
     string hostname, pubkey;
     std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
@@ -515,12 +550,12 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
             break;
         }
 
-        std::thread notifymsg([this, &handshake, channelId, sessionId = hSession->sessionId]() {
+        std::thread notifymsg([this, &handshake, channelId, &hSession]() {
             std::string confirmmsg = "[E000002]:The device unauthorized.\r\n"\
                                      "This server's public key is not set.\r\n"\
                                      "Please check for a confirmation dialog on your device.\r\n"\
                                      "Otherwise try 'hdc kill' if that seems wrong.";
-            this->HandleAuthFailed(handshake, channelId, sessionId, confirmmsg);
+            this->HandleAuthFailed(handshake, channelId, hSession, confirmmsg);
         });
         notifymsg.detach();
 
@@ -545,7 +580,7 @@ bool HdcDaemon::HandDaemonAuthPubkey(HSession hSession, const uint32_t channelId
                             "The user denied the access for the device.\r\n"\
                              "Please execute 'hdc kill' and redo your command,\r\n"\
                              "then check for a confirmation dialog on your device.";
-        HandleAuthFailed(handshake, channelId, hSession->sessionId, notifymsg);
+        HandleAuthFailed(handshake, channelId, hSession, notifymsg);
     }
     return true;
 }
@@ -735,7 +770,7 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
         WRITE_LOG(LOG_FATAL, "auth failed for session %s",
             Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         // Next auth
-        HandleAuthFailed(handshake, channelId, hSession->sessionId, "[E000010]:Auth failed, cannt login the device.");
+        HandleAuthFailed(handshake, channelId, hSession, "[E000010]:Auth failed, cannt login the device.");
         return true;
     }
 
@@ -743,7 +778,7 @@ bool HdcDaemon::HandDaemonAuthSignature(HSession hSession, const uint32_t channe
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
 
     UpdateSessionAuthOk(hSession->sessionId);
-    SendAuthOkMsg(handshake, channelId, hSession->sessionId);
+    SendAuthOkMsg(handshake, channelId, hSession);
     return true;
 }
 
@@ -757,17 +792,25 @@ bool HdcDaemon::HandDaemonAuthBypass(void)
 
 bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
-    if (!authEnable) {
+    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+    bool connectstatus = (connectValidationStatus == VALIDATION_HDC_DAEMON
+        || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
+ 
+    if (!connectstatus && !authEnable) {
         WRITE_LOG(LOG_INFO, "not enable secure, allow access for %s",
             Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         UpdateSessionAuthOk(hSession->sessionId);
-        SendAuthOkMsg(handshake, channelId, hSession->sessionId);
+        SendAuthOkMsg(handshake, channelId, hSession);
         return true;
     } else if (handshake.version < "Ver: 3.0.0b") {
         WRITE_LOG(LOG_INFO, "session %s client version %s is too low,authType %d",
                     Hdc::MaskSessionIdToString(hSession->sessionId).c_str(),
                     handshake.version.c_str(), handshake.authType);
-        AuthRejectLowClient(handshake, channelId, hSession->sessionId);
+        AuthRejectLowClient(handshake, channelId, hSession);
+        return true;
+    } else if (connectstatus && !hSession->supportConnValidation) {
+        WRITE_LOG(LOG_INFO, "session %u client is not support connect validation", hSession->sessionId);
+        AuthRejectNotSupportConnValidation(handshake, channelId, hSession);
         return true;
     } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_OK) {
         WRITE_LOG(LOG_INFO, "session %u already auth ok", hSession->sessionId);
@@ -887,7 +930,7 @@ bool HdcDaemon::DaemonSSLHandshake(HSession hSession, const uint32_t channelId, 
     if (hssl->SetHandshakeLabel(hSession)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(SSL_HANDSHAKE_FINISHED_WAIT_TIME));
         UpdateSessionAuthOk(hSession->sessionId);
-        SendAuthOkMsg(handshake, channelId, hSession->sessionId);
+        SendAuthOkMsg(handshake, channelId, hSession);
         if (!hssl->ClearPsk()) {
             WRITE_LOG(LOG_WARN, "clear Pre Shared Key failed");
             ret = ERR_GENERIC;
@@ -951,7 +994,6 @@ bool HdcDaemon::DaemonSessionHandshake(HSession hSession, const uint32_t channel
 #ifdef HDC_DEBUG
     WRITE_LOG(LOG_INFO, "session %s handshakeOK send back CMD_KERNEL_HANDSHAKE", sessionIdMaskStr.c_str());
 #endif
-    hSession->handshakeOK = true;
     return true;
 }
 
@@ -1311,7 +1353,7 @@ string HdcDaemon::GetSessionAuthmsg(uint32_t sessionid)
     return info.authmsg;
 }
 void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
-                              uint32_t sessionid, string msg, string daemonAuthResult)
+                              HSession hSession, string msg, string daemonAuthResult)
 {
     char hostname[BUF_SIZE_MEDIUM] = { 0 };
     if (gethostname(hostname, BUF_SIZE_MEDIUM) != 0) {
@@ -1322,21 +1364,29 @@ void HdcDaemon::SendAuthOkMsg(SessionHandShake &handshake, uint32_t channelid,
             msg = hostname;
         }
         handshake.buf = msg;
+        hSession->handshakeOK = true;
     } else {
         string emgmsg;
         Base::TlvAppend(emgmsg, TAG_EMGMSG, msg);
         Base::TlvAppend(emgmsg, TAG_DEVNAME, hostname);
         Base::TlvAppend(emgmsg, TAG_DAEOMN_AUTHSTATUS, daemonAuthResult);
-        AddFeatureTagToEmgmsg(emgmsg);
+        
+        int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+        bool connectstatus = (connectValidationStatus == VALIDATION_HDC_DAEMON
+            || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON);
+        if (!connectstatus || hSession->supportConnValidation) {
+            AddFeatureTagToEmgmsg(emgmsg);
+            hSession->handshakeOK = true;
+        }
         handshake.buf = emgmsg;
     }
 
     handshake.authType = AUTH_OK;
     string bufString = SerialStruct::SerializeToString(handshake);
-    Send(sessionid, channelid, CMD_KERNEL_HANDSHAKE,
+    Send(hSession->sessionId, channelid, CMD_KERNEL_HANDSHAKE,
             reinterpret_cast<uint8_t *>(const_cast<char *>(bufString.c_str())), bufString.size());
     uint8_t count = 1;
-    Send(sessionid, channelid, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
+    Send(hSession->sessionId, channelid, CMD_KERNEL_CHANNEL_CLOSE, &count, 1);
 }
 void HdcDaemon::SendAuthSignMsg(SessionHandShake &handshake,
         uint32_t channelId, uint32_t sessionid, string pubkey, string token)
@@ -1402,21 +1452,26 @@ void HdcDaemon::SendAuthEncryptPsk(SessionHandShake &handshake, const uint32_t c
     hssl->InitSSL();
 }
 #endif
-void HdcDaemon::HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid, string msg)
+void HdcDaemon::HandleAuthFailed(SessionHandShake &handshake, uint32_t channelid, HSession hSession, string msg)
 {
-    SendAuthOkMsg(handshake, channelid, sessionid, msg, DAEOMN_UNAUTHORIZED);
-    LogMsg(sessionid, channelid, MSG_FAIL, msg.c_str());
-    UpdateSessionAuthmsg(sessionid, msg);
+    SendAuthOkMsg(handshake, channelid, hSession, msg, DAEOMN_UNAUTHORIZED);
+    LogMsg(hSession->sessionId, channelid, MSG_FAIL, msg.c_str());
+    UpdateSessionAuthmsg(hSession->sessionId, msg);
 }
-void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, uint32_t sessionid)
+void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channelid, HSession hSession)
 {
     string msg = "[E000001]:The sdk hdc.exe version is too low, please upgrade to the latest version.";
-    HandleAuthFailed(handshake, channelid, sessionid, msg);
+    HandleAuthFailed(handshake, channelid, hSession, msg);
 }
 void HdcDaemon::AddFeatureTagToEmgmsg(string &emgmsg)
 {
     Base::TlvAppend(emgmsg, TAG_FEATURE_SHELL_OPT, "enable");
     //told server, we support features
     Base::TlvAppend(emgmsg, TAG_SUPPORT_FEATURE, Base::FeatureToString(Base::GetSupportFeature()));
+}
+void HdcDaemon::AuthRejectNotSupportConnValidation(SessionHandShake &handshake, uint32_t channelid, HSession hSession)
+{
+    string msg = "[E000006]:The sdk hdc.exe is not allowed to be debugged by enterprise control.";
+    HandleAuthFailed(handshake, channelid, hSession, msg);
 }
 }  // namespace Hdc

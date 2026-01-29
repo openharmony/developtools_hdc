@@ -16,17 +16,21 @@
 #include <want.h>
 #include <common_event_manager.h>
 #include <common_event_publish_info.h>
+#include <parameters.h>
 
+#include "connect_validation.h"
 #include "credential_base.h"
 #include "credential_message.h"
 #include "hdc_huks.h"
 #include "hdc_subscriber.h"
 #include "password.h"
+#include "secret_manage.h"
 
 using namespace Hdc;
 using namespace HdcCredentialBase;
 
 Hdc::HdcHuks hdcHuks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
+Hdc::HdcHuks hdcRsaHuks(HDC_RAS_KEY_FILE_PWD_KEY_ALIAS);
 Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 
 std::string BytetoHex(const uint8_t* byteDate, size_t length)
@@ -200,6 +204,28 @@ void HandleCommandReportMessage(CredentialMessage& messageStruct, std::string& n
     needSendStr = messageStruct.Construct();
 }
 
+void HandleAuthVerifyMessage(CredentialMessage& messageStruct, std::string& needSendStr)
+{
+    std::string processMessageValue;
+    switch (messageStruct.GetMessageMethodType()) {
+        case GET_PUBKEY: {
+            messageStruct.SetMessageMethodType(HandleGetPubkeyMessage(processMessageValue));
+            break;
+        }
+        case GET_SIGNATURE: {
+            messageStruct.SetMessageMethodType(HandleGetSignatureMessage(processMessageValue));
+            break;
+        }
+        default: {
+            WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
+            return;
+        }
+    }
+ 
+    messageStruct.SetMessageBody(processMessageValue);
+    needSendStr = messageStruct.Construct();
+}
+
 bool HandleMessage(const std::string& messageStr, std::string& needSendStr)
 {
     bool ret = false;
@@ -217,6 +243,11 @@ bool HandleMessage(const std::string& messageStr, std::string& needSendStr)
         }
         case METHOD_REPORT: {
             HandleCommandReportMessage(messageStruct, needSendStr);
+            ret = true;
+            break;
+        }
+        case METHOD_AUTHVERIFY: {
+            HandleAuthVerifyMessage(messageStruct, needSendStr);
             ret = true;
             break;
         }
@@ -313,27 +344,17 @@ bool SplitCommandToArgs(int argc, const char **argv)
     return true;
 }
 
-int main(int argc, const char *argv[])
+void CreateSocketListen()
 {
-    if (!SplitCommandToArgs(argc, argv)) {
-        return 0;
-    }
-    if (HdcAccountSubscriberMonitor() != 0) {
-        WRITE_LOG(LOG_FATAL, "HdcAccountSubscriberMonitor failed");
-        return 0;
-    }
-    // fresh all accounts path when process restart.
-    FreshAccountsPath();
-
     int sockfd = CreateAndBindSocket(HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");
-        return -1;
+        return;
     }
     if (listen(sockfd, SOCKET_CLIENT_NUMS) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to listen on socket.");
         close(sockfd);
-        return -1;
+        return;
     }
     WRITE_LOG(LOG_INFO, "Listening on socket: %s", HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
     bool running = true;
@@ -375,5 +396,29 @@ int main(int argc, const char *argv[])
     WRITE_LOG(LOG_FATAL, "hdc_credential stopped.");
     close(sockfd);
     unlink(HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
+    return;
+}
+
+int main(int argc, const char *argv[])
+{
+    if (!SplitCommandToArgs(argc, argv)) {
+        return 0;
+    }
+    if (HdcAccountSubscriberMonitor() != 0) {
+        WRITE_LOG(LOG_FATAL, "HdcAccountSubscriberMonitor failed");
+        return 0;
+    }
+    // fresh all accounts path when process restart.
+    FreshAccountsPath();
+ 
+    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
+    if (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
+        WRITE_LOG(LOG_FATAL, "GenerateAndExportHuksRSAPublicKey");
+        hdcRsaHuks.GenerateAndExportHuksRSAPublicKey();
+    }
+ 
+    // create uds socket
+    CreateSocketListen();
+ 
     return 0;
 }

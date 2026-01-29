@@ -40,7 +40,7 @@ using namespace OHOS::UserIam::UserAuth;
 namespace {
 static const int SUDO_ARG_MAX_NUMS = 4096;
 static const int CHALLENGE_LEN = 32;
-static const std::vector<std::string> DEFAULT_PATH = {"/bin", "/usr/bin", "/system/bin", "/vendor/bin",
+static const std::vector<std::string> DEFAULT_PATH = {"/bin", "/system/usr/bin", "/system/bin", "/vendor/bin",
     "/usr/local/bin", "/data/app/bin", "/data/service/hnp/bin", "/opt/homebrew"};
 static const char *DEFAULT_BASH = "/system/bin/sh";
 static FILE *g_ttyFp = nullptr;

@@ -1031,20 +1031,11 @@ bool HdcTransferBase::CommandDispatch(const uint16_t command, uint8_t *payload, 
 
 void HdcTransferBase::ExtractRelativePath(string &cwd, string &path)
 {
-    if (Base::IsAbsolutePath(path)) {
+    bool absPath = Base::IsAbsolutePath(path);
+    if (absPath) {
         return;
     }
-    if (cwd.empty()) {
-        return;
-    }
-
-    char lastChar = cwd.back();
-    if ((lastChar == '/') || (lastChar == '\\')) {
-        // cwd ending character is slash
-        path = cwd + path;
-        return;
-    }
-    path = cwd + Base::GetPathSep() + path;
+    path = cwd + path;
 }
 
 bool HdcTransferBase::AddFeatures(FeatureFlagsUnion &feature)

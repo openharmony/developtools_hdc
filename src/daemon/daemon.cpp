@@ -510,7 +510,6 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
 
 bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
-    bool ret = false;
     string hostname, pubkey;
     //parse recv pubkey
     if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkey)) {

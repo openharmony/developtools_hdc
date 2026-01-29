@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "connect_validation.h"
 #include "daemon.h"
+#include "connect_validation.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
 #endif
@@ -515,11 +515,10 @@ bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t ch
     //parse recv pubkey
     if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkey)) {
         WRITE_LOG(LOG_FATAL, "get pubkey failed for %u", hSession->sessionId);
-        ret = false;
+        return false;
     }
  
-    ret = HdcValidation::CheckAuthPubKeyIsValid(pubkey);
-    if (ret) {
+    if (HdcValidation::CheckAuthPubKeyIsValid(pubkey)) {
         SendAuthMsg(handshake, channelId, hSession, pubkey);
     } else {
         string notifymsg = "[E000010]:Auth failed, cannt login the device.";
@@ -809,7 +808,8 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
         AuthRejectLowClient(handshake, channelId, hSession);
         return true;
     } else if (connectstatus && !hSession->supportConnValidation) {
-        WRITE_LOG(LOG_INFO, "session %u client is not support connect validation", hSession->sessionId);
+        WRITE_LOG(LOG_INFO, "session %u client is not support connect validation",
+                  Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         AuthRejectNotSupportConnValidation(handshake, channelId, hSession);
         return true;
     } else if (GetSessionAuthStatus(hSession->sessionId) == AUTH_OK) {

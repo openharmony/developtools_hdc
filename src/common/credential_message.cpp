@@ -19,6 +19,8 @@
 
 using namespace Hdc;
 
+const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
+
 CredentialMessage::CredentialMessage(const std::string& messageStr)
 {
     Init(messageStr);
@@ -205,7 +207,7 @@ void SplitString(const std::string &origString, const std::string &seq,
     }
 }
 
-std::string SplicMessageStr(const std::string &str, const size_t methodType, const size_t methonVersion)
+std::string SplicMessageStr(const std::string &str, const size_t methodType, const size_t methodVersion)
 {
     if (str.empty()) {
         WRITE_LOG(LOG_FATAL, "Input string is empty.");
@@ -230,7 +232,7 @@ std::string SplicMessageStr(const std::string &str, const size_t methodType, con
 
     std::string result;
     result.reserve(totalLength);
-    result.push_back('0' + methonVersion);
+    result.push_back('0' + methodVersion);
     result.append(messageMethodTypeStr);
     result.append(messageBodyLen);
     result.append(str);

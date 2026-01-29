@@ -14,13 +14,14 @@
  */
 
 #include "connect_validation.h"
-#include "sys/socket.h"
 
 #include <fstream>
+#include <regex>
+#include <parameters.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
-#include <parameters.h>
-#include <regex>
+
+#include "sys/socket.h"
 
 using namespace Hdc;
 using namespace HdcAuth;

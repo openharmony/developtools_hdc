@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#include "secret_manage.h"
+
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -21,13 +23,12 @@
 #include "auth.h"
 #include "credential_message.h"
 #include "log.h"
-#include "secret_manage.h"
 
 using namespace Hdc;
 
 namespace {
 static const std::string VERIFY_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
-static const std::string ENCRYPT_PRIVATE_KEY_PATH = "/data/service/el4/100/hdc_service/encrypt_private_key.pem";
+static const std::string ENCRYPT_PRIVATE_KEY_PATH = "/data/service/el4/100/file_guard/encrypt_private_key.pem";
 }  // namespace
 
 HdcSecretManage::HdcSecretManage(const std::string &keyAlias):hdcRsaHuks(keyAlias)
@@ -100,12 +101,9 @@ bool HdcSecretManage::LoadPrivateKeyInfo()
     }
 
     bool ret = DerToEvpPkey(privKeyInfo);
+    (void)memset_s(privKeyInfo.first, privKeyInfo.second, 0, privKeyInfo.second);
 
-    if (memset_s(privKeyInfo.first, privKeyInfo.second, 0, privKeyInfo.second) != EOK) {
-        WRITE_LOG(LOG_FATAL, "memset_s failed.");
-    }
     delete[] privKeyInfo.first;
-
     return ret;
 }
 
@@ -180,21 +178,21 @@ bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsig
         return false;
     }
 
-    if (1 != EVP_DigestSignInit(mdctx, nullptr, EVP_sha256(), nullptr, privKey)) {
+    if (EVP_DigestSignInit(mdctx, nullptr, EVP_sha256(), nullptr, privKey) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSignInit failed");
         EVP_MD_CTX_free(mdctx);
         return false;
     }
 
     reqLen = 0;
-    if (1 != EVP_DigestSign(mdctx, nullptr, &reqLen, (const unsigned char *)testData, strlen(testData))) {
+    if (EVP_DigestSign(mdctx, nullptr, &reqLen, (const unsigned char *)testData, strlen(testData)) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSign failed");
         EVP_MD_CTX_free(mdctx);
         return false;
     }
 
     signature.resize(reqLen);
-    if (1 != EVP_DigestSign(mdctx, signature.data(), &reqLen, (const unsigned char *)testData, strlen(testData))) {
+    if (EVP_DigestSign(mdctx, signature.data(), &reqLen, (const unsigned char *)testData, strlen(testData)) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSign failed");
         EVP_MD_CTX_free(mdctx);
         return false;
@@ -233,7 +231,12 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
         return false;
     }
 
-    if (!pubKey || !privKey) {
+    if (!pubKey) {
+        return false;
+    }
+
+    if (!privKey) {
+        ClearPublicKeyInfo();
         return false;
     }
 
@@ -290,7 +293,7 @@ int HandleGetPubkeyMessage(std::string &processMessageValue)
 {
     std::shared_ptr<HdcSecretManage> secretManage = std::make_shared<HdcSecretManage>(HDC_RAS_KEY_FILE_PWD_KEY_ALIAS);
     int ret = secretManage->TryLoadPublicKeyInfo();
-    if (GET_PUBKEY_SUCCESSED != ret) {
+    if (ret != GET_PUBKEY_SUCCESSED) {
         WRITE_LOG(LOG_FATAL, "LoadPublicKey failed.");
         return ret;
     }

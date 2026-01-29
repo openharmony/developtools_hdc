@@ -27,7 +27,7 @@ namespace Hdc {
 static const int AES_GCM_NONCE_BYTE_LEN = 12;
 static const int AES_GCM_TAG_BYTE_LEN = 16;
 static const size_t MAX_RSA_CIPHER_TEXT_LEN = 384; // HKS_RSA_KEY_SIZE_3072 / 8
-#define HDC_PUBLIC_KEY_PATH "/data/service/el2/public/hdc_service/hdc_public_key.pem"
+const std::string HDC_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/hdc_public_key.pem";
 
 struct HksParam aesBasePara [] = {
     { .tag = HKS_TAG_ALGORITHM,  .uint32Param = HKS_ALG_AES },
@@ -360,11 +360,15 @@ int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetI
         std::copy(publicKey.data, publicKey.data + publicKey.size, vec.begin());
     }
     std::string base64Data = base64Encode(vec);
-    std::ofstream file(HDC_PUBLIC_KEY_PATH);
+    std::ofstream file(HDC_PUBLIC_KEY_PATH.c_str());
     file << "-----BEGIN PUBLIC KEY-----\n";
     file << base64Data;
     file << "-----END PUBLIC KEY-----\n";
     file.close();
+
+    if (chmod(HDC_PUBLIC_KEY_PATH.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) != 0) {
+        WRITE_LOG(LOG_FATAL, "failed to set permission for pubkey file");
+    }
 
     return result;
 }
@@ -372,7 +376,7 @@ int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetI
 int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
 {
     struct stat status;
-    if (stat(HDC_PUBLIC_KEY_PATH, &status) == 0) {
+    if (stat(HDC_PUBLIC_KEY_PATH.c_str(), &status) == 0) {
         WRITE_LOG(LOG_FATAL, "HuksRSAPublicKey exist");
         return -1;
     }
@@ -402,6 +406,7 @@ int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
     result = HksGenerateKey(&(this->keyBlobAlias), generateParamSet, nullptr);
     if (result != HKS_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "Failed to HksGenerateKey, result: ", result);
+        HksFreeParamSet(&generateParamSet);
         return result;
     }
 
@@ -454,14 +459,15 @@ std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &in
         return std::make_pair(nullptr, 0);
     }
 
+    uint8_t plainData[MAX_RSA_CIPHER_TEXT_LEN];
+
     for (size_t offset = 0; offset < totalSize; offset += MAX_RSA_CIPHER_TEXT_LEN) {
         const size_t currentSegmentSize = std::min(MAX_RSA_CIPHER_TEXT_LEN, totalSize - offset);
         const auto segmentStart = inputData.begin() + offset;
 
         struct HksBlob encryptBlob = {currentSegmentSize, reinterpret_cast<uint8_t*>(&(*segmentStart))};
 
-        std::unique_ptr<uint8_t[]> plainData = std::make_unique<uint8_t[]>(currentSegmentSize);
-        struct HksBlob plainBlob = {currentSegmentSize, plainData.get()};
+        struct HksBlob plainBlob = {currentSegmentSize, plainData};
 
         int32_t ret = HksDecrypt(&(this->keyBlobAlias), paramSet, &encryptBlob, &plainBlob);
         if (ret != HKS_SUCCESS) {
@@ -471,15 +477,15 @@ std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &in
             return std::make_pair(nullptr, 0);
         }
 
-        decryptedData.insert(decryptedData.end(), plainData.get(), plainData.get() + plainBlob.size);
+        decryptedData.insert(decryptedData.end(), plainData, plainData + plainBlob.size);
     }
 
-    auto resultData = std::make_unique<uint8_t[]>(decryptedData.size());
-    std::copy(decryptedData.begin(), decryptedData.end(), resultData.get());
+    uint8_t* resultData = new uint8_t[decryptedData.size()];
+    std::copy(decryptedData.begin(), decryptedData.end(), resultData);
 
     WRITE_LOG(LOG_FATAL, "HksDecrypt Successed, size %zu", decryptedData.size());
     HksFreeParamSet(&paramSet);
-    return std::make_pair(resultData.release(), decryptedData.size());
+    return std::make_pair(resultData, decryptedData.size());
 }
 
 } // namespace Hdc

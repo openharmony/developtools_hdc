@@ -25,8 +25,6 @@
 namespace Hdc {
 #define PASSWORD_LENGTH 10
 
-const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
-
 class HdcPassword {
 public:
     ~HdcPassword();

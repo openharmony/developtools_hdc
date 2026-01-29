@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#include "connect_validation.h"
 #include "session.h"
+#include "connect_validation.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
 #endif

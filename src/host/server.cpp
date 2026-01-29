@@ -476,11 +476,12 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
 #ifdef HOST_OHOS
     int connectValidationStatus = HdcValidation::GetConnectValidationParam();
     if (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
-        if (tlvmap.find(TAG_SUPPORT_FEATURE) != tlvmap.end()) {
+        auto it = tlvmap.find(TAG_SUPPORT_FEATURE);
+        if (it != tlvmap.end()) {
             std::vector<std::string> features;
             WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
-                tlvmap[TAG_SUPPORT_FEATURE].c_str(), sessionIdMaskStr.c_str());
-            Base::SplitString(tlvmap[TAG_SUPPORT_FEATURE], ",", features);
+                it->second.c_str(), sessionIdMaskStr.c_str());
+            Base::SplitString(it->second, ",", features);
             hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
         }
     }
@@ -525,7 +526,7 @@ bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &hand
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
 #endif
-    if (connectValidation) {
+    if (connectValidation == VALIDATION_HDC_HOST || connectValidation == VALIDATION_HDC_HOST_AND_DAEMON) {
         std::string pemStr;
         HdcValidation::GetPrivateKeyInfo(pemStr);
         if (!HdcValidation::RsaSignAndBase64(handshake.buf, hSession->verifyType, pemStr)) {

@@ -807,7 +807,7 @@ bool HdcDaemon::HandDaemonAuth(HSession hSession, const uint32_t channelId, Sess
         AuthRejectLowClient(handshake, channelId, hSession);
         return true;
     } else if (connectstatus && !hSession->supportConnValidation) {
-        WRITE_LOG(LOG_INFO, "session %u client is not support connect validation",
+        WRITE_LOG(LOG_INFO, "session %s client is not support connect validation",
                   Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         AuthRejectNotSupportConnValidation(handshake, channelId, hSession);
         return true;

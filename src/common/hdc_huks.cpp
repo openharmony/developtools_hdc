@@ -444,8 +444,8 @@ struct HksParamSet *HdcHuks::MakeRsaDecryptParamSets()
 std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &inputData)
 {
     const size_t totalSize = inputData.size();
-    if (totalSize == 0) {
-        WRITE_LOG(LOG_FATAL, "inputData size %d ", inputData.size());
+    if (totalSize == 0 || (totalSize % MAX_RSA_CIPHER_TEXT_LEN != 0)) {
+        WRITE_LOG(LOG_FATAL, "inputData size is invalid, size %d ", inputData.size());
         return std::make_pair(nullptr, 0);
     }
 

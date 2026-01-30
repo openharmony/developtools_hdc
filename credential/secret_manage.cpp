@@ -77,7 +77,7 @@ bool HdcSecretManage::DerToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo)
     }
 
     privKey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
-    if (!privKey) {
+    if (privKey == nullptr) {
         WRITE_LOG(LOG_FATAL, "Failed to parse PEM private key");
         return false;
     }
@@ -109,7 +109,7 @@ bool HdcSecretManage::LoadPrivateKeyInfo()
 
 void HdcSecretManage::ClearPrivateKeyInfo()
 {
-    if (!privKey) {
+    if (privKey == nullptr) {
         return;
     }
     EVP_PKEY_free(privKey);
@@ -123,12 +123,12 @@ bool HdcSecretManage::LoadPublicKeyInfo()
 
     do {
         file_pubkey = Base::Fopen(VERIFY_PUBLIC_KEY_PATH.c_str(), "r");
-        if (!file_pubkey) {
+        if (file_pubkey == nullptr) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
             break;
         }
         pubKey = PEM_read_PUBKEY(file_pubkey, NULL, NULL, NULL);
-        if (!pubKey) {
+        if (pubKey == nullptr) {
             WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
             break;
         }
@@ -156,7 +156,7 @@ bool HdcSecretManage::LoadPublicKeyInfo()
         BIO_free(bio);
         bio = nullptr;
     }
-    if (file_pubkey) {
+    if (file_pubkey != nullptr) {
         fclose(file_pubkey);
         file_pubkey = nullptr;
     }
@@ -165,7 +165,7 @@ bool HdcSecretManage::LoadPublicKeyInfo()
 
 void HdcSecretManage::ClearPublicKeyInfo()
 {
-    if (!pubKey) {
+    if (pubKey == nullptr) {
         return;
     }
     EVP_PKEY_free(pubKey);
@@ -231,11 +231,11 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
         return false;
     }
 
-    if (!pubKey) {
+    if (pubKey == nullptr) {
         return false;
     }
 
-    if (!privKey) {
+    if (privKey == nullptr) {
         ClearPublicKeyInfo();
         return false;
     }
@@ -313,7 +313,7 @@ int HdcSecretManage::TryLoadPrivateKeyInfo(std::string &processMessageValue)
         WRITE_LOG(LOG_FATAL, "LoadPrivateKeyInfo failed.");
         return false;
     }
-    if (!privKey) {
+    if (privKey == nullptr) {
         WRITE_LOG(LOG_FATAL, "load privkey failed");
         return GET_PRIVKEY_FAILED;
     }

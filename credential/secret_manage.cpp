@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#include "secret_manage.h"
+
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -21,13 +23,12 @@
 #include "auth.h"
 #include "credential_message.h"
 #include "log.h"
-#include "secret_manage.h"
 
 using namespace Hdc;
 
 namespace {
 static const std::string VERIFY_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
-static const std::string ENCRYPT_PRIVATE_KEY_PATH = "/data/service/el4/100/hdc_service/encrypt_private_key.pem";
+static const std::string ENCRYPT_PRIVATE_KEY_PATH = "/data/service/el4/100/file_guard/encrypt_private_key.pem";
 }  // namespace
 
 HdcSecretManage::HdcSecretManage(const std::string &keyAlias):hdcRsaHuks(keyAlias)
@@ -76,7 +77,7 @@ bool HdcSecretManage::DerToEvpPkey(const std::pair<uint8_t*, int>& privKeyInfo)
     }
 
     privKey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
-    if (!privKey) {
+    if (privKey == nullptr) {
         WRITE_LOG(LOG_FATAL, "Failed to parse PEM private key");
         return false;
     }
@@ -100,18 +101,15 @@ bool HdcSecretManage::LoadPrivateKeyInfo()
     }
 
     bool ret = DerToEvpPkey(privKeyInfo);
+    (void)memset_s(privKeyInfo.first, privKeyInfo.second, 0, privKeyInfo.second);
 
-    if (memset_s(privKeyInfo.first, privKeyInfo.second, 0, privKeyInfo.second) != EOK) {
-        WRITE_LOG(LOG_FATAL, "memset_s failed.");
-    }
     delete[] privKeyInfo.first;
-
     return ret;
 }
 
 void HdcSecretManage::ClearPrivateKeyInfo()
 {
-    if (!privKey) {
+    if (privKey == nullptr) {
         return;
     }
     EVP_PKEY_free(privKey);
@@ -125,12 +123,12 @@ bool HdcSecretManage::LoadPublicKeyInfo()
 
     do {
         file_pubkey = Base::Fopen(VERIFY_PUBLIC_KEY_PATH.c_str(), "r");
-        if (!file_pubkey) {
+        if (file_pubkey == nullptr) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
             break;
         }
         pubKey = PEM_read_PUBKEY(file_pubkey, NULL, NULL, NULL);
-        if (!pubKey) {
+        if (pubKey == nullptr) {
             WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
             break;
         }
@@ -158,7 +156,7 @@ bool HdcSecretManage::LoadPublicKeyInfo()
         BIO_free(bio);
         bio = nullptr;
     }
-    if (file_pubkey) {
+    if (file_pubkey != nullptr) {
         fclose(file_pubkey);
         file_pubkey = nullptr;
     }
@@ -167,7 +165,7 @@ bool HdcSecretManage::LoadPublicKeyInfo()
 
 void HdcSecretManage::ClearPublicKeyInfo()
 {
-    if (!pubKey) {
+    if (pubKey == nullptr) {
         return;
     }
     EVP_PKEY_free(pubKey);
@@ -180,21 +178,21 @@ bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsig
         return false;
     }
 
-    if (1 != EVP_DigestSignInit(mdctx, nullptr, EVP_sha256(), nullptr, privKey)) {
+    if (EVP_DigestSignInit(mdctx, nullptr, EVP_sha256(), nullptr, privKey) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSignInit failed");
         EVP_MD_CTX_free(mdctx);
         return false;
     }
 
     reqLen = 0;
-    if (1 != EVP_DigestSign(mdctx, nullptr, &reqLen, (const unsigned char *)testData, strlen(testData))) {
+    if (EVP_DigestSign(mdctx, nullptr, &reqLen, (const unsigned char *)testData, strlen(testData)) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSign failed");
         EVP_MD_CTX_free(mdctx);
         return false;
     }
 
     signature.resize(reqLen);
-    if (1 != EVP_DigestSign(mdctx, signature.data(), &reqLen, (const unsigned char *)testData, strlen(testData))) {
+    if (EVP_DigestSign(mdctx, signature.data(), &reqLen, (const unsigned char *)testData, strlen(testData)) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSign failed");
         EVP_MD_CTX_free(mdctx);
         return false;
@@ -233,7 +231,12 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
         return false;
     }
 
-    if (!pubKey || !privKey) {
+    if (pubKey == nullptr) {
+        return false;
+    }
+
+    if (privKey == nullptr) {
+        ClearPublicKeyInfo();
         return false;
     }
 
@@ -290,7 +293,7 @@ int HandleGetPubkeyMessage(std::string &processMessageValue)
 {
     std::shared_ptr<HdcSecretManage> secretManage = std::make_shared<HdcSecretManage>(HDC_RAS_KEY_FILE_PWD_KEY_ALIAS);
     int ret = secretManage->TryLoadPublicKeyInfo();
-    if (GET_PUBKEY_SUCCESSED != ret) {
+    if (ret != GET_PUBKEY_SUCCESSED) {
         WRITE_LOG(LOG_FATAL, "LoadPublicKey failed.");
         return ret;
     }
@@ -310,7 +313,7 @@ int HdcSecretManage::TryLoadPrivateKeyInfo(std::string &processMessageValue)
         WRITE_LOG(LOG_FATAL, "LoadPrivateKeyInfo failed.");
         return false;
     }
-    if (!privKey) {
+    if (privKey == nullptr) {
         WRITE_LOG(LOG_FATAL, "load privkey failed");
         return GET_PRIVKEY_FAILED;
     }

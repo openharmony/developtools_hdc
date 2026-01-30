@@ -46,7 +46,7 @@ private:
 bool IsNumeric(const std::string& str);
 int StripLeadingZeros(const std::string& input);
 std::string IntToStringWithPadding(int length, int maxLen);
-std::string SplicMessageStr(const std::string& str, const size_t methodType, const size_t methonVersion);
+std::string SplicMessageStr(const std::string& str, const size_t methodType, const size_t methodVersion);
 ssize_t GetCredential(const std::string &messageStr, char data[], ssize_t size);
 bool SendMessageByUnixSocket(const int sockfd, const std::string &messageStr);
 ssize_t RecvMessageByUnixSocket(const int sockfd, char data[], ssize_t size);
@@ -73,7 +73,6 @@ const std::string EVENT_PARAM_REPORT_COMMAND = "command";
 const std::string EVENT_PARAM_REPORT_CONTENT = "content";
 const std::string EVENT_PARAM_RETURN_SUCCESS = "success";
 const std::string EVENT_PARAM_RETURN_FAILED = "failed";
-const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
 
 enum V1MethodID {
     METHOD_ENCRYPT = 1,

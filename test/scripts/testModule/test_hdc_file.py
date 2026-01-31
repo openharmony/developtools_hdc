@@ -14,11 +14,27 @@
 # limitations under the License.
 import os
 import pytest
+import subprocess
 import sys
 
 from utils import GP, check_hdc_cmd, check_hdc_targets, check_soft_local, check_soft_remote, \
     check_shell, rmdir, check_version, get_local_path, get_remote_path, make_multiprocess_file, \
     load_gp, get_md5sum_local, generate_random_string, get_shell_result
+
+def get_hdcd_pid():
+    result = subprocess.run('hdc shell pidof hdcd', shell=True, capture_output=True, text=True).stdout
+    if result.strip():
+        return result.split()[0]
+    return None
+
+def get_hdcd_fd_num():
+    pid = get_hdcd_pid()
+    if (pid == None):
+        return None
+    result = subprocess.run(f'ls -al /proc/{pid}/fd | wc -l', shell=True, capture_output=True, text=True).stdout
+    if result.strip():
+        return result.split()[0]
+    return None
 
 
 def clear_env():
@@ -729,3 +745,62 @@ class TestFileBundleOptionError:
         else:
             assert not check_shell(f"file send -b {GP.debug_app} {get_local_path('small')} {remote_path}",
                                    self.outside_error)
+class TestFileBase:
+    base_file_table = [
+        ("empty", "it_empty"),
+        ("small", "it_small"),
+        ("medium", "it_medium"),
+        ("large", "it_large"),
+        ("word_100M.txt", "word_100M")
+    ]
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    @pytest.mark.parametrize("local_path, remote_path", base_file_table)
+    def test_file_normal(self, local_path, remote_path):
+        clear_env()
+        assert check_hdc_cmd(f"file send {get_local_path(local_path)} {get_remote_path(remote_path)}")
+        assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
+
+class TestFullDisk:
+    @pytest.mark.L0
+    def test_full_disk(self):
+        subprocess.run('hdc shell dd if=/dev/zero of=/storage/smallfile bs=1M count=10', shell=True, capture_output=True, text=True)
+        subprocess.run('hdc shell dd if=/dev/zero of=/storage/largefile bs=1M', shell=True, capture_output=True, text=True)
+
+        check_hdc_cmd('shell df -h')
+        check_hdc_cmd('shell rm -rf /storage/smallfile')
+
+        pid1 = get_hdcd_pid()
+        fds1 = get_hdcd_fd_num()
+        send = check_hdc_cmd(f'file send {get_local_path('large')} /storage/large_full')
+        pid2 = get_hdcd_pid()
+        fds2 = get_hdcd_fd_num()
+
+        check_hdc_cmd('shell rm -rf /storage/smallfile')
+        check_hdc_cmd('shell rm -rf /storage/largefile')
+        check_hdc_cmd('shell rm -rf /storage/large')
+
+        assert pid1 != None
+        assert pid1 == pid2
+        assert fds1 == fds2
+        assert send == False
+
+
+    def test_full_disk2(self):
+        subprocess.run('hdc shell dd if=/dev/zero of=/storage/smallfile bs=1M count=10', shell=True, capture_output=True, text=True)
+        subprocess.run('hdc shell dd if=/dev/zero of=/storage/largefile bs=1M', shell=True, capture_output=True, text=True)
+
+        check_hdc_cmd('shell df -h')
+        check_hdc_cmd('shell rm -rf /storage/smallfile')
+
+        pid1 = get_hdcd_pid()
+        fds1 = get_hdcd_fd_num()
+        send = check_hdc_cmd(f'file send {get_local_path("")} {get_remote_path()}')
+        pid2 = get_hdcd_pid()
+        fds2 = get_hdcd_fd_num()
+        check_hdc_cmd('shell rm -rf /storage/largefile')
+        assert pid1 != None
+        assert pid1 == pid2
+        assert fds1 == fds2
+        assert send == False

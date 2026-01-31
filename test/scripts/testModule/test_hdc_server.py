@@ -14,8 +14,27 @@
 # limitations under the License.
 import os
 import time
+import platform
 import pytest
+import subprocess
+import tempfile
 from utils import GP, check_cmd_block, check_hdc_cmd, load_gp, get_server_pid_from_file
+
+def get_hdc_server_pid():
+    result = subprocess.run('tasklist | findstr hdc', shell=True, capture_output=True, text=True).stdout
+    if result.strip():
+        return result.split()[1]
+    return None
+
+
+def del_server_pid_file():
+    is_ohos = "Harmony" in platform.system()
+    if not is_ohos:
+        tmp_dir_path = tempfile.gettempdir()
+    else:
+        tmp_dir_path = os.path.expanduser("~")
+    pid_file = os.path.join(tmp_dir_path, ".HDCServer.pid")
+    os.remove(pid_file)
 
 
 class TestHdcServer:
@@ -50,3 +69,77 @@ class TestHdcServer:
         assert pid_third != pid_forth
         assert check_hdc_cmd("checkserver", "Ver")
         time.sleep(2) # sleep 2s to wait for the server
+
+
+    @pytest.mark.L0
+    def test_server_checkserver(self):
+        check_hdc_cmd('start')
+        check_hdc_cmd('kill', "Kill server finish")
+        server1 = check_hdc_cmd('checkserver', "Client version:Ver:")
+        check_hdc_cmd('start')
+        server2 = check_hdc_cmd('checkserver', "server version:Ver:")
+        assert server1
+        assert server2
+
+
+    @pytest.mark.L0
+    def test_server_lifecycle(self):
+        check_hdc_cmd('start')
+        kill = check_hdc_cmd('kill', "Kill server finish")
+        check_hdc_cmd('start')
+        pid1 = get_hdc_server_pid()
+
+        check_hdc_cmd('start -r')
+        pid2 = get_hdc_server_pid()
+
+        check_hdc_cmd('start')
+        pid3 = get_hdc_server_pid()
+
+        del_server_pid_file()
+        check_hdc_cmd('start -r')
+        pid4 = get_hdc_server_pid()
+        subprocess.run(f"taskkill /PID {pid4} /F", shell=True, capture_output=True, text=True)
+        del_server_pid_file()
+        check_hdc_cmd('start')
+        assert kill
+        assert pid1 != pid2
+        assert pid2 == pid3
+        assert pid3 == pid4
+
+
+    @pytest.mark.L0
+    def test_server_lifecycle2(self):
+        check_hdc_cmd('start')
+        check_hdc_cmd('kill', "Kill server finish")
+        pid1 = get_hdc_server_pid()
+
+        check_hdc_cmd('start')
+        pid2 = get_hdc_server_pid()
+
+        check_hdc_cmd('kill', "Kill server finish")
+        pid3 = get_hdc_server_pid()
+
+        check_hdc_cmd('start')
+        pid4 = get_hdc_server_pid()
+
+        del_server_pid_file()
+        check_hdc_cmd('kill', "Kill server finish")
+        pid5 = get_hdc_server_pid()
+
+        check_hdc_cmd('kill -r', "Kill server finish")
+        pid6 = get_hdc_server_pid()
+
+        check_hdc_cmd('kill -r', "Kill server finish")
+        pid7 = get_hdc_server_pid()
+        del_server_pid_file()
+        subprocess.run(f"taskkill /PID {pid7} /F", shell=True, capture_output=True, text=True)
+        check_hdc_cmd('start')
+
+        assert pid1 == None
+        assert pid2 != ''
+        assert pid3 != ''
+        assert pid4 != ''
+        assert pid5 == pid4
+        assert pid6 != ''
+        assert pid7 != ''
+        assert pid6 == pid7

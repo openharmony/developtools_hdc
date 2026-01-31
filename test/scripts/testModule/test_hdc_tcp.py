@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import re
 import time
 import platform
 import pytest
@@ -96,3 +97,92 @@ class TestTcpByFport:
         
         assert len(result.split("\n")) > 5
 
+
+    @pytest.mark.L1
+    def test_error_port(self):
+        cmd = "tconn 10.0.0.10:1234567890123"
+        assert check_hdc_cmd(cmd, "[Fail]IP:Port incorrect")
+
+
+    @pytest.mark.L1
+    def test_error_ip(self):
+        cmd = "tconn 10..0.10:12345"
+        assert check_hdc_cmd(cmd, "[Fail]IP:Port incorrect")
+
+
+    @pytest.mark.L1
+    def test_error_ip2(self):
+        cmd = "tconn 1111"
+        assert check_hdc_cmd(cmd, "[Fail]CreateConnect failed")
+
+
+    @pytest.mark.L1
+    def test_multi_ip(self):
+        device_key = re.split("\r|\n", get_shell_result(f"list targets"))[0]
+        assert check_hdc_cmd('tmode port 12345', "Set device run mode successful.")
+        check_hdc_cmd('wait')
+
+        fport1 = check_hdc_cmd('fport tcp:22345 tcp:12345', "Forwardport result:OK")
+        fport2 = check_hdc_cmd('fport tcp:22346 tcp:12345', "Forwardport result:OK")
+        tconn1 = check_hdc_cmd('tconn 127.0.0.1:22345', "Connect OK")
+        tconn2 = check_hdc_cmd('tconn 127.0.0.1:22346', "Connect OK")
+
+        check_hdc_cmd(f"-t {device_key} tmode port close")
+        check_hdc_cmd('wait')
+
+        assert fport1
+        assert fport2
+        assert tconn1
+        assert tconn2
+
+
+    @pytest.mark.L1
+    def test_tmode(self):
+        device_key = re.split("\r|\n", get_shell_result(f"list targets"))[0]
+        tmode = check_hdc_cmd('tmode port 12345', "Set device run mode successful.")
+        check_hdc_cmd('wait')
+        fport = check_hdc_cmd('fport tcp:22345 tcp:12345', "Forwardport result:OK")
+        tconn1 = check_hdc_cmd('tconn 127.0.0.1:22345', "Connect OK")
+        tconn2 = check_hdc_cmd('tconn 127.0.0.1:22345', "[Info]Target is connected, repeat operation")
+        tconn3 = check_hdc_cmd('tconn 127.0.0.1:22345 shell', "[Fail]Port incorrect")
+        tconn4 = check_hdc_cmd('tconn 127.0.0.1:22345shell', "[Fail]Port incorrect")
+        tconn5 = check_hdc_cmd('tconn 127.0.0.431:22345', "[Fail][E001104]:IP address incorrect")
+        tconn6 = check_hdc_cmd('tconn 127.0.0.0.1:22345', "[Fail][E001104]:IP address incorrect")
+
+        check_hdc_cmd(f"-t {device_key} tmode port close")
+        check_hdc_cmd('wait')
+
+        assert tmode
+        assert fport
+        assert tconn1
+        assert tconn2
+        assert tconn3
+        assert tconn4
+        assert tconn5
+        assert tconn6
+
+
+    @pytest.mark.L1
+    def test_tmode2(self):
+        device_key = re.split("\r|\n", get_shell_result(f"list targets"))[0]
+        tmode = check_hdc_cmd('tmode port 12345', "Set device run mode successful.")
+        check_hdc_cmd('wait')
+        fport1 = check_hdc_cmd('fport tcp:22345 tcp:12345', "Forwardport result:OK")
+        fport2 = check_hdc_cmd('fport tcp:22346 tcp:12345', "Forwardport result:OK")
+        tconn1 = check_hdc_cmd('tconn 127.0.0.1:22345', "Connect OK")
+        tconn2 = check_hdc_cmd('tconn 127.0.0.1:22346', "Connect OK")
+
+        check_hdc_cmd('list targets')
+        shell1 = check_hdc_cmd('-t 127.0.0.1:22345 shell id', "uid=0(root) gid=0(root) groups=0(root),1006(file_manager),1007(log),2000(shell),3009(readproc) context=u:r:su:s0")
+        shell2 = check_hdc_cmd('-t 127.0.0.1:22346 shell id', "uid=0(root) gid=0(root) groups=0(root),1006(file_manager),1007(log),2000(shell),3009(readproc) context=u:r:su:s0")
+
+        check_hdc_cmd(f"-t {device_key} tmode port close")
+        check_hdc_cmd('wait')
+
+        assert tmode
+        assert tconn1
+        assert tconn2
+        assert fport1
+        assert fport2
+        assert shell1
+        assert shell2

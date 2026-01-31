@@ -227,6 +227,8 @@ def pytest_run():
     end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     report_time = time.strftime('%Y-%m-%d_%H_%M_%S', time.localtime(time.time()))
     report_dir = os.path.join(os.getcwd(), "reports")
+    if not os.path.exists(report_dir):
+        os.mkdir(report_dir)
     report_file = os.path.join(report_dir, f"{report_time}report.html")
     print(f"Test over, the script version is {GP.get_version()},"
         f" start at {start_time}, end at {end_time} \n"

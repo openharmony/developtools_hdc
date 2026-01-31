@@ -42,6 +42,8 @@ hdc_common_sources = [
   "${hdc_path}/src/common/transfer.cpp",
   "${hdc_path}/src/common/usb.cpp",
   "${hdc_path}/src/common/uv_status.cpp",
+  "${hdc_path}/src/common/connect_validation.cpp",
+  "${hdc_path}/src/common/credential_message.cpp",
 ]
 
 hdc_daemon_sources = [
@@ -75,6 +77,7 @@ common_external_deps = [
   "lz4:liblz4_static",
   "openssl:libcrypto_static",
   "openssl:libssl_static",
+  "init:libbegetutil",
 ]
 
 config("hdc_ut_code_flag") {
@@ -143,7 +146,6 @@ ohos_source_set("hdc_common") {
     sources += [ "${hdc_path}/src/common/uart.cpp" ]
   }
   external_deps = common_external_deps
-  external_deps += [ "init:libbegetutil" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -172,10 +174,7 @@ ohos_source_set("hdc_daemon") {
     sources += [ "${hdc_path}/src/daemon/daemon_uart.cpp" ]
   }
   external_deps = common_external_deps
-  external_deps += [
-    "init:libbegetutil",
-    "c_utils:utils",
-  ]
+  external_deps += [ "c_utils:utils" ]
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
@@ -280,7 +279,6 @@ ohos_unittest("hdc_jdwp_unittest") {
   external_deps = common_external_deps
   external_deps += [
     "googletest:gmock_main",
-    "init:libbegetutil",
     "hilog:libhilog",
   ]
 
@@ -297,8 +295,6 @@ ohos_unittest("hdc_uart_unittest") {
   resource_config_file = "unittest/resource/ohos_test.xml"
   public_configs = [ ":hdc_ut_config" ]
   sources = [
-    "${hdc_path}/src/common/connect_validation.cpp",
-    "${hdc_path}/src/common/credential_message.cpp",
     "unittest/common/daemon_uart_test.cpp",
     "unittest/common/uart_test.cpp",
   ]
@@ -313,7 +309,6 @@ ohos_unittest("hdc_uart_unittest") {
   external_deps += [
     "libusb:libusb",
     "googletest:gmock_main",
-    "init:libbegetutil",
   ]
 }
 
@@ -351,8 +346,6 @@ ohos_unittest("hdc_host_base_unittest") {
     "${hdc_path}/src/host/translate.cpp",
     "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
-    "${hdc_path}/src/common/connect_validation.cpp",
-    "${hdc_path}/src/common/credential_message.cpp",
     "unittest/daemon/daemon_app_test.cpp",
     "unittest/common/define_test.cpp",
     "unittest/host/host_app_test.cpp",
@@ -372,7 +365,6 @@ ohos_unittest("hdc_host_base_unittest") {
   external_deps = common_external_deps
   external_deps += [
     "googletest:gmock_main",
-    "init:libbegetutil",
     "libusb:libusb",
   ]
 }
@@ -425,7 +417,6 @@ ohos_unittest("hdc_daemon_base_unittest") {
   external_deps = common_external_deps
   external_deps += [
     "googletest:gmock_main",
-    "init:libbegetutil",
     "libusb:libusb",
   ]
 }
@@ -435,8 +426,6 @@ ohos_unittest("hdc_host_uart_unittest") {
   module_out_path = module_output_path
   resource_config_file = "unittest/resource/ohos_test.xml"
   sources = [
-    "${hdc_path}/src/common/connect_validation.cpp",
-    "${hdc_path}/src/common/credential_message.cpp",
     "unittest/common/host_uart_test.cpp",
     "unittest/common/uart_test.cpp",
   ]
@@ -454,7 +443,6 @@ ohos_unittest("hdc_host_uart_unittest") {
   external_deps += [
     "libusb:libusb",
     "googletest:gmock_main",
-    "init:libbegetutil",
   ]
 }
 
@@ -478,7 +466,6 @@ ohos_unittest("hdc_ssl_unittest") {
   external_deps = common_external_deps
   external_deps += [
     "googletest:gmock_main",
-    "init:libbegetutil",
     "huks:libhukssdk",
     "openssl:libcrypto_static",
     "openssl:libssl_static",
@@ -498,7 +485,6 @@ ohos_unittest("hdc_base_unittest") {
     "${hdc_path}/src/common/server_cmd_log.cpp",
     "${hdc_path}/src/common/uart.cpp",
     "${hdc_path}/src/common/password.cpp",
-    "${hdc_path}/src/common/credential_message.cpp",
     "${hdc_path}/src/common/hdc_huks.cpp",
     "unittest/common/base_ut.cpp",
     "unittest/common/command_event_report_test.cpp",
@@ -525,7 +511,6 @@ ohos_unittest("hdc_base_unittest") {
   external_deps = common_external_deps
   external_deps += [
     "googletest:gmock_main",
-    "init:libbegetutil",
     "huks:libhukssdk",
     "hisysevent:libhisysevent",
   ]
@@ -627,7 +612,6 @@ ohos_fuzztest("JdwpReadStreamFuzzTest") {
   external_deps += [
     "hilog:libhilog",
     "init:libbeget_proxy",
-    "init:libbegetutil",
   ]
 }
 
@@ -672,7 +656,6 @@ ohos_unittest("hdc_register_unittest") {
     "googletest:gmock_main",
     "hilog:libhilog",
     "init:libbeget_proxy",
-    "init:libbegetutil",
   ]
 }
 
@@ -715,7 +698,6 @@ ohos_unittest("hdc_ext_unittest") {
     "${hdc_path}/src/common/base.cpp",
     "${hdc_path}/src/common/circle_buffer.cpp",
     "${hdc_path}/src/common/compress.cpp",
-    "${hdc_path}/src/common/credential_message.cpp",
     "${hdc_path}/src/common/decompress.cpp",
     "${hdc_path}/src/common/header.cpp",
     "${hdc_path}/src/common/heartbeat.cpp",

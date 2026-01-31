@@ -55,15 +55,6 @@ bool GetDevItem(const char *key, string &out, const char *preDefine)
     if (res <= 0) {
         return false;
     }
-#else
-    string sFailString = Base::StringFormat("Get parameter \"%s\" fail", key);
-    string stringBuf = "param get " + string(key);
-    Base::RunPipeComand(stringBuf.c_str(), tmpStringBuf, BUF_SIZE_MEDIUM - 1, true);
-    if (!strcmp(sFailString.c_str(), tmpStringBuf)) {
-        // failed
-        ret = false;
-        (void)memset_s(tmpStringBuf, BUF_SIZE_MEDIUM, 0, BUF_SIZE_MEDIUM);
-    }
 #endif
     out = tmpStringBuf;
     return ret;

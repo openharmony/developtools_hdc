@@ -383,19 +383,8 @@ int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
     struct HksParamSet *generateParamSet = nullptr;
     int32_t result = -1;
 
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
-    int32_t currentUserId = GetUserId();
-    if (currentUserId == 0) {
-        WRITE_LOG(LOG_FATAL, "current user id is 0,failed.");
-        return result;
-    }
-    WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
-#endif
     struct HksParam genRsaKeyPara[] = {
         {.tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT},
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
-        {.tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId},
-#endif
     };
 
     if (!MakeHuksParamSet(&generateParamSet, rsaBasePara, sizeof(rsaBasePara) / sizeof(HksParam),
@@ -420,19 +409,8 @@ struct HksParamSet *HdcHuks::MakeRsaDecryptParamSets()
 {
     struct HksParamSet *paramSet = nullptr;
 
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
-    int32_t currentUserId = GetUserId();
-    if (currentUserId == 0) {
-        WRITE_LOG(LOG_FATAL, "current user id is 0,failed.");
-        return nullptr;
-    }
-    WRITE_LOG(LOG_INFO, "current user id %d", currentUserId);
-#endif
     struct HksParam rsaDecryptPara[] = {
         {.tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_DECRYPT},
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
-        {.tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId},
-#endif
     };
     if (!MakeHuksParamSet(&paramSet, rsaBasePara, sizeof(rsaBasePara) / sizeof(HksParam),
         rsaDecryptPara, sizeof(rsaDecryptPara) / sizeof(HksParam))) {

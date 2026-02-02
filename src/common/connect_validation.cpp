@@ -15,9 +15,10 @@
 
 #include "connect_validation.h"
 
+#include <charconv>
 #include <fstream>
 #include <regex>
-#include <sys/socket.h>
+#include "sys/socket.h"
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <parameters.h>
@@ -41,9 +42,10 @@ int GetConnectValidationParam()
     }
 
     uint8_t result = VALIDATION_CLOSE;
-    result = static_cast<uint8_t>(std::stoul(parameterValue));
-    if (result > VALIDATION_HDC_HOST_AND_DAEMON) {
-        result = VALIDATION_CLOSE;
+    unsigned long num;
+    auto [ptr, ec] = std::from_chars(parameterValue.data(), parameterValue.data() + parameterValue.size(), num);
+    if (ec == std::errc() && num <= VALIDATION_HDC_HOST_AND_DAEMON) {
+        result = static_cast<uint8_t>(num);
     }
 
     return result;

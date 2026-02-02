@@ -27,7 +27,12 @@ namespace Hdc {
 static const int AES_GCM_NONCE_BYTE_LEN = 12;
 static const int AES_GCM_TAG_BYTE_LEN = 16;
 static const size_t MAX_RSA_CIPHER_TEXT_LEN = 384; // HKS_RSA_KEY_SIZE_3072 / 8
+
+#ifdef HDC_UNIT_TEST
+const std::string HDC_PUBLIC_KEY_PATH = "/data/local/tmp/hdc_test_public_key.pem";
+#else
 const std::string HDC_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/hdc_public_key.pem";
+#endif
 
 struct HksParam aesBasePara [] = {
     { .tag = HKS_TAG_ALGORITHM,  .uint32Param = HKS_ALG_AES },

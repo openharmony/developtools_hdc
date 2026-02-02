@@ -24,6 +24,11 @@ void HdcHuksTest::TearDownTestCase() {}
 void HdcHuksTest::SetUp() {}
 void HdcHuksTest::TearDown() {}
 
+void HdcHuksTest::ReaEncode(const std::string& plainStr) 
+{
+    
+}
+
 HWTEST_F(HdcHuksTest, TestResetHuksKey, TestSize.Level0)
 {
     HdcHuks huks(TEST_HUKS_ALIAS);
@@ -63,4 +68,39 @@ HWTEST_F(HdcHuksTest, TestAesGcmEncryptAndDecrypt, TestSize.Level0)
     ASSERT_EQ(plainStr.second, 10); // 10 is testData length
     ASSERT_EQ(memcmp(plainStr.first, testData, plainStr.second), 0);
 }
+
+HWTEST_F(HdcHuksTest, TestGenerateAndExportHuksRSAPublicKeyFailed, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::filesystem::path testPath = "/data/local/tmp/hdc_test_public_key.pem";
+    if (!std::filesystem::exists(testPath))
+    {
+        std::ofstream file(testPath);
+    }
+    ASSERT_TRUE(std::filesystem::exists(testPath));
+    int32_t result = huks.GenerateAndExportHuksRSAPublicKey();
+    ASSERT_EQ(result, -1);
+    std::filesystem::remove(testPath);
+}
+
+HWTEST_F(HdcHuksTest, TestGenerateAndExportHuksRSAPublicKey, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::filesystem::path testPath = "/data/local/tmp/hdc_test_public_key.pem";
+    ASSERT_FALSE(std::filesystem::exists(testPath));
+    int32_t result = huks.GenerateAndExportHuksRSAPublicKey();
+    ASSERT_EQ(result, HUKS_SUCCESS);
+    std::filesystem::remove(testPath);
+}
+
+HWTEST_F(HdcHuksTest, TestUseRsaPubkeyEncode, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::filesystem::path testPath = "/data/local/tmp/hdc_test_public_key.pem";
+    ASSERT_FALSE(std::filesystem::exists(testPath));
+    int32_t result = huks.GenerateAndExportHuksRSAPublicKey();
+    ASSERT_EQ(result, HUKS_SUCCESS);
+    
+}
+
 } // namespace Hdc

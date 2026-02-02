@@ -29,6 +29,27 @@ void HdcHuksTest::ReaEncode(const std::string& plainStr)
     
 }
 
+int readFile_1(unsigned char *keyBuffer, const string &fileName)
+{
+    memset(keyBuffer, 0, BUF_SIZE);
+
+    std::ifstream file(fileName, std::ios::binary);
+
+    file.seekg(0, std::ios::end);
+    streamsize size = file.tellg();
+    if (size > BUF_SIZE) {
+        file.close();
+        return 0;
+    }
+
+    file.seekg(0, ios::beg);
+
+    file.read((char *)keyBuffer, size);
+
+    file.close();
+    return size;
+}
+
 // 读取 RSA 公钥
 RSA* read_public_key(const char* filename)
 {

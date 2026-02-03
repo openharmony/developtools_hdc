@@ -84,39 +84,6 @@ HWTEST_F(HdcCredentialBaseTest, TestRemovePath_MultiLavelPath, TestSize.Level1)
     EXPECT_EQ(RemovePath("./11111"), 0);
 }
 
-HWTEST_F(HdcCredentialBaseTest, TestStringFormat_NullStr, TestSize.Level1)
-{
-    EXPECT_EQ(StringFormat(""), "");
-}
-
-HWTEST_F(HdcCredentialBaseTest, TestStringFormat_NormalStr, TestSize.Level1)
-{
-    EXPECT_EQ(StringFormat("%s", "test"), "test");
-    EXPECT_EQ(StringFormat("%d + %d = %d", 1, 2, 3), "1 + 2 = 3");
-}
-
-HWTEST_F(HdcCredentialBaseTest, TestStringFormat_HexStr, TestSize.Level1)
-{
-    EXPECT_EQ(StringFormat("%x", 255), "ff");
-}
-
-HWTEST_F(HdcCredentialBaseTest, TestStringFormat_OctalStr, TestSize.Level1)
-{
-    EXPECT_EQ(StringFormat("%o", 255), "377");
-}
-
-HWTEST_F(HdcCredentialBaseTest, TestStringFormat_PointerStr, TestSize.Level1)
-{
-        EXPECT_EQ(StringFormat("%p", (void*)0x1234), "0x1234");
-}
-
-HWTEST_F(HdcCredentialBaseTest, TestStringFormat_MultiArgsStr, TestSize.Level1)
-{
-    EXPECT_EQ(StringFormat("%s%c", "test", 'c'), "testc");
-    EXPECT_EQ(StringFormat("%s %d + %d = %d", "test", 1, 2, 3), "test 1 + 2 = 3");
-    EXPECT_EQ(StringFormat("%c+%o+%p+%s", 'c', 255, (void*)0x1234, "test"), "c+377+0x1234+test");
-}
-
 HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_NotNumber, TestSize.Level1)
 {
     EXPECT_FALSE(IsUserDir("aaa"));

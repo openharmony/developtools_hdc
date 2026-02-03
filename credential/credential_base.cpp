@@ -90,27 +90,6 @@ int RemovePath(const std::string& path)
     return 0;
 }
 
-const std::string StringFormat(const char* const formater, ...)
-{
-    va_list vaArgs;
-    va_start(vaArgs, formater);
-    std::string ret = StringFormat(formater, vaArgs);
-    va_end(vaArgs);
-    return ret;
-}
-
-const std::string StringFormat(const char* const formater, va_list& vaArgs)
-{
-    std::vector<char> args(MAX_SIZE_IOBUF_STABLE);
-    const int retSize = vsnprintf_s(
-        args.data(), MAX_SIZE_IOBUF_STABLE, (args.size() >= 1) ? (args.size() - 1) : 0, formater, vaArgs);
-    if (retSize < 0) {
-        return std::string("");
-    } else {
-        return std::string(args.data(), retSize);
-    }
-}
-
 bool CreatePathWithMode(const char* path, mode_t mode)
 {
     if (::mkdir(path, mode) != 0) {

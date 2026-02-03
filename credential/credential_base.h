@@ -53,8 +53,6 @@ constexpr int MAX_USER_ID = 10736;
 
 int RemoveDir(const std::string& dir);
 int RemovePath(const std::string& path);
-const std::string StringFormat(const char* const formater, ...);
-const std::string StringFormat(const char* const formater, va_list& vaArgs);
 char GetPathSep();
 bool CreatePathWithMode(const char* path, mode_t mode);
 bool IsUserDir(const std::string& dir);

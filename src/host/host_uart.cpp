@@ -766,11 +766,14 @@ bool HdcHostUART::GetPortFromKey(const std::string &connectKey, std::string &por
     std::vector<std::string> result = StringSplit(connectKey, ",");
     if (result.size() == TWO_ARGS) {
         portName = result[0];
-        try {
-            baudRate = static_cast<uint32_t>(std::stoul(result[1]));
-        } catch (...) {
+        char *endptr = nullptr;
+        const char *str = result[1].c_str();
+        unsigned long tmp = std::strtoul(str, &endptr, 10);
+        if (endptr == str || *endptr != '\0' || tmp > std::numeric_limits<uint32_t>::max()) {
+            WRITE_LOG(LOG_WARN, "Invalid baud rate: %s", result[1].c_str());
             return false;
         }
+        baudRate = static_cast<uint32_t>(tmp);
         return true;
     } else if (result.size() == 1) {
         portName = result[0];

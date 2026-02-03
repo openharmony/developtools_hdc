@@ -16,6 +16,7 @@
 #include "command_event_report.h"
 #include "credential_message.h"
 
+#include <charconv>
 #include <parameters.h>
 #include "sys/socket.h"
 #include "common.h"
@@ -121,7 +122,16 @@ bool CommandEventReport::Report(const std::string &command, const std::string &c
     want.SetAction(HDC_COMMAND_REPORT);
     want.SetParam(EVENT_PARAM_REPORT_USERID, int(getuid() / BASE_ID));
     want.SetParam(EVENT_PARAM_REPORT_ROLE, GetCallerName(caller));
-    want.SetParam(EVENT_PARAM_REPORT_TIME, std::stoll(GetCurrentTimeStamp()));
+    
+    std::string ts = GetCurrentTimeStamp();
+    long long reportTime = 0;
+    auto rTime = std::from_chars(ts.data(), ts.data() + ts.size(), reportTime);
+    if (rTime.ec != std::errc{}) {
+        WRITE_LOG(LOG_WARN, "Failed to parse report time: %s", ts.c_str());
+        reportTime = 0;
+    }
+    want.SetParam(EVENT_PARAM_REPORT_TIME, reportTime);
+
     want.SetParam(EVENT_PARAM_REPORT_STATUS, status);
     want.SetParam(EVENT_PARAM_REPORT_COMMAND, command);
     want.SetParam(EVENT_PARAM_REPORT_CONTENT, content);

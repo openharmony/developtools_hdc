@@ -15,265 +15,246 @@
 #include "hdc_huks_ut.h"
 #include "securec.h"
 
+#include <filesystem>
+#include <fstream>
+
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rand.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+
 using namespace testing::ext;
 namespace Hdc {
 #define TEST_HUKS_ALIAS "test_huks_alias"
 #define TEST_DATA_LEN 10
+const uint32_t BUF_SIZE = 4096;
+
 void HdcHuksTest::SetUpTestCase() {}
 void HdcHuksTest::TearDownTestCase() {}
 void HdcHuksTest::SetUp() {}
 void HdcHuksTest::TearDown() {}
 
-void HdcHuksTest::ReaEncode(const std::string& plainStr) 
+int ReadTestKeyFile(uint8_t *keyBuffer, const string &fileName)
 {
-    
-}
-
-int readFile_1(unsigned char *keyBuffer, const string &fileName)
-{
-    memset(keyBuffer, 0, BUF_SIZE);
+    (void)memset_s(keyBuffer, BUF_SIZE, 0, BUF_SIZE);
 
     std::ifstream file(fileName, std::ios::binary);
 
     file.seekg(0, std::ios::end);
-    streamsize size = file.tellg();
+    std::streamsize size = file.tellg();
     if (size > BUF_SIZE) {
         file.close();
         return 0;
     }
 
-    file.seekg(0, ios::beg);
-
-    file.read((char *)keyBuffer, size);
-
+    file.seekg(0, std::ios::beg);
+    file.read(reinterpret_cast<char*>(keyBuffer), size);
     file.close();
     return size;
 }
 
 // 读取 RSA 公钥
-RSA* read_public_key(const char* filename)
+RSA* ReadPublicKey(const std::string& filePath)
 {
-    unsigned char cert[BUF_SIZE];
-    int l = readFile_1(cert, filename);
+    uint8_t cert[BUF_SIZE];
+    int l = ReadTestKeyFile(cert, filePath);
 
-    BIO *b;
+    BIO *b = nullptr;
     b = BIO_new_mem_buf(cert, l);
-
-    RSA* rsa = PEM_read_bio_RSA_PUBKEY(b, NULL, NULL, NULL);
+    RSA* rsa = PEM_read_bio_RSA_PUBKEY(b, nullptr, nullptr, nullptr);
     if (!rsa) {
-        // 尝试另一种格式
-        rsa = PEM_read_bio_RSAPublicKey(b, NULL, NULL, NULL);
+        rsa = PEM_read_bio_RSAPublicKey(b, nullptr, nullptr, nullptr);
     }
 
     if (!rsa) {
-        fprintf(stderr, "无法读取公钥\n");
         ERR_print_errors_fp(stderr);
     }
 
+    BIO_free(b);
     return rsa;
 }
 
-// 计算 RSA-OAEP-SHA256 的最大加密数据长度
-int get_max_oaep_sha256_input_len(RSA* rsa)
+int GetMaxOaepSha256InputLen(RSA* rsa)
 {
-    int rsa_size = RSA_size(rsa);	//384
+    int rsaSize = RSA_size(rsa);
 
     // OAEP 填充占用：2 字节的 0x00 标记 + 2 * SHA256 哈希长度 (32) + 填充
     // 实际可用数据长度：RSA 密钥长度 - 2 * SHA256 输出长度 - 2
-    int max_input_len = rsa_size - 2 * SHA256_DIGEST_LENGTH - 2;
+    int maxInputLen = rsaSize - 2 * SHA256_DIGEST_LENGTH - 2;
 
-    printf("RSA 密钥长度: %d 字节\n", rsa_size);
-    printf("SHA256 摘要长度: %d 字节\n", SHA256_DIGEST_LENGTH);
-    printf("OAEP-SHA256 最大输入数据长度: %d 字节\n", max_input_len);
-
-    return max_input_len; // 384-64-2 = 318
+    return maxInputLen; // 384-64-2 = 318
 }
 
-// 使用 RSA-3072 公钥和 OAEP-SHA256 加密数据（分段加密）
-int rsa_encrypt_segmented_oaep_sha256(RSA* rsa_pubkey,
-    unsigned char* plaintext, int plaintext_len,
-    unsigned char* encrypted_data, int* total_encrypted_len,
-    int segment_size)
+EVP_PKEY_CTX* MakeEvpCtx(EVP_PKEY* pkey, RSA* rsaPubkey)
 {
-    EVP_PKEY* pkey = EVP_PKEY_new();
-    if (!pkey) {
-        fprintf(stderr, "EVP_PKEY_new 失败\n");
-        return 0;
-    }
-
     // 将 RSA 结构体包装为 EVP_PKEY
-    if (EVP_PKEY_set1_RSA(pkey, rsa_pubkey) != 1) {
-        fprintf(stderr, "EVP_PKEY_set1_RSA 失败\n");
+    if (EVP_PKEY_set1_RSA(pkey, rsaPubkey) != 1) {
         EVP_PKEY_free(pkey);
-        return 0;
+        return nullptr;
     }
 
     // 创建加密上下文
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(pkey, nullptr);
     if (!ctx) {
-        fprintf(stderr, "EVP_PKEY_CTX_new 失败\n");
         EVP_PKEY_free(pkey);
-        return 0;
+        return nullptr;
     }
 
     // 初始化加密操作
     if (EVP_PKEY_encrypt_init(ctx) <= 0) {
-        fprintf(stderr, "EVP_PKEY_encrypt_init 失败\n");
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        return 0;
+        return nullptr;
     }
 
     // 设置使用 OAEP 填充
     if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0) {
-        fprintf(stderr, "设置 RSA OAEP 填充失败\n");
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        return 0;
+        return nullptr;
     }
 
     // 设置 OAEP 使用 SHA256 哈希
     if (EVP_PKEY_CTX_set_rsa_oaep_md(ctx, EVP_sha256()) <= 0) {
-        fprintf(stderr, "设置 OAEP SHA256 失败\n");
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(pkey);
-        return 0;
+        return nullptr;
     }
 
     // 设置 MGF1 使用 SHA256
     if (EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, EVP_sha256()) <= 0) {
-        fprintf(stderr, "设置 MGF1 SHA256 失败\n");
         EVP_PKEY_CTX_free(ctx);
+        EVP_PKEY_free(pkey);
+        return nullptr;
+    }
+
+    return ctx;
+}
+
+// 使用 RSA-3072 公钥和 OAEP-SHA256 加密数据（分段加密）
+int RsaEncryptSegmentedOaepSha256(RSA* rsaPubkey,
+    uint8_t* plaintext, int plaintextLen,
+    uint8_t* encryptedData, int* totalEncryptedLen)
+{
+    EVP_PKEY* pkey = EVP_PKEY_new();
+    if (!pkey) {
+        return 0;
+    }
+
+    EVP_PKEY_CTX* ctx = MakeEvpCtx(pkey, rsaPubkey);
+    if (!ctx) {
         EVP_PKEY_free(pkey);
         return 0;
     }
 
-    int rsa_size = RSA_size(rsa_pubkey);
-    int offset = 0;
-    int total_len = 0;
+    int segmentSize = GetMaxOaepSha256InputLen(rsaPubkey);
+    int rsaSize = RSA_size(rsaPubkey);
+    int totalLen = 0;
 
-    // 计算需要多少段
-    int num_segments = (plaintext_len + segment_size - 1) / segment_size;
-    printf("需要加密 %d 段数据\n", num_segments);
+    int numSegments = (segmentSize == 0) ? 0 : (plaintextLen + segmentSize - 1) / segmentSize;
 
-    for (int i = 0; i < num_segments; i++) {
-        // 计算当前段的长度
-        int current_segment_len = segment_size;
-        if (i == num_segments - 1) {
-            // 最后一段可能不足 segment_size
-            current_segment_len = plaintext_len - i * segment_size;
+    for (int i = 0; i < numSegments; i++) {
+        int currentSegmentLen = segmentSize;
+        if (i == numSegments - 1) {
+            currentSegmentLen = plaintextLen - i * segmentSize;
         }
 
-        // 计算当前段在缓冲区中的位置
-        unsigned char* current_segment = plaintext + i * segment_size;
-        unsigned char* output_segment = encrypted_data + i * rsa_size;
+        uint8_t* currentSegment = plaintext + i * segmentSize;
+        uint8_t* outputSegment = encryptedData + i * rsaSize;
 
-        // 首先获取所需的输出缓冲区大小
         size_t outlen;
-        if (EVP_PKEY_encrypt(ctx, NULL, &outlen, current_segment, current_segment_len) <= 0) {
-            fprintf(stderr, "获取加密输出大小失败 (段 %d)\n", i);
+        if (EVP_PKEY_encrypt(ctx, nullptr, &outlen, currentSegment, currentSegmentLen) <= 0) {
             EVP_PKEY_CTX_free(ctx);
             EVP_PKEY_free(pkey);
             return 0;
         }
 
-        // 执行加密
-        if (EVP_PKEY_encrypt(ctx, output_segment, &outlen, current_segment, current_segment_len) <= 0) {
-            fprintf(stderr, "RSA 加密失败 (段 %d)\n", i);
+        if (EVP_PKEY_encrypt(ctx, outputSegment, &outlen, currentSegment, currentSegmentLen) <= 0) {
             EVP_PKEY_CTX_free(ctx);
             EVP_PKEY_free(pkey);
             return 0;
         }
 
-        total_len += (int)outlen;
-        printf("段 %d: 原始长度 %d 字节 -> 加密后长度 %zu 字节\n",
-            i, current_segment_len, outlen);
+        totalLen += static_cast<int>(outlen);
     }
 
-    *total_encrypted_len = total_len;
+    *totalEncryptedLen = totalLen;
 
-    // 清理
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
 
     return 1;
 }
 
-void encodedata()
+int RsaEncode(const std::string& filePath, const std::string& plainText)
 {
-// 初始化 OpenSSL
     OpenSSL_add_all_algorithms();
     ERR_load_crypto_strings();
-
-    const char* public_key_file = "D:\\public_key_3072.pem";
-    const char* private_key_file = "D:\\private_key_3072.pem";
-
-    // 1. 读取 RSA-3072 密钥
-    printf("读取 RSA-3072 密钥...\n");
-    RSA* rsa_pubkey = read_public_key(public_key_file);
-    RSA* rsa_privkey = read_private_key(private_key_file);
-
-    if (!rsa_pubkey || !rsa_privkey) {
-        fprintf(stderr, "无法读取RSA密钥\n");
+    
+    RSA* rsaPubkey = ReadPublicKey(filePath);
+    if (!rsaPubkey) {
         return 1;
     }
 
-    // 检查密钥大小
-    int rsa_size = RSA_size(rsa_pubkey);
-    printf("RSA 密钥大小: %d 位 (%d 字节)\n", rsa_size * 8, rsa_size);
-
-    if (rsa_size * 8 != 3072) {
-        printf("警告: 密钥不是3072位，实际为 %d 位\n", rsa_size * 8);
-    }
-
-    // 3. 计算最大分段大小
-    int max_segment_size = get_max_oaep_sha256_input_len(rsa_pubkey);
-
-    // 4. 准备要加密的数据（4096字节）
-    const int DATA_SIZE = 4096;
-    unsigned char plaintext[DATA_SIZE];
-    unsigned char decrypted_text[DATA_SIZE];
-
-    // 填充示例数据
-    printf("准备 %d 字节的测试数据...\n", DATA_SIZE);
-    for (int i = 0; i < DATA_SIZE; i++) {
-        plaintext[i] = i % 256;
-    }
-
-    // 5. 计算需要的缓冲区大小
-    // 每段加密后的大小是 rsa_size 字节
-    int num_segments = (DATA_SIZE + max_segment_size - 1) / max_segment_size;
-    int encrypted_buffer_size = num_segments * rsa_size;
-
-    printf("数据分段: %d 字节 / %d 字节每段 = %d 段\n",
-        DATA_SIZE, max_segment_size, num_segments);
-    printf("加密后总大小: %d 段 * %d 字节 = %d 字节\n",
-        num_segments, rsa_size, encrypted_buffer_size);
-
-    // 分配加密缓冲区
-    unsigned char* encrypted_data = (unsigned char*)malloc(encrypted_buffer_size);
-    if (!encrypted_data) {
-        fprintf(stderr, "无法分配加密缓冲区\n");
-        RSA_free(rsa_pubkey);
-        RSA_free(rsa_privkey);
+    int rsaSize = RSA_size(rsaPubkey);
+    if (rsaSize != 384) {  // 384：RSA_3072密钥大小为384bytes
         return 1;
     }
 
-    // 6. 使用 RSA-3072 公钥和 OAEP-SHA256 分段加密数据
-    printf("使用 RSA-3072 公钥和 OAEP-SHA256 分段加密数据...\n");
-    int total_encrypted_len = 0;
+    int maxSegmentSize = GetMaxOaepSha256InputLen(rsaPubkey);
+    int numSegments = (maxSegmentSize == 0) ? 0 : (plainText.size() + maxSegmentSize - 1) / maxSegmentSize;
+    int encryptedBufferSize = numSegments * rsaSize;
 
-    if (!rsa_encrypt_segmented_oaep_sha256(rsa_pubkey, plaintext, DATA_SIZE,
-        encrypted_data, &total_encrypted_len,
-        max_segment_size)) {
-        fprintf(stderr, "RSA 分段加密失败\n");
-        free(encrypted_data);
-        RSA_free(rsa_pubkey);
-        RSA_free(rsa_privkey);
+    uint8_t* encryptedData = (uint8_t*)malloc(encryptedBufferSize);
+    if (!encryptedData) {
+        RSA_free(rsaPubkey);
         return 1;
     }
 
-    printf("加密后总长度: %d 字节\n", total_encrypted_len);
+    int totalEncryptedLen = 0;
+    std::vector<uint8_t> plainTextVector(plainText.begin(), plainText.end());
+    if (!RsaEncryptSegmentedOaepSha256(rsaPubkey, plainTextVector.data(), plainTextVector.size(),
+        encryptedData, &totalEncryptedLen)) {
+        free(encryptedData);
+        RSA_free(rsaPubkey);
+        return 1;
+    }
+
+    std::ofstream outFile("/data/local/tmp/encrypt.txt", std::ios::binary);
+    if (outFile.is_open()) {
+        outFile.write(reinterpret_cast<const char*>(encryptedData), totalEncryptedLen);
+        outFile.close();
+        if (!outFile.good()) {
+            free(encryptedData);
+            RSA_free(rsaPubkey);
+            return 1;
+        }
+    }
+
+    free(encryptedData);
+    RSA_free(rsaPubkey);
+    return 0;
+}
+
+bool ReadEncryptDataFromFile(const std::string& filename, std::vector<uint8_t>& fileData)
+{
+    std::ifstream inFile(filename, std::ios::binary);
+    if (!inFile.is_open()) {
+        return false;
+    }
+
+    inFile.seekg(0, std::ios::end);
+    std::streamsize fileSize = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
+
+    fileData.resize(fileSize);
+    inFile.read(reinterpret_cast<char*>(fileData.data()), fileSize);
+    inFile.close();
+
+    return true;
 }
 
 HWTEST_F(HdcHuksTest, TestResetHuksKey, TestSize.Level0)
@@ -298,7 +279,6 @@ HWTEST_F(HdcHuksTest, TestAesGcmEncryptLen, TestSize.Level0)
     int len = huks.CaculateGcmEncryptLen(TEST_DATA_LEN);
     ASSERT_EQ(len, 38); // 38 = 12 + 10 + 16
 }
-
 
 HWTEST_F(HdcHuksTest, TestAesGcmEncryptAndDecrypt, TestSize.Level0)
 {
@@ -336,7 +316,7 @@ HWTEST_F(HdcHuksTest, TestGenerateAndExportHuksRSAPublicKey, TestSize.Level0)
     std::filesystem::path testPath = "/data/local/tmp/hdc_test_public_key.pem";
     ASSERT_FALSE(std::filesystem::exists(testPath));
     int32_t result = huks.GenerateAndExportHuksRSAPublicKey();
-    ASSERT_EQ(result, HUKS_SUCCESS);
+    ASSERT_EQ(result, HKS_SUCCESS);
     std::filesystem::remove(testPath);
 }
 
@@ -346,8 +326,47 @@ HWTEST_F(HdcHuksTest, TestUseRsaPubkeyEncode, TestSize.Level0)
     std::filesystem::path testPath = "/data/local/tmp/hdc_test_public_key.pem";
     ASSERT_FALSE(std::filesystem::exists(testPath));
     int32_t result = huks.GenerateAndExportHuksRSAPublicKey();
-    ASSERT_EQ(result, HUKS_SUCCESS);
+    ASSERT_EQ(result, HKS_SUCCESS);
     
+    // 测试加密无需分段加密
+    ASSERT_EQ(RsaEncode(testPath, "0123456789abcdefghijklmnopqrstuvwxyz"), 0);
+    ASSERT_TRUE(std::filesystem::exists("/data/local/tmp/encrypt.txt"));
+
+    std::vector<uint8_t> encryptData;
+    ASSERT_TRUE(ReadEncryptDataFromFile("/data/local/tmp/encrypt.txt", encryptData));
+
+    std::pair<uint8_t*, int> decryptedData = huks.RsaDecryptPrivateKey(encryptData);
+    ASSERT_NE(decryptedData.first, nullptr);
+
+    std::string decryptStr(reinterpret_cast<const char*>(decryptedData.first), decryptedData.second);
+    delete[] decryptedData.first;
+    ASSERT_EQ(decryptStr, "0123456789abcdefghijklmnopqrstuvwxyz");
+    std::filesystem::remove("/data/local/tmp/encrypt.txt");
+
+    // 测试分段加解密 dataLen > 318
+    std::string testData = "00000000001111111111222222222233333333334444444444"
+                           "55555555556666666666777777777788888888889999999999"
+                           "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee"
+                           "ffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjj"
+                           "kkkkkkkkkkllllllllllmmmmmmmmmmnnnnnnnnnnoooooooooo"
+                           "ppppppppppqqqqqqqqqqrrrrrrrrrrsssssssssstttttttttt"
+                           "uuuuuuuuuuvvvvvvvvvvwwwwwwwwwwxxxxxxxxxxyyyyyyyyyyzzzzzzzzzz";
+
+    ASSERT_EQ(RsaEncode(testPath, testData), 0);
+    ASSERT_TRUE(std::filesystem::exists("/data/local/tmp/encrypt.txt"));
+
+    ASSERT_TRUE(ReadEncryptDataFromFile("/data/local/tmp/encrypt.txt", encryptData));
+
+    decryptedData = huks.RsaDecryptPrivateKey(encryptData);
+    ASSERT_NE(decryptedData.first, nullptr);
+
+    std::string decryptDataStr(reinterpret_cast<const char*>(decryptedData.first), decryptedData.second);
+    delete[] decryptedData.first;
+    ASSERT_EQ(decryptDataStr, testData);
+
+    std::filesystem::remove(testPath);
+    std::filesystem::remove("/data/local/tmp/encrypt.txt");
+    std::filesystem::remove("/data/local/tmp/hdc_test_public_key.pem");
 }
 
 } // namespace Hdc

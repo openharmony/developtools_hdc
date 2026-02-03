@@ -314,4 +314,33 @@ HWTEST_F(HdcCredentialMessageTest, TestSplitStringSeqEmpty, TestSize.Level0) {
 
     EXPECT_EQ(resultStrings.size(), 0);
 }
+
+HWTEST_F(HdcCredentialMessageTest, TestSplicMessageStrEmpty, TestSize.Level0) {
+    const string origString = "";
+    size_t methodType = GET_PUBKEY;
+    size_t methodVersion = METHOD_AUTHVERIFY;
+    std::string resultStr = SplicMessageStr(origString, methodType, methodVersion);
+
+    EXPECT_EQ(resultStr.size(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplicMessageStrMethodType, TestSize.Level0) {
+    const string origString = "abcdefg";
+    size_t methodType = 1234;
+    size_t methodVersion = METHOD_AUTHVERIFY;
+    std::string resultStr = SplicMessageStr(origString, methodType, methodVersion);
+
+    EXPECT_EQ(resultStr.size(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplicMessageStr, TestSize.Level0) {
+    const string origString = "abcdefg";
+    size_t methodType = 1;
+    size_t methodVersion = 2;
+    std::string resultStr = SplicMessageStr(origString, methodType, methodVersion);
+
+    EXPECT_EQ(resultStr.size(), 15);
+    EXPECT_EQ(resultStr, "20010007abcdefg");
+}
+
 }

@@ -19,10 +19,8 @@
 #include <fstream>
 
 #include <openssl/bio.h>
-#include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/rand.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 
@@ -67,10 +65,6 @@ RSA* ReadPublicKey(const std::string& filePath)
     RSA* rsa = PEM_read_bio_RSA_PUBKEY(b, nullptr, nullptr, nullptr);
     if (!rsa) {
         rsa = PEM_read_bio_RSAPublicKey(b, nullptr, nullptr, nullptr);
-    }
-
-    if (!rsa) {
-        ERR_print_errors_fp(stderr);
     }
 
     BIO_free(b);
@@ -192,7 +186,6 @@ int RsaEncryptSegmentedOaepSha256(RSA* rsaPubkey,
 int RsaEncode(const std::string& filePath, const std::string& plainText)
 {
     OpenSSL_add_all_algorithms();
-    ERR_load_crypto_strings();
     
     RSA* rsaPubkey = ReadPublicKey(filePath);
     if (!rsaPubkey) {

@@ -112,7 +112,6 @@ public:
     virtual int FetchIOBuf(HSession hSession, uint8_t *ioBuf, int read, bool isEncrypted);
 #endif
     virtual void PushAsyncMessage(const uint32_t sessionId, const uint8_t method, const void *data, const int dataSize);
-    HTaskInfo AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput);
     bool DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                           int payloadSize);
     void EnumUSBDeviceRegister(void (*pCallBack)(HSession hSession));
@@ -207,6 +206,7 @@ protected:
     bool wantRestart;
 
 private:
+    HTaskInfo AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput);
     virtual void ClearInstanceResource()
     {
     }
@@ -227,7 +227,6 @@ private:
     void WorkThreadInitSession(HSession hSession, SessionHandShake &handshake);
     uint32_t GetSessionPseudoUid();
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
-    void DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask);
     void StartHeartbeatWork(HSession hSession);
     void SetFeature(SessionHandShake &handshake, const uint8_t connType);
     void StopHeartbeatWork(HSession hSession);

@@ -174,7 +174,7 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
     // Second: The task is cleaned up, the session ends
     // Third: The task is cleaned up, and the session is directly over the session.
     StartTraceScope("HdcSessionBase::ClearOwnTasks");
-    hSession->mapTaskMutex.lock();
+    std::lock_guard<std::mutex> lock(hSession->mapTaskMutex);
     map<uint32_t, HTaskInfo>::iterator iter;
     taskCount = hSession->mapTask->size();
     for (iter = hSession->mapTask->begin(); iter != hSession->mapTask->end();) {
@@ -195,7 +195,6 @@ void HdcSessionBase::ClearOwnTasks(HSession hSession, const uint32_t channelIDIn
         BeginRemoveTask(hTask);
         iter = hSession->mapTask->erase(iter);
     }
-    hSession->mapTaskMutex.unlock();
 }
 
 void HdcSessionBase::ClearSessions()
@@ -861,29 +860,25 @@ void HdcSessionBase::AdminUsbSession()
 }
 #endif
 
-void HdcSessionBase::DumpTasksInfo(map<uint32_t, HTaskInfo> &mapTask)
-{
-    int idx = 1;
-    for (auto t : mapTask) {
-        HTaskInfo ti = t.second;
-        WRITE_LOG(LOG_WARN, "%d: channelId: %lu, type: %d, closeRetry: %d\n",
-                  idx++, ti->channelId, ti->taskType, ti->closeRetryCount);
-    }
-}
-
 // All in the corresponding sub-thread, no need locks
 HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const uint32_t channelId, HTaskInfo hInput)
 {
+    if (op != OP_ADD && op != OP_QUERY) {
+        WRITE_LOG(LOG_FATAL, "HdcSessionBase AdminTask error op : %d", op);
+    }
+    std::lock_guard<std::mutex> lock(hSession->mapTaskMutex);
     HTaskInfo hRet = nullptr;
     map<uint32_t, HTaskInfo> &mapTask = *hSession->mapTask;
 
     switch (op) {
-        case OP_ADD:
-            hRet = mapTask[channelId];
-            if (hRet != nullptr) {
-                delete hRet;
+        case OP_ADD: {
+            auto it = mapTask.find(channelId);
+            if (it != mapTask.end()) {
+                delete it->second;
+                it->second = hInput;
+            } else {
+                mapTask.emplace(channelId, hInput);
             }
-            mapTask[channelId] = hInput;
             hRet = hInput;
 
             WRITE_LOG(LOG_INFO, "AdminTask add task type:%u cid:%u sid:%s mapsize:%zu",
@@ -891,16 +886,19 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
                       Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), mapTask.size());
 
             break;
+        }
         case OP_REMOVE:
             mapTask.erase(channelId);
             WRITE_LOG(LOG_INFO, "AdminTask rm cid:%u sid:%s mapsize:%zu",
                       channelId, Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), mapTask.size());
             break;
-        case OP_QUERY:
-            if (mapTask.count(channelId)) {
-                hRet = mapTask[channelId];
+        case OP_QUERY: {
+            auto it = mapTask.find(channelId);
+            if (it != mapTask.end()) {
+                hRet =  it->second;
             }
             break;
+        }
         case OP_VOTE_RESET:
             AdminSession(op, hSession->sessionId, nullptr);
             break;

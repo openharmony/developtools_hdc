@@ -29,7 +29,7 @@ bool GetPublicKeyHashInfo(string &pubkey_info);
 bool GetPrivateKeyInfo(string &privkey_info);
 bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr);
 #else
-bool CheckAuthPubKeyIsValid(string &pubkey);
+bool CheckAuthPubKeyIsValid(string &key);
 #endif
 }  // namespace HdcValidation
 #endif  // HDC_CONNECT_VALIDATION_H

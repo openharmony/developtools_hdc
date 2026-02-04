@@ -29,7 +29,7 @@ const std::string HDC_RAS_KEY_FILE_PWD_KEY_ALIAS = "hdc_ras_key_file_key_alias";
 
 class HdcSecretManage {
 public:
-    explicit HdcSecretManage(const std::string &pwdKeyAlias);
+    explicit HdcSecretManage(const std::string &keyAlias);
     int TryLoadPublicKeyInfo();
     int TryLoadPrivateKeyInfo(std::string &processMessageValue);
     std::string GetPublicKeyInfo();

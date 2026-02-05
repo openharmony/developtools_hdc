@@ -207,3 +207,17 @@ class TestInstallBase:
         assert check_app_install(package_hsp, hsp_module_name, '-s')
         assert not check_app_uninstall(hsp_module_name, '-k -s -u 100 -v 10001 -n')
         assert not check_app_uninstall(hsp_module_name, '-n -k -s "-u 100" "-v 10001"')
+
+    @pytest.mark.L0
+    def test_install_chinese_dir(self):
+        bundle_name = 'com.example.aacommand07'
+        dir_name = '临时'
+        file_name = '测试.hap'
+        chinese_dir = get_local_path(dir_name)
+        os.makedirs(chinese_dir, exist_ok = True)
+        src = get_local_path('AACommand07.hap')
+        dst = os.path.join(chinese_dir, file_name)
+        shutil.copy(src, dst)
+        assert check_app_install(dir_name, bundle_name)
+        assert check_app_uninstall(bundle_name)
+        shutil.rmtree(chinese_dir)

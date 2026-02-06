@@ -411,10 +411,9 @@ int main(int argc, const char *argv[])
     // fresh all accounts path when process restart.
     FreshAccountsPath();
  
-    int connectValidationStatus = HdcValidation::GetConnectValidationParam();
-    if (connectValidationStatus == VALIDATION_HDC_HOST || connectValidationStatus == VALIDATION_HDC_HOST_AND_DAEMON) {
-        WRITE_LOG(LOG_FATAL, "GenerateAndExportHuksRSAPublicKey");
-        hdcRsaHuks.GenerateAndExportHuksRSAPublicKey();
+    if (hdcRsaHuks.GenerateAndExportHuksRSAPublicKey() != HKS_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "GenerateAndExportHuksRSAPublicKey failed");
+        return 0;
     }
  
     // create uds socket

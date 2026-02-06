@@ -12,8 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "connect_validation.h"
 #include "server.h"
+#include "connect_validation.h"
 #include "host_updater.h"
 #include "server_cmd_log.h"
 
@@ -468,8 +468,8 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
             sessionIdMaskStr.c_str());
         return;
     }
-    if (tlvmap.find(TAG_AUTH_TYPE) == tlvmap.end() ||
-        tlvmap[TAG_AUTH_TYPE] != std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
+    auto authIt = tlvmap.find(TAG_AUTH_TYPE);
+    if (authIt == tlvmap.end() || authIt->second != std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
         WRITE_LOG(LOG_FATAL, "the buf is invalid for %s session, so use rsa encrypt", sessionIdMaskStr.c_str());
         return;
     }

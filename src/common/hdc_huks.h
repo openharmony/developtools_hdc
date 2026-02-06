@@ -40,7 +40,9 @@ private:
     void GenerateNonce(uint8_t *nonce, int nonceBufLen);
     int32_t InitRsaParamSet(struct HksParamSet **paramSet, const struct HksParam *params,
                             uint32_t paramCount);
-    int32_t ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetIn);
+    int32_t WritePubkeToFile(std::vector<uint8_t> &publicKeyData);
+    bool CheckPubkeyAndHuksKeyMatch(const struct HksParamSet *paramSetIn);
+    int32_t ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetIn, std::vector<uint8_t> &publicKeyData);
     std::string base64Encode(const std::vector<unsigned char>& data);
     struct HksParamSet* MakeRsaDecryptParamSets();
     std::string keyAlias;

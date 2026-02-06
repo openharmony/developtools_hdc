@@ -12,9 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "hdc_huks.h"
 #include "base.h"
 #include "credential_message.h"
-#include "hdc_huks.h"
 #include "hks_param.h"
 #include "hks_api.h"
 #include "log.h"
@@ -349,10 +349,10 @@ std::string HdcHuks::base64Encode(const std::vector<unsigned char> &data)
     return ret;
 }
 
-int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetIn)
+int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetIn, std::vector<uint8_t> &publicKeyData)
 {
     int32_t result = -1;
-    std::vector<uint8_t> publicKeyData(HKS_RSA_KEY_SIZE_3072);
+    publicKeyData.resize(HKS_RSA_KEY_SIZE_3072);
     struct HksBlob publicKey = {.size = HKS_RSA_KEY_SIZE_3072, .data = publicKeyData.data()};
     result = HksExportPublicKey(&keyBlobAlias, paramSetIn, &publicKey);
     if (result != HKS_SUCCESS) {
@@ -360,12 +360,19 @@ int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetI
         return -1;
     }
 
-    std::vector<unsigned char> vec(publicKey.size);
-    if (publicKey.size > 0 && publicKey.data != nullptr) {
-        std::copy(publicKey.data, publicKey.data + publicKey.size, vec.begin());
-    }
-    std::string base64Data = base64Encode(vec);
+    publicKeyData.resize(publicKey.size);
+    return result;
+}
+
+int32_t HdcHuks::WritePubkeToFile(std::vector<uint8_t> &publicKeyData)
+{
+    std::string base64Data = base64Encode(publicKeyData);
     std::ofstream file(HDC_PUBLIC_KEY_PATH.c_str());
+    if (!file.is_open()) {
+        WRITE_LOG(LOG_FATAL, "failed to open file to wirte pubkey");
+        return -1;
+    }
+
     file << "-----BEGIN PUBLIC KEY-----\n";
     file << base64Data;
     file << "-----END PUBLIC KEY-----\n";
@@ -375,18 +382,36 @@ int32_t HdcHuks::ExportRsaHksExportPublicKey(const struct HksParamSet *paramSetI
         WRITE_LOG(LOG_FATAL, "failed to set permission for pubkey file");
     }
 
-    return result;
+    WRITE_LOG(LOG_DEBUG, "write hdc public key successed");
+    return 0;
+}
+
+bool HdcHuks::CheckPubkeyAndHuksKeyMatch(const struct HksParamSet *paramSetIn)
+{
+    int32_t result = -1;
+    std::vector<uint8_t> publicKeyData;
+    result = ExportRsaHksExportPublicKey(paramSetIn, publicKeyData);
+    if (result != HKS_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "failed to Export Rsa PublicKey");
+        return false;
+    }
+
+    std::string base64Data = base64Encode(publicKeyData);
+    std::ifstream file(HDC_PUBLIC_KEY_PATH.c_str());
+    if (!file.is_open()) {
+        WRITE_LOG(LOG_FATAL, "failed to open file to wirte pubkey");
+        return false;
+    }
+
+    std::string fileContext((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return fileContext.find(base64Data) != std::string::npos;
 }
 
 int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
 {
     struct stat status;
-    if (stat(HDC_PUBLIC_KEY_PATH.c_str(), &status) == 0) {
-        WRITE_LOG(LOG_FATAL, "HuksRSAPublicKey exist");
-        return -1;
-    }
-    struct HksParamSet *generateParamSet = nullptr;
     int32_t result = -1;
+    struct HksParamSet *generateParamSet = nullptr;
 
     struct HksParam genRsaKeyPara[] = {
         {.tag = HKS_TAG_PURPOSE, .uint32Param = HKS_KEY_PURPOSE_ENCRYPT | HKS_KEY_PURPOSE_DECRYPT},
@@ -394,7 +419,14 @@ int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
 
     if (!MakeHuksParamSet(&generateParamSet, rsaBasePara, sizeof(rsaBasePara) / sizeof(HksParam),
         genRsaKeyPara, sizeof(genRsaKeyPara) / sizeof(HksParam))) {
+        WRITE_LOG(LOG_FATAL, "MakeHuksParamSet failed");
         return result;
+    }
+    if ((stat(HDC_PUBLIC_KEY_PATH.c_str(), &status) == 0) &&
+        (HksKeyExist(&(this->keyBlobAlias), generateParamSet) == HKS_SUCCESS) &&
+        (CheckPubkeyAndHuksKeyMatch(generateParamSet))) {
+        WRITE_LOG(LOG_FATAL, "HuksRSAPublicKey exist");
+        return HKS_SUCCESS;
     }
 
     result = HksGenerateKey(&(this->keyBlobAlias), generateParamSet, nullptr);
@@ -404,7 +436,11 @@ int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
         return result;
     }
 
-    result = ExportRsaHksExportPublicKey(generateParamSet);
+    std::vector<uint8_t> publicKeyData;
+    result = ExportRsaHksExportPublicKey(generateParamSet, publicKeyData);
+    if (result == HKS_SUCCESS) {
+        result = WritePubkeToFile(publicKeyData);
+    }
 
     HksFreeParamSet(&generateParamSet);
     return result;

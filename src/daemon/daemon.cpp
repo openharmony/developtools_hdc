@@ -511,7 +511,7 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
 bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t channelId, SessionHandShake &handshake)
 {
     string hostname, pubkey;
-    //parse recv pubkey
+    // parse recv pubkey
     if (!GetHostPubkeyInfo(handshake.buf, hostname, pubkey)) {
         WRITE_LOG(LOG_FATAL, "get pubkey failed for %u", hSession->sessionId);
         return false;
@@ -851,14 +851,14 @@ void HdcDaemon::GetServerCapability(HSession &hSession, SessionHandShake &handsh
             Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return;
     }
-    if (tlvMap.find(TAG_AUTH_TYPE) != tlvMap.end() &&
-        tlvMap[TAG_AUTH_TYPE] == std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
+    auto it = tlvMap.find(TAG_AUTH_TYPE);
+    if (it != tlvMap.end() && it->second == std::to_string(AuthVerifyType::RSA_3072_SHA512)) {
         hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
     }
     WRITE_LOG(LOG_INFO, "client auth type is %u for %s session", hSession->verifyType,
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
 
-    //Get server support features
+    // Get server support features
     ParsePeerSupportFeatures(hSession, tlvMap);
 }
 
@@ -1465,7 +1465,7 @@ void HdcDaemon::AuthRejectLowClient(SessionHandShake &handshake, uint32_t channe
 void HdcDaemon::AddFeatureTagToEmgmsg(string &emgmsg)
 {
     Base::TlvAppend(emgmsg, TAG_FEATURE_SHELL_OPT, "enable");
-    //told server, we support features
+    // told server, we support features
     Base::TlvAppend(emgmsg, TAG_SUPPORT_FEATURE, Base::FeatureToString(Base::GetSupportFeature()));
 }
 void HdcDaemon::AuthRejectNotSupportConnValidation(SessionHandShake &handshake, uint32_t channelid, HSession hSession)

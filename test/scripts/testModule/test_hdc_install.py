@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
+import os
 import sys
 from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall, \
     check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp, check_app_not_exist, \
@@ -221,3 +222,20 @@ class TestInstallBase:
         assert check_app_install(dir_name, bundle_name)
         assert check_app_uninstall(bundle_name)
         shutil.rmtree(chinese_dir)
+
+
+class TestInstallBoundary:
+    @pytest.mark.L0
+    def test_isntall_dir_over_four_gigabytes(self):
+        dir_name = f"app_4g_dir"
+        app_4g_dir = get_local_path(dir_name)
+        app_total_size = 0
+        for name in os.listdir(app_4g_dir):
+            file_path = os.path.join(app_4g_dir, name)
+            if os.path.isfile(file_path):
+                file_size = os.path.getsize(file_path)
+                app_total_size += file_size
+        print("app_total_size:", app_total_size)
+        size = 4 * 1024 * 1024 *1024
+        assert app_total_size > size
+        assert check_app_install(dir_name, "")

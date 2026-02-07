@@ -23,6 +23,11 @@
 #include <openssl/rsa.h>
 #include <parameters.h>
 
+#include "auth.h"
+#include "base.h"
+#include "common.h"
+#include "log.h"
+
 using namespace Hdc;
 using namespace HdcAuth;
 
@@ -52,9 +57,9 @@ int GetConnectValidationParam()
 }
 
 #ifdef HDC_HOST
-bool GetPubKeyHash(string &pubkeyInfo)
+bool GetPubKeyHash(std::string &pubkeyInfo)
 {
-    string str = "GetPubkey";
+    std::string str = "GetPubkey";
     std::string sendStr = SplicMessageStr(str, GET_PUBKEY, METHOD_AUTHVERIFY);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
@@ -94,9 +99,9 @@ bool GetPubKeyHash(string &pubkeyInfo)
     return true;
 }
 
-bool GetPublicKeyHashInfo(string &buf)
+bool GetPublicKeyHashInfo(std::string &buf)
 {
-    string hostname;
+    std::string hostname;
     if (!HdcAuth::GetHostName(hostname)) {
         WRITE_LOG(LOG_FATAL, "gethostname failed");
         return false;
@@ -117,9 +122,9 @@ bool GetPublicKeyHashInfo(string &buf)
     return true;
 }
 
-bool GetPrivateKeyInfo(string &privkey_info)
+bool GetPrivateKeyInfo(std::string &privkey_info)
 {
-    string str = "GetPrivateKey";
+    std::string str = "GetPrivateKey";
     std::string sendStr = SplicMessageStr(str, GET_SIGNATURE, METHOD_AUTHVERIFY);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
@@ -178,7 +183,7 @@ EVP_PKEY *StringToEVP(const std::string &pemStr)
     return evp;
 }
 
-bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr)
+bool RsaSignAndBase64(std::string &buf, Hdc::AuthVerifyType type, std::string &pemStr)
 {
     bool signResult = false;
     EVP_PKEY *evp = StringToEVP(pemStr);
@@ -207,7 +212,7 @@ bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr)
 
 #else
 
-bool CheckAuthPubKeyIsValid(string &key)
+bool CheckAuthPubKeyIsValid(std::string &key)
 {
     char const *keyfile = "/data/service/el2/public/hdc_service/verify_public_key.pem";
 
@@ -220,7 +225,7 @@ bool CheckAuthPubKeyIsValid(string &key)
     std::string keys((std::istreambuf_iterator<char>(keyifs)), std::istreambuf_iterator<char>());
     // the length of pubkey is 625
     const int keyLength = 625;
-    if (key.size() == keyLength && keys.find(key) != string::npos) {
+    if (key.size() == keyLength && keys.find(key) != std::string::npos) {
         keyifs.close();
         return true;
     }

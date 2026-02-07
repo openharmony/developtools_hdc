@@ -19,6 +19,10 @@
 #include <iomanip>
 #include <sstream>
 #include <unistd.h>
+#include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
 
 #include "auth.h"
 #include "credential_message.h"
@@ -339,7 +343,7 @@ int HdcSecretManage::TryLoadPrivateKeyInfo(std::string &processMessageValue)
             WRITE_LOG(LOG_FATAL, "read bio failed");
             break;
         }
-        processMessageValue = string(buf, len);
+        processMessageValue = std::string(buf, len);
     } while (0);
 
     if (bio) {

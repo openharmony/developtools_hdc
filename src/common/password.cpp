@@ -12,10 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "password.h"
 #include "base.h"
 #include "common.h"
 #include "credential_message.h"
-#include "password.h"
 #include "sys/socket.h"
 
 namespace Hdc {

@@ -16,11 +16,7 @@
 #ifndef HDC_SECRET_MANAGE_H
 #define HDC_SECRET_MANAGE_H
 
-#include <openssl/sha.h>
-#include <openssl/bio.h>
 #include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
 #include <string>
 
 #include "hdc_huks.h"

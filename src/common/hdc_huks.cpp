@@ -399,7 +399,7 @@ bool HdcHuks::CheckPubkeyAndHuksKeyMatch(const struct HksParamSet *paramSetIn)
     std::string base64Data = base64Encode(publicKeyData);
     std::ifstream file(HDC_PUBLIC_KEY_PATH.c_str());
     if (!file.is_open()) {
-        WRITE_LOG(LOG_FATAL, "failed to open file to wirte pubkey");
+        WRITE_LOG(LOG_FATAL, "failed to open file to pubkey");
         return false;
     }
 

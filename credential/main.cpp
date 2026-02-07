@@ -16,11 +16,11 @@
 #include <want.h>
 #include <common_event_manager.h>
 #include <common_event_publish_info.h>
-#include <parameters.h>
 
-#include "connect_validation.h"
+#include "auth.h"
 #include "credential_base.h"
 #include "credential_message.h"
+#include "define.h"
 #include "hdc_huks.h"
 #include "hdc_subscriber.h"
 #include "password.h"

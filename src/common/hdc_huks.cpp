@@ -404,6 +404,7 @@ bool HdcHuks::CheckPubkeyAndHuksKeyMatch(const struct HksParamSet *paramSetIn)
     }
 
     std::string fileContext((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
     return fileContext.find(base64Data) != std::string::npos;
 }
 

@@ -388,10 +388,8 @@ int32_t HdcHuks::WritePubkeToFile(std::vector<uint8_t> &publicKeyData)
 
 bool HdcHuks::CheckPubkeyAndHuksKeyMatch(const struct HksParamSet *paramSetIn)
 {
-    int32_t result = -1;
     std::vector<uint8_t> publicKeyData;
-    result = ExportRsaHksExportPublicKey(paramSetIn, publicKeyData);
-    if (result != HKS_SUCCESS) {
+    if (ExportRsaHksExportPublicKey(paramSetIn, publicKeyData) != HKS_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "failed to Export Rsa PublicKey");
         return false;
     }

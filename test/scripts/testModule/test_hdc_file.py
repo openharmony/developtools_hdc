@@ -65,33 +65,6 @@ def del_file_in_tmp_dir(dir_name, file_name_prefix, file_only=True):
     else:
         check_hdc_cmd(f"shell rm -r /data/local/tmp/{dir_name}")
 
-
-# file transfer rate baseline params
-file_transfer_count = 5
-file_transfer_avg_rate = 0.0
-
-
-def get_file_transfer_rate():
-    global file_transfer_count, file_transfer_avg_rate
-    file_send_avg_rate = 0.0
-    file_recv_avg_rate = 0.0
-    for i in range(file_transfer_count):
-        file_name = "large"
-        send_remote_path = ""
-        send_output = get_shell_result(f"file send {get_local_path(file_name)} {get_remote_path(send_remote_path)}")
-        
-        recv_local_file_name = f"{file_name}_recv"
-        recv_output = get_shell_result(f"file recv {get_remote_path(file_name)} {get_local_path(recv_local_file_name)}")
-
-        send_rate_str = send_output[send_output.rfind("rate:") + 5: send_output.rfind("kB/s")]
-        recv_rate_str = recv_output[recv_output.rfind("rate:") + 5: recv_output.rfind("kB/s")]
-
-        file_send_avg_rate += float(send_rate_str)
-        file_recv_avg_rate += float(recv_rate_str)
-    
-    file_transfer_avg_rate = (file_send_avg_rate + file_recv_avg_rate) / (file_transfer_count * 2)
-    del_file_in_tmp_dir("", file_name)
-
 class TestFileCompress:
     compress_file_table = [
         ("medium", "it_medium_z"),
@@ -104,10 +77,16 @@ class TestFileCompress:
     @pytest.mark.parametrize("local_path, remote_path", compress_file_table)
     def test_file_compress(self, local_path, remote_path):
         clear_env()
-        assert check_hdc_cmd(f"file send -z {get_local_path(local_path)} {get_remote_path(remote_path)}")
-        assert check_hdc_cmd(f"file recv -z {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
-        del_file_in_tmp_dir("", remote_path)
-
+        local_full_path = get_local_path(local_path)
+        remote_full_path = get_remote_path(remote_path)
+        local_recv_full_path = get_local_path(f'{local_path}_recv')
+        try:
+            assert check_hdc_cmd(f"file send -z {local_full_path} {remote_full_path}")
+            assert check_hdc_cmd(f"file recv -z {remote_full_path} {local_recv_full_path}")
+        finally:
+            del_file_in_tmp_dir("", remote_path)
+            if os.path.exists(local_recv_full_path):
+                os.remove(local_recv_full_path)
 
 class TestFileBase:
     base_file_table = [
@@ -117,23 +96,65 @@ class TestFileBase:
         ("word_100M.txt", "word_100M")
     ]
 
+    # file transfer rate baseline params
+    file_transfer_count = 5
+    file_transfer_avg_rate = 0.0
+
     @classmethod
     def setup_class(self):
         clear_env()
-        get_file_transfer_rate()
 
+    def get_file_transfer_rate(self):
+        file_send_avg_rate = 0.0
+        file_recv_avg_rate = 0.0
+        for i in range(TestFileBase.file_transfer_count):
+            file_name = "large"
+            send_remote_path = ""
+            send_output = get_shell_result(f"file send {get_local_path(file_name)} {get_remote_path(send_remote_path)}")
+
+            recv_local_file_name = f"{file_name}_recv"
+            recv_output = get_shell_result(f"file recv {get_remote_path(file_name)} {get_local_path(recv_local_file_name)}")
+
+            send_rate_str = send_output[send_output.rfind("rate:") + 5: send_output.rfind("kB/s")]
+            recv_rate_str = recv_output[recv_output.rfind("rate:") + 5: recv_output.rfind("kB/s")]
+
+            file_send_avg_rate += float(send_rate_str)
+            file_recv_avg_rate += float(recv_rate_str)
+
+        TestFileBase.file_transfer_avg_rate = (file_send_avg_rate + file_recv_avg_rate) / (TestFileBase.file_transfer_count * 2)
+        del_file_in_tmp_dir("", file_name)
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     @pytest.mark.parametrize("local_path, remote_path", base_file_table)
     def test_file_normal(self, local_path, remote_path): 
-        assert check_hdc_cmd(f"file send {get_local_path(local_path)} {get_remote_path(remote_path)}")
-        md5_local = get_md5sum_local(get_local_path(local_path))
-        assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
-        md5_local_recv = get_md5sum_local(get_local_path(f'{local_path}_recv'))
-        del_file_in_tmp_dir("", remote_path)
+        local_full_path = get_local_path(local_path)
+        remote_full_path = get_remote_path(remote_path)
+        local_recv_full_path = get_local_path(f'{local_path}_recv')
+        try:
+            assert check_hdc_cmd(f"file send {local_full_path} {remote_full_path}")
+            md5_local = get_md5sum_local(local_full_path)
+            assert check_hdc_cmd(f"file recv {remote_full_path} {local_recv_full_path}")
+            md5_local_recv = get_md5sum_local(local_recv_full_path)
+        finally:
+            del_file_in_tmp_dir("", remote_path)
+            if os.path.exists(local_recv_full_path):
+                os.remove(local_recv_full_path)
         assert md5_local == md5_local_recv
 
+    @pytest.mark.L0
+    @pytest.mark.repeat(2)
+    def test_file_empty(self):
+        local_full_path = get_local_path("empty")
+        remote_full_path = get_remote_path("it_empty")
+        local_recv_full_path = get_local_path(f'empty_recv')
+        try:
+            assert check_hdc_cmd(f"file send {local_full_path} {remote_full_path}")
+            assert check_hdc_cmd(f"file recv {remote_full_path} {local_recv_full_path}")
+        finally:
+            del_file_in_tmp_dir("", "it_empty")
+            if os.path.exists(local_recv_full_path):
+                os.remove(local_recv_full_path)
 
     @pytest.mark.L0
     def test_chinese_file_name_md5(self):
@@ -143,11 +164,11 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
 
-    
     @pytest.mark.L0
     def test_chinese_file_name_md5_2(self):
         filename = "中文chinese"
@@ -156,10 +177,10 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
-
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
     
     @pytest.mark.L0
     def test_chinese_file_name_md5_with_chinese_dir(self):
@@ -172,11 +193,11 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(dirname)} {get_local_path(local_path)}")
         md5_local = get_md5sum_local(get_local_path(os.path.join(dirname, filename)))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir(dirname, "", False)
+        if os.path.exists(get_local_path(dirname)):
+            rmdir(get_local_path(dirname))
+        assert md5_remote == md5_local
 
-    
     @pytest.mark.L0
     def test_chinese_file_name_md5_with_chinese_dir_2(self):
         filename = "中文chinese"
@@ -188,11 +209,11 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(dirname)} {get_local_path(local_path)}")
         md5_local = get_md5sum_local(get_local_path(os.path.join(dirname, filename)))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir(dirname, "", False)
+        if os.path.exists(get_local_path(dirname)):
+            rmdir(get_local_path(dirname))
+        assert md5_remote == md5_local
 
-    
     @pytest.mark.L0
     def test_file_md5_with_long_dir_file(self):
         file_name_10 = generate_random_string(10)
@@ -204,10 +225,10 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(dir_name_10)} {get_local_path(local_path)}")
         md5_local = get_md5sum_local(get_local_path(os.path.join(dir_name_10, file_name_10)))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir(dir_name_10, "", False)
-
+        if os.path.exists(get_local_path(dir_name_10)):
+            rmdir(get_local_path(dir_name_10))
+        assert md5_remote == md5_local
 
     @pytest.mark.L0
     def test_file_md5_with_long_dir_file_1(self):
@@ -220,11 +241,11 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(dir_name_30)} {get_local_path(local_path)}")
         md5_local = get_md5sum_local(get_local_path(os.path.join(dir_name_30, file_name_30)))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir(dir_name_30, "", False)
+        if os.path.exists(get_local_path(dir_name_30)):
+            rmdir(get_local_path(dir_name_30))
+        assert md5_remote == md5_local
 
-    
     @pytest.mark.L0
     def test_file_md5_with_long_dir_file_2(self):
         file_name_64 = generate_random_string(64)
@@ -236,25 +257,26 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(remote_path)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(dir_name_64)} {get_local_path(local_path)}")
         md5_local = get_md5sum_local(get_local_path(os.path.join(dir_name_64, file_name_64)))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir(dir_name_64, "", False)
-
+        if os.path.exists(get_local_path(dir_name_64)):
+            rmdir(get_local_path(dir_name_64))
+        assert md5_remote == md5_local
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_file_md5_with_option_cwd(self):
         file_name = "test_file"
         gen_file_in_tmp_dir("", file_name, 1, "M", 1, 1)
-
-        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(file_name)}").split()[0]
-        check_hdc_cmd(f"file recv {get_remote_path(file_name)} {get_local_path(file_name)}")
-        md5_local = get_md5sum_local(get_local_path(file_name))
-        assert md5_remote == md5_local
-        check_hdc_cmd(f"file send -cwd {get_local_path(file_name)} {get_remote_path(file_name)}")
-        
-        del_file_in_tmp_dir("", file_name)
-
+        try:
+            md5_remote = get_shell_result(f"shell md5sum {get_remote_path(file_name)}").split()[0]
+            assert check_hdc_cmd(f"file recv {get_remote_path(file_name)} {get_local_path(file_name)}")
+            md5_local = get_md5sum_local(get_local_path(file_name))
+            assert md5_remote == md5_local
+            assert check_hdc_cmd(f"file send -cwd {get_local_path('')} {file_name} {get_remote_path(file_name)}")
+        finally:
+            del_file_in_tmp_dir("", file_name)
+            if os.path.exists(get_local_path(file_name)):
+                os.remove(get_local_path(file_name))
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -265,11 +287,11 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
 
-    
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_2G_file_md5(self):
@@ -279,9 +301,10 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
 
 
     @pytest.mark.L0
@@ -293,10 +316,10 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
-
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
     
     @pytest.mark.L0
     def test_6G_file_md5(self):
@@ -306,11 +329,11 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
 
-    
     @pytest.mark.L0
     def test_10G_file_md5(self):
         filename = "test_10G_file"
@@ -319,10 +342,10 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
-
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
 
     @pytest.mark.L0
     def test_16G_file_md5(self):
@@ -332,10 +355,10 @@ class TestFileBase:
         md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
-        assert md5_remote == md5_local
-        
         del_file_in_tmp_dir("", filename)
-
+        if os.path.exists(get_local_path(filename)):
+            os.remove(get_local_path(filename))
+        assert md5_remote == md5_local
 
     @pytest.mark.L0
     @pytest.mark.repeat(2)
@@ -358,11 +381,11 @@ class TestFileBase:
         check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(local_path)}")
         file_full_path = os.path.join(dir_name_tmp, filename)
         md5_local = get_md5sum_local(get_local_path(file_full_path))
+        del_file_in_tmp_dir(dir_name, filename)
+        if os.path.exists(get_local_path("0")):
+            rmdir(get_local_path("0"))
         assert md5_remote == md5_local
 
-        del_file_in_tmp_dir(dir_name, filename)
-
-    
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_file_md5_with_20_depth_dir(self):
@@ -384,11 +407,11 @@ class TestFileBase:
         check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(local_path)}")
         file_full_path = os.path.join(dir_name_tmp, filename)
         md5_local = get_md5sum_local(get_local_path(file_full_path))
+        del_file_in_tmp_dir(dir_name, filename)
+        if os.path.exists(get_local_path("0")):
+            rmdir(get_local_path("0"))
         assert md5_remote == md5_local
 
-        del_file_in_tmp_dir(dir_name, filename)
-
-    
     @pytest.mark.L0
     @pytest.mark.repeat(2)
     def test_file_md5_with_32_depth_dir(self):
@@ -410,27 +433,34 @@ class TestFileBase:
         check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(local_path)}")
         file_full_path = os.path.join(dir_name_tmp, filename)
         md5_local = get_md5sum_local(get_local_path(file_full_path))
-        assert md5_remote == md5_local
-
         del_file_in_tmp_dir(dir_name, filename)
-
+        if os.path.exists(get_local_path("0")):
+            rmdir(get_local_path("0"))
+        assert md5_remote == md5_local
     
     @pytest.mark.L0
     def test_file_rate_60M(self):
+        # The value less than 0.001 indicates that file_transfer_avg_rate is a value that has not been initialized yet
+        if TestFileBase.file_transfer_avg_rate < 0.001:
+            self.get_file_transfer_rate()
         rate_60M = 1.0 * 60 * 1024
-        assert file_transfer_avg_rate >= rate_60M
-
+        assert TestFileBase.file_transfer_avg_rate >= rate_60M
 
     @pytest.mark.L0
     def test_file_rate_80M(self):
+        # The value less than 0.001 indicates that file_transfer_avg_rate is a value that has not been initialized yet
+        if TestFileBase.file_transfer_avg_rate < 0.001:
+            self.get_file_transfer_rate()
         rate_80M = 1.0 * 80 * 1024
-        assert file_transfer_avg_rate >= rate_80M
-
+        assert TestFileBase.file_transfer_avg_rate >= rate_80M
 
     @pytest.mark.L0
     def test_file_rate_120M(self):
+        # The value less than 0.001 indicates that file_transfer_avg_rate is a value that has not been initialized yet
+        if TestFileBase.file_transfer_avg_rate < 0.001:
+            self.get_file_transfer_rate()
         rate_120M = 1.0 * 120 * 1024
-        assert file_transfer_avg_rate >= rate_120M
+        assert TestFileBase.file_transfer_avg_rate >= rate_120M
 
 
 class TestDirBase:

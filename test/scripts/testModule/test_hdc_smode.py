@@ -20,29 +20,44 @@ from utils import GP, check_hdc_cmd, check_shell, get_local_path, run_command_wi
 class TestSmode:
     @pytest.mark.L0
     def test_smode_permission(self):
-        check_shell(f"shell rm -rf data/deep_test_dir")
-        assert check_hdc_cmd(f'smode -r')
-        time.sleep(3)
-        run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
-        assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
-                        "permission denied")
-        assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
-                        "[E005005]")
+        try:
+            check_shell(f"shell rm -rf data/deep_test_dir")
+            assert check_hdc_cmd(f'smode -r')
+            time.sleep(3)
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
+            assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
+                            "permission denied")
+            assert check_shell(f"file send {get_local_path('deep_test_dir')} data/",
+                            "[E005005]")
+        finally:
+            check_hdc_cmd(f'smode')
+            time.sleep(3)
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15)
 
     @pytest.mark.L0
     def test_smode_r(self):
-        assert check_hdc_cmd(f'smode -r')
-        time.sleep(3) # sleep 3s to wait for the device to connect channel
-        run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
-        time.sleep(3) # sleep 3s to wait for the device to connect channel
-        run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
-        assert check_shell(f"shell id", "context=u:r:sh:s0")
+        try:
+            assert check_hdc_cmd(f'smode -r')
+            time.sleep(3) # sleep 3s to wait for the device to connect channel
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
+            time.sleep(3) # sleep 3s to wait for the device to connect channel
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
+            assert check_shell(f"shell id", "context=u:r:sh:s0")
+        finally:
+            check_hdc_cmd(f'smode')
+            time.sleep(3)
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15)
 
     @pytest.mark.L0
     def test_smode(self):
-        assert check_hdc_cmd(f'smode')
-        time.sleep(3) # sleep 3s to wait for the device to connect channel
-        run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
-        time.sleep(3) # sleep 3s to wait for the device to connect channel
-        run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
-        assert check_shell(f"shell id", "context=u:r:su:s0")
+        try:
+            assert check_hdc_cmd(f'smode')
+            time.sleep(3) # sleep 3s to wait for the device to connect channel
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
+            time.sleep(3) # sleep 3s to wait for the device to connect channel
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15) # wait 15s for the device to connect channel
+            assert check_shell(f"shell id", "context=u:r:su:s0")
+        finally:
+            check_hdc_cmd(f'smode')
+            time.sleep(3)
+            run_command_with_timeout(f"{GP.hdc_head} wait", 15)

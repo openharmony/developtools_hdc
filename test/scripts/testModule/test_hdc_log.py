@@ -116,7 +116,7 @@ class TestLog:
         local_ip = f"127.0.0.1"
         port = 11111
         for i in range(4):
-            local_port = port + i + 1
+            local_port = port + i
             cmd_fport = f"{GP.hdc_head} fport tcp:{local_port} tcp:{remote_port}"
             result, _ = get_cmd_block_output_and_error(cmd_fport)
             expect = f"Forwardport result:OK"
@@ -135,7 +135,7 @@ class TestLog:
             expect = f"connectKey:{connect_tcp} command flag:1001 command result:1 command take time"
             assert self.search_log(expect)
         for i in range(4):
-            local_port = port + i + 1
+            local_port = port + i
             cmd_fport_rm = f"{GP.hdc_head} fport rm tcp:{local_port} tcp:{remote_port}"
             result, _ = get_cmd_block_output_and_error(cmd_fport_rm)
             expect = f"Remove forward ruler success"

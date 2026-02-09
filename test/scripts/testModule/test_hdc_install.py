@@ -15,6 +15,7 @@
 import pytest
 import os
 import sys
+import shutil
 from utils import GP, check_app_install, check_app_install_multi, check_app_uninstall, \
     check_app_uninstall_multi, check_hdc_cmd, get_local_path, load_gp, check_app_not_exist, \
     check_app_dir_not_exist, get_bundle_info
@@ -225,7 +226,7 @@ class TestInstallBase:
 
 
 class TestInstallBoundary:
-    @pytest.mark.L0
+    @pytest.mark.ST
     def test_isntall_dir_over_four_gigabytes(self):
         dir_name = f"app_4g_dir"
         app_4g_dir = get_local_path(dir_name)

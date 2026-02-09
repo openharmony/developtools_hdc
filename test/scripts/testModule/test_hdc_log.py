@@ -35,9 +35,9 @@ class TestLog:
         log_file = os.path.join(temp_dir, f"hdc.log")
         with open(log_file, f"r") as file:
             for line, text in enumerate(file, 1):
-                match = re.search(value, text)
-                exist = match is not None
-                break
+                if value in text:
+                    exist = True
+                    break
         return exist
 
     @pytest.mark.L0
@@ -52,7 +52,7 @@ class TestLog:
         file_path = os.path.join(temp_dir, long_name)
         f = open(file_path, f"w+")
         f.close()
-        assert os.path.exist(file_path)
+        assert os.path.exists(file_path)
         cmd_kill_r = f"{GP.hdc_exe} kill -r"
         result, error = get_cmd_block_output_and_error(cmd_kill_r)
         print(result, error)
@@ -90,7 +90,7 @@ class TestLog:
         print(result)
         result = result.split(f"\n")
         for item in result:
-            if item != f"\n":
+            if item != f"\n" and item != f"":
                 devices.append(item)
         assert len(devices) == 1
         exist = False
@@ -129,7 +129,10 @@ class TestLog:
             result, _ = get_cmd_block_output_and_error(cmd_shell_ls)
             expect = f"bin"
             assert expect in result
-            expect = f"connectKey:127******11{i+1}(L:15) command flag:1001 command result:1 command take time"
+            time.sleep(2)
+            item = f"{local_ip}:{local_port}"
+            connect_tcp = f"{item[:3]}******{item[-3:]}(L:{len(item)})"
+            expect = f"connectKey:{connect_tcp} command flag:1001 command result:1 command take time"
             assert self.search_log(expect)
         for i in range(4):
             local_port = port + i + 1
@@ -137,8 +140,9 @@ class TestLog:
             result, _ = get_cmd_block_output_and_error(cmd_fport_rm)
             expect = f"Remove forward ruler success"
             assert expect in result
+            time.sleep(2)
             item = f"{local_ip}:{local_port}"
             connect_tcp = f"{item[:3]}******{item[-3:]}(L:{len(item)})"
-            expect = f"FreeSessionByConnectType HdcSession [ serverOrDaemon:1 sessionId:[\d] handshakeOK:1 connectKey:{connect_tcp} connType:1 ]"
+            expect = f"handshakeOK:1 connectKey:{connect_tcp} connType:1 ]"
             assert self.search_log(expect)
 

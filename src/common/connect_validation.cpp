@@ -214,7 +214,7 @@ bool RsaSignAndBase64(std::string &buf, Hdc::AuthVerifyType type, std::string &p
 
 bool CheckAuthPubKeyIsValid(std::string &key)
 {
-    char const *keyfile = "/data/service/el2/public/hdc_service/verify_public_key.pem";
+    char const *keyfile = "/data/service/el2/public/hdc_service/daemon_public_key.pem";
 
     std::ifstream keyifs(keyfile);
     if (!keyifs.is_open()) {

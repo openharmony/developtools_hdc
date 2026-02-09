@@ -107,21 +107,34 @@ class TestLog:
 
     @pytest.mark.L0
     def test_log_for_multi_tcp_disconnect(self):
+        devices = []
+        cmd = f"{GP.hdc_exe} list targets"
+        result, _ = get_cmd_block_output_and_error(cmd)
+        print(result)
+        result = result.split(f"\n")
+        for item in result:
+            if item != f"\n" and item != f"":
+                devices.append(item)
+        assert len(devices) > 0
+        sn = devices[0]
         remote_port = 7777
-        cmd_tmode = f"{GP.hdc_head} tmode port {remote_port}"
+        cmd_tmode = f"{GP.hdc_exe} -t {sn} tmode port {remote_port}"
         result, _ = get_cmd_block_output_and_error(cmd_tmode)
         print(result)
         expect = f"Set device run mode successful"
         assert expect in result
+        cmd_wait = f"{GP.hdc_exe} -t {sn} wait"
+        result, _ = get_cmd_block_output_and_error(cmd_wait)
+        print(result)
         local_ip = f"127.0.0.1"
         port = 11111
         for i in range(4):
             local_port = port + i
-            cmd_fport = f"{GP.hdc_head} fport tcp:{local_port} tcp:{remote_port}"
+            cmd_fport = f"{GP.hdc_exe} -t {sn} fport tcp:{local_port} tcp:{remote_port}"
             result, _ = get_cmd_block_output_and_error(cmd_fport)
             expect = f"Forwardport result:OK"
             assert expect in result
-            cmd_tconn = f"{GP.hdc_exe} tconn {local_ip}:{local_port}"
+            cmd_tconn = f"{GP.hdc_exe} -t {sn} tconn {local_ip}:{local_port}"
             result, _ = get_cmd_block_output_and_error(cmd_tconn)
             expect = f"Connect OK"
             assert expect in result
@@ -136,7 +149,7 @@ class TestLog:
             assert self.search_log(expect)
         for i in range(4):
             local_port = port + i
-            cmd_fport_rm = f"{GP.hdc_head} fport rm tcp:{local_port} tcp:{remote_port}"
+            cmd_fport_rm = f"{GP.hdc_exe} -t {sn} fport rm tcp:{local_port} tcp:{remote_port}"
             result, _ = get_cmd_block_output_and_error(cmd_fport_rm)
             expect = f"Remove forward ruler success"
             assert expect in result

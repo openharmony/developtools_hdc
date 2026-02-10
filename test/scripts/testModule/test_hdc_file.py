@@ -16,6 +16,7 @@ import os
 import pytest
 import subprocess
 import sys
+import shutil
 
 from utils import GP, check_hdc_cmd, check_hdc_targets, check_soft_local, check_soft_remote, \
     check_shell, rmdir, check_version, get_local_path, get_remote_path, make_multiprocess_file, \
@@ -256,7 +257,7 @@ class TestFileBase:
         del_file_in_tmp_dir("", file_name)
 
 
-    @pytest.mark.L0
+    @pytest.mark.L1
     @pytest.mark.repeat(2)
     def test_1G_file_md5(self):
         filename = "test_1G_file"
@@ -270,7 +271,7 @@ class TestFileBase:
         del_file_in_tmp_dir("", filename)
 
     
-    @pytest.mark.L0
+    @pytest.mark.L1
     @pytest.mark.repeat(2)
     def test_2G_file_md5(self):
         filename = "test_2G_file"
@@ -284,7 +285,7 @@ class TestFileBase:
         del_file_in_tmp_dir("", filename)
 
 
-    @pytest.mark.L0
+    @pytest.mark.L1
     @pytest.mark.repeat(2)
     def test_4G_file_md5(self):
         filename = "test_4G_file"
@@ -294,11 +295,14 @@ class TestFileBase:
         check_hdc_cmd(f"file recv {get_remote_path(filename)} {get_local_path(filename)}")
         md5_local = get_md5sum_local(get_local_path(filename))
         assert md5_remote == md5_local
-        
+
         del_file_in_tmp_dir("", filename)
+        check_hdc_cmd(f"file send {get_local_path(filename)} {get_remote_path(filename)}")
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        assert md5_local == md5_remote
 
     
-    @pytest.mark.L0
+    @pytest.mark.L1
     def test_6G_file_md5(self):
         filename = "test_6G_file"
         gen_file_in_tmp_dir("", filename, 1024, "M", 6, 1)
@@ -309,9 +313,12 @@ class TestFileBase:
         assert md5_remote == md5_local
         
         del_file_in_tmp_dir("", filename)
+        check_hdc_cmd(f"file send {get_local_path(filename)} {get_remote_path(filename)}")
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        assert md5_local == md5_remote
 
     
-    @pytest.mark.L0
+    @pytest.mark.L1
     def test_10G_file_md5(self):
         filename = "test_10G_file"
         gen_file_in_tmp_dir("", filename, 1024, "M", 10, 1)
@@ -322,9 +329,12 @@ class TestFileBase:
         assert md5_remote == md5_local
         
         del_file_in_tmp_dir("", filename)
+        check_hdc_cmd(f"file send {get_local_path(filename)} {get_remote_path(filename)}")
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        assert md5_local == md5_remote
 
 
-    @pytest.mark.L0
+    @pytest.mark.L1
     def test_16G_file_md5(self):
         filename = "test_16G_file"
         gen_file_in_tmp_dir("", filename, 1024, "M", 16, 1)
@@ -335,6 +345,9 @@ class TestFileBase:
         assert md5_remote == md5_local
         
         del_file_in_tmp_dir("", filename)
+        check_hdc_cmd(f"file send {get_local_path(filename)} {get_remote_path(filename)}")
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(filename)}").split()[0]
+        assert md5_local == md5_remote
 
 
     @pytest.mark.L0
@@ -348,7 +361,7 @@ class TestFileBase:
                 dir_name_tmp = dir_name_tmp + "\\" + str(i)
             else:
                 dir_name_tmp = dir_name_tmp + "/" + str(i)
-        filename = "test_10G_file"
+        filename = "test_10M_file"
         gen_file_in_tmp_dir(dir_name, filename, 1, "M", 10, 1)
 
         remote_full_path = dir_name + "/" + filename
@@ -374,7 +387,7 @@ class TestFileBase:
                 dir_name_tmp = dir_name_tmp + "\\" + str(i)
             else:
                 dir_name_tmp = dir_name_tmp + "/" + str(i)
-        filename = "test_10G_file"
+        filename = "test_10M_file"
         gen_file_in_tmp_dir(dir_name, filename, 1, "M", 10, 1)
 
         remote_full_path = dir_name + "/" + filename
@@ -389,7 +402,7 @@ class TestFileBase:
         del_file_in_tmp_dir(dir_name, filename)
 
     
-    @pytest.mark.L0
+    @pytest.mark.L1
     @pytest.mark.repeat(2)
     def test_file_md5_with_32_depth_dir(self):
         depth = 32
@@ -400,7 +413,7 @@ class TestFileBase:
                 dir_name_tmp = dir_name_tmp + "\\" + str(i)
             else:
                 dir_name_tmp = dir_name_tmp + "/" + str(i)
-        filename = "test_10G_file"
+        filename = "test_10M_file"
         gen_file_in_tmp_dir(dir_name, filename, 1, "M", 10, 1)
 
         remote_full_path = dir_name + "/" + filename
@@ -645,6 +658,36 @@ class TestFileBundleOptionNormal:
         assert check_hdc_cmd(f"file recv -b {GP.debug_app} {self.data_storage_el2_path}/it_{test_item} "
                             f"{get_local_path(f'recv_bundle_{test_item}')}")
 
+        if test_item in ['medium', 'small']:
+            md5_remote = get_shell_result(f"shell -b {GP.debug_app} md5sum {self.data_storage_el2_path}/it_{test_item}").split()[0]
+            md5_local = get_md5sum_local(get_local_path(test_item))
+            assert md5_remote == md5_local
+
+
+    @pytest.mark.L0
+    @check_version("Ver: 3.1.0e")
+    def test_dir_option_bundle_normal(self):
+        directory = 'testhapdir'
+        dir_path = get_local_path(directory)
+        test_file = os.path.join(dir_path, 'test')
+        file_size = 100 * 1024 *1024
+
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
+        with open(test_file, 'wb') as f:
+            f.write(os.urandom(file_size))
+
+        assert check_hdc_cmd(f"file send -b {GP.debug_app} "
+                            f"{get_local_path(f'{directory}')} {self.data_storage_el2_path}/it_{directory}")
+        assert check_hdc_cmd(f"file recv -b {GP.debug_app} {self.data_storage_el2_path}/it_{directory} "
+                            f"{get_local_path(f'recv_bundle_{directory}')}")
+
+        if os.path.exists(get_local_path(directory)):
+            shutil.rmtree(get_local_path(directory))
+        if os.path.exists(get_local_path(f'recv_bundle_{directory}')):
+            shutil.rmtree(get_local_path(f'recv_bundle_{directory}'))
+
 
 class TestFileBundleOptionError:
     data_storage_el2_path = "data/storage/el2/base" 
@@ -745,22 +788,7 @@ class TestFileBundleOptionError:
         else:
             assert not check_shell(f"file send -b {GP.debug_app} {get_local_path('small')} {remote_path}",
                                    self.outside_error)
-class TestFileBase:
-    base_file_table = [
-        ("empty", "it_empty"),
-        ("small", "it_small"),
-        ("medium", "it_medium"),
-        ("large", "it_large"),
-        ("word_100M.txt", "word_100M")
-    ]
 
-    @pytest.mark.L0
-    @pytest.mark.repeat(2)
-    @pytest.mark.parametrize("local_path, remote_path", base_file_table)
-    def test_file_normal(self, local_path, remote_path):
-        clear_env()
-        assert check_hdc_cmd(f"file send {get_local_path(local_path)} {get_remote_path(remote_path)}")
-        assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
 
 class TestFullDisk:
     @pytest.mark.L0
@@ -787,6 +815,8 @@ class TestFullDisk:
         assert send == False
 
 
+    @pytest.mark.L0
+    @pytest.mark.repeat(1)
     def test_full_disk2(self):
         subprocess.run('hdc shell dd if=/dev/zero of=/storage/smallfile bs=1M count=10', shell=True, capture_output=True, text=True)
         subprocess.run('hdc shell dd if=/dev/zero of=/storage/largefile bs=1M', shell=True, capture_output=True, text=True)
@@ -796,7 +826,7 @@ class TestFullDisk:
 
         pid1 = get_hdcd_pid()
         fds1 = get_hdcd_fd_num()
-        send = check_hdc_cmd(f'file send {get_local_path("")} {get_remote_path()}')
+        send = check_hdc_cmd(f'file send {get_local_path("medium")} /storage/medium')
         pid2 = get_hdcd_pid()
         fds2 = get_hdcd_fd_num()
         check_hdc_cmd('shell rm -rf /storage/largefile')
@@ -804,3 +834,60 @@ class TestFullDisk:
         assert pid1 == pid2
         assert fds1 == fds2
         assert send == False
+
+
+class TestDirectoryBase:
+    @pytest.mark.L0
+    @pytest.mark.repeat(1)
+    def test_mult_file_normal(self):
+        directory = 'abc'
+        dir_path = get_local_path(directory)
+        empty_files = ['1.txt', '3.txt', 'a.log', 'c.log']
+        content_files = {
+            '2.txt': 'this 2.txt data',
+            '4.txt': 'this 4.txt data',
+            'b.txt': 'this b.txt data',
+            'd.txt': 'this d.txt data'
+        }
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        for filename in empty_files:
+            with open(os.path.join(dir_path, filename), 'w') as file:
+                pass
+        for filename, context in content_files.items():
+            with open(os.path.join(dir_path, filename), 'w') as file:
+                file.write(context)
+
+        assert check_hdc_cmd(f"file send {get_local_path(directory)} {get_remote_path(filename)}")
+
+        if os.path.exists(get_local_path(directory)):
+            shutil.rmtree(get_local_path(directory))
+
+
+class TestFileSendLongPath:
+
+    @pytest.mark.L0
+    @pytest.mark.repeat(1)
+    def test_send_file_long_path(self):
+        directory = 'a' * 128
+        test_file = 'a' * 80    #windos 默认不支持长路径
+        dir_path = get_local_path(directory)
+        test_file_path = os.path.join(dir_path, test_file)
+        file_size = 100 * 1024 *1024
+
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
+        try:
+            with open(test_file_path, 'wb') as f:
+                f.write(os.urandom(file_size))
+        except Exception as e:
+            assert False
+
+        assert check_hdc_cmd(f"file send {test_file_path} {get_remote_path(test_file)}")
+        md5_remote = get_shell_result(f"shell md5sum {get_remote_path(test_file)}").split()[0]
+        md5_local = get_md5sum_local(test_file_path)
+        assert md5_remote == md5_local
+
+        if os.path.exists(get_local_path(directory)):
+            shutil.rmtree(get_local_path(directory))

@@ -113,6 +113,7 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
         case CMD_SHELL_INIT: {  // initial
             if (StartShell() < 0) {
                 LogMsg(MSG_FAIL, "Shell initialize failed");
+                return false;
             }
             break;
         }

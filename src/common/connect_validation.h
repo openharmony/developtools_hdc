@@ -16,20 +16,18 @@
 #ifndef HDC_CONNECT_VALIDATION_H
 #define HDC_CONNECT_VALIDATION_H
 
-#include "auth.h"
-#include "base.h"
-#include "common.h"
+#include <string>
 #include "credential_message.h"
-#include "log.h"
+#include "define_enum.h"
 
 namespace HdcValidation {
 int GetConnectValidationParam();
 #ifdef HDC_HOST
-bool GetPublicKeyHashInfo(string &pubkey_info);
-bool GetPrivateKeyInfo(string &privkey_info);
-bool RsaSignAndBase64(string &buf, Hdc::AuthVerifyType type, string &pemStr);
+bool GetPublicKeyHashInfo(std::string &pubkey_info);
+bool GetPrivateKeyInfo(std::string &privkey_info);
+bool RsaSignAndBase64(std::string &buf, Hdc::AuthVerifyType type, std::string &pemStr);
 #else
-bool CheckAuthPubKeyIsValid(string &key);
+bool CheckAuthPubKeyIsValid(std::string &key);
 #endif
 }  // namespace HdcValidation
 #endif  // HDC_CONNECT_VALIDATION_H

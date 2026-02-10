@@ -1701,11 +1701,12 @@ void HdcSessionBase::ParsePeerSupportFeatures(HSession &hSession, std::map<std::
         return;
     }
 
-    if (tlvMap.find(TAG_SUPPORT_FEATURE) != tlvMap.end()) {
+    auto it = tlvMap.find(TAG_SUPPORT_FEATURE);
+    if (it != tlvMap.end()) {
         std::vector<std::string> features;
         WRITE_LOG(LOG_INFO, "peer support features are %s for session %s",
-            tlvMap[TAG_SUPPORT_FEATURE].c_str(), Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
-        Base::SplitString(tlvMap[TAG_SUPPORT_FEATURE], ",", features);
+            it->second.c_str(), Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+        Base::SplitString(it->second, ",", features);
         hSession->heartbeat.SetSupportHeartbeat(Base::IsSupportFeature(features, FEATURE_HEARTBEAT));
 #ifdef HDC_SUPPORT_ENCRYPT_TCP
         hSession->supportEncrypt = Base::IsSupportFeature(features, FEATURE_ENCRYPT_TCP);

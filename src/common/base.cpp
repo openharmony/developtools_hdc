@@ -540,7 +540,11 @@ namespace Base {
 #ifdef FEATURE_HOST_LOG_COMPRESS
         return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
 #else
+#ifdef HOST_OHOS
+        return GetTmpDir() + ".hdc" + GetPathSep();
+#else
         return GetTmpDir();
+#endif
 #endif
     }
 

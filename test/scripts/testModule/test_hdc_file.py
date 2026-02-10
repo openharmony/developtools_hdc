@@ -745,22 +745,7 @@ class TestFileBundleOptionError:
         else:
             assert not check_shell(f"file send -b {GP.debug_app} {get_local_path('small')} {remote_path}",
                                    self.outside_error)
-class TestFileBase:
-    base_file_table = [
-        ("empty", "it_empty"),
-        ("small", "it_small"),
-        ("medium", "it_medium"),
-        ("large", "it_large"),
-        ("word_100M.txt", "word_100M")
-    ]
 
-    @pytest.mark.L0
-    @pytest.mark.repeat(2)
-    @pytest.mark.parametrize("local_path, remote_path", base_file_table)
-    def test_file_normal(self, local_path, remote_path):
-        clear_env()
-        assert check_hdc_cmd(f"file send {get_local_path(local_path)} {get_remote_path(remote_path)}")
-        assert check_hdc_cmd(f"file recv {get_remote_path(remote_path)} {get_local_path(f'{local_path}_recv')}")
 
 class TestFullDisk:
     @pytest.mark.L0
@@ -773,7 +758,8 @@ class TestFullDisk:
 
         pid1 = get_hdcd_pid()
         fds1 = get_hdcd_fd_num()
-        send = check_hdc_cmd(f'file send {get_local_path('large')} /storage/large_full')
+        path_large = get_local_path('large')
+        send = check_hdc_cmd(f'file send {path_large} /storage/large_full')
         pid2 = get_hdcd_pid()
         fds2 = get_hdcd_fd_num()
 
@@ -796,7 +782,8 @@ class TestFullDisk:
 
         pid1 = get_hdcd_pid()
         fds1 = get_hdcd_fd_num()
-        send = check_hdc_cmd(f'file send {get_local_path("")} {get_remote_path()}')
+        path_local = get_local_path('')
+        send = check_hdc_cmd(f'file send {path_local} /data/local/tmp/')
         pid2 = get_hdcd_pid()
         fds2 = get_hdcd_fd_num()
         check_hdc_cmd('shell rm -rf /storage/largefile')

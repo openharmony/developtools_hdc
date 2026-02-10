@@ -43,22 +43,13 @@ public:
     bool ReadyForRelease();
 
 private:
-
-struct AsyncParams {
-    string commandParam;
-    int &cpidParam;
-    string optionPath;
-
-    AsyncParams(const string &commandParam, int &cpidParam, const string &optionPath)
-        :commandParam(commandParam),
-        cpidParam(cpidParam),
-        optionPath(optionPath) {};
-};
-
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
-    int ThreadFork(const string &command, const string &optionPath, int &cpid);
-    static void ChildProcessExecute(const string &command, const string &optionPath);
+    int ThreadFork(const string &command, const string &optionPath, bool readWrite, int &cpid);
+    static void *Popen(void *arg);
+#if !defined(_WIN32) && !defined(HDC_HOST)
+    bool GetDevItem(const char *key, string &out);
+#endif
 
     uint32_t options = 0;
     int fd = 0;
@@ -68,6 +59,21 @@ struct AsyncParams {
     CmdResultCallback resultCallback;
     uv_loop_t *loop = nullptr;
     string cmdResult;
+};
+
+struct AsyncParams {
+    string commandParam;
+    bool readWriteParam;
+    int &cpidParam;
+    bool isRoot;
+    string optionPath;
+
+    AsyncParams(const string &commandParam, bool readWriteParam, int &cpidParam, bool isRoot, const string &optionPath)
+        :commandParam(commandParam),
+        readWriteParam(readWriteParam),
+        cpidParam(cpidParam),
+        isRoot(isRoot),
+        optionPath(optionPath) {};
 };
 }  // namespace Hdc
 #endif

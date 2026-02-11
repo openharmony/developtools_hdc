@@ -20,34 +20,7 @@
 
 #include "system_depend.h"
 
-#ifdef HDC_HICOLLIE_ENABLE
-#include "xcollie/xcollie.h"
-#endif
-
 namespace Hdc {
-
-class HdcHicollie {
-private:
-    [[maybe_unused]] int32_t id = -1;
-
-public:
-#ifdef HDC_HICOLLIE_ENABLE
-    HdcHicollie()
-    {
-        using namespace OHOS::HiviewDFX;
-        constexpr unsigned int timeoutSeconds = 6;
-        id = XCollie::GetInstance().SetTimer("HDC_MUTEX", timeoutSeconds, nullptr, nullptr,
-                                             XCOLLIE_FLAG_LOG | XCOLLIE_FLAG_RECOVERY);
-    }
-
-    ~HdcHicollie()
-    {
-        if (id != -1) {
-            OHOS::HiviewDFX::XCollie::GetInstance().CancelTimer(id);
-        }
-    }
-#endif
-};
 
 static int UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
 {
@@ -150,12 +123,10 @@ void HdcJdwp::Stop()
     WakePollThread();
     auto funcListenPipeClose = [](uv_handle_t *handle) -> void {
         HdcJdwp *thisClass = (HdcJdwp *)handle->data;
-        [[maybe_unused]] HdcHicollie hicollie;
         std::unique_lock<std::mutex> lock(thisClass->mutex);
         --thisClass->refCount;
     };
     Base::TryCloseHandle((const uv_handle_t *)&listenPipe, funcListenPipeClose);
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     for (auto &&obj : mapCtxJdwp) {
         HCtxJdwp v = obj.second;
@@ -166,7 +137,6 @@ void HdcJdwp::Stop()
 
 void *HdcJdwp::MallocContext()
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = nullptr;
     if ((ctx = new ContextJdwp()) == nullptr) {
@@ -186,7 +156,6 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
         return;
     }
     {
-        [[maybe_unused]] HdcHicollie hicollie;
         std::unique_lock<std::mutex> lock(mutex);
         ctx->finish = true;
         WRITE_LOG(LOG_INFO, "FreeContext for targetPID :%d", ctx->pid);
@@ -197,7 +166,6 @@ void HdcJdwp::FreeContext(HCtxJdwp ctx)
 
     auto funcReqClose = [](uv_idle_t *handle) -> void {
         HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
-        [[maybe_unused]] HdcHicollie hicollie;
         std::unique_lock<std::mutex> lock(ctxIn->thisClass->mutex);
         --ctxIn->thisClass->refCount;
         Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseIdleCallback);
@@ -230,7 +198,6 @@ void HdcJdwp::FreeContextRaw(HCtxJdwp ctx)
     auto funcReqClose = [](uv_idle_t *handle) -> void {
         HCtxJdwp ctxIn = (HCtxJdwp)handle->data;
         {
-            [[maybe_unused]] HdcHicollie hicollie;
             std::unique_lock<std::mutex> lock(ctxIn->thisClass->mutex);
             --ctxIn->thisClass->refCount;
         }
@@ -312,7 +279,6 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
 #else
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d", pid);
 #endif  // JS_JDWP_CONNECT
-            [[maybe_unused]] HdcHicollie hicollie;
             std::unique_lock<std::mutex> lock(thisClass->mutex);
             thisClass->AdminContext(OP_ADD, pid, ctxJdwp);
             ret = true;
@@ -475,7 +441,6 @@ void HdcJdwp::SendCallbackJdwpNewFD(uv_write_t *req, int status)
 // work on main thread
 bool HdcJdwp::SendJdwpNewFD(uint32_t targetPID, int fd)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, targetPID, nullptr);
     if (ctx == nullptr) {
@@ -508,7 +473,6 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
     pos = right.find_first_of("@");
     std::string pidstr = right.substr(0, pos);
     uint32_t pid = static_cast<uint32_t>(std::atoi(pidstr.c_str()));
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, pid, nullptr);
     if (!ctx) {
@@ -543,7 +507,6 @@ bool HdcJdwp::SendArkNewFD(const std::string str, int fd)
 // cross thread call begin
 bool HdcJdwp::CheckPIDExist(uint32_t targetPID)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = (HCtxJdwp)AdminContext(OP_QUERY, targetPID, nullptr);
     return ctx != nullptr;
@@ -552,7 +515,6 @@ bool HdcJdwp::CheckPIDExist(uint32_t targetPID)
 string HdcJdwp::GetProcessList()
 {
     string ret;
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     for (auto &&v : mapCtxJdwp) {
         ret += std::to_string(v.first) + "\n";
@@ -650,7 +612,6 @@ bool HdcJdwp::CreateJdwpTracker(HTaskInfo taskInfo)
     if (taskInfo == nullptr) {
         return false;
     }
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     auto it = std::find(jdwpTrackers.begin(), jdwpTrackers.end(), taskInfo);
     if (it == jdwpTrackers.end()) {
@@ -665,7 +626,6 @@ void HdcJdwp::RemoveJdwpTracker(HTaskInfo taskInfo)
     if (taskInfo == nullptr) {
         return;
     }
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     auto it = std::find(jdwpTrackers.begin(), jdwpTrackers.end(), taskInfo);
     if (it != jdwpTrackers.end()) {
@@ -707,7 +667,6 @@ void *HdcJdwp::FdEventPollThread(void *args)
         for (const auto &pollfdsing : pollfds) {
             // POLLNVAL:fd not open
             if ((static_cast<unsigned short>(pollfdsing.revents) & (POLLNVAL | POLLRDHUP | POLLHUP | POLLERR)) != 0) {
-                [[maybe_unused]] HdcHicollie hicollie;
                 std::unique_lock<std::mutex> lock(thisClass->mutex);
                 auto it = thisClass->pollNodeMap.find(pollfdsing.fd);
                 if (it != thisClass->pollNodeMap.end()) {
@@ -747,7 +706,6 @@ int HdcJdwp::CreateFdEventPoll()
 // jdb -connect com.sun.jdi.SocketAttach:hostname=localhost,port=8000
 int HdcJdwp::Initial()
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     pollNodeMap.clear();
     if (!JdwpListen()) {
@@ -764,7 +722,6 @@ int HdcJdwp::Initial()
 
 void HdcJdwp::GetPollFd(std::vector<struct pollfd>& pollfds)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::unique_lock<std::mutex> lock(mutex);
     if (pollfds.size() == pollNodeMap.size() || pollNodeMap.size() == 0) {
         return;

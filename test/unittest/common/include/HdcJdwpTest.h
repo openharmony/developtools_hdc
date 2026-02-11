@@ -35,7 +35,7 @@ public:
         MockHdcJdwp(uv_loop_t *loop, LoopStatus *loopStatus) : HdcJdwp(loop, loopStatus) {};
         MOCK_METHOD0(JdwpListen, bool(void));
     } mockJdwp;
-
+ 
     HdcJdwpTest() : loopStatus(&loop, "mock"), mockJdwp(&loop, &loopStatus)
     {
         uv_loop_init(&loop);

@@ -862,8 +862,6 @@ class TestFullDisk:
         assert send == False
 
 
-    @pytest.mark.L0
-    @pytest.mark.repeat(1)
     def test_full_disk2(self):
         subprocess.run('hdc shell dd if=/dev/zero of=/storage/smallfile bs=1M count=10', shell=True, capture_output=True, text=True)
         subprocess.run('hdc shell dd if=/dev/zero of=/storage/largefile bs=1M', shell=True, capture_output=True, text=True)

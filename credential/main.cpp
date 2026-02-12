@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <charconv>
 #include <sys/socket.h>
 #include <want.h>
 #include <common_event_manager.h>
@@ -28,6 +29,8 @@
 
 using namespace Hdc;
 using namespace HdcCredentialBase;
+
+constexpr size_t CREDENTIAL_VERSION_BUFFER_LEN = 32;
 
 Hdc::HdcHuks hdcHuks(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
 Hdc::HdcHuks hdcRsaHuks(HDC_RAS_KEY_FILE_PWD_KEY_ALIAS);
@@ -153,22 +156,24 @@ std::string HandleCommandEventMessage(const std::string& messageStr)
 
     OHOS::AAFwk::Want want;
     want.SetAction(HDC_COMMAND_REPORT);
-    try {
-        want.SetParam(EVENT_PARAM_REPORT_USERID, std::stoi(parts[PARAM_REPORT_USERID]));
-        want.SetParam(EVENT_PARAM_REPORT_TIME, std::stoll(parts[PARAM_REPORT_TIME]));
-    } catch (const std::invalid_argument &except) {
-        WRITE_LOG(LOG_FATAL, "Param out of range, userId: %s, time: %s.",
-            parts[PARAM_REPORT_USERID].c_str(), parts[PARAM_REPORT_TIME].c_str());
-        return EVENT_PARAM_RETURN_FAILED;
-    } catch (const std::out_of_range &except) {
-        WRITE_LOG(LOG_FATAL, "Invalid argument, userId: %s, time: %s.",
-            parts[PARAM_REPORT_USERID].c_str(), parts[PARAM_REPORT_TIME].c_str());
-        return EVENT_PARAM_RETURN_FAILED;
-    } catch (...) {
-        WRITE_LOG(LOG_FATAL, "Unknown error, userId: %s, time: %s.",
-            parts[PARAM_REPORT_USERID].c_str(), parts[PARAM_REPORT_TIME].c_str());
+
+    int userId = 0;
+    auto rUser = std::from_chars(parts[PARAM_REPORT_USERID].data(),
+        parts[PARAM_REPORT_USERID].data() + parts[PARAM_REPORT_USERID].size(), userId);
+    if (rUser.ec != std::errc{}) {
+        WRITE_LOG(LOG_FATAL, "Failed to parse PARAM_REPORT_USERID: %s", parts[PARAM_REPORT_USERID].c_str());
         return EVENT_PARAM_RETURN_FAILED;
     }
+    long long reportTime = 0;
+    auto rTime = std::from_chars(parts[PARAM_REPORT_TIME].data(),
+        parts[PARAM_REPORT_TIME].data() + parts[PARAM_REPORT_TIME].size(), reportTime);
+    if (rTime.ec != std::errc{}) {
+        WRITE_LOG(LOG_FATAL, "Failed to parse PARAM_REPORT_TIME: %s", parts[PARAM_REPORT_TIME].c_str());
+        return EVENT_PARAM_RETURN_FAILED;
+    }
+
+    want.SetParam(EVENT_PARAM_REPORT_USERID, userId);
+    want.SetParam(EVENT_PARAM_REPORT_TIME, reportTime);
     want.SetParam(EVENT_PARAM_REPORT_ROLE, parts[PARAM_REPORT_ROLE]);
     want.SetParam(EVENT_PARAM_REPORT_STATUS, parts[PARAM_REPORT_STATUS]);
     want.SetParam(EVENT_PARAM_REPORT_COMMAND, parts[PARAM_REPORT_COMMAND]);
@@ -317,8 +322,14 @@ std::string CredentialVersion()
     uint8_t minor = (CREDENTIAL_VERSION_NUMBER << 4 >> 24) & 0xff;
     uint8_t version = (CREDENTIAL_VERSION_NUMBER << 12 >> 24) & 0xff;
     uint8_t fix = (CREDENTIAL_VERSION_NUMBER << 20 >> 28) & 0xff;  // max 16, tail is p
-    std::string ver = StringFormat("%x.%x.%x%c", major, minor, version, a + fix);
-    return "Ver: " + ver;
+    char verBuffer[CREDENTIAL_VERSION_BUFFER_LEN] = {0};
+    if (snprintf_s(verBuffer, sizeof(verBuffer), sizeof(verBuffer) - 1, "%x.%x.%x%c",
+        major, minor, version, a + fix) < 0) {
+        WRITE_LOG(LOG_WARN, "Failed to format version string.");
+        return "Ver: 0.0.0";
+    }
+
+    return "Ver: " + std::string(verBuffer);
 }
 
 bool SplitCommandToArgs(int argc, const char **argv)
@@ -344,19 +355,28 @@ bool SplitCommandToArgs(int argc, const char **argv)
     return true;
 }
 
-void CreateSocketListen()
+static int SetupListenSocket()
 {
     int sockfd = CreateAndBindSocket(HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
     if (sockfd < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to create and bind socket.");
-        return;
+        return -1;
     }
     if (listen(sockfd, SOCKET_CLIENT_NUMS) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to listen on socket.");
         close(sockfd);
-        return;
+        return -1;
     }
     WRITE_LOG(LOG_INFO, "Listening on socket: %s", HDC_CREDENTIAL_SOCKET_REAL_PATH.c_str());
+    return sockfd;
+}
+
+void CreateSocketListen()
+{
+    int sockfd = SetupListenSocket();
+    if (sockfd < 0) {
+        return;
+    }
     bool running = true;
     while (running) {
         int connfd = accept(sockfd, nullptr, nullptr);
@@ -385,7 +405,7 @@ void CreateSocketListen()
         }
 
         ssize_t bytesSend = write(connfd, sendBuf.c_str(), sendBuf.size());
-        if (bytesSend != sendBuf.size()) {
+        if (bytesSend != static_cast<ssize_t>(sendBuf.size())) {
             WRITE_LOG(LOG_FATAL, "Failed to send message.");
             close(connfd);
             continue;

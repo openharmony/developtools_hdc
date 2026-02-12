@@ -1074,7 +1074,9 @@ HTaskInfo HdcClient::GetRemoteTaskInfo(HChannel hChannel)
 bool HdcClient::IsNeedInterceptCommand()
 {
     std::string out;
-    SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out);
+    if (!SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out)) {
+        return false;
+    }
     if (out.empty() || out == "false") {
         return false;
     }

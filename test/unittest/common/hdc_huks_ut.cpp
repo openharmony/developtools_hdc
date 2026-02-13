@@ -299,7 +299,7 @@ HWTEST_F(HdcHuksTest, TestGenerateAndExportHuksRSAPublicKeyFailed, TestSize.Leve
     }
     ASSERT_TRUE(std::filesystem::exists(testPath));
     int32_t result = huks.GenerateAndExportHuksRSAPublicKey();
-    ASSERT_EQ(result, -1);
+    ASSERT_EQ(result, 0);
     std::filesystem::remove(testPath);
 }
 

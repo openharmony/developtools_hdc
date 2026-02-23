@@ -24,7 +24,7 @@ static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
 std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd)
 {
-    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT, METHOD_VERSION_V1);
+    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT, METHOD_CRYPTO_KEY);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();
@@ -55,7 +55,7 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd)
 
 std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encryptData)
 {
-    std::string sendStr = SplicMessageStr(encryptData, METHOD_DECRYPT, METHOD_VERSION_V1);
+    std::string sendStr = SplicMessageStr(encryptData, METHOD_DECRYPT, METHOD_CRYPTO_KEY);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::make_pair(nullptr, 0);

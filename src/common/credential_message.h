@@ -106,7 +106,7 @@ enum MethodAuthVerify {
 };
  
 enum MethodVersion {
-    METHOD_VERSION_V1 = 1,
+    METHOD_CRYPTO_KEY = 1,
     METHOD_REPORT = 2,
     METHOD_AUTHVERIFY = 3,
     METHOD_VERSION_MAX = 9,

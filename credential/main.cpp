@@ -118,7 +118,7 @@ std::string DecryptPwd(const std::string& messageStr)
     return pwdStr;
 }
 
-void HandleV1Message(CredentialMessage& messageStruct, std::string& needSendStr)
+void HandleCryptoKeyMessage(CredentialMessage& messageStruct, std::string& needSendStr)
 {
     std::string processMessageValue;
     switch (messageStruct.GetMessageMethodType()) {
@@ -241,8 +241,8 @@ bool HandleMessage(const std::string& messageStr, std::string& needSendStr)
     }
 
     switch (messageStruct.GetMessageVersion()) {
-        case METHOD_VERSION_V1: {
-            HandleV1Message(messageStruct, needSendStr);
+        case METHOD_CRYPTO_KEY: {
+            HandleCryptoKeyMessage(messageStruct, needSendStr);
             ret = true;
             break;
         }

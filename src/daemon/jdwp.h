@@ -77,6 +77,7 @@ private:
         uint8_t isDebug;
     };
     using HCtxJdwp = struct ContextJdwp *;
+
     ONLY_TEST_VIRTUAL bool JdwpListen();
     static void AcceptClient(uv_stream_t *server, int status);
     static void ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf);

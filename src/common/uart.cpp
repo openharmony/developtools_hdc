@@ -24,36 +24,8 @@
 #define B921600 921600
 #endif
 
-#ifdef HDC_HICOLLIE_ENABLE
-#include "xcollie/xcollie.h"
-#endif
-
 using namespace std::chrono;
 namespace Hdc {
-
-class HdcHicollie {
-private:
-    [[maybe_unused]] int32_t id = -1;
-
-public:
-#ifdef HDC_HICOLLIE_ENABLE
-    HdcHicollie()
-    {
-        using namespace OHOS::HiviewDFX;
-        constexpr unsigned int timeoutSeconds = 6;
-        id = XCollie::GetInstance().SetTimer("HDC_MUTEX", timeoutSeconds, nullptr, nullptr,
-                                             XCOLLIE_FLAG_LOG | XCOLLIE_FLAG_RECOVERY);
-    }
-
-    ~HdcHicollie()
-    {
-        if (id != -1) {
-            OHOS::HiviewDFX::XCollie::GetInstance().CancelTimer(id);
-        }
-    }
-#endif
-};
-
 ExternInterface HdcUARTBase::defaultInterface;
 
 void ExternInterface::SetTcpOptions(uv_tcp_t *tcpHandle)
@@ -690,7 +662,6 @@ void HdcUARTBase::RequestSendPackage(uint8_t *data, const size_t length, bool qu
         slots.Wait(head->sessionId);
     }
 
-    [[maybe_unused]] HdcHicollie hicollie;
     std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
 
     std::string pkgId = head->ToPkgIdentityString(response);
@@ -711,7 +682,6 @@ void HdcUARTBase::RequestSendPackage(uint8_t *data, const size_t length, bool qu
 
 void HdcUARTBase::ProcessResponsePackage(const UartHead &head)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
     bool ack = head.option & PKG_OPTION_ACK;
     // response package
@@ -740,7 +710,6 @@ void HdcUARTBase::ProcessResponsePackage(const UartHead &head)
 
 void HdcUARTBase::SendPkgInUARTOutMap()
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
     if (outPkgs.empty()) {
         WRITE_LOG(LOG_ALL, "UartPackageManager: No pkgs needs to be sent.");
@@ -840,7 +809,6 @@ void HdcUARTBase::ClearUARTOutMapRaw(uint32_t sessionId)
 
 void HdcUARTBase::ClearUARTOutMap(uint32_t sessionId)
 {
-    [[maybe_unused]] HdcHicollie hicollie;
     std::lock_guard<std::mutex> lock(mapOutPkgsMutex);
     ClearUARTOutMapRaw(sessionId);
 }

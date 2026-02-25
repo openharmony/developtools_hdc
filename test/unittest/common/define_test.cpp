@@ -49,7 +49,7 @@ HWTEST_F(HdcDefineTest, TestToDisplayConnectionStr, TestSize.Level1)
     session->isRunningOk = true;
     session->faultInfo = "";
     session->commandCount = 1;
-    std::string result = "HdcServer [ sessionId:2867909239 connectKey:700******900(L:32) "
+    std::string result = "HdcServer [ sessionId:286******239(L:10) connectKey:700******900(L:32) "
     "connType:0 connect state:1 faultInfo: commandCount:1 ]";
     ASSERT_EQ(session->ToDisplayConnectionStr(), result);
     

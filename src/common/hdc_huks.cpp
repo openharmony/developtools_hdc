@@ -221,7 +221,6 @@ struct HksParamSet* HdcHuks::MakeAesGcmDecryptParamSets(std::vector<uint8_t>& no
 #if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
         { .tag = HKS_TAG_SPECIFIC_USER_ID, .int32Param = currentUserId },
 #endif
-
     };
     if (!MakeHuksParamSet(&paramSet, aesBasePara, sizeof(aesBasePara) / sizeof(HksParam),
         aesDecryptPara, sizeof(aesDecryptPara) / sizeof(HksParam))) {

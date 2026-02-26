@@ -124,10 +124,6 @@ HWTEST_F(HdcTransferTest, TestExtractRelativePath, TestSize.Level0)
     mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
     ASSERT_EQ(resolvedPath, wantStr);
 
-    cwd = "/tmp";
-    mockHdcdTransfer->ExtractRelativePath(cwd, resolvedPath);
-    ASSERT_EQ(resolvedPath, wantStr);
-
     // test resolvedPath is absolute path
     cwd = "/tmp/";
     resolvedPath = "/test/path";

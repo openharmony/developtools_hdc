@@ -343,4 +343,58 @@ HWTEST_F(HdcCredentialMessageTest, TestSplicMessageStr, TestSize.Level0) {
     EXPECT_EQ(resultStr, "20010007abcdefg");
 }
 
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringWithCount, TestSize.Level0) {
+    const string origString = "a;b;c;d;e;g";
+    const string seq = ";";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings, 5);
+
+    EXPECT_EQ(resultStrings.size(), 6);
+    EXPECT_EQ(resultStrings[0], "a");
+    EXPECT_EQ(resultStrings[1], "b");
+    EXPECT_EQ(resultStrings[2], "c");
+    EXPECT_EQ(resultStrings[3], "d");
+    EXPECT_EQ(resultStrings[4], "e");
+    EXPECT_EQ(resultStrings[5], "g");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringWithLessCount, TestSize.Level0) {
+    const string origString = "a;b;c;d;e;g";
+    const string seq = ";";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings, 4);
+
+    EXPECT_EQ(resultStrings.size(), 5);
+    EXPECT_EQ(resultStrings[0], "a");
+    EXPECT_EQ(resultStrings[1], "b");
+    EXPECT_EQ(resultStrings[2], "c");
+    EXPECT_EQ(resultStrings[3], "d");
+    EXPECT_EQ(resultStrings[4], "e;g");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringWithZeroCount, TestSize.Level0) {
+    const string origString = "a;b;c;d;e;g";
+    const string seq = ";";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings, 0);
+
+    EXPECT_EQ(resultStrings.size(), 1);
+    EXPECT_EQ(resultStrings[0], "a;b;c;d;e;g");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSplitStringWithNegativeCount, TestSize.Level0) {
+    const string origString = "a;b;c;d;e;g";
+    const string seq = ";";
+    vector<string> resultStrings;
+    SplitString(origString, seq, resultStrings, -1);
+
+    EXPECT_EQ(resultStrings.size(), 6);
+    EXPECT_EQ(resultStrings[0], "a");
+    EXPECT_EQ(resultStrings[1], "b");
+    EXPECT_EQ(resultStrings[2], "c");
+    EXPECT_EQ(resultStrings[3], "d");
+    EXPECT_EQ(resultStrings[4], "e");
+    EXPECT_EQ(resultStrings[5], "g");
+}
+
 }

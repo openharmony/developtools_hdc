@@ -78,13 +78,13 @@ bool GetPubKeyHash(std::string &pubkeyInfo)
     memset_s(data, sizeof(data), 0, sizeof(data));
     switch (messageStruct.GetMessageMethodType()) {
         case GET_PUBKEY_FAILED:
-            WRITE_LOG(LOG_INFO, "[E000008]: The sdk hdc.exe failed to read the public key.");
+            WRITE_LOG(LOG_INFO, "[E000008]: The hdc server fails to read the public key.");
             break;
         case GET_PRIVKEY_FAILED:
-            WRITE_LOG(LOG_INFO, "[E000009]: The sdk hdc.exe failed to read the private key.");
+            WRITE_LOG(LOG_INFO, "[E000009]: The hdc server fails to read the private key.");
             break;
         case MISMATCH_PUBKEY_PRIVKEY:
-            WRITE_LOG(LOG_INFO, "[E00000A]: The sdk hdc.exe public and private keys do not match.");
+            WRITE_LOG(LOG_INFO, "[E00000A]: The public key and private key of the hdc server do not match.");
             break;
         default:
             break;
@@ -93,7 +93,7 @@ bool GetPubKeyHash(std::string &pubkeyInfo)
         pubkeyInfo = messageStruct.GetMessageBody();
         return true;
     } else {
-        WRITE_LOG(LOG_INFO, "[E000008]: The sdk hdc.exe failed to read the public key.");
+        WRITE_LOG(LOG_INFO, "[E000008]: The hdc server fails to read the public key.");
         return false;
     }
     return true;
@@ -143,7 +143,7 @@ bool GetPrivateKeyInfo(std::string &privkey_info)
     memset_s(data, sizeof(data), 0, sizeof(data));
     switch (messageStruct.GetMessageMethodType()) {
         case GET_PRIVKEY_FAILED:
-            WRITE_LOG(LOG_INFO, "[E000009]: The sdk hdc.exe failed to read the private key.");
+            WRITE_LOG(LOG_INFO, "[E000009]: The hdc server fails to read the private key.");
             break;
         default:
             break;
@@ -152,7 +152,7 @@ bool GetPrivateKeyInfo(std::string &privkey_info)
         privkey_info = messageStruct.GetMessageBody();
         return true;
     } else {
-        WRITE_LOG(LOG_INFO, "[E000009]: The sdk hdc.exe failed to read the private key.");
+        WRITE_LOG(LOG_INFO, "[E000009]: The hdc server fails to read the private key.");
         return false;
     }
     return true;

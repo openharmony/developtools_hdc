@@ -1470,7 +1470,7 @@ void HdcDaemon::AddFeatureTagToEmgmsg(string &emgmsg)
 }
 void HdcDaemon::AuthRejectNotSupportConnValidation(SessionHandShake &handshake, uint32_t channelid, HSession hSession)
 {
-    string msg = "[E000006]:The sdk hdc.exe is not allowed to be debugged by enterprise control.";
+    string msg = "[E000006]:The current computer has not obtained the permission to debug the control device.";
     HandleAuthFailed(handshake, channelid, hSession, msg);
 }
 }  // namespace Hdc

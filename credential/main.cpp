@@ -148,7 +148,7 @@ std::string HandleCommandEventMessage(const std::string& messageStr)
     }
 
     std::vector<std::string> parts;
-    SplitString(messageStr, ";", parts);
+    SplitString(messageStr, ";", parts, MESSAGE_PARAM_COMMAND_EVENT_REPORT_SIZE - 1);
     if (parts.size() != MESSAGE_PARAM_COMMAND_EVENT_REPORT_SIZE) {
         WRITE_LOG(LOG_FATAL, "HandleCommandEventMessage failed, split string num is %d.", parts.size());
         return EVENT_PARAM_RETURN_FAILED;

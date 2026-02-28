@@ -182,27 +182,34 @@ std::string IntToStringWithPadding(int length, int maxLen)
 }
 
 void SplitString(const std::string &origString, const std::string &seq,
-                 std::vector<std::string> &resultStrings)
+                 std::vector<std::string> &resultStrings, int count)
 {
-    if (seq.empty()) {
+    if (seq.empty() || origString.empty()) {
         return;
     }
 
     std::string::size_type p1 = 0;
     std::string::size_type p2 = origString.find(seq);
+    int splitCount = 0;
 
     while (p2 != std::string::npos) {
+        if (count >= 0 || splitCount >= count) {
+            break;
+        }
         if (p2 == p1) {
             ++p1;
             p2 = origString.find(seq, p1);
             continue;
         }
+
         resultStrings.push_back(origString.substr(p1, p2 - p1));
+        ++splitCount;
+
         p1 = p2 + seq.size();
         p2 = origString.find(seq, p1);
     }
 
-    if (p1 != origString.size()) {
+    if (p1 <= origString.size()) {
         resultStrings.push_back(origString.substr(p1));
     }
 }

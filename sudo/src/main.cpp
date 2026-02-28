@@ -14,12 +14,12 @@
 */
 
 #include <termios.h>
-#include <cstring>
-#include <unistd.h>
 #include <climits>
+#include <cstring>
+#include <fstream>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
 #include <securec.h>
 #include <unistd.h>
 
@@ -48,15 +48,14 @@ static const char *OUT_OF_MEM = "[E0001] out of memory\n";
 static const char *COMMAND_NOT_FOUND = "[E0002] command not found\n";
 static const char *USER_VERIFY_FAILED = "[E0003] Sorry, try again. If screen lock password not set, set it first.\n";
 static const char *USER_SWITCH_FAILED = "[E0004] Currently logged-in user has switched, please try again.\n";
-static const char *HELP = "sudo - execute command as root\n\n"
-                       "usage: sudo command ...\n"
-                       "usage: sudo sh -c command ...\n";
+static const char *HELP = "sudo - execute command or script as root\n\n"
+                       "usage: sudo command ...\n";
 static int32_t g_userId = -1;
 static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
-static std::vector<uint8_t> g_authToken;
+static std::vector<uint8_t> g_authToken = {0};
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 static const std::string TITLE = "Allow execution of sudo commands";
-static const int USER_NO_PREMISSION = 25000008; // InitChallengeForCommand return current user no permission
+static const int USER_NO_PREMISSION = 201; // InitChallengeForCommand return current user no permission
 
 static std::vector<std::string> envSnapshot;
 
@@ -189,20 +188,53 @@ static void FreeArgvNew(char **argvNew)
     delete [] argvNew;
 }
 
+/**
+ * elf magic number: 0x7f, 'E', 'L', 'F'
+ */
+static bool IsElf(const std::string& path)
+{
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return false;
+    }
+
+    const int magicCount = 4;
+    const char magicNum[magicCount] = {0x7f, 'E', 'L', 'F'};
+    unsigned char magic[magicCount];
+    file.read(reinterpret_cast<char*>(magic), magicCount);
+    if (file.gcount() < magicCount) {
+        return false;
+    }
+
+    for (int i = 0; i < magicCount; i++) {
+        if (magic[i] != magicNum[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /*
  * Find cmd from DEFAULT_PATH
+ * return:
+ * -1 (not exists | not support exec)
+ * 0 (.sh file)
+ * 1 (elf file)
 */
-static bool GetCmdInPath(char *cmd, int cmdBufLen)
+static int32_t GetCmdInPath(char *cmd, int cmdBufLen)
 {
     std::string cmdStr(cmd);
     struct stat st;
 
     if (cmdStr.find('/') != std::string::npos) {
         if (stat(cmdStr.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
-            return true;
+            if (IsElf(cmdStr)) {
+                return 1;
+            }
+            return 0;
         } else {
             WriteTty(COMMAND_NOT_FOUND);
-            return false;
+            return -1;
         }
     }
 
@@ -213,76 +245,142 @@ static bool GetCmdInPath(char *cmd, int cmdBufLen)
             int ret = memcpy_s(cmd, cmdBufLen - 1, cmdPath.c_str(), len);
             if (ret != EOK) {
                 WriteTty(COMMAND_NOT_FOUND);
-                return false;
+                return -1;
             }
-            return true;
+            return 1;
         }
     }
 
     WriteTty(COMMAND_NOT_FOUND);
-    return false;
+    return -1;
 }
 
-static char **ParseCmd(int argc, char* argv[], char *cmd, int cmdLen)
+static char** NewCStringArray(int size)
 {
-    int startCopyArgvIndex = 1;
-    int argvNewIndex = 0;
-    char **argvTmp = nullptr;
-    bool isShc = false;
-    int ret;
-
-    /*
-     * Here, we construct the command and its argv
-     * sudo sh -c xxx yyy -----> sh -c xxx yyy
-     * sudo xxx yyy       -----> xxx yyy
-    */
-    if ((argc <= 0) || (argc > SUDO_ARG_MAX_NUMS)) {
+    if (size <= 0 || size > SUDO_ARG_MAX_NUMS) {
         return nullptr;
     }
-    argvTmp = new(std::nothrow) char* [argc + 1]; //+1:for nullptr
-    if (argvTmp == nullptr) {
+    char** array = new(std::nothrow) char* [size];
+    if (array == nullptr) {
         WriteStdErr(OUT_OF_MEM);
         return nullptr;
     }
-    (void)memset_s(argvTmp, sizeof(char*) * (argc + 1), 0, sizeof(char*) * (argc + 1));
-    /*
-     * sudo sh -c xxxx
-    */
-    if (argc >= 3) { //3:argc of main
-        if (strcmp(argv[1], "sh") == 0 && strcmp(argv[2], "-c") == 0) { //2:argv 2 of main
-            // argvNew[0] is "/system/bin/sh"
-            argvTmp[argvNewIndex++] = StrDup(DEFAULT_BASH);
-            // argvNew[1] is "-c"
-            argvTmp[argvNewIndex++] = StrDup("-c");
-            ret = sprintf_s(cmd, cmdLen, "%s", DEFAULT_BASH);
-            if (ret < 0) {
-                FreeArgvNew(argvTmp);
-                return nullptr;
-            }
-            startCopyArgvIndex = 3; //3:start copy index of argv
-            isShc = true;
+    (void)memset_s(array, sizeof(char*) * size, 0, sizeof(char*) * size);
+    return array;
+}
+
+static std::string GetCmdBody(char* argv[], int startIndex, int endIndex)
+{
+    std::string str = "";
+    for (int i = startIndex; i < endIndex; i++) {
+        if (str != "") {
+            str.push_back(' ');
         }
+        str.append(argv[i]);
+    }
+    return str;
+}
+
+static char** ParseShCCmd(int argc, char* argv[])
+{
+    int argvNewIndex = 0;
+    int startCopyArgvIndex = 3;
+    // sudo {"sh", "-c", "xxxx", nullptr}
+    char** argvTmp = NewCStringArray(startCopyArgvIndex + 1);
+
+    argvTmp[argvNewIndex++] = StrDup(DEFAULT_BASH);
+    argvTmp[argvNewIndex++] = StrDup(argv[startCopyArgvIndex - 1]);
+
+    std::string body = GetCmdBody(argv, startCopyArgvIndex, argc);
+    if (body != "") {
+        argvTmp[argvNewIndex++] = StrDup(body.c_str());
+    }
+    argvTmp[argvNewIndex] = nullptr;
+
+    return argvTmp;
+}
+
+static char** ParseBinaryCmd(int argc, char* argv[], const char* cmd)
+{
+    int argvNewIndex = 0;
+    int startCopyArgvIndex = 2;
+    // sudo {"execSh", "xxxx", nullptr}
+    char** argvTmp = NewCStringArray(startCopyArgvIndex + 1);
+
+    argvTmp[argvNewIndex++] = StrDup(cmd);
+    
+    std::string body = GetCmdBody(argv, startCopyArgvIndex, argc);
+    if (body != "") {
+        argvTmp[argvNewIndex++] = StrDup(body.c_str());
+    }
+    argvTmp[argvNewIndex] = nullptr;
+
+    return argvTmp;
+}
+
+static char** ParseScriptCmd(int argc, char* argv[])
+{
+    int argvNewIndex = 0;
+    int startCopyArgvIndex = 1;
+    const int arrSize = 4;
+    const char* shStr = "sh";
+    const char* cStr = "-c";
+    // sudo {"xxxx", nullptr} => sudo {"sh", "-c", "xxxx", nullptr}
+    char** argvTmp = NewCStringArray(arrSize);
+
+    argvTmp[argvNewIndex++] = StrDup(shStr);
+    argvTmp[argvNewIndex++] = StrDup(cStr);
+
+    std::string body = GetCmdBody(argv, startCopyArgvIndex, argc);
+    if (body != "") {
+        argvTmp[argvNewIndex++] = StrDup(body.c_str());
+    }
+    argvTmp[argvNewIndex] = nullptr;
+
+    return argvTmp;
+}
+
+static char **ParseCmd(int argc, char* argv[])
+{
+    bool isShc = false;
+    int ret;
+    const int argcCountLimit = 3;
+    const int idxTwo = 2;
+
+    if ((argc <= 0) || (argc > SUDO_ARG_MAX_NUMS)) {
+        return nullptr;
+    }
+
+    // sudo sh -c xxxx
+    if (argc >= argcCountLimit && strcmp(argv[1], "sh") == 0 && strcmp(argv[idxTwo], "-c") == 0) { //3:argc of main
+        isShc = true;
+        return ParseShCCmd(argc, argv);
     }
 
     /*
      * if not "sudo sh -c xxxx", just as "sudo xxxx"
+     * 1. check xxxx by DEFAULT_PATH firstly.
+     * 2. if not 1, exec shell file.
     */
     if (!isShc) {
-        ret = sprintf_s(cmd, cmdLen, "%s", argv[1]);
-        if (ret < 0 || !GetCmdInPath(cmd, cmdLen)) {
-            FreeArgvNew(argvTmp);
+        char cmd[PATH_MAX + 1] = {0};
+        ret = sprintf_s(cmd, PATH_MAX + 1, "%s", argv[1]);
+        if (ret < 0) {
             return nullptr;
         }
-        argvTmp[argvNewIndex++] = StrDup(cmd);
-        startCopyArgvIndex = 2; //2:start copy index of argv
+        ret = GetCmdInPath(cmd, PATH_MAX + 1);
+        switch (ret) {
+            case 1:
+                return ParseBinaryCmd(argc, argv, cmd);
+            case 0: {
+                return ParseScriptCmd(argc, argv);
+            }
+            default:
+                return nullptr;
+        }
     }
 
-    for (int i = startCopyArgvIndex; i < argc; i++) {
-        argvTmp[argvNewIndex++] = StrDup(argv[i]);
-    }
-    argvTmp[argvNewIndex] = nullptr;
-    
-    return argvTmp;
+    return nullptr;
 }
 
 static bool SetUidGid(void)
@@ -305,22 +403,22 @@ static void WaitForAuth(void)
     g_condVarForAuth.wait(lock, [] { return g_authFinish; });
 }
 
-static bool GetChallenge()
+static int32_t GetChallenge()
 {
     if (g_userId == -1) {
         WriteStdErr("GetChallenge userid is failed!\n");
-        return false;
+        return -1;
     }
-    int32_t res = InitChallengeForCommand(g_userId, g_challenge.data(), g_challenge.size());
+    int32_t status = -1;
+    int32_t res = InitChallengeForCommandExt(g_userId, g_challenge.data(), g_challenge.size(), &status);
     if (res != 0) {
         if (res == USER_NO_PREMISSION) {
             WriteStdErr("no permission.\n");
         } else {
             WriteStdErr("init challenge failed\n");
         }
-        return false;
     }
-    return true;
+    return status;
 }
 
 static int32_t GetUserId()
@@ -375,14 +473,11 @@ static bool VerifyUserPin()
     return verifyResult;
 }
 
-static bool SetPSL()
+static bool SetPSL(bool expired = false)
 {
-    int32_t res = SetProcessLevelByCommand(g_authToken.data(), g_authToken.size());
-    if (res != 0) {
-        WriteStdErr("set psl failed\n");
-        return false;
-    }
-    return true;
+    uint32_t len = expired ? 0 : g_authToken.size();
+    int32_t res = SetProcessLevelByCommand(g_authToken.data(), len);
+    return res == 0;
 }
 
 static bool UpdateEnvironmentPath()
@@ -613,6 +708,34 @@ static bool UpdateEnv()
     return true;
 }
 
+static bool Verify()
+{
+    int retryTimes = 3;
+    while (retryTimes-- > 0) {
+        int32_t res = GetChallenge();
+        if (res < 0) {
+            return false;
+        }
+        // have cache
+        if (res == 1) {
+            // check cache expired
+            if (SetPSL(true)) {
+                // cache is not expired
+                return true;
+            }
+            // cache is expired, verify again
+            continue;
+        }
+
+        if (!VerifyUserPin() || !SetPSL()) {
+            return false;
+        }
+        return true;
+    }
+
+    return false;
+}
+
 int main(int argc, char* argv[])
 {
     if (!UpdateEnvironmentPath()) {
@@ -630,20 +753,11 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (!GetChallenge()) {
+    if (!Verify()) {
         return 1;
     }
 
-    if (!VerifyUserPin()) {
-        return 1;
-    }
-
-    if (!SetPSL()) {
-        return 1;
-    }
-
-    char execCmd[PATH_MAX + 1] = {0};
-    char **argvNew = ParseCmd(argc, argv, execCmd, PATH_MAX + 1);
+    char **argvNew = ParseCmd(argc, argv);
     CloseTty();
     if (argvNew == nullptr) {
         return 1;
@@ -666,7 +780,7 @@ int main(int argc, char* argv[])
         WriteStdErr("UpdateEnv failed\n");
         return 1;
     }
-    execvp(execCmd, argvNew);
+    execvp(argvNew[0], argvNew);
     WriteStdErr("execvp failed\n");
     return 1;
 }

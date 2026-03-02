@@ -52,7 +52,7 @@ bool SendMessageByUnixSocket(const int sockfd, const std::string &messageStr);
 ssize_t RecvMessageByUnixSocket(const int sockfd, char data[], ssize_t size);
 std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
 void SplitString(const std::string &origString, const std::string &seq,
-                 std::vector<std::string> &resultStrings);
+                 std::vector<std::string> &resultStrings, int count = -1);
 
 constexpr size_t MESSAGE_STR_MAX_LEN = 4096;
 constexpr size_t MESSAGE_VERSION_POS = 0;

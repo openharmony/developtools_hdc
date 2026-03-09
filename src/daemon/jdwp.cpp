@@ -364,7 +364,9 @@ bool HdcJdwp::JdwpListen()
     // if test, can be enabled
     return true;
     const char jdwpCtrlName[] = { 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
-    unlink(jdwpCtrlName);
+    if (unlink(jdwpCtrlName) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
+    }
 #else
     const char jdwpCtrlName[] = { '\0', 'o', 'h', 'j', 'p', 'i', 'd', '-', 'c', 'o', 'n', 't', 'r', 'o', 'l', 0 };
 #endif

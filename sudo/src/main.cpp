@@ -125,6 +125,12 @@ static std::vector<std::string> initialCheckenvTables = {
     "TZ"
 };
 
+enum class CmdType : int32_t {
+    INVALID = -1,
+    SCRIPT = 0,
+    BINARY = 1
+};
+
 }
 
 static void WriteStdErr(const char *str)
@@ -221,7 +227,7 @@ static bool IsElf(const std::string& path)
  * 0 (.sh file)
  * 1 (elf file)
 */
-static int32_t GetCmdInPath(char *cmd, int cmdBufLen)
+static CmdType GetCmdInPath(char *cmd, int cmdBufLen)
 {
     std::string cmdStr(cmd);
     struct stat st;
@@ -229,12 +235,12 @@ static int32_t GetCmdInPath(char *cmd, int cmdBufLen)
     if (cmdStr.find('/') != std::string::npos) {
         if (stat(cmdStr.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
             if (IsElf(cmdStr)) {
-                return 1;
+                return CmdType::BINARY;
             }
-            return 0;
+            return CmdType::SCRIPT;
         } else {
             WriteTty(COMMAND_NOT_FOUND);
-            return -1;
+            return CmdType::INVALID;
         }
     }
 
@@ -245,14 +251,14 @@ static int32_t GetCmdInPath(char *cmd, int cmdBufLen)
             int ret = memcpy_s(cmd, cmdBufLen - 1, cmdPath.c_str(), len);
             if (ret != EOK) {
                 WriteTty(COMMAND_NOT_FOUND);
-                return -1;
+                return CmdType::INVALID;
             }
-            return 1;
+            return CmdType::BINARY;
         }
     }
 
     WriteTty(COMMAND_NOT_FOUND);
-    return -1;
+    return CmdType::INVALID;
 }
 
 static char** NewCStringArray(int size)
@@ -269,31 +275,21 @@ static char** NewCStringArray(int size)
     return array;
 }
 
-static std::string GetCmdBody(char* argv[], int startIndex, int endIndex)
-{
-    std::string str = "";
-    for (int i = startIndex; i < endIndex; i++) {
-        if (str != "") {
-            str.push_back(' ');
-        }
-        str.append(argv[i]);
-    }
-    return str;
-}
-
 static char** ParseShCCmd(int argc, char* argv[])
 {
     int argvNewIndex = 0;
     int startCopyArgvIndex = 3;
     // sudo {"sh", "-c", "xxxx", nullptr}
-    char** argvTmp = NewCStringArray(startCopyArgvIndex + 1);
+    char** argvTmp = NewCStringArray(argc + 1);
+    if (argvTmp == nullptr) {
+        return nullptr;
+    }
 
     argvTmp[argvNewIndex++] = StrDup(DEFAULT_BASH);
     argvTmp[argvNewIndex++] = StrDup(argv[startCopyArgvIndex - 1]);
 
-    std::string body = GetCmdBody(argv, startCopyArgvIndex, argc);
-    if (body != "") {
-        argvTmp[argvNewIndex++] = StrDup(body.c_str());
+    for (int i = startCopyArgvIndex; i < argc; i++) {
+        argvTmp[argvNewIndex++] = StrDup(argv[i]);
     }
     argvTmp[argvNewIndex] = nullptr;
 
@@ -305,13 +301,15 @@ static char** ParseBinaryCmd(int argc, char* argv[], const char* cmd)
     int argvNewIndex = 0;
     int startCopyArgvIndex = 2;
     // sudo {"execSh", "xxxx", nullptr}
-    char** argvTmp = NewCStringArray(startCopyArgvIndex + 1);
+    char** argvTmp = NewCStringArray(argc + 1);
+    if (argvTmp == nullptr) {
+        return nullptr;
+    }
 
     argvTmp[argvNewIndex++] = StrDup(cmd);
     
-    std::string body = GetCmdBody(argv, startCopyArgvIndex, argc);
-    if (body != "") {
-        argvTmp[argvNewIndex++] = StrDup(body.c_str());
+    for (int i = startCopyArgvIndex; i < argc; i++) {
+        argvTmp[argvNewIndex++] = StrDup(argv[i]);
     }
     argvTmp[argvNewIndex] = nullptr;
 
@@ -322,18 +320,20 @@ static char** ParseScriptCmd(int argc, char* argv[])
 {
     int argvNewIndex = 0;
     int startCopyArgvIndex = 1;
-    const int arrSize = 4;
+    const int argcAdd = 3;
     const char* shStr = "sh";
     const char* cStr = "-c";
     // sudo {"xxxx", nullptr} => sudo {"sh", "-c", "xxxx", nullptr}
-    char** argvTmp = NewCStringArray(arrSize);
+    char** argvTmp = NewCStringArray(argc + argcAdd);
+    if (argvTmp == nullptr) {
+        return nullptr;
+    }
 
     argvTmp[argvNewIndex++] = StrDup(shStr);
     argvTmp[argvNewIndex++] = StrDup(cStr);
 
-    std::string body = GetCmdBody(argv, startCopyArgvIndex, argc);
-    if (body != "") {
-        argvTmp[argvNewIndex++] = StrDup(body.c_str());
+    for (int i = startCopyArgvIndex; i < argc; i++) {
+        argvTmp[argvNewIndex++] = StrDup(argv[i]);
     }
     argvTmp[argvNewIndex] = nullptr;
 
@@ -343,7 +343,6 @@ static char** ParseScriptCmd(int argc, char* argv[])
 static char **ParseCmd(int argc, char* argv[])
 {
     bool isShc = false;
-    int ret;
     const int argcCountLimit = 3;
     const int idxTwo = 2;
 
@@ -364,15 +363,15 @@ static char **ParseCmd(int argc, char* argv[])
     */
     if (!isShc) {
         char cmd[PATH_MAX + 1] = {0};
-        ret = sprintf_s(cmd, PATH_MAX + 1, "%s", argv[1]);
+        int ret = sprintf_s(cmd, PATH_MAX + 1, "%s", argv[1]);
         if (ret < 0) {
             return nullptr;
         }
-        ret = GetCmdInPath(cmd, PATH_MAX + 1);
-        switch (ret) {
-            case 1:
+        auto type = GetCmdInPath(cmd, PATH_MAX + 1);
+        switch (type) {
+            case CmdType::BINARY:
                 return ParseBinaryCmd(argc, argv, cmd);
-            case 0: {
+            case CmdType::SCRIPT: {
                 return ParseScriptCmd(argc, argv);
             }
             default:

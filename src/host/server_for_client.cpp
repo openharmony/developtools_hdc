@@ -196,7 +196,9 @@ bool HdcServerForClient::SetUdsListen()
     int ret = -1;
     ret = uv_pipe_init(loopMain, &udsListen, 0);
 
-    unlink(UDS_PATH.c_str());
+    if (unlink(UDS_PATH.c_str()) != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
+    }
 
     if ((ret = uv_pipe_bind(&udsListen, UDS_PATH.c_str())) != 0) {
         WRITE_LOG(LOG_WARN, "bind uds addr fail! ret:%d", ret);

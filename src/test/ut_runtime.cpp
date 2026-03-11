@@ -196,8 +196,11 @@ bool Runtime::ResetUtTmpFolder()
 {
 #ifdef DEF_NULL
     struct stat statbuf;
-    if (!stat(UT_TMP_PATH.c_str(), &statbuf))
-        unlink(UT_TMP_PATH.c_str());  // exist
+    if (!stat(UT_TMP_PATH.c_str(), &statbuf)) {
+        if (unlink(UT_TMP_PATH.c_str()) != 0) {
+            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
+        }
+    }
 #endif
     string sCmd = "rm -rf " + UT_TMP_PATH;
     struct stat statbuf;

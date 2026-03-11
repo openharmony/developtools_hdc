@@ -180,7 +180,9 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, const char *msg)
         ctxNow.taskQueue.pop_back();
         string::size_type pos = path.rfind(".tar");
         if (mode == APPMOD_INSTALL && pos != string::npos) {
-            unlink(path.c_str());
+            if (unlink(path.c_str()) != 0) {
+                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
+            }
             if (Base::GetCaller() == Base::Caller::CLIENT) {
                 WRITE_LOG(LOG_DEBUG, "unlink path:%s", path.c_str());
             } else {

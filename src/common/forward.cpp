@@ -571,7 +571,9 @@ bool HdcForwardBase::SetupFilePoint(HCtxForward ctxPoint)
     uv_pipe_init(loopTask, &ctxPoint->pipe, 0);
     if (ctxPoint->masterSlave) {
         if (ctxPoint->type == FORWARD_RESERVED || ctxPoint->type == FORWARD_FILESYSTEM) {
-            unlink(sNodeCfg.c_str());
+            if (unlink(sNodeCfg.c_str()) != 0) {
+                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
+            }
         }
         if (uv_pipe_bind(&ctxPoint->pipe, sNodeCfg.c_str())) {
             ctxPoint->lastError = "Unix pipe bind failed";

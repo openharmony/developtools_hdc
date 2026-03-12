@@ -297,9 +297,7 @@ namespace Base {
         } else {
             WRITE_LOG(LOG_INFO, "ThreadCompressLog file %s.tgz success", bakPath.c_str());
         }
-        if (unlink(bakPath.c_str()) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-        }
+        unlink(bakPath.c_str());
     }
 #endif
 
@@ -424,9 +422,7 @@ namespace Base {
             }
             if ((name.find(LOG_FILE_SUFFIX) != string::npos && CompressLogFile(name))) {
                 string full = GetLogDirName() + name;
-                if (unlink(full.c_str()) != 0) {
-                    WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-                }
+                unlink(full.c_str());
             }
         }
     }
@@ -593,9 +589,7 @@ namespace Base {
             } else {
                 WRITE_LOG(LOG_INFO, "delete: %s", Hdc::MaskString(deleteFile).c_str());
             }
-            if (unlink(deleteFile.c_str()) != 0) {
-                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-            }
+            unlink(deleteFile.c_str());
         }
     }
 
@@ -2393,9 +2387,7 @@ static void EchoLog(string &buf)
     void RemoveLogCache()
     {
         string cachePath = GetLogDirName() + LOG_CACHE_NAME;
-        if (unlink(cachePath.c_str()) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-        }
+        unlink(cachePath.c_str());
     }
 #endif
 
@@ -3061,9 +3053,7 @@ void CloseOpenFd(void)
             }
             return false;
         }
-        if (unlink(sourceFileName.c_str()) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-        }
+        unlink(sourceFileName.c_str());
         return true;
     }
 
@@ -3158,9 +3148,7 @@ void CloseOpenFd(void)
             } else {
                 WRITE_LOG(LOG_INFO, "delete file %s", Hdc::MaskString(delFileName).c_str());
             }
-            if (unlink(delFileName.c_str()) != 0) {
-                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-            }
+            unlink(delFileName.c_str());
         }
         return;
     }

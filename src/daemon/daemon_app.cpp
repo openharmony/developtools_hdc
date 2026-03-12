@@ -137,9 +137,7 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
 bool HdcDaemonApp::AsyncInstallFinish(int64_t exitStatus, const string result)
 {
     if (mode == APPMOD_INSTALL) {
-        if (unlink(ctxNow.localPath.c_str()) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-        }
+        unlink(ctxNow.localPath.c_str());
         string::size_type rindex = ctxNow.localPath.rfind(".tar");
         if (rindex != string::npos) {
             string dir = ctxNow.localPath.substr(0, rindex);
@@ -219,9 +217,7 @@ void HdcDaemonApp::Sideload(const char *pathOTA)
     mode = APPMOD_SIDELOAD;
     LogMsg(MSG_OK, "[placeholders] sideload %s", pathOTA);
     TaskFinish();
-    if (unlink(pathOTA) != 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-    }
+    unlink(pathOTA);
 }
 
 string HdcDaemonApp::Tar2Dir(const char *path)
@@ -262,13 +258,9 @@ int HdcDaemonApp::RemoveDir(const string &dir)
                 closedir(pdir);
                 return -1;
             }
-            if (rmdir(subpath.c_str()) == -1) {
-                WRITE_LOG(LOG_FATAL, "Failed to rmdir file, error is :%s", strerror(errno));
-            }
+            rmdir(subpath.c_str());
         } else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
-            if (unlink(subpath.c_str()) != 0) {
-                WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-            }
+            unlink(subpath.c_str());
         } else {
             WRITE_LOG(LOG_DEBUG, "lstat st_mode:%07o subpath:%s", st.st_mode,
                       Hdc::MaskString(subpath).c_str());
@@ -290,9 +282,7 @@ void HdcDaemonApp::RemovePath(const string &path)
         return;
     }
     if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
-        if (unlink(path.c_str()) != 0) {
-            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
-        }
+        unlink(path.c_str());
     } else if (S_ISDIR(st.st_mode)) {
         if (path == "." || path == "..") {
             return;

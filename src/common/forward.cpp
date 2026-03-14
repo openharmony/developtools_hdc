@@ -571,7 +571,7 @@ bool HdcForwardBase::SetupFilePoint(HCtxForward ctxPoint)
     uv_pipe_init(loopTask, &ctxPoint->pipe, 0);
     if (ctxPoint->masterSlave) {
         if (ctxPoint->type == FORWARD_RESERVED || ctxPoint->type == FORWARD_FILESYSTEM) {
-            unlink(sNodeCfg.c_str());
+            (void)unlink(sNodeCfg.c_str());
         }
         if (uv_pipe_bind(&ctxPoint->pipe, sNodeCfg.c_str())) {
             ctxPoint->lastError = "Unix pipe bind failed";

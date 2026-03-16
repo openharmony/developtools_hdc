@@ -55,7 +55,6 @@ static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
 static std::vector<uint8_t> g_authToken = {0};
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 static const std::string TITLE = "Allow execution of sudo commands";
-static const int USER_NO_PREMISSION = 201; // InitChallengeForCommand return current user no permission
 
 static std::vector<std::string> envSnapshot;
 
@@ -411,10 +410,15 @@ static int32_t GetChallenge()
     int32_t status = -1;
     int32_t res = InitChallengeForCommandExt(g_userId, g_challenge.data(), g_challenge.size(), &status);
     if (res != 0) {
-        if (res == USER_NO_PREMISSION) {
-            WriteStdErr("no permission.\n");
-        } else {
-            WriteStdErr("init challenge failed\n");
+        switch (res) {
+            case AclMgrResultCode::SEC_USERID_CONSTRAINED_ERROR:
+                WriteStdErr("no permission.\n");
+                break;
+            case AclMgrResultCode::SEC_PERMISSION_DENIED:
+                WriteStdErr("current user is not an administrator, please try again using an administrator account.\n");
+                break;
+            default:
+                WriteStdErr("init challenge failed\n");
         }
     }
     return status;

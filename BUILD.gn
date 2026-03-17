@@ -557,6 +557,15 @@ ohos_shared_library("hdc_register") {
     "src/register/hdc_jdwp.cpp",
   ]
 
+  if (product_name != "ohos-sdk") {
+    external_deps += [
+      "ability_runtime:application_image_observer_manager",
+      "ability_runtime:app_manager",
+    ]
+
+    defines += [ "IMAGE_LIFECYCLE_ENABLE" ]
+  }
+
   configs = [ ":hdc_register_config" ]
 
   innerapi_tags = [ "platformsdk" ]

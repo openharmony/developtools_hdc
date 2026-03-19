@@ -33,8 +33,10 @@ using namespace Hdc;
 
 namespace {
 static const std::string VERIFY_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
+static const int32_t DEFAULT_USER_ID = 100;
+} // namespace
 
-static int32_t GetUserId(void)
+static int32_t GetUserId()
 {
     std::vector<int32_t> ids;
 
@@ -54,13 +56,12 @@ static std::string GetEncryptPrivateKeyPath()
 {
     int32_t userId = GetUserId();
     if (userId == 0) {
-        WRITE_LOG(LOG_FATAL, "GetUserId failed, use default userId 100");
-        userId = 100;
+        WRITE_LOG(LOG_FATAL, "GetUserId failed, use default userId %d", DEFAULT_USER_ID);
+        userId = DEFAULT_USER_ID;
     }
-    WRITE_LOG(LOG_INFO, "GetEncryptPrivateKeyPath userId %d", userId);
+    WRITE_LOG(LOG_DEBUG, "GetEncryptPrivateKeyPath userId %d", userId);
     return "/data/service/el4/" + std::to_string(userId) + "/file_guard/encrypt_private_key.pem";
 }
-}  // namespace
 
 HdcSecretManage::HdcSecretManage(const std::string &keyAlias):hdcRsaHuks(keyAlias)
 {

@@ -80,11 +80,12 @@ app commands:
                                          -r: replace existing application
                                          -s: install shared bundle for multi-apps
                                          -cwd: specify the working directory
-                                         option is -w|-u|-p|-h
+                                         option is -w|-u|-p|-h|-g
                                          -w: specify waitting time for installation
                                          -u: specify a user id
                                          -p: specify a bundle path or direction
                                          -h: list available options of 'bm install' command
+                                         -g: grant permissions for installation
                                          Note: Each option and its corresponding option argument must
                                          be placed inside the same pair of double quotation masks
                                          example: "-w 180", "-u 100"

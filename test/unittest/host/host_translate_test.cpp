@@ -334,6 +334,7 @@ HWTEST_F(HdcTranslateTest, TestInstallHelp, TestSize.Level0)
     EXPECT_NE(usage.find("-cwd: specify the working directory"), string::npos);
     EXPECT_NE(usage.find("-p: specify a bundle path or direction"), string::npos);
     EXPECT_NE(usage.find("-h: list available options of 'bm install' command"), string::npos);
+    EXPECT_NE(usage.find("-g: grant permissions for installation"), string::npos);
 }
 
 HWTEST_F(HdcTranslateTest, TestInstallHelpVerbose, TestSize.Level0)
@@ -348,6 +349,7 @@ HWTEST_F(HdcTranslateTest, TestInstallHelpVerbose, TestSize.Level0)
     EXPECT_NE(usage.find("-cwd: specify the working directory"), string::npos);
     EXPECT_NE(usage.find("-p: specify a bundle path or direction"), string::npos);
     EXPECT_NE(usage.find("-h: list available options of 'bm install' command"), string::npos);
+    EXPECT_NE(usage.find("-g: grant permissions for installation"), string::npos);
 }
 
 HWTEST_F(HdcTranslateTest, TestUnintsallHelp, TestSize.Level0)

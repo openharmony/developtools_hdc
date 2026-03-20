@@ -27,13 +27,41 @@
 #include "auth.h"
 #include "credential_message.h"
 #include "log.h"
+#include "os_account_manager.h"
 
 using namespace Hdc;
 
 namespace {
 static const std::string VERIFY_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
-static const std::string ENCRYPT_PRIVATE_KEY_PATH = "/data/service/el4/100/file_guard/encrypt_private_key.pem";
-}  // namespace
+static const int32_t DEFAULT_USER_ID = 100;
+} // namespace
+
+static int32_t GetUserId()
+{
+    std::vector<int32_t> ids;
+
+    OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
+    if (err != 0) {
+        WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, err %d", err);
+        return 0;
+    }
+    if (ids.empty()) {
+        WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds is empty.");
+        return 0;
+    }
+    return ids[0];
+}
+
+static std::string GetEncryptPrivateKeyPath()
+{
+    int32_t userId = GetUserId();
+    if (userId == 0) {
+        WRITE_LOG(LOG_FATAL, "GetUserId failed, use default userId %d", DEFAULT_USER_ID);
+        userId = DEFAULT_USER_ID;
+    }
+    WRITE_LOG(LOG_DEBUG, "GetEncryptPrivateKeyPath userId %d", userId);
+    return "/data/service/el4/" + std::to_string(userId) + "/file_guard/encrypt_private_key.pem";
+}
 
 HdcSecretManage::HdcSecretManage(const std::string &keyAlias):hdcRsaHuks(keyAlias)
 {
@@ -46,7 +74,8 @@ std::string HdcSecretManage::GetPublicKeyInfo()
 
 bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
 {
-    std::ifstream inFile(ENCRYPT_PRIVATE_KEY_PATH, std::ios::binary);
+    std::string encryptPrivateKeyPath = GetEncryptPrivateKeyPath();
+    std::ifstream inFile(encryptPrivateKeyPath, std::ios::binary);
     if (!inFile.is_open()) {
         WRITE_LOG(LOG_FATAL, "open private key failed");
         return false;
@@ -275,7 +304,8 @@ int HdcSecretManage::TryLoadPublicKeyInfo()
         return GET_PUBKEY_FAILED;
     }
 
-    if (stat(ENCRYPT_PRIVATE_KEY_PATH.c_str(), &status) == -1) {
+    std::string encryptPrivateKeyPath = GetEncryptPrivateKeyPath();
+    if (stat(encryptPrivateKeyPath.c_str(), &status) == -1) {
         WRITE_LOG(LOG_FATAL, "The privkey file does not exist or is inaccessible: %s", strerror(errno));
         return GET_PRIVKEY_FAILED;
     }
@@ -308,7 +338,8 @@ int HandleGetPubkeyMessage(std::string &processMessageValue)
 int HdcSecretManage::TryLoadPrivateKeyInfo(std::string &processMessageValue)
 {
     struct stat status;
-    if (stat(ENCRYPT_PRIVATE_KEY_PATH.c_str(), &status) == -1) {
+    std::string encryptPrivateKeyPath = GetEncryptPrivateKeyPath();
+    if (stat(encryptPrivateKeyPath.c_str(), &status) == -1) {
         WRITE_LOG(LOG_FATAL, "The privkey file does not exist.");
         return GET_PRIVKEY_FAILED;
     }

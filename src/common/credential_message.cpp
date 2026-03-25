@@ -193,7 +193,7 @@ void SplitString(const std::string &origString, const std::string &seq,
     int splitCount = 0;
 
     while (p2 != std::string::npos) {
-        if (count >= 0 || splitCount >= count) {
+        if (count >= 0 && splitCount >= count) {
             break;
         }
         if (p2 == p1) {

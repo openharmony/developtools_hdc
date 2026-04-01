@@ -49,8 +49,9 @@ HWTEST_F(HostShellOptionTest, TestFormatParametersToTlv_1, TestSize.Level0)
     struct TranslateCommand::FormatCommand formatCommand = {};
     string input = "";
     string stringError;
+    bool hasCommand = false;
     bool result = HostShellOption::FormatParametersToTlv(
-        input, CMDSTR_SHELL_EX.size() - 1, formatCommand.parameters, stringError);
+        input, CMDSTR_SHELL_EX.size() - 1, formatCommand.parameters, stringError, hasCommand);
 
     EXPECT_EQ(result, false);
     EXPECT_EQ(stringError, "[E003007] Internal error: Invalid option parameters");
@@ -61,8 +62,9 @@ HWTEST_F(HostShellOptionTest, TestFormatParametersToTlv_2, TestSize.Level0)
     struct TranslateCommand::FormatCommand formatCommand = {};
     string input = "shell ls -l";
     string stringError;
+    bool hasCommand = false;
     bool result = HostShellOption::FormatParametersToTlv(
-        input, CMDSTR_SHELL_EX.size() - 1, formatCommand.parameters, stringError);
+        input, CMDSTR_SHELL_EX.size() - 1, formatCommand.parameters, stringError, hasCommand);
 
     EXPECT_EQ(result, true);
 }
@@ -139,14 +141,9 @@ HWTEST_F(HostShellOptionTest, TestTlvAppendParameter, TestSize.Level0)
 {
     TlvBuf tb(Base::REGISTERD_TAG_SET);
     string stringError;
-    string shellCommand = "";
+    string shellCommand = "error";
 
-    bool result = HostShellOption::TlvAppendParameter(TAG_SHELL_CMD, shellCommand, stringError, tb);
-    EXPECT_EQ(result, false);
-    EXPECT_EQ(stringError, "[E003002] Unsupport interactive shell command option");
-
-    shellCommand = "error";
-    result = HostShellOption::TlvAppendParameter(TAG_SHELL_BUNDLE, shellCommand, stringError, tb);
+    bool result = HostShellOption::TlvAppendParameter(TAG_SHELL_BUNDLE, shellCommand, stringError, tb);
     EXPECT_EQ(result, false);
     EXPECT_EQ(stringError, "[E003001] Invalid bundle name: error");
 

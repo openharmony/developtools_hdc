@@ -28,9 +28,10 @@ public:
 private:
     static bool FinishShellProc(const void *context, const bool result, const string exitMsg);
     static bool ChildReadCallback(const void *context, uint8_t *buf, const int size);
+    bool InitShell(uint8_t *payload, const int payloadSize);
     int StartShell();
     int CreateSubProcessPTY(const char *cmd, const char *arg0, const char *arg1, pid_t *pid);
-    static int ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1);
+    static int ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1, const char *workDir);
     bool SpecialSignal(uint8_t ch);
     int ThreadFork(const char *cmd, const char *arg0, const char *arg1);
     static void *ShellFork(void *arg);
@@ -42,17 +43,16 @@ private:
     const string devPTMX = "/dev/ptmx";
     static std::mutex mutexPty;
     char devname[BUF_SIZE_SMALL] = "";
+    string optionPath;
 };
 
 struct ShellParams {
-    const char *cmdParam;
-    const char *arg0Param;
-    const char *arg1Param;
-    int ptmParam;
-    char *devParam;
-
-    ShellParams(const char *cmdParam, const char *arg0Param, const char *arg1Param, int ptmParam, char *devParam)
-        :cmdParam(cmdParam), arg0Param(arg0Param), arg1Param(arg1Param), ptmParam(ptmParam), devParam(devParam) {};
+    const char *cmdParam = nullptr;
+    const char *arg0Param = nullptr;
+    const char *arg1Param = nullptr;
+    int ptmParam = 0;
+    char *devParam = nullptr;
+    string workDirParam;
 };
 }  // namespace Hdc
 #endif

@@ -127,7 +127,6 @@ string Usage()
 #endif
             " shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)\n"
             "                                         -b: run command in specified debug application bundle path\n"
-            "                                             bundle parameter only support non-interactive shell\n"
             " bugreport [FILE]                      - Return all information from the device, stored in file if "
             "FILE is specified\n"
             " jpid                                  - List PIDs of processes hosting a JDWP transport\n"
@@ -492,11 +491,16 @@ string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatComman
         outCmd->parameters = input.c_str() + CMDSTR_CONNECT_TARGET.size() + 1;  // with ' '
         stringError = TargetConnect(outCmd);
     } else if (!strncmp(input.c_str(), (CMDSTR_SHELL_EX).c_str(), (CMDSTR_SHELL_EX).size())) {
+        bool hasCommand = false;
         if (!HostShellOption::FormatParametersToTlv(
-            input, CMDSTR_SHELL_EX.size() - 1, outCmd->parameters, stringError)) {
+            input, CMDSTR_SHELL_EX.size() - 1, outCmd->parameters, stringError, hasCommand)) {
             outCmd->bJumpDo = true;
         }
-        outCmd->cmdFlag = CMD_UNITY_EXECUTE_EX;
+        if (hasCommand) {
+            outCmd->cmdFlag = CMD_UNITY_EXECUTE_EX;
+        } else {
+            outCmd->cmdFlag = CMD_SHELL_INIT;
+        }
     } else if (!strncmp(input.c_str(), (CMDSTR_SHELL + " ").c_str(), CMDSTR_SHELL.size() + 1)) {
         outCmd->cmdFlag = CMD_UNITY_EXECUTE;
         outCmd->parameters = input.c_str() + CMDSTR_SHELL.size() + 1;

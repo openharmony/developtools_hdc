@@ -17,7 +17,8 @@
 
 namespace Hdc {
 namespace HostShellOption {
-bool FormatParametersToTlv(const string &parameters, const int startPos, string &formatOutput, string &errMsg)
+bool FormatParametersToTlv(
+    const string &parameters, const int startPos, string &formatOutput, string &errMsg, bool &hasCommand)
 {
     if (parameters.empty() || startPos >= parameters.size()) {
         errMsg = "[E003007] Internal error: Invalid option parameters";
@@ -39,6 +40,8 @@ bool FormatParametersToTlv(const string &parameters, const int startPos, string 
     } else {
         ret = true;
     }
+    std::string tmp;
+    hasCommand = tb.FindTlv(TAG_SHELL_CMD, tmp);
     delete[](reinterpret_cast<char *>(argv));
     argv = nullptr;
     return ret;
@@ -90,6 +93,7 @@ bool ParameterToTlv(char **argv, int argc, TlvBuf &tlvBuf, string &errMsg)
             if (!TlvAppendParameter(TAG_SHELL_BUNDLE, bundlePath, errMsg, tlvBuf)) {
                 break;
             } else {
+                ret = true;
                 skipNext++; // skip the next parameter
             }
         } else if (strlen(argv[i]) >= 1 && argv[i][0] == '-') {
@@ -104,9 +108,6 @@ bool ParameterToTlv(char **argv, int argc, TlvBuf &tlvBuf, string &errMsg)
             ret = true;
             break;
         }
-    }
-    if (errMsg.empty() && shellCommand.empty()) {
-        errMsg = "[E003002] Unsupport interactive shell command option";
     }
     return ret;
 }

@@ -69,7 +69,6 @@ class TestShellBundleOption:
         ("bundle name with path ../", "-b ""../../../../", "pwd", "[Fail][E003001]"),
         ("bundle name with path ./", "-b ""././././pwd", "pwd", "[Fail][E003001]"),
         ("bundle name with path /", "-b ""/", "pwd", "[Fail][E003001]"),
-        ("bundle name without command", "-b "f"{GP.debug_app}", "", "[Fail][E003002]"),
         ("bundle name too long: length > 128", f"-b {a_long}", "pwd", "[Fail][E003001]"),
         ("bundle name too short: length < 9", f"-b {a_short}", "pwd", "[Fail][E003001]"),
         ("bundle name with unsupport symbol: #", "-b #########", "pwd", "[Fail][E003001]"),

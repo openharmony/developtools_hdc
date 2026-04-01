@@ -95,6 +95,7 @@ template("hdcd_source_set") {
       "src/daemon/main.cpp",
       "src/daemon/shell.cpp",
       "src/daemon/system_depend.cpp",
+      "src/daemon/daemon_base.cpp",
     ]
     sources += hdc_common_sources
     sources += [ "src/common/connect_validation.cpp" ]
@@ -152,6 +153,13 @@ template("hdcd_source_set") {
       "openssl:libcrypto_shared",
       "openssl:libssl_shared",
     ]
+
+    if (product_name != "ohos-sdk") {
+      external_deps += [
+        "os_account:os_account_innerkits",
+        "os_account:account_iam_innerkits"
+      ]
+    }
 
     if (build_selinux) {
       external_deps += [ "selinux:libselinux" ]

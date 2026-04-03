@@ -15,6 +15,8 @@
 
 #include "memory_pool.h"
 
+#include <cstdlib>
+
 #ifdef MEMORY_POOL_ENABLE
 namespace Hdc {
 void* MemoryPool::Allocate(size_t size)

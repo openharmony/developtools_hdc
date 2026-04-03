@@ -41,7 +41,9 @@ private:
     void RemoveJdwpTracker();
     int ExecuteShellExtend(const uint8_t *payload, const int payloadSize);
     int ExecuteOptionShell(const string &shellCommand, const string &bundleName);
+#ifdef UPDATER_MODE
     bool CheckbundlePath(const string &bundleName, string &mountPath);
+#endif
     AsyncCmd asyncCommand;
     uint16_t currentDataCommand;
 #ifdef UNIT_TEST

@@ -711,6 +711,27 @@ void HdcClient::BindLocalStd(HChannel hChannel)
 {
     if (command == CMDSTR_SHELL) {
         bShellInteractive = true;
+    } else if (command.rfind(CMDSTR_SHELL_EX, 0) == 0) {
+        bShellInteractive = true;
+        int argc = 0;
+        char **argv = Base::SplitCommandToArgs(command.c_str(), &argc);
+        int skipNext = 0;
+        for (int i = 0; i < argc; i++) {
+            if (skipNext > 0) {
+                skipNext--;
+                continue;
+            }
+            if (std::strcmp(argv[i], CMDSTR_SHELL.c_str()) == 0) {
+                continue;
+            }
+            if (std::strcmp(argv[i], "-b") == 0) {
+                skipNext++;
+                continue;
+            }
+            bShellInteractive = false;
+        }
+        delete[](reinterpret_cast<char *>(argv));
+        argv = nullptr;
     }
     if (bShellInteractive && uv_guess_handle(STDIN_FILENO) != UV_TTY) {
         WRITE_LOG(LOG_WARN, "Not support stdio TTY mode");

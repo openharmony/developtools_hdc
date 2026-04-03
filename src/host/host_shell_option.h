@@ -22,7 +22,8 @@ namespace HostShellOption {
     string ConstructShellCommand(char **argv, const int startIndex, const int argc);
     bool ParameterToTlv(char **argv, int argc, TlvBuf &tlvBuf, string &errMsg);
     bool TlvAppendParameter(const uint32_t tag, const string &shellCommand, string &errMsg, TlvBuf &tlvBuf);
-    bool FormatParametersToTlv(const string &parameters, const int startPos, string &formatOutput, string &errMsg);
+    bool FormatParametersToTlv(
+        const string &parameters, const int startPos, string &formatOutput, string &errMsg, bool &hasCommand);
     bool CopyToString(const TlvBuf &tlvBuf, string &output);
 }
 }

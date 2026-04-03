@@ -137,7 +137,7 @@ constexpr int32_t RSA_KEY_BITS = 3072;
 
 const string WHITE_SPACES = " \t\n\r";
 const string UT_TMP_PATH = "/tmp/hdc-ut";
-const string DEBUG_BUNDLE_PATH = "/mnt/debug/100/debug_hap/";
+const string DEBUG_BUNDLE_PATH = "/mnt/debug/";
 const string LOG_FILE_NAME = "hdc.log";
 const string LOG_FILE_NAME_PREFIX = "hdc-";
 const string LOG_FILE_SUFFIX = ".log";

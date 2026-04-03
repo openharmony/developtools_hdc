@@ -29,6 +29,7 @@
 #if defined(SURPPORT_SELINUX)
 #include "selinux/selinux.h"
 #endif
+#include "daemon_base.h"
 
 namespace Hdc {
 std::mutex HdcShell::mutexPty;
@@ -111,6 +112,9 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
 {
     switch (command) {
         case CMD_SHELL_INIT: {  // initial
+            if (!InitShell(payload, payloadSize)) {
+                return false;
+            }
             if (StartShell() < 0) {
                 LogMsg(MSG_FAIL, "Shell initialize failed");
                 return false;
@@ -136,7 +140,7 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
     return true;
 }
 
-int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1)
+int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1, const char *workDir)
 {
     dup2(pts, STDIN_FILENO);
     dup2(pts, STDOUT_FILENO);
@@ -149,7 +153,12 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
         close(fd);
     }
     char *env = nullptr;
-    if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
+    if (workDir != nullptr && strlen(workDir) > 0 && chdir(workDir) == 0) {
+        WRITE_LOG(LOG_DEBUG, "chdir to %s", workDir);
+    } else if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
+        if (workDir != nullptr && strlen(workDir) > 0) {
+            WRITE_LOG(LOG_FATAL, "chdir bundlePath %s failed, %s", workDir, strerror(errno));
+        }
     }
     int ret = execl(cmd, cmd, arg0, arg1, nullptr);
     if (ret < 0) {
@@ -191,7 +200,15 @@ static void SetSelinuxLabel()
 
 int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
 {
-    auto params = new ShellParams(cmd, arg0, arg1, ptm, devname);
+    const char *workDir = optionPath.empty() ? nullptr : optionPath.c_str();
+    auto params = new ShellParams{
+        .cmdParam = cmd,
+        .arg0Param = arg0,
+        .arg1Param = arg1,
+        .ptmParam = ptm,
+        .devParam = devname,
+        .workDirParam = workDir == nullptr ? "" : workDir
+    };
     if (!params) {
         WRITE_LOG(LOG_DEBUG, "shell params nullptr ptm:%d", ptm);
         return -1;
@@ -224,6 +241,7 @@ void *HdcShell::ShellFork(void *arg)
     const char *arg1 = params.arg1Param;
     int ptmParam = params.ptmParam;
     char *devParam = params.devParam;
+    const char *workDirParam = params.workDirParam.empty() ? nullptr : params.workDirParam.c_str();
     pid_t pid = 0;
     pid = fork();
     if (pid < 0) {
@@ -244,7 +262,7 @@ void *HdcShell::ShellFork(void *arg)
         if ((pts = open(devParam, O_RDWR | O_CLOEXEC)) < 0) {
             return reinterpret_cast<void *>(-1);
         }
-        ChildForkDo(pts, cmd, arg0, arg1);
+        ChildForkDo(pts, cmd, arg0, arg1, workDirParam);
         // proc finish
     } else {
         return reinterpret_cast<void *>(pid);
@@ -301,6 +319,27 @@ bool HdcShell::ChildReadCallback(const void *context, uint8_t *buf, const int si
     HdcShell *thisClass = reinterpret_cast<HdcShell *>(const_cast<void *>(context));
     return thisClass->SendToAnother(CMD_KERNEL_ECHO_RAW, reinterpret_cast<uint8_t *>(buf), size);
 };
+
+bool HdcShell::InitShell(uint8_t *payload, const int payloadSize)
+{
+#ifndef UPDATER_MODE
+    TlvBuf tlvBuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
+    std::string bundleName = "";
+    if (payloadSize > 0 && payload != nullptr && tlvBuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
+        std::string mountPath;
+        if (!HdcDaemonBase::CheckBundlePath(bundleName, mountPath)) {
+            LogMsg(MSG_FAIL, "[E003001] Invalid bundle name: %s", bundleName.c_str());
+            return false;
+        }
+        optionPath = mountPath;
+    } else {
+        optionPath.clear();
+    }
+#else
+    optionPath.clear();
+#endif
+    return true;
+}
 
 int HdcShell::StartShell()
 {

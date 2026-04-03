@@ -18,6 +18,10 @@
 #include <sys/wait.h>
 #include "hdc_statistic_reporter.h"
 
+#ifndef UPDATER_MODE
+#include "daemon_base.h"
+#endif
+
 namespace Hdc {
 HdcDaemonUnity::HdcDaemonUnity(HTaskInfo hTaskInfo)
     : HdcTaskBase(hTaskInfo)
@@ -74,6 +78,7 @@ bool HdcDaemonUnity::AsyncCmdOut(bool finish, const string result)
     return ret;
 }
 
+#ifdef UPDATER_MODE
 bool HdcDaemonUnity::CheckbundlePath(const string &bundleName, string &mountPath)
 {
     if (access(DEBUG_BUNDLE_PATH.c_str(), F_OK) != 0 || !Base::CheckBundleName(bundleName)) {
@@ -92,11 +97,17 @@ bool HdcDaemonUnity::CheckbundlePath(const string &bundleName, string &mountPath
     mountPath = targetPath;
     return true;
 }
+#endif
 
 int HdcDaemonUnity::ExecuteOptionShell(const string &shellCommand, const string &bundleName)
 {
     string mountPath = "";
+#ifdef UPDATER_MODE
     if (!CheckbundlePath(bundleName, mountPath)) {
+#else
+    if (!HdcDaemonBase::CheckBundlePath(bundleName, mountPath)) {
+        LogMsg(MSG_FAIL, "[E003001] Invalid bundle name: %s", bundleName.c_str());
+#endif
         return -1;
     }
     return ExecuteShell(shellCommand, mountPath);

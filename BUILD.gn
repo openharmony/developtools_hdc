@@ -154,10 +154,10 @@ template("hdcd_source_set") {
       "openssl:libssl_shared",
     ]
 
-    if (product_name != "ohos-sdk") {
+    if (build_selinux && image_name == "system" && product_name != "ohos-sdk") {
       external_deps += [
         "os_account:os_account_innerkits",
-        "os_account:account_iam_innerkits"
+        "os_account:account_iam_innerkits",
       ]
     }
 

@@ -15,6 +15,7 @@
 #ifndef HDC_DAEMON_BASE_H
 #define HDC_DAEMON_BASE_H
 
+#ifndef UPDATER_MODE
 #include <string>
 
 namespace Hdc {
@@ -22,5 +23,6 @@ namespace HdcDaemonBase {
 bool CheckBundlePath(const std::string &bundleName, std::string &mountPath);
 }
 }
+#endif
 
 #endif

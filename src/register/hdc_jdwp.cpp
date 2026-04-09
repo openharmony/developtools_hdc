@@ -18,6 +18,11 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#ifdef IMAGE_LIFECYCLE_ENABLE
+#include "app_image_observer_manager.h"
+#include "appmgr/app_mgr_constants.h"
+#endif
+
 namespace Hdc {
 
 HdcJdwpSimulator::HdcJdwpSimulator(const std::string processName, const std::string pkgName, bool isDebug, Callback cb)
@@ -30,6 +35,7 @@ HdcJdwpSimulator::HdcJdwpSimulator(const std::string processName, const std::str
     disconnectFlag_ = false;
     notified_ = false;
     AddWatchHdcdJdwp();
+    AddApplicationUpdateCallback();
 }
 
 void HdcJdwpSimulator::Disconnect()
@@ -269,18 +275,7 @@ void HdcJdwpSimulator::WaitForJdwp()
 
 void HdcJdwpSimulator::AddWatchHdcdJdwp()
 {
-    auto eventCallback = [](const char *key, const char *value, void *context) {
-        auto that = reinterpret_cast<HdcJdwpSimulator *>(context);
-        if (strncmp(key, PERSIST_HDC_JDWP, strlen(PERSIST_HDC_JDWP)) != 0) {
-            return;
-        }
-        if (strncmp(value, "1", strlen("1")) != 0) {
-            return;
-        }
-        that->notified_ = true;
-        that->cv_.notify_one();
-    };
-    int rc = WatchParameter(PERSIST_HDC_JDWP, eventCallback, this);
+    int rc = WatchParameter(PERSIST_HDC_JDWP, HdcJdwpSimulator::ParameterChanged, this);
     HILOG_INFO(LOG_CORE, "AddWatchHdcdJdwp rc:%{public}d", rc);
 }
 
@@ -288,5 +283,54 @@ void HdcJdwpSimulator::DelWatchHdcdJdwp()
 {
     int rc = RemoveParameterWatcher(PERSIST_HDC_JDWP, nullptr, nullptr);
     HILOG_INFO(LOG_CORE, "DelWatchHdcdJdwp rc:%{public}d", rc);
+}
+
+void HdcJdwpSimulator::ParameterChanged(const char *key, const char *value, void *context)
+{
+    if (strncmp(key, PERSIST_HDC_JDWP, strlen(PERSIST_HDC_JDWP)) != 0) {
+        return;
+    }
+    if (strncmp(value, "1", strlen("1")) != 0) {
+        return;
+    }
+    auto that = reinterpret_cast<HdcJdwpSimulator *>(context);
+    std::unique_lock<std::mutex> lock(that->mutex_);
+    that->notified_ = true;
+    that->cv_.notify_one();
+}
+
+void HdcJdwpSimulator::AddApplicationUpdateCallback()
+{
+#ifdef IMAGE_LIFECYCLE_ENABLE
+    using namespace OHOS::AppExecFwk;
+    auto& img = AppImageObserverManager::GetInstance();
+    if (img.GetImageProcessType() != static_cast<int32_t>(ImageProcessType::TEMPLATE) || img.IsAbilityCreated()) {
+        HILOG_INFO(LOG_CORE, "skip register image callback");
+        return;
+    }
+
+    class HdcCallback : public OHOS::AbilityRuntime::ApplicationUpdateCallback {
+    public:
+        explicit HdcCallback(void* hdcJdwpSimulator)
+        {
+            hdcJdwpSimulator_ = hdcJdwpSimulator;
+        }
+
+        virtual ~HdcCallback() = default;
+
+        void NotifyApplicationUpdate() override
+        {
+            HILOG_INFO(LOG_CORE, "recv image callback");
+            HdcJdwpSimulator::ParameterChanged(PERSIST_HDC_JDWP, "1", hdcJdwpSimulator_);
+        }
+
+    private:
+        void* hdcJdwpSimulator_ = nullptr;
+    };
+
+    callbacks_ = std::make_shared<HdcCallback>(this);
+    img.RegisterImageLifecycleCallback(callbacks_);
+    HILOG_INFO(LOG_CORE, "register image callback");
+#endif
 }
 } // namespace Hdc

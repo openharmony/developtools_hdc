@@ -176,10 +176,17 @@ ohos_source_set("hdc_daemon") {
   }
   external_deps = common_external_deps
   external_deps += [ "c_utils:utils" ]
+  if (product_name != "ohos-sdk") {
+    external_deps += [
+      "os_account:os_account_innerkits",
+      "os_account:account_iam_innerkits",
+    ]
+  }
   public_configs = [
     ":hdc_common_config",
     ":hdc_ut_config",
   ]
+  
   defines = [
     "HARMONY_PROJECT",
     "OPENSSL_SUPPRESS_DEPRECATED",
@@ -282,6 +289,13 @@ ohos_unittest("hdc_jdwp_unittest") {
     "googletest:gmock_main",
     "hilog:libhilog",
   ]
+
+  if (product_name != "ohos-sdk") {
+    external_deps += [
+      "os_account:os_account_innerkits",
+      "os_account:account_iam_innerkits",
+    ]
+  }
 
   if (is_linux) {
     static_link = false
@@ -399,12 +413,14 @@ ohos_unittest("hdc_daemon_base_unittest") {
   sources = hdc_common_sources
   sources += [
     "${hdc_path}/src/daemon/daemon_app.cpp",
+    "${hdc_path}/src/daemon/daemon_base.cpp",
     "${hdc_path}/src/daemon/daemon_forward.cpp",
     "${hdc_path}/src/daemon/daemon_usb.cpp",
     "${hdc_path}/src/daemon/system_depend.cpp",
     "${hdc_path}/src/daemon/jdwp.cpp",
     "${hdc_path}/src/common/uart.cpp",
     "unittest/daemon/daemon_app_test.cpp",
+    "unittest/daemon/daemon_base_test.cpp",
     "unittest/daemon/daemon_usb_test.cpp",
     "unittest/daemon/jdwp_test.cpp",
   ]
@@ -420,6 +436,56 @@ ohos_unittest("hdc_daemon_base_unittest") {
     "googletest:gmock_main",
     "libusb:libusb",
   ]
+
+  if (product_name != "ohos-sdk") {
+    external_deps += [
+      "os_account:os_account_innerkits",
+      "os_account:account_iam_innerkits",
+    ]
+  }
+}
+
+ohos_unittest("hdc_shell_unittest") {
+  use_exceptions = true
+  module_out_path = module_output_path
+  resource_config_file = "unittest/resource/ohos_test.xml"
+  defines = [
+    "MEMORY_POOL_ENABLE"
+  ]
+  if (is_ohos) {
+    defines += [ "HDC_UNIT_TEST" ]
+  }
+  if (hdc_support_uart) {
+    defines += [ "HDC_SUPPORT_UART" ]
+  }
+  sources = hdc_common_sources
+  sources += [
+    "${hdc_path}/src/daemon/daemon_app.cpp",
+    "${hdc_path}/src/daemon/daemon_base.cpp",
+    "${hdc_path}/src/daemon/system_depend.cpp",
+    "${hdc_path}/src/daemon/shell.cpp",
+    "${hdc_path}/src/common/uart.cpp",
+    "unittest/daemon/shell_test.cpp",
+  ]
+
+  configs = [
+    ":hdc_daemon_common_config",
+    ":hdc_ut_code_flag",
+    ":hdc_ut_config",
+  ]
+
+  external_deps = common_external_deps
+  external_deps += [
+    "googletest:gmock_main",
+    "libusb:libusb",
+  ]
+
+  if (product_name != "ohos-sdk") {
+    external_deps += [
+      "os_account:os_account_innerkits",
+      "os_account:account_iam_innerkits",
+    ]
+  }
 }
 
 ohos_unittest("hdc_host_uart_unittest") {
@@ -540,6 +606,7 @@ group("hdc_unittest") {
   deps = [
     ":hdc_base_unittest",
     ":hdc_daemon_base_unittest",
+    ":hdc_shell_unittest",
     ":hdc_host_uart_unittest",
     ":hdc_jdwp_unittest",
     ":hdc_register_unittest",

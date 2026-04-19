@@ -68,6 +68,7 @@ private:
     uv_loop_t *loop;
     void *callerContext;
     std::atomic<bool> workContinue;
+    std::atomic<bool> iOWriteThreadExit = false;
     int fdIO;
     int refIO;
     bool isInteractive;

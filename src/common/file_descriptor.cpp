@@ -207,7 +207,9 @@ HdcFileDescriptor::~HdcFileDescriptor()
     workContinue = false;
     if (isInteractive) {
         NotifyWrite();
-        uv_sleep(MILL_SECONDS);
+        while (!iOWriteThreadExit) {
+            uv_sleep(MILL_SECONDS);
+        }
     }
 }
 
@@ -299,6 +301,7 @@ void HdcFileDescriptor::IOWriteThread(void *object)
         hfd->HandleWrite();
         hfd->WaitWrite();
     }
+    hfd->iOWriteThreadExit = true;
 }
 
 void HdcFileDescriptor::PushWrite(CtxFileIO *cfio)

@@ -37,7 +37,7 @@ protected:
     int SendToHdcStream(HSession hSession, uv_stream_t *stream, uint8_t *appendData, int dataSize);
     int GetSafeUsbBlockSize(uint16_t wMaxPacketSizeSend);
     bool IsUsbPacketHeader(uint8_t *ioBuf, int ioBytes);
-    vector<uint8_t> BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize);
+    USBHead* BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize);
 
     void *clsMainBase;
     bool modRunning;

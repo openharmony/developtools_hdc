@@ -156,6 +156,7 @@ template("hdcd_source_set") {
 
     if (build_selinux && image_name == "system" && product_name != "ohos-sdk") {
       external_deps += [
+        "ipc:ipc_single",
         "os_account:os_account_innerkits",
         "os_account:account_iam_innerkits",
       ]

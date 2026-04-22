@@ -26,6 +26,8 @@
 #include "command_event_report.h"
 #endif
 
+#include "memory_pool.h"
+
 namespace Hdc {
 constexpr uint64_t HDC_TIME_CONVERT_BASE = 1000000000;
 
@@ -85,7 +87,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
         WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr cid:%u sid:%s", taskInfo->channelId, sessionIdMaskStr.c_str());
         return -1;
     }
-    CtxFileIO *ioContext = new(std::nothrow) CtxFileIO();
+    CtxFileIO *ioContext = static_cast<CtxFileIO*>(MemoryPool::Instance().Allocate(sizeof(CtxFileIO)));
     if (ioContext == nullptr) {
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
         cirbuf.Free(buf);
@@ -123,6 +125,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
                 WRITE_LOG(LOG_DEBUG, "uv_fs_read failed rc:%d", rc);
                 break;
             } else {
+                ioContext = nullptr;
                 ++refCount;
             }
         } else {
@@ -139,6 +142,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
                 WRITE_LOG(LOG_DEBUG, "uv_fs_write failed rc:%d", rc);
                 break;
             } else {
+                ioContext = nullptr;
                 ++refCount;
             }
         }
@@ -147,7 +151,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
     }
     if (!ret) {
         if (ioContext != nullptr) {
-            delete ioContext;
+            MemoryPool::Instance().Deallocate(ioContext);
             ioContext = nullptr;
             WRITE_LOG(LOG_WARN, "SimpleFileIO ret=false, delete context, cid:%u sid:%s", taskInfo->channelId,
                 sessionIdMaskStr.c_str());
@@ -455,7 +459,7 @@ void HdcTransferBase::OnFileIO(uv_fs_t *req)
     delete [] (bufIO - payloadPrefixReserve);
 #endif
     --thisClass->refCount;
-    delete contextIO;  // Req is part of the Contextio structure, no free release
+    MemoryPool::Instance().Deallocate(contextIO);  // Req is part of the Contextio structure, no free release
 }
 
 void HdcTransferBase::OnFileOpenFailed(CtxFile *context)

@@ -66,18 +66,15 @@ bool HdcUSBBase::ReadyForWorkThread(HSession hSession)
     return true;
 };
 
-vector<uint8_t> HdcUSBBase::BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize)
+USBHead* HdcUSBBase::BuildPacketHeader(uint32_t sessionId, uint8_t option, uint32_t dataSize)
 {
-    vector<uint8_t> vecData;
-    USBHead head;
-    head.sessionId = htonl(sessionId);
-    for (size_t i = 0; i < sizeof(head.flag); i++) {
-        head.flag[i] = USB_PACKET_FLAG.data()[i];
-    }
-    head.option = option;
-    head.dataSize = htonl(dataSize);
-    vecData.insert(vecData.end(), (uint8_t *)&head, (uint8_t *)&head + sizeof(USBHead));
-    return vecData;
+    USBHead* head = new USBHead;
+    head->sessionId = htonl(sessionId);
+    head->flag[0] = USB_PACKET_FLAG[0];
+    head->flag[1] = USB_PACKET_FLAG[1];
+    head->option = option;
+    head->dataSize = htonl(dataSize);
+    return head;
 }
 
 // USB big data stream, block transmission, mainly to prevent accidental data packets from writing through EP port,
@@ -88,9 +85,9 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
     int ret = ERR_IO_FAIL;
     StartTraceScope("HdcUSBBase::SendUSBBlock");
     std::lock_guard<std::mutex> lock(hSession->hUSB->lockSendUsbBlock);
-    auto header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
+    USBHead* header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
     do {
-        if ((SendUSBRaw(hSession, header.data(), header.size())) <= 0) {
+        if ((SendUSBRaw(hSession, reinterpret_cast<uint8_t*>(header), sizeof(USBHead))) <= 0) {
             WRITE_LOG(LOG_FATAL, "SendUSBRaw index failed");
             break;
         }
@@ -101,14 +98,17 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
         if (childRet > 0 && (childRet % hSession->hUSB->wMaxPacketSizeSend == 0)) {
             // win32 send ZLP will block winusb driver and LIBUSB_TRANSFER_ADD_ZERO_PACKET not effect
             // so, we send dummy packet to prevent zero packet generate
-            auto dummy = BuildPacketHeader(hSession->sessionId, 0, 0);
-            if ((SendUSBRaw(hSession, dummy.data(), dummy.size())) <= 0) {
+            USBHead* dummy = BuildPacketHeader(hSession->sessionId, 0, 0);
+            if ((SendUSBRaw(hSession, reinterpret_cast<uint8_t*>(dummy), sizeof(USBHead))) <= 0) {
                 WRITE_LOG(LOG_FATAL, "SendUSBRaw dummy failed");
+                delete dummy;
                 break;
             }
+            delete dummy;
         }
         ret = length;
     } while (false);
+    delete header;
     return ret;
 }
 
@@ -137,12 +137,13 @@ void HdcUSBBase::PreSendUsbSoftReset(HSession hSession, uint32_t sessionIdOld)
     if (hSession->serverOrDaemon && !hUSB->resetIO) {
         hUSB->lockSendUsbBlock.lock();
         WRITE_LOG(LOG_WARN, "SendToHdcStream check, sessionId not matched");
-        auto header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
-        if (SendUSBRaw(hSession, header.data(), header.size()) <= 0) {
+        USBHead* header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
+        if (SendUSBRaw(hSession, reinterpret_cast<uint8_t*>(header), sizeof(USBHead)) <= 0) {
             WRITE_LOG(LOG_FATAL, "PreSendUsbSoftReset send failed");
         }
         hUSB->lockSendUsbBlock.unlock();
         hUSB->resetIO = true;
+        delete header;
     }
 }
 

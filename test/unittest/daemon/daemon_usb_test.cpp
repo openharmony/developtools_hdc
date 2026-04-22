@@ -104,4 +104,37 @@ HWTEST_F(HdcDaemonUSBTest, OnNewHandshakeOK_SetsCurrentSessionId, TestSize.Level
     EXPECT_EQ(usb.currentSessionId, sessionId + 1);
 }
 
+static vector<uint8_t> BuildPacketHeaderOld(uint32_t sessionId, uint8_t option, uint32_t dataSize)
+{
+    const string USB_PACKET_FLAG = "UB";  // must 2bytes
+    vector<uint8_t> vecData;
+    USBHead head;
+    head.sessionId = htonl(sessionId);
+    for (size_t i = 0; i < sizeof(head.flag); i++) {
+        head.flag[i] = USB_PACKET_FLAG.data()[i];
+    }
+    head.option = option;
+    head.dataSize = htonl(dataSize);
+    vecData.insert(vecData.end(), (uint8_t *)&head, (uint8_t *)&head + sizeof(USBHead));
+    return vecData;
+}
+
+HWTEST_F(HdcDaemonUSBTest, BuildPacketHeaderTest, TestSize.Level0)
+{
+    static constexpr uint32_t sessionId = 13245;
+    static constexpr uint8_t option = 7;
+    static constexpr uint32_t dataSize = 15;
+    vector<uint8_t> vec = BuildPacketHeaderOld(sessionId, option, dataSize);
+    HdcDaemonUSB usb(false, nullptr);
+    USBHead* head = usb.BuildPacketHeader(sessionId, option, dataSize);
+
+    EXPECT_EQ(vec.size(), sizeof(USBHead));
+    uint8_t* p1 = vec.data();
+    uint8_t* p2 = reinterpret_cast<uint8_t*>(head);
+    for (int i = 0; i < vec.size(); i++) {
+        EXPECT_EQ(*(p1 + i), *(p2 + i));
+    }
+    delete head;
+}
+
 } // namespace

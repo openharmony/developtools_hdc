@@ -960,11 +960,12 @@ void HdcHostUSB::SendSoftResetToDaemonSync(HSession hSession, uint32_t sessionId
     const int usbBulkSendTimeout = 200; // ms
     int transferred = 0;
     HdcHostUSB *hdcHostUSB = (HdcHostUSB *)hSession->classModule;
-    auto header = hdcHostUSB->BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
-    int rc = libusb_bulk_transfer(devHandle, endpointSend, header.data(), header.size(),
+    USBHead* header = hdcHostUSB->BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
+    int rc = libusb_bulk_transfer(devHandle, endpointSend, reinterpret_cast<uint8_t*>(header), sizeof(USBHead),
         &transferred, usbBulkSendTimeout);
     WRITE_LOG(LOG_INFO, "SendSoftResetToDaemonSync sid:%s send reset rc:%d, send size:%d",
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), rc, transferred);
+    delete header;
 }
 
 void HdcHostUSB::SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld)
@@ -974,11 +975,12 @@ void HdcHostUSB::SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld)
     std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
     WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%s sidOld:%s",
         sessionIdMaskStr.c_str(), Hdc::MaskSessionIdToString(sessionIdOld).c_str());
-    auto header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
-    if (SendUSBRaw(hSession, header.data(), header.size()) <= 0) {
+    USBHead* header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
+    if (SendUSBRaw(hSession, reinterpret_cast<uint8_t*>(header), sizeof(USBHead)) <= 0) {
         WRITE_LOG(LOG_FATAL, "SendSoftResetToDaemon send failed");
     }
     hUSB->lockSendUsbBlock.unlock();
     WRITE_LOG(LOG_INFO, "SendSoftResetToDaemon sid:%s finished", sessionIdMaskStr.c_str());
+    delete header;
 }
 }  // namespace Hdc

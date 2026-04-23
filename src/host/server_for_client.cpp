@@ -549,14 +549,6 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
     return true;
 }
 
-bool HdcServerForClient::CommandRemoveForward(const string &forwardKey)
-{
-    StartTraceScope("HdcServerForClient::CommandRemoveForward");
-    bool ret = RemoveFportkey("0|" + forwardKey);
-    ret |= RemoveFportkey("1|" + forwardKey);
-    return ret;
-}
-
 bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
 {
     StartTraceScope("HdcServerForClient::RemoveFportkey");
@@ -564,12 +556,12 @@ bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
     HForwardInfo hfi = nullptr;
     ptrServer->AdminForwardMap(OP_QUERY, forwardKey, hfi);
     if (!hfi) {
-        WRITE_LOG(LOG_FATAL, "CommandRemoveForward hfi nullptr forwardKey:%s", forwardKey.c_str());
+        WRITE_LOG(LOG_FATAL, "RemoveFportkey hfi nullptr forwardKey:%s", Hdc::MaskString(forwardKey).c_str());
         return false;
     }
     HSession hSession = ptrServer->AdminSession(OP_QUERY, hfi->sessionId, nullptr);
     if (!hSession) {
-        WRITE_LOG(LOG_FATAL, "CommandRemoveForward hSession nullptr sessionId:%s",
+        WRITE_LOG(LOG_FATAL, "RemoveFportkey hSession nullptr sessionId:%s",
             Hdc::MaskSessionIdToString(hfi->sessionId).c_str());
         ptrServer->AdminForwardMap(OP_REMOVE, forwardKey, hfi);
         return true;
@@ -643,29 +635,32 @@ bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterS
 {
     StartTraceScope("HdcServerForClient::RemoveForward");
     HdcServer *ptrServer = (HdcServer *)clsServer;
-    if (parameterString == nullptr) {  // remove all
-        HForwardInfo hfi = nullptr;    // dummy
-        string echo = ptrServer->AdminForwardMap(OP_GET_STRLIST, "", hfi);
-        if (!echo.length()) {
-            return false;
-        }
-        vector<string> filterStrings;
-        Base::SplitString(echo, string("\n"), filterStrings);
-        for (auto &&s : filterStrings) {
-            if (CommandRemoveForward(s.c_str())) {
-                EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", s.c_str());
-            } else {
-                EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler is not exist %s", s.c_str());
-            }
-        }
-    } else {  // remove single
-        if (CommandRemoveForward(parameterString)) {
-            EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", parameterString);
+    HForwardInfo hfi = nullptr;
+    bool ret = false;
+    std::string echo = ptrServer->AdminForwardMap(OP_GET_STRLIST, hChannel->connectKey, hfi);
+    vector<string> filterStrings;
+    Base::SplitString(echo, string("\n"), filterStrings);
+    for (auto &&s : filterStrings) {
+        std::string taskString = s;
+        size_t pos = taskString.rfind("|");
+        if (pos != string::npos && pos + 1 < taskString.length()) {
+            taskString = taskString.substr(pos + 1);
         } else {
-            EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler is not exist %s", parameterString);
+            WRITE_LOG(LOG_WARN, "remove forward invalid %s", Hdc::MaskString(taskString).c_str());
+            ret = false;
+            break;
         }
+        if (parameterString != nullptr && taskString.compare(parameterString) != 0) {
+            continue;
+        }
+        ret |= RemoveFportkey(s);
     }
-    return true;
+    if (ret) {
+        EchoClient(hChannel, MSG_OK, "Remove forward ruler success, ruler:%s", parameterString);
+    } else {
+        EchoClient(hChannel, MSG_FAIL, "Remove forward ruler failed, ruler is not exist %s", parameterString);
+    }
+    return ret;
 }
 
 bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandInput)

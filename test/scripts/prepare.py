@@ -34,7 +34,7 @@ def check_exist_file():
     file_list.append("libA_v10001.hsp")
     file_list.append("libB_v10001.hsp")
     url = "https://gitee.com/TaowerfulMAX/h2dij432sfa423o_debugfortest/releases/download/0.0.1-debug/package_0.0.1.zip"
-    expected_md5 = "ace0655b5f8dfb181544c92ae90f7bfc"
+    expected_md5 = "0147bba3851cbada9379f106cf0f7b54"
     from testModule.utils import GP
     for file in file_list:
         if not os.path.exists(os.path.join(GP.local_path, file)):

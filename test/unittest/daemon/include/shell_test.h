@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Huawei Device Co., Ltd.
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,17 +12,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef HDC_DAEMON_BASE_H
-#define HDC_DAEMON_BASE_H
+#ifndef HDC_SHELL_TEST_H
+#define HDC_SHELL_TEST_H
 
-#ifndef UPDATER_MODE
-#include <string>
+#include <gtest/gtest.h>
+#include "shell.h"
+#include "task.h"
 
 namespace Hdc {
-namespace HdcDaemonBase {
-bool CheckBundlePath(const std::string &bundleName, std::string &mountPath);
-}
-}
-#endif
 
-#endif
+class ShellTest : public ::testing::Test {
+public:
+    static void SetUpTestCase(void);
+    static void TearDownTestCase(void);
+    void SetUp();
+    void TearDown();
+
+protected:
+    HdcShell *shell;
+    HTaskInfo taskInfo;
+};
+
+} // namespace Hdc
+
+#endif // HDC_SHELL_TEST_H

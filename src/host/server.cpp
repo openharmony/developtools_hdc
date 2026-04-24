@@ -835,7 +835,7 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
             pdiNew->sessionId = hSession->sessionId;
             pdiNew->connectKey = hSession->connectKey;
             pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
-            pdiNew->taskString = reinterpret_cast<char *>(payload);
+            pdiNew->taskString = hSession->connectKey + "|" + reinterpret_cast<char *>(payload);
             AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
 #ifdef __OHOS__
             if (hChannel->isUds) {
@@ -883,7 +883,15 @@ void HdcServer::BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, str
 {
     string buf;
     if (fullOrSimble) {
-        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), hfi->taskString.substr(OFFSET).c_str(),
+        std::string taskString = hfi->taskString;
+        size_t pos = taskString.rfind("|");
+        if (pos != std::string::npos && pos + 1 < taskString.length()) {
+            taskString = taskString.substr(pos + 1);
+        } else {
+            WRITE_LOG(LOG_WARN, "Invalid taskString %s", Hdc::MaskString(taskString).c_str());
+            return;
+        }
+        buf = Base::StringFormat("%s    %s    %s\n", hfi->connectKey.c_str(), taskString.c_str(),
                                  hfi->forwardDirection ? "[Forward]" : "[Reverse]");
     } else {
         buf = Base::StringFormat("%s\n", hfi->taskString.c_str());

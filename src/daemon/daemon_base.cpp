@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef UPDATER_MODE
 #include "daemon_base.h"
 #include <vector>
 #include "base.h"
@@ -69,3 +70,4 @@ bool CheckBundlePath(const std::string &bundleName, std::string &mountPath)
 }
 }
 }
+#endif

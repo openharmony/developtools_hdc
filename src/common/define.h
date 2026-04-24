@@ -54,7 +54,6 @@ constexpr uint8_t MINOR_TIMEOUT = 5;
 constexpr uint8_t MILL_SECONDS = 10;
 constexpr uint8_t WAIT_SECONDS = 30;
 constexpr uint8_t DWORD_SERIALIZE_SIZE = 4;
-constexpr uint8_t OFFSET = 2;
 constexpr uint8_t CMD_ARG1_COUNT = 2;
 constexpr uint8_t COUNT = 10;
 constexpr uint8_t STREAM_MAIN = 0;  // work at main thread
@@ -137,7 +136,11 @@ constexpr int32_t RSA_KEY_BITS = 3072;
 
 const string WHITE_SPACES = " \t\n\r";
 const string UT_TMP_PATH = "/tmp/hdc-ut";
+#ifdef UPDATER_MODE
+const string DEBUG_BUNDLE_PATH = "/mnt/debug/100/debug_hap/";
+#else
 const string DEBUG_BUNDLE_PATH = "/mnt/debug/";
+#endif
 const string LOG_FILE_NAME = "hdc.log";
 const string LOG_FILE_NAME_PREFIX = "hdc-";
 const string LOG_FILE_SUFFIX = ".log";

@@ -19,6 +19,10 @@
 
 #include "define_register.h"
 
+namespace OHOS::AbilityRuntime {
+class ApplicationUpdateCallback;
+}
+
 namespace Hdc {
 const char PERSIST_HDC_JDWP[] = "persist.hdc.jdwp";
 class HdcJdwpSimulator;
@@ -54,6 +58,11 @@ private:
     bool Connect2Jdwp();
     bool Send2Jdwp();
     void ReadFromJdwp();
+
+    static void ParameterChanged(const char *key, const char *value, void *context);
+
+    void AddApplicationUpdateCallback();
+    [[maybe_unused]] std::shared_ptr<OHOS::AbilityRuntime::ApplicationUpdateCallback> callbacks_ = nullptr;
 };
 } // namespace Hdc
 #endif  // REGISTER_HDC_JDWP_H

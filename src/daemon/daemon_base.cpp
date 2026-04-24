@@ -16,7 +16,9 @@
 #include <vector>
 #include "base.h"
 #include "define.h"
+#ifndef HDC_NO_ACCOUNT
 #include "os_account_manager.h"
+#endif
 
 namespace {
 static const int32_t DEFAULT_USER_ID = 100;
@@ -26,6 +28,7 @@ namespace Hdc {
 namespace HdcDaemonBase {
 static int32_t GetUserId()
 {
+#ifndef HDC_NO_ACCOUNT
     std::vector<int32_t> ids;
     OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
     if (err != 0) {
@@ -37,6 +40,9 @@ static int32_t GetUserId()
         return 0;
     }
     return ids[0];
+#else
+    return 0;
+#endif
 }
 
 bool CheckBundlePath(const std::string &bundleName, std::string &mountPath)

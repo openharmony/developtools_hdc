@@ -360,7 +360,7 @@ bool HdcTransferBase::ProcressFileIOIsSuccess(uv_fs_t *req, CtxFile *context, ui
         char buf[bufSize] = { 0 };
         uv_strerror_r((int)req->result, buf, bufSize);
         WRITE_LOG(LOG_DEBUG, "OnFileIO error: %s", buf);
-        context->lastErrno = static_cast<uint32_t>(abs(req->result));
+        context->lastErrno = static_cast<uint32_t>(std::abs(req->result));
         return false;
     }
     if (context->master) {

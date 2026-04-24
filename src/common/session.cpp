@@ -14,6 +14,9 @@
  */
 
 #include "session.h"
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#include "command_event_report.h"
+#endif
 #include "connect_validation.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
@@ -589,6 +592,19 @@ void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
 #endif
 }
 
+static void ReportConnectionEvent(HSession hSession, int connectStatus)
+{
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+    uint32_t sessionId = hSession->sessionId;
+    std::string connectType = conTypeDetail[CONN_UNKNOWN];
+    if (hSession->connType < CONN_UNKNOWN) {
+        connectType = conTypeDetail[hSession->connType];
+    }
+    DelayedSingleton<CommandEventReport>::GetInstance()->ReportConnectionEvent(
+        sessionId, connectStatus, connectType);
+#endif
+}
+
 // work when libuv-handle at struct of HdcSession has all callback finished
 void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
 {
@@ -611,6 +627,8 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
         hSession->classSSL = nullptr;
     }
 #endif
+    ReportConnectionEvent(hSession, 0);
+
     // all hsession uv handle has been clear
     thisClass->AdminSession(OP_REMOVE, hSession->sessionId, nullptr);
     WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%s finish",
@@ -1367,6 +1385,7 @@ bool HdcSessionBase::DispatchMainThreadCommand(HSession hSession, const CtrlStru
             WRITE_LOG(LOG_WARN, "Dispatch MainThreadCommand  START_SESSION sessionId:%s instance:%s",
                 sessionIdMaskStr.c_str(), hSession->serverOrDaemon ? "server" : "daemon");
             ret = WorkThreadStartSession(hSession);
+            ReportConnectionEvent(hSession, 1);
             break;
         }
         case SP_STOP_SESSION: {

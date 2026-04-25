@@ -17,6 +17,8 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdlib>
+#include <iomanip>
+#include <parameters.h>
 #include <string>
 #include "fcntl.h"
 #include "functional"
@@ -140,7 +142,73 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
     return true;
 }
 
-int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1, const char *workDir)
+#if defined(HDC_SUPPORT_REPORT_COMMAND_EVENT)
+static bool IsShellHistoryEnable()
+{
+    return OHOS::system::GetParameter("persist.hdc.shell_history.enable", "") == "true";
+}
+
+static std::string IntArr2HexStr(uint8_t arr[], int length)
+{
+    std::stringstream ss;
+    const int byteHexStrLen = 2;
+    for (int i = 0; i < length; i++) {
+        ss << std::hex << std::setw(byteHexStrLen) << std::setfill('0')
+            << static_cast<int>(arr[i]);
+    }
+    std::string result = ss.str();
+    return result;
+}
+
+static std::string GetHistoryFileName(uint32_t sessionId)
+{
+    std::string sessionIdStr = std::to_string(sessionId);
+    unsigned char sha512Hash[SHA512_DIGEST_LENGTH];
+    memset_s(sha512Hash, SHA512_DIGEST_LENGTH, 0, SHA512_DIGEST_LENGTH);
+    if (SHA512(reinterpret_cast<const unsigned char *>(sessionIdStr.c_str()), sessionIdStr.size(), sha512Hash)
+        == nullptr) {
+        WRITE_LOG(LOG_WARN, "GetHistoryFileName calc sha512 failed, sid:%s",
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return "";
+    }
+
+    // Take the first 16 characters of the sha512 hexadecimal string as the filename
+    static constexpr int historyFileNameLength = 16;
+    std::string sha512hexStr = IntArr2HexStr(sha512Hash, SHA512_DIGEST_LENGTH);
+    if (sha512hexStr.length() < historyFileNameLength) {
+        WRITE_LOG(LOG_WARN, "GetHistoryFileName sha512 hex string length is not correct, len:%zu, sid:%s",
+            sha512hexStr.length(), Hdc::MaskSessionIdToString(sessionId).c_str());
+        return "";
+    }
+    const std::string historyFilePath = "/data/local/tmp/ecd/";
+    std::string historyFileName = historyFilePath + sha512hexStr.substr(0, historyFileNameLength);
+    WRITE_LOG(LOG_INFO, "GetHistoryFileName finished, sid:%s", Hdc::MaskSessionIdToString(sessionId).c_str());
+    return historyFileName;
+}
+
+static void ConfigHistoryFile(const std::string &historyFileName)
+{
+    const std::string historyFile = "HISTFILE";
+    const std::string historyFileSize = "HISTFILESIZE";
+    const std::string historyFileSizeValue = "20000";
+
+    if (historyFileName.empty()) {
+        WRITE_LOG(LOG_WARN, "history file name is empty");
+        return;
+    }
+    if (setenv(historyFile.c_str(), historyFileName.c_str(), 1) < 0) {
+        WRITE_LOG(LOG_WARN, "setenv history file failed, errno:%d", errno);
+        return;
+    }
+    if (setenv(historyFileSize.c_str(), historyFileSizeValue.c_str(), 1) < 0) {
+        WRITE_LOG(LOG_WARN, "setenv history file size failed, errno:%d", errno);
+        return;
+    }
+    WRITE_LOG(LOG_INFO, "ConfighistoryFile finished");
+}
+#endif
+
+int HdcShell::ChildForkDo(int pts, const ShellParams &params)
 {
     dup2(pts, STDIN_FILENO);
     dup2(pts, STDOUT_FILENO);
@@ -152,7 +220,14 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
         write(fd, "0", 1);
         close(fd);
     }
+
+#if defined(HDC_SUPPORT_REPORT_COMMAND_EVENT)
+    if (params.isShellHistoryEnable) {
+        ConfigHistoryFile(params.historyFileName);
+    }
+#endif
     char *env = nullptr;
+    const char *workDir = params.workDirParam.empty() ? nullptr : params.workDirParam.c_str();
     if (workDir != nullptr && strlen(workDir) > 0 && chdir(workDir) == 0) {
         WRITE_LOG(LOG_DEBUG, "chdir to %s", workDir);
     } else if (((env = getenv("HOME")) && chdir(env) < 0) || chdir("/")) {
@@ -160,7 +235,7 @@ int HdcShell::ChildForkDo(int pts, const char *cmd, const char *arg0, const char
             WRITE_LOG(LOG_FATAL, "chdir bundlePath %s failed, %s", workDir, strerror(errno));
         }
     }
-    int ret = execl(cmd, cmd, arg0, arg1, nullptr);
+    int ret = execl(params.cmdParam, params.cmdParam, params.arg0Param, params.arg1Param, nullptr);
     if (ret < 0) {
         WRITE_LOG(LOG_DEBUG, "execl failed, %s", strerror(errno));
         _exit(0);
@@ -213,6 +288,12 @@ int HdcShell::ThreadFork(const char *cmd, const char *arg0, const char *arg1)
         WRITE_LOG(LOG_DEBUG, "shell params nullptr ptm:%d", ptm);
         return -1;
     }
+#if defined(HDC_SUPPORT_REPORT_COMMAND_EVENT)
+    params->isShellHistoryEnable = IsShellHistoryEnable();
+    if (params->isShellHistoryEnable) {
+        params->historyFileName = GetHistoryFileName(taskInfo->sessionId);
+    }
+#endif
     pthread_t threadId;
     void *shellRes;
     int ret = pthread_create(&threadId, nullptr, reinterpret_cast<void *(*)(void *)>(ShellFork), params);
@@ -236,12 +317,8 @@ void *HdcShell::ShellFork(void *arg)
         WRITE_LOG(LOG_DEBUG, "set Thread name failed.");
     }
     ShellParams params = *reinterpret_cast<ShellParams *>(arg);
-    const char *cmd = params.cmdParam;
-    const char *arg0 = params.arg0Param;
-    const char *arg1 = params.arg1Param;
     int ptmParam = params.ptmParam;
     char *devParam = params.devParam;
-    const char *workDirParam = params.workDirParam.empty() ? nullptr : params.workDirParam.c_str();
     pid_t pid = 0;
     pid = fork();
     if (pid < 0) {
@@ -262,7 +339,7 @@ void *HdcShell::ShellFork(void *arg)
         if ((pts = open(devParam, O_RDWR | O_CLOEXEC)) < 0) {
             return reinterpret_cast<void *>(-1);
         }
-        ChildForkDo(pts, cmd, arg0, arg1, workDirParam);
+        ChildForkDo(pts, params);
         // proc finish
     } else {
         return reinterpret_cast<void *>(pid);

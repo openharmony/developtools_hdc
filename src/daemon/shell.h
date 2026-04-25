@@ -17,6 +17,17 @@
 #include "task.h"
 
 namespace Hdc {
+struct ShellParams {
+    const char *cmdParam = nullptr;
+    const char *arg0Param = nullptr;
+    const char *arg1Param = nullptr;
+    int ptmParam = 0;
+    char *devParam = nullptr;
+    string workDirParam;
+    bool isShellHistoryEnable = false;
+    string historyFileName;
+};
+
 class HdcShell : public HdcTaskBase {
 public:
     HdcShell(HTaskInfo hTaskInfo);
@@ -31,7 +42,7 @@ private:
     bool InitShell(uint8_t *payload, const int payloadSize);
     int StartShell();
     int CreateSubProcessPTY(const char *cmd, const char *arg0, const char *arg1, pid_t *pid);
-    static int ChildForkDo(int pts, const char *cmd, const char *arg0, const char *arg1, const char *workDir);
+    static int ChildForkDo(int pts, const ShellParams &params);
     bool SpecialSignal(uint8_t ch);
     int ThreadFork(const char *cmd, const char *arg0, const char *arg1);
     static void *ShellFork(void *arg);
@@ -44,15 +55,6 @@ private:
     static std::mutex mutexPty;
     char devname[BUF_SIZE_SMALL] = "";
     string optionPath;
-};
-
-struct ShellParams {
-    const char *cmdParam = nullptr;
-    const char *arg0Param = nullptr;
-    const char *arg1Param = nullptr;
-    int ptmParam = 0;
-    char *devParam = nullptr;
-    string workDirParam;
 };
 }  // namespace Hdc
 #endif

@@ -29,6 +29,19 @@
 using namespace OHOS;
 
 namespace Hdc {
+
+// action usual.event.HDC_CONNECTION
+// param:
+// sessionId string
+// connectStatus int32 0 means disconnected, 1 means connected
+// timeMs int64 unixtime
+// connectType string from conTypeDetail, USB/TCP/UART...
+const std::string HDC_CONNECTION = "usual.event.HDC_CONNECTION";
+const std::string EVENT_PARAM_REPORT_SESSIONID = "sessionId";
+const std::string EVENT_PARAM_REPORT_CONNECT_STATUS = "connectStatus";
+const std::string EVENT_PARAM_REPORT_HAPPEN_TIME = "timeMs";
+const std::string EVENT_PARAM_REPORT_CONNECT_TYPE = "connectType";
+
 CommandEventReport::CommandEventReport()
 {
 }
@@ -39,7 +52,8 @@ CommandEventReport::~CommandEventReport()
 
 bool CommandEventReport::IsSupportReport()
 {
-    return OHOS::system::GetParameter("const.pc_security.fileguard_force_enable", "") == "true";
+    return ((OHOS::system::GetParameter("persist.hdc.report.enable", "") == "true") ||
+        (OHOS::system::GetParameter("const.pc_security.fileguard_force_enable", "") == "true"));
 }
 
 std::string CommandEventReport::FormatMessage(const std::string &command, const std::string &raw,
@@ -230,6 +244,40 @@ std::string CommandEventReport::GetCallerName(Base::Caller caller)
     }
 #else
     return Base::CALLER_DAEMON;
+#endif
+}
+
+void CommandEventReport::ReportConnectionEvent(uint32_t sessionId, int connectStatus, const std::string &connectType)
+{
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+#ifdef DAEMON_ONLY
+    OHOS::EventFwk::CommonEventPublishInfo publishInfo;
+    publishInfo.SetOrdered(true);
+
+    OHOS::AAFwk::Want want;
+    want.SetAction(HDC_CONNECTION);
+    want.SetParam(EVENT_PARAM_REPORT_SESSIONID, std::to_string(sessionId));
+    want.SetParam(EVENT_PARAM_REPORT_CONNECT_STATUS, connectStatus);
+    std::string ts = GetCurrentTimeStamp();
+    long long reportTime = 0;
+    auto rTime = std::from_chars(ts.data(), ts.data() + ts.size(), reportTime);
+    if (rTime.ec != std::errc{}) {
+        WRITE_LOG(LOG_WARN, "Failed to parse report time: %s", ts.c_str());
+        reportTime = 0;
+    }
+    want.SetParam(EVENT_PARAM_REPORT_HAPPEN_TIME, reportTime);
+    want.SetParam(EVENT_PARAM_REPORT_CONNECT_TYPE, connectType);
+
+    OHOS::EventFwk::CommonEventData event {want};
+    int32_t ret = OHOS::EventFwk::CommonEventManager::NewPublishCommonEvent(event, publishInfo);
+    if (ret != 0) {
+        WRITE_LOG(LOG_WARN, "Report connection publish event error: %d, sid:%s.",
+            ret, Hdc::MaskSessionIdToString(sessionId).c_str());
+        return;
+    }
+    WRITE_LOG(LOG_INFO, "Report connection success, status:%d type:%s sid:%s.",
+        connectStatus, connectType.c_str(), Hdc::MaskSessionIdToString(sessionId).c_str());
+#endif
 #endif
 }
 } // namespace Hdc

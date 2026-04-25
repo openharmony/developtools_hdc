@@ -237,6 +237,24 @@ HWTEST_F(HdcCredentialMessageTest, TestString2Uint8, TestSize.Level0)
     EXPECT_EQ(String2Uint8(s, 3).size(), 3);
 }
 
+HWTEST_F(HdcCredentialMessageTest, TestString2Uint8_EmptyString, TestSize.Level0)
+{
+    std::string s = "";
+    EXPECT_EQ(String2Uint8(s, 0).size(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestString2Uint8_NonEmptyStringZeroLength, TestSize.Level0)
+{
+    std::string s = "123";
+    EXPECT_EQ(String2Uint8(s, 0).size(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestString2Uint8_SingleCharacter, TestSize.Level0)
+{
+    std::string s = "1";
+    EXPECT_EQ(String2Uint8(s, 1).size(), 1);
+}
+
 HWTEST_F(HdcCredentialMessageTest, TestIntToStringWithPadding_InvalidLength, TestSize.Level0)
 {
     EXPECT_EQ(IntToStringWithPadding(123, 0), "");

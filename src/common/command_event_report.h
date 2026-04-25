@@ -34,6 +34,7 @@ public:
         bool isIntercepted, std::string command = "");
     bool ReportFileCommandEvent(
         const std::string &localPath, bool master, bool serverOrDaemon);
+    void ReportConnectionEvent(uint32_t sessionId, int connectStatus, const std::string &connectType);
 private:
     bool IsSupportReport();
     std::string FormatMessage(const std::string &command, const std::string &raw,

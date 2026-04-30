@@ -48,7 +48,8 @@
         "rust_rust-openssl",
         "huks",
         "rust_libc",
-        "hisysevent"
+        "hisysevent",
+        "i18n"
       ],
       "third_party": []
     },

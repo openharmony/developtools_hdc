@@ -32,6 +32,8 @@
 #include "pinauth_register.h"
 #include "user_access_ctrl_client.h"
 #include "aclmgr_system_api.h"
+#include "locale_config.h"
+#include "locale_matcher.h"
 
 using namespace OHOS::UserIam;
 using namespace OHOS::AccountSA;
@@ -54,7 +56,6 @@ static int32_t g_userId = -1;
 static std::vector<uint8_t> g_challenge(CHALLENGE_LEN, 0);
 static std::vector<uint8_t> g_authToken = {0};
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
-static const std::string TITLE = "Allow execution of sudo commands";
 
 static std::vector<std::string> envSnapshot;
 
@@ -440,6 +441,35 @@ static int32_t GetUserId()
     return ids[0];
 }
 
+static std::string GetLocalizedTitle()
+{
+    std::string currentLang = OHOS::Global::I18n::LocaleConfig::GetSimplifiedSystemLanguage();
+    if (currentLang.empty()) {
+        return "Allow execution of sudo commands";
+    }
+    std::unordered_map<std::string, std::string> TITLE_MAP = {
+        {"zh-CN", "允许执行sudo命令"},
+        {"en-US", "Allow execution of sudo commands"},
+        {"zh-HK", "允許執行sudo指令"},
+        {"zh-TW", "允許執行sudo指令"},
+        {"bo-CN", "sudo མངག་བཅོལ་བྱེད་ཆོག་པ།"},
+        {"ug-CN", "sudo بۇيرۇقىنى ئىجرا قىلىشقا يول قويۇلىدۇ"}
+    };
+
+    std::vector<std::string> candidateLocales = {"zh-CN", "en-US", "zh-HK", "zh-TW", "bo-CN", "ug-CN"};
+
+    std::string matchedLocale = OHOS::Global::I18n::LocaleMatcher::GetBestMatchedLocale(currentLang, candidateLocales);
+    if (matchedLocale.empty()) {
+        return "Allow execution of sudo commands";
+    }
+
+    auto it = TITLE_MAP.find(matchedLocale);
+    if (it != TITLE_MAP.end()) {
+        return it->second;
+    }
+    return "Allow execution of sudo commands";
+}
+
 static bool VerifyUserPin()
 {
     if (getuid() == 0) {
@@ -463,7 +493,7 @@ static bool VerifyUserPin()
     widgetAuthParam.authTypes = { AuthType::PIN };
 
     OHOS::UserIam::UserAuth::WidgetParam widgetParam;
-    widgetParam.title = TITLE;
+    widgetParam.title = GetLocalizedTitle();
     widgetParam.windowMode = OHOS::UserIam::UserAuth::WindowModeType::UNKNOWN_WINDOW_MODE;
 
     sudoIAMClient.BeginWidgetAuth(widgetAuthParam, widgetParam, callback);

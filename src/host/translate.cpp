@@ -264,7 +264,6 @@ string Verbose()
 #endif
         " shell [-b bundlename] [COMMAND...]    - Run shell command (interactive shell if no command given)\n"
         "                                         -b: run command in specified debug application bundle path\n"
-        "                                             bundle parameter only support non-interactive shell\n"
         " bugreport [FILE]                      - Return all information from the device, stored in file if FILE "
         "is specified\n"
         " jpid                                  - List PIDs of processes hosting a JDWP transport\n"

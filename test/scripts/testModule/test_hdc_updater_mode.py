@@ -52,49 +52,49 @@ class TestUpdaterMode:
         run_command_with_timeout(f"{GP.hdc_head} wait", 30)
         time.sleep(3)
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_shell_check_updater(self):
         """Test shell is in updater mode"""
         result = check_shell("shell param get updater.hdc.configfs", "1")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_shell_pwd_command(self):
         """Test shell pwd command in updater mode"""
         result = check_shell("shell pwd")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_shell_ls_command(self):
         """Test shell ls command in updater mode"""
         result = check_shell("shell ls /")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_shell_whoami_command(self):
         """Test shell whoami command in updater mode"""
         result = check_shell("shell whoami")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_shell_uname_command(self):
         """Test shell uname command in updater mode"""
         result = check_shell("shell uname -a")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_system_partition_access(self):
         """Test system partition access in updater mode"""
         result = check_shell("shell ls /system")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_vendor_partition_access(self):
         """Test vendor partition access in updater mode"""
         result = check_shell("shell ls /vendor")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_proc_access(self):
         """Test /proc/ access in updater mode"""
         result = check_shell("shell ls /proc")
@@ -103,13 +103,13 @@ class TestUpdaterMode:
         result = check_shell("shell cat /proc/version")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_sys_access(self):
         """Test /sys access in updater mode"""
         result = check_shell("shell ls /sys")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_file_read_operations(self):
         """Test file read operations in updater mode"""
         result = check_shell("shell cat /proc/cmdline")
@@ -118,7 +118,7 @@ class TestUpdaterMode:
         result = check_shell("shell cat /proc/version")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_file_write_operations(self):
         """Test file write operations in updater mode"""
         test_file = "/data/local/tmp/updater_test.txt"
@@ -132,7 +132,7 @@ class TestUpdaterMode:
         
         check_shell(f"shell rm {test_file}")
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_file_permissions(self):
         """Test file permissions in updater mode"""
         test_file = "/data/local/tmp/updater_perms.txt"
@@ -144,14 +144,14 @@ class TestUpdaterMode:
         
         check_shell(f"shell rm {test_file}")
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
     def test_updater_mode_bundle_path_constant(self):
         """Test that DEBUG_BUNDLE_PATH is correct in updater mode"""
         result = check_shell("shell ls /mnt/debug/100/debug_hap/")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     @check_version("Ver: 3.1.0e")
     def test_updater_mode_without_os_account(self):
         """Test functionality works without os_account module"""
@@ -161,19 +161,19 @@ class TestUpdaterMode:
         result = check_shell("shell ls /data")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_invalid_command_handling(self):
         """Test invalid commands are handled properly in updater mode"""
         result = check_shell("shell invalid_command_xyz", "/bin/sh: invalid_command_xyz: inaccessible or not found")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_invalid_path_handling(self):
         """Test invalid paths are handled properly in updater mode"""
         result = check_shell("shell ls /nonexistent/path/xyz", "ls: /nonexistent/path/xyz: No such file or directory")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_command_response_time(self):
         """Test command response time in updater mode"""
         start_time = time.time()
@@ -183,7 +183,7 @@ class TestUpdaterMode:
         assert result
         assert (end_time - start_time) < 10.0
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_multiple_commands_performance(self):
         """Test performance of multiple commands"""
         start_time = time.time()
@@ -196,7 +196,7 @@ class TestUpdaterMode:
         
         assert (end_time - start_time) < 30.0
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_after_error_recovery(self):
         """Test recovery after error"""
         check_shell("shell invalid_command_xyz")
@@ -204,7 +204,7 @@ class TestUpdaterMode:
         result = check_shell("shell pwd")
         assert result
 
-    @pytest.mark.L0
+    @pytest.mark.L2
     def test_server_restart_recovery(self):
         """Test recovery after server restart"""
         result = check_hdc_cmd("start")

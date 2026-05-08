@@ -224,6 +224,8 @@ const string CMDSTR_FLASHD_ERASE = "erase";
 const string CMDSTR_FLASHD_FORMAT = "format";
 const string STR_FEATURE_ENABLE = "enable";
 const string STR_FEATURE_DISABLE = "disable";
+const string CMDSTR_SPAWN_SUB = "spawn-sub";
+const string CMDSTR_KILLALL_SUB = "killall-sub";
 // ################################ Error Message ###################################
 const string TERMINAL_HDC_PROCESS_FAILED = "[E002101]:Terminal hdc process failed, "\
     "please terminal the hdc process in the task manager first.";

@@ -50,6 +50,10 @@ string Usage()
             " -s [ip:]port | uds                    - Set hdc server listen config\n"
 #else
             " -s [ip:]port                          - Set hdc server listen config\n"
+            " spawn-sub -i serial -o [ip:]port      - Spawn a subserver process\n"
+            "                                         -i: specify the device serial number\n"
+            "                                         -o: specify the listen address\n"
+            " killall-sub                           - Kill all subserver processes\n"
 #endif
             "\n"
             "service commands(on daemon):\n"
@@ -180,6 +184,11 @@ string Verbose()
         " -s [ip:]port | uds                    - Set hdc server listen config\n"
 #else
         " -s [ip:]port                          - Set hdc server listen config\n"
+        " spawn-sub -i serial -o [ip:]port      - Spawn a subserver process\n"
+        "                                         -i: specify the device serial number\n"
+        "                                         -o: specify the listen address\n"
+        "                                         -N/-L: internal use only, do not specify\n"
+        " killall-sub                           - Kill all subserver processes\n"
 #endif
         " -e ip                                 - Set the IP address for which the host listens during TCP\n"
         "                                         port forwarding. The default value is 127.0.0.1,\n"
@@ -568,6 +577,11 @@ string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatComman
         outCmd->cmdFlag = CMD_KERNEL_ENABLE_KEEPALIVE;
     } else if (HostUpdater::CheckMatchUpdate(input, *outCmd)) {
         outCmd->parameters = input;
+#ifndef HOST_OHOS
+    } else if (strncmp(input.c_str(), CMDSTR_SPAWN_SUB.c_str(), CMDSTR_SPAWN_SUB.size()) == 0) {
+        outCmd->cmdFlag = CMD_SPAWN_SUB;
+        outCmd->parameters = input;
+#endif
     } else {
         stringError = "Unknown command...";
         outCmd->bJumpDo = true;

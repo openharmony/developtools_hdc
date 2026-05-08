@@ -26,6 +26,13 @@ using HClearUsbChannelWorkInfo = struct ClearUsbChannelWorkInfo *;
 
 class HdcHostUSB : public HdcUSBBase {
 public:
+    enum class UsbCheckStatus {
+        HOST_USB_IGNORE = 1,        // Device temporarily unavailable, retry later
+        HOST_USB_READY,             // Reserved enum value (not used currently)
+        HOST_USB_REGISTER,          // Device connected to current process
+        HOST_USB_SUSPENDED          // Temporarily suspended by spawn-sub command
+    };
+
     HdcHostUSB(const bool serverOrDaemonIn, void *ptrMainBase, void *ctxUSBin);
     virtual ~HdcHostUSB();
     int Initial();
@@ -33,17 +40,22 @@ public:
     int SendUSBRaw(HSession hSession, uint8_t *data, const int length) override;
     HSession ConnectDetectDaemon(const HSession hSession, const HDaemonInfo pdi);
     void Stop();
-    void RemoveIgnoreDevice(string &mountInfo);
     static libusb_log_level GetLibusbLogLevel(void);
     static void SetLibusbLogLevelEnv(libusb_log_level logLevel);
     void SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld);
+    static void WatchUsbNodeChange(HdcHostUSB *thisClass);
+    void ReviewUsbNodeLater(const string &nodeKey, UsbCheckStatus status = UsbCheckStatus::HOST_USB_IGNORE);
 
 private:
-    enum UsbCheckStatus {
-        HOST_USB_IGNORE = 1,
-        HOST_USB_READY,
-        HOST_USB_REGISTER,
+
+    enum class DetectReturnType {
+        NEW_OBJECT_FAIL,
+        OPEN_DEVICE_FAIL,
+        WRONG_SERIAL_FAIL,
+        MALLOC_SESSION_FAIL,
+        DETECT_SUCCESS
     };
+
     static int LIBUSB_CALL HotplugHostUSBCallback(libusb_context *ctx, libusb_device *device,
                                                   libusb_hotplug_event event, void *userData);
     static void UsbWorkThread(void *arg);  // 3rd thread
@@ -62,11 +74,11 @@ private:
     bool IsDebuggableDev(const struct libusb_interface_descriptor *ifDescriptor);
     bool ReadyForWorkThread(HSession hSession) override;
     bool FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_context *ctxUSB);
-    bool DetectMyNeed(libusb_device *device, string &sn);
+    DetectReturnType DetectMyNeed(libusb_device *device, string &sn);
     void RestoreHdcProtocol(HUSB hUsb, const uint8_t *buf, int bufSize);
     void UpdateUSBDaemonInfo(HUSB hUSB, HSession hSession, uint8_t connStatus);
     void BeginUsbRead(HSession hSession);
-    void ReviewUsbNodeLater(string &nodeKey);
+    void RemoveIgnoreDevice(string &mountInfo, bool force = false);
     void CancelUsbIo(HSession hSession) override;
     int UsbToHdcProtocol(uv_stream_t *stream, uint8_t *appendData, int dataSize) override;
     int SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, int bufSize);

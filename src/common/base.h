@@ -312,6 +312,18 @@ namespace Base {
     bool GetEncrpytTCPSwitch();
     void SetIsServerFlag(bool isServer);
     Caller GetCaller();
+
+    // subserver feature (called by main server)
+    std::string GenerateSubserverLogFileName();
+    std::vector<std::string> ListDirectoryFiles(const std::string& dirPath);
+    void CleanupSubserverLogFiles();
+    void RemoveOldLogFiles(const std::string& dirPath, uint32_t limit);
+    void RemoveUnknownFiles(const std::string& dirPath, const std::vector<std::string>& files);
+
+    // subserver feature (called by subserver)
+    void SetSubserverLogFileName(const std::string& logFileName);
+    void SubserverCreateLogFile();
+
 }  // namespace base
 }  // namespace Hdc
 

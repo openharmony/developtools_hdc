@@ -543,6 +543,7 @@ void HdcSessionBase::FreeSessionByConnectType(HSession hSession)
     WRITE_LOG(LOG_INFO, "FreeSessionByConnectType %s", hSession->ToDebugString().c_str());
 
     if (hSession->connType == CONN_USB) {
+        OnUSBDisconnectExit();
         // ibusb All context is applied for sub-threaded, so it needs to be destroyed in the subline
         if (!hSession->hUSB) {
             return;

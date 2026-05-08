@@ -13,10 +13,12 @@
  * limitations under the License.
  */
 #include "server.h"
+
 #include "connect_validation.h"
 #include "host_updater.h"
+#include "runtime_config.h"
 #include "server_cmd_log.h"
-
+#include "subserver/subserver_manager.h"
 
 namespace Hdc {
 HdcServer::HdcServer(bool serverOrDaemonIn)
@@ -84,10 +86,24 @@ void HdcServer::TryStopInstance()
     ClearMapDaemonInfo();
 }
 
+static bool InitialServerForClient(void* clsServerForClient)
+{
+    int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
+    if (rc != RET_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "clsServerForClient Initial failed");
+        static constexpr int listenPortError = -3;
+        if (rc == listenPortError && RuntimeConfig::Instance().isSubserver) {
+            SubserverManager::ExitProcess(SubserverStatus::PORT_LISTEN_FAIL);
+        }
+        return false;
+    }
+    return true;
+}
+
 bool HdcServer::Initial(const char *listenString)
 {
     bool ret = false;
-    if (Base::ProgramMutex(false) != 0) {
+    if (!RuntimeConfig::Instance().isSubserver && Base::ProgramMutex(false) != 0) {
         WRITE_LOG(LOG_FATAL, "Other instance already running, program mutex failed");
         return false;
     }
@@ -100,9 +116,7 @@ bool HdcServer::Initial(const char *listenString)
 #endif
     do {
         clsServerForClient = new HdcServerForClient(true, listenString, this, &loopMain);
-        int rc = (static_cast<HdcServerForClient *>(clsServerForClient))->Initial();
-        if (rc != RET_SUCCESS) {
-            WRITE_LOG(LOG_FATAL, "clsServerForClient Initial failed");
+        if (!InitialServerForClient(clsServerForClient)) {
             break;
         }
         clsUSBClt->InitLogging(ctxUSB);
@@ -244,7 +258,6 @@ void HdcServer::ClearMapDaemonInfo()
     map<string, HDaemonInfo>::iterator iter;
     uv_rwlock_rdlock(&daemonAdmin);
     for (iter = mapDaemon.begin(); iter != mapDaemon.end();) {
-        string sKey = iter->first;
         HDaemonInfo hDi = iter->second;
         delete hDi;
         ++iter;
@@ -448,6 +461,13 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
         CleanForwardMap(hSession->sessionId);
+    }
+}
+
+void HdcServer::OnUSBDisconnectExit()
+{
+    if (RuntimeConfig::Instance().isSubserver) {
+        SubserverManager::ExitProcess(SubserverStatus::USB_DISCONNECT);
     }
 }
 

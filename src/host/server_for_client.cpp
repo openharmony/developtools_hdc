@@ -17,6 +17,7 @@
 #include "hdc_hash_gen.h"
 #endif
 #include "server.h"
+#include "subserver/subserver_manager.h"
 #ifdef __OHOS__
 #include <sys/un.h>
 #include "system_depend.h"
@@ -631,6 +632,38 @@ bool HdcServerForClient::WaitForAny(HChannel hChannel)
     return true;
 }
 
+static const std::string& GetSubserverStatusStr(SubserverStatus status)
+{
+    static const std::unordered_map<SubserverStatus, std::string> map = {
+        {SubserverStatus::CONNECTING, "Subserver started, connecting USB"},
+        {SubserverStatus::SUBPROCESS_FAIL, "Subprocess launch failed"},
+        {SubserverStatus::PORT_LISTEN_FAIL, "Port binding failed"},
+        {SubserverStatus::CONNECT_TIMEOUT, "USB connection timeout"},
+        {SubserverStatus::INVALID_DEVICE, "Device not found"},
+        {SubserverStatus::PARAM_ERROR, "Invalid parameters"},
+        {SubserverStatus::CONNECT_SUCCESS, "USB connected successfully"},
+        {SubserverStatus::USB_DISCONNECT, "USB disconnected"},
+        {SubserverStatus::SUBSERVER_ABONDON, "Only main server can spawn subserver"},
+        {SubserverStatus::SUBSERVER_OTHER_EXIT, "Subserver exited"}
+    };
+
+    auto it = map.find(status);
+    if (it == map.end()) {
+        static const std::string unknownError = "Unknown error";
+        return unknownError;
+    }
+    return it->second;
+}
+
+bool HdcServerForClient::ProcessSubserver(HChannel hChannel, const std::string& parameters)
+{
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    SubserverStatus status = SubserverManager::Instance().HandleCommand(ptrServer, hChannel, parameters);
+    const std::string& str = GetSubserverStatusStr(status);
+    EchoClient(hChannel, MSG_OK, "%s", str.c_str());
+    return true;
+}
+
 bool HdcServerForClient::RemoveForward(HChannel hChannel, const char *parameterString)
 {
     StartTraceScope("HdcServerForClient::RemoveForward");
@@ -760,6 +793,11 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             // just use for 'list targets' now
             hChannel->keepAlive = true;
             ret = true;
+            hChannel->isSuccess = true;
+            break;
+        }
+        case CMD_SPAWN_SUB: {
+            ProcessSubserver(hChannel, formatCommand->parameters);
             hChannel->isSuccess = true;
             break;
         }
@@ -942,6 +980,7 @@ bool HdcServerForClient::DoCommand(HChannel hChannel, void *formatCommandInput, 
 #ifdef HOST_OHOS
         formatCommand->cmdFlag == CMD_SERVER_KILL ||
 #endif
+        formatCommand->cmdFlag == CMD_SPAWN_SUB ||
         formatCommand->cmdFlag == CMD_SERVICE_START) {
         hChannel->commandFlag = formatCommand->cmdFlag;
         hChannel->commandParameters = formatCommand->parameters;

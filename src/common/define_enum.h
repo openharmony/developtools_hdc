@@ -214,6 +214,9 @@ enum HdcCommand {
 
     //Heartbeat commands
     CMD_HEARTBEAT_MSG = 5000,
+
+    // Spawn-sub commands
+    CMD_SPAWN_SUB = 6000,
 };
 
 enum UsbProtocolOption {

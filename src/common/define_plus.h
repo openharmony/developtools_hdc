@@ -15,6 +15,7 @@
 #ifndef DEFINE_PLUS_H
 #define DEFINE_PLUS_H
 
+#include <condition_variable>
 #include <sstream>
 #include <thread>
 #ifdef HDC_TRACE

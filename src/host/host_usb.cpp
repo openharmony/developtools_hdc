@@ -19,6 +19,9 @@
 #include <chrono>
 
 #include "server.h"
+#include "runtime_config.h"
+#include "subserver/subserver_manager.h"
+
 namespace Hdc {
 HdcHostUSB::HdcHostUSB(const bool serverOrDaemonIn, void *ptrMainBase, void *ctxUSBin)
     : HdcUSBBase(serverOrDaemonIn, ptrMainBase)
@@ -160,12 +163,19 @@ void HdcHostUSB::InitLogging(void *ctxUSB)
                       LIBUSB_LOG_CB_CONTEXT | LIBUSB_LOG_CB_GLOBAL);
 }
 
-bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
+static void ReleaseAndCloseDevice(HUSB hUSB)
+{
+    libusb_release_interface(hUSB->devHandle, hUSB->interfaceNumber);
+    libusb_close(hUSB->devHandle);
+    hUSB->devHandle = nullptr;
+}
+
+HdcHostUSB::DetectReturnType HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
 {
     HUSB hUSB = new(std::nothrow) HdcUSB();
     if (hUSB == nullptr) {
         WRITE_LOG(LOG_FATAL, "DetectMyNeed new hUSB failed");
-        return false;
+        return DetectReturnType::NEW_OBJECT_FAIL;
     }
     hUSB->device = device;
     // just get usb SN, close handle immediately
@@ -173,11 +183,16 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     if (childRet < 0) {
         WRITE_LOG(LOG_FATAL, "DetectMyNeed OpenDeviceMyNeed childRet:%d", childRet);
         delete hUSB;
-        return false;
+        return DetectReturnType::OPEN_DEVICE_FAIL;
     }
-    libusb_release_interface(hUSB->devHandle, hUSB->interfaceNumber);
-    libusb_close(hUSB->devHandle);
-    hUSB->devHandle = nullptr;
+
+    // subserver only connects to USB devices with specified serial number
+    if (RuntimeConfig::Instance().isSubserver && RuntimeConfig::Instance().subserverSerial != hUSB->serialNumber) {
+        ReleaseAndCloseDevice(hUSB);
+        return DetectReturnType::WRONG_SERIAL_FAIL;
+    }
+
+    ReleaseAndCloseDevice(hUSB);
 
     WRITE_LOG(LOG_INFO, "Needed device found, busid:%d devid:%d connectkey:%s", hUSB->busId, hUSB->devId,
               Hdc::MaskString(hUSB->serialNumber).c_str());
@@ -188,7 +203,7 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
     if (!hSession) {
         WRITE_LOG(LOG_FATAL, "malloc usb session failed sn:%s", Hdc::MaskString(sn).c_str());
         delete hUSB;
-        return false;
+        return DetectReturnType::MALLOC_SESSION_FAIL;
     }
     hSession->connectKey = hUSB->serialNumber;
     hdcServer->PrintAllSessionConnection(hSession->sessionId);
@@ -197,14 +212,20 @@ bool HdcHostUSB::DetectMyNeed(libusb_device *device, string &sn)
         WRITE_LOG(LOG_FATAL, "DetectMyNeed new waitTimeDoCmd failed");
         delete hUSB;
         hdcServer->FreeSession(hSession->sessionId);
-        return false;
+        return DetectReturnType::NEW_OBJECT_FAIL;
+    }
+    if (RuntimeConfig::Instance().isSubserver) {
+        SubserverManager::Instance().CancelConnectTimer();
     }
     uv_timer_init(&hdcServer->loopMain, waitTimeDoCmd);
     waitTimeDoCmd->data = hSession;
     uv_timer_start(waitTimeDoCmd, hdcServer->UsbPreConnect, 0, DEVICE_CHECK_INTERVAL);
-    mapIgnoreDevice[sn] = HOST_USB_REGISTER;
+    mapIgnoreDevice[sn] = UsbCheckStatus::HOST_USB_REGISTER;
+
+    SubserverManager::Instance().NotifyDeviceConnect(hSession->connectKey);
+
     delete hUSB;
-    return true;
+    return DetectReturnType::DETECT_SUCCESS;
 }
 
 void HdcHostUSB::KickoutZombie(HSession hSession)
@@ -223,32 +244,37 @@ void HdcHostUSB::KickoutZombie(HSession hSession)
     ptrConnect->FreeSession(hSession->sessionId);
 }
 
-void HdcHostUSB::RemoveIgnoreDevice(string &mountInfo)
+void HdcHostUSB::RemoveIgnoreDevice(string &mountInfo, bool force)
 {
     auto it = mapIgnoreDevice.find(mountInfo);
     if (it != mapIgnoreDevice.end()) {
-        mapIgnoreDevice.erase(it);
+        if (force || it->second != UsbCheckStatus::HOST_USB_SUSPENDED) {
+            mapIgnoreDevice.erase(it);
+        }
     }
 }
 
-void HdcHostUSB::ReviewUsbNodeLater(string &nodeKey)
+void HdcHostUSB::ReviewUsbNodeLater(const string &nodeKey, UsbCheckStatus status)
 {
     HdcServer *hdcServer = (HdcServer *)clsMainBase;
     // add to ignore list
-    mapIgnoreDevice[nodeKey] = HOST_USB_IGNORE;
+    mapIgnoreDevice[nodeKey] = status;
     int delayRemoveFromList = DEVICE_CHECK_INTERVAL * MINOR_TIMEOUT;  // wait little time for daemon reinit
     Base::DelayDo(&hdcServer->loopMain, delayRemoveFromList, 0, nodeKey, nullptr,
-                  [this](const uint8_t flag, string &msg, const void *) -> void { RemoveIgnoreDevice(msg); });
+                  [this](const uint8_t flag, string &msg, const void *) -> void { RemoveIgnoreDevice(msg, true); });
 }
 
 void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
 {
+    if (RuntimeConfig::Instance().isSubserver && SubserverManager::Instance().UsbDeviceConnected()) {
+        // subserver does not scan USB devices once connected to the specified device
+        return;
+    }
     HdcHostUSB *thisClass = static_cast<HdcHostUSB *>(handle->data);
     if (thisClass->ctxUSB == nullptr) {
         if (libusb_init((libusb_context **)&thisClass->ctxUSB) != 0) {
             thisClass->ctxUSB = nullptr;
-            if (thisClass->logRePrintTimer % MAX_LOG_TIMER == 0 &&
-                thisClass->logRePrintCount < MAX_LOG_REPRINT_COUNT) {
+            if (thisClass->logRePrintTimer % MAX_LOG_TIMER == 0 && thisClass->logRePrintCount < MAX_LOG_REPRINT_COUNT) {
                 WRITE_LOG(LOG_FATAL, "WatchUsbNodeChange failed to init libusb, reprint count: %d",
                     ++thisClass->logRePrintCount);
                 thisClass->logRePrintTimer = 0; // every MAX_LOG_REPRINT times will reprint log once.
@@ -266,8 +292,7 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
     // kick zombie
     ptrConnect->EnumUSBDeviceRegister(KickoutZombie);
     // find new
-    ssize_t cnt = libusb_get_device_list(thisClass->ctxUSB, &devs);
-    if (cnt < 0) {
+    if (libusb_get_device_list(thisClass->ctxUSB, &devs) < 0) {
         WRITE_LOG(LOG_FATAL, "Failed to get device list");
         return;
     }
@@ -277,12 +302,21 @@ void HdcHostUSB::WatchUsbNodeChange(uv_timer_t *handle)
         string szTmpKey = Base::StringFormat("%d-%d", libusb_get_bus_number(dev), libusb_get_device_address(dev));
         // check is in ignore list
         UsbCheckStatus statusCheck = thisClass->mapIgnoreDevice[szTmpKey];
-        if (statusCheck == HOST_USB_IGNORE || statusCheck == HOST_USB_REGISTER) {
+        if (statusCheck == UsbCheckStatus::HOST_USB_IGNORE || statusCheck == UsbCheckStatus::HOST_USB_REGISTER ||
+            statusCheck == UsbCheckStatus::HOST_USB_SUSPENDED) {
             continue;
         }
         string sn = szTmpKey;
-        if (thisClass->HasValidDevice(dev) && !thisClass->DetectMyNeed(dev, sn)) {
-            thisClass->ReviewUsbNodeLater(szTmpKey);
+        if (thisClass->HasValidDevice(dev)) {
+            DetectReturnType ret = thisClass->DetectMyNeed(dev, sn);
+            bool reviewLater = ret != DetectReturnType::DETECT_SUCCESS;
+            if (RuntimeConfig::Instance().isSubserver && ret == DetectReturnType::OPEN_DEVICE_FAIL) {
+                // subserver may fail to connect if main server hasn't disconnected USB yet, should retry quickly
+                reviewLater = false;
+            }
+            if (reviewLater) {
+                thisClass->ReviewUsbNodeLater(szTmpKey);
+            }
         }
     }
     libusb_free_device_list(devs, 1);

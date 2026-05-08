@@ -16,8 +16,10 @@
 #include <iostream>
 #include "ext_client.h"
 #include "forward.h"
+#include "runtime_config.h"
 #include "server.h"
 #include "server_for_client.h"
+#include "subserver/subserver_manager.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,19 +34,6 @@ using namespace HdcTest;
 #endif
 
 using namespace Hdc;
-
-namespace {
-    bool g_isServerMode = false;
-    bool g_isPullServer = true;
-    bool g_isPcDebugRun = false;
-    bool g_isTCPorUSB = false;
-    bool g_isCustomLoglevel = false;
-    bool g_externalCmd = false;
-    int g_isTestMethod = 0;
-    string g_connectKey = "";
-    string g_serverListenString = "";
-    string g_containerInOut = "";
-}
 
 namespace Hdc {
 // return value: 0 == not command, 1 == one command, 2 == double command
@@ -86,6 +75,10 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_FLASHD_FLASH);
     registerCommand.push_back(CMDSTR_FLASHD_ERASE);
     registerCommand.push_back(CMDSTR_FLASHD_FORMAT);
+#ifndef HOST_OHOS
+    registerCommand.push_back(CMDSTR_SPAWN_SUB);
+    registerCommand.push_back(CMDSTR_KILLALL_SUB);
+#endif
 
     for (string v : registerCommand) {
         if (doubleCommand == v) {
@@ -160,8 +153,9 @@ int SplitOptionAndCommand(int argc, const char **argv, string &outOption, string
     return 0;
 }
 
-int RunServerMode(string &serverListenString)
+int RunServerMode()
 {
+    const std::string& serverListenString = RuntimeConfig::Instance().serverListenString;
 #ifndef __OHOS__
     if (serverListenString.empty()) {
         return -1;
@@ -185,17 +179,18 @@ int RunServerMode(string &serverListenString)
     return 0;
 }
 
-int RunPcDebugMode(bool isPullServer, bool isTCPorUSB, int isTestMethod)
+int RunPcDebugMode()
 {
 #ifdef HARMONY_PROJECT
     Base::PrintMessage("Not support command...");
 #else
+    bool isPullServer = RuntimeConfig::Instance().isPullServer;
     pthread_t pt;
     if (isPullServer) {
         pthread_create(&pt, nullptr, TestBackgroundServerForClient, nullptr);
         uv_sleep(200);  // give time to start serverForClient,at least 200ms
     }
-    TestRuntimeCommandSimple(isTCPorUSB, isTestMethod, true);
+    TestRuntimeCommandSimple(RuntimeConfig::Instance().isTCPorUSB, RuntimeConfig::Instance().isTestMethod, true);
     if (isPullServer) {
         pthread_join(pt, nullptr);
         WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Server finish");
@@ -204,23 +199,34 @@ int RunPcDebugMode(bool isPullServer, bool isTCPorUSB, int isTestMethod)
     return 0;
 }
 
-int RunClientMode(string &commands, string &serverListenString, string &connectKey, bool isPullServer)
+static bool CheckCommand(const std::string& commands)
 {
+    if (commands.size() == 0) {
+        Base::PrintMessage("Unknown operation command...");
+        std::cerr << TranslateCommand::Usage();
+        return false;
+    }
+    return true;
+}
+
+int RunClientMode(string &commands)
+{
+    std::string connectKey = RuntimeConfig::Instance().connectKey;
+    std::string serverListenString = RuntimeConfig::Instance().serverListenString;
     if (serverListenString.empty()) {
         return -1;
     }
     uv_loop_t loopMain;
     uv_loop_init(&loopMain);
     HdcClient client(false, serverListenString, &loopMain, commands == CMDSTR_CHECK_SERVER);
-    if (!commands.size()) {
-        Base::PrintMessage("Unknown operation command...");
-        std::cerr << TranslateCommand::Usage();
+    if (!CheckCommand(commands)) {
         return 0;
     }
 #ifdef HOST_OHOS
     if (!strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size())) {
 #else
     if (!strncmp(commands.c_str(), CMDSTR_GENERATE_KEY.c_str(), CMDSTR_GENERATE_KEY.size()) ||
+        !strncmp(commands.c_str(), CMDSTR_KILLALL_SUB.c_str(), CMDSTR_KILLALL_SUB.size()) ||
         !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
 #endif
         client.CtrlServiceWork(commands.c_str());
@@ -230,7 +236,7 @@ int RunClientMode(string &commands, string &serverListenString, string &connectK
         client.ChannelCtrlServer(commands.find(" -r") != std::string::npos, connectKey);
         return 0;
     }
-    if (isPullServer && Base::ProgramMutex(true) == 0) {
+    if (RuntimeConfig::Instance().isPullServer && Base::ProgramMutex(true) == 0) {
 #ifdef HOST_OHOS
         if (!strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(),
             CMDSTR_SERVICE_KILL.size())) {
@@ -288,25 +294,14 @@ bool IsHiShellLabel()
 }
 #endif
 
-bool ParseServerListenString(string &serverListenString, char *optarg)
+bool FormatServerListenString(const char* input, std::string& outputAddress)
 {
-#ifdef __OHOS__
-    string temp = optarg;
-    if (temp == UDS_STR) {
-        serverListenString = temp;
-        return true;
-    }
-    if (!IsHiShellLabel()) {
-        Base::PrintMessage("[E001105] Unsupport option [s], please try command in HiShell.");
-        return false;
-    }
-#endif
-    if (strlen(optarg) > strlen("0000::0000:0000:0000:0000%interfacename:65535")) {
+    if (strlen(input) > strlen("0000::0000:0000:0000:0000%interfacename:65535")) {
         Base::PrintMessage("Unknown content of parament '-s'");
         return false;
     }
     char buf[BUF_SIZE_TINY] = "";
-    if (strcpy_s(buf, sizeof(buf), optarg) != 0) {
+    if (strcpy_s(buf, sizeof(buf), input) != 0) {
         Base::PrintMessage("strcpy_s error %d", errno);
         return false;
     }
@@ -329,7 +324,7 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
             return false;
         }
         (void)snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "::ffff:127.0.0.1:%d", port);
-        serverListenString = buf;
+        outputAddress = buf;
     } else {
         *p = '\0';
         char *str = p + 1;
@@ -350,16 +345,33 @@ bool ParseServerListenString(string &serverListenString, char *optarg)
         }
 
         if (uv_ip4_addr(buf, port, &addrv4) == 0) {
-            serverListenString = IPV4_MAPPING_PREFIX;
-            serverListenString += optarg;
+            outputAddress = IPV4_MAPPING_PREFIX;
+            outputAddress += input;
         } else if (uv_ip6_addr(buf, port, &addrv6) == 0) {
-            serverListenString = optarg;
+            outputAddress = input;
         } else {
             Base::PrintMessage("-s content IP incorrect.");
             return false;
         }
     }
     return true;
+}
+
+bool ParseServerListenString(char *optarg)
+{
+    std::string& serverListenString = RuntimeConfig::Instance().serverListenString;
+#ifdef __OHOS__
+    string temp = optarg;
+    if (temp == UDS_STR) {
+        serverListenString = temp;
+        return true;
+    }
+    if (!IsHiShellLabel()) {
+        Base::PrintMessage("[E001105] Unsupport option [s], please try command in HiShell.");
+        return false;
+    }
+#endif
+    return FormatServerListenString(optarg, serverListenString);
 }
 
 bool ParseForwardListenIP(char *optarg)
@@ -392,7 +404,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
     bool needExit = false;
     opterr = 0;
     // get option parameters first
-    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:e:t:l:")) != -1) {
+    while ((ch = getopt(optArgc, const_cast<char *const*>(optArgv), "hvpfmncs:Sd:e:t:l:o:Ni:L:")) != -1) {
         switch (ch) {
             case 'h': {
                 string usage = Hdc::TranslateCommand::Usage();
@@ -426,25 +438,25 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                     needExit = true;
                     return needExit;
                 }
-                g_isCustomLoglevel = true;
+                RuntimeConfig::Instance().isCustomLoglevel = true;
                 Base::SetLogLevel(logLevel);
                 break;
             }
             case 'm': {  // [not-publish] is server mode，or client mode
-                g_isServerMode = true;
-                Base::SetIsServerFlag(g_isServerMode);
+                RuntimeConfig::Instance().isServerMode = true;
+                Base::SetIsServerFlag(true);
                 break;
             }
             case 'n': {
-                g_containerInOut = "-n";
+                RuntimeConfig::Instance().containerInOut = "-n";
                 break;
             }
             case 'c': {
-                g_containerInOut = "-c";
+                RuntimeConfig::Instance().containerInOut = "-c";
                 break;
             }
             case 'p': {  // [not-publish]  not pullup server
-                g_isPullServer = false;
+                RuntimeConfig::Instance().isPullServer = false;
                 break;
             }
             case 't': {  // key
@@ -453,33 +465,58 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                     needExit = true;
                     return needExit;
                 }
-                g_connectKey = optarg;
+                RuntimeConfig::Instance().connectKey = optarg;
                 break;
             }
             case 's': {
-                if (!Hdc::ParseServerListenString(g_serverListenString, optarg)) {
+                if (!Hdc::ParseServerListenString(optarg)) {
                     needExit = true;
                     return needExit;
                 }
                 break;
             }
             case 'S': {
-                g_externalCmd = true;
+                RuntimeConfig::Instance().externalCmd = true;
                 break;
             }
             case 'd':  // [Undisclosed parameters] debug mode
-                g_isPcDebugRun = true;
+                RuntimeConfig::Instance().isPcDebugRun = true;
                 if (optarg[0] == 't') {
-                    g_isTCPorUSB = true;
+                    RuntimeConfig::Instance().isTCPorUSB = true;
                 } else if (optarg[0] == 'u') {
-                    g_isTCPorUSB = false;
+                    RuntimeConfig::Instance().isTCPorUSB = false;
                 } else {
                     Base::PrintMessage("Unknown debug parameters");
                     needExit = true;
                     return needExit;
                 }
-                g_isTestMethod = atoi(optarg + 1);
+                RuntimeConfig::Instance().isTestMethod = atoi(optarg + 1);
                 break;
+            case 'o': {
+                std::string address = "";
+                if (!FormatServerListenString(optarg, address)) {
+                    return true;
+                }
+                RuntimeConfig::Instance().subserverPort = address;
+                break;
+            }
+            case 'N': {
+                RuntimeConfig::Instance().isSubserver = true;
+                break;
+            }
+            case 'i': {
+                if (strlen(optarg) > MAX_CONNECTKEY_SIZE) {
+                    Base::PrintMessage("Device serial too long");
+                    needExit = true;
+                    return needExit;
+                }
+                RuntimeConfig::Instance().subserverSerial = optarg;
+                break;
+            }
+            case 'L': {
+                RuntimeConfig::Instance().subserverLogFileName = optarg;
+                break;
+            }
             case '?':
                 break;
             default: {
@@ -522,27 +559,36 @@ void InitServerAddr(void)
             return;
         }
     } while (0);
-    g_serverListenString = DEFAULT_SERVER_ADDR_IP;
-    g_serverListenString += ":";
-    g_serverListenString += std::to_string(port);
+    RuntimeConfig::Instance().serverListenString = DEFAULT_SERVER_ADDR_IP + ":" + std::to_string(port);
 }
 
-void RunExternalClient(string &str, string &connectKey, string &containerInOut)
+void RunExternalClient(string &str)
 {
     ExtClient extClient;
-    extClient.connectKey = connectKey;
-    extClient.containerInOut = containerInOut;
+    extClient.connectKey = RuntimeConfig::Instance().connectKey;
+    extClient.containerInOut = RuntimeConfig::Instance().containerInOut;
     extClient.Init();
     extClient.ExecuteCommand(str);
 }
 }
 
 #ifndef UNIT_TEST
+static void CheckSpawnSubParam(const std::string& commands)
+{
+#ifndef HOST_OHOS
+    if (!strncmp(commands.c_str(), CMDSTR_SPAWN_SUB.c_str(), CMDSTR_SPAWN_SUB.size())) {
+        if (!SubserverManager::Instance().CheckClientParam(commands)) {
+            _exit(0);
+        }
+    }
+#endif
+}
 
 // hdc -l4 -m -s ip:port|hdc -l4 -m
 // hdc -l4 - s ip:port list targets
 int main(int argc, const char *argv[])
 {
+    RuntimeConfig& runtimeConfig = RuntimeConfig::Instance();
     Base::UpdateEnvCache();
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -563,26 +609,37 @@ int main(int argc, const char *argv[])
         return 0;
     }
     Base::InitProcess();
-    if (g_isServerMode) {
+
+    if (runtimeConfig.isSubserver) {
+        Hdc::Base::SetSubserverLogFileName(runtimeConfig.subserverLogFileName);
+        Hdc::Base::SubserverCreateLogFile();
+        SubserverManager::Instance().CheckParentProcess();
+        SubserverManager::Instance().StartConnectTimer();
+        SubserverManager::RegisterPid();
+        if (FormatServerListenString(runtimeConfig.subserverPort.c_str(), runtimeConfig.serverListenString)) {
+            Hdc::RunServerMode();
+        }
+    } else if (runtimeConfig.isServerMode) {
 #ifdef FEATURE_HOST_LOG_COMPRESS
         Base::CreateLogDir();
 #endif
         // -m server.Run alone in the background, no -s will be listen loopback address
-        Hdc::RunServerMode(g_serverListenString);
-    } else if (g_isPcDebugRun) {
-        Hdc::RunPcDebugMode(g_isPullServer, g_isTCPorUSB, g_isTestMethod);
+        Hdc::RunServerMode();
+    } else if (runtimeConfig.isPcDebugRun) {
+        Hdc::RunPcDebugMode();
     } else {
 #ifdef __OHOS__
-        if (g_serverListenString.empty()) {
-            g_serverListenString = UDS_STR;
+        if (runtimeConfig.serverListenString.empty()) {
+            runtimeConfig.serverListenString = UDS_STR;
         }
 #endif
-        if (!g_isCustomLoglevel) {
+        if (!runtimeConfig.isCustomLoglevel) {
             Base::SetLogLevel(LOG_INFO);
         }
 
         if (!ExtClient::SharedLibraryExist()) {
-            Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+            CheckSpawnSubParam(commands);
+            Hdc::RunClientMode(commands);
             Hdc::Base::RemoveLogCache();
             _exit(0);
         }
@@ -594,38 +651,39 @@ int main(int argc, const char *argv[])
             } else {
                 str = commands;
             }
-            Hdc::RunExternalClient(str, g_connectKey, g_containerInOut);
-            Hdc::RunClientMode(str, g_serverListenString, g_connectKey, g_isPullServer);
+            Hdc::RunExternalClient(str);
+            Hdc::RunClientMode(str);
         } else if (!strncmp(commands.c_str(), CMDSTR_SOFTWARE_VERSION.c_str(), CMDSTR_SOFTWARE_VERSION.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
                    !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
-            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
-            Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+            Hdc::RunExternalClient(commands);
+            Hdc::RunClientMode(commands);
         } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size()) || g_externalCmd) {
-            Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
+                   !strncmp(commands.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size()) ||
+                   runtimeConfig.externalCmd) {
+            Hdc::RunExternalClient(commands);
         } else {
             g_show = false;
-            Hdc::RunExternalClient(str, g_connectKey, g_containerInOut);
-            Hdc::RunClientMode(str, g_serverListenString, g_connectKey, g_isPullServer);
+            Hdc::RunExternalClient(str);
+            Hdc::RunClientMode(str);
             g_show = true;
-            if (g_connectKey.empty()) {
+            if (runtimeConfig.connectKey.empty()) {
                 if (g_lists.size() == 0) {
                     Base::PrintMessage("No any target");
                 } else if (g_lists.size() == 1) {
                     auto iter = g_lists.begin();
-                    g_connectKey = iter->first;
+                    runtimeConfig.connectKey = iter->first;
                 } else {
                     Base::PrintMessage("Specify one target");
                 }
             }
-            if (g_lists[g_connectKey] == "external") {
-                Hdc::RunExternalClient(commands, g_connectKey, g_containerInOut);
-            } else if (g_lists[g_connectKey] == "hdc") {
-                Hdc::RunClientMode(commands, g_serverListenString, g_connectKey, g_isPullServer);
+            if (g_lists[runtimeConfig.connectKey] == "external") {
+                Hdc::RunExternalClient(commands);
+            } else if (g_lists[runtimeConfig.connectKey] == "hdc") {
+                Hdc::RunClientMode(commands);
             }
         }
     }

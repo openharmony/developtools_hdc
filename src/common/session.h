@@ -134,6 +134,7 @@ public:
     {
         return true;
     }
+    virtual void OnUSBDisconnectExit() {}
     bool WantRestart()
     {
         return wantRestart;

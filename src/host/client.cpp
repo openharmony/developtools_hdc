@@ -23,6 +23,7 @@
 #include "system_depend.h"
 #endif
 #include "file.h"
+#include "subserver/subserver_manager.h"
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
 #include "command_event_report.h"
 #endif
@@ -218,6 +219,9 @@ void HdcClient::DoCtrlServiceWork(uv_check_t *handle)
     string &strCmd = thisClass->command;
     if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size())) {
         thisClass->StartServer(strCmd);
+    } else if (!strncmp(thisClass->command.c_str(), CMDSTR_KILLALL_SUB.c_str(),
+                        CMDSTR_KILLALL_SUB.size())) {
+        SubserverManager::KillAllSubservers();
     } else if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
         thisClass->KillServer(strCmd);
         // clang-format off
@@ -253,6 +257,7 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
 #ifdef HOST_OHOS
     vecNoConnectKeyCommand.push_back(CMDSTR_SERVICE_KILL);
 #endif
+    vecNoConnectKeyCommand.push_back(CMDSTR_KILLALL_SUB);
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
     vecNoConnectKeyCommand.push_back(CMDSTR_CONNECT_TARGET);

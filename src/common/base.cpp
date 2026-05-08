@@ -57,6 +57,12 @@ namespace Base {
     std::mutex g_threadCompressCmdLogsMutex;
     std::shared_ptr<std::thread> g_compressCmdLogsThread;
     std::atomic<bool> g_isServer = false;   // default false for client
+
+    // global variables for subserver feature (spawn-sub command)
+    static bool g_isSubserver = false;
+    static std::string g_subserverLogFileName = "";
+    static std::vector<std::string> g_subserverLogFileNames;
+
 #ifndef _WIN32
     constexpr int EXEC_FAILED_ERROR_CODE = 100; // 100 means exec run failed
 #endif
@@ -198,7 +204,9 @@ namespace Base {
         }
         fclose(fp);
 #else
-        int flags = UV_FS_O_RDWR | UV_FS_O_APPEND | UV_FS_O_CREAT;
+        // Subserver creates log file only once during process startup.
+        // If the log file is deleted later, subserver won't recreate it
+        static int flags = UV_FS_O_RDWR | UV_FS_O_APPEND | (!g_isSubserver ? UV_FS_O_CREAT : 0);
         uv_fs_t req;
 #ifdef HOST_OHOS
         mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
@@ -207,10 +215,12 @@ namespace Base {
 #endif
         int fd = uv_fs_open(nullptr, &req, path, flags, mode, nullptr);
         if (fd < 0) {
-            char buffer[BUF_SIZE_DEFAULT] = { 0 };
-            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
-            uv_fs_req_cleanup(&req);
-            PrintMessage("LogToPath uv_fs_open %s error %s", path, buffer);
+            if (!g_isSubserver) {
+                char buffer[BUF_SIZE_DEFAULT] = { 0 };
+                uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+                uv_fs_req_cleanup(&req);
+                PrintMessage("LogToPath uv_fs_open %s error %s", path, buffer);
+            }
             return;
         }
         string text(str);
@@ -455,6 +465,10 @@ namespace Base {
 #ifdef _WIN32
     void RemoveOlderLogFilesOnWindows()
     {
+        if (g_isSubserver) {
+            // CleanupSubserverLogFiles remove subserver's old logs
+            return;
+        }
         vector<string> files;
         WIN32_FIND_DATA findData;
         HANDLE hFind = FindFirstFile((GetLogDirName() + "/*").c_str(), &findData);
@@ -508,7 +522,7 @@ namespace Base {
         HANDLE hFind = FindFirstFile((GetLogDirName() + "/*").c_str(), &findData);
         if (hFind == INVALID_HANDLE_VALUE) {
             WRITE_LOG(LOG_WARN, "Failed to open log dir");
-            return;
+            return files;
         }
 
         do {
@@ -541,6 +555,9 @@ namespace Base {
 
     inline string GetLogDirName()
     {
+        if (g_isSubserver) [[unlikely]] {
+            return GetTmpDir() + ".hdc_subserver" + GetPathSep();
+        }
 #ifdef FEATURE_HOST_LOG_COMPRESS
         return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
 #else
@@ -562,6 +579,10 @@ namespace Base {
 
     void RemoveOlderLogFiles()
     {
+        if (g_isSubserver) {
+            // CleanupSubserverLogFiles remove subserver's old logs
+            return;
+        }
         vector<string> files = GetDirFileName();
 #ifdef FEATURE_HOST_LOG_COMPRESS
         uint16_t logLimitSize = GetLogLimitFileCount();
@@ -601,15 +622,81 @@ namespace Base {
 
     void LogToFile(const char *str)
     {
-        string path = GetLogDirName() + LOG_FILE_NAME;
+        string path = "";
+        if (!g_isSubserver) [[likely]] {
+            path = GetLogDirName() + LOG_FILE_NAME;
+        } else {
+            path = GetLogDirName() + g_subserverLogFileName;
+        }
         RollLogFile(path.c_str());
         LogToPath(path.c_str(), str);
+    }
+
+    void SubserverCreateLogFile()
+    {
+        if (g_subserverLogFileName.empty()) {
+            return;
+        }
+        string dirPath = GetTmpDir() + ".hdc_subserver";
+        string filePath = dirPath + GetPathSep() + g_subserverLogFileName;
+
+        string errMsg;
+        if (!TryCreateDirectory(dirPath, errMsg)) {
+            PrintMessage("SubserverCreateLogFile create dir failed: %s", errMsg.c_str());
+            return;
+        }
+
+        uv_fs_t req;
+        int flags = UV_FS_O_RDWR | UV_FS_O_APPEND | UV_FS_O_CREAT;
+#ifdef HOST_OHOS
+        mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+#else
+        mode_t mode = (S_IWUSR | S_IRUSR);
+#endif
+        int fd = uv_fs_open(nullptr, &req, filePath.c_str(), flags, mode, nullptr);
+        if (fd < 0) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+            uv_fs_req_cleanup(&req);
+            PrintMessage("SubserverCreateLogFile uv_fs_open %s error %s", filePath.c_str(), buffer);
+            return;
+        }
+        uv_fs_close(nullptr, &req, fd, nullptr);
+        uv_fs_req_cleanup(&req);
+        PrintMessage("SubserverCreateLogFile create dir succ: %s", filePath.c_str());
     }
 
     void LogToCache(const char *str)
     {
         string path = GetLogDirName() + LOG_CACHE_NAME;
         LogToPath(path.c_str(), str);
+    }
+
+    void TruncateSubserverLogFile(const char *path)
+    {
+        uv_fs_t openReq;
+        int fd = uv_fs_open(nullptr, &openReq, path, UV_FS_O_RDWR, 0, nullptr);
+        uv_fs_req_cleanup(&openReq);
+
+        if (fd < 0) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r(fd, buffer, BUF_SIZE_DEFAULT);
+            PrintMessage("RollLogFile open %s failed %s", path, buffer);
+            return;
+        }
+
+        uv_fs_t truncateReq;
+        int rc = uv_fs_ftruncate(nullptr, &truncateReq, fd, 0, nullptr);
+        if (rc != 0) {
+            char buffer[BUF_SIZE_DEFAULT] = { 0 };
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            PrintMessage("RollLogFile truncate %s failed %s", path, buffer);
+        }
+        uv_fs_req_cleanup(&truncateReq);
+
+        uv_fs_t closeReq;
+        uv_fs_close(nullptr, &closeReq, fd, nullptr);
+        uv_fs_req_cleanup(&closeReq);
     }
 
     void RollLogFile(const char *path)
@@ -620,14 +707,21 @@ namespace Base {
         value = uv_fs_stat(nullptr, &fs, path, nullptr);
         uv_fs_req_cleanup(&fs);
         if (value != 0) {
-            constexpr int bufSize = 1024;
-            char buf[bufSize] = { 0 };
-            uv_strerror_r(value, buf, bufSize);
-            PrintMessage("RollLogFile error log file %s not exist %s", path, buf);
+            if (!g_isSubserver) {
+                constexpr int bufSize = 1024;
+                char buf[bufSize] = { 0 };
+                uv_strerror_r(value, buf, bufSize);
+                PrintMessage("RollLogFile error log file %s not exist %s", path, buf);
+            }
             return;
         }
         uint64_t size = fs.statbuf.st_size;
         if (size < MAX_LOG_FILE_SIZE) {
+            return;
+        }
+        if (g_isSubserver) {
+            // truncate current log file when size exceeds limit, do not create new file.
+            TruncateSubserverLogFile(path);
             return;
         }
         string last = GetLogDirName() + GetLogNameWithTime();
@@ -738,7 +832,7 @@ static void EchoLog(string &buf)
 #endif
         EchoLog(logBuf);
 
-        if (!g_logCache) {
+        if (!g_logCache || g_isSubserver) {
             LogToFile(logBuf.c_str());
         } else {
             LogToCache(logBuf.c_str());
@@ -2369,6 +2463,9 @@ static void EchoLog(string &buf)
 
     void RemoveLogFile()
     {
+        if (g_isSubserver) {
+            return;
+        }
         if (g_logCache) {
             string path = GetLogDirName() + LOG_FILE_NAME;
             string bakName = GetLogNameWithTime();
@@ -3104,7 +3201,7 @@ void CloseOpenFd(void)
             } else {
                 WRITE_LOG(LOG_FATAL, "FindFirstFile failed, path:%s", findFileMatchStr.c_str());
             }
-            return ;
+            return g_cmdLogsFilesStrings;
         }
         do {
             if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
@@ -3319,6 +3416,122 @@ void CloseOpenFd(void)
     void SetIsServerFlag(bool isServer)
     {
         g_isServer = isServer;
+    }
+
+    void SetSubserverLogFileName(const std::string& logFileName)
+    {
+        g_subserverLogFileName = logFileName;
+        g_isSubserver = true;
+    }
+
+    static uint32_t GetSubserverLogFileLimit()
+    {
+        const char* envKey = "HDC_SUBSERVER_LOG_FILE_MAX";
+        char* env = getenv(envKey);
+
+        if (env == nullptr || strlen(env) == 0) {
+            return 0;
+        }
+
+        char* endptr = nullptr;
+        long value = strtol(env, &endptr, 10);
+        if (*endptr != '\0' || value < 0) {
+            return 0;
+        }
+
+        static constexpr uint32_t maxLimit = 20;
+        if (value > maxLimit) {
+            return maxLimit;
+        }
+        return static_cast<uint32_t>(value);
+    }
+
+    std::string GenerateSubserverLogFileName()
+    {
+        CleanupSubserverLogFiles();
+
+        if (GetSubserverLogFileLimit() == 0) {
+            return "";
+        }
+
+        string timeStr;
+        GetTimeString(timeStr);
+        int randomNum = GetRandomNum(100000, 999999);
+        std::string fileName = "hdc_subserver_" + timeStr + "_" + std::to_string(randomNum) + ".log";
+        g_subserverLogFileNames.push_back(fileName);
+
+        return fileName;
+    }
+
+    vector<string> ListDirectoryFiles(const string& dirPath)
+    {
+        vector<string> files;
+#ifdef _WIN32
+        WIN32_FIND_DATA findData;
+        HANDLE hFind = FindFirstFile((dirPath + "/*").c_str(), &findData);
+        if (hFind == INVALID_HANDLE_VALUE) {
+            return files;
+        }
+        do {
+            string fileName = findData.cFileName;
+            if (fileName != "." && fileName != "..") {
+                files.push_back(fileName);
+            }
+        } while (FindNextFile(hFind, &findData));
+        FindClose(hFind);
+#else
+        DIR* dir = opendir(dirPath.c_str());
+        if (dir == nullptr) {
+            return files;
+        }
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            string fileName = entry->d_name;
+            if (fileName != "." && fileName != "..") {
+                files.push_back(fileName);
+            }
+        }
+        closedir(dir);
+#endif
+        return files;
+    }
+
+    void RemoveOldLogFiles(const string& dirPath, uint32_t limit)
+    {
+        while (g_subserverLogFileNames.size() > limit) {
+            string oldestFile = g_subserverLogFileNames.front();
+            g_subserverLogFileNames.erase(g_subserverLogFileNames.begin());
+            string fullPath = dirPath + GetPathSep() + oldestFile;
+            unlink(fullPath.c_str());
+        }
+    }
+
+    void RemoveUnknownFiles(const string& dirPath, const vector<string>& files)
+    {
+        for (const string& file : files) {
+            if (std::find(g_subserverLogFileNames.begin(), g_subserverLogFileNames.end(), file)
+                == g_subserverLogFileNames.end()) {
+                string fullPath = dirPath + GetPathSep() + file;
+                unlink(fullPath.c_str());
+            }
+        }
+    }
+
+    void CleanupSubserverLogFiles()
+    {
+        string dirPath = GetTmpDir() + ".hdc_subserver";
+        uint32_t limit = GetSubserverLogFileLimit();
+
+        vector<string> files = ListDirectoryFiles(dirPath);
+        RemoveOldLogFiles(dirPath, limit);
+        RemoveUnknownFiles(dirPath, files);
+
+        if (limit == 0) {
+            uv_fs_t req;
+            uv_fs_rmdir(nullptr, &req, dirPath.c_str(), nullptr);
+            uv_fs_req_cleanup(&req);
+            g_subserverLogFileNames.clear();
+        }
     }
 
     Caller GetCaller()

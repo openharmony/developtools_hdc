@@ -19,7 +19,7 @@
 namespace Hdc {
 class HdcServer : public HdcSessionBase {
 public:
-    HdcServer(bool serverOrDaemonIn);
+    explicit HdcServer(bool serverOrDaemonIn);
     virtual ~HdcServer();
     bool FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                       const int payloadSize) override;
@@ -41,6 +41,7 @@ public:
     static bool PullupServer(const char *listenString);
     static void UsbPreConnect(uv_timer_t *handle);
     void NotifyInstanceSessionFree(HSession hSession, bool freeOrClear) override;
+    void OnUSBDisconnectExit() override;
 #ifdef HOST_OHOS
     void SessionSoftReset();
 #endif

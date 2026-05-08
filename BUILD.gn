@@ -420,8 +420,17 @@ ohos_executable("hdc") {
     "src/host/host_updater.cpp",
     "src/host/host_usb.cpp",
     "src/host/main.cpp",
+    "src/host/runtime_config.cpp",
     "src/host/server.cpp",
     "src/host/server_for_client.cpp",
+    "src/host/subserver/process_handle.cpp",
+    "src/host/subserver/process_handle_win.cpp",
+    "src/host/subserver/process_handle_unix.cpp",
+    "src/host/subserver/file_lock_util.cpp",
+    "src/host/subserver/file_lock_util_win.cpp",
+    "src/host/subserver/file_lock_util_unix.cpp",
+    "src/host/subserver/subserver_process_info.cpp",
+    "src/host/subserver/subserver_manager.cpp",
     "src/host/translate.cpp",
   ]
   sources += hdc_common_sources

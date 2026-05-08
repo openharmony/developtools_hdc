@@ -110,6 +110,10 @@ template("hdcd_source_set") {
       "MEMORY_POOL_ENABLE"
     ]
 
+    if (!support_jsapi) {
+      defines += [ "HDC_NO_ACCOUNT" ]
+    }
+
     if (hdc_debug) {
       defines += [ "HDC_DEBUG" ]
     }
@@ -154,7 +158,7 @@ template("hdcd_source_set") {
       "openssl:libssl_shared",
     ]
 
-    if (build_selinux && image_name == "system" && product_name != "ohos-sdk") {
+    if (build_selinux && image_name == "system" && product_name != "ohos-sdk" && support_jsapi) {
       external_deps += [
         "ipc:ipc_single",
         "os_account:os_account_innerkits",

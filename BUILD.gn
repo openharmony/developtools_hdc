@@ -579,7 +579,7 @@ ohos_shared_library("hdc_register") {
     "src/register/hdc_jdwp.cpp",
   ]
 
-  if (product_name != "ohos-sdk") {
+  if (product_name != "ohos-sdk"&& support_jsapi) {
     external_deps += [
       "ability_runtime:application_image_observer_manager",
       "ability_runtime:app_manager",

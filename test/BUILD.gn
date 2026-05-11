@@ -176,7 +176,7 @@ ohos_source_set("hdc_daemon") {
   }
   external_deps = common_external_deps
   external_deps += [ "c_utils:utils" ]
-  if (product_name != "ohos-sdk") {
+  if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
@@ -290,7 +290,7 @@ ohos_unittest("hdc_jdwp_unittest") {
     "hilog:libhilog",
   ]
 
-  if (product_name != "ohos-sdk") {
+  if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
@@ -438,7 +438,7 @@ ohos_unittest("hdc_daemon_base_unittest") {
     "libusb:libusb",
   ]
 
-  if (product_name != "ohos-sdk") {
+  if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
@@ -481,7 +481,7 @@ ohos_unittest("hdc_shell_unittest") {
     "libusb:libusb",
   ]
 
-  if (product_name != "ohos-sdk") {
+  if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",

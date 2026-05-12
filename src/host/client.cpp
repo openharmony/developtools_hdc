@@ -675,7 +675,7 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     HdcClient *thisClass = (HdcClient *)hChannel->clsChannel;
     CALLSTAT_GUARD(thisClass->loopMainStatus, stream->loop, "HdcClient::ReadStd");
     if (!hChannel->handshakeOK) {
-        WRITE_LOG(LOG_WARN, "ReadStd handshake not ready");
+        WRITE_LOG(LOG_DEBUG, "ReadStd handshake not ready");
         return; // if not handshake, do not send the cmd input to server.
     }
     char *cmd = hChannel->bufStd;

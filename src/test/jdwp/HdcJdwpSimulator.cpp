@@ -87,6 +87,10 @@ void HdcJdwpSimulator::alloc_buffer(uv_handle_t *handle, size_t suggested_size, 
         return;
     }
     buf->base = (char *)malloc(suggested_size);
+    if (buf->base == nullptr) {
+        buf->len = 0;
+        return;
+    }
     buf->len = suggested_size;
 }
 

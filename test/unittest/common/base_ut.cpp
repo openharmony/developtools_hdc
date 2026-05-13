@@ -343,6 +343,44 @@ HWTEST_F(BaseTest, IsValidIpv4_IPv6, TestSize.Level0) {
     EXPECT_FALSE(Base::IsValidIpv4(ip));
 }
 
+HWTEST_F(BaseTest, StringToLong_Empty, TestSize.Level0) {
+    std::string str = "";
+    long int value = 0;
+    EXPECT_FALSE(Base::StringToLong(str, value));
+}
+
+HWTEST_F(BaseTest, StringToLong_InvalidString, TestSize.Level0) {
+    std::string str = "abcd123yyy";
+    long int value = 0;
+    EXPECT_FALSE(Base::StringToLong(str, value));
+}
+
+HWTEST_F(BaseTest, StringToLong_Underflow, TestSize.Level0) {
+    std::string str = "-9999999999";
+    long int value = 0;
+    EXPECT_FALSE(Base::StringToLong(str, value));
+}
+
+HWTEST_F(BaseTest, StringToLong_Overflow, TestSize.Level0) {
+    std::string str = "9999999999";
+    long int value = 0;
+    EXPECT_FALSE(Base::StringToLong(str, value));
+}
+
+HWTEST_F(BaseTest, StringToLong_ValidString, TestSize.Level0) {
+    std::string str = "1234567890";
+    long int value = 0;
+    EXPECT_TRUE(Base::StringToLong(str, value));
+    EXPECT_EQ(value, 1234567890);
+}
+
+HWTEST_F(BaseTest, StringToLong_Zero, TestSize.Level0) {
+    std::string str = "0";
+    long int value = 0;
+    EXPECT_TRUE(Base::StringToLong(str, value));
+    EXPECT_EQ(value, 0);
+}
+
 HWTEST_F(BaseTest, ShellCmdTrim_EmptyStr, TestSize.Level0) {
     std::string cmd = "";
     EXPECT_EQ(Base::ShellCmdTrim(cmd), "");

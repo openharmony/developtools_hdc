@@ -2699,6 +2699,27 @@ void CloseOpenFd(void)
         return segments.size() == ipCount;
     }
 
+    bool StringToLong(const std::string& str, long int &out)
+    {
+        if (str.empty()) {
+            WRITE_LOG(LOG_DEBUG, "empty string");
+            return false;
+        }
+        constexpr int base = 10;
+        char *endptr = nullptr;
+        errno = 0;
+        out = strtol(str.c_str(), &endptr, base);
+        if (*endptr != '\0') {
+            WRITE_LOG(LOG_DEBUG, "invalid string");
+            return false;
+        }
+        if (errno == ERANGE) {
+            WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
+            return false;
+        }
+        return true;
+    }
+
     // Trim from both sides and paired
     string &ShellCmdTrim(string &cmd)
     {

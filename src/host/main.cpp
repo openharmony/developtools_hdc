@@ -479,18 +479,9 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 RuntimeConfig::Instance().externalCmd = true;
                 break;
             }
-            case 'd':  // [Undisclosed parameters] debug mode
-                RuntimeConfig::Instance().isPcDebugRun = true;
-                if (optarg[0] == 't') {
-                    RuntimeConfig::Instance().isTCPorUSB = true;
-                } else if (optarg[0] == 'u') {
-                    RuntimeConfig::Instance().isTCPorUSB = false;
-                } else {
-                    Base::PrintMessage("Unknown debug parameters");
-                    needExit = true;
-                    return needExit;
-                }
-                RuntimeConfig::Instance().isTestMethod = atoi(optarg + 1);
+            case 'd':
+                Base::PrintMessage("Not support command...");
+                needExit = true;
                 break;
             case 'o': {
                 std::string address = "";

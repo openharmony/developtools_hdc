@@ -67,7 +67,7 @@ void HdcDaemonBridge::AcceptClient(uv_stream_t *uvpipe, ssize_t nread, const uv_
     CALLSTAT_GUARD(ptrConnect->loopMainStatus, uvpipe->loop, "HdcDaemonBridge::AcceptClient");
     const uint16_t maxWaitTime = UV_DEFAULT_INTERVAL;
     int newPort = *(int *)buf->base;
-    int newClientFd;
+    int newClientFd = -1;
     int ret = 0;
     if (nread != SOCKET_FD_LEN) {
         WRITE_LOG(LOG_FATAL, "AcceptClient err nread %d", nread);

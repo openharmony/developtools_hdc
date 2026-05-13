@@ -783,9 +783,19 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
     WRITE_LOG(LOG_DEBUG, "usbMountPoint:%s", usbMountPoint);
     if (strchr(usbMountPoint, '-') && EOK == strcpy_s(tmpStr, sizeof(tmpStr), usbMountPoint)) {
         *strchr(tmpStr, '-') = '\0';
-        busNum = atoi(tmpStr);
-        devNum = atoi(tmpStr + strlen(tmpStr) + 1);
+        long int busnumber = 0;
+        long int devaddress = 0;
+        bool bBus = Base::StringToLong(tmpStr, busnumber);
+        bool bDev = Base::StringToLong(tmpStr + strlen(tmpStr) + 1, devaddress);
+        if (!bBus || !bDev) {
+            WRITE_LOG(LOG_WARN, "StringToLong error bBus:%d bDev:%d", bBus, bDev);
+            libusb_free_device_list(listDevices, 1);
+            return false;
+        }
+        busNum = static_cast<int>(busnumber);
+        devNum = static_cast<int>(devaddress);
     } else {
+        libusb_free_device_list(listDevices, 1);
         return false;
     }
     WRITE_LOG(LOG_DEBUG, "busNum:%d devNum:%d", busNum, devNum);

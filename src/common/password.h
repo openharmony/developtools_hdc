@@ -45,7 +45,7 @@ private:
     bool HexToByte(std::vector<uint8_t>& hexData);
     uint8_t HexCharToInt(uint8_t data);
     void ClearEncryptPwd(void);
-    std::vector<uint8_t> EncryptGetPwdValue(uint8_t* pwd);
+    std::vector<uint8_t> EncryptGetPwdValue(uint8_t* password);
     std::pair<uint8_t*, int> DecryptGetPwdValue(const std::string& encryptData);
 };
 

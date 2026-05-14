@@ -170,8 +170,8 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
 
         auto funcReqClose = [](uv_idle_t *handle) -> void {
             uv_close_cb funcIdleHandleClose = [](uv_handle_t *handle) -> void {
-                HCtxForward ctx = (HCtxForward)handle->data;
-                ctx->thisClass->FreeContextCallBack(ctx);
+                HCtxForward ctxForward = (HCtxForward)handle->data;
+                ctxForward->thisClass->FreeContextCallBack(ctxForward);
                 delete (uv_idle_t *)handle;
             };
             HCtxForward context = (HCtxForward)handle->data;
@@ -185,8 +185,8 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
     } else {
         auto funcReqClose = [](uv_idle_t *handle) -> void {
             uv_close_cb funcIdleHandleClose = [](uv_handle_t *handle) -> void {
-                HCtxForward ctx = (HCtxForward)handle->data;
-                ctx->thisClass->FreeContextCallBack(ctx);
+                HCtxForward ctxForward = (HCtxForward)handle->data;
+                ctxForward->thisClass->FreeContextCallBack(ctxForward);
                 delete (uv_idle_t *)handle;
             };
             Base::TryCloseHandle((uv_handle_t *)handle, funcIdleHandleClose);

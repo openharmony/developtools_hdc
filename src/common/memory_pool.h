@@ -33,11 +33,11 @@ public:
 
     static MemoryPool& Instance();
 #else
-    void* Allocate(size_t size)
+    void* Allocate(size_t size) const
     {
         return std::malloc(size);
     }
-    void Deallocate(void* ptr)
+    void Deallocate(void* ptr) const
     {
         std::free(ptr);
     }

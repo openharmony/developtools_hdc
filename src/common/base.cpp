@@ -1422,7 +1422,7 @@ static void EchoLog(string &buf)
             }
             bytesRead += bytesOnce;
         }
-        if (bytesRead && ignoreTailLf) {
+        if (bytesRead > 0 && bytesRead <= sizeOutBuf && ignoreTailLf) {
             if (outBuf[bytesRead - 1] == '\n') {
                 outBuf[bytesRead - 1] = '\0';
             }

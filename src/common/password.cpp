@@ -22,9 +22,9 @@ namespace Hdc {
 static const char* SPECIAL_CHARS = "~!@#$%^&*()-_=+\\|[{}];:'\",<.>/?";
 static const uint8_t INVALID_HEX_CHAR_TO_INT_RESULT = 255;
 
-std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *pwd)
+std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *password)
 {
-    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(pwd), METHOD_ENCRYPT, METHOD_CRYPTO_KEY);
+    std::string sendStr = SplicMessageStr(reinterpret_cast<const char*>(password), METHOD_ENCRYPT, METHOD_CRYPTO_KEY);
     if (sendStr.empty()) {
         WRITE_LOG(LOG_FATAL, "sendStr is empty.");
         return std::vector<uint8_t>();

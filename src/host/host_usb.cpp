@@ -723,22 +723,25 @@ int HdcHostUSB::OpenDeviceMyNeed(HUSB hUSB)
         WRITE_LOG(LOG_DEBUG, "libusb_open fail xret %d", OpenRet);
         return ERR_LIBUSB_OPEN;
     }
-    while (modRunning) {
+    if (modRunning) {
         libusb_device_handle *handle = hUSB->devHandle;
         struct libusb_device_descriptor desc;
         if (CheckDescriptor(hUSB, desc)) {
-            break;
+            libusb_close(hUSB->devHandle);
+            hUSB->devHandle = nullptr;
+            return ret;
         }
         if (CheckActiveConfig(device, hUSB, desc)) {
-            break;
+            libusb_close(hUSB->devHandle);
+            hUSB->devHandle = nullptr;
+            return ret;
         }
         // USB filter rules are set according to specific device pedding device
         ret = libusb_claim_interface(handle, hUSB->interfaceNumber);
         WRITE_LOG(LOG_DEBUG, "libusb_claim_interface ret %d, interfaceNumber %d",
             ret, hUSB->interfaceNumber);
-        break;
     }
-    if (ret) {
+    if (ret != 0) {
         // not my need device, release the device
         libusb_close(hUSB->devHandle);
         hUSB->devHandle = nullptr;
@@ -800,8 +803,10 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
     }
     WRITE_LOG(LOG_DEBUG, "busNum:%d devNum:%d", busNum, devNum);
 
-    int i = 0;
-    for (i = 0; i < device_num; ++i) {
+    if (listDevices == nullptr) {
+        return false;
+    }
+    for (int i = 0; i < device_num; ++i) {
         struct libusb_device_descriptor desc;
         if (LIBUSB_SUCCESS != libusb_get_device_descriptor(listDevices[i], &desc)) {
             WRITE_LOG(LOG_DEBUG, "libusb_get_device_descriptor failed i:%d", i);

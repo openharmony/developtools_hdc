@@ -160,7 +160,7 @@ bool HdcSecretManage::LoadPublicKeyInfo()
             WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
             break;
         }
-        pubKey = PEM_read_PUBKEY(file_pubkey, NULL, NULL, NULL);
+        pubKey = PEM_read_PUBKEY(file_pubkey, nullptr, nullptr, nullptr);
         if (pubKey == nullptr) {
             WRITE_LOG(LOG_FATAL, "read pubkey from %s failed", Hdc::MaskString(VERIFY_PUBLIC_KEY_PATH).c_str());
             break;
@@ -242,7 +242,7 @@ bool HdcSecretManage::VerifyByPublicKey(const char *testData,
         return false;
     }
 
-    if (1 != EVP_DigestVerifyInit(mdctx, nullptr, EVP_sha256(), nullptr, pubKey)) {
+    if (EVP_DigestVerifyInit(mdctx, nullptr, EVP_sha256(), nullptr, pubKey) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestVerifyInit failed");
         EVP_MD_CTX_free(mdctx);
         return false;

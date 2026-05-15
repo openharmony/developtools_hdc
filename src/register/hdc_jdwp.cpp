@@ -196,7 +196,7 @@ void HdcJdwpSimulator::ReadFromJdwp()
         struct msghdr msg;
         msg.msg_iov = &iov;
         msg.msg_iovlen = 1;
-        int len = CMSG_SPACE(static_cast<unsigned int>(sizeof(int)));
+        constexpr int len = CMSG_SPACE(static_cast<unsigned int>(sizeof(int)));
         char ctlBuf[len];
         msg.msg_controllen = sizeof(ctlBuf);
         msg.msg_control = ctlBuf;

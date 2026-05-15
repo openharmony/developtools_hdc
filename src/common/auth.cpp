@@ -46,14 +46,7 @@ bool GenerateKey(const char* /* file */)
 {
     return false;
 };
-int AuthSign(void* /* rsa */, const unsigned char* /* token */, size_t /* tokenSize */, void* /* sig */)
-{
-    return 0;
-};
-int GetPublicKeyFileBuf(unsigned char* /* data */, size_t /* len */)
-{
-    return 0;
-}
+
 
 #endif
 // ------------------------------------------------------------------------------------------------
@@ -147,6 +140,7 @@ int GetUserInfo(char *buf, size_t len)
         return ERR_API_FAIL;
     }
     if (snprintf_s(buf, len, len - 1, " %s@%s", username, hostname) < 0) {
+        buf[len-1] = '\0';
         return ERR_BUF_OVERFLOW;
     }
     return RET_SUCCESS;
@@ -303,32 +297,6 @@ bool LoadHostUserKey(list<void *> *listPrivateKey)
         return false;
     }
     return true;
-}
-
-int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig)
-{
-    unsigned int len;
-    if (!RSA_sign(NID_sha256, token, tokenSize, (unsigned char *)sig, &len, (RSA *)rsa)) {
-        return 0;
-    }
-    return static_cast<int>(len);
-}
-
-int GetPublicKeyFileBuf(unsigned char *data, size_t len)
-{
-    string path;
-    int ret;
-
-    if (!GetUserKeyPath(path)) {
-        return 0;
-    }
-    path += ".pub";
-    ret = Base::ReadBinFile(path.c_str(), (void **)data, len);
-    if (ret <= 0) {
-        return 0;
-    }
-    data[ret] = '\0';
-    return ret + 1;
 }
 
 #else  // daemon

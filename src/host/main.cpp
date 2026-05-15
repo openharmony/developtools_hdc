@@ -14,7 +14,6 @@
  */
 
 #include <iostream>
-#include "ext_client.h"
 #include "forward.h"
 #include "runtime_config.h"
 #include "server.h"
@@ -561,15 +560,6 @@ void InitServerAddr(void)
     } while (0);
     RuntimeConfig::Instance().serverListenString = DEFAULT_SERVER_ADDR_IP + ":" + std::to_string(port);
 }
-
-void RunExternalClient(string &str)
-{
-    ExtClient extClient;
-    extClient.connectKey = RuntimeConfig::Instance().connectKey;
-    extClient.containerInOut = RuntimeConfig::Instance().containerInOut;
-    extClient.Init();
-    extClient.ExecuteCommand(str);
-}
 }
 
 #ifndef UNIT_TEST
@@ -637,55 +627,10 @@ int main(int argc, const char *argv[])
             Base::SetLogLevel(LOG_INFO);
         }
 
-        if (!ExtClient::SharedLibraryExist()) {
-            CheckSpawnSubParam(commands);
-            Hdc::RunClientMode(commands);
-            Hdc::Base::RemoveLogCache();
-            _exit(0);
-        }
-        string str = "list targets";
-        if (!strncmp(commands.c_str(), CMDSTR_LIST_TARGETS.c_str(), CMDSTR_LIST_TARGETS.size())) {
-            string lista = "list targets -a";
-            if (!strncmp(commands.c_str(), lista.c_str(), lista.size())) {
-                str = "list targets -v";
-            } else {
-                str = commands;
-            }
-            Hdc::RunExternalClient(str);
-            Hdc::RunClientMode(str);
-        } else if (!strncmp(commands.c_str(), CMDSTR_SOFTWARE_VERSION.c_str(), CMDSTR_SOFTWARE_VERSION.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_SOFTWARE_HELP.c_str(), CMDSTR_SOFTWARE_HELP.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_TARGET_DISCOVER.c_str(), CMDSTR_TARGET_DISCOVER.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_SERVICE_START.c_str(), CMDSTR_SERVICE_START.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_WAIT_FOR.c_str(), CMDSTR_WAIT_FOR.size())) {
-            Hdc::RunExternalClient(commands);
-            Hdc::RunClientMode(commands);
-        } else if (!strncmp(commands.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size()) ||
-                   !strncmp(commands.c_str(), CMDSTR_TARGET_MODE.c_str(), CMDSTR_TARGET_MODE.size()) ||
-                   runtimeConfig.externalCmd) {
-            Hdc::RunExternalClient(commands);
-        } else {
-            g_show = false;
-            Hdc::RunExternalClient(str);
-            Hdc::RunClientMode(str);
-            g_show = true;
-            if (runtimeConfig.connectKey.empty()) {
-                if (g_lists.size() == 0) {
-                    Base::PrintMessage("No any target");
-                } else if (g_lists.size() == 1) {
-                    auto iter = g_lists.begin();
-                    runtimeConfig.connectKey = iter->first;
-                } else {
-                    Base::PrintMessage("Specify one target");
-                }
-            }
-            if (g_lists[runtimeConfig.connectKey] == "external") {
-                Hdc::RunExternalClient(commands);
-            } else if (g_lists[runtimeConfig.connectKey] == "hdc") {
-                Hdc::RunClientMode(commands);
-            }
-        }
+        CheckSpawnSubParam(commands);
+        Hdc::RunClientMode(commands);
+        Hdc::Base::RemoveLogCache();
+        _exit(0);
     }
     WRITE_LOG(LOG_DEBUG, "!!!!!!!!!Main finish main");
     Hdc::Base::RemoveLogCache();

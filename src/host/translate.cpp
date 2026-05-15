@@ -17,6 +17,17 @@
 
 namespace Hdc {
 namespace TranslateCommand {
+static bool IsWholeCommandOrHasParameter(const string &input, const string &command)
+{
+    if (input == command) {
+        return true;
+    }
+    if (input.size() <= command.size() || input.compare(0, command.size(), command) != 0) {
+        return false;
+    }
+    return input[command.size()] == ' ' || input[command.size()] == '\0';
+}
+
 string Usage()
 {
     string ret = "";
@@ -44,6 +55,7 @@ string Usage()
             "                                         Default Baud Rate is 921600\n"
             "\n"
 #endif
+            " reconnect connectkey                  - Reconnect USB device, reset session and re-enumerate\n"
             " start [-r]                            - Start server. If with '-r', will be restart server\n"
             " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
 #ifdef __OHOS__
@@ -178,6 +190,7 @@ string Verbose()
         "                                         Default Baud Rate is 921600\n"
         "\n"
 #endif
+        " reconnect connectkey                  - Reconnect USB device, reset session and re-enumerate\n"
         " start [-r]                            - Start server. If with '-r', will be restart server\n"
         " kill [-r]                             - Kill server. If with '-r', will be restart server\n"
 #ifdef __OHOS__
@@ -495,6 +508,16 @@ string String2FormatCommand(const char *inputRaw, int sizeInputRaw, FormatComman
         outCmd->cmdFlag = CMD_WAIT_FOR;
     } else if (!strcmp(input.c_str(), CMDSTR_CONNECT_ANY.c_str())) {
         outCmd->cmdFlag = CMD_KERNEL_TARGET_ANY;
+    } else if (IsWholeCommandOrHasParameter(input, CMDSTR_TARGET_RECONNECT)) {
+        outCmd->cmdFlag = CMD_KERNEL_TARGET_RECONNECT;
+        if (input.size() > CMDSTR_TARGET_RECONNECT.size() + 1) {
+            string parameters = input.c_str() + CMDSTR_TARGET_RECONNECT.size() + 1;
+            size_t begin = parameters.find_first_not_of(" ");
+            if (begin != string::npos) {
+                size_t end = parameters.find(" ", begin);
+                outCmd->parameters = parameters.substr(begin, end - begin);
+            }
+        }
     } else if (!strncmp(input.c_str(), CMDSTR_CONNECT_TARGET.c_str(), CMDSTR_CONNECT_TARGET.size())) {
         outCmd->parameters = input.c_str() + CMDSTR_CONNECT_TARGET.size() + 1;  // with ' '
         stringError = TargetConnect(outCmd);

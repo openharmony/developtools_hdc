@@ -45,6 +45,7 @@ public:
     void SendSoftResetToDaemon(HSession hSession, uint32_t sessionIdOld);
     static void WatchUsbNodeChange(HdcHostUSB *thisClass);
     void ReviewUsbNodeLater(const string &nodeKey, UsbCheckStatus status = UsbCheckStatus::HOST_USB_IGNORE);
+    void AllowUsbNodeRescan(string &usbMountPoint);
 
 private:
 

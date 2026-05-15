@@ -550,6 +550,42 @@ bool HdcServerForClient::CommandRemoveSession(HChannel hChannel, const char *con
     return true;
 }
 
+bool HdcServerForClient::CommandReconnectTarget(HChannel hChannel, const char *connectKey)
+{
+    HdcServer *ptrServer = (HdcServer *)clsServer;
+    string key = connectKey;
+    if (key.empty()) {
+        EchoClient(hChannel, MSG_FAIL, "Usage: reconnect <target-key>");
+        WRITE_LOG(LOG_WARN, "CommandReconnectTarget missing target key");
+        return false;
+    }
+    HDaemonInfo hdiOld = nullptr;
+    ptrServer->AdminDaemonMap(OP_QUERY, key, hdiOld);
+    if (hdiOld == nullptr) {
+        EchoClient(hChannel, MSG_FAIL, "Target device %s not available", key.c_str());
+        WRITE_LOG(LOG_WARN, "CommandReconnectTarget target not found");
+        return false;
+    }
+    if (hdiOld->connType != CONN_USB) {
+        EchoClient(hChannel, MSG_FAIL, "Reconnect only supports USB devices");
+        WRITE_LOG(LOG_WARN, "CommandReconnectTarget non-USB target");
+        return false;
+    }
+    string usbMountPoint = hdiOld->usbMountPoint;
+    uint32_t sessionId = (hdiOld->hSession != nullptr) ? hdiOld->hSession->sessionId : 0;
+    if (sessionId > 0) {
+        ptrServer->FreeSession(sessionId);
+    }
+    if (!usbMountPoint.empty() && ptrServer->clsUSBClt != nullptr) {
+        ptrServer->clsUSBClt->AllowUsbNodeRescan(usbMountPoint);
+    }
+    string msg = "Reconnecting " + key + " ...";
+    EchoClient(hChannel, MSG_OK, msg.c_str());
+    WRITE_LOG(LOG_INFO, "CommandReconnectTarget key:%s mount:%s",
+              Hdc::MaskString(key).c_str(), usbMountPoint.c_str());
+    return true;
+}
+
 bool HdcServerForClient::RemoveFportkey(const string &forwardKey)
 {
     StartTraceScope("HdcServerForClient::RemoveFportkey");
@@ -771,6 +807,10 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         case CMD_KERNEL_TARGET_DISCONNECT: {
             CommandRemoveSession(hChannel, formatCommand->parameters.c_str());
             hChannel->isSuccess = true;
+            break;
+        }
+        case CMD_KERNEL_TARGET_RECONNECT: {
+            hChannel->isSuccess = CommandReconnectTarget(hChannel, formatCommand->parameters.c_str());
             break;
         }
         // task will be global task，Therefore, it can only be controlled in the global session.

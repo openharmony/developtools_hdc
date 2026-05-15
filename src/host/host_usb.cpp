@@ -254,6 +254,11 @@ void HdcHostUSB::RemoveIgnoreDevice(string &mountInfo, bool force)
     }
 }
 
+void HdcHostUSB::AllowUsbNodeRescan(string &usbMountPoint)
+{
+    RemoveIgnoreDevice(usbMountPoint, true);
+}
+
 void HdcHostUSB::ReviewUsbNodeLater(const string &nodeKey, UsbCheckStatus status)
 {
     HdcServer *hdcServer = (HdcServer *)clsMainBase;

@@ -51,6 +51,7 @@ int IsRegisterCommand(string &outCommand, const char *cmd, const char *cmdnext)
     registerCommand.push_back(CMDSTR_WAIT_FOR);
     registerCommand.push_back(CMDSTR_CONNECT_ANY);
     registerCommand.push_back(CMDSTR_CONNECT_TARGET);
+    registerCommand.push_back(CMDSTR_TARGET_RECONNECT);
     registerCommand.push_back(CMDSTR_SHELL);
     registerCommand.push_back(CMDSTR_SHELL_EX);
     registerCommand.push_back(CMDSTR_FILE_SEND);

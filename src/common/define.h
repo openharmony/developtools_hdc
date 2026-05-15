@@ -179,6 +179,7 @@ const string CMDSTR_CHECK_DEVICE = "checkdevice";
 const string CMDSTR_WAIT_FOR = "wait";
 const string CMDSTR_CONNECT_TARGET = "tconn";
 const string CMDSTR_CONNECT_ANY = "any";
+const string CMDSTR_TARGET_RECONNECT = "reconnect";
 const string CMDSTR_SHELL = "shell";
 const string CMDSTR_SHELL_EX = "shell -";
 const string CMDSTR_TARGET_REBOOT = "target boot";

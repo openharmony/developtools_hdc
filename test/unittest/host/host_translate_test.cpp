@@ -379,4 +379,70 @@ HWTEST_F(HdcTranslateTest, TestUnintsallHelpVerbose, TestSize.Level0)
     EXPECT_NE(usage.find("-u: specify a user id"), string::npos);
     EXPECT_NE(usage.find("-h: list available options of 'bm uninstall' command"), string::npos);
 }
+
+HWTEST_F(HdcTranslateTest, TestReconnectWithTarget, TestSize.Level0)
+{
+    string input = "reconnect 1234567890ABCDEF";
+    string result = TranslateCommand::String2FormatCommand(input.c_str(), input.size(), formatCommand);
+
+    EXPECT_EQ(result, "");
+    EXPECT_FALSE(formatCommand->bJumpDo);
+    EXPECT_EQ(formatCommand->cmdFlag, CMD_KERNEL_TARGET_RECONNECT);
+    EXPECT_EQ(formatCommand->parameters, "1234567890ABCDEF");
+}
+
+HWTEST_F(HdcTranslateTest, TestReconnectWithMultipleTargets, TestSize.Level0)
+{
+    string input = "reconnect  sn1 sn2";
+    string result = TranslateCommand::String2FormatCommand(input.c_str(), input.size(), formatCommand);
+
+    EXPECT_EQ(result, "");
+    EXPECT_FALSE(formatCommand->bJumpDo);
+    EXPECT_EQ(formatCommand->cmdFlag, CMD_KERNEL_TARGET_RECONNECT);
+    EXPECT_EQ(formatCommand->parameters, "sn1");
+}
+
+HWTEST_F(HdcTranslateTest, TestReconnectNoTarget, TestSize.Level0)
+{
+    string input = "reconnect";
+    string result = TranslateCommand::String2FormatCommand(input.c_str(), input.size(), formatCommand);
+
+    EXPECT_EQ(result, "");
+    EXPECT_FALSE(formatCommand->bJumpDo);
+    EXPECT_EQ(formatCommand->cmdFlag, CMD_KERNEL_TARGET_RECONNECT);
+    EXPECT_EQ(formatCommand->parameters, "");
+}
+
+HWTEST_F(HdcTranslateTest, TestReconnectNoTargetWithTerminator, TestSize.Level0)
+{
+    string input = "reconnect";
+    string result = TranslateCommand::String2FormatCommand(input.c_str(), input.size() + 1, formatCommand);
+
+    EXPECT_EQ(result, "");
+    EXPECT_FALSE(formatCommand->bJumpDo);
+    EXPECT_EQ(formatCommand->cmdFlag, CMD_KERNEL_TARGET_RECONNECT);
+    EXPECT_EQ(formatCommand->parameters, "");
+}
+
+HWTEST_F(HdcTranslateTest, TestReconnectWithTrailingSpace, TestSize.Level0)
+{
+    string input = "reconnect ";
+    string result = TranslateCommand::String2FormatCommand(input.c_str(), input.size(), formatCommand);
+
+    EXPECT_EQ(result, "");
+    EXPECT_FALSE(formatCommand->bJumpDo);
+    EXPECT_EQ(formatCommand->cmdFlag, CMD_KERNEL_TARGET_RECONNECT);
+    EXPECT_EQ(formatCommand->parameters, "");
+}
+
+HWTEST_F(HdcTranslateTest, TestReconnectInvalidPrefix, TestSize.Level0)
+{
+    string input = "reconnectXYZ";
+    string result = TranslateCommand::String2FormatCommand(input.c_str(), input.size(), formatCommand);
+
+    EXPECT_EQ(result, "Unknown command...\n");
+    EXPECT_TRUE(formatCommand->bJumpDo);
+    EXPECT_EQ(formatCommand->cmdFlag, 0);
+    EXPECT_EQ(formatCommand->parameters, "");
+}
 }

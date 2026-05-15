@@ -452,8 +452,8 @@ static std::string GetLocalizedTitle()
         {"en-US", "Allow execution of sudo commands"},
         {"zh-HK", "允許執行sudo指令"},
         {"zh-TW", "允許執行sudo指令"},
-        {"bo-CN", "sudo མངག་བཅོལ་བྱེད་ཆོག་པ།"},
-        {"ug-CN", "sudo بۇيرۇقىنى ئىجرا قىلىشقا يول قويۇلىدۇ"}
+        {"bo-CN", "Sudo བཀའ་བརྡ་ལག་བསྟར་བྱེད་པར་ཆོག་མཆན་སྤྲོད་པ།"},
+        {"ug-CN", "Sudo بۇيرۇقلىرىنى ئىجرا قىلىشقا رۇخسەت قىلىش"}
     };
 
     std::vector<std::string> candidateLocales = {"zh-CN", "en-US", "zh-HK", "zh-TW", "bo-CN", "ug-CN"};

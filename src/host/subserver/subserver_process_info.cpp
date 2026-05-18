@@ -25,13 +25,6 @@ SubserverProcessInfo::~SubserverProcessInfo() = default;
 
 SubserverStatus SubserverProcessInfo::GetSubserverStatus()
 {
-    if (mainServerReconnect) {
-        if (status_ == SubserverStatus::UNKNOWN) {
-            status_ = SubserverStatus::USB_DISCONNECT;
-        }
-        return status_;
-    }
-
     SubserverStatus currentStatus = SubserverStatus::UNKNOWN;
     if (!processHandle || !processHandle->IsValid()) {
         currentStatus = SubserverStatus::SUBPROCESS_FAIL;
@@ -43,10 +36,8 @@ SubserverStatus SubserverProcessInfo::GetSubserverStatus()
             : SubserverStatus::CONNECTING;
     } else {
         int exitCode = processHandle->GetExitCode();
-        if (exitCode < 0) {
-            currentStatus = SubserverStatus::SUBSERVER_OTHER_EXIT;
-        } else if (exitCode >= static_cast<int>(SubserverStatus::CONNECTING) &&
-                   exitCode < static_cast<int>(SubserverStatus::UNKNOWN)) {
+        if (exitCode >= static_cast<int>(SubserverStatus::CONNECTING) &&
+            exitCode < static_cast<int>(SubserverStatus::UNKNOWN)) {
             currentStatus = static_cast<SubserverStatus>(exitCode);
         } else {
             currentStatus = SubserverStatus::SUBSERVER_OTHER_EXIT;
@@ -54,12 +45,6 @@ SubserverStatus SubserverProcessInfo::GetSubserverStatus()
     }
     status_ = currentStatus;
     return currentStatus;
-}
-
-void SubserverProcessInfo::MarkUsbDisconnect()
-{
-    mainServerReconnect = true;
-    processHandle.reset();
 }
 
 } // namespace Hdc

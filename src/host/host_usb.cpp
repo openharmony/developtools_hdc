@@ -222,8 +222,6 @@ HdcHostUSB::DetectReturnType HdcHostUSB::DetectMyNeed(libusb_device *device, str
     uv_timer_start(waitTimeDoCmd, hdcServer->UsbPreConnect, 0, DEVICE_CHECK_INTERVAL);
     mapIgnoreDevice[sn] = UsbCheckStatus::HOST_USB_REGISTER;
 
-    SubserverManager::Instance().NotifyDeviceConnect(hSession->connectKey);
-
     delete hUSB;
     return DetectReturnType::DETECT_SUCCESS;
 }
@@ -375,7 +373,9 @@ int HdcHostUSB::StartupUSBWork()
     // Because libusb(winusb backend) does not support hotplug under win32, we use list mode for all platforms
     WRITE_LOG(LOG_DEBUG, "USBHost loopfind mode");
     devListWatcher.data = this;
-    uv_timer_start(&devListWatcher, WatchUsbNodeChange, 0, DEVICE_CHECK_INTERVAL);
+    uint64_t interval = RuntimeConfig::Instance().isSubserver ?
+        SUBSERVER_DEVICE_CHECK_INTERVAL : DEVICE_CHECK_INTERVAL;
+    uv_timer_start(&devListWatcher, WatchUsbNodeChange, 0, interval);
     // Running pendding in independent threads does not significantly improve the efficiency
     uv_thread_create(&threadUsbWork, UsbWorkThread, this);
     return 0;

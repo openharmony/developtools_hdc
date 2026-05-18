@@ -79,6 +79,7 @@ constexpr uint16_t UV_DEFAULT_INTERVAL = 250;  // ms
 constexpr uint16_t VER_PROTOCOL = 0x01;
 constexpr uint16_t MAX_PACKET_SIZE_HISPEED = 512;
 constexpr uint16_t DEVICE_CHECK_INTERVAL = 3000;  // ms
+constexpr uint16_t SUBSERVER_DEVICE_CHECK_INTERVAL = 1000;  // ms
 constexpr uint32_t MAX_SIZE_IOBUF = 511 * 1024; // 511KB, large file transfer speed up
 constexpr uint32_t MAX_USBFFS_BULK = 512 * 1024; // 512KB, large file transfer speed up
 constexpr uint32_t MAX_SIZE_IOBUF_STABLE = 60 * 1024; // 60KB, compatible with previous version

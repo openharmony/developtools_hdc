@@ -32,12 +32,10 @@ public:
     SubserverProcessInfo& operator=(const SubserverProcessInfo&) = delete;
 
     SubserverStatus GetSubserverStatus();
-    void MarkUsbDisconnect();
 
 private:
     std::unique_ptr<ProcessHandle> processHandle;
     std::chrono::steady_clock::time_point connectStartTime = std::chrono::steady_clock::now();
-    bool mainServerReconnect = false;
     mutable SubserverStatus status_ = SubserverStatus::UNKNOWN;
 };
 

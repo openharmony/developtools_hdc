@@ -137,11 +137,11 @@ bool ProcessHandle::BuildSubserverArgsImpl(char* buf, size_t bufSize, const char
 {
     std::string logFileName = Base::GenerateSubserverLogFileName();
     if (logFileName.empty()) {
-        return sprintf_s(buf, bufSize, "dummy -l 5 -s %s -m -N -i %s -o %s",
-                         listenString, serial, port) >= 0;
+        return sprintf_s(buf, bufSize, "dummy -l %d -s %s -m -N -i %s -o %s",
+                         Base::GetLogLevelByEnv(), listenString, serial, port) >= 0;
     }
-    return sprintf_s(buf, bufSize, "dummy -l 5 -s %s -m -N -i %s -o %s -L %s",
-                     listenString, serial, port, logFileName.c_str()) >= 0;
+    return sprintf_s(buf, bufSize, "dummy -l %d -s %s -m -N -i %s -o %s -L %s",
+                     Base::GetLogLevelByEnv(), listenString, serial, port, logFileName.c_str()) >= 0;
 }
 
 uint32_t ProcessHandle::GetCurrentPidImpl()
@@ -163,7 +163,7 @@ ProcessHandle& ProcessHandle::operator=(ProcessHandle&& other) noexcept
     return *this;
 }
 
-std::unique_ptr<ProcessHandle> ProcessHandle::Spawn(const std::string& path, const char* args)
+std::unique_ptr<ProcessHandle> ProcessHandle::SpawnSubprocess(const std::string& path, const char* args)
 {
     auto handle = std::make_unique<ProcessHandle>();
     handle->processImpl_ = std::make_unique<ProcessHandleImpl>();

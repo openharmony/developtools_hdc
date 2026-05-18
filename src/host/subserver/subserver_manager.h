@@ -41,8 +41,6 @@ public:
     void CancelConnectTimer();
     bool UsbDeviceConnected();
 
-    void NotifyDeviceConnect(const std::string& sn);
-
     void CheckParentProcess();
     bool CheckClientParam(const std::string& param);
 

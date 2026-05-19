@@ -36,7 +36,7 @@ enum class SubserverStatus : int32_t {
     UNKNOWN = 1099,
 };
 
-const constexpr int32_t SUBSERVER_CONNECT_TIMEOUT = 10;
+const constexpr int32_t SUBSERVER_CONNECT_TIMEOUT = 5;
 
 class ProcessHandle {
 public:
@@ -51,7 +51,7 @@ public:
     bool IsValid() const;
     int GetExitCode() const;
 
-    static std::unique_ptr<ProcessHandle> Spawn(const std::string& path, const char* args);
+    static std::unique_ptr<ProcessHandle> SpawnSubprocess(const std::string& path, const char* args);
 
     static std::string GetExecutablePath();
     static std::string GetParentProcessName();

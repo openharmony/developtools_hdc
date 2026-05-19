@@ -143,7 +143,7 @@ ProcessHandle& ProcessHandle::operator=(ProcessHandle&& other) noexcept
     return *this;
 }
 
-std::unique_ptr<ProcessHandle> ProcessHandle::Spawn(const std::string& path, const char* args)
+std::unique_ptr<ProcessHandle> ProcessHandle::SpawnSubprocess(const std::string& path, const char* args)
 {
     auto handle = std::make_unique<ProcessHandle>();
     handle->processImpl_ = std::make_unique<ProcessHandleImpl>();

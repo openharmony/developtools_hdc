@@ -62,8 +62,8 @@ SubserverStatus SubserverManager::HandleCommand(HdcServer* server, HChannel chan
     std::shared_ptr<SubserverProcessInfo> subserverProcessInfo = GetSubserverProcessInfo(serial);
     if (subserverProcessInfo != nullptr) {
         SubserverStatus status = subserverProcessInfo->GetSubserverStatus();
-        if (status != SubserverStatus::CONNECTING && status != SubserverStatus::CONNECT_SUCCESS) {
-            // if status is not connecting or connected, cleanup state and prepare for next connection.
+        if (status != SubserverStatus::CONNECTING) {
+            // if status is not connecting, cleanup state and prepare for next connection.
             subserverMap.erase(serial);
         }
         return status;
@@ -136,15 +136,6 @@ bool SubserverManager::DisconnectDevice(HdcServer* server, const std::string& se
 
     server->FreeSession(daemonInfo->hSession->sessionId);
     return true;
-}
-
-void SubserverManager::NotifyDeviceConnect(const std::string& sn)
-{
-    std::unique_lock<std::mutex> lock(mapMutex);
-    auto it = subserverMap.find(sn);
-    if (it != subserverMap.end()) {
-        it->second->MarkUsbDisconnect();
-    }
 }
 
 void SubserverManager::CheckParentProcess()
@@ -294,7 +285,7 @@ SubserverStatus SubserverManager::CreateSubserver(const std::string& serial, con
         return SubserverStatus::PARAM_ERROR;
     }
 
-    auto processHandle = ProcessHandle::Spawn(runPath, args);
+    auto processHandle = ProcessHandle::SpawnSubprocess(runPath, args);
     if (!processHandle) {
         return SubserverStatus::SUBPROCESS_FAIL;
     }

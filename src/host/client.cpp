@@ -222,6 +222,7 @@ void HdcClient::DoCtrlServiceWork(uv_check_t *handle)
     } else if (!strncmp(thisClass->command.c_str(), CMDSTR_KILLALL_SUB.c_str(),
                         CMDSTR_KILLALL_SUB.size())) {
         SubserverManager::KillAllSubservers();
+        Base::PrintMessage("Kill subservers finish");
     } else if (!strncmp(thisClass->command.c_str(), CMDSTR_SERVICE_KILL.c_str(), CMDSTR_SERVICE_KILL.size())) {
         thisClass->KillServer(strCmd);
         // clang-format off
@@ -257,6 +258,7 @@ string HdcClient::AutoConnectKey(string &doCommand, const string &preConnectKey)
 #ifdef HOST_OHOS
     vecNoConnectKeyCommand.push_back(CMDSTR_SERVICE_KILL);
 #endif
+    vecNoConnectKeyCommand.push_back(CMDSTR_SPAWN_SUB);
     vecNoConnectKeyCommand.push_back(CMDSTR_KILLALL_SUB);
     vecNoConnectKeyCommand.push_back(CMDSTR_LIST_TARGETS);
     vecNoConnectKeyCommand.push_back(CMDSTR_CHECK_SERVER);
@@ -986,6 +988,9 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     if (WaitFor(s)) {
         return 0;
     }
+    if (WaitForSpawn(s)) {
+        return 0;
+    }
     s = ListTargetsAll(s);
     if (g_show) {
 #ifdef _WIN32
@@ -1022,6 +1027,28 @@ bool HdcClient::WaitFor(const string &str)
             std::this_thread::sleep_for(std::chrono::seconds(timeout));
             wait = true;
         } else {
+            _exit(0);
+        }
+    }
+    return wait;
+}
+
+bool HdcClient::WaitForSpawn(const string &str)
+{
+    bool wait = false;
+    if (!strncmp(this->command.c_str(), CMDSTR_SPAWN_SUB.c_str(), CMDSTR_SPAWN_SUB.size())) {
+        const string waitFor = "Subserver started, connecting USB";
+        if (!strncmp(str.c_str(), waitFor.c_str(), waitFor.size())) {
+            Send(this->channel->channelId, reinterpret_cast<uint8_t *>(const_cast<char *>(this->command.c_str())),
+                 this->command.size() + 1);
+            constexpr int timeout = 1;
+            std::this_thread::sleep_for(std::chrono::seconds(timeout));
+            wait = true;
+        } else {
+            string msg = str;
+            msg.erase(msg.find_last_not_of("\n\r") + 1);
+            Base::PrintMessage("%s", msg.c_str());
+            fflush(stdout);
             _exit(0);
         }
     }

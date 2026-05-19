@@ -3477,7 +3477,9 @@ void CloseOpenFd(void)
 
         string timeStr;
         GetTimeString(timeStr);
-        int randomNum = GetRandomNum(100000, 999999);
+        std::random_device rd;
+        std::uniform_int_distribution<int> dis(100000, 999999);
+        int randomNum = dis(rd);
         std::string fileName = "hdc_subserver_" + timeStr + "_" + std::to_string(randomNum) + ".log";
         g_subserverLogFileNames.push_back(fileName);
 

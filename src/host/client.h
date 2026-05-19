@@ -60,6 +60,7 @@ private:
     bool IsOffset(uint16_t cmd);
     HTaskInfo GetRemoteTaskInfo(HChannel hChannel);
     bool WaitFor(const string &str);
+    bool WaitForSpawn(const string &str);
     string ListTargetsAll(const string &str);
     void UpdateList(const string &str);
     bool KillMethodByUv(bool isStart);

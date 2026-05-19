@@ -677,10 +677,10 @@ static const std::string& GetSubserverStatusStr(SubserverStatus status)
         {SubserverStatus::CONNECT_TIMEOUT, "USB connection timeout"},
         {SubserverStatus::INVALID_DEVICE, "Device not found"},
         {SubserverStatus::PARAM_ERROR, "Invalid parameters"},
-        {SubserverStatus::CONNECT_SUCCESS, "USB connected successfully"},
-        {SubserverStatus::USB_DISCONNECT, "USB disconnected"},
+        {SubserverStatus::CONNECT_SUCCESS, "Subserver connected successfully"},
+        {SubserverStatus::USB_DISCONNECT, "USB device disconnected"},
         {SubserverStatus::SUBSERVER_ABONDON, "Only main server can spawn subserver"},
-        {SubserverStatus::SUBSERVER_OTHER_EXIT, "Subserver exited"}
+        {SubserverStatus::SUBSERVER_OTHER_EXIT, "Subserver process exited"}
     };
 
     auto it = map.find(status);
@@ -839,6 +839,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
         case CMD_SPAWN_SUB: {
             ProcessSubserver(hChannel, formatCommand->parameters);
             hChannel->isSuccess = true;
+            ret = true;
             break;
         }
         default: {

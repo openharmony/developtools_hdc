@@ -593,8 +593,7 @@ int main(int argc, const char *argv[])
     Base::InitProcess();
 
     if (runtimeConfig.isSubserver) {
-        Hdc::Base::SetSubserverLogFileName(runtimeConfig.subserverLogFileName);
-        Hdc::Base::SubserverCreateLogFile();
+        Hdc::Base::InitSubserverLogging(runtimeConfig.subserverLogFileName);
         SubserverManager::Instance().CheckParentProcess();
         SubserverManager::Instance().StartConnectTimer();
         SubserverManager::RegisterPid();

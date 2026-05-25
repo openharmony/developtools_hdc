@@ -70,6 +70,15 @@ hdc_host_sources = [
   "${hdc_path}/src/host/server.cpp",
   "${hdc_path}/src/host/server_for_client.cpp",
   "${hdc_path}/src/host/translate.cpp",
+  "${hdc_path}/src/host/runtime_config.cpp",
+  "${hdc_path}/src/host/subserver/file_lock_util.cpp",
+  "${hdc_path}/src/host/subserver/file_lock_util_unix.cpp",
+  "${hdc_path}/src/host/subserver/file_lock_util_win.cpp",
+  "${hdc_path}/src/host/subserver/process_handle.cpp",
+  "${hdc_path}/src/host/subserver/process_handle_unix.cpp",
+  "${hdc_path}/src/host/subserver/process_handle_win.cpp",
+  "${hdc_path}/src/host/subserver/subserver_manager.cpp",
+  "${hdc_path}/src/host/subserver/subserver_process_info.cpp",
 ]
 
 common_external_deps = [
@@ -360,6 +369,8 @@ ohos_unittest("hdc_host_base_unittest") {
     "${hdc_path}/src/host/host_shell_option.cpp",
     "${hdc_path}/src/host/runtime_config.cpp",
     "${hdc_path}/src/host/translate.cpp",
+    "${hdc_path}/src/common/server_cmd_log.cpp",
+    "${hdc_path}/src/common/uart.cpp",
     "${hdc_path}/src/host/subserver/file_lock_util.cpp",
     "${hdc_path}/src/host/subserver/file_lock_util_unix.cpp",
     "${hdc_path}/src/host/subserver/file_lock_util_win.cpp",
@@ -368,8 +379,6 @@ ohos_unittest("hdc_host_base_unittest") {
     "${hdc_path}/src/host/subserver/process_handle_win.cpp",
     "${hdc_path}/src/host/subserver/subserver_manager.cpp",
     "${hdc_path}/src/host/subserver/subserver_process_info.cpp",
-    "${hdc_path}/src/common/server_cmd_log.cpp",
-    "${hdc_path}/src/common/uart.cpp",
     "unittest/daemon/daemon_app_test.cpp",
     "unittest/common/define_test.cpp",
     "unittest/host/host_app_test.cpp",

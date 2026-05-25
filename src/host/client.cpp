@@ -37,6 +37,7 @@ static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
 
 namespace Hdc {
 bool g_terminalStateChange = false;
+static constexpr int32_t WAIT_FOR_SPAWN_MAX_TIMES = 10;
 
 static bool FindCommandInject(const std::string& input)
 {
@@ -1037,8 +1038,9 @@ bool HdcClient::WaitForSpawn(const string &str)
 {
     bool wait = false;
     if (!strncmp(this->command.c_str(), CMDSTR_SPAWN_SUB.c_str(), CMDSTR_SPAWN_SUB.size())) {
+        static int retryCount = 0;
         const string waitFor = "Subserver started, connecting USB";
-        if (!strncmp(str.c_str(), waitFor.c_str(), waitFor.size())) {
+        if (retryCount++ <= WAIT_FOR_SPAWN_MAX_TIMES && !strncmp(str.c_str(), waitFor.c_str(), waitFor.size())) {
             Send(this->channel->channelId, reinterpret_cast<uint8_t *>(const_cast<char *>(this->command.c_str())),
                  this->command.size() + 1);
             constexpr int timeout = 1;

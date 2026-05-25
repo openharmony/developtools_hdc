@@ -36,7 +36,7 @@ enum class SubserverStatus : int32_t {
     UNKNOWN = 1099,
 };
 
-const constexpr int32_t SUBSERVER_CONNECT_TIMEOUT = 5;
+constexpr int32_t SUBSERVER_CONNECT_TIMEOUT = 5;
 
 class ProcessHandle {
 public:
@@ -57,7 +57,7 @@ public:
     static std::string GetParentProcessName();
     static uint32_t GetCurrentPid();
     static bool BuildSubserverArgs(char* buf, size_t bufSize, const char* listenString,
-                                    const char* serial, const char* port);
+                                   const char* serial, const char* port);
 
 private:
     struct ProcessHandleImpl;

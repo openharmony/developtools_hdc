@@ -322,8 +322,7 @@ namespace Base {
     void RemoveUnknownFiles(const std::string& dirPath, const std::vector<std::string>& files);
 
     // subserver feature (called by subserver)
-    void SetSubserverLogFileName(const std::string& logFileName);
-    void SubserverCreateLogFile();
+    void InitSubserverLogging(const std::string& logFileName);
 
 }  // namespace base
 }  // namespace Hdc

@@ -30,6 +30,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <memory>
 
 #ifdef __APPLE__
 #include <libproc.h>
@@ -69,21 +70,21 @@ struct ProcessHandle::ProcessHandleImpl {
 
 std::string ProcessHandle::GetExecutablePathImpl()
 {
-    char* path = (char*)malloc(sizeof(char) * BUF_SIZE_SMALL);
+    std::unique_ptr<char[]> path(new (std::nothrow) char[BUF_SIZE_SMALL]);
+    if (path == nullptr) {
+        WRITE_LOG(LOG_WARN, "Failed to allocate memory for path");
+        return "";
+    }
     size_t nPathSize = BUF_SIZE_SMALL;
-    int ret = uv_exepath(path, &nPathSize);
+    int ret = uv_exepath(path.get(), &nPathSize);
     if (ret < 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_err_name_r(ret, buf, bufSize);
         WRITE_LOG(LOG_WARN, "uvexepath ret:%d error:%s", ret, buf);
-        free(path);
         return "";
     }
-
-    std::string result = path;
-    free(path);
-    return result;
+    return path.get();
 }
 
 std::string ProcessHandle::GetParentProcessNameImpl()
@@ -117,11 +118,11 @@ bool ProcessHandle::BuildSubserverArgsImpl(char* buf, size_t bufSize, const char
 {
     std::string logFileName = Base::GenerateSubserverLogFileName();
     if (logFileName.empty()) {
-        return sprintf_s(buf, bufSize, "-l 5 -s %s -m -N -i %s -o %s",
-                        listenString, serial, port) >= 0;
+        return sprintf_s(buf, bufSize, "-l 0 -s %s -m -N -i %s -o %s",
+                         listenString, serial, port) >= 0;
     }
-    return sprintf_s(buf, bufSize, "-l 5 -s %s -m -N -i %s -o %s -L %s",
-                    listenString, serial, port, logFileName.c_str()) >= 0;
+    return sprintf_s(buf, bufSize, "-l %d -s %s -m -N -i %s -o %s -L %s",
+                     Base::GetLogLevelByEnv(), listenString, serial, port, logFileName.c_str()) >= 0;
 }
 
 uint32_t ProcessHandle::GetCurrentPidImpl()

@@ -410,7 +410,6 @@ ohos_executable("hdc") {
   }
   sources = [
     "src/host/client.cpp",
-    "src/host/ext_client.cpp",
     "src/host/host_app.cpp",
     "src/host/host_forward.cpp",
     "src/host/host_shell_option.cpp",

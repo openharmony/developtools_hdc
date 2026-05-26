@@ -563,8 +563,10 @@ void HdcTransferBase::OnFileOpen(uv_fs_t *req)
         context->fileMode.gId = fs.statbuf.st_gid;
 #if (!(defined(HOST_MINGW)||defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
         char *con = nullptr;
-        getfilecon(context->localPath.c_str(), &con);
-        if (con != nullptr) {
+        int getfileconRet = getfilecon(context->localPath.c_str(), &con);
+        if (getfileconRet < 0) {
+            WRITE_LOG(LOG_WARN, "getfilecon failed, ret:%d, errno:%d", getfileconRet, errno);
+        } else if (con != nullptr) {
             context->fileMode.context = con;
             freecon(con);
         }

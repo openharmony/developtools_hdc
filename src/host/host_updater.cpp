@@ -248,8 +248,13 @@ bool HostUpdater::CheckUpdateContinue(const uint8_t *payload, int payloadSize)
     if ((level == MSG_OK) && sendProgress_) {
         ProcessProgress(PERCENT_FINISH);
     }
-    std::string info(reinterpret_cast<char *>(const_cast<uint8_t *>(payload + sizeof(uint16_t))),
-                     payloadSize - sizeof(uint16_t));
+
+    std::string info;
+    if (static_cast<size_t>(payloadSize) > sizeof(uint16_t)) {
+        info.assign(reinterpret_cast<char *>(const_cast<uint8_t *>(payload + sizeof(uint16_t))),
+                    payloadSize - sizeof(uint16_t));
+    }
+
     if (!info.empty()) {
         LogMsg(level, "%s", info.c_str());
     }

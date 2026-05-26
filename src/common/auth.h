@@ -37,8 +37,6 @@ int RsaPubkeyEncryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
 
 // host
 bool GenerateKey(const char *file);
-int AuthSign(void *rsa, const unsigned char *token, size_t tokenSize, void *sig);
-int GetPublicKeyFileBuf(unsigned char *data, size_t len);
 
 // daemon
 bool AuthVerify(uint8_t *token, uint8_t *sig, int siglen);

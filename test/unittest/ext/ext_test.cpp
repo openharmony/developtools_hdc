@@ -1207,33 +1207,6 @@ HWTEST_F(HdcExtTest, 89, TestSize.Level0)
 }
 
 /**
- * TestAuthSignDaemon
- * Verify AuthSign function behavior on DAEMON platform
- */
-HWTEST_F(HdcExtTest, 90, TestSize.Level0)
-{
-#ifndef HDC_HOST
-    RSA* rsa = RSA_new();
-    uint8_t token[32] = {0};
-    uint8_t sig[256] = {0};
-    EXPECT_EQ(0, HdcAuth::AuthSign(rsa, token, sizeof(token), sig));
-    RSA_free(rsa);
-#endif
-}
-
-/**
- * TestGetPublicKeyFileBufDaemon
- * Verify GetPublicKeyFileBuf function behavior
- */
-HWTEST_F(HdcExtTest, 91, TestSize.Level0)
-{
-#ifndef HDC_HOST
-    uint8_t data[512] = {0};
-    EXPECT_EQ(0, HdcAuth::GetPublicKeyFileBuf(data, sizeof(data)));
-#endif
-}
-
-/**
  * TestRSA2RSAPublicKey
  * Verify RSA2RSAPublicKey function with valid RSA key
  */

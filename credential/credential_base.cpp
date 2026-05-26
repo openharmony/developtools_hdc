@@ -38,7 +38,7 @@ int RemoveDir(const std::string& dir)
     struct dirent *ent;
     struct stat st;
     while ((ent = readdir(pdir)) != nullptr) {
-        if (ent->d_name[0] == '.') {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
             continue;
         }
         std::string subpath = dir + GetPathSep() + ent->d_name;

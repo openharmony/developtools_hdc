@@ -119,7 +119,7 @@ bool HdcServer::Initial(const char *listenString)
         if (!InitialServerForClient(clsServerForClient)) {
             break;
         }
-        clsUSBClt->InitLogging(ctxUSB);
+        HdcHostUSB::InitLogging(ctxUSB);
         clsTCPClt = new HdcHostTCP(true, this);
         clsUSBClt = new HdcHostUSB(true, this, ctxUSB);
         if (clsUSBClt->Initial() != RET_SUCCESS) {

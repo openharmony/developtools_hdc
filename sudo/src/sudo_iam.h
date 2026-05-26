@@ -26,19 +26,6 @@ extern std::mutex g_mutexForAuth;
 
 namespace OHOS {
 namespace UserIam {
-namespace PinAuth {
-
-class SudoIInputer : public IInputer {
-public:
-    virtual ~SudoIInputer();
-    void OnGetData(int32_t authSubType, std::vector<uint8_t> challenge,
-                                std::shared_ptr<IInputerData> inputerData) override;
-    void SetPasswd(char *pwd, int len);
-private:
-    std::vector<uint8_t> passwd_;
-};
-} // PinAuth
-
 namespace UserAuth {
 class SudoIDMCallback : public AuthenticationCallback {
 public:

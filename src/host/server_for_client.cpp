@@ -561,9 +561,9 @@ bool HdcServerForClient::CommandReconnectTarget(HChannel hChannel, const char *c
     }
     HDaemonInfo hdiOld = nullptr;
     ptrServer->AdminDaemonMap(OP_QUERY, key, hdiOld);
-    if (hdiOld == nullptr) {
+    if (hdiOld == nullptr || hdiOld->connStatus != STATUS_CONNECTED) {
         EchoClient(hChannel, MSG_FAIL, "Target device %s not available", key.c_str());
-        WRITE_LOG(LOG_WARN, "CommandReconnectTarget target not found");
+        WRITE_LOG(LOG_WARN, "CommandReconnectTarget target not found or not connected");
         return false;
     }
     if (hdiOld->connType != CONN_USB) {

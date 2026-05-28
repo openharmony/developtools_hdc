@@ -26,30 +26,6 @@ std::mutex g_mutexForAuth;
 
 namespace OHOS {
 namespace UserIam {
-namespace PinAuth {
-
-void SudoIInputer::OnGetData(int32_t authSubType, std::vector<uint8_t> challenge,
-    std::shared_ptr<IInputerData> inputerData)
-{
-    inputerData->OnSetData(authSubType, passwd_);
-}
-
-void SudoIInputer::SetPasswd(char *pwd, int len)
-{
-    passwd_.resize(len);
-    for (int i = 0; i < len; i++) {
-        passwd_[i] = *pwd++;
-    }
-}
-
-SudoIInputer::~SudoIInputer()
-{
-    for (int i = 0; i < (int)passwd_.size(); i++) {
-        passwd_[i] = 0;
-    }
-}
-
-} // PinAuth
 
 namespace UserAuth {
 SudoIDMCallback::SudoIDMCallback()

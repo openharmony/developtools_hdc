@@ -34,6 +34,7 @@ using namespace Hdc;
 namespace {
 static const std::string VERIFY_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
 static const int32_t DEFAULT_USER_ID = 100;
+static constexpr std::streamsize MAX_FILE_SIZE_LIMIT = 100 * 1024 * 1024; // 100MB
 } // namespace
 
 static int32_t GetUserId()
@@ -83,11 +84,11 @@ bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
     inFile.seekg(0, std::ios::end);
     std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, std::ios::beg);
-    if (fileSize == 0) {
-        WRITE_LOG(LOG_FATAL, "the private key is empty.");
+    if (fileSize == 0 || fileSize > MAX_FILE_SIZE_LIMIT) {
+        WRITE_LOG(LOG_FATAL, "the private key file size error: %lld", static_cast<long long>(fileSize));
         return false;
     }
-    
+
     fileData.resize(fileSize);
     inFile.read(reinterpret_cast<char*>(fileData.data()), fileSize);
     if (inFile.eof() || inFile.fail()) {

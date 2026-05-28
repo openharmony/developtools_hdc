@@ -85,6 +85,10 @@ void FreshAccountsPath()
         WRITE_LOG(LOG_FATAL, "QueryAllCreatedOsAccounts failed, error is:%d", err);
         return;
     }
+    if (!fs::exists(USER_DIR_PREFIX_PATH) || !fs::is_directory(USER_DIR_PREFIX_PATH)) {
+        WRITE_LOG(LOG_FATAL, "User directory does not exist or is not a directory");
+        return;
+    }
     std::vector<std::string> existUserIds;
     for (const auto& info : osAccountInfos) {
         existUserIds.push_back(std::to_string(info.GetLocalId()));

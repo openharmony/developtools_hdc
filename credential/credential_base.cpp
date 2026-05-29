@@ -18,7 +18,7 @@
 using namespace Hdc;
 
 namespace HdcCredentialBase {
-char GetPathSep()
+static char GetPathSep()
 {
 #ifdef _WIN32
     const char sep = '\\';
@@ -28,7 +28,7 @@ char GetPathSep()
     return sep;
 }
 
-int RemoveDir(const std::string& dir)
+static int RemoveDir(const std::string& dir)
 {
     DIR *pdir = opendir(dir.c_str());
     if (pdir == nullptr) {
@@ -52,7 +52,7 @@ int RemoveDir(const std::string& dir)
                 return -1;
             }
             rmdir(subpath.c_str());
-        } else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
+        } else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode) || S_ISSOCK(st.st_mode)) {
             if (unlink(subpath.c_str()) == -1) {
                 WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
             }
@@ -75,9 +75,9 @@ int RemovePath(const std::string& path)
         WRITE_LOG(LOG_WARN, "lstat failed path:%s", strerror(errno));
         return -1;
     }
-    if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
+    if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode) || S_ISSOCK(st.st_mode)) {
         if (unlink(path.c_str()) == -1) {
-            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink,, error is :%s", strerror(errno));
+            WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
         }
     } else if (S_ISDIR(st.st_mode)) {
         if (path == "." || path == "..") {

@@ -59,7 +59,7 @@ namespace Base {
     std::atomic<bool> g_isServer = false;   // default false for client
 
     // global variables for subserver feature (spawn-sub command)
-    static bool g_isSubserver = false;
+    [[maybe_unused]] static bool g_isSubserver = false;
     static std::string g_subserverLogFileName = "";
     static std::vector<std::string> g_subserverLogFileNames;
 
@@ -632,17 +632,20 @@ namespace Base {
         LogToPath(path.c_str(), str);
     }
 
-    void SubserverCreateLogFile()
+    void InitSubserverLogging(const std::string& logFileName)
     {
-        if (g_subserverLogFileName.empty()) {
+        g_subserverLogFileName = logFileName;
+        g_isSubserver = true;
+
+        if (logFileName.empty()) {
             return;
         }
         string dirPath = GetTmpDir() + ".hdc_subserver";
-        string filePath = dirPath + GetPathSep() + g_subserverLogFileName;
+        string filePath = dirPath + GetPathSep() + logFileName;
 
         string errMsg;
         if (!TryCreateDirectory(dirPath, errMsg)) {
-            PrintMessage("SubserverCreateLogFile create dir failed: %s", errMsg.c_str());
+            PrintMessage("InitSubserverLogging create dir failed: %s", errMsg.c_str());
             return;
         }
 
@@ -658,12 +661,12 @@ namespace Base {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
             uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
-            PrintMessage("SubserverCreateLogFile uv_fs_open %s error %s", filePath.c_str(), buffer);
+            PrintMessage("InitSubserverLogging uv_fs_open %s error %s", filePath.c_str(), buffer);
             return;
         }
         uv_fs_close(nullptr, &req, fd, nullptr);
         uv_fs_req_cleanup(&req);
-        PrintMessage("SubserverCreateLogFile create dir succ: %s", filePath.c_str());
+        PrintMessage("InitSubserverLogging create log file succ: %s", filePath.c_str());
     }
 
     void LogToCache(const char *str)
@@ -3437,12 +3440,6 @@ void CloseOpenFd(void)
     void SetIsServerFlag(bool isServer)
     {
         g_isServer = isServer;
-    }
-
-    void SetSubserverLogFileName(const std::string& logFileName)
-    {
-        g_subserverLogFileName = logFileName;
-        g_isSubserver = true;
     }
 
     static uint32_t GetSubserverLogFileLimit()

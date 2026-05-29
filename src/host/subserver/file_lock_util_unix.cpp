@@ -66,9 +66,14 @@ bool FileLockGuard::ReadAll(std::string& content)
         return false;
     }
 
+    constexpr size_t maxFileSize = 10 * 1024 * 1024; // 10MB
     off_t fileSize = lseek(lockImpl_->fd, 0, SEEK_END);
     if (fileSize <= 0) {
         return true;
+    }
+    if (static_cast<size_t>(fileSize) > maxFileSize) {
+        WRITE_LOG(LOG_WARN, "File too large: %lld bytes", static_cast<long long>(fileSize));
+        return false;
     }
 
     lseek(lockImpl_->fd, 0, SEEK_SET);

@@ -69,9 +69,14 @@ bool FileLockGuard::ReadAll(std::string& content)
         return false;
     }
 
+    constexpr size_t maxFileSize = 10 * 1024 * 1024; // 10MB
     DWORD fileSize = GetFileSize(lockImpl_->hFile, NULL);
     if (fileSize == 0) {
         return true;
+    }
+    if (fileSize > maxFileSize) {
+        WRITE_LOG(LOG_WARN, "File too large: %lu bytes", static_cast<unsigned long>(fileSize));
+        return false;
     }
 
     content.resize(fileSize);

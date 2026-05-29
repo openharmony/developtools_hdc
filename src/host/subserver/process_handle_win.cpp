@@ -21,6 +21,7 @@
 
 #include <windows.h>
 #include <tlhelp32.h>
+#include <memory>
 
 namespace Hdc {
 
@@ -30,22 +31,30 @@ struct ProcessHandle::ProcessHandleImpl {
     ~ProcessHandleImpl()
     {
         if (pi) {
-            if (pi->hThread) CloseHandle(pi->hThread);
-            if (pi->hProcess) CloseHandle(pi->hProcess);
+            if (pi->hThread) {
+                CloseHandle(pi->hThread);
+            }
+            if (pi->hProcess) {
+                CloseHandle(pi->hProcess);
+            }
             delete pi;
         }
     }
 
     bool IsAlive() const
     {
-        if (!pi || !pi->hProcess) return false;
+        if (!pi || !pi->hProcess) {
+            return false;
+        }
         DWORD exitCode = 0;
         return GetExitCodeProcess(pi->hProcess, &exitCode) && exitCode == STILL_ACTIVE;
     }
 
     int GetExitCode() const
     {
-        if (!pi || !pi->hProcess) return -1;
+        if (!pi || !pi->hProcess) {
+            return -1;
+        }
         DWORD exitCode = 0;
         GetExitCodeProcess(pi->hProcess, &exitCode);
         return static_cast<int>(exitCode);
@@ -60,33 +69,35 @@ struct ProcessHandle::ProcessHandleImpl {
 std::string ProcessHandle::GetExecutablePathImpl()
 {
     std::string runPath = "";
-    char* path = (char*)malloc(sizeof(char) * BUF_SIZE_SMALL);
+    std::unique_ptr<char[]> path(new (std::nothrow) char[BUF_SIZE_SMALL]);
+    if (path == nullptr) {
+        WRITE_LOG(LOG_WARN, "Failed to allocate memory for path");
+        return "";
+    }
     size_t nPathSize = BUF_SIZE_SMALL;
-    int ret = uv_exepath(path, &nPathSize);
+    int ret = uv_exepath(path.get(), &nPathSize);
     if (ret < 0) {
         constexpr int bufSize = 1024;
         char buf[bufSize] = { 0 };
         uv_err_name_r(ret, buf, bufSize);
         WRITE_LOG(LOG_WARN, "uvexepath ret:%d error:%s", ret, buf);
-        free(path);
         return "";
     }
 
     char shortPath[MAX_PATH] = "";
-    std::string strPath = Base::UnicodeToUtf8(path, true);
+    std::string strPath = Base::UnicodeToUtf8(path.get(), true);
     ret = GetShortPathName(strPath.c_str(), shortPath, MAX_PATH);
     runPath = shortPath;
     if (ret == 0) {
         int err = GetLastError();
         char buffer[1024] = { 0 };
         FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                       NULL, err, 0, buffer, sizeof(buffer), NULL);
+                       nullptr, err, 0, buffer, sizeof(buffer), nullptr);
         WRITE_LOG(LOG_WARN, "GetShortPath errmsg:%s", buffer);
-        runPath = std::string(path).substr(std::string(path).find_last_of("/\\") + 1);
+        runPath = std::string(path.get()).substr(std::string(path.get()).find_last_of("/\\") + 1);
     }
     WRITE_LOG(LOG_DEBUG, "server shortpath:[%s] runPath:[%s]",
               Hdc::MaskString(std::string(shortPath)).c_str(), Hdc::MaskString(runPath).c_str());
-    free(path);
     return runPath;
 }
 
@@ -137,8 +148,8 @@ bool ProcessHandle::BuildSubserverArgsImpl(char* buf, size_t bufSize, const char
 {
     std::string logFileName = Base::GenerateSubserverLogFileName();
     if (logFileName.empty()) {
-        return sprintf_s(buf, bufSize, "dummy -l %d -s %s -m -N -i %s -o %s",
-                         Base::GetLogLevelByEnv(), listenString, serial, port) >= 0;
+        return sprintf_s(buf, bufSize, "dummy -l 0 -s %s -m -N -i %s -o %s",
+                         listenString, serial, port) >= 0;
     }
     return sprintf_s(buf, bufSize, "dummy -l %d -s %s -m -N -i %s -o %s -L %s",
                      Base::GetLogLevelByEnv(), listenString, serial, port, logFileName.c_str()) >= 0;

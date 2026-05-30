@@ -1295,21 +1295,18 @@ static void EchoLog(string &buf)
         if (!strlen(bufString) || strlen(bufString) > 40) { // 40 : bigger than length of ipv6
             return ERR_PARM_SIZE;
         }
-        try {
-            uint16_t wPort = static_cast<uint16_t>(std::stoi(p + 1));
-            if (wPort == 0 || wPort > MAX_IP_PORT) {
-                return ERR_PARM_FORMAT;
-            }
-            if (EOK != strcpy_s(outIP, outSize, bufString)) {
-                return ERR_BUF_COPY;
-            }
-            *outPort = wPort;
-            return RET_SUCCESS;
-        } catch (const std::invalid_argument &) {
-            return ERR_PARM_FORMAT;
-        } catch (const std::out_of_range &) {
+        long wPort;
+        if (!StringToLong(std::string(p + 1), wPort)) {
             return ERR_PARM_FORMAT;
         }
+        if (wPort == 0 || wPort > MAX_IP_PORT) {
+            return ERR_PARM_FORMAT;
+        }
+        if (EOK != strcpy_s(outIP, outSize, bufString)) {
+            return ERR_BUF_COPY;
+        }
+        *outPort = static_cast<uint16_t>(wPort);
+        return RET_SUCCESS;
     }
 
     // After creating the session worker thread, execute it on the main thread

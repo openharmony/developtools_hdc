@@ -303,7 +303,7 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         fflush(stdin);
         std::string info = {};
         size_t i = 0;
-        const int MAX_READ_COUNT = 3;
+        constexpr int MAX_READ_COUNT = 3;
         int readCount = 0;
         while (1) {
             char c = getchar();

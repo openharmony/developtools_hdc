@@ -398,6 +398,28 @@ bool ParseForwardListenIP(char *optarg)
     return true;
 }
 
+int ValidateAndParseLogLevel(const char* optarg, bool& needExit) {
+    if (optarg == nullptr || optarg[0] == '\0') {
+        Base::PrintMessage("Loglevel error: empty argument!");
+        needExit = true;
+        return -1;
+    }
+    for (const char* p = optarg; *p != '\0'; ++p) {
+        if (!std::isdigit(static_cast<unsigned char>(*p))) {
+            Base::PrintMessage("Loglevel error: invalid number string!");
+            needExit = true;
+            return -1;
+        }
+    }
+    int logLevel = atoi(optarg);
+    if (logLevel < 0 || logLevel > LOG_LAST) {
+        Base::PrintMessage("Loglevel error!");
+        needExit = true;
+        return -1;
+    }
+    return logLevel;
+}
+
 bool GetCommandlineOptions(int optArgc, const char *optArgv[])
 {
     int ch = 0;
@@ -432,18 +454,11 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 break;
             }
             case 'l': {
-                if (optarg == nullptr || optarg[0] == '\0') {
-                Base::PrintMessage("Loglevel error: empty argument!");
-                needExit = true;
-                return needExit;
+                if (ValidateAndParseLogLevel(optarg, needExit)) {
+                    return needExit;
                 }
-                for (const char* p = optarg; *p != '\0'; ++p) {
-                    if (!std::isdigit(static_cast<unsigned char>(*p))) {
-                        Base::PrintMessage("Loglevel error: invalid number string!");
-                        needExit = true;
-                        return needExit;
-                    }
-                }
+                break;
+            }
             case 'm': {  // [not-publish] is server mode，or client mode
                 RuntimeConfig::Instance().isServerMode = true;
                 Base::SetIsServerFlag(true);

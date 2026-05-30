@@ -1207,6 +1207,8 @@ static void EchoLog(string &buf)
         uint32_t result = static_cast<uint32_t>(GetRandom());
 #ifdef _WIN32
         const int randomByteCount = 4;
+        const int MAX_RETRY_COUNT = 3;
+        int retryCount = 0;
         HCRYPTPROV hCryptProv;
         BYTE pbData[randomByteCount];
         do {
@@ -1223,8 +1225,8 @@ static void EchoLog(string &buf)
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
             }
-            result = *(reinterpret_cast<uint32_t*>(pbData));
-        } while (0);
+            retryCount++;
+        } while (retryCount < MAX_RETRY_COUNT);
 #else
         std::ifstream randomFile("/dev/random", std::ios::binary);
         do {
@@ -1293,12 +1295,21 @@ static void EchoLog(string &buf)
         if (!strlen(bufString) || strlen(bufString) > 40) { // 40 : bigger than length of ipv6
             return ERR_PARM_SIZE;
         }
-        uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));
-        if (EOK != strcpy_s(outIP, outSize, bufString)) {
-            return ERR_BUF_COPY;
+        try {
+            uint16_t wPort = static_cast<uint16_t>(std::stoi(p + 1));
+            if (wPort == 0 || wPort > MAX_IP_PORT) {
+                return ERR_PARM_FORMAT;
+            }
+            if (EOK != strcpy_s(outIP, outSize, bufString)) {
+                return ERR_BUF_COPY;
+            }
+            *outPort = wPort;
+            return RET_SUCCESS;
+        } catch (const std::invalid_argument &) {
+            return ERR_PARM_FORMAT;
+        } catch (const std::out_of_range &) {
+            return ERR_PARM_FORMAT;
         }
-        *outPort = wPort;
-        return RET_SUCCESS;
     }
 
     // After creating the session worker thread, execute it on the main thread

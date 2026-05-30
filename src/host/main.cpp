@@ -432,16 +432,18 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 break;
             }
             case 'l': {
-                int logLevel = atoi(optarg);
-                if (logLevel < 0 || logLevel > LOG_LAST) {
-                    Base::PrintMessage("Loglevel error!");
-                    needExit = true;
-                    return needExit;
+                if (optarg == nullptr || optarg[0] == '\0') {
+                Base::PrintMessage("Loglevel error: empty argument!");
+                needExit = true;
+                return needExit;
                 }
-                RuntimeConfig::Instance().isCustomLoglevel = true;
-                Base::SetLogLevel(logLevel);
-                break;
-            }
+                for (const char* p = optarg; *p != '\0'; ++p) {
+                    if (!std::isdigit(static_cast<unsigned char>(*p))) {
+                        Base::PrintMessage("Loglevel error: invalid number string!");
+                        needExit = true;
+                        return needExit;
+                    }
+                }
             case 'm': {  // [not-publish] is server mode，or client mode
                 RuntimeConfig::Instance().isServerMode = true;
                 Base::SetIsServerFlag(true);

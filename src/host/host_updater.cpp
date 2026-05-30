@@ -79,7 +79,7 @@ HostUpdater::~HostUpdater() {}
 bool HostUpdater::RunQueue(CtxFile &context)
 {
     context.localPath = context.taskQueue.back();
-    uv_fs_t *openReq = new uv_fs_t;
+    uv_fs_t *openReq = new (std::nothrow) uv_fs_t;
     if (openReq == nullptr) {
         WRITE_LOG(LOG_FATAL, "HostUpdater::RunQueue new uv_fs_t failed");
         OnFileOpenFailed(&context);
@@ -303,8 +303,14 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         fflush(stdin);
         std::string info = {};
         size_t i = 0;
+        const int MAX_READ_COUNT = 3;
+        int readCount = 0;
         while (1) {
             char c = getchar();
+            readCount++;
+            if (readCount > MAX_READ_COUNT) {
+                break;
+            }
             if (c == '\r' || c == '\n') {
                 break;
             }

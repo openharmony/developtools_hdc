@@ -899,7 +899,7 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), length);
     const int packageDataMaxSize = maxIOSize - sizeof(UartHead);
     size_t offset = 0;
-    uint8_t sendDataBuf[MAX_UART_SIZE_IOBUF];
+    uint8_t *sendDataBuf = new(std::nothrow) uint8_t[MAX_UART_SIZE_IOBUF];
 
     do {
         UartHead *head = (UartHead *)sendDataBuf;

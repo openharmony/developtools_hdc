@@ -105,8 +105,8 @@ void HdcHostUnity::OnFileIO(uv_fs_t *req)
 
 bool HdcHostUnity::AppendLocalLog(const char *bufLog, const int sizeLog)
 {
-    auto buf = new uint8_t[sizeLog];
-    auto contextIO = new CtxUnityIO();
+    auto buf = new (std::nothrow) uint8_t[sizeLog];
+    auto contextIO = new (std::nothrow) CtxUnityIO();
     if (!buf || !contextIO) {
         if (buf) {
             delete[] buf;

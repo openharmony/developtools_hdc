@@ -28,7 +28,7 @@ static char GetPathSep()
     return sep;
 }
 
-static int RemoveDir(const std::string& dir)
+int RemoveDir(const std::string& dir)
 {
     DIR *pdir = opendir(dir.c_str());
     if (pdir == nullptr) {

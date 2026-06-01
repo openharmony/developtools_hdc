@@ -51,6 +51,7 @@ const std::string HDC_CREDENTIAL_SOCKET_REAL_PATH =
 constexpr int MIN_USER_ID = 100;
 constexpr int MAX_USER_ID = 10736;
 
+int RemoveDir(const std::string& dir);
 int RemovePath(const std::string& path);
 bool CreatePathWithMode(const char* path, mode_t mode);
 bool IsUserDir(const std::string& dir);

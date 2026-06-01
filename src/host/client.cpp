@@ -87,6 +87,33 @@ void HdcClient::NotifyInstanceChannelFree(HChannel hChannel)
     }
 }
 
+
+bool StringToInt(const std::string& str, int& out)
+{
+    if (str.empty()) {
+        WRITE_LOG(LOG_DEBUG, "empty string");
+        return false;
+    }
+
+    constexpr int base = 10;
+    char* endptr = nullptr;
+    errno = 0;
+
+    long int longResult = strtol(str.c_str(), &endptr, base);
+
+    if (*endptr != '\0') {
+        WRITE_LOG(LOG_DEBUG, "invalid string");
+        return false;
+    }
+
+    if (errno == ERANGE || longResult > INT_MAX || longResult < INT_MIN) {
+        WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
+        return false;
+    }
+    out = static_cast<int>(longResult);
+    return true;
+}
+
 uint32_t HdcClient::GetLastPID()
 {
     char bufPath[BUF_SIZE_MEDIUM] = "";
@@ -105,9 +132,20 @@ uint32_t HdcClient::GetLastPID()
     }
 #endif
     string path = Base::StringFormat("%s%c.%s.pid", bufPath, Base::GetPathSep(), SERVER_NAME.c_str());
-    Base::ReadBinFile(path.c_str(), reinterpret_cast<void **>(&pidBuf), BUF_SIZE_TINY);
-    int pid = atoi(pidBuf);  // pid  maybe 0
-    return pid;
+    if (Base::ReadBinFile(path.c_str(), reinterpret_cast<void**>(&pidBuf), BUF_SIZE_TINY) <= 0) {
+        WRITE_LOG(LOG_FATAL, "Read pid file failed");
+        return 0;
+    }
+
+    pidBuf[BUF_SIZE_TINY - 1] = '\0';
+
+    int pid = 0;
+    if (!StringToInt(pidBuf, pid)) {
+        WRITE_LOG(LOG_FATAL, "Convert pid string failed");
+        return 0;
+    }
+
+    return static_cast<uint32_t>(pid);
 }
 
 bool HdcClient::StartServer(const string &cmd)

@@ -412,11 +412,19 @@ int ValidateAndParseLogLevel(const char* optarg, bool& needExit)
             return -1;
         }
     }
-    int logLevel = atoi(optarg);
+
+    int logLevel = 0;
+    try {
+        logLevel = std::stoi(optarg);
+    } catch (const std::exception& e) {
+        Base::PrintMessage("Loglevel error: invalid number format!");
+        needExit = true;
+        return -1;
+    }
     if (logLevel < 0 || logLevel > LOG_LAST) {
         Base::PrintMessage("Loglevel error!");
         needExit = true;
-        return needExit;
+        return -1;
     }
     return logLevel;
 }
@@ -455,9 +463,12 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 break;
             }
             case 'l': {
-                if (ValidateAndParseLogLevel(optarg, needExit)) {
+                int logLevel = ValidateAndParseLogLevel(optarg, needExit);
+                if (needExit) {
                     return needExit;
                 }
+                RuntimeConfig::Instance().isCustomLoglevel = true;
+                Base::SetLogLevel(logLevel);
                 break;
             }
             case 'm': {  // [not-publish] is server mode，or client mode

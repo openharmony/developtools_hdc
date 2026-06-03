@@ -839,15 +839,16 @@ RetErrCode HdcUARTBase::ValidateUartPacket(vector<uint8_t> &data, uint32_t &sess
         WRITE_LOG(LOG_FATAL, "%s head checksum not correct", __FUNCTION__);
         return ERR_BUF_CHECK;
     }
+
+    if (head->dataSize > MAX_UART_SIZE_IOBUF * maxBufFactor - sizeof(UartHead)) {
+        WRITE_LOG(LOG_FATAL, "%s dataSize too larger:%d", __FUNCTION__, head->dataSize);
+        return ERR_BUF_OVERFLOW;
+    }
+
     // after validate , id and fullPackageLength is correct
     sessionId = head->sessionId;
     packetSize = head->dataSize + sizeof(UartHead);
     packageIndex = head->packageIndex;
-
-    if ((head->dataSize + sizeof(UartHead)) > MAX_UART_SIZE_IOBUF * maxBufFactor) {
-        WRITE_LOG(LOG_FATAL, "%s dataSize too larger:%d", __FUNCTION__, head->dataSize);
-        return ERR_BUF_OVERFLOW;
-    }
 
     if ((head->option & PKG_OPTION_RESET)) {
         // The Host end program is restarted, but the UART cable is still connected

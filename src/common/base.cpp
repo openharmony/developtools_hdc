@@ -1461,6 +1461,10 @@ static void EchoLog(string &buf)
         ret = -3;  // -3:error for ReadBinFile
         if (bufLen == 0) {
             dynamicBuf = 1;
+            constexpr size_t maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (nFileSize > maxFileSize) {
+                return -1;
+            }
             pDst = new uint8_t[nFileSize + 1]();  // tail \0
             if (!pDst) {
                 return -1;

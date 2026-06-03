@@ -70,7 +70,9 @@ void HdcdConnection::OnAbilityConnectDone(const AppExecFwk::ElementName &element
 bool HdcdConnection::GetShowDialogResult(void)
 {
     AUTH_LOGE("wait for dialog ability");
-    sem_wait(&sem);
+    if (sem_wait(&sem) != 0 && errno == EINTR) {
+        AUTH_LOGE("sem_wait failed.");
+    }
     sem_destroy(&sem);
     AUTH_LOGE("wait dialog ability over");
     return showDialogResult;

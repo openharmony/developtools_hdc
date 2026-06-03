@@ -603,6 +603,7 @@ bool HdcHostUART::ConnectMyNeed(HUART hUART, std::string connectKey)
         RET_SUCCESS) {
         WRITE_LOG(LOG_DEBUG, "%s for %s:%s fail.", __FUNCTION__, Hdc::MaskString(hSession->connectKey).c_str(),
                   hUART->serialPort.c_str());
+        delete waitTimeDoCmd;
         server.FreeSession(hSession->sessionId);
         return false;
     }

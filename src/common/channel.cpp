@@ -353,6 +353,10 @@ void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int s
 {
     StartTraceScope("HdcChannelBase::SendChannel");
     uv_stream_t *sendStream = nullptr;
+    if (size < 0 || size > INT_MAX - DWORD_SERIALIZE_SIZE) {
+        WRITE_LOG(LOG_WARN, "invalid size");
+        return;
+    }
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
     auto data = new uint8_t[sizeNewBuf]();
     if (!data) {

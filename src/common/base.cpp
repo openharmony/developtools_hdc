@@ -1299,7 +1299,7 @@ static void EchoLog(string &buf)
         if (!StringToLong(std::string(p + 1), wPort)) {
             return ERR_PARM_FORMAT;
         }
-        if (wPort == 0 || wPort > MAX_IP_PORT) {
+        if (wPort <= 0 || wPort > MAX_IP_PORT) {
             return ERR_PARM_FORMAT;
         }
         if (EOK != strcpy_s(outIP, outSize, bufString)) {

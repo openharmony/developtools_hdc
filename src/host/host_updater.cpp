@@ -316,6 +316,19 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
             if (readCount > MAX_READ_COUNT) {
                 break;
             }
+            if (c == '\r' || c == '\n') {
+                WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Received line ending");
+                break;
+            }
+            if (c == ' ') {
+                WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Skipped space character");
+                continue;
+            }
+            if (i < minLen && isprint(c)) {
+                info.append(1, std::tolower(c));
+                i++;
+            }
+        }
         if (info == "n" || info == "no") {
             return false;
         }

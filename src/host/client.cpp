@@ -144,7 +144,7 @@ uint32_t HdcClient::GetLastPID()
         return 0;
     }
 
-    return static_cast<uint32_t>(pid);
+    return pid;
 }
 
 bool HdcClient::StartServer(const string &cmd)

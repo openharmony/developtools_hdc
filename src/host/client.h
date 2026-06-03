@@ -31,6 +31,7 @@ public:
     int ExecuteCommand(const string &commandIn);
     int CtrlServiceWork(const char *commandIn);
     bool ChannelCtrlServer(bool isRestart, const string &connectKey);
+    static bool StringToInt(const std::string& str, int& out);
 
 protected:
 private:

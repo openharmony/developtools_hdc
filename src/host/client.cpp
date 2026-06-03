@@ -87,7 +87,6 @@ void HdcClient::NotifyInstanceChannelFree(HChannel hChannel)
     }
 }
 
-
 bool StringToInt(const std::string& str, int& out)
 {
     if (str.empty()) {

@@ -306,22 +306,16 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         size_t i = 0;
         int readCount = 0;
         while (1) {
-            char c = getchar();
+            int c = getchar();
             readCount++;
+            if (c == EOF) {
+                WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Received EOF character");
+                return false;
+            }
+            WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Received character: '%c' (ASCII: %d)", c, c);
             if (readCount > MAX_READ_COUNT) {
                 break;
             }
-            if (c == '\r' || c == '\n') {
-                break;
-            }
-            if (c == ' ') {
-                continue;
-            }
-            if (i < minLen && isprint(c)) {
-                info.append(1, std::tolower(c));
-                i++;
-            }
-        }
         if (info == "n" || info == "no") {
             return false;
         }

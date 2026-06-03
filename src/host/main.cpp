@@ -19,6 +19,7 @@
 #include "server.h"
 #include "server_for_client.h"
 #include "subserver/subserver_manager.h"
+#include "client.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -398,35 +399,29 @@ bool ParseForwardListenIP(char *optarg)
     return true;
 }
 
-int ValidateAndParseLogLevel(const char* optarg, bool& needExit)
+int ValidateAndParseLogLevel(const char* optarg, int& logLevel)
 {
     if (optarg == nullptr || optarg[0] == '\0') {
         Base::PrintMessage("Loglevel error: empty argument!");
-        needExit = true;
         return -1;
     }
     for (const char* p = optarg; *p != '\0'; ++p) {
         if (!std::isdigit(static_cast<unsigned char>(*p))) {
             Base::PrintMessage("Loglevel error: invalid number string!");
-            needExit = true;
             return -1;
         }
     }
 
-    int logLevel = 0;
-    try {
-        logLevel = std::stoi(optarg);
-    } catch (const std::exception& e) {
+    std::string strArg(optarg);
+    if (!HdcClient::StringToInt(strArg, logLevel)) {
         Base::PrintMessage("Loglevel error: invalid number format!");
-        needExit = true;
         return -1;
     }
     if (logLevel < 0 || logLevel > LOG_LAST) {
         Base::PrintMessage("Loglevel error!");
-        needExit = true;
         return -1;
     }
-    return logLevel;
+    return 0;
 }
 
 bool GetCommandlineOptions(int optArgc, const char *optArgv[])
@@ -463,8 +458,10 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 break;
             }
             case 'l': {
-                int logLevel = ValidateAndParseLogLevel(optarg, needExit);
-                if (needExit) {
+                int logLevel = 0;
+                int ret = ValidateAndParseLogLevel(optarg, logLevel);
+                if (ret != 0) {
+                    needExit = true;
                     return needExit;
                 }
                 RuntimeConfig::Instance().isCustomLoglevel = true;

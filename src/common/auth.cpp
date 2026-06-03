@@ -190,7 +190,10 @@ bool GenerateKey(const char *file)
         }
 
         BN_set_word(exponent, RSA_F4);
-        RSA_generate_key_ex(rsa, bits, exponent, nullptr);
+        if (!RSA_generate_key_ex(rsa, bits, exponent, nullptr)) {
+            WRITE_LOG(LOG_DEBUG, "Failed to generate RSA key");
+            break;
+        }
         EVP_PKEY_set1_RSA(publicKey, rsa);
         old_mask = umask(077);  // 077:permission
 
@@ -215,6 +218,7 @@ bool GenerateKey(const char *file)
 
     EVP_PKEY_free(publicKey);
     BN_free(exponent);
+    RSA_free(rsa);
     if (fKey)
         fclose(fKey);
     return ret;

@@ -182,6 +182,8 @@ std::string HandleCommandEventMessage(const std::string& messageStr)
     OHOS::EventFwk::CommonEventData event {want};
     OHOS::EventFwk::CommonEventPublishInfo publishInfo;
     publishInfo.SetOrdered(true);
+    std::vector<std::string> permissions = { PERMISSION_HDC_REPORT_INFO };
+    publishInfo.SetSubscriberPermissions(permissions);
     int32_t ret = OHOS::EventFwk::CommonEventManager::NewPublishCommonEvent(event, publishInfo);
     if (ret != 0) {
         WRITE_LOG(LOG_FATAL, "NewPublishCommonEvent error: %d.", ret);

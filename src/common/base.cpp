@@ -1222,7 +1222,7 @@ static void EchoLog(string &buf)
             }
             if (CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
             memcpy(&result, pbData, sizeof(result));
-            WRITE_LOG(LOG_WARN, "result value: 0x%08X", result);
+            WRITE_LOG(LOG_DEBUG, "result value: 0x%08X", result);
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
             }

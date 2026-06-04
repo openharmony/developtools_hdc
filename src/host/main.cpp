@@ -13,14 +13,13 @@
  * limitations under the License.
  */
 
-#include "base.h"
 #include <iostream>
+#include "base.h"
 #include "forward.h"
 #include "runtime_config.h"
 #include "server.h"
 #include "server_for_client.h"
 #include "subserver/subserver_manager.h"
-#include "client.h"
 
 #ifdef _WIN32
 #include <windows.h>

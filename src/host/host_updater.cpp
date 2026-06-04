@@ -304,24 +304,25 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         fflush(stdin);
         std::string info = {};
         size_t i = 0;
-        int readCount = 0;
+                int readCount = 0;
+        const size_t MAX_INPUT_LENGTH = 1024;
         while (1) {
             int c = getchar();
             readCount++;
             if (c == EOF) {
-                WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Received EOF character");
                 return false;
             }
-            WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Received character: '%c' (ASCII: %d)", c, c);
             if (readCount > MAX_READ_COUNT) {
                 break;
             }
+            if (info.size() >= MAX_INPUT_LENGTH) {
+                Base::PrintMessage("Input too long");
+                return false;
+            }
             if (c == '\r' || c == '\n') {
-                WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Received line ending");
                 break;
             }
             if (c == ' ') {
-                WRITE_LOG(LOG_DEBUG, "[ConfirmCommand] Skipped space character");
                 continue;
             }
             if (i < minLen && isprint(c)) {

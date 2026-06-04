@@ -1225,6 +1225,7 @@ static void EchoLog(string &buf)
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
             }
+            result = *(reinterpret_cast<uint32_t*>(pbData));
             retryCount++;
         } while (retryCount < MAX_RETRY_COUNT);
 #else

@@ -304,15 +304,10 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         fflush(stdin);
         std::string info = {};
         size_t i = 0;
-                int readCount = 0;
         const size_t MAX_INPUT_LENGTH = 1024;
         while (1) {
-            int c = getchar();
-            readCount++;
-            if (c == EOF) {
-                return false;
-            }
-            if (readCount > MAX_READ_COUNT) {
+            char c = getchar();
+            if (i > MAX_READ_COUNT) {
                 break;
             }
             if (info.size() >= MAX_INPUT_LENGTH) {

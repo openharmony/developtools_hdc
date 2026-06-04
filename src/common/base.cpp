@@ -1220,7 +1220,13 @@ static void EchoLog(string &buf)
                     break;
                 }
             }
-            if (!CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
+            if (CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
+            memcpy(&result, pbData, sizeof(result));
+            WRITE_LOG(LOG_WARN, "result value: 0x%08X", result);
+            if (hCryptProv) {
+                CryptReleaseContext(hCryptProv, 0);
+            }
+                return result;
             }
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
@@ -2729,6 +2735,32 @@ void CloseOpenFd(void)
             WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
             return false;
         }
+        return true;
+    }
+
+    bool StringToInt(const std::string& str, int& out)
+    {
+        if (str.empty()) {
+            WRITE_LOG(LOG_DEBUG, "empty string");
+            return false;
+        }
+
+        constexpr int base = 10;
+        char* endptr = nullptr;
+        errno = 0;
+
+        long int longResult = strtol(str.c_str(), &endptr, base);
+
+        if (*endptr != '\0') {
+            WRITE_LOG(LOG_DEBUG, "invalid string");
+            return false;
+        }
+
+        if (errno == ERANGE || longResult > INT_MAX || longResult < INT_MIN) {
+            WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
+            return false;
+        }
+        out = static_cast<int>(longResult);
         return true;
     }
 

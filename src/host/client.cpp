@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "client.h"
+#include "base.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
 #endif
@@ -87,32 +87,6 @@ void HdcClient::NotifyInstanceChannelFree(HChannel hChannel)
     }
 }
 
-bool StringToInt(const std::string& str, int& out)
-{
-    if (str.empty()) {
-        WRITE_LOG(LOG_DEBUG, "empty string");
-        return false;
-    }
-
-    constexpr int base = 10;
-    char* endptr = nullptr;
-    errno = 0;
-
-    long int longResult = strtol(str.c_str(), &endptr, base);
-
-    if (*endptr != '\0') {
-        WRITE_LOG(LOG_DEBUG, "invalid string");
-        return false;
-    }
-
-    if (errno == ERANGE || longResult > INT_MAX || longResult < INT_MIN) {
-        WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
-        return false;
-    }
-    out = static_cast<int>(longResult);
-    return true;
-}
-
 uint32_t HdcClient::GetLastPID()
 {
     char bufPath[BUF_SIZE_MEDIUM] = "";
@@ -139,11 +113,10 @@ uint32_t HdcClient::GetLastPID()
     pidBuf[BUF_SIZE_TINY - 1] = '\0';
 
     int pid = 0;
-    if (!StringToInt(pidBuf, pid)) {
+    if (!Base::StringToInt(pidBuf, pid)) {
         WRITE_LOG(LOG_FATAL, "Convert pid string failed");
         return 0;
     }
-
     return pid;
 }
 

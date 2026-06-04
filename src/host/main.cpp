@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "base.h"
 #include <iostream>
 #include "forward.h"
 #include "runtime_config.h"
@@ -413,7 +414,7 @@ int ValidateAndParseLogLevel(const char* optarg, int& logLevel)
     }
 
     std::string strArg(optarg);
-    if (!HdcClient::StringToInt(strArg, logLevel)) {
+    if (!Base::StringToInt(strArg, logLevel)) {
         Base::PrintMessage("Loglevel error: invalid number format!");
         return -1;
     }

@@ -1221,11 +1221,11 @@ static void EchoLog(string &buf)
                 }
             }
             if (CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
-            memcpy(&result, pbData, sizeof(result));
-            WRITE_LOG(LOG_DEBUG, "result value: 0x%08X", result);
-            if (hCryptProv) {
-                CryptReleaseContext(hCryptProv, 0);
-            }
+                result = (reinterpret_cast<uint32_t>(pbData));
+                WRITE_LOG(LOG_DEBUG, "result value: 0x%08X", result);
+                if (hCryptProv) {
+                    CryptReleaseContext(hCryptProv, 0);
+                }
                 return result;
             }
             if (hCryptProv) {

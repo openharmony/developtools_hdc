@@ -322,8 +322,8 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
             }
             if (i < minLen && isprint(c)) {
                 info.append(1, std::tolower(c));
-                i++;
             }
+            i++;
         }
         if (info == "n" || info == "no") {
             return false;

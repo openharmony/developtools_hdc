@@ -28,6 +28,7 @@ constexpr uint8_t PERCENT_FINISH = 100;
 constexpr uint8_t PERCENT_CLEAR = UINT8_MAX;
 constexpr int MAX_RETRY_COUNT = 3;
 constexpr int MAX_READ_COUNT = 3;
+constexpr size_t MAX_INPUT_LENGTH = 1024;
 constexpr size_t FLASH_PARAM_MIN_COUNT = 2;
 constexpr size_t FLASH_FILE_INDEX = 1;
 constexpr size_t UPDATE_PARAM_MIN_COUNT = 1;
@@ -304,7 +305,6 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         fflush(stdin);
         std::string info = {};
         size_t i = 0;
-        const size_t MAX_INPUT_LENGTH = 1024;
         while (1) {
             char c = getchar();
             if (i > MAX_READ_COUNT) {

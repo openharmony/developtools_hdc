@@ -972,13 +972,18 @@ void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
     HUSB hUSB = hSession->hUSB;
     HdcServer *pServer = (HdcServer *)hSession->classInstance;
 
-    // read usb failed
-    if ((status != 0) || (result < 0)) {
-        WRITE_LOG(LOG_FATAL, "ClearUsbChannelFinished status or result is not correct, sid:%s",
+    if (status != 0) {
+        WRITE_LOG(LOG_FATAL, "ClearUsbChannelFinished status is not correct, sid:%s",
             sessionIdMaskStr.c_str());
         pServer->FreeSession(hSession->sessionId);
         hdcHostUSB->RemoveIgnoreDevice(hUSB->usbMountPoint);
         return;
+    }
+
+    // read usb failed
+    if (result < 0) {
+        WRITE_LOG(LOG_FATAL, "ClearUsbChannelFinished result is not correct, sid:%s",
+            sessionIdMaskStr.c_str());
     }
 
     hdcHostUSB->BeginUsbRead(hSession);

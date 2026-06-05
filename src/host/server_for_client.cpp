@@ -70,7 +70,7 @@ void HdcServerForClient::AcceptUdsClient(uv_stream_t *server, int status)
         return;
     }
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptUdsClient");
-    HChannel hChannel = new HdcChannel();
+    HChannel hChannel = new (std::nothrow) HdcChannel();
     if (hChannel == nullptr) {
         WRITE_LOG(LOG_FATAL, "AcceptUdsClient new channel fail");
         return;
@@ -130,7 +130,7 @@ void HdcServerForClient::AcceptClient(uv_stream_t *server, int /* status */)
     HdcServerForClient *thisClass = (HdcServerForClient *)pServTCP->data;
     CALLSTAT_GUARD(thisClass->loopMainStatus, server->loop, "HdcServerForClient::AcceptClient");
 #ifdef HOST_OHOS
-    HChannel hChannel = new HdcChannel();
+    HChannel hChannel = new (std::nothrow) HdcChannel();
     if (hChannel == nullptr) {
         WRITE_LOG(LOG_FATAL, "AcceptClient new channel fail");
         return;

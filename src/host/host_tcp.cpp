@@ -153,7 +153,7 @@ HSession HdcHostTCP::ConnectDaemon(const string &connectKey, bool isCheck)
     uv_connect_t *conn = new(std::nothrow) uv_connect_t();
     if (conn == nullptr) {
         WRITE_LOG(LOG_FATAL, "ConnectDaemon new conn failed");
-        delete hSession;
+        ptrConnect->FreeSession(hSession->sessionId);
         hSession = nullptr;
         return nullptr;
     }

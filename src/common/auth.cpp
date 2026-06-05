@@ -238,6 +238,9 @@ bool ReadKey(const char *file, list<void *> *listPrivateKey)
             break;
         }
         RSA *rsa = RSA_new();
+        if (!rsa) {
+            break;
+        }
         if (!PEM_read_RSAPrivateKey(f, &rsa, nullptr, nullptr)) {
             RSA_free(rsa);
             break;

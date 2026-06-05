@@ -27,6 +27,8 @@ namespace {
 constexpr uint8_t PERCENT_FINISH = 100;
 constexpr uint8_t PERCENT_CLEAR = UINT8_MAX;
 constexpr int MAX_RETRY_COUNT = 3;
+constexpr int MAX_READ_COUNT = 3;
+constexpr size_t MAX_INPUT_LENGTH = 1024;
 constexpr size_t FLASH_PARAM_MIN_COUNT = 2;
 constexpr size_t FLASH_FILE_INDEX = 1;
 constexpr size_t UPDATE_PARAM_MIN_COUNT = 1;
@@ -79,7 +81,7 @@ HostUpdater::~HostUpdater() {}
 bool HostUpdater::RunQueue(CtxFile &context)
 {
     context.localPath = context.taskQueue.back();
-    uv_fs_t *openReq = new uv_fs_t;
+    uv_fs_t *openReq = new (std::nothrow) uv_fs_t;
     if (openReq == nullptr) {
         WRITE_LOG(LOG_FATAL, "HostUpdater::RunQueue new uv_fs_t failed");
         OnFileOpenFailed(&context);
@@ -305,6 +307,13 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
         size_t i = 0;
         while (1) {
             char c = getchar();
+            if (i > MAX_READ_COUNT) {
+                break;
+            }
+            if (info.size() >= MAX_INPUT_LENGTH) {
+                Base::PrintMessage("Input too long");
+                return false;
+            }
             if (c == '\r' || c == '\n') {
                 break;
             }
@@ -313,8 +322,8 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
             }
             if (i < minLen && isprint(c)) {
                 info.append(1, std::tolower(c));
-                i++;
             }
+            i++;
         }
         if (info == "n" || info == "no") {
             return false;

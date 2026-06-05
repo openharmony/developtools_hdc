@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "client.h"
+#include "base.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
 #endif
@@ -105,8 +105,18 @@ uint32_t HdcClient::GetLastPID()
     }
 #endif
     string path = Base::StringFormat("%s%c.%s.pid", bufPath, Base::GetPathSep(), SERVER_NAME.c_str());
-    Base::ReadBinFile(path.c_str(), reinterpret_cast<void **>(&pidBuf), BUF_SIZE_TINY);
-    int pid = atoi(pidBuf);  // pid  maybe 0
+    if (Base::ReadBinFile(path.c_str(), reinterpret_cast<void**>(&pidBuf), BUF_SIZE_TINY) <= 0) {
+        WRITE_LOG(LOG_FATAL, "Read pid file failed");
+        return 0;
+    }
+
+    pidBuf[BUF_SIZE_TINY - 1] = '\0';
+
+    int pid = 0;
+    if (!Base::StringToInt(pidBuf, pid)) {
+        WRITE_LOG(LOG_FATAL, "Convert pid string failed");
+        return 0;
+    }
     return pid;
 }
 

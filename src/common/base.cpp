@@ -1207,6 +1207,8 @@ static void EchoLog(string &buf)
         uint32_t result = static_cast<uint32_t>(GetRandom());
 #ifdef _WIN32
         const int randomByteCount = 4;
+        const int MAX_RETRY_COUNT = 3;
+        int retryCount = 0;
         HCRYPTPROV hCryptProv;
         BYTE pbData[randomByteCount];
         do {
@@ -1218,13 +1220,19 @@ static void EchoLog(string &buf)
                     break;
                 }
             }
-            if (!CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
+            if (CryptGenRandom(hCryptProv, randomByteCount, pbData)) {
+                result = *(reinterpret_cast<uint32_t*>(pbData));
+                if (hCryptProv) {
+                    CryptReleaseContext(hCryptProv, 0);
+                }
+                return result;
             }
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
             }
             result = *(reinterpret_cast<uint32_t*>(pbData));
-        } while (0);
+            retryCount++;
+        } while (retryCount < MAX_RETRY_COUNT);
 #else
         std::ifstream randomFile("/dev/random", std::ios::binary);
         do {
@@ -1293,11 +1301,17 @@ static void EchoLog(string &buf)
         if (!strlen(bufString) || strlen(bufString) > 40) { // 40 : bigger than length of ipv6
             return ERR_PARM_SIZE;
         }
-        uint16_t wPort = static_cast<uint16_t>(atoi(p + 1));
+        long wPort;
+        if (!StringToLong(std::string(p + 1), wPort)) {
+            return ERR_PARM_FORMAT;
+        }
+        if (wPort <= 0 || wPort > MAX_IP_PORT) {
+            return ERR_PARM_FORMAT;
+        }
         if (EOK != strcpy_s(outIP, outSize, bufString)) {
             return ERR_BUF_COPY;
         }
-        *outPort = wPort;
+        *outPort = static_cast<uint16_t>(wPort);
         return RET_SUCCESS;
     }
 
@@ -2724,6 +2738,32 @@ void CloseOpenFd(void)
             WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
             return false;
         }
+        return true;
+    }
+
+    bool StringToInt(const std::string& str, int& out)
+    {
+        if (str.empty()) {
+            WRITE_LOG(LOG_DEBUG, "empty string");
+            return false;
+        }
+
+        constexpr int base = 10;
+        char* endptr = nullptr;
+        errno = 0;
+
+        long int longResult = strtol(str.c_str(), &endptr, base);
+
+        if (*endptr != '\0') {
+            WRITE_LOG(LOG_DEBUG, "invalid string");
+            return false;
+        }
+
+        if (errno == ERANGE || longResult > INT_MAX || longResult < INT_MIN) {
+            WRITE_LOG(LOG_DEBUG, "an underflow or overflow occurs");
+            return false;
+        }
+        out = static_cast<int>(longResult);
         return true;
     }
 

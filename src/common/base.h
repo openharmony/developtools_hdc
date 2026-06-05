@@ -179,6 +179,7 @@ namespace Base {
 
     bool IsValidIpv4(const std::string& ip);
     bool StringToLong(const std::string& str, long int &value);
+    bool StringToInt(const std::string& str, int& out);
 
     // Trim from both sides and paired
     string &ShellCmdTrim(string &cmd);

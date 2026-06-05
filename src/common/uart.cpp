@@ -900,15 +900,21 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), length);
     const int packageDataMaxSize = maxIOSize - sizeof(UartHead);
     size_t offset = 0;
-    uint8_t sendDataBuf[MAX_UART_SIZE_IOBUF];
+    uint8_t *sendDataBuf = new(std::nothrow) uint8_t[MAX_UART_SIZE_IOBUF];
+        if (sendDataBuf == nullptr) {
+        WRITE_LOG(LOG_DEBUG, "Failed to allocate memory for sendDataBuf");
+        return ERR_BUF_ALLOC;
+    }
 
     do {
         UartHead *head = (UartHead *)sendDataBuf;
         if (memset_s(head, sizeof(UartHead), 0, sizeof(UartHead)) != EOK) {
+            delete[] sendDataBuf;
             return ERR_BUF_RESET;
         }
         if (memcpy_s(head->flag, sizeof(head->flag), PACKET_FLAG.c_str(), PACKET_FLAG.size()) !=
             EOK) {
+            delete[] sendDataBuf;
             return ERR_BUF_COPY;
         }
         head->sessionId = hSession->sessionId;
@@ -932,6 +938,7 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
             memcpy_s(payload, packageDataMaxSize, (uint8_t *)data + offset, head->dataSize)) {
             WRITE_LOG(LOG_FATAL, "memcpy_s failed max %zu , need %zu",
                       packageDataMaxSize, head->dataSize);
+            delete[] sendDataBuf;
             return ERR_BUF_COPY;
         }
         offset += head->dataSize;
@@ -940,6 +947,7 @@ int HdcUARTBase::SendUARTData(HSession hSession, uint8_t *data, const size_t len
         RequestSendPackage(sendDataBuf, packageFullSize);
     } while (offset != length);
 
+    delete[] sendDataBuf;
     return offset;
 }
 

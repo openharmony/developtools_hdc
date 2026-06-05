@@ -54,7 +54,7 @@ bool CopyToString(const TlvBuf &tlvBuf, string &output)
         WRITE_LOG(LOG_FATAL, "tlvSize error, size is: %u", bufSize);
         return false;
     }
-    uint8_t* tlvs = new uint8_t[bufSize];
+    uint8_t* tlvs = new (std::nothrow) uint8_t[bufSize];
     if (tlvs == nullptr) {
         WRITE_LOG(LOG_FATAL, "failed to allocate tlvs memory");
         return false;

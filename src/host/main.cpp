@@ -14,6 +14,7 @@
  */
 
 #include <iostream>
+#include "base.h"
 #include "forward.h"
 #include "runtime_config.h"
 #include "server.h"
@@ -398,6 +399,31 @@ bool ParseForwardListenIP(char *optarg)
     return true;
 }
 
+int ValidateAndParseLogLevel(const char* optarg, int& logLevel)
+{
+    if (optarg == nullptr || optarg[0] == '\0') {
+        Base::PrintMessage("Loglevel error: empty argument!");
+        return -1;
+    }
+    for (const char* p = optarg; *p != '\0'; ++p) {
+        if (!std::isdigit(static_cast<unsigned char>(*p))) {
+            Base::PrintMessage("Loglevel error: invalid number string!");
+            return -1;
+        }
+    }
+
+    std::string strArg(optarg);
+    if (!Base::StringToInt(strArg, logLevel)) {
+        Base::PrintMessage("Loglevel error: invalid number format!");
+        return -1;
+    }
+    if (logLevel < 0 || logLevel > LOG_LAST) {
+        Base::PrintMessage("Loglevel error!");
+        return -1;
+    }
+    return 0;
+}
+
 bool GetCommandlineOptions(int optArgc, const char *optArgv[])
 {
     int ch = 0;
@@ -432,9 +458,9 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
                 break;
             }
             case 'l': {
-                int logLevel = atoi(optarg);
-                if (logLevel < 0 || logLevel > LOG_LAST) {
-                    Base::PrintMessage("Loglevel error!");
+                int logLevel = 0;
+                int ret = ValidateAndParseLogLevel(optarg, logLevel);
+                if (ret != 0) {
                     needExit = true;
                     return needExit;
                 }

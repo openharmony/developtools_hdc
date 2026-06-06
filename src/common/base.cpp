@@ -3488,7 +3488,7 @@ void CloseOpenFd(void)
 
     static uint32_t GetSubserverLogFileLimit()
     {
-        const char* envKey = "HDC_SUBSERVER_LOG_FILE_MAX";
+        const char* envKey = "OHOS_HDC_SUBSERVER_LOG_FILE";
         char* env = getenv(envKey);
 
         if (env == nullptr || strlen(env) == 0) {

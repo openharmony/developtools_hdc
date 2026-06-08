@@ -311,7 +311,6 @@ bool HostUpdater::ConfirmCommand(const string &commandIn, bool &closeInput)
                 break;
             }
             if (info.size() >= MAX_INPUT_LENGTH) {
-                Base::PrintMessage("Input too long");
                 return false;
             }
             if (c == '\r' || c == '\n') {

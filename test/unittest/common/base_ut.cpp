@@ -356,13 +356,13 @@ HWTEST_F(BaseTest, StringToLong_InvalidString, TestSize.Level0) {
 }
 
 HWTEST_F(BaseTest, StringToLong_Underflow, TestSize.Level0) {
-    std::string str = "-9999999999";
+    std::string str = "-999999999999999999999";
     long int value = 0;
     EXPECT_FALSE(Base::StringToLong(str, value));
 }
 
 HWTEST_F(BaseTest, StringToLong_Overflow, TestSize.Level0) {
-    std::string str = "9999999999";
+    std::string str = "999999999999999999999";
     long int value = 0;
     EXPECT_FALSE(Base::StringToLong(str, value));
 }

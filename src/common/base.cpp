@@ -2023,7 +2023,6 @@ static void EchoLog(string &buf)
     {
         uv_fs_t req;
         int r = uv_fs_lstat(nullptr, &req, path.c_str(), nullptr);
-        mode_t mode = req.statbuf.st_mode;
         uv_fs_req_cleanup(&req);
         if (r < 0) {
             r = uv_fs_mkdir(nullptr, &req, path.c_str(), DEF_FILE_PERMISSION, nullptr);
@@ -2046,6 +2045,7 @@ static void EchoLog(string &buf)
                 return false;
             }
         } else {
+            mode_t mode = req.statbuf.st_mode;
             if (!((mode & S_IFMT) == S_IFDIR)) {
                 if (GetCaller() == Caller::CLIENT) {
                     WRITE_LOG(LOG_WARN, "%s exist, not directory", path.c_str());

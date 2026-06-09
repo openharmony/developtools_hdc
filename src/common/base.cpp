@@ -1230,7 +1230,6 @@ static void EchoLog(string &buf)
             if (hCryptProv) {
                 CryptReleaseContext(hCryptProv, 0);
             }
-            result = *(reinterpret_cast<uint32_t*>(pbData));
             retryCount++;
         } while (retryCount < MAX_RETRY_COUNT);
 #else
@@ -1477,15 +1476,18 @@ static void EchoLog(string &buf)
             dynamicBuf = 1;
             constexpr size_t maxFileSize = 10 * 1024 * 1024; // 10MB
             if (nFileSize > maxFileSize) {
+                uv_fs_req_cleanup(&req);
                 return -1;
             }
             pDst = new uint8_t[nFileSize + 1]();  // tail \0
             if (!pDst) {
+                uv_fs_req_cleanup(&req);
                 return -1;
             }
             readMax = nFileSize;
         } else {
             if (nFileSize > bufLen) {
+                uv_fs_req_cleanup(&req);
                 return -2;  // -2:error for bufLen
             }
             readMax = nFileSize;

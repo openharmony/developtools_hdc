@@ -677,6 +677,10 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
 void HdcHostUSB::BeginUsbRead(HSession hSession)
 {
     HUSB hUSB = hSession->hUSB;
+    if (hUSB == nullptr) {
+        WRITE_LOG(LOG_FATAL, "BeginUsbRead failed");
+        return;
+    }
     hUSB->hostBulkIn.isShutdown = false;
     hUSB->hostBulkOut.isShutdown = false;
     ++hSession->ref;

@@ -54,11 +54,11 @@ bool ResetPwdKey(void)
     return hdcHuks.ResetHuksKey();
 }
 
-std::string CredentialEncryptPwd(const std::string& messageStr)
+std::pair<char*, size_t> CredentialEncryptPwd(const std::string& messageStr)
 {
     if (messageStr.size() != PASSWORD_LENGTH) {
         WRITE_LOG(LOG_FATAL, "Invalid input length: expected %d, got %zu", PASSWORD_LENGTH, messageStr.size());
-        return "";
+        return {nullptr, 0};
     }
     std::vector<uint8_t> encryptData;
 
@@ -66,68 +66,68 @@ std::string CredentialEncryptPwd(const std::string& messageStr)
         PASSWORD_LENGTH, encryptData);
     if (!encryptResult) {
         WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: AES GCM encryption failed.");
-        return "";
+        return {nullptr, 0};
     }
 
-    return std::string(reinterpret_cast<const char*>(encryptData.data()), encryptData.size());
+    char* result = new(std::nothrow) char[encryptData.size()];
+    if (result == nullptr) {
+        WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: out of memory.");
+        return {nullptr, 0};
+    }
+    if (memcpy_s(result, encryptData.size(), encryptData.data(), encryptData.size()) != EOK) {
+        delete[] result;
+        WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: memcpy_s failed.");
+        return {nullptr, 0};
+    }
+    return {result, encryptData.size()};
 }
 
-std::string EncryptPwd(const std::string& messageStr)
+std::pair<char*, size_t> EncryptPwd(const std::string& messageStr)
 {
     if (!ResetPwdKey()) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: ResetPwdKey failed.");
-        return "";
+        return {nullptr, 0};
     }
 
-    std::string encryptPwd = CredentialEncryptPwd(messageStr);
-    if (encryptPwd.empty()) {
+    std::pair<char*, size_t> encryptPwd = CredentialEncryptPwd(messageStr);
+    if (encryptPwd.first == nullptr || encryptPwd.second == 0) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: CredentialEncryptPwd failed.");
-        return "";
+        return {nullptr, 0};
     }
 
     return encryptPwd;
 }
 
-std::string DecryptPwd(const std::string& messageStr)
+std::pair<char*, size_t> DecryptPwd(const std::string& messageStr)
 {
-    uint8_t pwd[PASSWORD_LENGTH] = {0};
     std::pair<uint8_t*, int> decryptPwd = hdcHuks.AesGcmDecrypt(messageStr);
     if (decryptPwd.first == nullptr) {
         WRITE_LOG(LOG_FATAL, "AesGcmDecrypt failed.");
-        return "";
+        return {nullptr, 0};
     }
 
-    do {
-        if (decryptPwd.second != PASSWORD_LENGTH) {
-            WRITE_LOG(LOG_FATAL, "Invalid pwd len %d", decryptPwd.second);
-            break;
-        }
-        int ret = memcpy_s(pwd, PASSWORD_LENGTH, decryptPwd.first, decryptPwd.second);
-        if (ret != EOK) {
-            WRITE_LOG(LOG_FATAL, "Copy failed.ret is %d", ret);
-            break;
-        }
-    } while (0);
+    if (decryptPwd.second != PASSWORD_LENGTH) {
+        WRITE_LOG(LOG_FATAL, "Invalid pwd len %d", decryptPwd.second);
+        memset_s(decryptPwd.first, decryptPwd.second, 0, decryptPwd.second);
+        delete[] decryptPwd.first;
+        return {nullptr, 0};
+    }
 
-    (void)memset_s(decryptPwd.first, decryptPwd.second, 0, decryptPwd.second);
-    delete[] decryptPwd.first;
-
-    std::string pwdStr(reinterpret_cast<const char*>(pwd), PASSWORD_LENGTH);
-    (void)memset_s(pwd, PASSWORD_LENGTH, 0, PASSWORD_LENGTH);
-
-    return pwdStr;
+    return {reinterpret_cast<char*>(decryptPwd.first), static_cast<size_t>(decryptPwd.second)};
 }
 
 void HandleCryptoKeyMessage(CredentialMessage& messageStruct, std::string& needSendStr)
 {
-    std::string processMessageValue;
+    std::pair<char*, size_t> processMessageValue = {nullptr, 0};
     switch (messageStruct.GetMessageMethodType()) {
         case METHOD_ENCRYPT: {
-            processMessageValue = EncryptPwd(messageStruct.GetMessageBody());
+            std::string message = messageStruct.GetMessageBody();
+            processMessageValue = EncryptPwd(message);
             break;
         }
         case METHOD_DECRYPT: {
-            processMessageValue = DecryptPwd(messageStruct.GetMessageBody());
+            std::string message = messageStruct.GetMessageBody();
+            processMessageValue = DecryptPwd(message);
             break;
         }
         default: {
@@ -136,7 +136,11 @@ void HandleCryptoKeyMessage(CredentialMessage& messageStruct, std::string& needS
         }
     }
 
-    messageStruct.SetMessageBody(processMessageValue);
+    messageStruct.SetMessageBody(processMessageValue.first, processMessageValue.second);
+    if (processMessageValue.first != nullptr) {
+        memset_s(processMessageValue.first, processMessageValue.second, 0, processMessageValue.second);
+        delete[] processMessageValue.first;
+    }
     needSendStr = messageStruct.Construct();
 }
 
@@ -198,7 +202,8 @@ void HandleCommandReportMessage(CredentialMessage& messageStruct, std::string& n
     std::string processMessageValue;
     switch (messageStruct.GetMessageMethodType()) {
         case METHOD_COMMAND_EVENT_REPORT: {
-            processMessageValue = HandleCommandEventMessage(messageStruct.GetMessageBody());
+            std::string message = messageStruct.GetMessageBody();
+            processMessageValue = HandleCommandEventMessage(message);
             break;
         }
         default: {

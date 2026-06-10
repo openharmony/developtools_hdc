@@ -50,7 +50,7 @@ int HdcCredentialMessageTest::StripLeadingZeros(const std::string& input)
         WRITE_LOG(LOG_FATAL, "StripLeadingZeros: invalid numeric string.");
         return -1;
     }
-    
+
     char* end = nullptr;
     long value = strtol(numberStr.c_str(), &end, 10);
     return static_cast<int>(value);
@@ -135,6 +135,36 @@ HWTEST_F(HdcCredentialMessageTest, TestInit_Valid, TestSize.Level0)
     EXPECT_EQ(message.GetMessageMethodType(), 1);
     EXPECT_EQ(message.GetMessageBodyLen(), 2);
     EXPECT_EQ(message.GetMessageBody(), "00");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestInit_InvalidVersion_TooLarge, TestSize.Level0)
+{
+    std::string messageStr = "a0010002ab";
+    CredentialMessage message(messageStr);
+    EXPECT_EQ(message.GetMessageVersion(), 0);
+    EXPECT_EQ(message.GetMessageMethodType(), 0);
+    EXPECT_EQ(message.GetMessageBodyLen(), 0);
+    EXPECT_EQ(message.GetMessageBody(), "");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestInit_ZeroBodyLength, TestSize.Level0)
+{
+    std::string messageStr = "100100000";
+    CredentialMessage message(messageStr);
+    EXPECT_EQ(message.GetMessageVersion(), 1);
+    EXPECT_EQ(message.GetMessageMethodType(), 1);
+    EXPECT_EQ(message.GetMessageBodyLen(), 0);
+    EXPECT_EQ(message.GetMessageBody(), "");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestInit_BodyLengthExceedsMax, TestSize.Level0)
+{
+    std::string messageStr = "10015000ab";
+    CredentialMessage message(messageStr);
+    EXPECT_EQ(message.GetMessageVersion(), 1);
+    EXPECT_EQ(message.GetMessageMethodType(), 1);
+    EXPECT_EQ(message.GetMessageBodyLen(), 0);
+    EXPECT_EQ(message.GetMessageBody(), "");
 }
 
 HWTEST_F(HdcCredentialMessageTest, TestSetMessageVersion_InvalidVersion, TestSize.Level0)
@@ -413,6 +443,84 @@ HWTEST_F(HdcCredentialMessageTest, TestSplitStringWithNegativeCount, TestSize.Le
     EXPECT_EQ(resultStrings[3], "d");
     EXPECT_EQ(resultStrings[4], "e");
     EXPECT_EQ(resultStrings[5], "g");
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_CharPtr_NullData, TestSize.Level0)
+{
+    CredentialMessage message("");
+    message.SetMessageBody(nullptr, 10);
+    EXPECT_EQ(message.GetMessageBody(), "");
+    EXPECT_EQ(message.GetMessageBodyLen(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_CharPtr_ZeroLen, TestSize.Level0)
+{
+    CredentialMessage message("");
+    char data[] = "test";
+    message.SetMessageBody(data, 0);
+    EXPECT_EQ(message.GetMessageBody(), "");
+    EXPECT_EQ(message.GetMessageBodyLen(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_CharPtr_Valid, TestSize.Level0)
+{
+    CredentialMessage message("");
+    char data[] = "testdata";
+    message.SetMessageBody(data, 8);
+    EXPECT_EQ(message.GetMessageBody(), "testdata");
+    EXPECT_EQ(message.GetMessageBodyLen(), 8);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_CharPtr_ExceedMaxLen, TestSize.Level0)
+{
+    CredentialMessage message("");
+    char data[MESSAGE_STR_MAX_LEN + 2] = {0};
+    memset_s(data, sizeof(data), 'a', MESSAGE_STR_MAX_LEN + 1);
+    message.SetMessageBody(data, MESSAGE_STR_MAX_LEN + 1);
+    EXPECT_EQ(message.GetMessageBody(), "");
+    EXPECT_EQ(message.GetMessageBodyLen(), 0);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_Reallocate, TestSize.Level0)
+{
+    CredentialMessage message("");
+    std::string body1(100, 'a');
+    message.SetMessageBody(body1);
+    EXPECT_EQ(message.GetMessageBodyLen(), 100);
+    EXPECT_EQ(message.GetMessageBody(), body1);
+
+    std::string body2(200, 'b');
+    message.SetMessageBody(body2);
+    EXPECT_EQ(message.GetMessageBody(), body2);
+    EXPECT_EQ(message.GetMessageBodyLen(), 200);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_ShrinkSize, TestSize.Level0)
+{
+    CredentialMessage message("");
+    std::string body1(200, 'a');
+    message.SetMessageBody(body1);
+    EXPECT_EQ(message.GetMessageBodyLen(), 200);
+
+    std::string body2(50, 'b');
+    message.SetMessageBody(body2);
+    EXPECT_EQ(message.GetMessageBody(), body2);
+    EXPECT_EQ(message.GetMessageBodyLen(), 50);
+}
+
+HWTEST_F(HdcCredentialMessageTest, TestSetMessageBody_ClearResidualData, TestSize.Level0)
+{
+    CredentialMessage message("");
+
+    std::string longData = "12345678901234567890";
+    message.SetMessageBody(longData);
+    EXPECT_EQ(message.GetMessageBodyLen(), 20);
+    EXPECT_EQ(message.GetMessageBody(), longData);
+
+    std::string shortData = "abc";
+    message.SetMessageBody(shortData);
+    EXPECT_EQ(message.GetMessageBodyLen(), 3);
+    EXPECT_EQ(message.GetMessageBody(), shortData);
 }
 
 }

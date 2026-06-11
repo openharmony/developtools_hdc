@@ -1084,18 +1084,36 @@ static std::map<uint16_t, std::string> DaemonReportMap = {
     {HdcCommand::CMD_UNITY_BUGREPORT_INIT, CMDSTR_BUGREPORT},
 };
 
+#ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
+static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const int payloadSize)
+{
+    if (command == CMD_APP_CHECK) {
+        std::string bufString(reinterpret_cast<char *>(payload), payloadSize);
+        HdcTransferBase::TransferConfig transferConfig;
+        SerialStruct::ParseFromString(transferConfig, bufString);
+        return transferConfig.path + transferConfig.optionalName;
+    }
+    return std::string(reinterpret_cast<char *>(payload), payloadSize);
+}
+#endif
+
 static bool ReportCommandEvent(const uint16_t command, uint8_t *payload, const int payloadSize, bool isIntercepted)
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
     auto it = Hdc::DaemonReportMap.find(command);
-    if (it != Hdc::DaemonReportMap.end() && it->second != "" &&
-        !DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
-            it->second + " " + std::string(reinterpret_cast<char *>(payload), payloadSize),
-            Base::GetCaller(), isIntercepted, it->second)) {
-            WRITE_LOG(LOG_FATAL,
-                "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
-            return false;
-        }
+    if (it == Hdc::DaemonReportMap.end()) {
+        return true;
+    }
+    if (it->second == "") {
+        return true;
+    }
+    std::string reportInfo = GetReportInfo(command, payload, payloadSize);
+    if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
+        it->second + " " + reportInfo, Base::GetCaller(), isIntercepted, it->second)) {
+        WRITE_LOG(LOG_FATAL,
+            "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+        return false;
+    }
 #endif
     return true;
 }

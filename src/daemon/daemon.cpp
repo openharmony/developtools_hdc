@@ -1070,7 +1070,7 @@ bool HdcDaemon::CheckAuthStatus(HSession hSession, const uint32_t channelId, con
 
 static std::map<uint16_t, std::string> DaemonReportMap = {
     {HdcCommand::CMD_UNITY_EXECUTE, CMDSTR_SHELL},
-    {HdcCommand::CMD_UNITY_EXECUTE_EX, CMDSTR_SHELL}, //The `-b` is included in `GetReportInfo`, shell access is possible here.
+    {HdcCommand::CMD_UNITY_EXECUTE_EX, CMDSTR_SHELL},
     {HdcCommand::CMD_KERNEL_TARGET_CONNECT, CMDSTR_CONNECT_TARGET},
     {HdcCommand::CMD_SHELL_INIT, CMDSTR_SHELL},
     {HdcCommand::CMD_UNITY_RUNMODE, CMDSTR_TARGET_MODE},

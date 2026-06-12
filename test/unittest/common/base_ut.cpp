@@ -554,7 +554,7 @@ HWTEST_F(BaseTest, TestConnectKey2IPInvalid, TestSize.Level0) {
 
     connectKey = "127.0.0.1:abc";
     result = Base::ConnectKey2IPPort(connectKey, outIP, &outPort, sizeof(outIP));
-    EXPECT_EQ(result, 0);   //atoi returns 0 when an error occurs
+    EXPECT_EQ(result, ERR_PARM_FORMAT);   //StringToLong returns ERR_PARM_FORMAT when an error occurs
 }
 
 HWTEST_F(BaseTest, TestSplitCommandToArgsSingleParam, TestSize.Level0) {

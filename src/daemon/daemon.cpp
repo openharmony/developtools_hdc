@@ -1096,6 +1096,7 @@ static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const
             HdcTransferBase::TransferConfig transferConfig;
             SerialStruct::ParseFromString(transferConfig, bufString);
             info = transferConfig.path + transferConfig.optionalName;
+            break;
         }
         case CMD_UNITY_EXECUTE_EX: {
             TlvBuf tlvbuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
@@ -1111,6 +1112,7 @@ static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const
                 info += " " + command;
             }
             WRITE_LOG(LOG_FATAL, "GetReportInfo[UNITY_EXECUTE_EX]: info=%s", info.c_str());
+            break;
         }
     }
     return info;

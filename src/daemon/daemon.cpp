@@ -1086,15 +1086,16 @@ static std::map<uint16_t, std::string> DaemonReportMap = {
 };
 
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
-static void GetReportInfo(const uint16_t command, uint8_t *payload, const int payloadSize, std::string &info)
+static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
+    std::string info;
+    info = std::string(reinterpret_cast<char *>(payload), payloadSize);
     switch (command) {
         case CMD_APP_CHECK: {
             std::string bufString(reinterpret_cast<char *>(payload), payloadSize);
             HdcTransferBase::TransferConfig transferConfig;
             SerialStruct::ParseFromString(transferConfig, bufString);
             info = transferConfig.path + transferConfig.optionalName;
-            break;
         }
         case CMD_UNITY_EXECUTE_EX: {
             TlvBuf tlvbuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
@@ -1110,13 +1111,9 @@ static void GetReportInfo(const uint16_t command, uint8_t *payload, const int pa
                 info += " " + command;
             }
             WRITE_LOG(LOG_FATAL, "GetReportInfo[UNITY_EXECUTE_EX]: info=%s", info.c_str());
-            break;
         }
-        default:
-            info = std::string(reinterpret_cast<char *>(payload), payloadSize);
-            break;
     }
-    return;
+    return info;
 }
 #endif
 
@@ -1130,11 +1127,11 @@ static bool ReportCommandEvent(const uint16_t command, uint8_t *payload, const i
     if (it->second == "") {
         return true;
     }
-    std::string reportInfo;
-    GetReportInfo(command, payload, payloadSize, reportInfo);
+    std::string reportInfo = GetReportInfo(command, payload, payloadSize);
     if (!DelayedSingleton<CommandEventReport>::GetInstance()->ReportCommandEvent(
         it->second + " " + reportInfo, Base::GetCaller(), isIntercepted, it->second)) {
-        WRITE_LOG(LOG_FATAL, "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
+        WRITE_LOG(LOG_FATAL,
+            "[E00C002]Execution intercepted due to inaccessibility of reporting command event.");
         return false;
     }
 #endif

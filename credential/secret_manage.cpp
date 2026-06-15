@@ -64,7 +64,7 @@ static std::string GetEncryptPrivateKeyPath()
     return "/data/service/el4/" + std::to_string(userId) + "/file_guard/encrypt_private_key.pem";
 }
 
-HdcSecretManage::HdcSecretManage(const std::string &keyAlias):hdcRsaHuks(keyAlias)
+HdcSecretManage::HdcSecretManage(const std::string &keyAlias):pubKey(nullptr), privKey(nullptr), hdcRsaHuks(keyAlias)
 {
 }
 

@@ -1111,7 +1111,6 @@ static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const
             if (tlvbuf.FindTlv(TAG_SHELL_CMD, command)) {
                 info += " " + command;
             }
-            WRITE_LOG(LOG_FATAL, "GetReportInfo[UNITY_EXECUTE_EX]: info=%s", info.c_str());
             break;
         }
     }

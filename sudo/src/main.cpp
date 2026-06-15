@@ -445,29 +445,29 @@ static std::string GetLocalizedTitle()
 {
     std::string currentLang = OHOS::Global::I18n::LocaleConfig::GetSimplifiedSystemLanguage();
     if (currentLang.empty()) {
-        return "Allow execution of sudo commands";
+        return "Required to authorize a sudo command.";
     }
     std::unordered_map<std::string, std::string> TITLE_MAP = {
-        {"zh-CN", "允许执行sudo命令"},
-        {"en-US", "Allow execution of sudo commands"},
-        {"zh-HK", "允許執行sudo指令"},
-        {"zh-TW", "允許執行sudo指令"},
-        {"bo-CN", "Sudo བཀའ་བརྡ་ལག་བསྟར་བྱེད་པར་ཆོག་མཆན་སྤྲོད་པ།"},
-        {"ug-CN", "Sudo بۇيرۇقلىرىنى ئىجرا قىلىشقا رۇخسەت قىلىش"}
+        {"zh-CN", "允许执行 sudo 命令"},
+        {"en-US", "Required to authorize a sudo command."},
+        {"zh-HK", "允許執行 sudo 命令"},
+        {"zh-TW", "允許執行 sudo 命令"},
+        {"bo-CN", "sudo བཀའ་བརྡ་ལག་བསྟར་བྱ་ཆོག་པ།"},
+        {"ug-CN", "\u200Fsudo بۇيرۇقى يۈرگۈزۈشكە رۇخسەت قىلىنىدۇ."}
     };
 
     std::vector<std::string> candidateLocales = {"zh-CN", "en-US", "zh-HK", "zh-TW", "bo-CN", "ug-CN"};
 
     std::string matchedLocale = OHOS::Global::I18n::LocaleMatcher::GetBestMatchedLocale(currentLang, candidateLocales);
     if (matchedLocale.empty()) {
-        return "Allow execution of sudo commands";
+        return "Required to authorize a sudo command.";
     }
 
     auto it = TITLE_MAP.find(matchedLocale);
     if (it != TITLE_MAP.end()) {
         return it->second;
     }
-    return "Allow execution of sudo commands";
+    return "Required to authorize a sudo command.";
 }
 
 static bool VerifyUserPin()

@@ -1070,6 +1070,7 @@ bool HdcDaemon::CheckAuthStatus(HSession hSession, const uint32_t channelId, con
 
 static std::map<uint16_t, std::string> DaemonReportMap = {
     {HdcCommand::CMD_UNITY_EXECUTE, CMDSTR_SHELL},
+    {HdcCommand::CMD_UNITY_EXECUTE_EX, CMDSTR_SHELL},
     {HdcCommand::CMD_KERNEL_TARGET_CONNECT, CMDSTR_CONNECT_TARGET},
     {HdcCommand::CMD_SHELL_INIT, CMDSTR_SHELL},
     {HdcCommand::CMD_UNITY_RUNMODE, CMDSTR_TARGET_MODE},
@@ -1087,13 +1088,33 @@ static std::map<uint16_t, std::string> DaemonReportMap = {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
 static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
-    if (command == CMD_APP_CHECK) {
-        std::string bufString(reinterpret_cast<char *>(payload), payloadSize);
-        HdcTransferBase::TransferConfig transferConfig;
-        SerialStruct::ParseFromString(transferConfig, bufString);
-        return transferConfig.path + transferConfig.optionalName;
+    std::string info;
+    info = std::string(reinterpret_cast<char *>(payload), payloadSize);
+    switch (command) {
+        case CMD_APP_CHECK: {
+            std::string bufString(reinterpret_cast<char *>(payload), payloadSize);
+            HdcTransferBase::TransferConfig transferConfig;
+            SerialStruct::ParseFromString(transferConfig, bufString);
+            info = transferConfig.path + transferConfig.optionalName;
+            break;
+        }
+        case CMD_UNITY_EXECUTE_EX: {
+            TlvBuf tlvbuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
+            if (tlvbuf.ContainInvalidTag()) {
+                break;
+            }
+            std::string bundleName = "";
+            std::string command = "";
+            if (tlvbuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
+                info += "-b " + bundleName;
+            }
+            if (tlvbuf.FindTlv(TAG_SHELL_CMD, command)) {
+                info += " " + command;
+            }
+            break;
+        }
     }
-    return std::string(reinterpret_cast<char *>(payload), payloadSize);
+    return info;
 }
 #endif
 

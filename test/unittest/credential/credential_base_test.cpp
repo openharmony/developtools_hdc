@@ -89,6 +89,11 @@ HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_NotNumber, TestSize.Level1)
     EXPECT_FALSE(IsUserDir("aaa"));
 }
 
+HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_Null, TestSize.Level1)
+{
+    EXPECT_FALSE(IsUserDir(""));
+}
+
 HWTEST_F(HdcCredentialBaseTest, TestIsUserDir_InvalidNumber, TestSize.Level1)
 {
     EXPECT_FALSE(IsUserDir("99"));

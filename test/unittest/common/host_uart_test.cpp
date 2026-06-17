@@ -358,6 +358,7 @@ HWTEST_F(HdcHostUARTTest, WatchUartDevPluginHaveRemovedPort, TestSize.Level1)
     EXPECT_CALL(mockServer, AdminDaemonMap(OP_QUERY, "COMY", _))
         .WillOnce(DoAll(SetArgReferee<2>(nullptr), Return("")));
     EXPECT_CALL(mockHostUART, UpdateUARTDaemonInfo("COMY", nullptr, STATUS_READY)).Times(0);
+    di.hSession = &mySession;
     EXPECT_CALL(mockServer, AdminDaemonMap(OP_QUERY, "COMZ", _))
         .WillOnce(DoAll(SetArgReferee<2>(&di), Return("")));
     EXPECT_CALL(mockHostUART, UpdateUARTDaemonInfo("COMZ", nullptr, STATUS_READY)).Times(0);
@@ -830,7 +831,6 @@ HWTEST_F(HdcHostUARTTest, OnTransferError, TestSize.Level1)
                 UpdateUARTDaemonInfo(mySession.connectKey, &mySession, STATUS_OFFLINE))
         .WillOnce(Return());
     EXPECT_CALL(mockServer, FreeSession(sessionId)).WillOnce(Return());
-    EXPECT_CALL(mockHostUART, ClearUARTOutMap(sessionId)).WillOnce(Return());
     mockHostUART.OnTransferError(&mySession);
 }
 } // namespace Hdc

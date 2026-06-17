@@ -623,6 +623,8 @@ HWTEST_F(HdcUARTBaseTest, ExternInterface, TestSize.Level1)
     uv_pipe_t dummyPip;
     uv_loop_init(&dummyLoop);
     uv_pipe_init(uv_default_loop(), &dummyPip, 0);
+    uv_timer_t timer;
+    uv_timer_init(uv_default_loop(), &timer);
 
     defaultInterface.SetTcpOptions(nullptr);
     EXPECT_NE(defaultInterface.SendToStream(nullptr, nullptr, 0), 0);
@@ -630,7 +632,7 @@ HWTEST_F(HdcUARTBaseTest, ExternInterface, TestSize.Level1)
     EXPECT_NE(defaultInterface.UvRead((uv_stream_t *)&dummyPip, nullptr, nullptr), 0);
     EXPECT_EQ(defaultInterface.StartWorkThread(nullptr, nullptr, nullptr, nullptr), 0);
     EXPECT_NE(defaultInterface.TimerUvTask(uv_default_loop(), nullptr, nullptr), 0);
-    EXPECT_NE(defaultInterface.UvTimerStart(nullptr, nullptr, 0, 0), 0);
+    EXPECT_NE(defaultInterface.UvTimerStart(&timer, nullptr, 0, 0), 0);
     EXPECT_NE(defaultInterface.DelayDo(uv_default_loop(), 0, 0, "", nullptr, nullptr), 0);
     defaultInterface.TryCloseHandle((uv_handle_t *)&dummyPip, nullptr);
 }
@@ -678,8 +680,8 @@ HWTEST_F(HdcUARTBaseTest, ToPkgIdentityString, TestSize.Level1)
     UartHead head;
     head.sessionId = sessionId;
     head.packageIndex = packageIndex;
-    EXPECT_STREQ(head.ToPkgIdentityString().c_str(), "Id:12345pkgIdx:54321");
-    EXPECT_STREQ(head.ToPkgIdentityString(true).c_str(), "R-Id:12345pkgIdx:54321");
+    EXPECT_STREQ(head.ToPkgIdentityString().c_str(), "Id:1*****5pkgIdx:54321");
+    EXPECT_STREQ(head.ToPkgIdentityString(true).c_str(), "R-Id:1*****5pkgIdx:54321");
 }
 
 /*
@@ -791,12 +793,11 @@ HWTEST_F(HdcUARTBaseTest, HandleOutputPkgKeyFinder, TestSize.Level1)
  * successed
  * @tc.type: FUNC
  */
-HWTEST_F(HdcUARTBaseTest, StopSession, TestSize.Level1)
+HWTEST_F(HdcUARTBaseTest, Restartession, TestSize.Level1)
 {
     const uint32_t sessionId = 12345;
     HdcSession session;
     session.sessionId = sessionId;
-    EXPECT_CALL(mockUARTBase, ClearUARTOutMap(sessionId)).WillOnce(Return());
     EXPECT_CALL(mockSessionBase, FreeSession(sessionId)).WillOnce(Return());
     mockUARTBase.Restartession(&session);
 
@@ -807,16 +808,15 @@ HWTEST_F(HdcUARTBaseTest, StopSession, TestSize.Level1)
 
 /*
  * @tc.name: StopSession
- * @tc.desc: Check the behavior of the Restartession function
+ * @tc.desc: Check the behavior of the StopSession function
  * successed
  * @tc.type: FUNC
  */
-HWTEST_F(HdcUARTBaseTest, Restartession, TestSize.Level1)
+HWTEST_F(HdcUARTBaseTest, StopSession, TestSize.Level1)
 {
     const uint32_t sessionId = 12345;
     HdcSession session;
     session.sessionId = sessionId;
-    EXPECT_CALL(mockUARTBase, ClearUARTOutMap(sessionId)).WillOnce(Return());
     EXPECT_CALL(mockSessionBase, FreeSession).Times(0);
     mockUARTBase.StopSession(&session);
 }

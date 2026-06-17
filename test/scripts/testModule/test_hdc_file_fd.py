@@ -86,11 +86,11 @@ class TestFileNoSpaceFdLeak:
         if is_mix:
             local_path = get_local_path(".")
             target_path = "it_nospace_mix"
-        re_send_time = 3
+        re_send_time = 20
         for i in range(1, re_send_time + 1):
             logger.info("send %d times", i)
             output_str, error_str = run_command_with_timeout(f"{GP.hdc_head} "
-                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 60)
+                f"file send {compress_command} {local_path} {SEP}{MOUNT_POINT}/{target_path}_{i}", 25)
             if "Command timed out" in error_str:
                 logger.warning("error_str: %s", error_str)
                 return False

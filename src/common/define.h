@@ -254,5 +254,6 @@ constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_CYCLE = 10;
 constexpr size_t MAX_SAVE_CMD_LOG_TO_FILE_COUNTS = 1500;
 constexpr size_t MAX_PROCESS_TIMEOUT = 120; // 120 seconds
 constexpr int64_t MAX_FREEZE_TIME = 30 * TIME_BASE;       // 30 seconds
+const string PERMISSION_HDC_REPORT_INFO = "ohos.permission.HDC_REPORT_INFO";
 }  // namespace Hdc
 #endif  // HDC_DEFINE_H

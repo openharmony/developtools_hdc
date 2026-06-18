@@ -130,8 +130,10 @@ bool CommandEventReport::Report(const std::string &command, const std::string &c
 #ifdef DAEMON_ONLY
     OHOS::EventFwk::CommonEventPublishInfo publishInfo;
     publishInfo.SetOrdered(true);
-    OHOS::AAFwk::Want want;
+    std::vector<std::string> permissions = { PERMISSION_HDC_REPORT_INFO };
+    publishInfo.SetSubscriberPermissions(permissions);
 
+    OHOS::AAFwk::Want want;
     std::string status = isIntercepted ? "forbidden" : "enabled";
     want.SetAction(HDC_COMMAND_REPORT);
     want.SetParam(EVENT_PARAM_REPORT_USERID, int(getuid() / BASE_ID));
@@ -253,6 +255,8 @@ void CommandEventReport::ReportConnectionEvent(uint32_t sessionId, int connectSt
 #ifdef DAEMON_ONLY
     OHOS::EventFwk::CommonEventPublishInfo publishInfo;
     publishInfo.SetOrdered(true);
+    std::vector<std::string> permissions = { PERMISSION_HDC_REPORT_INFO };
+    publishInfo.SetSubscriberPermissions(permissions);
 
     OHOS::AAFwk::Want want;
     want.SetAction(HDC_CONNECTION);

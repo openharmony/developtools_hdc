@@ -362,4 +362,61 @@ HWTEST_F(HdcHuksTest, TestUseRsaPubkeyEncode, TestSize.Level0)
     std::filesystem::remove("/data/local/tmp/hdc_test_public_key.pem");
 }
 
+HWTEST_F(HdcHuksTest, TestAesGcmDecryptInvalidLen, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::string shortData = "abc";
+    auto result = huks.AesGcmDecrypt(shortData);
+    ASSERT_EQ(result.first, nullptr);
+    ASSERT_EQ(result.second, 0);
+}
+
+HWTEST_F(HdcHuksTest, TestRsaDecryptEmptyData, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::vector<uint8_t> emptyData;
+    auto result = huks.RsaDecryptPrivateKey(emptyData);
+    ASSERT_EQ(result.first, nullptr);
+    ASSERT_EQ(result.second, 0);
+}
+
+HWTEST_F(HdcHuksTest, TestRsaDecryptInvalidLen, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    std::vector<uint8_t> invalidData(100);
+    auto result = huks.RsaDecryptPrivateKey(invalidData);
+    ASSERT_EQ(result.first, nullptr);
+    ASSERT_EQ(result.second, 0);
+}
+
+HWTEST_F(HdcHuksTest, TestCaculateGcmEncryptLenBoundary, TestSize.Level0)
+{
+    ASSERT_EQ(HdcHuks::CaculateGcmEncryptLen(0), 28);
+    ASSERT_EQ(HdcHuks::CaculateGcmEncryptLen(1), 29);
+    ASSERT_EQ(HdcHuks::CaculateGcmEncryptLen(1000), 1028);
+}
+
+HWTEST_F(HdcHuksTest, TestResetHuksKeyMultipleTimes, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    ASSERT_TRUE(huks.ResetHuksKey());
+    ASSERT_TRUE(huks.ResetHuksKey());
+}
+
+HWTEST_F(HdcHuksTest, TestAesGcmEncryptDecryptConsistency, TestSize.Level0)
+{
+    HdcHuks huks(TEST_HUKS_ALIAS);
+    for (int len = 1; len <= 100; len += 10) {
+        std::vector<uint8_t> encryptData;
+        std::vector<uint8_t> testData(len, 'A');
+        ASSERT_TRUE(huks.AesGcmEncrypt(testData.data(), len, encryptData));
+
+        std::string encryptStr(encryptData.begin(), encryptData.end());
+        auto plainStr = huks.AesGcmDecrypt(encryptStr);
+        ASSERT_EQ(plainStr.second, len);
+        ASSERT_EQ(memcmp(plainStr.first, testData.data(), len), 0);
+        delete[] plainStr.first;
+    }
+}
+
 } // namespace Hdc

@@ -31,3 +31,10 @@ class TestHdcHelp:
         assert "OHOS_HDC_ENCRYPT_CHANNEL" in error
 
         assert check_hdc_cmd("help verbose", "OHOS_HDC_HEARTBEAT")
+
+    @pytest.mark.L0
+    def test_hdc_d_parameter(self):
+        assert check_hdc_cmd("-d u 123456 ", "Not support command...")
+        assert check_hdc_cmd("-d u abcdef ", "Not support command...")
+        assert check_hdc_cmd("-d t qwe123 ", "Not support command...")
+        assert check_hdc_cmd("-d t 123abc ", "Not support command...")

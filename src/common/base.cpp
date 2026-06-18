@@ -659,7 +659,7 @@ namespace Base {
         int fd = uv_fs_open(nullptr, &req, filePath.c_str(), flags, mode, nullptr);
         if (fd < 0) {
             char buffer[BUF_SIZE_DEFAULT] = { 0 };
-            uv_strerror_r((int)req.result, buffer, BUF_SIZE_DEFAULT);
+            uv_strerror_r(static_cast<int>(req.result), buffer, BUF_SIZE_DEFAULT);
             uv_fs_req_cleanup(&req);
             PrintMessage("InitSubserverLogging uv_fs_open %s error %s", filePath.c_str(), buffer);
             return;
@@ -2722,7 +2722,7 @@ void CloseOpenFd(void)
         return segments.size() == ipCount;
     }
 
-    bool StringToLong(const std::string& str, long int &out)
+    bool StringToLong(const std::string& str, long int &value)
     {
         if (str.empty()) {
             WRITE_LOG(LOG_DEBUG, "empty string");
@@ -2731,7 +2731,7 @@ void CloseOpenFd(void)
         constexpr int base = 10;
         char *endptr = nullptr;
         errno = 0;
-        out = strtol(str.c_str(), &endptr, base);
+        value = strtol(str.c_str(), &endptr, base);
         if (*endptr != '\0') {
             WRITE_LOG(LOG_DEBUG, "invalid string");
             return false;

@@ -72,10 +72,13 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     memset_s(data, sizeof(data), 0, sizeof(data));
     if (messageStruct.GetMessageBodyLen() > 0) {
-        uint8_t *keyData = new uint8_t[messageStruct.GetMessageBodyLen() + 1];
-        std::copy(messageStruct.GetMessageBody().begin(), messageStruct.GetMessageBody().end(), keyData);
-        keyData[messageStruct.GetMessageBodyLen()] = '\0';
-        return std::make_pair(keyData, messageStruct.GetMessageBodyLen());
+        int len = messageStruct.GetMessageBodyLen();
+        uint8_t *keyData = new uint8_t[len + 1];
+        std::string body = messageStruct.GetMessageBody();
+        std::copy(body.begin(), body.end(), keyData);
+        memset_s(&body[0], body.size(), 0, body.size());
+        keyData[len] = '\0';
+        return std::make_pair(keyData, len);
     } else {
         WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
         return std::make_pair(nullptr, 0);

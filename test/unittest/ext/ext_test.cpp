@@ -382,10 +382,10 @@ HWTEST_F(HdcExtTest, 25, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string validMessage = "1ABCD0005Hello";
     message->Init(validMessage);
-    EXPECT_EQ(message->messageVersion, 1);
-    EXPECT_EQ(message->messageMethodType, -1);
-    EXPECT_EQ(message->messageBodyLen, 0);
-    EXPECT_EQ(message->messageBody, "");
+    EXPECT_EQ(message->GetMessageVersion(), 1);
+    EXPECT_EQ(message->GetMessageMethodType(), -1);
+    EXPECT_EQ(message->GetMessageBodyLen(), 0);
+    EXPECT_EQ(message->GetMessageBody(), "");
 
     delete message;
 }
@@ -399,10 +399,10 @@ HWTEST_F(HdcExtTest, 26, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string emptyMessage = "";
     message->Init(emptyMessage);
-    EXPECT_EQ(message->messageVersion, 0);
-    EXPECT_EQ(message->messageMethodType, 0);
-    EXPECT_EQ(message->messageBodyLen, 0);
-    EXPECT_TRUE(message->messageBody.empty());
+    EXPECT_EQ(message->GetMessageVersion(), 0);
+    EXPECT_EQ(message->GetMessageMethodType(), 0);
+    EXPECT_EQ(message->GetMessageBodyLen(), 0);
+    EXPECT_EQ(message->GetMessageBody(), "");
 
     delete message;
 }
@@ -416,10 +416,10 @@ HWTEST_F(HdcExtTest, 27, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string shortMessage = "1ABCD";
     message->Init(shortMessage);
-    EXPECT_EQ(message->messageVersion, 0);
-    EXPECT_EQ(message->messageMethodType, 0);
-    EXPECT_EQ(message->messageBodyLen, 0);
-    EXPECT_TRUE(message->messageBody.empty());
+    EXPECT_EQ(message->GetMessageVersion(), 0);
+    EXPECT_EQ(message->GetMessageMethodType(), 0);
+    EXPECT_EQ(message->GetMessageBodyLen(), 0);
+    EXPECT_EQ(message->GetMessageBody(), "");
 
     delete message;
 }
@@ -432,7 +432,7 @@ HWTEST_F(HdcExtTest, 28, TestSize.Level0)
 {
     CredentialMessage* message = new CredentialMessage("");
     message->SetMessageVersion(1);
-    EXPECT_EQ(message->messageVersion, 1);
+    EXPECT_EQ(message->GetMessageVersion(), 1);
 
     delete message;
 }
@@ -445,7 +445,7 @@ HWTEST_F(HdcExtTest, 29, TestSize.Level0)
 {
     CredentialMessage* message = new CredentialMessage("");
     message->SetMessageVersion(-1);
-    EXPECT_EQ(message->messageVersion, 0);
+    EXPECT_EQ(message->GetMessageVersion(), 0);
 
     delete message;
 }
@@ -459,8 +459,8 @@ HWTEST_F(HdcExtTest, 30, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string body = "ValidBody";
     message->SetMessageBody(body);
-    EXPECT_EQ(message->messageBody, body);
-    EXPECT_EQ(message->messageBodyLen, body.size());
+    EXPECT_EQ(message->GetMessageBody(), body);
+    EXPECT_EQ(message->GetMessageBodyLen(), body.size());
 
     delete message;
 }
@@ -474,8 +474,8 @@ HWTEST_F(HdcExtTest, 31, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string longBody(MESSAGE_STR_MAX_LEN + 1, 'a');
     message->SetMessageBody(longBody);
-    EXPECT_TRUE(message->messageBody.empty());
-    EXPECT_EQ(message->messageBodyLen, 0);
+    EXPECT_EQ(message->GetMessageBody(), "");
+    EXPECT_EQ(message->GetMessageBodyLen(), 0);
 
     delete message;
 }
@@ -487,12 +487,11 @@ HWTEST_F(HdcExtTest, 31, TestSize.Level0)
 HWTEST_F(HdcExtTest, 32, TestSize.Level0)
 {
     CredentialMessage* message = new CredentialMessage("");
-    message->messageVersion = 1;
-    message->messageMethodType = 0xABCD;
-    message->messageBody = "Hello";
-    message->messageBodyLen = 5;
+    message->SetMessageVersion(1);
+    message->SetMessageMethodType(0);
+    message->SetMessageBody("Hello");
     std::string constructed = message->Construct();
-    EXPECT_EQ(constructed, "");
+    EXPECT_EQ(constructed, "10000005Hello");
 
     delete message;
 }
@@ -504,10 +503,9 @@ HWTEST_F(HdcExtTest, 32, TestSize.Level0)
 HWTEST_F(HdcExtTest, 33, TestSize.Level0)
 {
     CredentialMessage* message = new CredentialMessage("");
-    message->messageVersion = -1;
-    message->messageMethodType = 0xABCD;
-    message->messageBody = "Hello";
-    message->messageBodyLen = 5;
+    message->SetMessageVersion(-1);
+    message->SetMessageMethodType(0);
+    message->SetMessageBody("Hello");
     std::string constructed = message->Construct();
     EXPECT_TRUE(constructed.empty());
 

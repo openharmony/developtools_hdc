@@ -23,24 +23,35 @@ class CredentialMessage {
 public:
     CredentialMessage() = default;
     explicit CredentialMessage(const std::string& messageStr);
+
+    CredentialMessage(const CredentialMessage&) = delete;
+    CredentialMessage& operator=(const CredentialMessage&) = delete;
+    CredentialMessage(CredentialMessage&&) = delete;
+    CredentialMessage& operator=(CredentialMessage&&) = delete;
+
     void Init(const std::string& messageStr);
     ~CredentialMessage();
     int GetMessageVersion() const { return messageVersion; }
     int GetMessageMethodType() const { return messageMethodType; }
     int GetMessageBodyLen() const { return messageBodyLen; }
-    const std::string& GetMessageBody() const { return messageBody; }
+    std::string GetMessageBody() const;
 
     void SetMessageVersion(int version);
     void SetMessageMethodType(int type) { messageMethodType = type; }
     void SetMessageBodyLen(int len) { messageBodyLen = len; }
     void SetMessageBody(const std::string& body);
+    void SetMessageBody(const char* data, size_t len);
     std::string Construct() const;
 
 private:
+    void AllocateAndCopy(const char* data, size_t len);
+    void ClearMessageBody();
+
     int messageVersion = 0;
     int messageMethodType = 0;
-    int messageBodyLen = 0;
-    std::string messageBody = "";
+    int messageBodyLen = 0;          // length of stored data in bytes
+    char* messageBody = nullptr;     // dynamically allocated buffer for message body
+    size_t messageBodyCapacity = 0;  // actual allocated memory capacity in bytes (>= messageBodyLen)
 };
 
 bool IsNumeric(const std::string& str);

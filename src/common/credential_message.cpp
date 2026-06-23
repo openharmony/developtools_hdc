@@ -22,6 +22,7 @@ using namespace Hdc;
 const std::string HDC_CREDENTIAL_SOCKET_SANDBOX_PATH = "/data/hdc/hdc_huks/hdc_credential.socket";
 
 CredentialMessage::CredentialMessage(const std::string& messageStr)
+    : messageBody(nullptr), messageBodyCapacity(0)
 {
     Init(messageStr);
 }
@@ -62,12 +63,46 @@ void CredentialMessage::Init(const std::string& messageStr)
     }
 
     messageBodyLen = static_cast<int>(bodyLength);
-    messageBody = messageStr.substr(MESSAGE_BODY_POS, bodyLength);
+    AllocateAndCopy(messageStr.data() + MESSAGE_BODY_POS, bodyLength);
 }
 CredentialMessage::~CredentialMessage()
 {
-    if (!messageBody.empty()) {
-        memset_s(&messageBody[0], messageBody.size(), 0, messageBody.size());
+    ClearMessageBody();
+}
+
+void CredentialMessage::ClearMessageBody()
+{
+    if (messageBody != nullptr) {
+        memset_s(messageBody, messageBodyCapacity, 0, messageBodyCapacity);
+        delete[] messageBody;
+        messageBody = nullptr;
+        messageBodyCapacity = 0;
+        messageBodyLen = 0;
+    }
+}
+
+void CredentialMessage::AllocateAndCopy(const char* data, size_t len)
+{
+    if (len == 0 || len > MESSAGE_STR_MAX_LEN) {
+        return;
+    }
+    if (messageBodyCapacity < len) {
+        ClearMessageBody();
+        messageBody = new char[len + 1];
+        messageBodyCapacity = len;
+    }
+    if (messageBody != nullptr) {
+        if (memset_s(messageBody, messageBodyCapacity, 0, messageBodyCapacity) != EOK) {
+            WRITE_LOG(LOG_FATAL, "AllocateAndCopy: memset_s failed.");
+            messageBodyLen = 0;
+            return;
+        }
+        if (memcpy_s(messageBody, messageBodyCapacity, data, len) != EOK) {
+            WRITE_LOG(LOG_FATAL, "AllocateAndCopy: memcpy_s failed.");
+            messageBodyLen = 0;
+            return;
+        }
+        messageBodyLen = static_cast<int>(len);
     }
 }
 
@@ -80,23 +115,43 @@ void CredentialMessage::SetMessageVersion(int version)
     }
 }
 
+std::string CredentialMessage::GetMessageBody() const
+{
+    if (messageBody == nullptr || messageBodyLen == 0) {
+        return "";
+    }
+    return std::string(messageBody, messageBodyLen);
+}
+
 void CredentialMessage::SetMessageBody(const std::string& body)
 {
     if (body.size() > MESSAGE_STR_MAX_LEN) {
         WRITE_LOG(LOG_FATAL, "Message body length exceeds maximum allowed length.");
         return;
     }
-    messageBody = body;
-    messageBodyLen = static_cast<int>(messageBody.size());
+    AllocateAndCopy(body.data(), body.size());
+}
+
+void CredentialMessage::SetMessageBody(const char* data, size_t len)
+{
+    if (data == nullptr || len == 0) {
+        return;
+    }
+    if (len > MESSAGE_STR_MAX_LEN) {
+        WRITE_LOG(LOG_FATAL, "Message body length exceeds maximum allowed length.");
+        return;
+    }
+    AllocateAndCopy(data, len);
 }
 
 std::string CredentialMessage::Construct() const
 {
+    size_t bodySize = static_cast<size_t>(messageBodyLen);
     size_t totalLength = 0;
     totalLength += 1;
     totalLength += MESSAGE_METHOD_LEN;
     totalLength += MESSAGE_LENGTH_LEN;
-    totalLength += messageBody.size();
+    totalLength += bodySize;
 
     std::string messageMethodTypeStr = IntToStringWithPadding(messageMethodType, MESSAGE_METHOD_LEN);
     if (messageMethodTypeStr.size() != MESSAGE_METHOD_LEN) {
@@ -116,7 +171,9 @@ std::string CredentialMessage::Construct() const
     result.push_back('0' + messageVersion);
     result.append(messageMethodTypeStr);
     result.append(messageBodyLenStr);
-    result.append(messageBody);
+    if (messageBody != nullptr && messageBodyLen > 0) {
+        result.append(messageBody, messageBodyLen);
+    }
 
     if (result.size() != totalLength) {
         WRITE_LOG(LOG_FATAL, "size mismatch. Expected: %zu, Actual: %zu", totalLength, result.size());

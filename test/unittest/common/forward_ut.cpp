@@ -438,4 +438,76 @@ HWTEST_F(HdcForwardBaseTest, StopTask_EmptyMap, TestSize.Level0)
 
     delete info;
 }
+
+HWTEST_F(HdcForwardBaseTest, AdminContext_AddAndQuery, TestSize.Level0)
+{
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+
+    auto* ctx = new HdcForwardBase::ContextForward();
+    ctx->id = 100;
+    ctx->finish = true;
+
+    forward.AdminContext(OP_ADD, 100, ctx);
+    auto* result = forward.AdminContext(OP_QUERY, 100, nullptr);
+    EXPECT_EQ(result, ctx);
+
+    forward.AdminContext(OP_REMOVE, 100, nullptr);
+    result = forward.AdminContext(OP_QUERY, 100, nullptr);
+    EXPECT_EQ(result, nullptr);
+
+    delete ctx;
+    delete info;
+}
+
+HWTEST_F(HdcForwardBaseTest, AdminContext_Update, TestSize.Level0)
+{
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+
+    auto* ctx1 = new HdcForwardBase::ContextForward();
+    ctx1->id = 100;
+    ctx1->finish = true;
+    forward.AdminContext(OP_ADD, 100, ctx1);
+
+    auto* ctx2 = new HdcForwardBase::ContextForward();
+    ctx2->id = 200;
+    ctx2->finish = true;
+    forward.AdminContext(OP_UPDATE, 100, ctx2);
+
+    auto* result = forward.AdminContext(OP_QUERY, 200, nullptr);
+    EXPECT_EQ(result, ctx2);
+
+    delete ctx1;
+    delete ctx2;
+    delete info;
+}
+
+HWTEST_F(HdcForwardBaseTest, ReadyForRelease_InitialState, TestSize.Level0)
+{
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+
+    EXPECT_TRUE(forward.ReadyForRelease());
+
+    delete info;
+}
+
+HWTEST_F(HdcForwardBaseTest, MallocContext_AllocateAndRefCount, TestSize.Level0)
+{
+    HTaskInfo info = new TaskInformation();
+    HdcForwardBase forward(info);
+
+    auto* ctx = forward.MallocContext(true);
+    EXPECT_NE(ctx, nullptr);
+    EXPECT_EQ(forward.refCount, 1);
+
+    auto* ctx2 = forward.MallocContext(false);
+    EXPECT_NE(ctx2, nullptr);
+    EXPECT_EQ(forward.refCount, 2);
+
+    delete (HdcForwardBase::ContextForward*)ctx;
+    delete (HdcForwardBase::ContextForward*)ctx2;
+    delete info;
+}
 } // namespace Hdc

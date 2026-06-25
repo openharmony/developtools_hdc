@@ -703,6 +703,32 @@ HWTEST_F(HdcDaemonUARTTest, GetSession, TestSize.Level1)
 }
 
 /*
+ * @tc.name: GetSession
+ * @tc.desc: Check the behavior of the GetSession function - create new session
+ * @tc.type: FUNC
+ */
+HWTEST_F(HdcDaemonUARTTest, GetSessionCreateNew, TestSize.Level1)
+{
+    constexpr uint32_t sessionId = 5678;
+    HdcSession mySession;
+    HdcUART myUART;
+    mySession.hUART = &myUART;
+    mockDaemonUART.currentSessionId = 0;
+
+    ON_CALL(mockDaemonUART, PrepareNewSession).WillByDefault([&](uint32_t sessionId) {
+        return &mySession;
+    });
+
+    EXPECT_CALL(mockDaemon, AdminSession(OP_QUERY, sessionId, nullptr))
+        .Times(1)
+        .WillOnce(Return(nullptr));
+    EXPECT_CALL(mockDaemonUART, PrepareNewSession).Times(1);
+
+    HSession result = mockDaemonUART.GetSession(sessionId, true);
+    EXPECT_EQ(result, &mySession);
+}
+
+/*
  * @tc.name: OnNewHandshakeOK
  * @tc.desc: Check the behavior of the OnNewHandshakeOK function
  * @tc.type: FUNC

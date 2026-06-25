@@ -962,9 +962,20 @@ void HdcHostUSB::ClearUsbChannel(uv_work_t *req)
 void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
 {
     HClearUsbChannelWorkInfo hClearUsbChannelWorkInfo = (HClearUsbChannelWorkInfo)req->data;
+    if (hClearUsbChannelWorkInfo == nullptr) {
+        WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished req null");
+        delete req;
+        return;
+    }
     HSession hSession = hClearUsbChannelWorkInfo->hSession;
     int result = hClearUsbChannelWorkInfo->result;
     HDaemonInfo pDaemonInfo = hClearUsbChannelWorkInfo->pDaemonInfo;
+    if (hSession == nullptr || hSession->hUSB == nullptr || pDaemonInfo == nullptr) {
+        WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished hSession error");
+        delete hClearUsbChannelWorkInfo;
+        delete req;
+        return;
+    }
     std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
 
     WRITE_LOG(LOG_INFO, "ClearUsbChannelFinished sid:%s status:%d result:%d",

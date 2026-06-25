@@ -14,6 +14,7 @@
  */
 #include "credential_message.h"
 #include <charconv>
+#include <new>
 #include "sys/socket.h"
 #include "base.h"
 
@@ -88,7 +89,11 @@ void CredentialMessage::AllocateAndCopy(const char* data, size_t len)
     }
     if (messageBodyCapacity < len) {
         ClearMessageBody();
-        messageBody = new char[len + 1];
+        messageBody = new (std::nothrow) char[len + 1];
+        if (messageBody == nullptr) {
+            WRITE_LOG(LOG_FATAL, "AllocateAndCopy: memory allocation failed.");
+            return;
+        }
         messageBodyCapacity = len;
     }
     if (messageBody != nullptr) {

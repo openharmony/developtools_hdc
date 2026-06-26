@@ -63,6 +63,32 @@ HWTEST_F(HdcPasswordTest, TestGetEncryptPwdLength, TestSize.Level0)
     ASSERT_EQ(len, ENCRYPT_LENGTH);
 }
 
+HWTEST_F(HdcPasswordTest, TestGetPassword, TestSize.Level0)
+{
+    HdcPassword pwd(TEST_KEY_ALIAS);
+    pwd.GeneratePassword();
+    auto pwdInfo = pwd.GetPassword();
+    ASSERT_NE(pwdInfo.first, nullptr);
+    ASSERT_EQ(pwdInfo.second, PASSWORD_LENGTH);
+    ASSERT_TRUE(CheckPasswordFormat(pwdInfo));
+}
+
+HWTEST_F(HdcPasswordTest, TestGetEncryptPassword, TestSize.Level0)
+{
+    HdcPassword pwd(TEST_KEY_ALIAS);
+    pwd.GeneratePassword();
+    
+    auto rawPwd = pwd.GetPassword();
+    std::vector<uint8_t> pwdVec(rawPwd.first, rawPwd.first + rawPwd.second);
+    
+    pwd.ByteToHex(pwdVec);
+    
+    std::string encryptPwd = pwd.GetEncryptPassword();
+    for (char c : encryptPwd) {
+        ASSERT_TRUE((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'));
+    }
+}
+
 #ifdef HDC_FEATURE_SUPPORT_CREDENTIAL
 HWTEST_F(HdcPasswordTest, TestEncryptAndDecrypt, TestSize.Level0)
 {

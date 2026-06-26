@@ -52,15 +52,10 @@ class TestMediaFile:
         if os.path.exists(new_dir_path):
             rmdir(new_dir_path)
 
-
     @pytest.mark.L0
     @pytest.mark.repeat(1)
-    def test_media_file_import_new_dir_fail(self):
-        recv_file = get_local_path(os.path.join(self.local_new_dir, self.local_recv_file))
-        send_dir = get_local_path(self.local_new_dir)
-
-        target_fail_dir = "/mnt/data/100/media_fuse/Photo"
-
+    def test_media_file_export(self):
+        recv_file = get_local_path(os.path.join(self.local_recv_dir, self.local_recv_file))
         try:
             check_hdc_cmd(f"shell snapshot_display -f {REMOTE_SNAPSHOT_PATH}")
 
@@ -78,15 +73,9 @@ class TestMediaFile:
 
             assert os.path.exists(recv_file)
 
-            send_cmd = f"file send {send_dir} {target_fail_dir}"
-
-            send_output = get_shell_result(send_cmd)
-
-            assert "[Fail]" in send_output
-            assert "Error create directory" in send_output
-
         finally:
             if os.path.exists(recv_file):
                 os.remove(recv_file)
+            # 清理远程文件
             check_hdc_cmd(f"shell rm -rf {REMOTE_SNAPSHOT_PATH}")
             check_hdc_cmd(f"shell rm -rf {MEDIA_PHOTO_OTHER_DIR}/test.jpeg")

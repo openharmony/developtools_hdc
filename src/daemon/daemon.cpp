@@ -1089,7 +1089,6 @@ static std::map<uint16_t, std::string> DaemonReportMap = {
 static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     std::string info;
-    info = std::string(reinterpret_cast<char *>(payload), payloadSize);
     switch (command) {
         case CMD_APP_CHECK: {
             std::string bufString(reinterpret_cast<char *>(payload), payloadSize);

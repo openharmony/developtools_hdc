@@ -1112,6 +1112,9 @@ static std::string GetReportInfo(const uint16_t command, uint8_t *payload, const
             }
             break;
         }
+        default:
+            info = std::string(reinterpret_cast<char *>(payload), payloadSize);
+            break;
     }
     return info;
 }

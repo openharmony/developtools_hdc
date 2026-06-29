@@ -193,7 +193,9 @@ template("hdcd_source_set") {
       sources += [ "src/common/credential_message.cpp" ]
       sources += [ "src/common/command_event_report.cpp" ]
       defines += [ "DAEMON_ONLY" ]
-      external_deps += [ "common_event_service:cesfwk_innerkits" ]
+      external_deps += [ "common_event_service:cesfwk_innerkits",
+        "ability_base:want",
+      ]
     }
 
     ldflags = [ "-rdynamic" ]

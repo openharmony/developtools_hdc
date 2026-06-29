@@ -122,6 +122,9 @@ bool SubserverManager::ParseCommandParam(const std::string& parameters, std::str
 
 bool SubserverManager::DisconnectDevice(HdcServer* server, const std::string& serial)
 {
+    if (server == nullptr) {
+        return false;
+    }
     HDaemonInfo daemonInfo = nullptr;
     server->AdminDaemonMap(OP_QUERY, serial.c_str(), daemonInfo);
     if (daemonInfo == nullptr || daemonInfo->hSession == nullptr || daemonInfo->hSession->hUSB == nullptr) {

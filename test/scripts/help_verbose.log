@@ -28,6 +28,11 @@ session commands(on server):
  start [-r]                            - Start server. If with '-r', will be restart server
  kill [-r]                             - Kill server. If with '-r', will be restart server
  -s [ip:]port                          - Set hdc server listen config
+ spawn-sub -i serial -o [ip:]port      - Spawn a subserver process
+                                         -i: specify the device serial number
+                                         -o: specify the listen address
+                                         -N/-L: internal use only, do not specify
+ killall-sub                           - Kill all subserver processes
  -e ip                                 - Set the IP address for which the host listens during TCP
                                          port forwarding. The default value is 127.0.0.1,
                                          cannot run in single client mode

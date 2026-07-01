@@ -198,6 +198,20 @@ bool ProcessHandle::IsValid() const
     return processImpl_ && processImpl_->IsValid();
 }
 
+#ifdef HDC_UNIT_TEST
+void ProcessHandle::SetPidForTest(pid_t pid)
+{
+    if (processImpl_) {
+        processImpl_->pid = pid;
+    }
+}
+
+pid_t ProcessHandle::GetPidForTest() const
+{
+    return processImpl_ ? processImpl_->pid : -1;
+}
+#endif
+
 } // namespace Hdc
 
 #endif // !_WIN32

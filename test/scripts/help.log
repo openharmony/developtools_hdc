@@ -24,10 +24,6 @@ session commands(on server):
  start [-r]                            - Start server. If with '-r', will be restart server
  kill [-r]                             - Kill server. If with '-r', will be restart server
  -s [ip:]port                          - Set hdc server listen config
- spawn-sub -i serial -o [ip:]port      - Spawn a subserver process
-                                         -i: specify the device serial number
-                                         -o: specify the listen address
- killall-sub                           - Kill all subserver processes
 
 service commands(on daemon):
  target mount                          - Set /system /vendor partition read-write

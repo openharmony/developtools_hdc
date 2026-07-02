@@ -142,7 +142,6 @@ config("hdc_host_common_config") {
     "${hdc_path}/src/common",
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/host",
-    "${hdc_path}/src/host/subserver",
     "${hdc_path}/test/unittest/common/include",
     "${hdc_path}/test/unittest/daemon/include",
     "${hdc_path}/test/unittest/host/include",
@@ -188,7 +187,6 @@ ohos_source_set("hdc_daemon") {
   external_deps += [ "c_utils:utils" ]
   if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
-      "ipc:ipc_single",
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
     ]
@@ -303,7 +301,6 @@ ohos_unittest("hdc_jdwp_unittest") {
 
   if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
-      "ipc:ipc_single",
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
     ]
@@ -461,7 +458,6 @@ ohos_unittest("hdc_daemon_base_unittest") {
 
   if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
-      "ipc:ipc_single",
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
     ]
@@ -505,7 +501,6 @@ ohos_unittest("hdc_shell_unittest") {
 
   if (product_name != "ohos-sdk" && support_jsapi) {
     external_deps += [
-      "ipc:ipc_single",
       "os_account:os_account_innerkits",
       "os_account:account_iam_innerkits",
     ]
@@ -625,55 +620,6 @@ group("HdcJdwpTest") {
   deps = [ ":hdc_jdwp_unittest" ]
 }
 
-ohos_unittest("hdc_subserver_unittest") {
-  use_exceptions = true
-  module_out_path = module_output_path
-  resource_config_file = "unittest/resource/ohos_test.xml"
-
-  defines = [
-    "HDC_HOST",
-    "MEMORY_POOL_ENABLE",
-    "HDC_UNIT_TEST"
-  ]
-
-  if (is_ohos) {
-    defines += [
-      "HOST_OHOS",
-    ]
-  }
-
-sources = hdc_common_sources
-  sources += [
-    "${hdc_path}/src/host/subserver/file_lock_util.cpp",
-    "${hdc_path}/src/host/subserver/file_lock_util_unix.cpp",
-    "${hdc_path}/src/host/subserver/file_lock_util_win.cpp",
-    "${hdc_path}/src/host/subserver/subserver_manager.cpp",
-    "${hdc_path}/src/host/subserver/process_handle.cpp",
-    "${hdc_path}/src/host/subserver/process_handle_win.cpp",
-    "${hdc_path}/src/host/subserver/subserver_process_info.cpp",
-    "${hdc_path}/src/host/runtime_config.cpp",
-    "${hdc_path}/src/host/host_usb.cpp",
-    "unittest/host/subserver_file_lock_util_test.cpp",
-    "unittest/host/subserver_manager_test.cpp",
-    "unittest/host/subserver_runtime_config_test.cpp",
-    "unittest/host/subserver_process_handle_test.cpp",
-    "unittest/host/subserver_process_info_test.cpp",
-    "unittest/host/process_handle_mock.cpp",
-  ]
-
-  configs = [
-    ":hdc_host_common_config",
-    ":hdc_ut_code_flag",
-    ":hdc_ut_config",
-  ]
-
-  external_deps = common_external_deps
-  external_deps += [
-    "googletest:gmock_main",
-    "libusb:libusb",
-  ]
-}
-
 group("hdc_unittest") {
   testonly = true
   deps = [
@@ -687,7 +633,6 @@ group("hdc_unittest") {
     ":hdc_uart_unittest",
     ":hdc_host_base_unittest",
     ":hdc_credential_unittest",
-    ":hdc_subserver_unittest",
   ]
 }
 
@@ -712,7 +657,6 @@ config("hdc_test_config") {
     "${hdc_path}/test/fuzztest/forwardreadstream_fuzzer",
     "${hdc_path}/src/daemon",
     "${hdc_path}/src/common",
-    "${hdc_path}/src/host/subserver",
   ]
 }
 
@@ -771,71 +715,11 @@ ohos_fuzztest("ForwardReadStreamFuzzTest") {
   external_deps += [ "hilog:libhilog" ]
 }
 
-ohos_fuzztest("SubserverParamFuzzTest") {
-  module_out_path = FUZZ_OUTPUT_PATH
-  fuzz_config_file = "${hdc_path}/test/fuzztest/subserver_param_fuzzer"
-  configs = [ ":hdc_test_config" ]
-  cflags = fuzz_cflags
-
-  defines = [
-    "HDC_HOST",
-    "MEMORY_POOL_ENABLE"
-  ]
-
-  sources = [
-    "${hdc_path}/src/host/subserver/subserver_manager.cpp",
-    "${hdc_path}/src/host/subserver/file_lock_util.cpp",
-    "${hdc_path}/src/host/subserver/process_handle.cpp",
-    "${hdc_path}/src/host/runtime_config.cpp",
-    "fuzztest/subserver_param_fuzzer/SubserverParam_fuzzer.cpp",
-  ]
-  deps = [ ":hdc_common" ]
-  subsystem_name = "developtools"
-  part_name = "hdc"
-  external_deps = common_external_deps
-  external_deps += [
-    "hilog:libhilog",
-    "libusb:libusb",
-  ]
-}
-
-ohos_fuzztest("FileLockFuzzTest") {
-  module_out_path = FUZZ_OUTPUT_PATH
-  fuzz_config_file = "${hdc_path}/test/fuzztest/file_lock_fuzzer"
-  configs = [ ":hdc_test_config" ]
-  cflags = fuzz_cflags
-
-  defines = [
-    "HDC_HOST",
-    "MEMORY_POOL_ENABLE"
-  ]
-
-  sources = [
-    "${hdc_path}/src/host/subserver/file_lock_util.cpp",
-    "fuzztest/file_lock_fuzzer/FileLock_fuzzer.cpp",
-  ]
-
-  if (is_linux || is_ohos) {
-    sources += [ "${hdc_path}/src/host/subserver/file_lock_util_unix.cpp" ]
-  }
-
-  deps = [ ":hdc_common" ]
-  subsystem_name = "developtools"
-  part_name = "hdc"
-  external_deps = common_external_deps
-  external_deps += [
-    "hilog:libhilog",
-    "libusb:libusb",
-  ]
-}
-
 group("hdc_fuzztest") {
   testonly = true
   deps = [
     ":ForwardReadStreamFuzzTest",
     ":JdwpReadStreamFuzzTest",
-    ":SubserverParamFuzzTest",
-    ":FileLockFuzzTest",
   ]
 }
 

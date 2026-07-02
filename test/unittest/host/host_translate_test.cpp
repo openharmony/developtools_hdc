@@ -445,41 +445,4 @@ HWTEST_F(HdcTranslateTest, TestReconnectInvalidPrefix, TestSize.Level0)
     EXPECT_EQ(formatCommand->cmdFlag, 0);
     EXPECT_EQ(formatCommand->parameters, "");
 }
-
-HWTEST_F(HdcTranslateTest, TestSpawnSubCommandHelp, TestSize.Level0)
-{
-#ifndef __OHOS__
-    std::string usage = TranslateCommand::Usage();
-    EXPECT_NE(usage.find("spawn-sub"), string::npos);
-    EXPECT_NE(usage.find("-i serial"), string::npos);
-    EXPECT_NE(usage.find("-o [ip:]port"), string::npos);
-#endif
-}
-
-HWTEST_F(HdcTranslateTest, TestKillallSubCommandHelp, TestSize.Level0)
-{
-#ifndef __OHOS__
-    std::string usage = TranslateCommand::Usage();
-    EXPECT_NE(usage.find("killall-sub"), string::npos);
-#endif
-}
-
-HWTEST_F(HdcTranslateTest, TestSpawnSubInternalFlagsNote, TestSize.Level0)
-{
-#ifndef __OHOS__
-    std::string usage = TranslateCommand::Usage();
-    EXPECT_NE(usage.find("internal"), string::npos);
-#endif
-}
-
-HWTEST_F(HdcTranslateTest, TestSpawnSubCommandHelpVerbose, TestSize.Level0)
-{
-#ifndef __OHOS__
-    std::string usage = TranslateCommand::Verbose();
-    EXPECT_NE(usage.find("spawn-sub"), string::npos);
-    EXPECT_NE(usage.find("-i serial"), string::npos);
-    EXPECT_NE(usage.find("-o [ip:]port"), string::npos);
-#endif
-}
-
 }

@@ -59,11 +59,6 @@ public:
     static bool BuildSubserverArgs(char* buf, size_t bufSize, const char* listenString,
                                    const char* serial, const char* port);
 
-#ifdef HDC_UNIT_TEST
-    void SetPidForTest(pid_t pid);
-    pid_t GetPidForTest() const;
-#endif
-
 private:
     struct ProcessHandleImpl;
     std::unique_ptr<ProcessHandleImpl> processImpl_;

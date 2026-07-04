@@ -38,6 +38,7 @@ ohos_executable("exec_sudo") {
       "user_auth_framework:userauth_client",
       "access_control_level_manager:aclmgr_sdk",
       "i18n:intl_util",
+      "hilog:libhilog",
     ]
 
     defines = [ "HAS_PIN_AUTH_PART" ]

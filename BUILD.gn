@@ -290,6 +290,7 @@ template("build_hdc") {
     if (product_name != "ohos-sdk" || is_emulator) {
       ohos_executable("hdcd_${image_name}_exe") {
         branch_protector_ret = "pac_ret"
+        stack_protector_ret = true
         sanitize = {
           cfi = true
           cfi_cross_dso = true
@@ -353,6 +354,7 @@ template("build_hdc") {
   } else {
     ohos_executable("hdcd_${image_name}_exe") {
       branch_protector_ret = "pac_ret"
+      stack_protector_ret = true
       sanitize = {
         cfi = true
         cfi_cross_dso = true

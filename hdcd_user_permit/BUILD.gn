@@ -16,6 +16,14 @@ import("//developtools/hdc/hdc.gni")
 
 ohos_executable("exec_hdcd_user_permit") {
   if (support_hdcd_user_permit) {
+    branch_protector_ret = "pac_ret"
+    stack_protector_ret = true
+    sanitize = {
+      cfi = true
+      cfi_cross_dso = true
+      cfi_vcall_icall_only = true
+      debug = false
+    }
     sources = [
       "src/connection.cpp",
       "src/main.cpp",

@@ -20,6 +20,8 @@ ohos_executable("exec_sudo") {
       "src/main.cpp",
       "src/sudo_iam.cpp",
     ]
+    branch_protector_ret = "pac_ret"
+    stack_protector_ret = true
     sanitize = {
       cfi = true
       cfi_cross_dso = true

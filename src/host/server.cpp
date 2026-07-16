@@ -446,6 +446,13 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
 
 void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
 {
+    if (clsServerForClient != nullptr) {
+        HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
+        sfc->RemoveHostReceivePermitsBySession(hSession->sessionId);
+    } else {
+        WRITE_LOG(LOG_WARN, "Skip host receive permit cleanup sid:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+    }
     HDaemonInfo hdiOld = nullptr;
     AdminDaemonMap(OP_QUERY, hSession->connectKey, hdiOld);
     if (hdiOld == nullptr) {
@@ -780,6 +787,30 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
     return true;
 }
 
+bool HdcServer::CheckHostCommandPermission(HChannel channel, const uint32_t sessionId, const uint16_t command,
+    uint8_t *payload, const int payloadSize)
+{
+    uint32_t channelId = channel->channelId;
+    auto serverForClient = static_cast<HdcServerForClient *>(clsServerForClient);
+    if (command == CMD_FILE_INIT) {
+        WRITE_LOG(LOG_WARN, "Drop unauthorized host file init cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    if (command == CMD_FILE_CHECK &&
+        !serverForClient->CheckHostReceivePermit(channel, sessionId, payload, payloadSize)) {
+        WRITE_LOG(LOG_WARN, "Drop unauthorized host receive check cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    if (command == CMD_UNITY_BUGREPORT_INIT) {
+        WRITE_LOG(LOG_WARN, "Drop unauthorized host bugreport init cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    return true;
+}
+
 // call in child thread
 bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
@@ -820,6 +851,10 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &flag, 1);
         --hChannel->ref;
         return ret;
+    }
+    if (!CheckHostCommandPermission(hChannel, hSession->sessionId, command, payload, payloadSize)) {
+        --hChannel->ref;
+        return true;
     }
     switch (command) {
         case CMD_KERNEL_ECHO_RAW: {  // Native shell data output

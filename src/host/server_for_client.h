@@ -29,6 +29,9 @@ public:
                              const int payloadSize);
     uint16_t GetTCPListenPort();
     void Stop();
+    bool CheckHostReceivePermit(const HChannel hChannel, const uint32_t sessionId, uint8_t *payload,
+        const int payloadSize);
+    void RemoveHostReceivePermitsBySession(const uint32_t sessionId);
 
 protected:
 private:
@@ -70,12 +73,23 @@ private:
     bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
     bool IsNeedInterceptCommand();
 #endif
+    bool RegisterHostReceivePermit(const HChannel hChannel, const string &parameters);
+    void RemoveHostReceivePermit(const uint32_t channelId);
+    void NotifyInstanceChannelFree(HChannel hChannel) override;
 
 #ifdef __OHOS__
     uv_pipe_t udsListen;
 #endif
     uv_tcp_t tcpListen;
     void *clsServer;
+
+    struct HostReceivePermit {
+        uint32_t sessionId = 0;
+        string targetPath;
+    };
+
+    std::mutex hostReceiveStateMutex;
+    std::map<uint32_t, HostReceivePermit> hostReceivePermits;
     const std::set<uint16_t> FEATURE_CHECK_SET = {
         CMD_UNITY_EXECUTE_EX,
     }; // feature cmdFlag

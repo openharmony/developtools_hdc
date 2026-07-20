@@ -77,6 +77,8 @@ private:
     bool ServerSessionHandshake(HSession hSession, uint8_t *payload, int payloadSize);
     bool ServerSSLHandshake(HSession hSession, SessionHandShake &handshake);
     bool ServerSessionSSLInit(HSession hSession, SessionHandShake &handshake);
+    bool CheckHostCommandPermission(HChannel channel, const uint32_t sessionId, const uint16_t command,
+        uint8_t *payload, const int payloadSize);
     void GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut);
     void TryStopInstance();
     static bool PullupServerWin32(const char *path, const char *listenString);

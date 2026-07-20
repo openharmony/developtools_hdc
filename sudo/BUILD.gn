@@ -18,7 +18,6 @@ ohos_executable("exec_sudo") {
   if (hdc_feature_support_sudo) {
     sources = [
       "src/main.cpp",
-      "src/sudo_iam.cpp",
     ]
     branch_protector_ret = "pac_ret"
     stack_protector_ret = true

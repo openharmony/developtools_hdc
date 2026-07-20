@@ -395,34 +395,25 @@ static bool SetUidGid(void)
     }
     return true;
 }
-
-static void WaitForAuth(void)
+s
+static void PrintAclMgrError(int32_t errorCode)
 {
-    std::unique_lock<std::mutex> lock(g_mutexForAuth);
-    g_condVarForAuth.wait(lock, [] { return g_authFinish; });
-}
-
-static int32_t GetChallenge()
-{
-    if (g_userId == -1) {
-        WriteStdErr("GetChallenge userid is failed!\n");
-        return -1;
+    switch (static_cast<AclMgrResultCode>(errorCode)) {
+        case AclMgrResultCode::SEC_USERID_CONSTRAINED_ERROR:
+            WriteStdErr("no permission.\n");
+            break;
+        case AclMgrResultCode::SEC_PERMISSION_DENIED:
+            WriteStdErr("current user is not an administrator, please try again using an administrator account.\n");
+            break;
+        case AclMgrResultCode::SEC_AUTH_FAILED:
+            WriteStdErr("authentication failed.\n");
+            break;
+        case AclMgrResultCode::SEC_SESSION_TIMEOUT:
+            WriteStdErr("session timeout, please try again.\n");
+            break;
+        default:
+            WriteStdErr("set pls fail.\n");
     }
-    int32_t status = -1;
-    int32_t res = InitChallengeForCommandExt(g_userId, g_challenge.data(), g_challenge.size(), &status);
-    if (res != 0) {
-        switch (res) {
-            case AclMgrResultCode::SEC_USERID_CONSTRAINED_ERROR:
-                WriteStdErr("no permission.\n");
-                break;
-            case AclMgrResultCode::SEC_PERMISSION_DENIED:
-                WriteStdErr("current user is not an administrator, please try again using an administrator account.\n");
-                break;
-            default:
-                WriteStdErr("init challenge failed\n");
-        }
-    }
-    return status;
 }
 
 static int32_t GetUserId()
@@ -468,42 +459,6 @@ static std::string GetLocalizedTitle()
         return it->second;
     }
     return "Required to authorize a sudo command.";
-}
-
-static bool VerifyUserPin()
-{
-    if (getuid() == 0) {
-        return true;
-    }
-
-    int curUserId = GetUserId();
-    // switch user when process running, quick cancel.
-    if (curUserId != g_userId) {
-        WriteTty(USER_SWITCH_FAILED);
-        return false;
-    }
-
-    UserAuthClient &sudoIAMClient = UserAuthClient::GetInstance();
-    std::shared_ptr<SudoIDMCallback> callback = std::make_shared<SudoIDMCallback>();
-
-    OHOS::UserIam::UserAuth::WidgetAuthParam widgetAuthParam;
-    widgetAuthParam.userId = g_userId;
-    widgetAuthParam.challenge = g_challenge;
-    widgetAuthParam.authTrustLevel = AuthTrustLevel::ATL3;
-    widgetAuthParam.authTypes = { AuthType::PIN };
-
-    OHOS::UserIam::UserAuth::WidgetParam widgetParam;
-    widgetParam.title = GetLocalizedTitle();
-    widgetParam.windowMode = OHOS::UserIam::UserAuth::WindowModeType::UNKNOWN_WINDOW_MODE;
-
-    sudoIAMClient.BeginWidgetAuth(widgetAuthParam, widgetParam, callback);
-    WaitForAuth();
-    bool verifyResult = callback->GetVerifyResult();
-    g_authToken = callback->GetAuthToken();
-    if (!verifyResult) {
-        WriteTty(USER_VERIFY_FAILED);
-    }
-    return verifyResult;
 }
 
 static bool SetPSL(bool expired = false)
@@ -743,30 +698,28 @@ static bool UpdateEnv()
 
 static bool Verify()
 {
-    int retryTimes = 3;
-    while (retryTimes-- > 0) {
-        int32_t res = GetChallenge();
-        if (res < 0) {
-            return false;
-        }
-        // have cache
-        if (res == 1) {
-            // check cache expired
-            if (SetPSL(true)) {
-                // cache is not expired
-                return true;
-            }
-            // cache is expired, verify again
-            continue;
-        }
-
-        if (!VerifyUserPin() || !SetPSL()) {
-            return false;
-        }
-        return true;
+    std::mutex mtx;
+    std::condition_variable condtion;
+    atomic<bool> authFinish = false;
+    int32_t authResult = 0;
+    int32_t res = SetProcessLevelByCommand(g_userId, GetLocalizedTitle().c_str(),
+        [const mtx&, const condtion&, authFinish&](int32_t retCode, void* authResult) {
+            authResult = retCode;
+            authFinish.store(true);
+            std::unique_lock<std::mutex> lock(mtx);
+            condtion.notify_one();
+        }, &authResult);
+    if (res != ACLMGR_SUCESS) {
+        WriteStdErr("SetProcessLevelByCommand failed\n");
+        return false;
     }
-
-    return false;
+    std::unique_lock<std::mutex> lock(mtx);
+    condtion.wait(lock, [] { return authFinish.load(); });
+    if (authResult != AclMgrResultCode::ACLMGR_SUCESS) {
+        PrintAclMgrError(authResult);
+        return false;
+    }
+    return true;
 }
 
 int main(int argc, char* argv[])

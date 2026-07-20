@@ -395,7 +395,7 @@ static bool SetUidGid(void)
     }
     return true;
 }
-s
+
 static void PrintAclMgrError(int32_t errorCode)
 {
     switch (static_cast<AclMgrResultCode>(errorCode)) {
@@ -412,7 +412,7 @@ static void PrintAclMgrError(int32_t errorCode)
             WriteStdErr("session timeout, please try again.\n");
             break;
         default:
-            WriteStdErr("set pls fail.\n");
+            WriteStdErr("set psl fail.\n");
     }
 }
 
@@ -699,23 +699,26 @@ static bool UpdateEnv()
 static bool Verify()
 {
     std::mutex mtx;
-    std::condition_variable condtion;
-    atomic<bool> authFinish = false;
+    std::condition_variable condition;
+    std::atomic<bool> authFinish = false;
     int32_t authResult = 0;
     int32_t res = SetProcessLevelByCommand(g_userId, GetLocalizedTitle().c_str(),
-        [const mtx&, const condtion&, authFinish&](int32_t retCode, void* authResult) {
-            authResult = retCode;
-            authFinish.store(true);
-            std::unique_lock<std::mutex> lock(mtx);
-            condtion.notify_one();
-        }, &authResult);
-    if (res != ACLMGR_SUCESS) {
+        [&mtx, &condition, &authFinish, &authResult](int32_t retCode, void* data) {
+            if (!authFinish.load()) {
+                authResult = retCode;
+                authFinish.store(true);
+                std::unique_lock<std::mutex> lock(mtx);
+                condition.notify_one();
+            }
+        }, nullptr);
+    if (res != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCESS)) {
+        authFinish.store(true);
         WriteStdErr("SetProcessLevelByCommand failed\n");
         return false;
     }
     std::unique_lock<std::mutex> lock(mtx);
-    condtion.wait(lock, [] { return authFinish.load(); });
-    if (authResult != AclMgrResultCode::ACLMGR_SUCESS) {
+    condition.wait(lock, [] { return authFinish.load(); });
+    if (authResult != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCESS)) {
         PrintAclMgrError(authResult);
         return false;
     }

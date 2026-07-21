@@ -12,6 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef _WIN32
+#include <cerrno>
+#include <poll.h>
+#endif
+
 #include "base.h"
 #ifndef TEST_HASH
 #include "hdc_hash_gen.h"
@@ -38,6 +43,50 @@ static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
 namespace Hdc {
 bool g_terminalStateChange = false;
 static constexpr int32_t WAIT_FOR_SPAWN_MAX_TIMES = 10;
+#ifndef _WIN32
+static constexpr size_t STDIN_POLL_INTERVAL_BYTES = 40 * 1024;
+static constexpr int STDIN_POLL_TIMEOUT_MS = 1;
+
+static bool WriteStdoutAll(const char *data, size_t size)
+{
+    size_t offset = 0;
+    while (offset < size) {
+        errno = 0;
+        size_t written = fwrite(data + offset, sizeof(char), size - offset, stdout);
+        offset += written;
+        if (written > 0) {
+            if (ferror(stdout)) {
+                clearerr(stdout);
+            }
+            continue;
+        }
+        int error = errno;
+        clearerr(stdout);
+        if (error == EINTR) {
+            continue;
+        }
+        WRITE_LOG(LOG_WARN, "Write stdout failed, expected:%zu actual:%zu error:%d", size, offset, error);
+        return false;
+    }
+    while (fflush(stdout) == EOF) {
+        int error = errno;
+        clearerr(stdout);
+        if (error != EINTR) {
+            WRITE_LOG(LOG_WARN, "Flush stdout failed, error:%d", error);
+            return false;
+        }
+    }
+    return true;
+}
+
+static void SetStdoutBlocking(uv_tty_t *stdoutTty)
+{
+    int rc = uv_stream_set_blocking(reinterpret_cast<uv_stream_t *>(stdoutTty), 1);
+    if (rc < 0) {
+        WRITE_LOG(LOG_WARN, "Set stdout blocking failed:%s", uv_strerror(rc));
+    }
+}
+#endif
 
 static bool FindCommandInject(const std::string& input)
 {
@@ -81,6 +130,9 @@ HdcClient::~HdcClient()
 
 void HdcClient::NotifyInstanceChannelFree(HChannel hChannel)
 {
+#ifndef _WIN32
+    stdinBytesSincePoll = 0;
+#endif
     if (bShellInteractive) {
         WRITE_LOG(LOG_DEBUG, "Restore tty");
         ModifyTty(false, &hChannel->stdinTty);
@@ -688,18 +740,100 @@ void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     HChannel hChannel = (HChannel)stream->data;
     HdcClient *thisClass = (HdcClient *)hChannel->clsChannel;
     CALLSTAT_GUARD(thisClass->loopMainStatus, stream->loop, "HdcClient::ReadStd");
-    if (!hChannel->handshakeOK) {
-        WRITE_LOG(LOG_DEBUG, "ReadStd handshake not ready");
-        return; // if not handshake, do not send the cmd input to server.
-    }
-    char *cmd = hChannel->bufStd;
     if (nread <= 0) {
         WRITE_LOG(LOG_FATAL, "ReadStd error nread:%zd", nread);
         return;  // error
     }
-    thisClass->Send(hChannel->channelId, reinterpret_cast<uint8_t *>(cmd), strlen(cmd));
+    thisClass->ForwardStdin(hChannel, reinterpret_cast<uint8_t *>(buf->base), static_cast<size_t>(nread));
     (void)memset_s(hChannel->bufStd, sizeof(hChannel->bufStd), 0, sizeof(hChannel->bufStd));
 }
+
+void HdcClient::ForwardStdin(HChannel hChannel, uint8_t *data, size_t size)
+{
+    if (!hChannel->handshakeOK) {
+        WRITE_LOG(LOG_DEBUG, "ForwardStdin handshake not ready");
+        return;
+    }
+    if (data == nullptr || size == 0 || size > static_cast<size_t>(INT_MAX)) {
+        WRITE_LOG(LOG_WARN, "ForwardStdin invalid input size:%zu", size);
+        return;
+    }
+    Send(hChannel->channelId, data, static_cast<int>(size));
+}
+
+#ifndef _WIN32
+bool HdcClient::PollAndForwardStdin(HChannel hChannel)
+{
+    pollfd stdinPoll = { STDIN_FILENO, POLLIN, 0 };
+    int rc;
+    do {
+        rc = poll(&stdinPoll, 1, STDIN_POLL_TIMEOUT_MS);
+    } while (rc < 0 && errno == EINTR);
+    if (rc < 0) {
+        WRITE_LOG(LOG_WARN, "Poll stdin failed:%d", errno);
+        return false;
+    }
+    if (rc == 0 || (stdinPoll.revents & POLLIN) == 0) {
+        return true;
+    }
+
+    uint8_t input[BUF_SIZE_SMALL] = { 0 };
+    ssize_t nread;
+    do {
+        nread = read(STDIN_FILENO, input, sizeof(input));
+    } while (nread < 0 && errno == EINTR);
+    if (nread < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+        WRITE_LOG(LOG_WARN, "Read stdin failed:%d", errno);
+        return false;
+    }
+    if (nread > 0) {
+        ForwardStdin(hChannel, input, static_cast<size_t>(nread));
+    }
+    return true;
+}
+
+int HdcClient::WriteShellOutput(HChannel hChannel, const string &output)
+{
+    bool interactive = bShellInteractive && hChannel->stdinTty.data != nullptr &&
+        !uv_is_closing(reinterpret_cast<uv_handle_t *>(&hChannel->stdinTty));
+    if (!interactive) {
+        return WriteStdoutAll(output.data(), output.size()) ? 0 : ERR_IO_FAIL;
+    }
+
+    int stopRc = uv_read_stop(reinterpret_cast<uv_stream_t *>(&hChannel->stdinTty));
+    if (stopRc < 0) {
+        WRITE_LOG(LOG_WARN, "Stop stdin read failed:%s", uv_strerror(stopRc));
+        return ERR_IO_FAIL;
+    }
+
+    bool writeOk = true;
+    size_t offset = 0;
+    while (offset < output.size()) {
+        size_t bytesUntilPoll = STDIN_POLL_INTERVAL_BYTES - stdinBytesSincePoll;
+        size_t size = std::min(bytesUntilPoll, output.size() - offset);
+        if (!WriteStdoutAll(output.data() + offset, size)) {
+            writeOk = false;
+            break;
+        }
+        offset += size;
+        stdinBytesSincePoll += size;
+        if (stdinBytesSincePoll == STDIN_POLL_INTERVAL_BYTES) {
+            stdinBytesSincePoll = 0;
+            writeOk = PollAndForwardStdin(hChannel);
+            if (!writeOk) {
+                break;
+            }
+        }
+    }
+
+    int startRc = uv_read_start(reinterpret_cast<uv_stream_t *>(&hChannel->stdinTty), AllocStdbuf, ReadStd);
+    if (startRc < 0) {
+        WRITE_LOG(LOG_WARN, "Restart stdin read failed:%s", uv_strerror(startRc));
+        writeOk = false;
+    }
+    return writeOk ? 0 : ERR_IO_FAIL;
+}
+#endif
 
 void HdcClient::ModifyTty(bool setOrRestore, uv_tty_t *tty)
 {
@@ -726,36 +860,47 @@ void HdcClient::ModifyTty(bool setOrRestore, uv_tty_t *tty)
     }
 }
 
+void HdcClient::SetShellInteractive()
+{
+    bShellInteractive = command == CMDSTR_SHELL;
+    if (command.rfind(CMDSTR_SHELL_EX, 0) != 0) {
+        return;
+    }
+
+    bShellInteractive = true;
+    int argc = 0;
+    char **argv = Base::SplitCommandToArgs(command.c_str(), &argc);
+    int skipNext = 0;
+    for (int i = 0; i < argc; i++) {
+        if (skipNext > 0) {
+            skipNext--;
+            continue;
+        }
+        if (std::strcmp(argv[i], CMDSTR_SHELL.c_str()) == 0) {
+            continue;
+        }
+        if (std::strcmp(argv[i], "-b") == 0) {
+            skipNext++;
+            continue;
+        }
+        bShellInteractive = false;
+    }
+    delete[](reinterpret_cast<char *>(argv));
+}
+
 void HdcClient::BindLocalStd(HChannel hChannel)
 {
-    if (command == CMDSTR_SHELL) {
-        bShellInteractive = true;
-    } else if (command.rfind(CMDSTR_SHELL_EX, 0) == 0) {
-        bShellInteractive = true;
-        int argc = 0;
-        char **argv = Base::SplitCommandToArgs(command.c_str(), &argc);
-        int skipNext = 0;
-        for (int i = 0; i < argc; i++) {
-            if (skipNext > 0) {
-                skipNext--;
-                continue;
-            }
-            if (std::strcmp(argv[i], CMDSTR_SHELL.c_str()) == 0) {
-                continue;
-            }
-            if (std::strcmp(argv[i], "-b") == 0) {
-                skipNext++;
-                continue;
-            }
-            bShellInteractive = false;
-        }
-        delete[](reinterpret_cast<char *>(argv));
-        argv = nullptr;
-    }
+    SetShellInteractive();
     if (bShellInteractive && uv_guess_handle(STDIN_FILENO) != UV_TTY) {
         WRITE_LOG(LOG_WARN, "Not support stdio TTY mode");
         return;
     }
+
+#ifndef _WIN32
+    if (!bShellInteractive) {
+        return;
+    }
+#endif
 
     WRITE_LOG(LOG_DEBUG, "setup stdio TTY mode");
     if (uv_tty_init(loopMain, &hChannel->stdoutTty, STDOUT_FILENO, 0)
@@ -767,6 +912,9 @@ void HdcClient::BindLocalStd(HChannel hChannel)
     ++hChannel->uvHandleRef;
     hChannel->stdinTty.data = hChannel;
     ++hChannel->uvHandleRef;
+#ifndef _WIN32
+    SetStdoutBlocking(&hChannel->stdoutTty);
+#endif
     if (bShellInteractive) {
         WRITE_LOG(LOG_DEBUG, "uv_tty_init uv_tty_set_mode");
         ModifyTty(true, &hChannel->stdinTty);
@@ -945,6 +1093,34 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
 }
 
 // read serverForClient(server)TCP data
+bool HdcClient::DispatchRemoteTask(HChannel hChannel, uint16_t cmd, uint8_t *buf, int bytesIO)
+{
+    if (hChannel->remote <= RemoteType::REMOTE_NONE || !IsOffset(cmd)) {
+        return false;
+    }
+    if (hChannel->remote == RemoteType::REMOTE_FILE) {
+        if (fileTask == nullptr) {
+            HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
+            hTaskInfo->masterSlave = (cmd == CMD_FILE_INIT);
+            fileTask = std::make_unique<HdcFile>(hTaskInfo);
+        }
+        if (!fileTask->CommandDispatch(cmd, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+            fileTask->TaskFinish();
+        }
+    }
+    if (hChannel->remote == RemoteType::REMOTE_APP) {
+        if (appTask == nullptr) {
+            HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
+            hTaskInfo->masterSlave = (cmd == CMD_APP_INIT);
+            appTask = std::make_unique<HdcHostApp>(hTaskInfo);
+        }
+        if (!appTask->CommandDispatch(cmd, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
+            appTask->TaskFinish();
+        }
+    }
+    return true;
+}
+
 int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
 {
     if (!hChannel->handshakeOK) {
@@ -957,10 +1133,8 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
     WRITE_LOG(LOG_DEBUG, "Client ReadChannel :%d", bytesIO);
 
     uint16_t cmd = 0;
-    bool bOffset = false;
     if (bytesIO >= static_cast<int>(sizeof(uint16_t))) {
         cmd = *reinterpret_cast<uint16_t *>(buf);
-        bOffset = IsOffset(cmd);
     }
     if (cmd == CMD_CHECK_SERVER && isCheckVersionCmd) {
         WRITE_LOG(LOG_DEBUG, "recieve CMD_CHECK_VERSION command");
@@ -969,29 +1143,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         fflush(stdout);
         return 0;
     }
-    if (hChannel->remote > RemoteType::REMOTE_NONE && bOffset) {
-        // file command
-        if (hChannel->remote == RemoteType::REMOTE_FILE) {
-            if (fileTask == nullptr) {
-                HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
-                hTaskInfo->masterSlave = (cmd == CMD_FILE_INIT);
-                fileTask = std::make_unique<HdcFile>(hTaskInfo);
-            }
-            if (!fileTask->CommandDispatch(cmd, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
-                fileTask->TaskFinish();
-            }
-        }
-        // app command
-        if (hChannel->remote == RemoteType::REMOTE_APP) {
-            if (appTask == nullptr) {
-                HTaskInfo hTaskInfo = GetRemoteTaskInfo(hChannel);
-                hTaskInfo->masterSlave = (cmd == CMD_APP_INIT);
-                appTask = std::make_unique<HdcHostApp>(hTaskInfo);
-            }
-            if (!appTask->CommandDispatch(cmd, buf + sizeof(uint16_t), bytesIO - sizeof(uint16_t))) {
-                appTask->TaskFinish();
-            }
-        }
+    if (DispatchRemoteTask(hChannel, cmd, buf, bytesIO)) {
         return 0;
     }
 
@@ -1008,19 +1160,7 @@ int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
         fprintf(stdout, "%s", s.c_str());
         fflush(stdout);
 #else
-        constexpr int len = 512;
-        int size = bytesIO / len;
-        int left = bytesIO % len;
-        for (int i = 0; i <= size; i++) {
-            int cnt = len;
-            const char *p = reinterpret_cast<char *>(buf) + i * cnt;
-            if (i == size) {
-                cnt = left;
-            }
-            fprintf(stdout, "%.*s", cnt, p);
-            fflush(stdout);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
+        return WriteShellOutput(hChannel, s);
 #endif
     }
     return 0;

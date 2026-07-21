@@ -37,9 +37,16 @@ private:
     static void DoCtrlServiceWork(uv_check_t *handle);
     static void Connect(uv_connect_t *connection, int status);
     static void AllocStdbuf(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf);
+    void ForwardStdin(HChannel hChannel, uint8_t *data, size_t size);
+#ifndef _WIN32
+    bool PollAndForwardStdin(HChannel hChannel);
+    int WriteShellOutput(HChannel hChannel, const string &output);
+#endif
     static void ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
     static void CommandWorker(uv_timer_t *handle);
     static void RetryTcpConnectWorker(uv_timer_t *handle);
+    void SetShellInteractive();
+    bool DispatchRemoteTask(HChannel hChannel, uint16_t cmd, uint8_t *buf, int bytesIO);
 #ifdef __OHOS__
     static void RetryUdsConnectWorker(uv_timer_t *handle);
     static void ConnectUds(uv_connect_t *connection, int status);
@@ -78,6 +85,7 @@ private:
 
 #ifndef _WIN32
     termios terminalState;
+    size_t stdinBytesSincePoll = 0;
 #endif
     string connectKey;
     string command;

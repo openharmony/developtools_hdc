@@ -58,6 +58,8 @@ static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 
 static std::vector<std::string> envSnapshot;
 
+std::atomic<bool> g_authFinish = false;
+
 /*
  * Default table of "bad" variables to remove from the environment.
  */
@@ -690,28 +692,31 @@ static bool UpdateEnv()
 
 static bool Verify()
 {
-    std::mutex mtx;
-    std::condition_variable condition;
-    std::atomic<bool> authFinish = false;
-    int32_t authResult = 0;
-    int32_t res = SetProcessLevelByCommand(g_userId, GetLocalizedTitle().c_str(),
-        [&mtx, &condition, &authFinish, &authResult](int32_t retCode, void* data) {
-            if (!authFinish.load()) {
-                authResult = retCode;
-                authFinish.store(true);
-                std::unique_lock<std::mutex> lock(mtx);
-                condition.notify_one();
-            }
-        }, nullptr);
-    if (res != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCESS)) {
-        authFinish.store(true);
-        WriteStdErr("SetProcessLevelByCommand failed\n");
+    struct CallBackContext {
+        std::mutex mtx;
+        std::condition_variable condition;
+        int32_t authResult = 0;
+    };
+    CallBackContext callbackCtx;
+    AclMgrCommandCallback callback = [](int32_t retCode, void* data) {
+        if (!g_authFinish.load()) {
+            CallBackContext* ctx = static_cast<CallBackContext*>(data);
+            ctx->authResult = retCode;
+            g_authFinish.store(true);
+            std::unique_lock<std::mutex> lock(ctx->mtx);
+            ctx->condition.notify_one();
+        }
+    };
+    int32_t res = SetProcessLevelByCommand(g_userId, GetLocalizedTitle().c_str(), callback, &callbackCtx);
+    if (res != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCCESS)) {
+        g_authFinish.store(true);
+        WriteStdErrFmtWithStr("SetProcessLevelByCommand failed ret=%s\n", std::to_string(res));
         return false;
     }
-    std::unique_lock<std::mutex> lock(mtx);
-    condition.wait(lock, [] { return authFinish.load(); });
-    if (authResult != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCESS)) {
-        PrintAclMgrError(authResult);
+    std::unique_lock<std::mutex> lock(callbackCtx.mtx);
+    callbackCtx.condition.wait(lock, [&callbackCtx] { return g_authFinish.load(); });
+    if (callbackCtx.authResult != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCCESS)) {
+        PrintAclMgrError(callbackCtx.authResult);
         return false;
     }
     return true;

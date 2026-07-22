@@ -27,7 +27,6 @@
 #include "selinux/selinux.h"
 #endif
 #include "os_account_manager.h"
-#include "sudo_iam.h"
 #include "user_auth_client.h"
 #include "pinauth_register.h"
 #include "user_access_ctrl_client.h"
@@ -405,11 +404,11 @@ static void PrintAclMgrError(int32_t errorCode)
         case AclMgrResultCode::SEC_PERMISSION_DENIED:
             WriteStdErr("current user is not an administrator, please try again using an administrator account.\n");
             break;
-        case AclMgrResultCode::SEC_AUTH_FAILED:
-            WriteStdErr("authentication failed.\n");
+        case AclMgrResultCode::SEC_USER_VERIFY_FAILED:
+            WriteStdErr(USER_VERIFY_FAILED);
             break;
-        case AclMgrResultCode::SEC_SESSION_TIMEOUT:
-            WriteStdErr("session timeout, please try again.\n");
+        case AclMgrResultCode::SEC_FOREGROUND_CHECK_ERROR:
+            WriteStdErr(USER_SWITCH_FAILED);
             break;
         default:
             WriteStdErr("set psl fail.\n");
@@ -459,13 +458,6 @@ static std::string GetLocalizedTitle()
         return it->second;
     }
     return "Required to authorize a sudo command.";
-}
-
-static bool SetPSL(bool expired = false)
-{
-    uint32_t len = expired ? 0 : g_authToken.size();
-    int32_t res = SetProcessLevelByCommand(g_authToken.data(), len);
-    return res == 0;
 }
 
 static bool UpdateEnvironmentPath()

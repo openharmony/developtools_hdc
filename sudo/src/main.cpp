@@ -692,6 +692,7 @@ static bool UpdateEnv()
 
 static bool Verify()
 {
+    g_authFinish.store(false);
     struct CallBackContext {
         std::mutex mtx;
         std::condition_variable condition;
@@ -699,6 +700,10 @@ static bool Verify()
     };
     CallBackContext callbackCtx;
     AclMgrCommandCallback callback = [](int32_t retCode, void* data) {
+        if (data == nullptr) {
+            WriteStdErr("data is nullptr\n");
+            return;
+        }
         if (!g_authFinish.load()) {
             CallBackContext* ctx = static_cast<CallBackContext*>(data);
             ctx->authResult = retCode;

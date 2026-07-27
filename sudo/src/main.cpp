@@ -27,7 +27,6 @@
 #include "selinux/selinux.h"
 #endif
 #include "os_account_manager.h"
-#include "sudo_iam.h"
 #include "user_auth_client.h"
 #include "pinauth_register.h"
 #include "user_access_ctrl_client.h"
@@ -58,6 +57,8 @@ static std::vector<uint8_t> g_authToken = {0};
 static const std::string CONSTRAINT_SUDO = "constraint.sudo";
 
 static std::vector<std::string> envSnapshot;
+
+std::atomic<bool> g_authFinish = false;
 
 /*
  * Default table of "bad" variables to remove from the environment.
@@ -396,33 +397,27 @@ static bool SetUidGid(void)
     return true;
 }
 
-static void WaitForAuth(void)
+static void PrintAclMgrError(int32_t errorCode)
 {
-    std::unique_lock<std::mutex> lock(g_mutexForAuth);
-    g_condVarForAuth.wait(lock, [] { return g_authFinish; });
-}
-
-static int32_t GetChallenge()
-{
-    if (g_userId == -1) {
-        WriteStdErr("GetChallenge userid is failed!\n");
-        return -1;
+    switch (static_cast<AclMgrResultCode>(errorCode)) {
+        case AclMgrResultCode::SEC_USERID_CONSTRAINED_ERROR:
+            WriteStdErr("no permission.\n");
+            break;
+        case AclMgrResultCode::SEC_PERMISSION_DENIED:
+            WriteStdErr("current user is not an administrator, please try again using an administrator account.\n");
+            break;
+        case AclMgrResultCode::SEC_USER_VERIFY_FAILED:
+            WriteStdErr(USER_VERIFY_FAILED);
+            break;
+        case AclMgrResultCode::SEC_FOREGROUND_CHECK_ERROR:
+            WriteStdErr(USER_SWITCH_FAILED);
+            break;
+        case AclMgrResultCode::SEC_SUDO_DISABLED:
+            WriteStdErr("The function is controlled and managed by your organization.\n");
+            break;
+        default:
+            WriteStdErr("set psl fail.\n");
     }
-    int32_t status = -1;
-    int32_t res = InitChallengeForCommandExt(g_userId, g_challenge.data(), g_challenge.size(), &status);
-    if (res != 0) {
-        switch (res) {
-            case AclMgrResultCode::SEC_USERID_CONSTRAINED_ERROR:
-                WriteStdErr("no permission.\n");
-                break;
-            case AclMgrResultCode::SEC_PERMISSION_DENIED:
-                WriteStdErr("current user is not an administrator, please try again using an administrator account.\n");
-                break;
-            default:
-                WriteStdErr("init challenge failed\n");
-        }
-    }
-    return status;
 }
 
 static int32_t GetUserId()
@@ -468,49 +463,6 @@ static std::string GetLocalizedTitle()
         return it->second;
     }
     return "Required to authorize a sudo command.";
-}
-
-static bool VerifyUserPin()
-{
-    if (getuid() == 0) {
-        return true;
-    }
-
-    int curUserId = GetUserId();
-    // switch user when process running, quick cancel.
-    if (curUserId != g_userId) {
-        WriteTty(USER_SWITCH_FAILED);
-        return false;
-    }
-
-    UserAuthClient &sudoIAMClient = UserAuthClient::GetInstance();
-    std::shared_ptr<SudoIDMCallback> callback = std::make_shared<SudoIDMCallback>();
-
-    OHOS::UserIam::UserAuth::WidgetAuthParam widgetAuthParam;
-    widgetAuthParam.userId = g_userId;
-    widgetAuthParam.challenge = g_challenge;
-    widgetAuthParam.authTrustLevel = AuthTrustLevel::ATL3;
-    widgetAuthParam.authTypes = { AuthType::PIN };
-
-    OHOS::UserIam::UserAuth::WidgetParam widgetParam;
-    widgetParam.title = GetLocalizedTitle();
-    widgetParam.windowMode = OHOS::UserIam::UserAuth::WindowModeType::UNKNOWN_WINDOW_MODE;
-
-    sudoIAMClient.BeginWidgetAuth(widgetAuthParam, widgetParam, callback);
-    WaitForAuth();
-    bool verifyResult = callback->GetVerifyResult();
-    g_authToken = callback->GetAuthToken();
-    if (!verifyResult) {
-        WriteTty(USER_VERIFY_FAILED);
-    }
-    return verifyResult;
-}
-
-static bool SetPSL(bool expired = false)
-{
-    uint32_t len = expired ? 0 : g_authToken.size();
-    int32_t res = SetProcessLevelByCommand(g_authToken.data(), len);
-    return res == 0;
 }
 
 static bool UpdateEnvironmentPath()
@@ -743,30 +695,39 @@ static bool UpdateEnv()
 
 static bool Verify()
 {
-    int retryTimes = 3;
-    while (retryTimes-- > 0) {
-        int32_t res = GetChallenge();
-        if (res < 0) {
-            return false;
+    g_authFinish.store(false);
+    struct CallBackContext {
+        std::mutex mtx;
+        std::condition_variable condition;
+        int32_t authResult = 0;
+    };
+    CallBackContext callbackCtx;
+    AclMgrCommandCallback callback = [](int32_t retCode, void* data) {
+        if (data == nullptr) {
+            WriteStdErr("data is nullptr\n");
+            return;
         }
-        // have cache
-        if (res == 1) {
-            // check cache expired
-            if (SetPSL(true)) {
-                // cache is not expired
-                return true;
-            }
-            // cache is expired, verify again
-            continue;
+        if (!g_authFinish.load()) {
+            CallBackContext* ctx = static_cast<CallBackContext*>(data);
+            ctx->authResult = retCode;
+            g_authFinish.store(true);
+            std::unique_lock<std::mutex> lock(ctx->mtx);
+            ctx->condition.notify_one();
         }
-
-        if (!VerifyUserPin() || !SetPSL()) {
-            return false;
-        }
-        return true;
+    };
+    int32_t res = SetProcessLevelByCommand(g_userId, GetLocalizedTitle().c_str(), callback, &callbackCtx);
+    if (res != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCCESS)) {
+        g_authFinish.store(true);
+        WriteStdErrFmtWithStr("SetProcessLevelByCommand failed ret=%s\n", std::to_string(res));
+        return false;
     }
-
-    return false;
+    std::unique_lock<std::mutex> lock(callbackCtx.mtx);
+    callbackCtx.condition.wait(lock, [&callbackCtx] { return g_authFinish.load(); });
+    if (callbackCtx.authResult != static_cast<int32_t>(AclMgrResultCode::ACLMGR_SUCCESS)) {
+        PrintAclMgrError(callbackCtx.authResult);
+        return false;
+    }
+    return true;
 }
 
 int main(int argc, char* argv[])

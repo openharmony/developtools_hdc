@@ -1241,7 +1241,7 @@ struct StringReader : public reader {
         }
         size_t readSize = std::min(size, _in.size() - _pos);
         if (memcpy_s(bytes, size, _in.data() + _pos, readSize) != EOK) {
-            return readSize;
+            return 0;
         }
         _pos += readSize;
         return readSize;

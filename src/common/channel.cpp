@@ -424,11 +424,24 @@ void HdcChannelBase::Send(const uint32_t channelId, uint8_t *bufPtr, const int s
 
 void HdcChannelBase::AllocCallback(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *buf)
 {
-    HChannel context = (HChannel)handle->data;
+    HChannel context = reinterpret_cast<HChannel>(handle->data);
+    if (context == nullptr) {
+        buf->base = nullptr;
+        buf->len = 0;
+        return;
+    }
     Base::ReallocBuf(&context->ioBuf, &context->bufSize, Base::GetMaxBufSize() * BUF_EXTEND_SIZE);
-    buf->base = (char *)context->ioBuf + context->availTailIndex;
-    int size = context->bufSize - context->availTailIndex;
-    buf->len = std::min(size, static_cast<int>(sizeWanted));
+    
+    int availSize = context->bufSize - context->availTailIndex;
+    if (availSize <= 0) {
+        buf->base = nullptr;
+        buf->len = 0;
+        return;
+    }
+    
+    size_t wanted = std::min(sizeWanted, static_cast<size_t>(INT_MAX));
+    buf->base = reinterpret_cast<char *>(context->ioBuf) + context->availTailIndex;
+    buf->len = std::min(availSize, static_cast<int>(wanted));
 }
 
 uint32_t HdcChannelBase::GetChannelPseudoUid()
@@ -712,7 +725,10 @@ void HdcChannelBase::FreeChannel(const uint32_t channelId)
             break;
         }
         WRITE_LOG(LOG_DEBUG, "Begin to free channel, channelid:%u", channelId);
-        Base::TimerUvTask(loopMain, hChannel, FreeChannelOpeate, MINOR_TIMEOUT);  // do immediately
+        if (!Base::TimerUvTask(loopMain, hChannel, FreeChannelOpeate, MINOR_TIMEOUT)) {
+            WRITE_LOG(LOG_FATAL, "TimerUvTask failed, channelid:%u", channelId);
+            break;
+        }
         hChannel->isDead = true;
     } while (false);
 }
@@ -821,6 +837,7 @@ void HdcChannelBase::DispMntnInfo(HChannel hChannel)
         return;
     }
     WRITE_LOG(LOG_DEBUG, "channel info: id:%u isDead:%d ref:%u, writeFailedTimes:%u",
-        hChannel->channelId, hChannel->isDead, uint32_t(hChannel->ref), uint32_t(hChannel->writeFailedTimes));
+        hChannel->channelId, static_cast<int>(hChannel->isDead.load()),
+        uint32_t(hChannel->ref), uint32_t(hChannel->writeFailedTimes));
 }
 }

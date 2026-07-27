@@ -260,7 +260,11 @@ void HdcDaemon::InitMod(bool bEnableTCP, bool bEnableUSB)
         WRITE_LOG(LOG_FATAL, "InitMod new clsJdwp failed");
         return;
     }
-    ((HdcJdwp *)clsJdwp)->Initial();
+    if (((HdcJdwp *)clsJdwp)->Initial() != RET_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "InitMod JDWP Initial failed");
+        ClearInstanceResource();
+        return;
+    }
 #ifndef HDC_EMULATOR
     authEnable = GetAuthByPassValue();
 #endif

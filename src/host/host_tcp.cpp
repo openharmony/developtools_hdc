@@ -33,7 +33,7 @@ void HdcHostTCP::Stop()
 
 void HdcHostTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t* /* handle */, const uv_buf_t *rcvbuf)
 {
-    char bufString[BUF_SIZE_TINY];
+    char bufString[BUF_SIZE_TINY] = {0};
     int port = 0;
     char *p = strstr(rcvbuf->base, "-");
     if (!p) {
@@ -43,7 +43,13 @@ void HdcHostTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t* /* handle */, c
     if (!port) {
         return;
     }
-    uv_ip6_name((sockaddr_in6 *)addrSrc, bufString, sizeof(bufString));
+    if (addrSrc->sa_family != AF_INET6) {
+        return;
+    }
+    int ret = uv_ip6_name((sockaddr_in6 *)addrSrc, bufString, sizeof(bufString));
+    if (ret != 0) {
+        return;
+    }
     string addrPort = string(bufString);
     addrPort += string(":") + std::to_string(port);
     lstDaemonResult.push_back(addrPort);
@@ -107,7 +113,10 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
         hSession->isRunningOk = false;
         char buffer[BUF_SIZE_DEFAULT] = { 0 };
         uv_strerror_r(status, buffer, BUF_SIZE_DEFAULT);
-        hSession->faultInfo += buffer;
+        {
+            std::lock_guard<std::mutex> lock(hSession->faultInfoMutex);
+            hSession->faultInfo += buffer;
+        }
         goto Finish;
     }
     if ((hSession->fdChildWorkTCP = Base::DuplicateUvSocket(&hSession->hWorkTCP)) < 0) {

@@ -432,6 +432,11 @@ string RunMode(const char *input, FormatCommand *outCmd)
 {
     string stringError;
     outCmd->cmdFlag = CMD_UNITY_RUNMODE;
+    if (input == nullptr || strlen(input) <= CMDSTR_TARGET_MODE.size()) {
+        stringError = "Error input parameter";
+        outCmd->bJumpDo = true;
+        return stringError;
+    }
     outCmd->parameters = input + CMDSTR_TARGET_MODE.size() + 1;  // with  ' '
     int portLength = 4;
     int portSpaceLength = 5;

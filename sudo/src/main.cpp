@@ -673,21 +673,24 @@ static bool UpdateEnv()
     for (const auto& envItem : envSnapshot) {
         size_t sepPos = envItem.find('=');
         std::string envName = (sepPos == std::string::npos) ? envItem : envItem.substr(0, sepPos);
+        if (envName.empty()) {
+            return false;
+        }
 
         bool delResult = MatchesEnvDel(envItem);
         if (delResult) {
-            if (!envName.empty()) {
-                unsetenv(envName.c_str());
-                continue;
+            if (unsetenv(envName.c_str()) != 0) {
+                WriteStdErrFmtWithStr("unsetenv failed for %s\n", envName);
             }
+            continue;
         }
 
         bool checkResult = MatchesEnvCheck(envItem);
         if (checkResult) {
-            if (!envName.empty()) {
-                unsetenv(envName.c_str());
-                continue;
+            if (unsetenv(envName.c_str()) != 0) {
+                WriteStdErrFmtWithStr("unsetenv failed for %s\n", envName);
             }
+            continue;
         }
     }
     return true;

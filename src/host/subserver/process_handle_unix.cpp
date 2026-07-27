@@ -55,7 +55,10 @@ struct ProcessHandle::ProcessHandleImpl {
             return -1;
         }
         int status = 0;
-        waitpid(pid, &status, 0);
+        pid_t ret = waitpid(pid, &status, 0);
+        if (ret < 0) {
+            return -1;
+        }
         if (WIFEXITED(status)) {
             return WEXITSTATUS(status);
         }

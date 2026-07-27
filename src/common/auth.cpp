@@ -562,7 +562,6 @@ static bool WritePrivatePwdFile(const std::string& fileName, const std::string& 
 
 static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
 {
-    FILE *fp = nullptr;
 #ifdef HDC_SUPPORT_ENCRYPT_PRIVATE_KEY
     Hdc::HdcPassword pwd(HDC_PRIVATE_KEY_FILE_PWD_KEY_ALIAS);
     pwd.GeneratePassword();
@@ -570,9 +569,9 @@ static bool WritePrivateFile(const std::string& fileName, EVP_PKEY *evp)
         WRITE_LOG(LOG_FATAL, "encrypt pwd failed");
         return false;
     }
-    std::pair<uint8_t*, int> pwdValue = pwd.GetPassword();
+    std::pair<const uint8_t*, int> pwdValue = pwd.GetPassword();
 #endif
-    fp = Base::Fopen(fileName.c_str(), "w");
+    FILE *fp = Base::FopenNoFollow(fileName.c_str(), "w");
     if (fp == nullptr) {
         if (Base::GetCaller() == Base::Caller::SERVER) {
             WRITE_LOG(LOG_FATAL, "open %s failed", Hdc::MaskString(fileName).c_str());
@@ -790,7 +789,7 @@ static uint8_t* GetPlainPwd(const std::string& privateKeyFile)
     if (!pwd.DecryptPwd(encryptPwd)) {
         return nullptr;
     }
-    std::pair<uint8_t*, int> plainPwd = pwd.GetPassword();
+    std::pair<const uint8_t*, int> plainPwd = pwd.GetPassword();
     if (plainPwd.first == nullptr) {
         return nullptr;
     }

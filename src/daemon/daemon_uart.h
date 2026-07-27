@@ -14,6 +14,8 @@
  */
 #ifndef HDC_DAEMON_UART_H
 #define HDC_DAEMON_UART_H
+
+#include <atomic>
 #include <pthread.h>
 #include "daemon_common.h"
 
@@ -59,7 +61,7 @@ private:
     void ResetOldSession(uint32_t sessionId) override;
 
     uv_timer_t checkSerialPort; // server-use
-    uint32_t currentSessionId = 0;
+    std::atomic<uint32_t> currentSessionId{0};
     bool isAlive = false;
     std::string devPath;
 

@@ -17,6 +17,7 @@
 #include <iostream>
 #include <fstream>
 #include <optional>
+#include <sstream>
 
 namespace Hdc {
 
@@ -106,6 +107,11 @@ bool Entry::UpdataName(std::string name)
 
 bool Entry::CopyPayload(std::string prefixPath, std::ifstream &inFile)
 {
+    std::string name = GetName();
+    if (!Base::CheckPathTraversal(name)) {
+        WRITE_LOG(LOG_WARN, "path traversal detected in CopyPayload: %s", Hdc::MaskString(name).c_str());
+        return false;
+    }
     switch (this->header.FileType()) {
         case TypeFlage::ORDINARYFILE: {
             if (!PayloadToFile(prefixPath, inFile)) {

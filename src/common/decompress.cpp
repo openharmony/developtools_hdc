@@ -40,13 +40,12 @@ bool Decompress::DecompressToLocal(std::string decPath)
         }
         entry = Entry(buff, HEADER_LEN);
         if (!entry.value().CopyPayload(decPath, inFile)) {
-            entry = std::nullopt;
-            break;
+            WRITE_LOG(LOG_FATAL, "CopyPayload fail");
+            return false;
         }
         entry = std::nullopt;
         continue;
     }
-    inFile.close();
     return true;
 }
 

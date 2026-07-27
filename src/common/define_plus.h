@@ -15,6 +15,7 @@
 #ifndef DEFINE_PLUS_H
 #define DEFINE_PLUS_H
 
+#include <atomic>
 #include <condition_variable>
 #include <sstream>
 #include <thread>
@@ -216,7 +217,7 @@ struct HdcSessionStat {
 struct HdcSession {
     bool serverOrDaemon;  // instance of daemon or server, true is server, false is daemon
     bool handshakeOK = false;     // Is an expected peer side
-    bool isDead;
+    std::atomic<bool> isDead;
     bool voteReset;
     bool isCheck = false;
     std::string connectKey;
@@ -273,6 +274,7 @@ struct HdcSession {
 #ifdef HDC_HOST
     bool isRunningOk;
     std::string faultInfo;
+    std::mutex faultInfoMutex;
     uint64_t commandCount = 0;
     std::string ToDisplayConnectionStr()
     {
@@ -282,7 +284,10 @@ struct HdcSession {
         oss << " connectKey:" << Hdc::MaskString(connectKey);
         oss << " connType:" << unsigned(connType);
         oss << " connect state:" << isRunningOk;
-        oss << " faultInfo:" << faultInfo;
+        {
+            std::lock_guard<std::mutex> lock(faultInfoMutex);
+            oss << " faultInfo:" << faultInfo;
+        }
         oss << " commandCount:" << commandCount;
         oss << " ]";
         return oss.str();
@@ -378,7 +383,7 @@ struct HdcChannel {
     uv_thread_t hWorkThread;
     uint8_t uvHandleRef = 0;  // libuv handle ref -- just main thread now
     bool handshakeOK;
-    bool isDead;
+    std::atomic<bool> isDead{false};
     bool serverOrClient;  // true: server's channel, false: client's channel
     bool childCleared;
     bool interactiveShellMode;  // Is shell interactive mode

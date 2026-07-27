@@ -205,8 +205,13 @@ int HdcDaemonUSB::ConnectEPPoint(HUSB hUSB)
 
 void HdcDaemonUSB::CloseEndpoint(HUSB hUSB, bool closeCtrlEp)
 {
-    Base::CloseFd(hUSB->bulkIn);
-    Base::CloseFd(hUSB->bulkOut);
+    if (!hUSB->isBulkInClosing) {
+        Base::CloseFd(hUSB->bulkIn);
+    }
+    if (!hUSB->isBulkOutClosing) {
+        Base::CloseFd(hUSB->bulkOut);
+    }
+    
     if (controlEp > 0 && closeCtrlEp) {
         Base::CloseFd(controlEp);
         controlEp = 0;
@@ -262,8 +267,7 @@ int HdcDaemonUSB::AvailablePacket(uint8_t *ioBuf, int ioBytes, uint32_t *session
 // Work in subcrete，Work thread is ready
 bool HdcDaemonUSB::ReadyForWorkThread(HSession hSession)
 {
-    HdcUSBBase::ReadyForWorkThread(hSession);
-    return true;
+    return HdcUSBBase::ReadyForWorkThread(hSession);
 };
 
 int HdcDaemonUSB::CloseBulkEp(bool bulkInOut, int bulkFd, uv_loop_t *loop)
@@ -331,7 +335,7 @@ int HdcDaemonUSB::SendUSBIOSync(HSession hSession, HUSB hMainUSB, const uint8_t 
         ret = length;
     } else {
         WRITE_LOG(LOG_FATAL, "BulkinWrite write failed, nsize:%d really:%d modRunning:%d isAlive:%d SessionDead:%d",
-                  length, offset, modRunning, isAlive, hSession->isDead);
+                  length, offset, modRunning, isAlive, hSession->isDead.load());
     }
     return ret;
 }
@@ -576,7 +580,8 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
     }
 
     if (hChildSession->childCleared || hChildSession->isDead) {
-        WRITE_LOG(LOG_WARN, "session dead clr:%d - %d", hChildSession->childCleared, hChildSession->isDead);
+        WRITE_LOG(LOG_WARN, "session dead clr:%d - %d", hChildSession->childCleared,
+            static_cast<int>(hChildSession->isDead.load()));
         return ERR_SESSION_DEAD;
     }
     uv_stream_t *stream = reinterpret_cast<uv_stream_t *>(&hChildSession->dataPipe[STREAM_MAIN]);

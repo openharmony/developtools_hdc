@@ -55,7 +55,11 @@ private:
 #endif
     int ConnectServerForClient(const char *ip, uint16_t port);
     int ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO) override;
-    int PreHandshake(HChannel hChannel, const uint8_t *buf);
+    int PreHandshake(HChannel hChannel, const uint8_t *buf, const int bytesIO);
+    int ValidateHandshakeBanner(HChannel hChannel, const uint8_t *buf, const int bytesIO);
+    void SyncChannelId(HChannel hChannel, const uint8_t *buf);
+    int FillConnectKeyAndCheckVersion(uint32_t channelId, ChannelHandShake *hShake);
+    void FinalizeHandshake(HChannel hChannel, ChannelHandShake *hShake);
     string AutoConnectKey(string &doCommand, const string &preConnectKey) const;
     uint32_t GetLastPID();
     bool StartServer(const string &cmd);

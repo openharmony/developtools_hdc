@@ -41,6 +41,7 @@ private:
 #endif
     static void AcceptClient(uv_stream_t *server, int status);
     bool SetTCPListen();
+    bool TryBindIPv4Fallback(char *buffer);
     int ReadChannel(HChannel hChannel, uint8_t *bufPtr, const int bytesIO) override;
     void ReportServerVersion(HChannel hChannel);
     bool DoCommand(HChannel hChannel, void *formatCommandInput, HDaemonInfo &hdi);

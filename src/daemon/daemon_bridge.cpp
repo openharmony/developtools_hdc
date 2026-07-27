@@ -31,8 +31,10 @@ HdcDaemonBridge::HdcDaemonBridge(const bool serverOrDaemonIn, void *ptrMainBase)
     // If the listening value for the property setting is obtained, it will be 0 randomly assigned.
     string strBridgePort;
     SystemDepend::GetDevItem("persist.hdc.port", strBridgePort);
-    bridgeListenPort = atoi(strBridgePort.c_str());
-    if (bridgeListenPort <= 0) {
+    int port = atoi(strBridgePort.c_str());
+    if (port > 0 && port <= UINT16_MAX) {
+        bridgeListenPort = static_cast<uint16_t>(port);
+    } else {
         bridgeListenPort = 0;
     }
 #ifdef HDC_DEBUG

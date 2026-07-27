@@ -131,6 +131,10 @@ void* HdcConnectRun(void* pkgContent)
     bool isDebug = static_cast<ConnectManagement*>(pkgContent)->GetDebug();
     Callback cb = static_cast<ConnectManagement*>(pkgContent)->GetCallback();
     g_clsHdcJdwpSimulator = new (std::nothrow) HdcJdwpSimulator(processName, pkgName, isDebug, cb);
+    if (g_clsHdcJdwpSimulator == nullptr) {
+        HILOG_FATAL(LOG_CORE, "HdcJdwpSimulator alloc fail.");
+        return nullptr;
+    }
     if (!g_clsHdcJdwpSimulator->Connect()) {
         HILOG_FATAL(LOG_CORE, "Connect fail.");
         return nullptr;

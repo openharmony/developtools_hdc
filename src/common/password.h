@@ -32,7 +32,7 @@ public:
     void GeneratePassword(void);
     bool DecryptPwd(std::vector<uint8_t>& encryptData);
     bool EncryptPwd(void);
-    std::pair<uint8_t*, int> GetPassword(void);
+    std::pair<const uint8_t*, int> GetPassword(void);
     std::string GetEncryptPassword(void);
     bool ResetPwdKey();
     int GetEncryptPwdLength();

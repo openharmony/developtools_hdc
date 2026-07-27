@@ -52,7 +52,7 @@ int HdcDaemonUART::Initial(const std::string &devPathIn)
         if (!consoleActive.empty() and devPathIn.find(consoleActive.c_str()) != std::string::npos) {
             WRITE_LOG(LOG_FATAL,
                       "kernel use this dev(%s) as console , we can't open it as hdc uart dev",
-                      devPathIn.c_str());
+                      Hdc::MaskString(devPathIn).c_str());
             return -1;
         }
     }
@@ -326,6 +326,10 @@ int HdcDaemonUART::LoopUARTWrite()
 
 bool HdcDaemonUART::IsSendReady(HSession hSession)
 {
+    if (!hSession || !hSession->hUART) {
+        WRITE_LOG(LOG_WARN, "IsSendReady: invalid hSession or hUART");
+        return false;
+    }
     if (isAlive and !hSession->isDead and uartHandle >= 0 and !hSession->hUART->resetIO) {
         return true;
     } else {

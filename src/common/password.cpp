@@ -92,9 +92,13 @@ HdcPassword::HdcPassword(const std::string &pwdKeyAlias):hdcHuks(pwdKeyAlias)
 HdcPassword::~HdcPassword()
 {
     (void)memset_s(pwd, sizeof(pwd), 0, sizeof(pwd));
+    if (!encryptPwd.empty()) {
+        (void)memset_s(&encryptPwd[0], encryptPwd.size(), 0, encryptPwd.size());
+        encryptPwd.clear();
+    }
 }
 
-std::pair<uint8_t*, int> HdcPassword::GetPassword(void)
+std::pair<const uint8_t*, int> HdcPassword::GetPassword(void)
 {
     return std::make_pair(pwd, PASSWORD_LENGTH);
 }
@@ -227,6 +231,9 @@ int HdcPassword::GetEncryptPwdLength()
 
 void HdcPassword::ClearEncryptPwd(void)
 {
+    if (!encryptPwd.empty()) {
+        (void)memset_s(encryptPwd.data(), encryptPwd.size(), 0, encryptPwd.size());
+    }
     encryptPwd.clear();
 }
 } // namespace Hdc

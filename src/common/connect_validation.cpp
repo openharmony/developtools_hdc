@@ -172,8 +172,11 @@ EVP_PKEY *StringToEVP(const std::string &pemStr)
         RSA *rsa = PEM_read_bio_RSAPrivateKey(bio, nullptr, nullptr, nullptr);
         if (rsa) {
             evp = EVP_PKEY_new();
-            if (!EVP_PKEY_assign_RSA(evp, rsa)) {
+            if (!evp) {
                 RSA_free(rsa);
+            } else if (!EVP_PKEY_assign_RSA(evp, rsa)) {
+                RSA_free(rsa);
+                EVP_PKEY_free(evp);
                 evp = nullptr;
             }
         }

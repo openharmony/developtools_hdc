@@ -62,6 +62,7 @@ private:
     void BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string &out);
     void BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, string &echo);
     void ClearMapDaemonInfo();
+    void ClearMapForwardInfo();
     bool ServerCommand(const uint32_t sessionId, const uint32_t channelId, const uint16_t command, uint8_t *bufPtr,
                        const int size) override;
     bool RedirectToTask(HTaskInfo hTaskInfo, HSession hSession, const uint32_t channelId, const uint16_t command,
@@ -81,6 +82,9 @@ private:
         uint8_t *payload, const int payloadSize);
     void GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut);
     void TryStopInstance();
+    void AdminDaemonMapAdd(HDaemonInfo &hDaemonInfoInOut);
+    void AdminDaemonMapRemove(const string &connectKey);
+    void AdminDaemonMapUpdate(HDaemonInfo &hDaemonInfoInOut);
     static bool PullupServerWin32(const char *path, const char *listenString);
 
     uv_rwlock_t daemonAdmin;

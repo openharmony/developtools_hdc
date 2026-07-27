@@ -108,7 +108,7 @@ bool IsUserDir(const std::string& dir)
 {
     int userId = 0;
     auto [ptr, ec] = std::from_chars(dir.data(), dir.data() + dir.size(), userId);
-    if (ec != std::errc()) {
+    if (ec != std::errc() || ptr != dir.data() + dir.size()) {
         userId = 0;
     }
     return userId >= MIN_USER_ID && userId <= MAX_USER_ID;

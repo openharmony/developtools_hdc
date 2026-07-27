@@ -196,9 +196,9 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     isInteractive = interactiveShell;
     callerContext = callerContextIn;
     if (isInteractive) {
-        std::thread([this]() {
+        ioWriteThread = std::thread([this]() {
             HdcFileDescriptor::IOWriteThread(this);
-        }).detach();
+        });
     }
 }
 
@@ -207,8 +207,8 @@ HdcFileDescriptor::~HdcFileDescriptor()
     workContinue = false;
     if (isInteractive) {
         NotifyWrite();
-        while (!iOWriteThreadExit) {
-            uv_sleep(MILL_SECONDS);
+        if (ioWriteThread.joinable()) {
+            ioWriteThread.join();
         }
     }
 }
@@ -343,31 +343,44 @@ void HdcFileDescriptor::HandleWrite()
     }
 }
 
-void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
+bool HdcFileDescriptor::HandleWriteRetry(ssize_t rc, int &intrcnt)
 {
-    std::unique_lock<std::mutex> lock(writeMutex);
-    uint8_t *buf = cfio->bufIO;
-    uint8_t *data = buf;
-    size_t cnt = cfio->size;
+    if (errno != EINTR && errno != EAGAIN) {
+        WRITE_LOG(LOG_FATAL, "CtxFileIOWrite fdIO:%d rc:%zd error:%d", fdIO, rc, errno);
+        return false;
+    }
     constexpr int intrmax = 1000;
-    int intrcnt = 0;
-    while (cnt > 0) {
-        ssize_t rc = write(fdIO, data, cnt);
-        if (rc < 0) {
-            if (errno == EINTR || errno == EAGAIN) {
-                if (++intrcnt > intrmax) {
-                    WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt errno:%d", fdIO, errno);
-                    intrcnt = 0;
+    if (++intrcnt > intrmax) {
+        WRITE_LOG(LOG_WARN, "CtxFileIOWrite fdIO:%d interrupt errno:%d", fdIO, errno);
+        intrcnt = 0;
+    }
+    if (!workContinue) {
+        return false;
+    }
+    return true;
+}
+
+void HdcFileDescriptor::CtxFileIOWrite(CtxFileIO *cfio)
+    {
+        std::unique_lock<std::mutex> lock(writeMutex);
+        uint8_t *data = cfio->bufIO;
+        size_t cnt = cfio->size;
+        size_t totalSize = cfio->size;
+        int intrcnt = 0;
+        while (cnt > 0) {
+            ssize_t rc = write(fdIO, data, cnt);
+            if (rc < 0) {
+                if (!HandleWriteRetry(rc, intrcnt)) {
+                    size_t writtenSize = totalSize - cnt;
+                    WRITE_LOG(LOG_FATAL, "CtxFileIOWrite failed, total:%zu written:%zu remaining:%zu",
+                              totalSize, writtenSize, cnt);
+                    break;
                 }
                 continue;
-            } else {
-                WRITE_LOG(LOG_FATAL, "CtxFileIOWrite fdIO:%d rc:%d error:%d", fdIO, rc, errno);
-                break;
             }
+            data += rc;
+            cnt -= static_cast<size_t>(rc);
         }
-        data += rc;
-        cnt -= static_cast<size_t>(rc);
+        delete[] cfio->bufIO;
     }
-    delete[] buf;
-}
 }  // namespace Hdc

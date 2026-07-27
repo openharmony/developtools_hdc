@@ -62,6 +62,7 @@ void HdcServer::ClearInstanceResource()
 #endif
     if (clsServerForClient) {
         delete (static_cast<HdcServerForClient *>(clsServerForClient));
+        clsServerForClient = nullptr;
     }
 }
 
@@ -84,6 +85,7 @@ void HdcServer::TryStopInstance()
     }
     ReMainLoopForInstanceClear();
     ClearMapDaemonInfo();
+    ClearMapForwardInfo();
 }
 
 static bool InitialServerForClient(void* clsServerForClient)
@@ -268,6 +270,16 @@ void HdcServer::ClearMapDaemonInfo()
     uv_rwlock_wrunlock(&daemonAdmin);
 }
 
+void HdcServer::ClearMapForwardInfo()
+{
+    uv_rwlock_wrlock(&forwardAdmin);
+    for (auto iter = mapForward.begin(); iter != mapForward.end(); ++iter) {
+        delete iter->second;
+    }
+    mapForward.clear();
+    uv_rwlock_wrunlock(&forwardAdmin);
+}
+
 void HdcServer::BuildDaemonVisableLine(HDaemonInfo hdi, bool fullDisplay, string &out)
 {
     if (fullDisplay) {
@@ -361,23 +373,57 @@ void HdcServer::AdminDaemonMapForWait(const string &connectKey, HDaemonInfo &hDa
     return;
 }
 
+void HdcServer::AdminDaemonMapAdd(HDaemonInfo &hDaemonInfoInOut)
+{
+    HDaemonInfo pdiNew = new(std::nothrow) HdcDaemonInformation();
+    if (pdiNew == nullptr) {
+        WRITE_LOG(LOG_FATAL, "AdminDaemonMap new pdiNew failed");
+        return;
+    }
+    *pdiNew = *hDaemonInfoInOut;
+    uv_rwlock_wrlock(&daemonAdmin);
+    auto it = mapDaemon.find(hDaemonInfoInOut->connectKey);
+    if (it == mapDaemon.end()) {
+        mapDaemon[hDaemonInfoInOut->connectKey] = pdiNew;
+    } else if (it->second == nullptr) {
+        it->second = pdiNew;
+    } else {
+        delete pdiNew;
+    }
+    uv_rwlock_wrunlock(&daemonAdmin);
+}
+
+void HdcServer::AdminDaemonMapRemove(const string &connectKey)
+{
+    uv_rwlock_wrlock(&daemonAdmin);
+    auto it = mapDaemon.find(connectKey);
+    if (it != mapDaemon.end()) {
+        HDaemonInfo hDaemonInfo = it->second;
+        mapDaemon.erase(it);
+        if (hDaemonInfo != nullptr) {
+            delete hDaemonInfo;
+        }
+    }
+    uv_rwlock_wrunlock(&daemonAdmin);
+}
+
+void HdcServer::AdminDaemonMapUpdate(HDaemonInfo &hDaemonInfoInOut)
+{
+    uv_rwlock_wrlock(&daemonAdmin);
+    auto it = mapDaemon.find(hDaemonInfoInOut->connectKey);
+    if (it != mapDaemon.end() && it->second != nullptr) {
+        *it->second = *hDaemonInfoInOut;
+    }
+    uv_rwlock_wrunlock(&daemonAdmin);
+}
+
 string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaemonInfo &hDaemonInfoInOut)
 {
     StartTraceScope("HdcServer::AdminDaemonMap");
     string sRet;
     switch (opType) {
         case OP_ADD: {
-            HDaemonInfo pdiNew = new(std::nothrow) HdcDaemonInformation();
-            if (pdiNew == nullptr) {
-                WRITE_LOG(LOG_FATAL, "AdminDaemonMap new pdiNew failed");
-                break;
-            }
-            *pdiNew = *hDaemonInfoInOut;
-            uv_rwlock_wrlock(&daemonAdmin);
-            if (!mapDaemon[hDaemonInfoInOut->connectKey]) {
-                mapDaemon[hDaemonInfoInOut->connectKey] = pdiNew;
-            }
-            uv_rwlock_wrunlock(&daemonAdmin);
+            AdminDaemonMapAdd(hDaemonInfoInOut);
             break;
         }
         case OP_GET_STRLIST:
@@ -387,29 +433,24 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
         }
         case OP_QUERY: {
             uv_rwlock_rdlock(&daemonAdmin);
-            if (mapDaemon.count(connectKey)) {
-                hDaemonInfoInOut = mapDaemon[connectKey];
+            auto it = mapDaemon.find(connectKey);
+            if (it != mapDaemon.end() && it->second != nullptr) {
+                hDaemonInfoInOut = it->second;
             }
             uv_rwlock_rdunlock(&daemonAdmin);
             break;
         }
         case OP_REMOVE: {
-            uv_rwlock_wrlock(&daemonAdmin);
-            if (mapDaemon.count(connectKey)) {
-                HDaemonInfo hDaemonInfo = mapDaemon[connectKey];
-                mapDaemon.erase(connectKey);
-                if (hDaemonInfo != nullptr) {
-                    delete hDaemonInfo;
-                }
-            }
-            uv_rwlock_wrunlock(&daemonAdmin);
+            AdminDaemonMapRemove(connectKey);
             break;
         }
         case OP_GET_ANY: {
             uv_rwlock_rdlock(&daemonAdmin);
-            map<string, HDaemonInfo>::iterator iter;
-            for (iter = mapDaemon.begin(); iter != mapDaemon.end(); ++iter) {
-                HDaemonInfo di = iter->second;
+            for (auto it = mapDaemon.begin(); it != mapDaemon.end(); ++it) {
+                HDaemonInfo di = it->second;
+                if (di == nullptr) {
+                    continue;
+                }
                 // usb will be auto connected
                 if (di->connStatus == STATUS_READY || di->connStatus == STATUS_CONNECTED) {
                     hDaemonInfoInOut = di;
@@ -429,13 +470,8 @@ string HdcServer::AdminDaemonMap(uint8_t opType, const string &connectKey, HDaem
             GetDaemonMapOnlyOne(hDaemonInfoInOut);
             break;
         }
-        case OP_UPDATE: {  // Cannot update the Object HDi lower key value by direct value
-            uv_rwlock_wrlock(&daemonAdmin);
-            HDaemonInfo hdi = mapDaemon[hDaemonInfoInOut->connectKey];
-            if (hdi) {
-                *mapDaemon[hDaemonInfoInOut->connectKey] = *hDaemonInfoInOut;
-            }
-            uv_rwlock_wrunlock(&daemonAdmin);
+        case OP_UPDATE: {
+            AdminDaemonMapUpdate(hDaemonInfoInOut);
             break;
         }
         default:
@@ -549,7 +585,7 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
 
 bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &handshake)
 {
-    int connectValidation = 0; // 仅ohos平台获取该参数。
+    int connectValidation = 0; // 仅ohos平台获取该参数�?
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
 #endif
@@ -1019,9 +1055,11 @@ void HdcServer::CleanForwardMap(uint32_t sessionId)
     for (iter = mapForward.begin(); iter != mapForward.end();) {
         HForwardInfo di = iter->second;
         if (!di) {
+            iter++;
             continue;
         }
         if (sessionId == 0 || sessionId == di->sessionId) {
+            delete di;
             iter = mapForward.erase(iter);
         } else {
             iter++;

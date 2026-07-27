@@ -69,6 +69,10 @@ static int UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
 
 static bool SendFdToApp(int sockfd, uint8_t *buf, int size, int fd)
 {
+    if (buf == nullptr || size < 0) {
+        WRITE_LOG(LOG_FATAL, "SendFdToApp invalid param buf:%d size:%d", buf, size);
+        return false;
+    }
     struct iovec iov;
     iov.iov_base = buf;
     iov.iov_len = static_cast<unsigned int>(size);
@@ -139,7 +143,7 @@ void *HdcJdwp::MallocContext()
 {
     std::unique_lock<std::mutex> lock(mutex);
     HCtxJdwp ctx = nullptr;
-    if ((ctx = new ContextJdwp()) == nullptr) {
+    if ((ctx = new (std::nothrow) ContextJdwp()) == nullptr) {
         return nullptr;
     }
     ctx->isDebug = 0;
@@ -562,6 +566,10 @@ void HdcJdwp::SendProcessList(HTaskInfo t, string data)
     }
     void *clsSession = t->ownerSessionClass;
     HdcSessionBase *sessionBase = static_cast<HdcSessionBase *>(clsSession);
+    if (!sessionBase) {
+        WRITE_LOG(LOG_FATAL, " SendProcessList, sessionbase is null.");
+        return;
+    }
     sessionBase->LogMsg(t->sessionId, t->channelId, MSG_OK, data.c_str());
 }
 

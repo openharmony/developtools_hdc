@@ -14,6 +14,7 @@
  */
 
 #include "session.h"
+#include <new>
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
 #include "command_event_report.h"
 #endif
@@ -110,6 +111,11 @@ void HdcSessionBase::TaskClassDeleteRetry(uv_timer_t *handle)
 {
     StartTraceScope("HdcSessionBase::BeginRemoveTask taskClassDeleteRetry");
     HTaskInfo hTask = (HTaskInfo)handle->data;
+    if (hTask == nullptr) {
+        WRITE_LOG(LOG_WARN, "TaskClassDeleteRetry hTask is null.");
+        Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
+        return;
+    }
     HdcSessionBase *thisClass = (HdcSessionBase *)hTask->ownerSessionClass;
     std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hTask->sessionId);
     if (hTask->isCleared == false) {
@@ -138,10 +144,8 @@ void HdcSessionBase::TaskClassDeleteRetry(uv_timer_t *handle)
     if (hTask->taskType == TASK_FORWARD) {
         HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::FPORT_RM_COUNT);
     }
-    if (hTask != nullptr) {
-        delete hTask;
-        hTask = nullptr;
-    }
+    
+    delete hTask;
     thisClass->taskCount--;
     Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
 }
@@ -161,8 +165,11 @@ void HdcSessionBase::BeginRemoveTask(HTaskInfo hTask)
     }
 
     WRITE_LOG(LOG_WARN, "BeginRemoveTask taskType:%d channelId:%u", hTask->taskType, hTask->channelId);
-    Base::TimerUvTask(hTask->runLoop, hTask, TaskClassDeleteRetry,
-                      (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL);
+    if (!Base::TimerUvTask(hTask->runLoop, hTask, TaskClassDeleteRetry,
+        (GLOBAL_TIMEOUT * TIME_BASE) / UV_DEFAULT_INTERVAL)) {
+            WRITE_LOG(LOG_FATAL, "BeginRemoveTask TimerUvTask failed, chennelId:%u", hTask->channelId);
+            return;
+        }
 
     hTask->taskStop = true;
 }
@@ -352,7 +359,7 @@ void HdcSessionBase::MainAsyncCallback(uv_async_t *handle)
 void HdcSessionBase::PushAsyncMessage(const uint32_t sessionId, const uint8_t method, const void *data,
                                       const int dataSize)
 {
-    AsyncParam *param = new AsyncParam();
+    AsyncParam *param = new (std::nothrow) AsyncParam();
     if (!param) {
         return;
     }
@@ -361,7 +368,7 @@ void HdcSessionBase::PushAsyncMessage(const uint32_t sessionId, const uint8_t me
     param->method = method;
     if (dataSize > 0) {
         param->dataSize = dataSize;
-        param->data = new uint8_t[param->dataSize]();
+        param->data = new (std::nothrow) uint8_t[param->dataSize]();
         if (!param->data) {
             delete param;
             return;
@@ -609,8 +616,8 @@ static void ReportConnectionEvent(HSession hSession, int connectStatus)
 // work when libuv-handle at struct of HdcSession has all callback finished
 void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
 {
-    HSession hSession = (HSession)handle->data;
-    HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
+    HSession hSession = reinterpret_cast<HSession>(handle->data);
+    HdcSessionBase *thisClass = static_cast<HdcSessionBase *>(hSession->classInstance);
     if (hSession->uvHandleRef > 0) {
         WRITE_LOG(LOG_INFO, "FreeSessionFinally uvHandleRef:%d sessionId:%s",
             hSession->uvHandleRef, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
@@ -635,8 +642,8 @@ void HdcSessionBase::FreeSessionFinally(uv_idle_t *handle)
     WRITE_LOG(LOG_INFO, "!!!FreeSessionFinally sessionId:%s finish",
         Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
     HdcAuth::FreeKey(!hSession->serverOrDaemon, hSession->listKey);
+    handle->data = nullptr;
     delete hSession;
-    hSession = nullptr;  // fix CodeMars SetNullAfterFree issue
     Base::TryCloseHandle((const uv_handle_t *)handle, Base::CloseIdleCallback);
     --thisClass->sessionRef;
 }
@@ -946,10 +953,16 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
         WRITE_LOG(LOG_WARN, "SendByProtocol session dead error");
         return ERR_SESSION_NOFOUND;
     }
-    int ret = 0;
+    int ret = ERR_GENERIC;
+    if (hSession->classModule == nullptr) {
+        delete[] bufPtr;
+        WRITE_LOG(LOG_FATAL, "SendByProtocol classModule is null, sid:%s",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+        return ERR_SESSION_NOFOUND;
+    }
     switch (hSession->connType) {
         case CONN_TCP: {
-            HdcTCPBase *pTCP = ((HdcTCPBase *)hSession->classModule);
+            HdcTCPBase *pTCP = static_cast<HdcTCPBase *>(hSession->classModule);
             if (echo && !hSession->serverOrDaemon) {
                 ret = pTCP->WriteUvTcpFd(&hSession->hChildWorkTCP, bufPtr, bufLen);
             } else {
@@ -962,14 +975,14 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
             break;
         }
         case CONN_USB: {
-            HdcUSBBase *pUSB = ((HdcUSBBase *)hSession->classModule);
+            HdcUSBBase *pUSB = static_cast<HdcUSBBase *>(hSession->classModule);
             ret = pUSB->SendUSBBlock(hSession, bufPtr, bufLen);
             delete[] bufPtr;
             break;
         }
 #ifdef HDC_SUPPORT_UART
         case CONN_SERIAL: {
-            HdcUARTBase *pUART = ((HdcUARTBase *)hSession->classModule);
+            HdcUARTBase *pUART = static_cast<HdcUARTBase *>(hSession->classModule);
             ret = pUART->SendUARTData(hSession, bufPtr, bufLen);
             delete[] bufPtr;
             break;
@@ -978,6 +991,7 @@ int HdcSessionBase::SendByProtocol(HSession hSession, uint8_t *bufPtr, const int
         default:
             PrintDefaultInfo(hSession);
             delete[] bufPtr;
+            ret = ERR_GENERIC;
             break;
     }
     return ret;
@@ -1061,7 +1075,10 @@ int HdcSessionBase::DecryptPayload(HSession hSession, PayloadHead *payloadHeadBe
     uint16_t headSize = ntohs(payloadHeadBe->headSize);
     uint32_t dataSize = ntohl(payloadHeadBe->dataSize);
     string encString(reinterpret_cast<char *>(encBuf), headSize);
-    SerialStruct::ParseFromString(protectBuf, encString);
+    if (!SerialStruct::ParseFromString(protectBuf, encString)) {
+        WRITE_LOG(LOG_FATAL, "ParseFromString failed");
+        return ERR_BUF_CHECK;
+    }
     if (protectBuf.vCode != payloadProtectStaticVcode) {
         WRITE_LOG(LOG_FATAL, "Session recv static vcode failed");
         return ERR_BUF_CHECK;
@@ -1200,7 +1217,7 @@ void HdcSessionBase::FinishWriteSessionTCP(uv_write_t *req, int status)
     HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
     if (status < 0) {
         WRITE_LOG(LOG_WARN, "FinishWriteSessionTCP status:%d sessionId:%s isDead:%d ref:%u",
-            status, sessionIdMaskStr.c_str(), hSession->isDead, uint32_t(hSession->ref));
+            status, sessionIdMaskStr.c_str(), static_cast<int>(hSession->isDead.load()), uint32_t(hSession->ref));
         Base::TryCloseHandle((uv_handle_t *)req->handle);
         if (!hSession->isDead && !hSession->ref) {
             WRITE_LOG(LOG_INFO, "FinishWriteSessionTCP freesession:%s", sessionIdMaskStr.c_str());

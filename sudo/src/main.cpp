@@ -412,6 +412,9 @@ static void PrintAclMgrError(int32_t errorCode)
         case AclMgrResultCode::SEC_FOREGROUND_CHECK_ERROR:
             WriteStdErr(USER_SWITCH_FAILED);
             break;
+        case AclMgrResultCode::SEC_SUDO_DISABLED:
+            WriteStdErr("The function is controlled and managed by your organization.\n");
+            break;
         default:
             WriteStdErr("set psl fail.\n");
     }

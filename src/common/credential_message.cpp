@@ -348,7 +348,7 @@ ssize_t RecvMessageByUnixSocket(const int sockfd, char data[], ssize_t size)
         count += bytesRead;
         if (count >= size - 1) {
             WRITE_LOG(LOG_FATAL, "Failed to read from socket.");
-            return false;
+            return -1;
         }
     }
 

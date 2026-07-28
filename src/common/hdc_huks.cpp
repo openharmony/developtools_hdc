@@ -58,9 +58,9 @@ HdcHuks::HdcHuks(const std::string& keyAlias)
                                 reinterpret_cast<uint8_t*>(const_cast<char*>(this->keyAlias.c_str())) };
 }
 
-#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
-static int32_t GetUserId(void)
+int32_t HdcHuks::GetUserId()
 {
+#if !defined(HDC_HOST) && !defined(HDC_UNIT_TEST)
     std::vector<int32_t> ids;
 
     OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
@@ -73,8 +73,11 @@ static int32_t GetUserId(void)
         return 0;
     }
     return ids[0];
-}
+#else
+    return 0;
 #endif
+}
+
 bool HdcHuks::DeleteAesKey(HksParamSet *paramSet)
 {
     if (!KeyExist(paramSet)) {

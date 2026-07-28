@@ -28,6 +28,7 @@ public:
     bool ResetHuksKey(void);
     int32_t GenerateAndExportHuksRSAPublicKey();
     std::pair<uint8_t*, int> RsaDecryptPrivateKey(std::vector<uint8_t>& inputData);
+    int32_t GetUserId();
 private:
     bool MakeHuksParamSet(struct HksParamSet **paramSet,
         const struct HksParam *baseParams, int baseParamCount, const struct HksParam *params, int paramCount);

@@ -96,7 +96,6 @@ bool GetPubKeyHash(std::string &pubkeyInfo)
         WRITE_LOG(LOG_INFO, "[E000008]: The hdc server fails to read the public key.");
         return false;
     }
-    return true;
 }
 
 bool GetPublicKeyHashInfo(std::string &buf)
@@ -155,7 +154,6 @@ bool GetPrivateKeyInfo(std::string &privkey_info)
         WRITE_LOG(LOG_INFO, "[E000009]: The hdc server fails to read the private key.");
         return false;
     }
-    return true;
 }
 
 EVP_PKEY *StringToEVP(const std::string &pemStr)

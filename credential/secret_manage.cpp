@@ -37,25 +37,10 @@ static const int32_t DEFAULT_USER_ID = 100;
 static constexpr std::streamsize MAX_FILE_SIZE_LIMIT = 100 * 1024 * 1024; // 100MB
 } // namespace
 
-static int32_t GetUserId()
-{
-    std::vector<int32_t> ids;
-
-    OHOS::ErrCode err = OHOS::AccountSA::OsAccountManager::QueryActiveOsAccountIds(ids);
-    if (err != 0) {
-        WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds failed, err %d", err);
-        return 0;
-    }
-    if (ids.empty()) {
-        WRITE_LOG(LOG_FATAL, "QueryActiveOsAccountIds is empty.");
-        return 0;
-    }
-    return ids[0];
-}
-
 static std::string GetEncryptPrivateKeyPath()
 {
-    int32_t userId = GetUserId();
+    Hdc::HdcHuks tempHuks("");
+    int32_t userId = tempHuks.GetUserId();
     if (userId == 0) {
         WRITE_LOG(LOG_FATAL, "GetUserId failed, use default userId %d", DEFAULT_USER_ID);
         userId = DEFAULT_USER_ID;

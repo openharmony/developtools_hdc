@@ -132,7 +132,7 @@ bool TlvAppendParameter(const uint32_t tag, const string &shellCommand, string &
 
 string ConstructShellCommand(char **argv, const int startIndex, const int argc)
 {
-    if (argv == nullptr || startIndex >= argc) {
+    if (argv == nullptr || startIndex < 0 || startIndex >= argc) {
         return "";
     }
     string shellCommand;

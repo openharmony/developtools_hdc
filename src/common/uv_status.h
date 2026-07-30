@@ -17,6 +17,7 @@
 #define __H_UV_STATUS_H__
 
 #include <cinttypes>
+#include <mutex>
 #include <string>
 #include <sys/time.h>
 #include <map>
@@ -37,6 +38,7 @@ public:
     ~LoopStatus();
 private:
     bool Busy(void) const;
+    void DisplayInternal(const string &info, bool all) const;
 public:
     void HandleStart(const uv_loop_t *loop, const string &handle);
     void HandleEnd(const uv_loop_t *loop);
@@ -53,6 +55,7 @@ private:
     bool mBusyNow;
     uint64_t mCallBackTime;
     uv_timer_t mReportTimer;
+    mutable std::mutex mMutex;
 };
 
 class CallStatGuard {

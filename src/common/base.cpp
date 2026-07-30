@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <fcntl.h>
+#include <new>
 #include <regex>
 #include <cstring>
 #include <dirent.h>
@@ -319,20 +321,17 @@ namespace Base {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
         if (access(full.c_str(), F_OK) != 0) {
-            if (GetCaller() == Caller::SERVER) {
-                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", Hdc::MaskString(full).c_str());
-            } else {
-                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
-            }
+            WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", (GetCaller() == Caller::SERVER) ?
+                Hdc::MaskString(full).c_str() : full.c_str());
             return retVal;
         }
-        if (GetCaller() == Caller::SERVER) {
-            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", Hdc::MaskString(fileName).c_str());
-        } else {
-            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
+        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", (GetCaller() == Caller::SERVER) ?
+            Hdc::MaskString(fileName).c_str() : fileName.c_str());
+        char currentDir[BUF_SIZE_DEFAULT] = {0};
+        if (getcwd(currentDir, sizeof(currentDir)) == nullptr) {
+            WRITE_LOG(LOG_FATAL, "getcwd failed");
+            return retVal;
         }
-        char currentDir[BUF_SIZE_DEFAULT];
-        getcwd(currentDir, sizeof(currentDir));
 
         char buf[BUF_SIZE_SMALL] = "";
         if (sprintf_s(buf, sizeof(buf), "tar czfp %s %s", GetCompressLogFileName(fileName).c_str(),
@@ -347,11 +346,13 @@ namespace Base {
         ZeroMemory(&pi, sizeof(pi));
         if (!CreateProcess(GetTarBinFile().c_str(), buf, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
             DWORD errorCode = GetLastError();
-            LPVOID messageBuffer;
+            LPVOID messageBuffer = nullptr;
             FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                 NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&messageBuffer, 0, NULL);
             WRITE_LOG(LOG_FATAL, "compress log file failed, cmd: %s, error: %s", buf, (LPCTSTR)messageBuffer);
-            LocalFree(messageBuffer);
+            if (messageBuffer) {
+                LocalFree(messageBuffer);
+            }
         } else {
             DWORD waitResult = WaitForSingleObject(pi.hProcess, INFINITE);
             if (waitResult == WAIT_OBJECT_0) {
@@ -372,18 +373,12 @@ namespace Base {
         bool retVal = false;
         string full = GetLogDirName() + fileName;
         if (access(full.c_str(), F_OK) != 0) {
-            if (GetCaller() == Caller::SERVER) {
-                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", Hdc::MaskString(full).c_str());
-            } else {
-                WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", full.c_str());
-            }
+            WRITE_LOG(LOG_FATAL, "CompressLogFile file %s not exist", (GetCaller() == Caller::SERVER) ?
+                Hdc::MaskString(full).c_str() : full.c_str());
             return retVal;
         }
-        if (GetCaller() == Caller::SERVER) {
-            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", Hdc::MaskString(fileName).c_str());
-        } else {
-            WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", fileName.c_str());
-        }
+        WRITE_LOG(LOG_DEBUG, "compress log file, fileName: %s", (GetCaller() == Caller::SERVER) ?
+            Hdc::MaskString(fileName).c_str() : fileName.c_str());
         char currentDir[BUF_SIZE_DEFAULT];
         getcwd(currentDir, sizeof(currentDir));
         pid_t pc = fork();  // create process
@@ -404,13 +399,8 @@ namespace Base {
                 WRITE_LOG(LOG_DEBUG, "subprocess exited with status %d", exitCode);
                 retVal = true;
             } else {
-                if (GetCaller() == Caller::CLIENT) {
-                    WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
-                              fileName.c_str(), strerror(errno));
-                } else {
-                    WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s",
-                              Hdc::MaskString(fileName).c_str(), strerror(errno));
-                }
+                WRITE_LOG(LOG_FATAL, "compress log file failed, filename:%s, error: %s", (GetCaller() == Caller::CLIENT)
+                    ? fileName.c_str() : Hdc::MaskString(fileName).c_str(), strerror(errno));
             }
         }
         chdir(currentDir);
@@ -555,16 +545,20 @@ namespace Base {
 
     inline string GetLogDirName()
     {
+        string tmpDir = GetTmpDir();
+        if (tmpDir.empty()) {
+            return "";
+        }
         if (g_isSubserver) [[unlikely]] {
-            return GetTmpDir() + ".hdc_subserver" + GetPathSep();
+            return tmpDir + ".hdc_subserver" + GetPathSep();
         }
 #ifdef FEATURE_HOST_LOG_COMPRESS
-        return GetTmpDir() + LOG_DIR_NAME + GetPathSep();
+        return tmpDir + LOG_DIR_NAME + GetPathSep();
 #else
 #ifdef HOST_OHOS
-        return GetTmpDir() + ".hdc" + GetPathSep();
+        return tmpDir + ".hdc" + GetPathSep();
 #else
-        return GetTmpDir();
+        return tmpDir;
 #endif
 #endif
     }
@@ -1081,8 +1075,12 @@ static void EchoLog(string &buf)
     int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen)
     {
         StartTraceScope("Base::SendToStream");
-        if (bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
+        if (bufLen <= 0 || bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
             return ERR_BUF_ALLOC;
+        }
+        if (handleStream == nullptr) {
+            WRITE_LOG(LOG_WARN, "SendToStream handleStream is nullptr");
+            return ERR_PARAM_NULLPTR;
         }
         uint8_t *pDynBuf = new uint8_t[bufLen];
         if (!pDynBuf) {
@@ -1110,7 +1108,7 @@ static void EchoLog(string &buf)
     {
         StartTraceScope("Base::SendToStreamEx");
         int ret = ERR_GENERIC;
-        uv_write_t *reqWrite = new uv_write_t();
+        uv_write_t *reqWrite = new(std::nothrow) uv_write_t();
         if (!reqWrite) {
             WRITE_LOG(LOG_WARN, "SendToStreamEx, new write_t failed, size:%d", bufLen);
             return ERR_BUF_ALLOC;
@@ -1146,10 +1144,10 @@ static void EchoLog(string &buf)
 
     int SendToPollFd(int fd, const uint8_t *buf, const int bufLen)
     {
-        if (bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
+        if (buf == nullptr || bufLen <= 0 || bufLen > static_cast<int>(HDC_BUF_MAX_BYTES)) {
             return ERR_BUF_ALLOC;
         }
-        uint8_t *pDynBuf = new uint8_t[bufLen];
+        uint8_t *pDynBuf = new(std::nothrow) uint8_t[bufLen];
         if (!pDynBuf) {
             WRITE_LOG(LOG_WARN, "SendToPollFd, alloc failed, size:%d", bufLen);
             return ERR_BUF_ALLOC;
@@ -1326,7 +1324,7 @@ static void EchoLog(string &buf)
     int StartWorkThread(uv_loop_t *loop, uv_work_cb pFuncWorkThread,
                         uv_after_work_cb pFuncAfterThread, void *pThreadData)
     {
-        uv_work_t *workThread = new uv_work_t();
+        uv_work_t *workThread = new(std::nothrow) uv_work_t();
         if (!workThread) {
             return -1;
         }
@@ -2078,26 +2076,25 @@ static void EchoLog(string &buf)
     vector<uint8_t> Base64Encode(const uint8_t *input, const int length)
     {
         vector<uint8_t> retVec;
-        uint8_t *pBuf = nullptr;
-        while (true) {
-            if (static_cast<uint32_t>(length) > HDC_BUF_MAX_BYTES) {
-                break;
-            }
-            int base64Size = length * 1.4 + 256;
-            if (!(pBuf = new uint8_t[base64Size]())) {
-                break;
-            }
-            int childRet = Base64EncodeBuf(input, length, pBuf);
-            if (childRet <= 0) {
-                break;
-            }
+        if (input == nullptr || length <= 0) {
+            return retVec;
+        }
+        static constexpr int base64LengthOverflowThreshold = 2;
+        if (length > INT_MAX / base64LengthOverflowThreshold) {
+            return retVec;
+        }
+        // Base64 编码大小计算: (length + 2) / 3 * 4，加上额外缓冲 256
+        int base64Size = ((length + 2) / 3) * 4 + 256;
+        
+        uint8_t *pBuf = new (std::nothrow) uint8_t[base64Size]();
+        if (pBuf == nullptr) {
+            return retVec;
+        }
+        int childRet = Base64EncodeBuf(input, length, pBuf);
+        if (childRet > 0) {
             retVec.insert(retVec.begin(), pBuf, pBuf + childRet);
-            break;
         }
-        if (pBuf) {
-            delete[] pBuf;
-        }
-
+        delete[] pBuf;
         return retVec;
     }
 
@@ -2151,7 +2148,7 @@ static void EchoLog(string &buf)
             if (childRet <= 0) {
                 break;
             }
-            retString = (reinterpret_cast<char *>(pBuf));
+            retString.assign(reinterpret_cast<char *>(pBuf), childRet);
             break;
         }
         if (pBuf) {
@@ -2247,6 +2244,10 @@ static void EchoLog(string &buf)
     bool DelayDo(uv_loop_t *loop, const int delayMs, const uint8_t flag, string msg, void *data,
                  std::function<void(const uint8_t, string &, const void *)> cb)
     {
+        if (loop == nullptr || !cb) {
+            WRITE_LOG(LOG_FATAL, "DelayDo invalid param loop:%p cb:%d", loop, static_cast<bool>(cb));
+            return false;
+        }
         struct DelayDoParam {
             uv_timer_t handle;
             uint8_t flag;
@@ -2271,8 +2272,18 @@ static void EchoLog(string &buf)
         st->msg = msg;
         st->data = data;
         st->handle.data = st;
-        uv_timer_init(loop, &st->handle);
-        uv_timer_start(&st->handle, funcDelayDo, delayMs, 0);
+        int ret = uv_timer_init(loop, &st->handle);
+        if (ret != 0) {
+            WRITE_LOG(LOG_FATAL, "DelayDo uv_timer_init failed:%d", ret);
+            delete st;
+            return false;
+        }
+        ret = uv_timer_start(&st->handle, funcDelayDo, delayMs, 0);
+        if (ret != 0) {
+            WRITE_LOG(LOG_FATAL, "DelayDo uv_timer_start failed:%d", ret);
+            delete st;
+            return false;
+        }
         return true;
     }
 
@@ -2870,6 +2881,51 @@ void CloseOpenFd(void)
 #endif
     }
 
+    FILE *FopenNoFollow(const char *fileName, const char *mode)
+    {
+#ifdef _WIN32
+        return Fopen(fileName, mode);
+#else
+        if (fileName == nullptr || mode == nullptr) {
+            return nullptr;
+        }
+        size_t modeLen = strlen(mode);
+        if (modeLen == 0) {
+            WRITE_LOG(LOG_WARN, "FopenNoFollow mode is empty");
+            return nullptr;
+        }
+        const int idxBase = 0;
+        const int idxSecond = 1;
+        const int idxThird = 2;
+        int flags = O_NOFOLLOW;
+        if (mode[idxBase] == 'r') {
+            flags |= (modeLen > idxSecond && mode[idxSecond] == '+') ||
+                     (modeLen > idxThird && mode[idxSecond] == 'b' && mode[idxThird] == '+') ? O_RDWR : O_RDONLY;
+        } else if (mode[idxBase] == 'w') {
+            flags |= ((modeLen > idxSecond && mode[idxSecond] == '+') ||
+                      (modeLen > idxThird && mode[idxSecond] == 'b' && mode[idxThird] == '+') ?
+                      O_RDWR : O_WRONLY) | O_CREAT | O_TRUNC;
+        } else if (mode[idxBase] == 'a') {
+            flags |= ((modeLen > idxSecond && mode[idxSecond] == '+') ||
+                      (modeLen > idxThird && mode[idxSecond] == 'b' && mode[idxThird] == '+') ?
+                      O_RDWR : O_WRONLY) | O_CREAT | O_APPEND;
+        } else {
+            return  nullptr;
+        }
+        int fd = open(fileName, flags, S_IRUSR | S_IWUSR);
+        if (fd < 0) {
+            WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(fileName).c_str());
+            return nullptr;
+        }
+        FILE *file = fdopen(fd, mode);
+        if (file == nullptr) {
+            close(fd);
+            WRITE_LOG(LOG_FATAL, "fdopen file %s failed", Hdc::MaskString(fileName).c_str());
+        }
+        return file;
+#endif
+    }
+
     std::set<uint32_t> g_deletedSessionIdSet;
     std::queue<uint32_t> g_deletedSessionIdQueue;
     std::mutex g_deletedSessionIdRecordMutex;
@@ -2888,8 +2944,9 @@ void CloseOpenFd(void)
         // Delete old records and only save MAX_DELETED_SESSION_ID_RECORD_COUNT records
         if (g_deletedSessionIdQueue.size() > MAX_DELETED_SESSION_ID_RECORD_COUNT) {
             uint32_t id = g_deletedSessionIdQueue.front();
-            WRITE_LOG(LOG_INFO, "g_deletedSessionIdQueue size:%u, g_deletedSessionIdSet size:%u, pop session id:%u",
-                g_deletedSessionIdQueue.size(), g_deletedSessionIdSet.size(), id);
+            std::string idMaskStr = Hdc::MaskSessionIdToString(id);
+            WRITE_LOG(LOG_INFO, "g_deletedSessionIdQueue size:%u, g_deletedSessionIdSet size:%u, pop session id:%s",
+                g_deletedSessionIdQueue.size(), g_deletedSessionIdSet.size(), idMaskStr.c_str());
             g_deletedSessionIdQueue.pop();
             g_deletedSessionIdSet.erase(id);
         }
@@ -2912,12 +2969,12 @@ void CloseOpenFd(void)
         }
         size_t length = bundleName.size();
         if (length < BUNDLE_MIN_SIZE) {
-            WRITE_LOG(LOG_WARN, "bundleName length:%d is less than %d", length, BUNDLE_MIN_SIZE);
+            WRITE_LOG(LOG_WARN, "bundleName length:%zu is less than %d", length, BUNDLE_MIN_SIZE);
             return false;
         }
 
         if (length > BUNDLE_MAX_SIZE) {
-            WRITE_LOG(LOG_WARN, "bundleName length:%d is bigger than %d", length, BUNDLE_MAX_SIZE);
+            WRITE_LOG(LOG_WARN, "bundleName length:%zu is bigger than %d", length, BUNDLE_MAX_SIZE);
             return false;
         }
         // 校验bundle是0-9,a-Z,_,.组成的字符串
@@ -3236,9 +3293,8 @@ void CloseOpenFd(void)
     {
         uv_fs_t fs;
         int value = uv_fs_stat(nullptr, &fs, fileName.c_str(), nullptr);
-        uint64_t fileSize = fs.statbuf.st_size;
-        uv_fs_req_cleanup(&fs);
         if (value != 0) {
+            uv_fs_req_cleanup(&fs);
             constexpr int bufSize = 1024;
             char buf[bufSize] = { 0 };
             uv_strerror_r(value, buf, bufSize);
@@ -3249,10 +3305,9 @@ void CloseOpenFd(void)
             }
             return true;
         }
-        if (fileSize < fileMaxSize) {
-            return true;
-        }
-        return false;
+        uint64_t fileSize = fs.statbuf.st_size;
+        uv_fs_req_cleanup(&fs);
+        return fileSize < fileMaxSize;
     }
 
     vector<string> GetDirFileNameFromPath(const std::string& path,
@@ -3611,6 +3666,21 @@ void CloseOpenFd(void)
 #else
         return Caller::DAEMON;
 #endif
+    }
+    bool CheckPathTraversal(const std::string &path)
+    {
+        std::string normalizedPath = path;
+        std::replace(normalizedPath.begin(), normalizedPath.end(), '/', GetPathSep());
+        std::replace(normalizedPath.begin(), normalizedPath.end(), '\\', GetPathSep());
+        std::istringstream iss(normalizedPath);
+        std::string component;
+        while (std::getline(iss, component, GetPathSep())) {
+            if (component == "..") {
+                WRITE_LOG(LOG_WARN, "path traversal detected: %s", Hdc::MaskString(path).c_str());
+                return false;
+            }
+        }
+        return true;
     }
 } // namespace Base
 } // namespace Hdc

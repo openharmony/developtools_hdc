@@ -400,9 +400,14 @@ bool HdcShell::ChildReadCallback(const void *context, uint8_t *buf, const int si
 bool HdcShell::InitShell(uint8_t *payload, const int payloadSize)
 {
 #ifndef UPDATER_MODE
+    if (payload == nullptr || payloadSize <= 0) {
+        WRITE_LOG(LOG_DEBUG, "InitShell: empty payload, clearing optionPath");
+        optionPath.clear();
+        return true;
+    }
     TlvBuf tlvBuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
     std::string bundleName = "";
-    if (payloadSize > 0 && payload != nullptr && tlvBuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
+    if (tlvBuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
         std::string mountPath;
         if (!HdcDaemonBase::CheckBundlePath(bundleName, mountPath)) {
             LogMsg(MSG_FAIL, "[E003001] Invalid bundle name: %s", bundleName.c_str());

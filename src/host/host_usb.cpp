@@ -231,7 +231,7 @@ void HdcHostUSB::KickoutZombie(HSession hSession)
     HdcServer *ptrConnect = (HdcServer *)hSession->classInstance;
     HUSB hUSB = hSession->hUSB;
     if (!hUSB->devHandle) {
-        WRITE_LOG(LOG_WARN, "KickoutZombie devHandle isDead:%d", hSession->isDead);
+        WRITE_LOG(LOG_WARN, "KickoutZombie devHandle isDead:%d", static_cast<int>(hSession->isDead.load()));
         return;
     }
     if (LIBUSB_ERROR_NO_DEVICE != libusb_kernel_driver_active(hUSB->devHandle, hUSB->interfaceNumber)) {
@@ -654,8 +654,11 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
         hUSB->lockDeviceHandle.unlock();
         if (childRet < 0) {
             hSession->isRunningOk = false;
-            hSession->faultInfo += libusb_error_name(ep->transfer->status);
-            hSession->faultInfo += " ";
+            {
+                std::lock_guard<std::mutex> lock(hSession->faultInfoMutex);
+                hSession->faultInfo += libusb_error_name(ep->transfer->status);
+                hSession->faultInfo += " ";
+            }
             WRITE_LOG(LOG_FATAL, "SubmitUsbBio libusb_submit_transfer failed, sid:%s ret:%d",
                 Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), childRet);
             break;
@@ -663,8 +666,11 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
         ep->cv.wait(lock, [ep]() { return ep->isComplete; });
         if (ep->transfer->status != 0) {
             hSession->isRunningOk = false;
-            hSession->faultInfo += libusb_error_name(ep->transfer->status);
-            hSession->faultInfo += " ";
+            {
+                std::lock_guard<std::mutex> lock(hSession->faultInfoMutex);
+                hSession->faultInfo += libusb_error_name(ep->transfer->status);
+                hSession->faultInfo += " ";
+            }
             WRITE_LOG(LOG_FATAL, "SubmitUsbBio transfer failed, sid:%s status:%d",
                 Hdc::MaskSessionIdToString(hSession->sessionId).c_str(), ep->transfer->status);
             break;
@@ -843,8 +849,7 @@ bool HdcHostUSB::FindDeviceByID(HUSB hUSB, const char *usbMountPoint, libusb_con
 
 bool HdcHostUSB::ReadyForWorkThread(HSession hSession)
 {
-    HdcUSBBase::ReadyForWorkThread(hSession);
-    return true;
+    return HdcUSBBase::ReadyForWorkThread(hSession);
 };
 
 // Determines that daemonInfo must have the device

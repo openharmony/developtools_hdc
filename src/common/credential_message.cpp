@@ -227,8 +227,9 @@ int StripLeadingZeros(const std::string& input)
 
 std::vector<uint8_t> String2Uint8(const std::string& str, size_t len)
 {
-    std::vector<uint8_t> byteData(len);
-    for (size_t i = 0; i < len; i++) {
+    size_t actualLen = std::min(len, str.size());
+    std::vector<uint8_t> byteData(actualLen);
+    for (size_t i = 0; i < actualLen; i++) {
         byteData[i] = static_cast<uint8_t>(str[i]);
     }
     return byteData;

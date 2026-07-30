@@ -730,9 +730,20 @@ void HdcClient::AllocStdbuf(uv_handle_t *handle, size_t sizeWanted, uv_buf_t *bu
         return;
     }
     HChannel context = (HChannel)handle->data;
-    int availSize = strlen(context->bufStd);
+    if (!context) {
+        WRITE_LOG(LOG_WARN, "AllocStdbuf: invalid context");
+        return;
+    }
+    int availSize = static_cast<int>(strnlen(context->bufStd, sizeof(context->bufStd)));
+    const int reserveSize = 2; // reserve bytes for safety
+    if (availSize >= static_cast<int>(sizeof(context->bufStd)) - reserveSize) {
+        WRITE_LOG(LOG_WARN, "AllocStdbuf: buffer overflow detected, availSize: %d, maxSize: %zu", availSize,
+            sizeof(context->bufStd) - reserveSize);
+        buf->len = 0;
+        return;
+    }
     buf->base = (char *)context->bufStd + availSize;
-    buf->len = sizeof(context->bufStd) - availSize - 2;  // reserve 2bytes
+    buf->len = sizeof(context->bufStd) - availSize - reserveSize;
 }
 
 void HdcClient::ReadStd(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
@@ -1030,8 +1041,13 @@ void HdcClient::RetryTcpConnectWorker(uv_timer_t *handle)
     }
 }
 
-int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
+int HdcClient::ValidateHandshakeBanner(HChannel hChannel, const uint8_t *buf, const int bytesIO)
 {
+    if (bytesIO < static_cast<int>(offsetof(struct ChannelHandShake, version))) {
+        WRITE_LOG(LOG_WARN, "PreHandshake buf too short, bytesIO:%d need:%d",
+            bytesIO, static_cast<int>(offsetof(struct ChannelHandShake, version)));
+        return ERR_BUF_SIZE;
+    }
     ChannelHandShake *hShake = reinterpret_cast<ChannelHandShake *>(const_cast<uint8_t *>(buf));
     if (strncmp(hShake->banner, HANDSHAKE_MESSAGE.c_str(), HANDSHAKE_MESSAGE.size())) {
         hChannel->availTailIndex = 0;
@@ -1049,23 +1065,28 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
     if (this->command == CMDSTR_WAIT_FOR && !connectKey.empty()) {
         hShake->banner[WAIT_TAG_OFFSET] = WAIT_DEVICE_TAG;
     }
-    // sync remote session id to local
+    return RET_SUCCESS;
+}
+
+void HdcClient::SyncChannelId(HChannel hChannel, const uint8_t *buf)
+{
+    ChannelHandShake *hShake = reinterpret_cast<ChannelHandShake *>(const_cast<uint8_t *>(buf));
     uint32_t unOld = hChannel->channelId;
     hChannel->channelId = ntohl(hShake->channelId);
     AdminChannel(OP_UPDATE, unOld, hChannel);
     WRITE_LOG(LOG_DEBUG, "Client channel handshake finished, use connectkey:%s",
               Hdc::MaskString(connectKey).c_str());
-    // send config
-    // channel handshake step2
+}
+
+int HdcClient::FillConnectKeyAndCheckVersion(uint32_t channelId, ChannelHandShake *hShake)
+{
     if (memset_s(hShake->connectKey, sizeof(hShake->connectKey), 0, sizeof(hShake->connectKey)) != EOK
         || memcpy_s(hShake->connectKey, sizeof(hShake->connectKey), connectKey.c_str(), connectKey.size()) != EOK) {
-        hChannel->availTailIndex = 0;
         WRITE_LOG(LOG_DEBUG, "Channel Hello failed");
         return ERR_BUF_COPY;
     }
 #ifdef HDC_VERSION_CHECK
-    // add check version
-    if (!isCheckVersionCmd) { // do not check version cause user want to get server version
+    if (!isCheckVersionCmd) {
         string clientVer = Base::GetVersion() + HDC_MSG_HASH;
         string serverVer(hShake->version, strnlen(hShake->version, BUF_SIZE_TINY));
         if (clientVer != serverVer) {
@@ -1073,22 +1094,40 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf)
                 serverVer = serverVer.substr(0, Base::GetVersion().size());
             }
             WRITE_LOG(LOG_FATAL, "Client version:%s, server version:%s", clientVer.c_str(), serverVer.c_str());
-            hChannel->availTailIndex = 0;
             return ERR_CHECK_VERSION;
         }
     }
-    Send(hChannel->channelId, reinterpret_cast<uint8_t *>(hShake), sizeof(ChannelHandShake));
+    Send(channelId, reinterpret_cast<uint8_t *>(hShake), sizeof(ChannelHandShake));
 #else
-        // do not send version message if check feature disable
-    Send(hChannel->channelId, reinterpret_cast<uint8_t *>(hShake), offsetof(struct ChannelHandShake, version));
+    Send(channelId, reinterpret_cast<uint8_t *>(hShake), offsetof(struct ChannelHandShake, version));
 #endif
+    return RET_SUCCESS;
+}
+
+void HdcClient::FinalizeHandshake(HChannel hChannel, ChannelHandShake *hShake)
+{
     hChannel->handshakeOK = true;
 #ifdef HDC_CHANNEL_KEEP_ALIVE
-    // Evaluation method, non long-term support
     Send(hChannel->channelId,
          reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
          CMDSTR_INNER_ENABLE_KEEPALIVE.size());
 #endif
+}
+
+int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf, const int bytesIO)
+{
+    int ret = ValidateHandshakeBanner(hChannel, buf, bytesIO);
+    if (ret != RET_SUCCESS) {
+        return ret;
+    }
+    SyncChannelId(hChannel, buf);
+    ChannelHandShake *hShake = reinterpret_cast<ChannelHandShake *>(const_cast<uint8_t *>(buf));
+    ret = FillConnectKeyAndCheckVersion(hChannel->channelId, hShake);
+    if (ret != RET_SUCCESS) {
+        hChannel->availTailIndex = 0;
+        return ret;
+    }
+    FinalizeHandshake(hChannel, hShake);
     return RET_SUCCESS;
 }
 
@@ -1124,7 +1163,7 @@ bool HdcClient::DispatchRemoteTask(HChannel hChannel, uint16_t cmd, uint8_t *buf
 int HdcClient::ReadChannel(HChannel hChannel, uint8_t *buf, const int bytesIO)
 {
     if (!hChannel->handshakeOK) {
-        return PreHandshake(hChannel, buf);
+        return PreHandshake(hChannel, buf, bytesIO);
     }
 #ifdef UNIT_TEST
     // Do not output to console when the unit test

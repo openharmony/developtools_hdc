@@ -48,8 +48,8 @@ public:
 private:
     std::string processName_;
     std::string pkgName_;
-    bool isDebug_;
-    Callback cb_;
+    bool isDebug_ = false;
+    Callback cb_ = nullptr;
 };
 } // namespace Hdc
 

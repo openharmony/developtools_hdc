@@ -188,7 +188,11 @@ int RunPcDebugMode()
     bool isPullServer = RuntimeConfig::Instance().isPullServer;
     pthread_t pt;
     if (isPullServer) {
-        pthread_create(&pt, nullptr, TestBackgroundServerForClient, nullptr);
+        int ret = pthread_create(&pt, nullptr, TestBackgroundServerForClient, nullptr);
+        if (ret != 0) {
+            WRITE_LOG(LOG_FATAL, "pthread_create failed: %d", ret);
+            return -1;
+        }
         uv_sleep(200);  // give time to start serverForClient,at least 200ms
     }
     TestRuntimeCommandSimple(RuntimeConfig::Instance().isTCPorUSB, RuntimeConfig::Instance().isTestMethod, true);
@@ -487,7 +491,7 @@ bool GetCommandlineOptions(int optArgc, const char *optArgv[])
             }
             case 't': {  // key
                 if (strlen(optarg) > MAX_CONNECTKEY_SIZE) {
-                    Base::PrintMessage("Sizeo of of parament '-t' %d is too long", strlen(optarg));
+                    Base::PrintMessage("Sizeo of of parament '-t' %zu is too long", strlen(optarg));
                     needExit = true;
                     return needExit;
                 }

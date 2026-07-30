@@ -570,13 +570,17 @@ bool HdcUARTBase::UartSendToHdcStream(HSession hSession, uint8_t *data, size_t s
 
     if (size < sizeof(UartHead)) {
         WRITE_LOG(LOG_FATAL, "%s buf size too small %zu", __FUNCTION__, size);
-        return ERR_BUF_SIZE;
+        return false;
     }
 
     UartHead *head = reinterpret_cast<UartHead *>(data);
-    WRITE_LOG(LOG_DEBUG, "%s uartHeader:%s data: %x %x", __FUNCTION__,
-              head->ToDebugString().c_str(), *(data + sizeof(UartHead)),
-              *(data + sizeof(UartHead) + 1));
+    constexpr size_t minLogDataBytes = 2;
+    if (head->dataSize >= minLogDataBytes && size >= sizeof(UartHead) + minLogDataBytes) {
+        WRITE_LOG(LOG_DEBUG, "%s uartHeader:%s data: %x %x", __FUNCTION__,
+                  head->ToDebugString().c_str(), *(data + sizeof(UartHead)), *(data + sizeof(UartHead) + 1));
+    } else {
+        WRITE_LOG(LOG_DEBUG, "%s uartHeader:%s", __FUNCTION__, head->ToDebugString().c_str());
+    }
 
     // review need check logic again here or err process
     if (head->sessionId != hSession->sessionId) {
@@ -590,6 +594,11 @@ bool HdcUARTBase::UartSendToHdcStream(HSession hSession, uint8_t *data, size_t s
         }
     } else {
         //  data to session
+        if (head->dataSize > size - sizeof(UartHead)) {
+            WRITE_LOG(LOG_FATAL, "%s payload size mismatch, expected:%u, actual:%zu", __FUNCTION__,
+                      head->dataSize, size - sizeof(UartHead));
+            return false;
+        }
         hSession->hUART->streamSize += head->dataSize; // this is only for debug,
         WRITE_LOG(LOG_ALL, "%s stream wait session read size: %zu", __FUNCTION__,
                   hSession->hUART->streamSize.load());

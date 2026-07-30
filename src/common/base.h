@@ -133,6 +133,7 @@ namespace Base {
     string Convert2HexStr(uint8_t arr[], int length);
     string CanonicalizeSpecPath(string &src);
     bool TryCreateDirectory(const string &path, string &err);
+    bool CheckPathTraversal(const std::string &path);
     // clang-format off
     const string StringFormat(const char * const formater, ...);
     const string StringFormat(const char * const formater, va_list &vaArgs);
@@ -285,6 +286,7 @@ namespace Base {
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);
     FILE *Fopen(const char *fileName, const char *mode);
+    FILE *FopenNoFollow(const char *fileName, const char *mode);
     void AddDeletedSessionId(uint32_t sessionId);
     bool IsSessionDeleted(uint32_t sessionId);
     bool CheckBundleName(const string &bundleName);

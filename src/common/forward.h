@@ -89,6 +89,11 @@ private:
     bool FilterCommand(uint8_t *bufCmdIn, uint32_t *idOut, uint8_t **pContentBuf);
     void *AdminContext(const uint8_t op, const uint32_t id, HCtxForward hInput);
     bool DoForwardBegin(HCtxForward ctx);
+    bool BeginForwardTcp(HCtxForward ctx);
+    bool BeginForwardArk(HCtxForward ctx);
+    bool BeginForwardPipe(HCtxForward ctx);
+    bool BeginForwardDevice(HCtxForward ctx);
+    uv_stream_t *GetForwardStream(HCtxForward ctx);
     int SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int size);
     bool CheckNodeInfo(const char *nodeInfo, string as[2]);
     void FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNotifyRemote);

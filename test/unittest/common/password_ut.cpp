@@ -50,7 +50,7 @@ HWTEST_F(HdcPasswordTest, TestGeneratePassword, TestSize.Level0)
 {
     HdcPassword pwd(TEST_KEY_ALIAS);
     pwd.GeneratePassword();
-    std::pair<uint8_t*, int> pwdInfo = pwd.GetPassword();
+    std::pair<const uint8_t*, int> pwdInfo = pwd.GetPassword();
     ASSERT_EQ(CheckPasswordFormat(pwdInfo), true);
 }
 
@@ -93,7 +93,7 @@ HWTEST_F(HdcPasswordTest, TestGetEncryptPassword, TestSize.Level0)
 HWTEST_F(HdcPasswordTest, TestEncryptAndDecrypt, TestSize.Level0)
 {
     HdcPassword pwd(TEST_KEY_ALIAS);
-    std::pair<uint8_t*, int> plainPwd = pwd.GetPassword();
+    std::pair<const uint8_t*, int> plainPwd = pwd.GetPassword();
     (void)memset_s(plainPwd.first, plainPwd.second, '1', plainPwd.second);
     ASSERT_EQ(pwd.ResetPwdKey(), true);
     ASSERT_EQ(pwd.EncryptPwd(), true);

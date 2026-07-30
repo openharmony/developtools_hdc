@@ -38,16 +38,27 @@ Header::Header()
 
 Header::Header(uint8_t data[512], int dataLen)
 {
+    (void)memset_s(this, sizeof(struct Header), 0, sizeof(struct Header));
+    if (data == nullptr || dataLen <= 0 || dataLen > static_cast<int>(sizeof(struct Header))) {
+        WRITE_LOG(LOG_WARN, "Header constructor invalid params dataLen:%d", dataLen);
+        return;
+    }
     if (memcpy_s(this, sizeof(struct Header), data, dataLen) != EOK) {
-        string tmp(reinterpret_cast<char*>(data), dataLen);
-        WRITE_LOG(LOG_WARN, "memcpy_s failed for %s", tmp.c_str());
+        WRITE_LOG(LOG_WARN, "memcpy_s failed for Header");
     }
 }
 
 std::string Header::Name()
 {
-    std::string fullName(reinterpret_cast<char*>(prefix));
-    fullName.append(reinterpret_cast<char*>(this->name));
+    static constexpr size_t maxNameLen = 4096;
+    size_t prefixLen = strnlen(reinterpret_cast<char*>(prefix), HEADER_PREFIX_LEN);
+    size_t nameLen = strnlen(reinterpret_cast<char*>(this->name), HEADER_NAME_LEN);
+    if (prefixLen + nameLen > maxNameLen) {
+        WRITE_LOG(LOG_WARN, "header name too long: %zu", prefixLen + nameLen);
+        return "";
+    }
+    std::string fullName(reinterpret_cast<char*>(prefix), prefixLen);
+    fullName.append(reinterpret_cast<char*>(this->name), nameLen);
     return fullName;
 }
 

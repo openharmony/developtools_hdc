@@ -14,6 +14,7 @@
  */
 #include "transfer.h"
 #include "serial_struct.h"
+#include <new>
 #include <sys/stat.h>
 #ifdef HARMONY_PROJECT
 #include <lz4.h>
@@ -221,7 +222,7 @@ bool HdcTransferBase::SendIOPayload(CtxFile *context, uint64_t index, uint8_t *d
         switch (payloadHead.compressType) {
 #ifdef HARMONY_PROJECT
             case COMPRESS_LZ4: {
-                sendBuf = new uint8_t[sendBufSize]();
+                sendBuf = new (std::nothrow) uint8_t[sendBufSize]();
                 if (!sendBuf) {
                     WRITE_LOG(LOG_FATAL, "alloc LZ4 buffer failed");
                     return false;

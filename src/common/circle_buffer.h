@@ -16,6 +16,7 @@
 #ifndef CIRCLE_BUFFER_H_
 #define CIRCLE_BUFFER_H_
 
+#include <atomic>
 #include <cstdint>
 #include <chrono>
 #include <condition_variable>
@@ -44,7 +45,7 @@ public:
 private:
     std::mutex mutex_;
     std::map<uint64_t, Data *> buffers_;
-    bool run_;
+    std::atomic<bool> run_;
     std::thread thread_;
     std::mutex timerMutex_;
     std::condition_variable timerCv_;

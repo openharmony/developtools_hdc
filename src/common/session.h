@@ -201,6 +201,7 @@ protected:
                 return false;
             }
             delete ptrTask;
+            hTaskInfo->taskClass = nullptr;
         }
         return true;
     }

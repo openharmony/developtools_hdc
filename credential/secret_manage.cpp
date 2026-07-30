@@ -53,6 +53,12 @@ HdcSecretManage::HdcSecretManage(const std::string &keyAlias):pubKey(nullptr), p
 {
 }
 
+HdcSecretManage::~HdcSecretManage()
+{
+    ClearPublicKeyInfo();
+    ClearPrivateKeyInfo();
+}
+
 std::string HdcSecretManage::GetPublicKeyInfo()
 {
     return publicKeyInfo;
@@ -69,7 +75,7 @@ bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
     inFile.seekg(0, std::ios::end);
     std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, std::ios::beg);
-    if (fileSize == 0 || fileSize > MAX_FILE_SIZE_LIMIT) {
+    if (fileSize <= 0 || fileSize > MAX_FILE_SIZE_LIMIT) {
         WRITE_LOG(LOG_FATAL, "the private key file size error: %lld", static_cast<long long>(fileSize));
         return false;
     }

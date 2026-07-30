@@ -189,6 +189,8 @@ int AsyncCmd::ThreadFork(const string &command, const string &optionPath, int &c
 
     if ((childPid = fork()) == -1) {
         WRITE_LOG(LOG_FATAL, "Popen fork failed errno:%d", errno);
+        Base::CloseFd(fds[pipeRead]);
+        Base::CloseFd(fds[pipeWrite]);
         return ERR_GENERIC;
     }
     if (childPid == 0) {

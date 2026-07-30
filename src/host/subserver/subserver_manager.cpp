@@ -201,6 +201,10 @@ bool SubserverManager::CheckIpPort(char* buf, char* colonPos)
     char* portStr = colonPos + 1;
 
     size_t len = strlen(portStr);
+    if (len > MAX_PORT_PORT_LEN) {
+        Base::PrintMessage("port len incorrect");
+        return false;
+    }
     for (size_t i = 0; i < len; i++) {
         if (isdigit(portStr[i]) == 0) {
             Base::PrintMessage("The port must be digit str:%s", portStr);

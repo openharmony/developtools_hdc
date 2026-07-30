@@ -74,6 +74,7 @@ LoopStatus::~LoopStatus()
 }
 void LoopStatus::HandleStart(const uv_loop_t *loop, const string &handle)
 {
+    std::lock_guard<std::mutex> lock(mMutex);
     if (loop == nullptr) {
         WRITE_LOG(LOG_FATAL, "the loop is null for [%s] cannt run [%s]", mHandleName.c_str(), handle.c_str());
         return;
@@ -82,7 +83,7 @@ void LoopStatus::HandleStart(const uv_loop_t *loop, const string &handle)
         WRITE_LOG(LOG_FATAL, "not match loop [%s] for run [%s]", mLoopName.c_str(), handle.c_str());
         return;
     }
-    if (Busy()) {
+    if (mBusyNow) {
         WRITE_LOG(LOG_FATAL, "the loop is busy for [%s] cannt run [%s]", mHandleName.c_str(), handle.c_str());
         return;
     }
@@ -92,11 +93,12 @@ void LoopStatus::HandleStart(const uv_loop_t *loop, const string &handle)
 }
 void LoopStatus::HandleEnd(const uv_loop_t *loop)
 {
+    std::lock_guard<std::mutex> lock(mMutex);
     if (loop != mLoop) {
         WRITE_LOG(LOG_FATAL, "not match loop [%s] for end [%s]", mLoopName.c_str(), mHandleName.c_str());
         return;
     }
-    if (!Busy()) {
+    if (!mBusyNow) {
         WRITE_LOG(LOG_FATAL, "the loop [%s] is idle now", mLoopName.c_str());
         return;
     }
@@ -104,16 +106,16 @@ void LoopStatus::HandleEnd(const uv_loop_t *loop)
 }
 bool LoopStatus::Busy(void) const
 {
+    std::lock_guard<std::mutex> lock(mMutex);
     return mBusyNow;
 }
-void LoopStatus::Display(const string &info, bool all) const
+void LoopStatus::DisplayInternal(const string &info, bool all) const
 {
     int64_t duration = TimeSub(TimeNow(), mCallBackTime);
-    // same handle only report once
     if (duration >= MAX_FREEZE_TIME && duration < MAX_FREEZE_TIME + LOOP_MONITOR_PERIOD) {
         HdcStatisticReporter::GetInstance().IncrCommandInfo(STATISTIC_ITEM::FREEZE_COUNT);
     }
-    if (Busy()) {
+    if (mBusyNow) {
         WRITE_LOG(LOG_FATAL, "%s loop[%s] is busy for [%s] start[%llu] duration[%llu]",
                   info.c_str(), mLoopName.c_str(), mHandleName.c_str(),
                   mCallBackTime, duration);
@@ -121,10 +123,18 @@ void LoopStatus::Display(const string &info, bool all) const
         WRITE_LOG(LOG_INFO, "%s loop[%s] is idle", info.c_str(), mLoopName.c_str());
     }
 }
+
+void LoopStatus::Display(const string &info, bool all) const
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    DisplayInternal(info, all);
+}
+
 void LoopStatus::HungCheck(int64_t timeout) const
 {
+    std::lock_guard<std::mutex> lock(mMutex);
     if (TimeSub(TimeNow(), mCallBackTime) > timeout) {
-        Display("hung :", false);
+        DisplayInternal("hung :", false);
     }
 }
 static void LoopMonitorWorker(void)

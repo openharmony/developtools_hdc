@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "tcp.h"
+#include <new>
 
 namespace Hdc {
 HdcTCPBase::HdcTCPBase(const bool serverOrDaemonIn, void *ptrMainBase)
@@ -56,7 +57,7 @@ void HdcTCPBase::RecvUDP(uv_udp_t *handle, ssize_t nread, const uv_buf_t *rcvbuf
 void HdcTCPBase::AllocStreamUDP(uv_handle_t* /* handle */, size_t /* sizeWanted */, uv_buf_t *buf)
 {
     size_t bufLen = BUF_SIZE_DEFAULT;
-    char *pRecvBuf = reinterpret_cast<char *>(new uint8_t[bufLen]());
+    char *pRecvBuf = reinterpret_cast<char *>(new (std::nothrow) uint8_t[bufLen]());
     if (!pRecvBuf) {
         return;
     }
@@ -103,7 +104,10 @@ void HdcTCPBase::ReadStream(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf
         }
 #ifdef HDC_HOST
         hSession->isRunningOk = false;
-        hSession->faultInfo = (nread < 0) ? buffer : "package parse error";
+        {
+            std::lock_guard<std::mutex> lock(hSession->faultInfoMutex);
+            hSession->faultInfo = (nread < 0) ? std::string(buffer) : "package parse error";
+        }
 #endif
         // The first time is closed first, prevent the write function from continuing to write
         Base::TryCloseHandle(reinterpret_cast<uv_handle_t *>(tcp));

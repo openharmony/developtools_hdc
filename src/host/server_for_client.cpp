@@ -322,24 +322,8 @@ bool HdcServerForClient::SetTCPListen()
     if (rc != 0) {
         WRITE_LOG(LOG_WARN, "uv_tcp_bind ipv6 %d", rc);
         if (rc == -EAFNOSUPPORT) {
-            size_t index = channelHost.find(IPV4_MAPPING_PREFIX);
-            size_t size = IPV4_MAPPING_PREFIX.size();
-            if (index != std::string::npos) {
-                struct sockaddr_in addr4v;
-                std::string ipv4 = channelHost.substr(index + size);
-                uv_ip4_addr(ipv4.c_str(), channelPort, &addr4v);
-                rc = uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr4v, 0);
-                if (rc != 0) {
-                    uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
-                    if (Base::GetCaller() == Base::Caller::SERVER) {
-                        WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
-                            Hdc::MaskString(ipv4).c_str(), rc, buffer);
-                    } else {
-                        WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
-                            ipv4.c_str(), rc, buffer);
-                    }
-                    return false;
-                }
+            if (!TryBindIPv4Fallback(buffer)) {
+                return false;
             }
         } else {
             uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
@@ -353,6 +337,35 @@ bool HdcServerForClient::SetTCPListen()
         uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
         WRITE_LOG(LOG_FATAL, "uv_listen %d %s", rc, buffer);
         return false;
+    }
+    return true;
+}
+
+bool HdcServerForClient::TryBindIPv4Fallback(char *buffer)
+{
+    size_t index = channelHost.find(IPV4_MAPPING_PREFIX);
+    size_t size = IPV4_MAPPING_PREFIX.size();
+    if (index != std::string::npos) {
+        struct sockaddr_in addr4v;
+        std::string ipv4 = channelHost.substr(index + size);
+        int rc = uv_ip4_addr(ipv4.c_str(), channelPort, &addr4v);
+        if (rc != 0) {
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            WRITE_LOG(LOG_FATAL, "uv_ip4_addr %s failed %d %s", ipv4.c_str(), rc, buffer);
+            return false;
+        }
+        rc = uv_tcp_bind(&tcpListen, (const struct sockaddr *)&addr4v, 0);
+        if (rc != 0) {
+            uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+            if (Base::GetCaller() == Base::Caller::SERVER) {
+                WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
+                    Hdc::MaskString(ipv4).c_str(), rc, buffer);
+            } else {
+                WRITE_LOG(LOG_FATAL, "uv_tcp_bind ipv4 %s failed %d %s",
+                    ipv4.c_str(), rc, buffer);
+            }
+            return false;
+        }
     }
     return true;
 }
@@ -592,7 +605,7 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
     } else if (childRet == connectError) {
         EchoClient(hChannel, MSG_FAIL, "CreateConnect failed");
         WRITE_LOG(LOG_FATAL, "CreateConnect failed");
-    } else {
+    } else if (childRet == RET_SUCCESS) {
         size_t pos = connectKey.find(":");
         if (pos != std::string::npos) {
             string ip = connectKey.substr(0, pos);
@@ -608,6 +621,8 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
             Base::TimerUvTask(loopMain, hChannel, OrderConnecTargetResult, UV_START_REPEAT);
             ret = true;
         }
+    } else {
+        WRITE_LOG(LOG_FATAL, "NewConnectTry failed");
     }
     return ret;
 }
@@ -1584,6 +1599,10 @@ string HdcServerForClient::GetErrorString(uint32_t errorCode)
 
 bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaemonInfo &hdi)
 {
+    if (!hdi) {
+        WRITE_LOG(LOG_WARN, "CommandMatchDaemonFeature: invalid HDaemonInfo");
+        return false;
+    }
     StartTraceScope("HdcServerForClient::CommandMatchDaemonFeature");
     string cmdFlagStr = std::to_string(cmdFlag);
     if (FEATURE_CHECK_SET.find(cmdFlag) == FEATURE_CHECK_SET.end()) { // not need check

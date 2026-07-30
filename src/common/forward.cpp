@@ -232,10 +232,9 @@ void HdcForwardBase::FreeContext(HCtxForward ctxIn, const uint32_t id, bool bNot
         case FORWARD_FILESYSTEM:
             Base::TryCloseHandle((uv_handle_t *)&ctx->pipe, true, funcHandleClose);
             break;
-        case FORWARD_DEVICE: {
+        case FORWARD_DEVICE:
             FreeJDWP(ctx);
             break;
-        }
         default:
             break;
     }
@@ -272,7 +271,7 @@ void HdcForwardBase::AllocForwardBuf(uv_handle_t *handle, size_t sizeSuggested, 
     if (size > MAX_USBFFS_BULK) {
         size = MAX_USBFFS_BULK;
     }
-    buf->base = (char *)new char[size];
+    buf->base = (char *)new (std::nothrow) char[size];
     if (buf->base) {
         buf->len = (size > 0) ? (size - 1) : 0;
     } else {
@@ -356,7 +355,11 @@ bool HdcForwardBase::SetupPointContinue(HCtxForward ctx, int status)
     if (ctx->checkPoint) {
         // send to active
         uint8_t flag = status > 0;
-        SendToTask(ctx->id, CMD_FORWARD_CHECK_RESULT, &flag, 1);
+        if (!SendToTask(ctx->id, CMD_FORWARD_CHECK_RESULT, &flag, 1)) {
+            WRITE_LOG(LOG_FATAL, "SetupPointContinue SendToTask failed id:%u", ctx->id);
+            FreeContext(ctx, 0, true);
+            return false;
+        }
         FreeContext(ctx, 0, false);
         return true;
     }
@@ -430,7 +433,13 @@ bool HdcForwardBase::SetupTcpListenAllIp(HCtxForward ctxPoint, int port, int &rc
                 return false;
             }
             std::string ipv4 = g_forwardListenIp.substr(index + size);
-            uv_ip4_addr(ipv4.c_str(), port, &addrv4);
+            rc = uv_ip4_addr(ipv4.c_str(), port, &addrv4);
+            if (rc != 0) {
+                uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
+                WRITE_LOG(LOG_FATAL, "SetupTcpListenAllIp uv_ip4_addr %s failed %d %s",
+                          Hdc::MaskString(ipv4).c_str(), rc, buffer);
+                return false;
+            }
             rc = uv_tcp_bind(&ctxPoint->tcp, (const struct sockaddr *)&addrv4, 0);
             if (rc != 0) {
                 uv_strerror_r(rc, buffer, BUF_SIZE_DEFAULT);
@@ -767,38 +776,89 @@ Finish:
     return ret;
 }
 
+uv_stream_t *HdcForwardBase::GetForwardStream(HCtxForward ctx)
+{
+    if (ctx->type == FORWARD_TCP || ctx->type == FORWARD_JDWP || ctx->type == FORWARD_ARK) {
+        return (uv_stream_t *)&ctx->tcp;
+    }
+    return (uv_stream_t *)&ctx->pipe;
+}
+
+bool HdcForwardBase::BeginForwardTcp(HCtxForward ctx)
+{
+    uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
+    if (uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf) != 0) {
+        WRITE_LOG(LOG_FATAL, "DoForwardBegin tcp uv_read_start failed");
+        return false;
+    }
+    return true;
+}
+
+bool HdcForwardBase::BeginForwardArk(HCtxForward ctx)
+{
+    WRITE_LOG(LOG_DEBUG, "DoForwardBegin ark socketpair id:%u fds[0]:%d", ctx->id, fds[0]);
+    if (fds[0] <= 0) {
+        WRITE_LOG(LOG_FATAL, "DoForwardBegin ark invalid fds[0]:%d", fds[0]);
+        return false;
+    }
+    if (uv_tcp_init(loopTask, &ctx->tcp) != 0) {
+        WRITE_LOG(LOG_FATAL, "DoForwardBegin ark uv_tcp_init failed");
+        return false;
+    }
+    if (uv_tcp_open(&ctx->tcp, fds[0]) != 0) {
+        WRITE_LOG(LOG_FATAL, "DoForwardBegin ark uv_tcp_open failed");
+        return false;
+    }
+    uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
+    if (uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf) != 0) {
+        WRITE_LOG(LOG_FATAL, "DoForwardBegin ark uv_read_start failed");
+        return false;
+    }
+    fds[0] = -1;
+    return true;
+}
+
+bool HdcForwardBase::BeginForwardPipe(HCtxForward ctx)
+{
+    if (uv_read_start((uv_stream_t *)&ctx->pipe, AllocForwardBuf, ReadForwardBuf) != 0) {
+        WRITE_LOG(LOG_FATAL, "DoForwardBegin pipe uv_read_start failed");
+        return false;
+    }
+    return true;
+}
+
+bool HdcForwardBase::BeginForwardDevice(HCtxForward ctx)
+{
+    ctx->fdClass->StartWorkOnThread();
+    return true;
+}
+
 bool HdcForwardBase::DoForwardBegin(HCtxForward ctx)
 {
+    bool ret = false;
     switch (ctx->type) {
         case FORWARD_TCP:
-        case FORWARD_JDWP:  // jdwp use tcp ->socketpair->jvm
-            uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
-            uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
+        case FORWARD_JDWP:
+            ret = BeginForwardTcp(ctx);
             break;
         case FORWARD_ARK:
-            WRITE_LOG(LOG_DEBUG, "DoForwardBegin ark socketpair id:%u fds[0]:%d", ctx->id, fds[0]);
-            if (fds[0] > 0) {
-                uv_tcp_init(loopTask, &ctx->tcp);
-                uv_tcp_open(&ctx->tcp, fds[0]);
-                uv_tcp_nodelay((uv_tcp_t *)&ctx->tcp, 1);
-                uv_read_start((uv_stream_t *)&ctx->tcp, AllocForwardBuf, ReadForwardBuf);
-                fds[0] = -1;
-            }
+            ret = BeginForwardArk(ctx);
             break;
         case FORWARD_ABSTRACT:
         case FORWARD_RESERVED:
         case FORWARD_FILESYSTEM:
-            uv_read_start((uv_stream_t *)&ctx->pipe, AllocForwardBuf, ReadForwardBuf);
+            ret = BeginForwardPipe(ctx);
             break;
-        case FORWARD_DEVICE: {
-            ctx->fdClass->StartWorkOnThread();
+        case FORWARD_DEVICE:
+            ret = BeginForwardDevice(ctx);
             break;
-        }
         default:
             break;
     }
-    ctx->ready = true;
-    return true;
+    if (ret) {
+        ctx->ready = true;
+    }
+    return ret;
 }
 
 void *HdcForwardBase::AdminContext(const uint8_t op, const uint32_t id, HCtxForward hInput)
@@ -870,14 +930,9 @@ int HdcForwardBase::SendForwardBuf(HCtxForward ctx, uint8_t *bufPtr, const int s
         }
         ctxIO->ctxForward = ctx;
         ctxIO->bufIO = pDynBuf;
-        if (ctx->type == FORWARD_TCP || ctx->type == FORWARD_JDWP || ctx->type == FORWARD_ARK) {
-            nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->tcp, pDynBuf, size, nullptr,
-                                        (void *)SendCallbackForwardBuf, (void *)ctxIO);
-        } else {
-            // FORWARD_ABSTRACT, FORWARD_RESERVED, FORWARD_FILESYSTEM,
-            nRet = Base::SendToStreamEx((uv_stream_t *)&ctx->pipe, pDynBuf, size, nullptr,
-                                        (void *)SendCallbackForwardBuf, (void *)ctxIO);
-        }
+        uv_stream_t *stream = GetForwardStream(ctx);
+        nRet = Base::SendToStreamEx(stream, pDynBuf, size, nullptr,
+                                    (void *)SendCallbackForwardBuf, (void *)ctxIO);
         if (nRet < 0) {
             WRITE_LOG(LOG_WARN, "SendForwardBuf SendToStreamEx ret:%d, size:%d ctxId:%u type:%d",
                 nRet, size, ctx->id, ctx->type);

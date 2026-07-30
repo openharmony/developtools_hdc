@@ -332,22 +332,33 @@ int HdcHuks::CaculateGcmEncryptLen(int palinDataLen)
 
 std::string HdcHuks::base64Encode(const std::vector<unsigned char> &data)
 {
-    BIO *bio = nullptr;
-    BIO *b64 = nullptr;
-    BUF_MEM *bufferPtr = nullptr;
-
-    b64 = BIO_new(BIO_f_base64());
-    bio = BIO_new(BIO_s_mem());
+    BIO *b64 = BIO_new(BIO_f_base64());
+    if (b64 == nullptr) {
+        return "";
+    }
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (bio == nullptr) {
+        BIO_free(b64);
+        return "";
+    }
     bio = BIO_push(b64, bio);
+    if (bio == nullptr) {
+        BIO_free(b64);
+        return "";
+    }
 
     BIO_write(bio, data.data(), data.size());
     BIO_flush(bio);
+    BUF_MEM *bufferPtr = nullptr;
     BIO_get_mem_ptr(bio, &bufferPtr);
-    BIO_set_close(bio, BIO_NOCLOSE);
+    
+    std::string ret;
+    if (bufferPtr != nullptr && bufferPtr->data != nullptr) {
+        ret.assign(bufferPtr->data, bufferPtr->length);
+    }
+    
     BIO_free_all(bio);
 
-    std::string ret(bufferPtr->data, bufferPtr->length);
-    BUF_MEM_free(bufferPtr);
     return ret;
 }
 
@@ -427,6 +438,7 @@ int32_t HdcHuks::GenerateAndExportHuksRSAPublicKey()
         (HksKeyExist(&(this->keyBlobAlias), generateParamSet) == HKS_SUCCESS) &&
         (CheckPubkeyAndHuksKeyMatch(generateParamSet))) {
         WRITE_LOG(LOG_FATAL, "HuksRSAPublicKey exist");
+        HksFreeParamSet(&generateParamSet);
         return HKS_SUCCESS;
     }
 

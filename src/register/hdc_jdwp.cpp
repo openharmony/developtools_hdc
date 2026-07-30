@@ -57,10 +57,21 @@ HdcJdwpSimulator::~HdcJdwpSimulator()
 
 bool HdcJdwpSimulator::SendBuf(const uint8_t *buf, const int bufLen)
 {
-    ssize_t rc = write(cfd_, buf, bufLen);
-    if (rc < 0) {
-        HILOG_FATAL(LOG_CORE, "SendBuf failed errno:%{public}d", errno);
-        return false;
+    int totalWritten = 0;
+    while (totalWritten < bufLen) {
+        ssize_t rc = write(cfd_, buf + totalWritten, bufLen - totalWritten);
+        if (rc < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            HILOG_FATAL(LOG_CORE, "SendBuf failed errno:%{public}d", errno);
+            return false;
+        }
+        if (rc == 0) {
+            HILOG_FATAL(LOG_CORE, "SendBuf failed, connection closed");
+            return false;
+        }
+        totalWritten += rc;
     }
     return true;
 }

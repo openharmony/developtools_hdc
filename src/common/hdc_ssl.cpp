@@ -68,7 +68,12 @@ int HdcSSLBase::InitSSL()
         WRITE_LOG(LOG_FATAL, "SSL_CTX_new failed");
         return ERR_GENERIC;
     }
-    SetPskCallback();
+    if (!SetPskCallback()) {
+        WRITE_LOG(LOG_FATAL, "SetPskCallback failed");
+        SSL_CTX_free(sslCtx);
+        sslCtx = nullptr;
+        return ERR_GENERIC;
+    }
     SSL_CTX_set_ciphersuites(sslCtx, cipher.c_str());
     inBIO = BIO_new(BIO_s_mem());
     outBIO = BIO_new(BIO_s_mem());
@@ -153,6 +158,10 @@ bool HdcSSLBase::IsHandshakeFinish() const
 
 int HdcSSLBase::DoHandshake()
 {
+    if (ssl == nullptr) {
+        WRITE_LOG(LOG_FATAL, "ssl is nullptr");
+        return ERR_GENERIC;
+    }
     int ret = SSL_do_handshake(ssl);
     if (ret < 0) {
         int err = SSL_get_error(ssl, ret);

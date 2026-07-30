@@ -85,6 +85,7 @@ private:
     void HandleWrite();
     void WaitWrite();
     void CtxFileIOWrite(CtxFileIO *cfio);
+    bool HandleWriteRetry(ssize_t rc, int &intrcnt);
 
     friend class FileIoThread;
 };

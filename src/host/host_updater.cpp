@@ -116,6 +116,10 @@ bool HostUpdater::BeginTransfer(const std::string &function, const uint8_t *payl
     }
 
     std::string localPath = params[index];
+    if (!Base::CheckPathTraversal(localPath)) {
+        WRITE_LOG(LOG_FATAL, "localPath contains path traversal");
+        return false;
+    }
     if (!Base::CheckDirectoryOrPath(localPath.c_str(), true, true)) {
         WRITE_LOG(LOG_FATAL, "localPath is invalid");
         return false;

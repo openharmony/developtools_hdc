@@ -61,7 +61,7 @@ private:
                                                   libusb_hotplug_event event, void *userData);
     static void UsbWorkThread(void *arg);  // 3rd thread
     static void WatchUsbNodeChange(uv_timer_t *handle);
-    static void KickoutZombie(HSession hSession);
+    static EnumCallbackResult KickoutZombie(HSession hSession);
     static void LIBUSB_CALL USBBulkCallback(struct libusb_transfer *transfer);
     static void ClearUsbChannel(uv_work_t *req);
     static void ClearUsbChannelFinished(uv_work_t *req, int status);

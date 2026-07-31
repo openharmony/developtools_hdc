@@ -226,20 +226,22 @@ HdcHostUSB::DetectReturnType HdcHostUSB::DetectMyNeed(libusb_device *device, str
     return DetectReturnType::DETECT_SUCCESS;
 }
 
-void HdcHostUSB::KickoutZombie(HSession hSession)
+EnumCallbackResult HdcHostUSB::KickoutZombie(HSession hSession)
 {
-    HdcServer *ptrConnect = (HdcServer *)hSession->classInstance;
+    EnumCallbackResult result = {0, nullptr};
     HUSB hUSB = hSession->hUSB;
     if (!hUSB->devHandle) {
         WRITE_LOG(LOG_WARN, "KickoutZombie devHandle isDead:%d", static_cast<int>(hSession->isDead.load()));
-        return;
+        return result;
     }
     if (LIBUSB_ERROR_NO_DEVICE != libusb_kernel_driver_active(hUSB->devHandle, hUSB->interfaceNumber)) {
-        return;
+        return result;
     }
     WRITE_LOG(LOG_WARN, "KickoutZombie LIBUSB_ERROR_NO_DEVICE serialNumber:%s",
               Hdc::MaskString(hUSB->serialNumber).c_str());
-    ptrConnect->FreeSession(hSession->sessionId);
+    result.sessionId = hSession->sessionId;
+    result.classInstance = hSession->classInstance;
+    return result;
 }
 
 void HdcHostUSB::RemoveIgnoreDevice(string &mountInfo, bool force)

@@ -252,27 +252,33 @@ void HdcSessionBase::EnumUARTDeviceRegister(UartKickoutZombie kickOut)
 }
 #endif
 
-void HdcSessionBase::EnumUSBDeviceRegister(void (*pCallBack)(HSession hSession))
+void HdcSessionBase::EnumUSBDeviceRegister(EnumCallback pCallBack)
 {
     if (!pCallBack) {
         return;
     }
+    std::vector<EnumCallbackResult> freeSessionList;
     uv_rwlock_rdlock(&lockMapSession);
     map<uint32_t, HSession>::iterator i;
     for (i = mapSession.begin(); i != mapSession.end(); ++i) {
-        HSession hs = i->second;
-        if (hs->connType != CONN_USB) {
+        HSession session = i->second;
+        if (session->connType != CONN_USB) {
             continue;
         }
-        if (hs->hUSB == nullptr) {
+        if (session->hUSB == nullptr) {
             continue;
         }
-        if (pCallBack) {
-            pCallBack(hs);
+        EnumCallbackResult result = pCallBack(session);
+        if (result.sessionId != 0) {
+            freeSessionList.push_back(result);
         }
-        break;
     }
     uv_rwlock_rdunlock(&lockMapSession);
+    for (const auto &item : freeSessionList) {
+        if (item.classInstance != nullptr) {
+            static_cast<HdcSessionBase *>(item.classInstance)->FreeSession(item.sessionId);
+        }
+    }
 }
 
 // The PC side gives the device information, determines if the USB device is registered

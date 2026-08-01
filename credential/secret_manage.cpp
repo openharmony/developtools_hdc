@@ -75,12 +75,26 @@ bool HdcSecretManage::ReadEncryptKeyFile(std::vector<uint8_t>& fileData)
     inFile.seekg(0, std::ios::end);
     std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, std::ios::beg);
+
     if (fileSize <= 0 || fileSize > MAX_FILE_SIZE_LIMIT) {
         WRITE_LOG(LOG_FATAL, "the private key file size error: %lld", static_cast<long long>(fileSize));
         return false;
     }
 
-    fileData.resize(fileSize);
+    const size_t MAX_SAFE_SIZE = 1024 * 1024; // 1MB
+    if (static_cast<size_t>(fileSize) > MAX_SAFE_SIZE) {
+        WRITE_LOG(LOG_FATAL, "the private key file size too large: %lld", static_cast<long long>(fileSize));
+        return false;
+    }
+
+    size_t safeFileSize = static_cast<size_t>(fileSize);
+
+    if (safeFileSize > std::numeric_limits<size_t>::max()) {
+        WRITE_LOG(LOG_FATAL, "file size overflow detected");
+        return false;
+    }
+
+    fileData.resize(safeFileSize);
     inFile.read(reinterpret_cast<char*>(fileData.data()), fileSize);
     if (inFile.eof() || inFile.fail()) {
         WRITE_LOG(LOG_FATAL, "read file private key failed");

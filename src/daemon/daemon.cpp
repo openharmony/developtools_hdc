@@ -31,6 +31,56 @@
 #endif
 #include "hdc_statistic_reporter.h"
 
+namespace {
+static const std::vector<std::string> multiBytes = {
+    "\xC2\x85",
+    "\xE2\x80\xA8",
+    "\xE2\x80\xA9"
+};
+
+std::string SanitizeHostname(const std::string& hostname)
+{
+    std::string result;
+    const size_t len = hostname.length();
+    result.reserve(len);
+    for (size_t i = 0; i < len;) {
+        bool isReplaced = false;
+        for (const auto& seq : multiBytes) {
+            if (i + seq.length() <= len && hostname.compare(i, seq.length(), seq) == 0) {
+                result += ' ';
+                i += seq.length();
+                isReplaced = true;
+                break;
+            }
+        }
+        if (isReplaced) {
+            continue;
+        }
+        unsigned char currentByte = static_cast<unsigned char>(hostname[i]);
+        if (currentByte <= 0x1F || currentByte == 0x7F) {
+            result += ' ';
+        } else {
+            result += hostname[i];
+        }
+        i++;
+    }
+
+    constexpr size_t maxHostnameLength = 95;
+    if (result.length() > maxHostnameLength) {
+        constexpr size_t ellipsisLength = 3;
+        constexpr uint8_t continuationMask = 0xC0;
+        constexpr uint8_t continuationByte = 0x80;
+        size_t cutLen = maxHostnameLength - ellipsisLength;
+        while (cutLen > 0 && (static_cast<unsigned char>(result[cutLen]) & continuationMask) == continuationByte) {
+            --cutLen;
+        }
+        result = result.substr(0, cutLen) + "...";
+    }
+    return result;
+}
+
+}
+
 namespace Hdc {
 #ifdef USE_CONFIG_UV_THREADS
 HdcDaemon::HdcDaemon(bool serverOrDaemonIn, size_t uvThreadSize)
@@ -342,6 +392,7 @@ UserPermit HdcDaemon::PostUIConfirm(string hostname, string pubkey)
         WRITE_LOG(LOG_FATAL, "debug auth result failed, so refuse this connect");
         return REFUSE;
     }
+    hostname = SanitizeHostname(hostname);
 
     // then write para for setting
     if (!SystemDepend::SetDevItem("persist.hdc.client.hostname", hostname.c_str())) {

@@ -22,6 +22,11 @@
 namespace Hdc {
 enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_FLASHD };
 
+struct EnumCallbackResult {
+    uint32_t sessionId;
+    void *classInstance;
+};
+
 class HdcSessionBase {
 public:
     enum AuthType { AUTH_NONE, AUTH_TOKEN, AUTH_SIGNATURE, AUTH_PUBLICKEY, AUTH_OK, AUTH_FAIL, AUTH_SSL_TLS_PSK };
@@ -114,7 +119,8 @@ public:
     virtual void PushAsyncMessage(const uint32_t sessionId, const uint8_t method, const void *data, const int dataSize);
     bool DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                           int payloadSize);
-    void EnumUSBDeviceRegister(void (*pCallBack)(HSession hSession));
+    using EnumCallback = EnumCallbackResult (*)(HSession hSession);
+    void EnumUSBDeviceRegister(EnumCallback pCallBack);
 #ifdef HDC_SUPPORT_UART
     using UartKickoutZombie = const std::function<void(HSession hSession)>;
     virtual void EnumUARTDeviceRegister(UartKickoutZombie);

@@ -269,14 +269,14 @@ void HdcSessionBase::EnumUSBDeviceRegister(EnumCallback pCallBack)
             continue;
         }
         EnumCallbackResult result = pCallBack(session);
-        if (result.sessionId != 0) {
+        if (result.needFreeSession) {
             freeSessionList.push_back(result);
         }
     }
     uv_rwlock_rdunlock(&lockMapSession);
     for (const auto &item : freeSessionList) {
         if (item.classInstance != nullptr) {
-            static_cast<HdcSessionBase *>(item.classInstance)->FreeSession(item.sessionId);
+            item.classInstance->FreeSession(item.sessionId);
         }
     }
 }

@@ -22,9 +22,11 @@
 namespace Hdc {
 enum TaskType { TYPE_UNITY, TYPE_SHELL, TASK_FILE, TASK_FORWARD, TASK_APP, TASK_FLASHD };
 
+class HdcSessionBase;
 struct EnumCallbackResult {
-    uint32_t sessionId;
-    void *classInstance;
+    uint32_t sessionId = 0;
+    HdcSessionBase *classInstance = nullptr;
+    bool needFreeSession = false;
 };
 
 class HdcSessionBase {

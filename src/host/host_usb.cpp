@@ -999,6 +999,11 @@ void HdcHostUSB::ClearUsbChannelFinished(uv_work_t *req, int status)
     if (result < 0) {
         WRITE_LOG(LOG_FATAL, "ClearUsbChannelFinished result is not correct, sid:%s",
             sessionIdMaskStr.c_str());
+#ifndef HOST_OHOS
+        pServer->FreeSession(hSession->sessionId);
+        hdcHostUSB->RemoveIgnoreDevice(hUSB->usbMountPoint);
+        return;
+#endif
     }
 
     hdcHostUSB->BeginUsbRead(hSession);

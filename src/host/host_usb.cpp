@@ -228,7 +228,7 @@ HdcHostUSB::DetectReturnType HdcHostUSB::DetectMyNeed(libusb_device *device, str
 
 EnumCallbackResult HdcHostUSB::KickoutZombie(HSession hSession)
 {
-    EnumCallbackResult result = {0, nullptr};
+    EnumCallbackResult result;
     HUSB hUSB = hSession->hUSB;
     if (!hUSB->devHandle) {
         WRITE_LOG(LOG_WARN, "KickoutZombie devHandle isDead:%d", static_cast<int>(hSession->isDead.load()));
@@ -240,7 +240,8 @@ EnumCallbackResult HdcHostUSB::KickoutZombie(HSession hSession)
     WRITE_LOG(LOG_WARN, "KickoutZombie LIBUSB_ERROR_NO_DEVICE serialNumber:%s",
               Hdc::MaskString(hUSB->serialNumber).c_str());
     result.sessionId = hSession->sessionId;
-    result.classInstance = hSession->classInstance;
+    result.classInstance = static_cast<HdcSessionBase *>(hSession->classInstance);
+    result.needFreeSession = true;
     return result;
 }
 

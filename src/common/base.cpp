@@ -1439,9 +1439,12 @@ static void EchoLog(string &buf)
         while (!feof(pipeHandle)) {
             if (bytesRead >= sizeOutBuf - 1) {
                 break;
-            }            
+            }
             bytesOnce = fread(outBuf, 1, sizeOutBuf - bytesRead - 1, pipeHandle);
             if (bytesOnce == 0) {
+                break;
+            }
+            if (bytesOnce > sizeOutBuf - 1 - bytesRead) {
                 break;
             }
             bytesRead += bytesOnce;

@@ -144,7 +144,7 @@ bool SubserverManager::DisconnectDevice(HdcServer* server, const std::string& se
 void SubserverManager::CheckParentProcess()
 {
     std::string parentName = ProcessHandle::GetParentProcessName();
-    if (parentName == "hdc" || parentName.find("hdc.exe") != std::string::npos) {
+    if (parentName == "hdc" || parentName == "hdc.exe") {
         return;
     }
     Base::PrintMessage("Error: -N is reserved for internal use");

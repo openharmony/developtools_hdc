@@ -326,11 +326,15 @@ private:
 
     class TransferSlot {
     public:
-        void Wait(uint32_t sessionId)
+        bool Wait(uint32_t sessionId, int timeoutMs = 30000)
         {
             std::unique_lock<std::mutex> lock(mutex);
-            cv.wait(lock, [=] { return hasWaitPkg.find(sessionId) == hasWaitPkg.end(); });
-            hasWaitPkg.emplace(sessionId);
+            bool wake = cv.wait_for(lock, std::chrono::milliseconds(timeoutMs),
+                [=] { return hasWaitPkg.find(sessionId) == hasWaitPkg.end(); });
+            if (wake) {
+                hasWaitPkg.emplace(sessionId);
+            }
+            return wake;
         }
 
         void Free(uint32_t sessionId)

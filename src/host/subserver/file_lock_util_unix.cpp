@@ -43,8 +43,9 @@ FileLockGuard::~FileLockGuard()
 
 bool FileLockGuard::WithLock(const std::string& path, std::function<bool(FileLockGuard&)> callback)
 {
+    constexpr mode_t fileLockMode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
     FileLockGuard guard;
-    guard.lockImpl_->fd = open(path.c_str(), O_RDWR | O_CREAT, 0644);
+    guard.lockImpl_->fd = open(path.c_str(), O_RDWR | O_CREAT | O_NOFOLLOW, fileLockMode);
     if (guard.lockImpl_->fd < 0) {
         WRITE_LOG(LOG_WARN, "open failed, path: %s, error: %d", path.c_str(), errno);
         return false;
@@ -94,8 +95,14 @@ bool FileLockGuard::Rewrite(const std::string& content)
         return false;
     }
 
-    ftruncate(lockImpl_->fd, 0);
-    lseek(lockImpl_->fd, 0, SEEK_SET);
+    if (ftruncate(lockImpl_->fd, 0) != 0) {
+        WRITE_LOG(LOG_WARN, "Rewrite ftruncate failed error: %d", errno);
+        return false;
+    }
+    if (lseek(lockImpl_->fd, 0, SEEK_SET) != 0) {
+        WRITE_LOG(LOG_WARN, "Rewrite lseek failed error: %d", errno);
+        return false;
+    }
 
     if (content.empty()) {
         return true;

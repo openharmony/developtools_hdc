@@ -211,12 +211,14 @@ void HdcSessionBase::ClearSessions()
 {
     // no need to lock mapSession
     // broadcast free signal
+    uv_rwlock_wrlock(&lockMapSession);
     for (auto v : mapSession) {
         HSession hSession = (HSession)v.second;
         if (!hSession->isDead) {
             FreeSession(hSession->sessionId);
         }
     }
+    uv_rwlock_wrunlock(&lockMapSession);
 }
 
 void HdcSessionBase::ReMainLoopForInstanceClear()
@@ -818,6 +820,17 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
     return hRet;
 }
 
+HSession HdcSessionBase::HandleVoteReset(const uint32_t sessionId)
+{
+    uv_rwlock_rdlock(&lockMapSession);
+    bool sessionExists = mapSession.count(sessionId) != 0;
+    uv_rwlock_rdunlock(&lockMapSession);
+    if (!sessionExists) {
+        return nullptr;
+    }
+    return VoteReset(sessionId);
+}
+
 HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput)
 {
     StartTraceScope("HdcSessionBase::AdminSession");
@@ -861,10 +874,7 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
             uv_rwlock_wrunlock(&lockMapSession);
             break;
         case OP_VOTE_RESET:
-            if (mapSession.count(sessionId) == 0) {
-                break;
-            }
-            hRet = VoteReset(sessionId);
+            hRet = HandleVoteReset(sessionId);
             break;
         default:
             break;
@@ -1592,7 +1602,8 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     int initResult = uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
     if (initResult != 0) {
         WRITE_LOG(LOG_FATAL, "SessionWorkThread init pollHandle->loop failed");
-        _exit(0);
+        hSession->childCleared = true;
+        return;
     }
     uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
     // start heartbeat rimer

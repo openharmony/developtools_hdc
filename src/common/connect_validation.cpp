@@ -90,7 +90,12 @@ bool GetPubKeyHash(std::string &pubkeyInfo)
             break;
     }
     if (messageStruct.GetMessageBodyLen() > 0) {
-        pubkeyInfo = messageStruct.GetMessageBody();
+        std::pair<char*, size_t> body = messageStruct.GetMessageBody();
+        if (body.first != nullptr && body.second > 0) {
+            pubkeyInfo.assign(body.first, body.second);
+            memset_s(body.first, body.second, 0, body.second);
+            delete[] body.first;
+        }
         return true;
     } else {
         WRITE_LOG(LOG_INFO, "[E000008]: The hdc server fails to read the public key.");
@@ -148,7 +153,12 @@ bool GetPrivateKeyInfo(std::string &privkey_info)
             break;
     }
     if (messageStruct.GetMessageBodyLen() > 0) {
-        privkey_info = messageStruct.GetMessageBody();
+        std::pair<char*, size_t> body = messageStruct.GetMessageBody();
+        if (body.first != nullptr && body.second > 0) {
+            privkey_info.assign(body.first, body.second);
+            memset_s(body.first, body.second, 0, body.second);
+            delete[] body.first;
+        }
         return true;
     } else {
         WRITE_LOG(LOG_INFO, "[E000009]: The hdc server fails to read the private key.");

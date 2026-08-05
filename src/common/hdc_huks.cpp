@@ -28,6 +28,14 @@ static const int AES_GCM_NONCE_BYTE_LEN = 12;
 static const int AES_GCM_TAG_BYTE_LEN = 16;
 static const size_t MAX_RSA_CIPHER_TEXT_LEN = 384; // HKS_RSA_KEY_SIZE_3072 / 8
 
+static void SecureClearVector(std::vector<uint8_t>& vec)
+{
+    if (!vec.empty()) {
+        memset_s(vec.data(), vec.size(), 0, vec.size());
+        vec.clear();
+    }
+}
+
 #ifdef HDC_UNIT_TEST
 const std::string HDC_PUBLIC_KEY_PATH = "/data/local/tmp/hdc_test_public_key.pem";
 #else
@@ -246,30 +254,37 @@ bool HdcHuks::CheckEncryptDataLen(const std::string& encryptData)
     return true;
 }
 
-/*
-    * input data is 12 bytes(nonce value) + N bytes(encrypt data + 16 bytes(tag value))
-*/
-std::pair<uint8_t*, int> HdcHuks::AesGcmDecrypt(const std::string& inputData)
+std::pair<uint8_t*, int> HdcHuks::AesGcmDecrypt(const uint8_t* inputData, size_t inputLen)
 {
     struct HksParamSet *paramSet = nullptr;
     std::vector<uint8_t> encryptText;
     std::vector<uint8_t> nonceValue;
 
-    if (!CheckEncryptDataLen(inputData)) {
+    if (inputData == nullptr || inputLen == 0) {
+        WRITE_LOG(LOG_FATAL, "Invalid input parameters");
         return std::make_pair(nullptr, 0);
     }
 
-    nonceValue.assign(inputData.begin(), inputData.begin() + AES_GCM_NONCE_BYTE_LEN);
-    encryptText.assign(inputData.begin() + AES_GCM_NONCE_BYTE_LEN, inputData.end());
+    if (inputLen <= static_cast<size_t>(AES_GCM_NONCE_BYTE_LEN)) {
+        WRITE_LOG(LOG_FATAL, "Input data too short: %zu", inputLen);
+        return std::make_pair(nullptr, 0);
+    }
+
+    nonceValue.assign(inputData, inputData + AES_GCM_NONCE_BYTE_LEN);
+    encryptText.assign(inputData + AES_GCM_NONCE_BYTE_LEN, inputData + inputLen);
     paramSet = MakeAesGcmDecryptParamSets(nonceValue);
     if (paramSet == nullptr) {
+        SecureClearVector(nonceValue);
+        SecureClearVector(encryptText);
         return std::make_pair(nullptr, 0);
     }
 
-    size_t maxPlainDataLen = inputData.size() - AES_GCM_NONCE_BYTE_LEN;
+    size_t maxPlainDataLen = inputLen - AES_GCM_NONCE_BYTE_LEN;
     uint8_t *plainData = new(std::nothrow)uint8_t[maxPlainDataLen];
     if (plainData == nullptr) {
         WRITE_LOG(LOG_FATAL, " out of memory %zu", maxPlainDataLen);
+        SecureClearVector(nonceValue);
+        SecureClearVector(encryptText);
         HksFreeParamSet(&paramSet);
         return std::make_pair(nullptr, 0);
     }
@@ -280,10 +295,14 @@ std::pair<uint8_t*, int> HdcHuks::AesGcmDecrypt(const std::string& inputData)
     if (ret != HKS_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "HksDecrypt failed, ret %d", ret);
         delete[] plainData;
+        SecureClearVector(nonceValue);
+        SecureClearVector(encryptText);
         HksFreeParamSet(&paramSet);
         return std::make_pair(nullptr, 0);
     }
 
+    SecureClearVector(nonceValue);
+    SecureClearVector(encryptText);
     HksFreeParamSet(&paramSet);
     return std::make_pair(plainData, plainBlob.size);
 }

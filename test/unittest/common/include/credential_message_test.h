@@ -15,6 +15,7 @@
 #ifndef HDC_CREDENTIAL_MESSAGE_TEST_H
 #define HDC_CREDENTIAL_MESSAGE_TEST_H
 #include <gtest/gtest.h>
+#include "credential_message.h"
 namespace Hdc {
 class HdcCredentialMessageTest : public ::testing::Test {
 public:
@@ -26,6 +27,8 @@ public:
     int StripLeadingZeros(const std::string& input);
     std::vector<uint8_t> String2Uint8(const std::string& str, size_t len);
     std::string IntToStringWithPadding(int length, int maxLen);
+    void AssertBodyEmpty(CredentialMessage& message);
+    void AssertBodyEquals(CredentialMessage& message, const std::string& expected);
 };
 }   // namespace Hdc
 #endif  // HDC_CREDENTIAL_MESSAGE_TEST_H

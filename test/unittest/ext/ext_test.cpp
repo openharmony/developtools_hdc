@@ -385,7 +385,9 @@ HWTEST_F(HdcExtTest, 25, TestSize.Level0)
     EXPECT_EQ(message->GetMessageVersion(), 1);
     EXPECT_EQ(message->GetMessageMethodType(), -1);
     EXPECT_EQ(message->GetMessageBodyLen(), 0);
-    EXPECT_EQ(message->GetMessageBody(), "");
+    auto body = message->GetMessageBody();
+    EXPECT_EQ(body.first, nullptr);
+    EXPECT_EQ(body.second, 0);
 
     delete message;
 }
@@ -402,7 +404,9 @@ HWTEST_F(HdcExtTest, 26, TestSize.Level0)
     EXPECT_EQ(message->GetMessageVersion(), 0);
     EXPECT_EQ(message->GetMessageMethodType(), 0);
     EXPECT_EQ(message->GetMessageBodyLen(), 0);
-    EXPECT_EQ(message->GetMessageBody(), "");
+    auto body = message->GetMessageBody();
+    EXPECT_EQ(body.first, nullptr);
+    EXPECT_EQ(body.second, 0);
 
     delete message;
 }
@@ -419,7 +423,9 @@ HWTEST_F(HdcExtTest, 27, TestSize.Level0)
     EXPECT_EQ(message->GetMessageVersion(), 0);
     EXPECT_EQ(message->GetMessageMethodType(), 0);
     EXPECT_EQ(message->GetMessageBodyLen(), 0);
-    EXPECT_EQ(message->GetMessageBody(), "");
+    auto body = message->GetMessageBody();
+    EXPECT_EQ(body.first, nullptr);
+    EXPECT_EQ(body.second, 0);
 
     delete message;
 }
@@ -459,7 +465,8 @@ HWTEST_F(HdcExtTest, 30, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string body = "ValidBody";
     message->SetMessageBody(body);
-    EXPECT_EQ(message->GetMessageBody(), body);
+    auto retBody = message->GetMessageBody();
+    EXPECT_EQ(std::string(retBody.first, retBody.second), body);
     EXPECT_EQ(message->GetMessageBodyLen(), body.size());
 
     delete message;
@@ -474,7 +481,9 @@ HWTEST_F(HdcExtTest, 31, TestSize.Level0)
     CredentialMessage* message = new CredentialMessage("");
     std::string longBody(MESSAGE_STR_MAX_LEN + 1, 'a');
     message->SetMessageBody(longBody);
-    EXPECT_EQ(message->GetMessageBody(), "");
+    auto body = message->GetMessageBody();
+    EXPECT_EQ(body.first, nullptr);
+    EXPECT_EQ(body.second, 0);
     EXPECT_EQ(message->GetMessageBodyLen(), 0);
 
     delete message;

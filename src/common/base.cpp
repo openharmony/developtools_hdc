@@ -1437,21 +1437,16 @@ static void EchoLog(string &buf)
         size_t bytesRead = 0;
         size_t bytesOnce = 0;
         while (!feof(pipeHandle)) {
-            if (bytesRead >= sizeOutBuf - 1) {
-                break;
-            }
-            bytesOnce = fread(outBuf, 1, sizeOutBuf - bytesRead - 1, pipeHandle);
+            bytesOnce = fread(outBuf, 1, sizeOutBuf - bytesRead, pipeHandle);
             if (bytesOnce == 0) {
-                break;
-            }
-            if (bytesOnce > sizeOutBuf - 1 - bytesRead) {
                 break;
             }
             bytesRead += bytesOnce;
         }
-        outBuf[bytesRead] = '\0';
-        if (ignoreTailLf && bytesRead > 0 && outBuf[bytesRead - 1] == '\n') {
-            outBuf[bytesRead - 1] = '\0';
+        if (bytesRead > 0 && bytesRead <= sizeOutBuf && ignoreTailLf) {	 
+            if (outBuf[bytesRead - 1] == '\n') {	 
+                outBuf[bytesRead - 1] = '\0';	 
+            }
         }
         pclose(pipeHandle);
         return bytesRead > 0;

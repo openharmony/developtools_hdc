@@ -60,6 +60,8 @@ static std::vector<std::string> envSnapshot;
 
 std::atomic<bool> g_authFinish = false;
 
+constexpr int PATH_MAX = 4096;
+
 /*
  * Default table of "bad" variables to remove from the environment.
  */
@@ -200,7 +202,7 @@ static void FreeArgvNew(char **argvNew)
  */
 static bool IsElf(const std::string& path)
 {
-    char canonicalPath[SUDO_ARG_MAX_NUMS + 1] = {0};
+    char canonicalPath[PATH_MAX + 1] = {0};
     if (realpath(path.c_str(), canonicalPath) == nullptr) {
         return false;
     }

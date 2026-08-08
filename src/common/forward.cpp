@@ -167,6 +167,8 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
     Base::CloseFd(ctx->fd);
     if (ctx->fdClass) {
         ctx->fdClass->StopWorkOnThread(false, nullptr);
+        ctx->releaseRetryCount = 0;
+        constexpr int maxReleaseRetry = 100;
 
         auto funcReqClose = [](uv_idle_t *handle) -> void {
             uv_close_cb funcIdleHandleClose = [](uv_handle_t *handle) -> void {
@@ -175,7 +177,15 @@ void HdcForwardBase::FreeJDWP(HCtxForward ctx)
                 delete (uv_idle_t *)handle;
             };
             HCtxForward context = (HCtxForward)handle->data;
+            context->releaseRetryCount++;
+            
             if (context->fdClass->ReadyForRelease()) {
+                delete context->fdClass;
+                context->fdClass = nullptr;
+                Base::TryCloseHandle((uv_handle_t *)handle, funcIdleHandleClose);
+            } else if (context->releaseRetryCount >= maxReleaseRetry) {
+                WRITE_LOG(LOG_FATAL, "FreeJDWP: ReadyForRelease timeout after %d retries, forcing close",
+                          maxReleaseRetry);
                 delete context->fdClass;
                 context->fdClass = nullptr;
                 Base::TryCloseHandle((uv_handle_t *)handle, funcIdleHandleClose);
@@ -391,9 +401,21 @@ bool HdcForwardBase::DetechForwardType(HCtxForward ctxPoint)
         // host:   hdc fport tcp:8080 localabstract:linux-abstract
         ctxPoint->type = FORWARD_ABSTRACT;
     } else if (sFType == "localreserved") {
+        if (!Base::CheckPathTraversal(sNodeCfg)) {
+            WRITE_LOG(LOG_FATAL, "DetechForwardType: Path traversal detected in localreserved: %s",
+                      sNodeCfg.c_str());
+            ctxPoint->lastError = "Invalid path: path traversal not allowed";
+            return false;
+        }
         sNodeCfg = harmonyReservedSocketPrefix + sNodeCfg;
         ctxPoint->type = FORWARD_RESERVED;
     } else if (sFType == "localfilesystem") {
+        if (!Base::CheckPathTraversal(sNodeCfg)) {
+            WRITE_LOG(LOG_FATAL, "DetechForwardType: Path traversal detected in localfilesystem: %s",
+                      sNodeCfg.c_str());
+            ctxPoint->lastError = "Invalid path: path traversal not allowed";
+            return false;
+        }
         sNodeCfg = filesystemSocketPrefix + sNodeCfg;
         ctxPoint->type = FORWARD_FILESYSTEM;
     } else if (sFType == "jdwp") {

@@ -87,6 +87,10 @@ int HdcUSBBase::SendUSBBlock(HSession hSession, uint8_t *data, const int length)
     std::lock_guard<std::mutex> lock(hSession->hUSB->lockSendUsbBlock);
     USBHead* header = BuildPacketHeader(hSession->sessionId, USB_OPTION_HEADER, length);
     do {
+        if (hSession->hUSB->wMaxPacketSizeSend == 0) {
+            WRITE_LOG(LOG_FATAL, "SendUSBBlock: wMaxPacketSizeSend is 0, invalid USB configuration");
+            break;
+        }
         if ((SendUSBRaw(hSession, reinterpret_cast<uint8_t*>(header), sizeof(USBHead))) <= 0) {
             WRITE_LOG(LOG_FATAL, "SendUSBRaw index failed");
             break;
@@ -135,13 +139,12 @@ void HdcUSBBase::PreSendUsbSoftReset(HSession hSession, uint32_t sessionIdOld)
     StartTraceScope("HdcUSBBase::PreSendUsbSoftReset");
     HUSB hUSB = hSession->hUSB;
     if (hSession->serverOrDaemon && !hUSB->resetIO) {
-        hUSB->lockSendUsbBlock.lock();
+        std::lock_guard<std::mutex> lock(hUSB->lockSendUsbBlock);
         WRITE_LOG(LOG_WARN, "SendToHdcStream check, sessionId not matched");
         USBHead* header = BuildPacketHeader(sessionIdOld, USB_OPTION_RESET, 0);
         if (SendUSBRaw(hSession, reinterpret_cast<uint8_t*>(header), sizeof(USBHead)) <= 0) {
             WRITE_LOG(LOG_FATAL, "PreSendUsbSoftReset send failed");
         }
-        hUSB->lockSendUsbBlock.unlock();
         hUSB->resetIO = true;
         delete header;
     }

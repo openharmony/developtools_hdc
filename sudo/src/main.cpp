@@ -200,7 +200,7 @@ static void FreeArgvNew(char **argvNew)
  */
 static bool IsElf(const std::string& path)
 {
-    char canonicalPath[PATH_MAX + 1] = {0};
+    char canonicalPath[SUDO_ARG_MAX_NUMS + 1] = {0};
     if (realpath(path.c_str(), canonicalPath) == nullptr) {
         return false;
     }

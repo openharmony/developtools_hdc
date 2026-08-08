@@ -284,9 +284,14 @@ HWTEST_F(HdcHuksTest, TestAesGcmEncryptAndDecrypt, TestSize.Level0)
 
     std::string encryptStr;
     encryptStr.assign(encryptData.begin(), encryptData.end());
-    std::pair<uint8_t*, int> plainStr = huks.AesGcmDecrypt(encryptStr);
-    ASSERT_EQ(plainStr.second, 10); // 10 is testData length
+    std::pair<uint8_t*, int> plainStr = huks.AesGcmDecrypt(
+        reinterpret_cast<const uint8_t*>(encryptStr.data()), encryptStr.size());
+    ASSERT_EQ(plainStr.second, 10);
     ASSERT_EQ(memcmp(plainStr.first, testData, plainStr.second), 0);
+    if (plainStr.first != nullptr) {
+        memset_s(plainStr.first, plainStr.second, 0, plainStr.second);
+        delete[] plainStr.first;
+    }
 }
 
 HWTEST_F(HdcHuksTest, TestGenerateAndExportHuksRSAPublicKeyFailed, TestSize.Level0)
@@ -366,9 +371,14 @@ HWTEST_F(HdcHuksTest, TestAesGcmDecryptInvalidLen, TestSize.Level0)
 {
     HdcHuks huks(TEST_HUKS_ALIAS);
     std::string shortData = "abc";
-    auto result = huks.AesGcmDecrypt(shortData);
+    std::pair<uint8_t*, int> result = huks.AesGcmDecrypt(
+        reinterpret_cast<const uint8_t*>(shortData.data()), shortData.size());
     ASSERT_EQ(result.first, nullptr);
     ASSERT_EQ(result.second, 0);
+    if (result.first != nullptr) {
+        memset_s(result.first, result.second, 0, result.second);
+        delete[] result.first;
+    }
 }
 
 HWTEST_F(HdcHuksTest, TestRsaDecryptEmptyData, TestSize.Level0)
@@ -412,10 +422,14 @@ HWTEST_F(HdcHuksTest, TestAesGcmEncryptDecryptConsistency, TestSize.Level0)
         ASSERT_TRUE(huks.AesGcmEncrypt(testData.data(), len, encryptData));
 
         std::string encryptStr(encryptData.begin(), encryptData.end());
-        auto plainStr = huks.AesGcmDecrypt(encryptStr);
+        std::pair<uint8_t*, int> plainStr = huks.AesGcmDecrypt(
+            reinterpret_cast<const uint8_t*>(encryptStr.data()), encryptStr.size());
         ASSERT_EQ(plainStr.second, len);
         ASSERT_EQ(memcmp(plainStr.first, testData.data(), len), 0);
-        delete[] plainStr.first;
+        if (plainStr.first != nullptr) {
+            memset_s(plainStr.first, plainStr.second, 0, plainStr.second);
+            delete[] plainStr.first;
+        }
     }
 }
 

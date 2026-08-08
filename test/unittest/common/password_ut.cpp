@@ -24,7 +24,7 @@ void HdcPasswordTest::TearDownTestCase() {}
 void HdcPasswordTest::SetUp() {}
 void HdcPasswordTest::TearDown() {}
 
-bool HdcPasswordTest::CheckPasswordFormat(std::pair<uint8_t*, int> pwdInfo)
+bool HdcPasswordTest::CheckPasswordFormat(std::pair<const uint8_t*, int> pwdInfo)
 {
     std::string specialChar = "~!@#$%^&*()-_=+\\|[{}];:'\",<.>/?";
     if (pwdInfo.first == nullptr || pwdInfo.second != PASSWORD_LENGTH) {

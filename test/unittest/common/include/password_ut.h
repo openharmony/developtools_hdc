@@ -25,7 +25,7 @@ public:
     void SetUp();
     void TearDown();
 private:
-    bool CheckPasswordFormat(std::pair<uint8_t*, int> pwdInfo);
+    bool CheckPasswordFormat(std::pair<const uint8_t*, int> pwdInfo);
 };
 } // namespace Hdc
 #endif // HDC_PASSWORD_UT_H

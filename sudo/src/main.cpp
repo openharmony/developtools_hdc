@@ -60,7 +60,7 @@ static std::vector<std::string> envSnapshot;
 
 std::atomic<bool> g_authFinish = false;
 
-constexpr int PATH_MAX = 4096;
+#define PATH_MAX 4096
 
 /*
  * Default table of "bad" variables to remove from the environment.

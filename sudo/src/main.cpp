@@ -200,14 +200,12 @@ static void FreeArgvNew(char **argvNew)
  */
 static bool IsElf(const std::string& path)
 {
-    char* canonicalPath = realpath(path.c_str(), nullptr);
-    if (canonicalPath == nullptr) {
+    char canonicalPath[PATH_MAX];
+    if (realpath(path.c_str(), canonicalPath) == nullptr) {
         return false;
     }
 
     std::string normalizedPath(canonicalPath);
-    free(canonicalPath);
-
     if (normalizedPath.find("/data/") != 0 &&
         normalizedPath.find("/system/") != 0 &&
         normalizedPath.find("/bin/") != 0) {

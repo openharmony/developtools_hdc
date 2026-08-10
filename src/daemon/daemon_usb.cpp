@@ -74,8 +74,6 @@ string HdcDaemonUSB::GetDevPath(const std::string &path)
         return "";
     }
 
-    std::shared_ptr<DIR> dirGuard(dir, ::closedir);
-
     string res = USB_FFS_BASE;
     string node;
     int count = 0;
@@ -92,6 +90,7 @@ string HdcDaemonUSB::GetDevPath(const std::string &path)
     } else {
         res += node;
     }
+    ::closedir(dir);
     return res;
 }
 
@@ -427,28 +426,16 @@ HSession HdcDaemonUSB::PrepareNewSession(uint32_t sessionId)
         return nullptr;
     }
     currentSessionId = sessionId;
-    if (Base::StartWorkThread(&daemon->loopMain, daemon->SessionWorkThread,
-        Base::FinishWorkThread, hChildSession) != 0) {
-        WRITE_LOG(LOG_FATAL, "StartWorkThread failed");
-        daemon->FreeSession(hChildSession->sessionId);
-        return nullptr;
-    }
-    constexpr uint64_t threadStartTimeoutMs = 5000;
-    uint64_t startTime = Base::GetRuntimeMSec();
+    Base::StartWorkThread(&daemon->loopMain, daemon->SessionWorkThread, Base::FinishWorkThread, hChildSession);
     // wait for thread up
     while (hChildSession->childLoop.active_handles == 0) {
-        if (Base::GetRuntimeMSec() - startTime > threadStartTimeoutMs) {
-            WRITE_LOG(LOG_FATAL, "Wait for thread up timeout");
-            daemon->FreeSession(hChildSession->sessionId);
-            return nullptr;
-        }
+        WRITE_LOG(LOG_DEBUG, "wait for thread up");
         usleep(UV_DEFAULT_INTERVAL);
     }
 
     HSessionInfo hSessionInfo = new(std::nothrow) HdcSessionInfo();
     if (hSessionInfo == nullptr) {
         WRITE_LOG(LOG_FATAL, "PrepareNewSession new hSessionInfo failed");
-        daemon->FreeSession(hChildSession->sessionId);
         return nullptr;
     }
     hSessionInfo->sessionId = hChildSession->sessionId;

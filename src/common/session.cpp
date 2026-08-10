@@ -211,14 +211,12 @@ void HdcSessionBase::ClearSessions()
 {
     // no need to lock mapSession
     // broadcast free signal
-    uv_rwlock_wrlock(&lockMapSession);
     for (auto v : mapSession) {
         HSession hSession = (HSession)v.second;
         if (!hSession->isDead) {
             FreeSession(hSession->sessionId);
         }
     }
-    uv_rwlock_wrunlock(&lockMapSession);
 }
 
 void HdcSessionBase::ReMainLoopForInstanceClear()

@@ -216,6 +216,13 @@ HdcFileDescriptor::~HdcFileDescriptor()
             }
             uv_sleep(MILL_SECONDS);
         }
+        if (ioWriteThread.joinable()) {
+            ioWriteThread.join();
+        }
+    }
+    if (fdIO > 0) {
+        Base::CloseFd(fdIO);
+        fdIO = -1;
     }
 }
 

@@ -42,6 +42,7 @@ protected:
         char version[BUF_SIZE_TINY] = { 0 };
     } __attribute__((packed));
     uint32_t MallocChannel(HChannel *hOutChannel);
+    void InitChannelTransport(HdcChannel *hChannel, const uint32_t channelId);
     virtual int ReadChannel(HChannel /* hChannel */, uint8_t* /* bufPtr */, const int /* bytesIO */)
     {
         return 0;

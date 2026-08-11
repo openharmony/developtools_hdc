@@ -507,25 +507,7 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
         hChannel->serverOrClient = isServerOrClient;
         ++channelId;  // Use different value for serverForClient&client in per process
     }
-    if (!hChannel->isUds) {
-        int rc = uv_tcp_init(loopMain, &hChannel->hWorkTCP);
-        if (rc < 0) {
-            WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
-            delete hChannel;
-            return 0;
-        }
-        hChannel->hWorkTCP.data = hChannel;
-        (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
-    } else {
-        int rc = uv_pipe_init(loopMain, &hChannel->hWorkUds, 0);
-        if (rc < 0) {
-            WRITE_LOG(LOG_FATAL, "MallocChannel uv_pipe_init failed, rc:%d cid:%u", rc, channelId);
-            delete hChannel;
-            return 0;
-        }
-        hChannel->hWorkUds.data = hChannel;
-        (void)memset_s(&hChannel->hChildWorkUds, sizeof(hChannel->hChildWorkUds), 0, sizeof(uv_pipe_t));
-    }
+    InitChannelTransport(hChannel, channelId);
     ++hChannel->uvHandleRef;
     hChannel->hWorkThread = uv_thread_self();
     hChannel->clsChannel = this;
@@ -536,6 +518,25 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     *hOutChannel = hChannel;
     WRITE_LOG(isServerOrClient ? LOG_INFO : LOG_DEBUG, "Mallocchannel:%u", channelId);
     return channelId;
+}
+
+void HdcChannelBase::InitChannelTransport(HdcChannel *hChannel, const uint32_t channelId)
+{
+    if (!hChannel->isUds) {
+        int rc = uv_tcp_init(loopMain, &hChannel->hWorkTCP);
+        if (rc < 0) {
+            WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
+        }
+        hChannel->hWorkTCP.data = hChannel;
+        (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
+    } else {
+        int rc = uv_pipe_init(loopMain, &hChannel->hWorkUds, 0);
+        if (rc < 0) {
+            WRITE_LOG(LOG_FATAL, "MallocChannel uv_pipe_init failed, rc:%d cid:%u", rc, channelId);
+        }
+        hChannel->hWorkUds.data = hChannel;
+        (void)memset_s(&hChannel->hChildWorkUds, sizeof(hChannel->hChildWorkUds), 0, sizeof(uv_pipe_t));
+    }
 }
 #else
 uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)

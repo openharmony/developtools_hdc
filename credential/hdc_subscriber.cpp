@@ -31,7 +31,7 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
 
     if (data.toId < HdcCredentialBase::MIN_USER_ID || data.toId > HdcCredentialBase::MAX_USER_ID) {
         WRITE_LOG(LOG_FATAL, "Invalid toId:%d, out of range [%d, %d]", data.toId,
-        HdcCredentialBase::MIN_USER_ID, HdcCredentialBase::MAX_USER_ID);
+            HdcCredentialBase::MIN_USER_ID, HdcCredentialBase::MAX_USER_ID);
         return;
     }
 

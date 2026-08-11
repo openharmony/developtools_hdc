@@ -207,7 +207,9 @@ namespace Base {
         if (fprintf(file, "%s", str) > 0 && fflush(file)) {
             // make ci happy
         }
-        fclose(file);
+        if (fclose(file) != 0) {
+            WRITE_LOG(LOG_WARN, "fclose failed");
+        }
 #else
         // Subserver creates log file only once during process startup.
         // If the log file is deleted later, subserver won't recreate it

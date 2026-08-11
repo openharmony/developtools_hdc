@@ -211,7 +211,7 @@ void TlvBuf::Display(void) const
         return;
     }
     for (auto it = this->mTlvMap.begin(); it != this->mTlvMap.end(); ++it) {
-        WRITE_LOG(LOG_INFO, "tag %u len %u", it->first, it->second.size());
+        WRITE_LOG(LOG_INFO, "tag %u len %zu", it->first, it->second.size());
     }
 }
 

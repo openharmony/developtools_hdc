@@ -22,9 +22,30 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
     loopMain = loopMainIn;
     loopMainStatus.StartReportTimer();
     threadChanneMain = uv_thread_self();
-    uv_rwlock_init(&mainAsync);
-    uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
-    uv_rwlock_init(&lockMapChannel);
+
+    int ret = uv_rwlock_init(&mainAsync);
+    if (ret != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to initialize mainAsync rwlock: %s", uv_strerror(ret));
+        return;
+    }
+
+    ret = uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
+    if (ret != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to initialize asyncMainLoop: %s", uv_strerror(ret));
+        uv_rwlock_destroy(&mainAsync);
+        return;
+    }
+
+    ret = uv_rwlock_init(&lockMapChannel);
+    if (ret != 0) {
+        WRITE_LOG(LOG_FATAL, "Failed to initialize lockMapChannel rwlock: %s", uv_strerror(ret));
+        if (!uv_is_closing((uv_handle_t *)&asyncMainLoop)) {
+            uv_close((uv_handle_t *)&asyncMainLoop, nullptr);
+        }
+        uv_rwlock_destroy(&mainAsync);
+        return;
+    }
+
     queuedPackages.store(0);
 }
 
@@ -261,7 +282,16 @@ void HdcChannelBase::MainAsyncCallback(uv_async_t *handle)
     uv_rwlock_wrlock(&thisClass->mainAsync);
     for (i = lst.begin(); i != lst.end();) {
         AsyncParam *param = (AsyncParam *)*i;
-        Base::IdleUvTask(thisClass->loopMain, param, AsyncMainLoopTask);
+        if (!param) {
+            i = lst.erase(i);
+            return;
+        }
+        if (!Base::IdleUvTask(thisClass->loopMain, param, AsyncMainLoopTask)) {
+            if (param->data) {
+                delete[]((uint8_t *)param->data);
+            }
+            delete param;
+        }
         i = lst.erase(i);
     }
     uv_rwlock_wrunlock(&thisClass->mainAsync);
@@ -460,8 +490,12 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     mallopt(M_DELAYED_FREE, M_DELAYED_FREE_DISABLE);
     mallopt(M_SET_THREAD_CACHE, M_THREAD_CACHE_DISABLE);
 #endif
+    if (!(*hOutChannel)) {
+        WRITE_LOG(LOG_FATAL, "hOutChannel is null");
+        return 0;
+    }
     auto hChannel = new HdcChannel();
-    if (!hChannel || !(*hOutChannel)) {
+    if (!hChannel) {
         WRITE_LOG(LOG_FATAL, "malloc channel failed");
         return 0;
     }
@@ -477,6 +511,8 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
         int rc = uv_tcp_init(loopMain, &hChannel->hWorkTCP);
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
+            delete hChannel;
+            return 0;
         }
         hChannel->hWorkTCP.data = hChannel;
         (void)memset_s(&hChannel->hChildWorkTCP, sizeof(hChannel->hChildWorkTCP), 0, sizeof(uv_tcp_t));
@@ -484,6 +520,8 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
         int rc = uv_pipe_init(loopMain, &hChannel->hWorkUds, 0);
         if (rc < 0) {
             WRITE_LOG(LOG_FATAL, "MallocChannel uv_pipe_init failed, rc:%d cid:%u", rc, channelId);
+            delete hChannel;
+            return 0;
         }
         hChannel->hWorkUds.data = hChannel;
         (void)memset_s(&hChannel->hChildWorkUds, sizeof(hChannel->hChildWorkUds), 0, sizeof(uv_pipe_t));
@@ -521,6 +559,8 @@ uint32_t HdcChannelBase::MallocChannel(HChannel *hOutChannel)
     int rc = uv_tcp_init(loopMain, &hChannel->hWorkTCP);
     if (rc < 0) {
         WRITE_LOG(LOG_FATAL, "MallocChannel uv_tcp_init failed, rc:%d cid:%u", rc, channelId);
+        delete hChannel;
+        return 0;
     }
 
     ++hChannel->uvHandleRef;

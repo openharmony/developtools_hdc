@@ -194,8 +194,10 @@ bool HdcHostApp::CheckInstallContinue(AppModType mode, const char *msg)
     if (!originLocalDir.empty()) {
         path = originLocalDir;
     }
-    LogMsg(MSG_INFO, "%s path:%s msg:%s", modeDesc.c_str(), path.c_str(), msg + printedMsgLen);
-    printedMsgLen = strlen(msg);
+    size_t msgLen = strlen(msg);
+    const char *msgToPrint = (printedMsgLen < msgLen) ? (msg + printedMsgLen) : msg;
+    LogMsg(MSG_INFO, "%s path:%s msg:%s", modeDesc.c_str(), path.c_str(), msgToPrint);
+    printedMsgLen = msgLen;
     if (singalStop || !ctxNow.taskQueue.size()) {
         LogMsg(MSG_OK, "AppMod finish");
         return false;

@@ -57,6 +57,7 @@ protected:
         string localArgs[2];
         string remoteArgs[2];
         string remoteParamenters;
+        int releaseRetryCount;
     };
     using HCtxForward = struct ContextForward *;
     struct ContextForwardIO {

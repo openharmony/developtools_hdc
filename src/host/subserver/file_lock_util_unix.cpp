@@ -25,6 +25,10 @@
 
 namespace Hdc {
 
+namespace {
+    constexpr mode_t LOCK_FILE_MODE = 0644;
+}
+
 struct FileLockGuard::FileLockGuardImpl {
     int fd = -1;
 
@@ -44,7 +48,7 @@ FileLockGuard::~FileLockGuard()
 bool FileLockGuard::WithLock(const std::string& path, std::function<bool(FileLockGuard&)> callback)
 {
     FileLockGuard guard;
-    guard.lockImpl_->fd = open(path.c_str(), O_RDWR | O_CREAT, 0644);
+    guard.lockImpl_->fd = open(path.c_str(), O_RDWR | O_CREAT | O_NOFOLLOW, LOCK_FILE_MODE);
     if (guard.lockImpl_->fd < 0) {
         WRITE_LOG(LOG_WARN, "open failed, path: %s, error: %d", path.c_str(), errno);
         return false;
@@ -94,8 +98,14 @@ bool FileLockGuard::Rewrite(const std::string& content)
         return false;
     }
 
-    ftruncate(lockImpl_->fd, 0);
-    lseek(lockImpl_->fd, 0, SEEK_SET);
+    if (ftruncate(lockImpl_->fd, 0) < 0) {
+        WRITE_LOG(LOG_WARN, "ftruncate failed, error: %d", errno);
+        return false;
+    }
+    if (lseek(lockImpl_->fd, 0, SEEK_SET) < 0) {
+        WRITE_LOG(LOG_WARN, "lseek failed, error: %d", errno);
+        return false;
+    }
 
     if (content.empty()) {
         return true;
@@ -116,7 +126,10 @@ bool FileLockGuard::AppendLine(const std::string& content)
         return false;
     }
 
-    lseek(lockImpl_->fd, 0, SEEK_END);
+    if (lseek(lockImpl_->fd, 0, SEEK_END) < 0) {
+        WRITE_LOG(LOG_WARN, "lseek failed, error: %d", errno);
+        return false;
+    }
 
     ssize_t written = write(lockImpl_->fd, content.c_str(), content.size());
     if (written < 0 || static_cast<size_t>(written) != content.size()) {

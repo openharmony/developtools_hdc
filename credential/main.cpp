@@ -58,16 +58,21 @@ bool ResetPwdKey(void)
     return hdcHuks.ResetHuksKey();
 }
 
-std::pair<char*, size_t> CredentialEncryptPwd(const std::string& messageStr)
+std::pair<char*, size_t> CredentialEncryptPwd(const char* data, size_t len)
 {
-    if (messageStr.size() != PASSWORD_LENGTH) {
-        WRITE_LOG(LOG_FATAL, "Invalid input length: expected %d, got %zu", PASSWORD_LENGTH, messageStr.size());
+    if (data == nullptr) {
+        WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: data is null.");
+        return {nullptr, 0};
+    }
+
+    if (len != PASSWORD_LENGTH) {
+        WRITE_LOG(LOG_FATAL, "Invalid input length: expected %d, got %zu", PASSWORD_LENGTH, len);
         return {nullptr, 0};
     }
     std::vector<uint8_t> encryptData;
 
-    bool encryptResult = hdcHuks.AesGcmEncrypt(reinterpret_cast<const uint8_t*>(messageStr.c_str()),
-        PASSWORD_LENGTH, encryptData);
+    bool encryptResult = hdcHuks.AesGcmEncrypt(reinterpret_cast<const uint8_t*>(data),
+        len, encryptData);
     if (!encryptResult) {
         WRITE_LOG(LOG_FATAL, "CredentialEncryptPwd: AES GCM encryption failed.");
         return {nullptr, 0};
@@ -86,14 +91,19 @@ std::pair<char*, size_t> CredentialEncryptPwd(const std::string& messageStr)
     return {result, encryptData.size()};
 }
 
-std::pair<char*, size_t> EncryptPwd(const std::string& messageStr)
+std::pair<char*, size_t> EncryptPwd(const char* data, size_t len)
 {
+    if (data == nullptr) {
+        WRITE_LOG(LOG_FATAL, "EncryptPwd: data is null.");
+        return {nullptr, 0};
+    }
+
     if (!ResetPwdKey()) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: ResetPwdKey failed.");
         return {nullptr, 0};
     }
 
-    std::pair<char*, size_t> encryptPwd = CredentialEncryptPwd(messageStr);
+    std::pair<char*, size_t> encryptPwd = CredentialEncryptPwd(data, len);
     if (encryptPwd.first == nullptr || encryptPwd.second == 0) {
         WRITE_LOG(LOG_FATAL, "EncryptPwd: CredentialEncryptPwd failed.");
         return {nullptr, 0};
@@ -102,9 +112,15 @@ std::pair<char*, size_t> EncryptPwd(const std::string& messageStr)
     return encryptPwd;
 }
 
-std::pair<char*, size_t> DecryptPwd(const std::string& messageStr)
+std::pair<char*, size_t> DecryptPwd(const char* data, size_t len)
 {
-    std::pair<uint8_t*, int> decryptPwd = hdcHuks.AesGcmDecrypt(messageStr);
+    if (data == nullptr) {
+        WRITE_LOG(LOG_FATAL, "DecryptPwd: data is null.");
+        return {nullptr, 0};
+    }
+
+    std::pair<uint8_t*, int> decryptPwd = hdcHuks.AesGcmDecrypt(
+        reinterpret_cast<const uint8_t*>(data), len);
     if (decryptPwd.first == nullptr) {
         WRITE_LOG(LOG_FATAL, "AesGcmDecrypt failed.");
         return {nullptr, 0};
@@ -123,21 +139,36 @@ std::pair<char*, size_t> DecryptPwd(const std::string& messageStr)
 void HandleCryptoKeyMessage(CredentialMessage& messageStruct, std::string& needSendStr)
 {
     std::pair<char*, size_t> processMessageValue = {nullptr, 0};
+    std::pair<char*, size_t> body = {nullptr, 0};
+    
     switch (messageStruct.GetMessageMethodType()) {
         case METHOD_ENCRYPT: {
-            std::string message = messageStruct.GetMessageBody();
-            processMessageValue = EncryptPwd(message);
+            body = messageStruct.GetMessageBody();
+            if (body.first == nullptr || body.second == 0) {
+                WRITE_LOG(LOG_FATAL, "HandleCryptoKeyMessage: GetMessageBody failed for ENCRYPT.");
+                return;
+            }
+            processMessageValue = EncryptPwd(body.first, body.second);
             break;
         }
         case METHOD_DECRYPT: {
-            std::string message = messageStruct.GetMessageBody();
-            processMessageValue = DecryptPwd(message);
+            body = messageStruct.GetMessageBody();
+            if (body.first == nullptr || body.second == 0) {
+                WRITE_LOG(LOG_FATAL, "HandleCryptoKeyMessage: GetMessageBody failed for DECRYPT.");
+                return;
+            }
+            processMessageValue = DecryptPwd(body.first, body.second);
             break;
         }
         default: {
             WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
             return;
         }
+    }
+
+    if (body.first != nullptr) {
+        memset_s(body.first, body.second, 0, body.second);
+        delete[] body.first;
     }
 
     messageStruct.SetMessageBody(processMessageValue.first, processMessageValue.second);
@@ -204,16 +235,32 @@ std::string HandleCommandEventMessage(const std::string& messageStr)
 void HandleCommandReportMessage(CredentialMessage& messageStruct, std::string& needSendStr)
 {
     std::string processMessageValue;
+    std::pair<char*, size_t> body = {nullptr, 0};
+    
     switch (messageStruct.GetMessageMethodType()) {
         case METHOD_COMMAND_EVENT_REPORT: {
-            std::string message = messageStruct.GetMessageBody();
+            body = messageStruct.GetMessageBody();
+            if (body.first == nullptr || body.second == 0) {
+                WRITE_LOG(LOG_FATAL, "HandleCommandReportMessage: GetMessageBody failed.");
+                return;
+            }
+            std::string message;
+            message.assign(body.first, body.second);
             processMessageValue = HandleCommandEventMessage(message);
+            if (!message.empty()) {
+                memset_s(&message[0], message.size(), 0, message.size());
+            }
             break;
         }
         default: {
             WRITE_LOG(LOG_FATAL, "Unsupported message method type.");
             return;
         }
+    }
+
+    if (body.first != nullptr) {
+        memset_s(body.first, body.second, 0, body.second);
+        delete[] body.first;
     }
 
     messageStruct.SetMessageBody(processMessageValue);
@@ -246,10 +293,18 @@ bool HandleMessage(const std::string& messageStr, std::string& needSendStr)
 {
     bool ret = false;
     CredentialMessage messageStruct(messageStr);
-    if (messageStruct.GetMessageBody().empty()) {
+    std::pair<char*, size_t> body = messageStruct.GetMessageBody();
+    if (body.first == nullptr || body.second == 0) {
         WRITE_LOG(LOG_FATAL, "Invalid message structure.");
+        if (body.first != nullptr) {
+            memset_s(body.first, body.second, 0, body.second);
+            delete[] body.first;
+        }
         return ret;
     }
+
+    memset_s(body.first, body.second, 0, body.second);
+    delete[] body.first;
 
     switch (messageStruct.GetMessageVersion()) {
         case METHOD_CRYPTO_KEY: {

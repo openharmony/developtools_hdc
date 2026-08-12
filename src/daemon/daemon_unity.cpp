@@ -150,9 +150,15 @@ int HdcDaemonUnity::ExecuteShellExtend(const uint8_t *payload, const int payload
     } else {
         if (!tlvbuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
             WRITE_LOG(LOG_FATAL, "ExecuteShellExtend bundleName is empty");
+            LogMsg(MSG_FAIL, "[E003004] Device does not support this shell option");
+            reporter.IncrCommandInfo(STATISTIC_ITEM::SHELL_FAIL_COUNT);
+            return -1;
         }
         if (!tlvbuf.FindTlv(TAG_SHELL_CMD, command)) {
             WRITE_LOG(LOG_FATAL, "ExecuteShellExtend command is empty");
+            LogMsg(MSG_FAIL, "[E003004] Device does not support this shell option");
+            reporter.IncrCommandInfo(STATISTIC_ITEM::SHELL_FAIL_COUNT);
+            return -1;
         }
     }
     WRITE_LOG(LOG_DEBUG, "ExecuteShellExtend command: %s, bundleName: %s",
@@ -232,7 +238,7 @@ bool HdcDaemonUnity::CallRemount()
 {
     int pipefd[2];
     pid_t pid;
-    int exitStatus;
+    int exitStatus = -1;
 
     if (pipe(pipefd) == -1) {
         WRITE_LOG(LOG_FATAL, "Failed to create pipe: %s", strerror(errno));
@@ -254,9 +260,13 @@ bool HdcDaemonUnity::CallRemount()
         _exit(0);
     } else {
         close(pipefd[1]);
-        read(pipefd[0], &exitStatus, sizeof(int));
+        ssize_t bytesRead = read(pipefd[0], &exitStatus, sizeof(int));
         close(pipefd[0]);
         waitpid(pid, nullptr, 0);
+        if (bytesRead != sizeof(int)) {
+            WRITE_LOG(LOG_FATAL, "Failed to read exit status from pipe");
+            return false;
+        }
         if (exitStatus == -1) {
             WRITE_LOG(LOG_FATAL, "Failed to execute /bin/remount: %s", strerror(errno));
             return false;

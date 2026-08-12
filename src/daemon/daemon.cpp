@@ -578,6 +578,7 @@ bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t ch
         string notifymsg = "[E000010]:Auth failed, cannt login the device.";
         WRITE_LOG(LOG_FATAL, "%s", notifymsg.c_str());
         HandleAuthFailed(handshake, channelId, hSession, notifymsg);
+        LogMsg(hSession->sessionId, channelId, MSG_INFO, "Please remove public key and private key, then try again");
     }
     return true;
 }

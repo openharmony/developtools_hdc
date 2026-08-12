@@ -15,10 +15,12 @@
 
 #include "subserver_manager.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <climits>
 #include <cstdlib>
+#include <fstream>
 #include <sstream>
 #include <thread>
 
@@ -105,6 +107,9 @@ bool SubserverManager::ParseCommandParam(const std::string& parameters, std::str
         }
 
         out = parameters.substr(start, pos - start);
+        if (out.empty()) {
+            return false;
+        }
 
         size_t nextPos = parameters.find(opt, pos);
         if (nextPos != std::string::npos) {
@@ -166,9 +171,9 @@ bool SubserverManager::CheckClientParam(const std::string& param)
 
 bool SubserverManager::CheckSerial(const std::string& serial)
 {
-    uint32_t len = serial.size();
+    size_t len = serial.size();
     if (len > MAX_CONNECTKEY_SIZE) {
-        Base::PrintMessage("Size of parament '-i' %u is too long", len);
+        Base::PrintMessage("Size of parament '-i' %zu is too long", len);
         return false;
     }
     return true;
@@ -281,6 +286,32 @@ int SubserverManager::ParsePid(const std::string& str)
     }
 
     return static_cast<int>(pidLong);
+}
+
+bool SubserverManager::IsHdcProcess(int pid)
+{
+    std::string path = "/proc/" + std::to_string(pid) + "/comm";
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        WRITE_LOG(LOG_DEBUG, "Cannot open %s, process may not exist", path.c_str());
+        return false;
+    }
+
+    std::string processName;
+    std::getline(file, processName);
+    file.close();
+
+    if (processName.empty()) {
+        WRITE_LOG(LOG_DEBUG, "Empty process name for pid %d", pid);
+        return false;
+    }
+
+    std::transform(processName.begin(), processName.end(), processName.begin(), ::tolower);
+    bool isHdc = (processName.find("hdc") != std::string::npos);
+    if (!isHdc) {
+        WRITE_LOG(LOG_WARN, "PID %d is not an HDC process: %s", pid, processName.c_str());
+    }
+    return isHdc;
 }
 
 SubserverStatus SubserverManager::CreateSubserver(const std::string& serial, const std::string& port)
@@ -396,6 +427,11 @@ void SubserverManager::KillAllSubservers()
         }
         int pid = ParsePid(line);
         if (pid <= 0) {
+            continue;
+        }
+
+        if (!IsHdcProcess(pid)) {
+            WRITE_LOG(LOG_WARN, "Skipping invalid process, pid: %d", pid);
             continue;
         }
 

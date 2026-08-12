@@ -23,7 +23,7 @@ class HdcHuks {
 public:
     explicit HdcHuks(const std::string& keyAlias);
     bool AesGcmEncrypt(const uint8_t* plainData, int plainDataLen, std::vector<uint8_t>& encryptData);
-    std::pair<uint8_t*, int> AesGcmDecrypt(const std::string& inputData);
+    std::pair<uint8_t*, int> AesGcmDecrypt(const uint8_t* inputData, size_t inputLen);
     static int CaculateGcmEncryptLen(int palinDataLen);
     bool ResetHuksKey(void);
     int32_t GenerateAndExportHuksRSAPublicKey();

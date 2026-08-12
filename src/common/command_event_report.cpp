@@ -188,13 +188,23 @@ bool CommandEventReport::ReportByUnixSocket(const std::string &command,
 
     std::string receiveStr(data, count);
     CredentialMessage messageStruct(receiveStr);
-    if (messageStruct.GetMessageBody() == EVENT_PARAM_RETURN_FAILED) {
+    std::pair<char*, size_t> body = messageStruct.GetMessageBody();
+    
+    bool success = false;
+    if (body.first != nullptr && body.second > 0) {
+        if (std::string(body.first, body.second) == EVENT_PARAM_RETURN_FAILED) {
+            WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
+        } else {
+            WRITE_LOG(LOG_DEBUG, "Report hdc command success.");
+            success = true;
+        }
+        memset_s(body.first, body.second, 0, body.second);
+        delete[] body.first;
+    } else {
         WRITE_LOG(LOG_DEBUG, "Report hdc command failed.");
-        return false;
     }
 
-    WRITE_LOG(LOG_DEBUG, "Report hdc command success.");
-    return true;
+    return success;
 }
 
 

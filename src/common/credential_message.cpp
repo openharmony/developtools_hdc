@@ -122,12 +122,25 @@ void CredentialMessage::SetMessageVersion(int version)
     }
 }
 
-std::string CredentialMessage::GetMessageBody() const
+std::pair<char*, size_t> CredentialMessage::GetMessageBody() const
 {
     if (messageBody == nullptr || messageBodyLen == 0) {
-        return "";
+        return {nullptr, 0};
     }
-    return std::string(messageBody, messageBodyLen);
+
+    char* bodyCopy = new (std::nothrow) char[messageBodyLen];
+    if (bodyCopy == nullptr) {
+        WRITE_LOG(LOG_FATAL, "GetMessageBody: memory allocation failed.");
+        return {nullptr, 0};
+    }
+
+    if (memcpy_s(bodyCopy, messageBodyLen, messageBody, messageBodyLen) != EOK) {
+        delete[] bodyCopy;
+        WRITE_LOG(LOG_FATAL, "GetMessageBody: memcpy_s failed.");
+        return {nullptr, 0};
+    }
+
+    return {bodyCopy, static_cast<size_t>(messageBodyLen)};
 }
 
 void CredentialMessage::SetMessageBody(const std::string& body)

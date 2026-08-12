@@ -25,6 +25,10 @@
 
 namespace Hdc {
 
+namespace {
+    constexpr mode_t LOCK_FILE_MODE = 0644;
+}
+
 struct FileLockGuard::FileLockGuardImpl {
     int fd = -1;
 
@@ -95,12 +99,12 @@ bool FileLockGuard::Rewrite(const std::string& content)
         return false;
     }
 
-    if (ftruncate(lockImpl_->fd, 0) != 0) {
-        WRITE_LOG(LOG_WARN, "Rewrite ftruncate failed error: %d", errno);
+    if (ftruncate(lockImpl_->fd, 0) < 0) {
+        WRITE_LOG(LOG_WARN, "ftruncate failed, error: %d", errno);
         return false;
     }
-    if (lseek(lockImpl_->fd, 0, SEEK_SET) != 0) {
-        WRITE_LOG(LOG_WARN, "Rewrite lseek failed error: %d", errno);
+    if (lseek(lockImpl_->fd, 0, SEEK_SET) < 0) {
+        WRITE_LOG(LOG_WARN, "lseek failed, error: %d", errno);
         return false;
     }
 
@@ -123,7 +127,10 @@ bool FileLockGuard::AppendLine(const std::string& content)
         return false;
     }
 
-    lseek(lockImpl_->fd, 0, SEEK_END);
+    if (lseek(lockImpl_->fd, 0, SEEK_END) < 0) {
+        WRITE_LOG(LOG_WARN, "lseek failed, error: %d", errno);
+        return false;
+    }
 
     ssize_t written = write(lockImpl_->fd, content.c_str(), content.size());
     if (written < 0 || static_cast<size_t>(written) != content.size()) {

@@ -16,6 +16,7 @@
 #define HDC_CREDENTIAL_MESSAGE_H
 
 #include <string>
+#include <utility>
 #include "log.h"
 #include "securec.h"
 
@@ -34,7 +35,7 @@ public:
     int GetMessageVersion() const { return messageVersion; }
     int GetMessageMethodType() const { return messageMethodType; }
     int GetMessageBodyLen() const { return messageBodyLen; }
-    std::string GetMessageBody() const;
+    std::pair<char*, size_t> GetMessageBody() const;
 
     void SetMessageVersion(int version);
     void SetMessageMethodType(int type) { messageMethodType = type; }

@@ -580,6 +580,7 @@ void HdcChannelBase::FreeChannelFinally(uv_idle_t *handle)
         HChannel hChannel = reinterpret_cast<HChannel>(handle->data);
         delete hChannel;
     };
+    hChannel->hChildWorkTCP.data = hChannel;
     Base::TryCloseHandle((const uv_handle_t *)&hChannel->hChildWorkTCP, true, deleteChannel);
 #else
     delete hChannel;

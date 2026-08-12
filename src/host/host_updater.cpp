@@ -89,9 +89,9 @@ bool HostUpdater::RunQueue(CtxFile &context)
     }
     (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = &context;
+    context.master = true;
     refCount++;
     uv_fs_open(loopTask, openReq, context.localPath.c_str(), O_RDONLY, 0, OnFileOpen);
-    context.master = true;
     return true;
 }
 

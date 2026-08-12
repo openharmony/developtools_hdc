@@ -41,10 +41,15 @@ std::vector<uint8_t> HdcPassword::EncryptGetPwdValue(uint8_t *password)
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     memset_s(data, sizeof(data), 0, sizeof(data));
     if (messageStruct.GetMessageBodyLen() > 0) {
-        std::string body = messageStruct.GetMessageBody();
-        std::vector<uint8_t> retByteData = String2Uint8(body, messageStruct.GetMessageBodyLen());
-        if (!body.empty()) {
-            memset_s(&body[0], body.size(), 0, body.size());
+        std::pair<char*, size_t> body = messageStruct.GetMessageBody();
+        std::vector<uint8_t> retByteData;
+        if (body.first != nullptr && body.second > 0) {
+            retByteData.reserve(body.second);
+            for (size_t i = 0; i < body.second; i++) {
+                retByteData.push_back(static_cast<uint8_t>(body.first[i]));
+            }
+            memset_s(body.first, body.second, 0, body.second);
+            delete[] body.first;
         }
         return retByteData;
     } else {
@@ -71,18 +76,32 @@ std::pair<uint8_t*, int> HdcPassword::DecryptGetPwdValue(const std::string &encr
     CredentialMessage messageStruct(recvStr);
     memset_s(recvStr.data(), recvStr.size(), 0, recvStr.size());
     memset_s(data, sizeof(data), 0, sizeof(data));
-    if (messageStruct.GetMessageBodyLen() > 0) {
-        int len = messageStruct.GetMessageBodyLen();
-        uint8_t *keyData = new uint8_t[len + 1];
-        std::string body = messageStruct.GetMessageBody();
-        std::copy(body.begin(), body.end(), keyData);
-        memset_s(&body[0], body.size(), 0, body.size());
-        keyData[len] = '\0';
-        return std::make_pair(keyData, len);
-    } else {
+    
+    int len = messageStruct.GetMessageBodyLen();
+    if (len <= 0) {
         WRITE_LOG(LOG_FATAL, "Error: messageBodyLen is 0.");
         return std::make_pair(nullptr, 0);
     }
+
+    std::pair<char*, size_t> body = messageStruct.GetMessageBody();
+    if (body.first == nullptr || body.second == 0) {
+        WRITE_LOG(LOG_FATAL, "DecryptGetPwdValue: GetMessageBody failed.");
+        return std::make_pair(nullptr, 0);
+    }
+
+    uint8_t *keyData = new (std::nothrow) uint8_t[len + 1];
+    if (keyData == nullptr) {
+        WRITE_LOG(LOG_FATAL, "DecryptGetPwdValue: memory allocation failed.");
+        memset_s(body.first, body.second, 0, body.second);
+        delete[] body.first;
+        return std::make_pair(nullptr, 0);
+    }
+    
+    std::copy(body.first, body.first + body.second, keyData);
+    memset_s(body.first, body.second, 0, body.second);
+    delete[] body.first;
+    keyData[len] = '\0';
+    return std::make_pair(keyData, len);
 }
 HdcPassword::HdcPassword(const std::string &pwdKeyAlias):hdcHuks(pwdKeyAlias)
 {

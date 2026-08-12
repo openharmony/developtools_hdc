@@ -41,7 +41,7 @@ using namespace OHOS::UserIam::UserAuth;
 namespace {
 static const int SUDO_ARG_MAX_NUMS = 4096;
 static const int CHALLENGE_LEN = 32;
-static const std::vector<std::string> DEFAULT_PATH = {"/bin", "/usr/bin", "/system/bin", "/vendor/bin",
+static const std::vector<std::string> DEFAULT_PATH = {"/usr/bin", "/bin", "/system/bin", "/vendor/bin",
     "/usr/local/bin", "/data/app/bin", "/data/service/hnp/bin", "/opt/homebrew"};
 static const char *DEFAULT_BASH = "/system/bin/sh";
 static FILE *g_ttyFp = nullptr;
@@ -200,18 +200,12 @@ static void FreeArgvNew(char **argvNew)
  */
 static bool IsElf(const std::string& path)
 {
-    if (path.empty()) {
+    char canonicalPath[PATH_MAX] = { 0 };
+    if (realpath(path.c_str(), canonicalPath) == nullptr) {
         return false;
     }
 
-    if (path.find("..") != std::string::npos) {
-        return false;
-    }
-
-    if (path[0] != '/') {
-        return false;
-    }
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream file(canonicalPath, std::ios::binary);
     if (!file) {
         return false;
     }

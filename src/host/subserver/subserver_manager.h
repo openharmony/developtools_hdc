@@ -66,6 +66,7 @@ private:
     bool CheckPurePort(const char* portStr);
     bool CheckIpPort(char* buf, char* colonPos);
     static int ParsePid(const std::string& str);
+    static bool IsHdcProcess(int pid);
 
     SubserverManager() = default;
     ~SubserverManager() = default;

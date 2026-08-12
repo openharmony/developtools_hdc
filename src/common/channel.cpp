@@ -29,6 +29,7 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
         return;
     }
 
+    asyncMainLoop.data = nullptr;
     ret = uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
     if (ret != 0) {
         WRITE_LOG(LOG_FATAL, "Failed to initialize asyncMainLoop: %s", uv_strerror(ret));

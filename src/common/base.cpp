@@ -59,7 +59,6 @@ namespace Base {
     std::mutex g_threadCompressCmdLogsMutex;
     std::shared_ptr<std::thread> g_compressCmdLogsThread;
     std::atomic<bool> g_isServer = false;   // default false for client
-    std::atomic<bool> g_stop{false};
 
     // global variables for subserver feature (spawn-sub command)
     [[maybe_unused]] static bool g_isSubserver = false;

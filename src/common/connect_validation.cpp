@@ -139,6 +139,7 @@ bool GetPrivateKeyInfo(std::string &privkey_info)
     memset_s(sendStr.data(), sendStr.size(), 0, sendStr.size());
     if (count <= 0) {
         WRITE_LOG(LOG_FATAL, "GetPrivateKey is empty.");
+        memset_s(data, sizeof(data), 0, sizeof(data));
         return false;
     }
     std::string recvStr(data, count);

@@ -196,15 +196,19 @@ namespace Base {
         static std::once_flag firstLog;
         std::call_once(firstLog, [&]() { printf("log at %s\n", path); });
         // better than open log file every time.
-        static std::unique_ptr<FILE, decltype(&fclose)> file(fopen(path, "w"), &fclose);
-        FILE *fp = file.get();
-        if (fp == nullptr) {
-            return;
+        static FILE* file = nullptr;
+        if (file == nullptr) {
+            file = fopen(path, "w");
+            if (file == nullptr) {
+                return;
+            }
         }
-        if (fprintf(fp, "%s", str) > 0 && fflush(fp)) {
+        if (fprintf(file, "%s", str) > 0 && fflush(file)) {
             // make ci happy
         }
-        fclose(fp);
+        if (fclose(file) != 0) {
+            WRITE_LOG(LOG_WARN, "fclose failed");
+        }
 #else
         // Subserver creates log file only once during process startup.
         // If the log file is deleted later, subserver won't recreate it
@@ -252,7 +256,7 @@ namespace Base {
 
     uint32_t GetLogOverCount(vector<string> files, uint64_t limitDirSize)
     {
-        WRITE_LOG(LOG_DEBUG, "GetLogDirSize, file size: %d", files.size());
+        WRITE_LOG(LOG_DEBUG, "GetLogDirSize, file size: %zu", files.size());
         if (files.size() == 0) {
             return 0;
         }
@@ -280,6 +284,7 @@ namespace Base {
             if (req.result == 0) {
                 totalSize += req.statbuf.st_size;
             }
+            uv_fs_req_cleanup(&req);
             if (totalSize > limitDirSize) {
                 overCount++;
             }
@@ -991,7 +996,7 @@ static void EchoLog(string &buf)
         constexpr int maxRetry = 3;
         for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
             if (uv_loop_close(ptrLoop) == UV_EBUSY) {
-                if (closeRetry > 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
+                if (closeRetry >= 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
                     WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
                 }
 
@@ -1188,8 +1193,14 @@ static void EchoLog(string &buf)
     uint64_t GetRandom(const uint64_t min, const uint64_t max)
     {
 #ifdef HARMONY_PROJECT
-        uint64_t ret;
-        uv_random(nullptr, nullptr, &ret, sizeof(ret), 0, nullptr);
+        uint64_t ret = 0;
+        int result = uv_random(nullptr, nullptr, &ret, sizeof(ret), 0, nullptr);
+        if (result != 0) {
+            WRITE_LOG(LOG_FATAL, "uv_random failed, error code: %d", result);
+            ret = min;
+        } else {
+            ret = std::clamp(ret, min, max);
+        }
 #else
         uint64_t ret;
         std::random_device rd;
@@ -2039,7 +2050,7 @@ static void EchoLog(string &buf)
                 } else {
                     WRITE_LOG(LOG_WARN, "create dir %s failed %s", Hdc::MaskString(path).c_str(), buf);
                 }
-                err = "[E005005] Error create directory: " + string(buf) + ", path:" + path;
+                err = "[E005005] Error create directory: " + string(buf) + ", path:" + Hdc::MaskString(path);
                 return false;
             }
         } else {
@@ -2050,8 +2061,7 @@ static void EchoLog(string &buf)
                 } else {
                     WRITE_LOG(LOG_WARN, "%s exist, not directory", Hdc::MaskString(path).c_str());
                 }
-                err = "File exists, path:";
-                err += path.c_str();
+                err = "File exists, path:" + Hdc::MaskString(path);
                 return false;
             }
         }
@@ -3421,7 +3431,7 @@ void CloseOpenFd(void)
 
     void SaveLogToPath(const std::string& path, const std::string& str)
     {
-        int flags = UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_APPEND;
+        int flags = UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_APPEND | UV_FS_O_NOFOLLOW; // add O_NOFOLLOW
         uv_fs_t req;
 #ifdef HOST_OHOS
         mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);

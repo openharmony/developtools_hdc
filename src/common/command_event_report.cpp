@@ -263,6 +263,11 @@ void CommandEventReport::ReportConnectionEvent(uint32_t sessionId, int connectSt
 {
 #ifdef HDC_SUPPORT_REPORT_COMMAND_EVENT
 #ifdef DAEMON_ONLY
+    if (!IsSupportReport()) {
+        WRITE_LOG(LOG_WARN, "Report is disabled, skip connection event.");
+        return;
+    }
+
     OHOS::EventFwk::CommonEventPublishInfo publishInfo;
     publishInfo.SetOrdered(true);
     std::vector<std::string> permissions = { PERMISSION_HDC_REPORT_INFO };

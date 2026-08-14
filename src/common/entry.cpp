@@ -90,8 +90,17 @@ void Entry::AddData(uint8_t *data, size_t len)
 
 std::string Entry::GetName()
 {
-    auto name = this->prefix + this->header.Name();
-    return name;
+    std::string headerName = this->header.Name();
+
+    if (!this->prefix.empty()) {
+        std::string prefixPath = this->prefix;
+        if (prefixPath.back() != Base::GetPathSep()) {
+            prefixPath += Base::GetPathSep();
+        }
+        return prefixPath + headerName;
+    }
+
+    return headerName;
 }
 
 bool Entry::UpdataName(std::string name)

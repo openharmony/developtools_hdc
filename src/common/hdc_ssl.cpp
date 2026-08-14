@@ -100,7 +100,7 @@ int HdcSSLBase::DoSSLWrite(const int bufLen, uint8_t *bufPtr)
         WRITE_LOG(LOG_WARN, "SSL write error, ret:%d", retSSL);
         int err = SSL_get_error(ssl, retSSL);
         if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-            DEBUG_LOG("SSL write error, ret:%d, err:%d, retry");
+            DEBUG_LOG("SSL write error, ret:%d, err:%d, retry", retSSL, err);
         } else {
             WRITE_LOG(LOG_WARN, "SSL write error, ret:%d, err:%d", retSSL, err);
         }

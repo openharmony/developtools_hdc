@@ -28,6 +28,13 @@ static const mode_t MODE = (S_IRWXU | S_IRWXG | S_IXOTH | S_ISGID);
 void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& data)
 {
     WRITE_LOG(LOG_INFO, "Recv data.state:%d, data.toId:%d", data.state, data.toId);
+
+    if (data.toId < HdcCredentialBase::MIN_USER_ID || data.toId > HdcCredentialBase::MAX_USER_ID) {
+        WRITE_LOG(LOG_FATAL, "Invalid toId:%d, out of range [%d, %d]", data.toId,
+            HdcCredentialBase::MIN_USER_ID, HdcCredentialBase::MAX_USER_ID);
+        return;
+    }
+
     std::string path = USER_DIR_PREFIX_PATH + std::to_string(data.toId);
     switch (data.state) {
         case OsAccountState::CREATED:
@@ -36,6 +43,10 @@ void HdcSubscriber::OnStateChanged(const OHOS::AccountSA::OsAccountStateData& da
             }
             break;
         case OsAccountState::REMOVED:
+            if (!HdcCredentialBase::IsUserDir(path)) {
+                WRITE_LOG(LOG_WARN, "User directory does not exist, nothing to remove, path:%s", path.c_str());
+                return;
+            }
             if (HdcCredentialBase::RemovePath(path) != 0) {
                 WRITE_LOG(LOG_FATAL, "Failed to remove directory, error is:%s", strerror(errno));
             }

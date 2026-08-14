@@ -172,18 +172,23 @@ namespace Base {
     void GetTimeString(string &timeString)
     {
         system_clock::time_point timeNow = system_clock::now();
-        system_clock::duration sinceUnix0 = timeNow.time_since_epoch(); // since 1970
+        system_clock::duration sinceUnix0 = timeNow.time_since_epoch();
         time_t sinceUnix0Time = duration_cast<seconds>(sinceUnix0).count();
-        std::tm *timeTm = std::localtime(&sinceUnix0Time);
+        std::tm timeTm = {};
+#ifdef _WIN32
+        if (localtime_s(&timeTm, &sinceUnix0Time) != 0) {
+            return;
+        }
+#else
+        localtime_r(&sinceUnix0Time, &timeTm);
+#endif
 
         const auto sinceUnix0Rest = duration_cast<milliseconds>(sinceUnix0).count() % TIME_BASE;
         string msTimeSurplus = StringFormat("%03llu", sinceUnix0Rest);
         timeString = msTimeSurplus;
-        if (timeTm != nullptr) {
-            char buffer[TIME_BUF_SIZE] = {0};
-            if (strftime(buffer, TIME_BUF_SIZE, "%Y%m%d-%H%M%S", timeTm) > 0) {
-                timeString = StringFormat("%s%s", buffer, msTimeSurplus.c_str());
-            }
+        char buffer[TIME_BUF_SIZE] = {0};
+        if (strftime(buffer, TIME_BUF_SIZE, "%Y%m%d-%H%M%S", &timeTm) > 0) {
+            timeString = StringFormat("%s%s", buffer, msTimeSurplus.c_str());
         }
     }
 
@@ -639,6 +644,12 @@ namespace Base {
         if (logFileName.empty()) {
             return;
         }
+        if (logFileName.find("..") != std::string::npos ||
+            logFileName.find("/") != std::string::npos ||
+            logFileName.find("\\") != std::string::npos) {
+            PrintMessage("InitSubserverLogging invalid logFileName: %s", logFileName.c_str());
+            return;
+        }
         string dirPath = GetTmpDir() + ".hdc_subserver";
         string filePath = dirPath + GetPathSep() + logFileName;
 
@@ -917,12 +928,12 @@ static void EchoLog(string &buf)
             return;
         }
         if (sizeWanted <= 0 || sizeWanted >= HDC_BUF_MAX_BYTES) {
-            WRITE_LOG(LOG_WARN, "ReallocBuf failed, sizeWanted:%d", sizeWanted);
+            WRITE_LOG(LOG_WARN, "ReallocBuf failed, sizeWanted:%zu", sizeWanted);
             return;
         }
-        *origBuf = new uint8_t[sizeWanted];
+        *origBuf = new(std::nothrow) uint8_t[sizeWanted];
         if (!*origBuf) {
-            WRITE_LOG(LOG_WARN, "ReallocBuf failed, origBuf is null. sizeWanted:%d", sizeWanted);
+            WRITE_LOG(LOG_WARN, "ReallocBuf failed, origBuf is null. sizeWanted:%zu", sizeWanted);
             return;
         }
         *nOrigSize = sizeWanted;
@@ -955,7 +966,7 @@ static void EchoLog(string &buf)
         constexpr int maxRetry = 3;
         for (closeRetry = 0; closeRetry < maxRetry; ++closeRetry) {
             if (uv_loop_close(ptrLoop) == UV_EBUSY) {
-                if (closeRetry > 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
+                if (closeRetry >= 2) { // 2:try 2 times close,the 3rd try shows uv loop cannot close.
                     WRITE_LOG(LOG_WARN, "%s close busy,try:%d", callerName, closeRetry);
                 }
 
@@ -1074,7 +1085,8 @@ static void EchoLog(string &buf)
 
         size_t bufNotSended = uv_stream_get_write_queue_size(handle);
         if (bufNotSended != 0) {
-            WRITE_LOG(LOG_DEBUG, "%s, the uv handle type is %s, has %u bytes data", prefix, name.c_str(), bufNotSended);
+            WRITE_LOG(LOG_DEBUG, "%s, the uv handle type is %s, has %zu bytes data",
+                      prefix, name.c_str(), bufNotSended);
         }
     }
     int SendToStream(uv_stream_t *handleStream, const uint8_t *buf, const int bufLen)
@@ -1182,12 +1194,7 @@ static void EchoLog(string &buf)
 
     uint32_t GetRandomU32()
     {
-        uint32_t ret;
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<uint32_t> dis(0, UINT32_MAX);
-        ret = dis(gen);
-        return ret;
+        return GetSecureRandom();
     }
 
     uint64_t GetRandom(const uint64_t min, const uint64_t max)
@@ -2231,8 +2238,14 @@ static void EchoLog(string &buf)
             return false;
         }
         idle->data = data;
-        uv_idle_init(loop, idle);
-        uv_idle_start(idle, cb);
+        if (uv_idle_init(loop, idle) != 0) {
+            delete idle;
+            return false;
+        }
+        if (uv_idle_start(idle, cb) != 0) {
+            delete idle;
+            return false;
+        }
         // delete by callback
         return true;
     }
@@ -2244,8 +2257,14 @@ static void EchoLog(string &buf)
             return false;
         }
         timer->data = data;
-        uv_timer_init(loop, timer);
-        uv_timer_start(timer, cb, 0, repeatTimeout);
+        if (uv_timer_init(loop, timer) != 0) {
+            delete timer;
+            return false;
+        }
+        if (uv_timer_start(timer, cb, 0, repeatTimeout) != 0) {
+            delete timer;
+            return false;
+        }
         // delete by callback
         return true;
     }
@@ -2482,11 +2501,12 @@ static void EchoLog(string &buf)
             uv_strerror_r(value, buf, bufSize);
             return;
         }
-        if (strlen(path) >= PATH_MAX - 1) {
+        size_t len = strlen(path);
+        if (len < 1 || len >= PATH_MAX - 1) {
             return;
         }
-        if (path[strlen(path) - 1] != Base::GetPathSep()) {
-            path[strlen(path)] = Base::GetPathSep();
+        if (path[len - 1] != Base::GetPathSep()) {
+            path[len] = Base::GetPathSep();
         }
         g_tempDir = path;
 #else

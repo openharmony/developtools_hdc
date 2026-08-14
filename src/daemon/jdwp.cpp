@@ -53,7 +53,7 @@ static int UvPipeBind(uv_pipe_t* handle, const char* name, size_t size)
     }
     saddr.sun_path[capacity - 1] = '\0';
     saddr.sun_family = AF_UNIX;
-    size_t saddrLen = sizeof(saddr.sun_family) + size - 1;
+    size_t saddrLen = sizeof(saddr.sun_family) + min - 1;
     int err = bind(sockfd, reinterpret_cast<struct sockaddr*>(&saddr), saddrLen);
     if (err != 0) {
         strerror_r(errno, buffer, BUF_SIZE_DEFAULT);
@@ -259,7 +259,13 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
         int32_t pid = 0;
         char *p = ctxJdwp->buf;
         if (nread == sizeof(uint32_t)) {  // Java: pid
-            pid = atoi(p);
+            char buf[sizeof(ctxJdwp->buf) + 1] = {0};
+            size_t copyLen = std::min(static_cast<size_t>(nread), sizeof(ctxJdwp->buf) - 1);
+            if (memcpy_s(buf, sizeof(buf) - 1, p, copyLen) != EOK) {
+                WRITE_LOG(LOG_DEBUG, "HdcJdwp::ReadStream memcpy_s failed");
+                return;
+            }
+            pid = atoi(buf);
         } else {  // JS:pid PkgName
 #ifdef JS_JDWP_CONNECT
             // pid isDebug pkgName/processName
@@ -275,7 +281,10 @@ void HdcJdwp::ReadStream(uv_stream_t *pipe, ssize_t nread, const uv_buf_t *buf)
             }
 #endif  // JS_JDWP_CONNECT
         }
-        if (pid > 0) {
+        if (pid <= 0) {
+            WRITE_LOG(LOG_WARN, "HdcJdwp::ReadStream invalid pid:%d.", pid);
+            ret = false;
+        } else {
             ctxJdwp->pid = static_cast<uint32_t>(pid);
 #ifdef JS_JDWP_CONNECT
             WRITE_LOG(LOG_DEBUG, "JDWP accept pid:%d-pkg:%s isDebug:%d",
@@ -705,7 +714,9 @@ int HdcJdwp::CreateFdEventPoll()
     }
     int tret = pthread_create(&tid, nullptr, FdEventPollThread, this);
     if (tret != 0) {
-        WRITE_LOG(LOG_INFO, "FdEventPollThread create fail.");
+        WRITE_LOG(LOG_INFO, "FdEventPollThread create fail, errno:%d.", tret);
+        Base::CloseFd(awakenPollFd);
+        awakenPollFd = -1;
         return tret;
     }
     return RET_SUCCESS;

@@ -117,12 +117,14 @@ bool HdcChannelBase::SetChannelTCPString(const string &addrString)
 
 void HdcChannelBase::ClearChannels()
 {
+    uv_rwlock_wrlock(&lockMapChannel);
     for (auto v : mapChannel) {
         HChannel hChannel = (HChannel)v.second;
         if (!hChannel->isDead) {
             FreeChannel(hChannel->channelId);
         }
     }
+    uv_rwlock_wrunlock(&lockMapChannel);
 }
 
 void HdcChannelBase::WorkerPendding()

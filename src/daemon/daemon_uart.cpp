@@ -284,8 +284,6 @@ void HdcDaemonUART::DeamonReadThread()
     } else {
         WRITE_LOG(LOG_WARN, "dev is not alive, DeamonReadThread exit..");
     }
-    // why not free session here
-    isAlive = false;
     return;
 }
 

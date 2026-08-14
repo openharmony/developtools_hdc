@@ -35,6 +35,82 @@ static const std::string SYS_PARAM_ENTERPRISE_HDC_DISABLE = "persist.edm.hdc_rem
 static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
 #endif
 
+namespace {
+bool ResolveHostReceiveTargetPath(const string &cwd, const string &path, string &targetPath)
+{
+    if (path.empty()) {
+        WRITE_LOG(LOG_WARN, "Reject empty host receive target path");
+        return false;
+    }
+
+    targetPath = path;
+    if (!Base::IsAbsolutePath(targetPath)) {
+        targetPath = cwd + path;
+    }
+    return true;
+}
+
+bool IsHostReceiveChildPath(const string &path)
+{
+    size_t componentBegin = 0;
+    for (size_t index = 0; index <= path.size(); ++index) {
+        bool isSeparator = index == path.size() || path[index] == '/' || path[index] == '\\';
+        if (!isSeparator) {
+            if (path[index] == '\0') {
+                WRITE_LOG(LOG_WARN, "Reject host receive path with embedded NUL");
+                return false;
+            }
+            continue;
+        }
+        size_t componentSize = index - componentBegin;
+        if (path.compare(componentBegin, componentSize, "..") == 0) {
+            WRITE_LOG(LOG_WARN, "Reject host receive path with parent component");
+            return false;
+        }
+        componentBegin = index + 1;
+    }
+    return true;
+}
+
+bool ParseHostReceiveArguments(int argc, char **argv, string &cwd, string &lastPath, size_t &pathCount)
+{
+    int index = 1;
+    while (index < argc) {
+        string arg = argv[index++];
+        if (arg == "-cwd") {
+            if (index >= argc) {
+                WRITE_LOG(LOG_WARN, "Reject host receive command with missing cwd");
+                return false;
+            }
+            cwd = argv[index++];
+            continue;
+        }
+        if (arg == "-z" || arg == "-sync" || arg == "-a" || arg == "-m") {
+            continue;
+        }
+        if (arg == "-b") {
+            if (index >= argc) {
+                WRITE_LOG(LOG_WARN, "Reject host receive command with missing bundle name");
+                return false;
+            }
+            ++index;
+            continue;
+        }
+        if (!arg.empty() && arg[0] == '-') {
+            WRITE_LOG(LOG_WARN, "Reject host receive command with unsupported option");
+            return false;
+        }
+        lastPath = arg;
+        ++pathCount;
+    }
+    if (pathCount == 0) {
+        WRITE_LOG(LOG_WARN, "Reject host receive command without path");
+        return false;
+    }
+    return true;
+}
+} // namespace
+
 HdcServerForClient::HdcServerForClient(const bool serverOrClient, const string &addrString, void *pClsServer,
                                        uv_loop_t *loopMainIn)
     : HdcChannelBase(serverOrClient, addrString, loopMainIn)
@@ -851,6 +927,115 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
     return ret;
 }
 
+bool HdcServerForClient::RegisterHostReceivePermit(const HChannel hChannel, const string &parameters)
+{
+    int argc = 0;
+    char **argv = Base::SplitCommandToArgs(parameters.c_str(), &argc);
+    string cwd;
+    string lastPath;
+    size_t pathCount = 0;
+    bool argsValid = argv != nullptr && argc > 0;
+    bool isReceiveCommand = argsValid && string(argv[0]) == "recv";
+    bool valid = isReceiveCommand &&
+        ParseHostReceiveArguments(argc, argv, cwd, lastPath, pathCount);
+    delete[](reinterpret_cast<char *>(argv));
+    if (!argsValid) {
+        WRITE_LOG(LOG_WARN, "Reject invalid host receive command arguments cid:%u", hChannel->channelId);
+    }
+
+    string targetPath;
+    if (valid) {
+        string localPath = pathCount == 1 ? "." : lastPath;
+        valid = ResolveHostReceiveTargetPath(cwd, localPath, targetPath);
+    }
+    if (!valid) {
+        if (isReceiveCommand) {
+            WRITE_LOG(LOG_WARN, "Reject invalid host receive command cid:%u", hChannel->channelId);
+        }
+        RemoveHostReceivePermit(hChannel->channelId);
+        return false;
+    }
+
+    HostReceivePermit permit = {hChannel->targetSessionId, targetPath};
+    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
+    if (!hostReceivePermits.emplace(hChannel->channelId, permit).second) {
+        hostReceivePermits.erase(hChannel->channelId);
+        WRITE_LOG(LOG_WARN, "Reject duplicate host receive permit cid:%u", hChannel->channelId);
+        return false;
+    }
+    return true;
+}
+
+void HdcServerForClient::RemoveHostReceivePermit(const uint32_t channelId)
+{
+    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
+
+    hostReceivePermits.erase(channelId);
+}
+
+void HdcServerForClient::NotifyInstanceChannelFree(HChannel hChannel)
+{
+    RemoveHostReceivePermit(hChannel->channelId);
+}
+
+void HdcServerForClient::RemoveHostReceivePermitsBySession(const uint32_t sessionId)
+{
+    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
+
+    for (auto it = hostReceivePermits.begin(); it != hostReceivePermits.end();) {
+        if (it->second.sessionId == sessionId) {
+            it = hostReceivePermits.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+bool HdcServerForClient::CheckHostReceivePermit(const HChannel hChannel, const uint32_t sessionId, uint8_t *payload,
+    const int payloadSize)
+{
+    uint32_t channelId = hChannel->channelId;
+
+    HostReceivePermit permit;
+    {
+        std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
+
+        auto it = hostReceivePermits.find(channelId);
+        if (it == hostReceivePermits.end() || it->second.sessionId != sessionId ||
+            hChannel->targetSessionId != sessionId) {
+            WRITE_LOG(LOG_WARN, "Reject unmatched host receive permit cid:%u sid:%s", channelId,
+                Hdc::MaskSessionIdToString(sessionId).c_str());
+            return false;
+        }
+        permit = it->second;
+    }
+
+    HdcTransferBase::TransferConfig config;
+    string serialString(reinterpret_cast<char *>(payload), payloadSize);
+    if (!SerialStruct::ParseFromString(config, serialString)) {
+        WRITE_LOG(LOG_WARN, "Reject invalid host receive config cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    if (!IsHostReceiveChildPath(config.optionalName)) {
+        WRITE_LOG(LOG_WARN, "Reject invalid host receive optional path cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    string targetPath;
+    if (!ResolveHostReceiveTargetPath(config.clientCwd, config.path, targetPath)) {
+        WRITE_LOG(LOG_WARN, "Reject empty host receive target cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    if (targetPath != permit.targetPath) {
+        WRITE_LOG(LOG_WARN, "Reject mismatched host receive target cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
+    return true;
+}
+
 bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput)
 {
     StartTraceScope("HdcServerForClient::TaskCommand");
@@ -862,6 +1047,7 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         cmdFlag = "send ";
         sizeCmdFlag = 5;  // 5: cmdFlag send size
         HandleRemote(hChannel, formatCommand->parameters, RemoteType::REMOTE_FILE);
+        RegisterHostReceivePermit(hChannel, formatCommand->parameters);
     } else if (formatCommand->cmdFlag == CMD_FORWARD_INIT) {
         cmdFlag = "fport ";
         sizeCmdFlag = 6;  // 6: cmdFlag fport size

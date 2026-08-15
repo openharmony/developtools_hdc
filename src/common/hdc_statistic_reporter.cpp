@@ -62,7 +62,7 @@ void HdcStatisticReporter::SetConnectInfo(const std::vector<std::string>& featur
 #endif
 }
 
-void HdcStatisticReporter::IncrFileTransferInfo(uint64_t fileSize, int fileCost)
+void HdcStatisticReporter::IncrFileTransferInfo(uint64_t fileSize, uint64_t fileCost)
 {
 #ifdef HDC_STATISTIC_REPORT_ENABLE
     std::lock_guard<std::mutex> lock(mutex_);
@@ -73,13 +73,11 @@ void HdcStatisticReporter::IncrFileTransferInfo(uint64_t fileSize, int fileCost)
     } else {
         fileTransferSize_ += fileSize;
     }
-    if (fileCost > 0 && fileTransferCost_ > std::numeric_limits<int>::max() - fileCost) {
-            fileTransferCost_ = std::numeric_limits<int>::max();
-        } else if (fileCost < 0 && fileTransferCost_ < std::numeric_limits<int>::min() - fileCost) {
-            fileTransferCost_ = std::numeric_limits<int>::min();
-        } else {
-            fileTransferCost_ += fileCost;
-        }
+    if (fileCost > 0 && fileTransferCost_ > std::numeric_limits<uint64_t>::max() - fileCost) {
+            fileTransferCost_ = std::numeric_limits<uint64_t>::max();
+    } else {
+        fileTransferCost_ += fileCost;
+    }
 #endif
 }
 

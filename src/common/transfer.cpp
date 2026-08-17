@@ -82,7 +82,7 @@ int HdcTransferBase::SimpleFileIO(CtxFile *context, uint64_t index, uint8_t *sen
 #ifndef CONFIG_USE_JEMALLOC_DFX_INIF
     uint8_t *buf = cirbuf.Malloc();
 #else
-    uint8_t *buf = new uint8_t[bytes + payloadPrefixReserve]();
+    uint8_t *buf = new(std::nothrow) uint8_t[bytes + payloadPrefixReserve]();
 #endif
     if (buf == nullptr) {
         WRITE_LOG(LOG_FATAL, "SimpleFileIO buf nullptr cid:%u sid:%s", taskInfo->channelId, sessionIdMaskStr.c_str());

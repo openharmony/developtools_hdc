@@ -84,6 +84,7 @@ private:
     static void FreeChannelFinally(uv_idle_t *handle);
     void ClearChannels();
     void FreeChannelContinue(HChannel hChannel);
+    uv_stream_t *GetSendStream(HChannel hChannel);
     bool SetChannelTCPString(const string &addrString);
     uint32_t GetChannelPseudoUid();
 

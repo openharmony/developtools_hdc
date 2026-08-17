@@ -121,7 +121,7 @@ bool HdcHostUART::EnumSerialPort(bool &portChange)
 #ifdef HOST_MINGW
     constexpr int MAX_KEY_LENGTH = 255;
     constexpr int MAX_VALUE_NAME = 16383;
-    HKEY hKey;
+    HKEY hKey = nullptr;
     TCHAR achValue[MAX_VALUE_NAME];    // buffer for subkey name
     DWORD cchValue = MAX_VALUE_NAME;   // size of name string
     TCHAR achClass[MAX_PATH] = _T(""); // buffer for class name
@@ -181,7 +181,9 @@ bool HdcHostUART::EnumSerialPort(bool &portChange)
         bRet = false;
         WRITE_LOG(LOG_DEBUG, "%s RegOpenKeyEx fail %d", __FUNCTION__, GetLastError());
     }
-    RegCloseKey(hKey);
+    if (hKey != nullptr) {
+        RegCloseKey(hKey);
+    }
 #endif
 #if defined(HOST_LINUX)||defined(HOST_MAC)
     DIR *dir = opendir("/dev");

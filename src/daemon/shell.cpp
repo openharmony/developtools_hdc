@@ -113,7 +113,11 @@ bool HdcShell::SpecialSignal(uint8_t ch)
 bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const int payloadSize)
 {
     switch (command) {
-        case CMD_SHELL_INIT: {  // initial
+        case CMD_SHELL_INIT: {
+            if (childReady) {
+                WRITE_LOG(LOG_WARN, "Shell already initialized channelId:%u", taskInfo->channelId);
+                return false;
+            }
             if (!InitShell(payload, payloadSize)) {
                 return false;
             }
@@ -126,6 +130,10 @@ bool HdcShell::CommandDispatch(const uint16_t command, uint8_t *payload, const i
         case CMD_SHELL_DATA:
             if (!childReady) {
                 WRITE_LOG(LOG_DEBUG, "Shell not running");
+                return false;
+            }
+            if (payload == nullptr || payloadSize <= 0) {
+                WRITE_LOG(LOG_WARN, "CMD_SHELL_DATA invalid payload or size:%d", payloadSize);
                 return false;
             }
             if (payloadSize == 1 && SpecialSignal(payload[0])) {
@@ -405,7 +413,7 @@ bool HdcShell::InitShell(uint8_t *payload, const int payloadSize)
         optionPath.clear();
         return true;
     }
-    TlvBuf tlvBuf(const_cast<uint8_t *>(payload), payloadSize, Base::REGISTERD_TAG_SET);
+    TlvBuf tlvBuf(const_cast<uint8_t *>(payload), static_cast<uint32_t>(payloadSize), Base::REGISTERD_TAG_SET);
     std::string bundleName = "";
     if (tlvBuf.FindTlv(TAG_SHELL_BUNDLE, bundleName)) {
         std::string mountPath;

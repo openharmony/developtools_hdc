@@ -298,6 +298,10 @@ void HdcJdwpSimulator::DelWatchHdcdJdwp()
 
 void HdcJdwpSimulator::ParameterChanged(const char *key, const char *value, void *context)
 {
+    if (key == nullptr || value == nullptr || context == nullptr) {
+        HILOG_FATAL(LOG_CORE, "ParameterChanged parame is null");
+        return;
+    }
     if (strncmp(key, PERSIST_HDC_JDWP, strlen(PERSIST_HDC_JDWP)) != 0) {
         return;
     }

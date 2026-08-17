@@ -342,7 +342,7 @@ void HdcChannelBase::SendChannelWithCmd(HChannel hChannel, const uint16_t comman
         WRITE_LOG(LOG_WARN, "SendChannelWithCmd size %d", size);
         return;
     }
-    auto data = new uint8_t[size + sizeof(commandFlag)]();
+    auto data = new(std::nothrow) uint8_t[size + sizeof(commandFlag)]();
     if (!data) {
         WRITE_LOG(LOG_WARN, "malloc failed");
         return;
@@ -382,54 +382,54 @@ void HdcChannelBase::SendWithCmd(const uint32_t channelId, const uint16_t comman
     --hChannel->ref;
 }
 
+uv_stream_t *HdcChannelBase::GetSendStream(HChannel hChannel)
+{
+#ifdef HOST_OHOS
+    if (hChannel->hWorkThread == uv_thread_self()) {
+        return hChannel->isUds ? (uv_stream_t *)&hChannel->hWorkUds : (uv_stream_t *)&hChannel->hWorkTCP;
+    }
+    return hChannel->isUds ? (uv_stream_t *)&hChannel->hChildWorkUds : (uv_stream_t *)&hChannel->hChildWorkTCP;
+#else
+    if (hChannel->hWorkThread == uv_thread_self()) {
+        return (uv_stream_t *)&hChannel->hWorkTCP;
+    }
+    return (uv_stream_t *)&hChannel->hChildWorkTCP;
+#endif
+}
+
 void HdcChannelBase::SendChannel(HChannel hChannel, uint8_t *bufPtr, const int size, const uint16_t commandFlag)
 {
     StartTraceScope("HdcChannelBase::SendChannel");
-    uv_stream_t *sendStream = nullptr;
     if (size < 0 || size > INT_MAX - DWORD_SERIALIZE_SIZE) {
         WRITE_LOG(LOG_WARN, "invalid size");
         return;
     }
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
-    auto data = new uint8_t[sizeNewBuf]();
+    auto data = new(std::nothrow) uint8_t[sizeNewBuf]();
     if (!data) {
-        WRITE_LOG(LOG_DEBUG, "new data nullptr sizeNewBuf:%d", sizeNewBuf);
+        WRITE_LOG(LOG_WARN, "new data nullptr sizeNewBuf:%d", sizeNewBuf);
         return;
     }
-    *reinterpret_cast<uint32_t *>(data) = htonl(size);  // big endian
+    *reinterpret_cast<uint32_t *>(data) = htonl(size);
     if (memcpy_s(data + DWORD_SERIALIZE_SIZE, sizeNewBuf - DWORD_SERIALIZE_SIZE, bufPtr, size)) {
         delete[] data;
         WRITE_LOG(LOG_DEBUG, "memcpy_s failed size:%d", size);
         return;
     }
 
-#ifdef HOST_OHOS
-    if (hChannel->hWorkThread == uv_thread_self()) {
-        if (!hChannel->isUds) {
-            sendStream = (uv_stream_t *)&hChannel->hWorkTCP;
-        } else {
-            sendStream = (uv_stream_t *)&hChannel->hWorkUds;
-        }
-    } else {
-        if (!hChannel->isUds) {
-            sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
-        } else {
-            sendStream = (uv_stream_t *)&hChannel->hChildWorkUds;
-        }
-    }
-#else
-    if (hChannel->hWorkThread == uv_thread_self()) {
-        sendStream = (uv_stream_t *)&hChannel->hWorkTCP;
-    } else {
-        sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
-    }
-#endif
+    uv_stream_t *sendStream = GetSendStream(hChannel);
     if (!uv_is_closing((const uv_handle_t *)sendStream) && uv_is_writable(sendStream)) {
         ++hChannel->ref;
+        int ret = -1;
         if (commandFlag == CMD_FILE_DATA || commandFlag == CMD_APP_DATA) {
-            Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)FileCmdWriteCallback, data);
+            ret = Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)FileCmdWriteCallback, data);
         } else {
-            Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+            ret = Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+        }
+        if (ret < 0) {
+            WRITE_LOG(LOG_WARN, "SendChannel SendToStreamEx failed ret:%d sizeNewBuf:%d", ret, sizeNewBuf);
+            delete[] data;
+            --hChannel->ref;
         }
     } else {
         delete[] data;
@@ -847,7 +847,11 @@ void HdcChannelBase::EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int 
     StartTraceScope("HdcChannelBase::EchoToClient");
     uv_stream_t *sendStream = nullptr;
     int sizeNewBuf = size + DWORD_SERIALIZE_SIZE;
-    auto data = new uint8_t[sizeNewBuf]();
+    auto data = new(std::nothrow) uint8_t[sizeNewBuf]();
+    if (!data) {
+        WRITE_LOG(LOG_WARN, "EchoToClient new failed sizeNewBuf:%d", sizeNewBuf);
+        return;
+    }
     *reinterpret_cast<uint32_t *>(data) = htonl(size);
     if (memcpy_s(data + DWORD_SERIALIZE_SIZE, sizeNewBuf - DWORD_SERIALIZE_SIZE, bufPtr, size)) {
         delete[] data;
@@ -856,7 +860,12 @@ void HdcChannelBase::EchoToClient(HChannel hChannel, uint8_t *bufPtr, const int 
     sendStream = (uv_stream_t *)&hChannel->hChildWorkTCP;
     if (!uv_is_closing((const uv_handle_t *)sendStream) && uv_is_writable(sendStream)) {
         ++hChannel->ref;
-        Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+        int ret = Base::SendToStreamEx(sendStream, data, sizeNewBuf, nullptr, (void *)WriteCallback, data);
+        if (ret < 0) {
+            WRITE_LOG(LOG_WARN, "EchoToClient SendToStreamEx failed ret:%d channelId:%u", ret, hChannel->channelId);
+            delete[] data;
+            --hChannel->ref;
+        }
     } else {
         WRITE_LOG(LOG_WARN, "EchoToClient, channelId:%u is unwritable.", hChannel->channelId);
         delete[] data;

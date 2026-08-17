@@ -299,8 +299,33 @@ bool IsHiShellLabel()
 }
 #endif
 
+static bool ValidatePort(const char* portStr, int& outPort)
+{
+    size_t len = strlen(portStr);
+    if (len == 0 || len > PORT_MAX_LEN) {
+        Base::PrintMessage("The port-string's length must be in [1, 5]");
+        return false;
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (isdigit(portStr[i]) == 0) {
+            Base::PrintMessage("The port must be digit str:%s", portStr);
+            return false;
+        }
+    }
+    outPort = atoi(portStr);
+    if (outPort <= 0 || outPort > MAX_IP_PORT) {
+        Base::PrintMessage("Port range incorrect");
+        return false;
+    }
+    return true;
+}
+
 bool FormatServerListenString(const char* input, std::string& outputAddress)
 {
+    if (input == nullptr) {
+        Base::PrintMessage("Input is null");
+        return false;
+    }
     if (strlen(input) > strlen("0000::0000:0000:0000:0000%interfacename:65535")) {
         Base::PrintMessage("Unknown content of parament '-s'");
         return false;
@@ -310,45 +335,21 @@ bool FormatServerListenString(const char* input, std::string& outputAddress)
         Base::PrintMessage("strcpy_s error %d", errno);
         return false;
     }
+    int port = 0;
     char *p = strrchr(buf, ':');
-    if (!p) {  // Only port
-        if (strlen(buf) > PORT_MAX_LEN) {
-            Base::PrintMessage("The port-string's length must < 5");
-            return false;
-        }
-        size_t len = strlen(buf);
-        for (size_t i = 0; i < len; i++) {
-            if (isdigit(buf[i]) == 0) {
-                Base::PrintMessage("The port must be digit buf:%s", buf);
-                return false;
-            }
-        }
-        int port = atoi(buf);
-        if (port <= 0 || port > MAX_IP_PORT) {
-            Base::PrintMessage("Port range incorrect");
+    if (!p) {
+        if (!ValidatePort(buf, port)) {
             return false;
         }
         (void)snprintf_s(buf, sizeof(buf), sizeof(buf) - 1, "::ffff:127.0.0.1:%d", port);
         outputAddress = buf;
     } else {
         *p = '\0';
-        char *str = p + 1;
-        size_t len = strlen(str);
-        for (size_t i = 0; i < len; i++) {
-            if (isdigit(str[i]) == 0) {
-                Base::PrintMessage("The port must be digit str:%s", str);
-                return false;
-            }
-        }
-        int port = atoi(p + 1);
-        sockaddr_in addrv4;
-        sockaddr_in6 addrv6;
-
-        if ((port <= 0 || port > MAX_IP_PORT)) {
-            Base::PrintMessage("-s content port incorrect.");
+        if (!ValidatePort(p + 1, port)) {
             return false;
         }
-
+        sockaddr_in addrv4;
+        sockaddr_in6 addrv6;
         if (uv_ip4_addr(buf, port, &addrv4) == 0) {
             outputAddress = IPV4_MAPPING_PREFIX;
             outputAddress += input;
@@ -364,6 +365,10 @@ bool FormatServerListenString(const char* input, std::string& outputAddress)
 
 bool ParseServerListenString(char *optarg)
 {
+    if (optarg == nullptr) {
+        Base::PrintMessage("optarg is null");
+        return false;
+    }
     std::string& serverListenString = RuntimeConfig::Instance().serverListenString;
 #ifdef __OHOS__
     string temp = optarg;

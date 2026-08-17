@@ -270,8 +270,8 @@ int HdcFileDescriptor::Write(uint8_t *data, int size)
     if (size > static_cast<int>(HDC_BUF_MAX_BYTES - 1)) {
         size = static_cast<int>(HDC_BUF_MAX_BYTES - 1);
     }
-    if (size <= 0) {
-        WRITE_LOG(LOG_WARN, "Write failed, size:%d", size);
+    if (data == nullptr || size <= 0) {
+        WRITE_LOG(LOG_WARN, "Write failed, data is null or size:%d", size);
         return -1;
     }
     auto buf = new(std::nothrow) uint8_t[size];

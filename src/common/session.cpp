@@ -1600,7 +1600,8 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     int initResult = uv_poll_init_socket(&hSession->childLoop, pollHandle, hSession->ctrlFd[STREAM_WORK]);
     if (initResult != 0) {
         WRITE_LOG(LOG_FATAL, "SessionWorkThread init pollHandle->loop failed");
-        _exit(0);
+        hSession->childCleared = true;
+        return;
     }
     uv_poll_start(pollHandle, UV_READABLE, ReadCtrlFromMain);
     // start heartbeat rimer

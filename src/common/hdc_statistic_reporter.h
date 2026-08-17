@@ -66,7 +66,7 @@ public:
     static HdcStatisticReporter& GetInstance();
     void Schedule(uv_loop_t* loop);
     void SetConnectInfo(const std::vector<std::string>& features);
-    void IncrFileTransferInfo(uint64_t fileSize, uint64_t fileCost);
+    void IncrFileTransferInfo(uint64_t fileSize, int fileCost);
     void UpdateFreeSessionMaxCost(int freeCost);
     void IncrCommandInfo(STATISTIC_ITEM command);
 private:
@@ -82,7 +82,7 @@ private:
     [[maybe_unused]] std::string connType_ = "";
     [[maybe_unused]] std::string hostOs_ = "";
     [[maybe_unused]] uint64_t fileTransferSize_ = 0;
-    [[maybe_unused]] uint64_t fileTransferCost_ = 0;
+    [[maybe_unused]] int fileTransferCost_ = 0;
     [[maybe_unused]] int freeSessionMaxCost_ = 0;
     [[maybe_unused]] int eventCnt_[STATISTIC_REPORT_COUNT] = { 0 };
     [[maybe_unused]] std::mutex mutex_;

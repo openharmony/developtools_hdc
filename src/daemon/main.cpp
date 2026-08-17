@@ -206,69 +206,63 @@ bool GetDaemonCommandlineOptions(int argc, const char *argv[])
     return true;
 }
 
-gid_t *AllocAndFillGids(const vector<const char *> &groupsNames)
-{
-    gid_t *gids = static_cast<gid_t *>(calloc(groupsNames.size(), sizeof(gid_t)));
-    if (gids == nullptr) {
-        WRITE_LOG(LOG_FATAL, "calloc fail");
-        return nullptr;
-    }
-    for (size_t i = 0; i < groupsNames.size(); i++) {
-        struct group *group = getgrnam(groupsNames[i]);
-        if (group == nullptr) {
-            WRITE_LOG(LOG_WARN, "getgrnam %s fail, %s", groupsNames[i], strerror(errno));
-            gids[i] = static_cast<gid_t>(-1);
-            continue;
-        }
-        gids[i] = group->gr_gid;
-    }
-    return gids;
-}
-
-bool SetUserPrivileges(const char *userName, struct passwd *user, gid_t *gids, size_t groupCount)
-{
-    int ret = setgroups(groupCount, gids);
-    if (ret) {
-        WRITE_LOG(LOG_FATAL, "setgroups %s fail, %s", userName, strerror(errno));
-        return false;
-    }
-    ret = setgid(user->pw_gid);
-    if (ret) {
-        WRITE_LOG(LOG_FATAL, "setgid %s fail, %s", userName, strerror(errno));
-        return false;
-    }
-    ret = setuid(user->pw_uid);
-    if (ret) {
-        WRITE_LOG(LOG_FATAL, "setuid %s fail, %s", userName, strerror(errno));
-        return false;
-    }
-    return true;
-}
-
 bool DropRootPrivileges()
 {
+    int ret;
     const char *userName = "shell";
     vector<const char *> groupsNames = { "shell", "log", "readproc", "file_manager" };
+    struct passwd *user;
+    gid_t *gids = nullptr;
 
-    struct passwd *user = getpwnam(userName);
+    user = getpwnam(userName);
     if (user == nullptr) {
         WRITE_LOG(LOG_FATAL, "getpwuid %s fail, %s", userName, strerror(errno));
         return false;
     }
 
-    gid_t *gids = AllocAndFillGids(groupsNames);
+    gids = static_cast<gid_t *>(calloc(groupsNames.size(), sizeof(gid_t)));
     if (gids == nullptr) {
+        WRITE_LOG(LOG_FATAL, "calloc fail");
         return false;
     }
 
-    bool ret = SetUserPrivileges(userName, user, gids, groupsNames.size());
+    for (size_t i = 0; i < groupsNames.size(); i++) {
+        struct group *group = getgrnam(groupsNames[i]);
+        if (group == nullptr) {
+            WRITE_LOG(LOG_FATAL, "calloc fail");
+            continue;
+        }
+        gids[i] = group->gr_gid;
+    }
+
+    ret = setuid(user->pw_uid);
+    if (ret) {
+        WRITE_LOG(LOG_FATAL, "setuid %s fail, %s", userName, strerror(errno));
+        free(gids);
+        return false;
+    }
+
+    ret = setgid(user->pw_gid);
+    if (ret) {
+        WRITE_LOG(LOG_FATAL, "setgid %s fail, %s", userName, strerror(errno));
+        free(gids);
+        return false;
+    }
+
+    ret = setgroups(groupsNames.size(), gids);
+    if (ret) {
+        WRITE_LOG(LOG_FATAL, "setgroups %s fail, %s", userName, strerror(errno));
+        free(gids);
+        return false;
+    }
+
     free(gids);
 #if defined(SURPPORT_SELINUX)
-    if (ret && setcon("u:r:hdcd:s0") != 0) {
-        WRITE_LOG(LOG_FATAL, "setcon fail, errno %s", strerror(errno));
+    if (setcon("u:r:hdcd:s0") != 0) {
+        WRITE_LOG(LOG_FATAL, "setcon fail, errno %s", userName, strerror(errno));
     }
 #endif
-    return ret;
+    return true;
 }
 
 bool NeedDropRootPrivileges()

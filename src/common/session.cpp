@@ -818,17 +818,6 @@ HSession HdcSessionBase::VoteReset(const uint32_t sessionId)
     return hRet;
 }
 
-HSession HdcSessionBase::HandleVoteReset(const uint32_t sessionId)
-{
-    uv_rwlock_rdlock(&lockMapSession);
-    bool sessionExists = mapSession.count(sessionId) != 0;
-    uv_rwlock_rdunlock(&lockMapSession);
-    if (!sessionExists) {
-        return nullptr;
-    }
-    return VoteReset(sessionId);
-}
-
 HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId, HSession hInput)
 {
     StartTraceScope("HdcSessionBase::AdminSession");
@@ -872,7 +861,10 @@ HSession HdcSessionBase::AdminSession(const uint8_t op, const uint32_t sessionId
             uv_rwlock_wrunlock(&lockMapSession);
             break;
         case OP_VOTE_RESET:
-            hRet = HandleVoteReset(sessionId);
+            if (mapSession.count(sessionId) == 0) {
+                break;
+            }
+            hRet = VoteReset(sessionId);
             break;
         default:
             break;

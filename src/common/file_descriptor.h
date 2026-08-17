@@ -70,7 +70,7 @@ private:
     std::atomic<bool> workContinue;
     std::atomic<bool> iOWriteThreadExit = false;
     int fdIO;
-    std::atomic<int> refIO;
+    int refIO;
     bool isInteractive;
     std::thread ioReadThread;
     std::thread ioWriteThread;

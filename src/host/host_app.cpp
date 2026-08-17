@@ -119,22 +119,17 @@ bool HdcHostApp::BeginSideload(CtxFile *context, const char *localPath)
 bool HdcHostApp::RunQueue(CtxFile *context)
 {
     context->localPath = context->taskQueue.back();
-    std::unique_ptr<uv_fs_t> openReq(new(std::nothrow) uv_fs_t);
+    uv_fs_t *openReq = new uv_fs_t;
     if (openReq == nullptr) {
         LogMsg(MSG_FAIL, "HdcHostApp::RunQueue new uv_fs_t failed");
         OnFileOpenFailed(context);
         return false;
     }
-    (void)memset_s(openReq.get(), sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
+    (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
     openReq->data = context;
     ++refCount;
-    int rc = uv_fs_open(loopTask, openReq.get(), context->localPath.c_str(), O_RDONLY, 0, OnFileOpen);
+    uv_fs_open(loopTask, openReq, context->localPath.c_str(), O_RDONLY, 0, OnFileOpen);
     context->master = true;
-    if (rc != 0) {
-        LogMsg(MSG_FAIL, "HdcHostApp::RunQueue uv_fs_open failed, rc:%d", rc);
-        --refCount;
-        return false;
-    }
     return true;
 }
 

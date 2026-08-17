@@ -257,11 +257,15 @@ bool HdcServer::PullupServer(const char *listenString)
 
 void HdcServer::ClearMapDaemonInfo()
 {
-    uv_rwlock_wrlock(&daemonAdmin);
-    for (auto &iter : mapDaemon) {
-        HDaemonInfo hDi = iter.second;
+    map<string, HDaemonInfo>::iterator iter;
+    uv_rwlock_rdlock(&daemonAdmin);
+    for (iter = mapDaemon.begin(); iter != mapDaemon.end();) {
+        HDaemonInfo hDi = iter->second;
         delete hDi;
+        ++iter;
     }
+    uv_rwlock_rdunlock(&daemonAdmin);
+    uv_rwlock_wrlock(&daemonAdmin);
     mapDaemon.clear();
     uv_rwlock_wrunlock(&daemonAdmin);
 }
@@ -538,7 +542,7 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
         auto it = tlvmap.find(TAG_SUPPORT_FEATURE);
         if (it != tlvmap.end()) {
             std::vector<std::string> features;
-            WRITE_LOG(LOG_INFO, "peer support features are %s for session %s",
+            WRITE_LOG(LOG_INFO, "peer support features are %s for session %u",
                 it->second.c_str(), sessionIdMaskStr.c_str());
             Base::SplitString(it->second, ",", features);
             hSession->supportConnValidation = Base::IsSupportFeature(features, FEATURE_CONN_VALIDATION);
@@ -581,7 +585,7 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
 
 bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &handshake)
 {
-    int connectValidation = 0; // 仅ohos平台获取该参数�?
+    int connectValidation = 0; // 仅ohos平台获取该参数�?
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
 #endif
@@ -843,72 +847,6 @@ bool HdcServer::CheckHostCommandPermission(HChannel channel, const uint32_t sess
     return true;
 }
 
-bool HdcServer::HandleKernelEcho(HChannel hChannel, uint8_t *payload, const int payloadSize)
-{
-    if (payloadSize < 1) {
-        WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO invaild payloadSize:%d", payloadSize);
-        return false;
-    }
-    HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
-    MessageLevel level = static_cast<MessageLevel>(*payload);
-    string s(reinterpret_cast<char *>(payload + 1), payloadSize - 1);
-    sfc->EchoClient(hChannel, level, s.c_str());
-    return true;
-}
-
-void HdcServer::HandleKernelChannelClose(HSession hSession, const uint32_t channelId,
-    uint8_t *payload, const int payloadSize)
-{
-    HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
-    WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%s", channelId,
-        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
-    ClearOwnTasks(hSession, channelId);
-    sfc->PushAsyncMessage(channelId, ASYNC_FREE_CHANNEL, nullptr, 0);
-    if (payloadSize >= 1 && *payload != 0) {
-        uint8_t newPayload = *payload;
-        --newPayload;
-        Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, &newPayload, 1);
-    }
-}
-
-bool HdcServer::HandleForwardSuccess(HSession hSession, HChannel hChannel, const uint32_t channelId,
-    uint8_t *payload, const int payloadSize)
-{
-    if (payloadSize < 1) {
-        WRITE_LOG(LOG_INFO, "CMD_FORWARD_SUCCESS invaild payloadSize:%d", payloadSize);
-        return false;
-    }
-    HdcForwardInformation di;
-    HForwardInfo pdiNew = &di;
-    pdiNew->channelId = channelId;
-    pdiNew->sessionId = hSession->sessionId;
-    pdiNew->connectKey = hSession->connectKey;
-    pdiNew->forwardDirection = payload[0] == '1';
-    string payloadStr(reinterpret_cast<char *>(payload), payloadSize);
-    pdiNew->taskString = hSession->connectKey + "|" + payloadStr;
-    AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
-#ifdef __OHOS__
-    if (hChannel->isUds) {
-        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkUds);
-    } else {
-        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);
-    }
-#else
-    Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);
-#endif
-    return true;
-}
-
-bool HdcServer::HandleDefaultCommand(HChannel hChannel, const uint32_t channelId, const uint16_t command,
-    uint8_t *payload, const int payloadSize)
-{
-    HSession hSessionByQuery = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
-    if (!hSessionByQuery) {
-        return false;
-    }
-    return DispatchTaskData(hSessionByQuery, channelId, command, payload, payloadSize);
-}
-
 // call in child thread
 bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const uint16_t command, uint8_t *payload,
                              const int payloadSize)
@@ -955,18 +893,52 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         return true;
     }
     switch (command) {
-        case CMD_KERNEL_ECHO_RAW:
+        case CMD_KERNEL_ECHO_RAW: {  // Native shell data output
             sfc->EchoClientRaw(hChannel, payload, payloadSize);
             break;
-        case CMD_KERNEL_ECHO:
-            ret = HandleKernelEcho(hChannel, payload, payloadSize);
+        }
+        case CMD_KERNEL_ECHO: {
+            MessageLevel level = static_cast<MessageLevel>(*payload);
+            string s(reinterpret_cast<char *>(payload + 1), payloadSize - 1);
+            sfc->EchoClient(hChannel, level, s.c_str());
+            WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d cid:%u sid:%s", payloadSize - 1, channelId,
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             break;
-        case CMD_KERNEL_CHANNEL_CLOSE:
-            HandleKernelChannelClose(hSession, channelId, payload, payloadSize);
+        }
+        case CMD_KERNEL_CHANNEL_CLOSE: {
+            WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%s", channelId,
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+            // Forcibly closing the tcp handle here may result in incomplete data reception on the client side
+            ClearOwnTasks(hSession, channelId);
+            // crossthread free
+            sfc->PushAsyncMessage(channelId, ASYNC_FREE_CHANNEL, nullptr, 0);
+            if (*payload != 0) {
+                --(*payload);
+                Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, payload, 1);
+            }
             break;
-        case CMD_FORWARD_SUCCESS:
-            ret = HandleForwardSuccess(hSession, hChannel, channelId, payload, payloadSize);
+        }
+        case CMD_FORWARD_SUCCESS: {
+            // add to local
+            HdcForwardInformation di;
+            HForwardInfo pdiNew = &di;
+            pdiNew->channelId = channelId;
+            pdiNew->sessionId = hSession->sessionId;
+            pdiNew->connectKey = hSession->connectKey;
+            pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
+            pdiNew->taskString = hSession->connectKey + "|" + reinterpret_cast<char *>(payload);
+            AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
+#ifdef __OHOS__
+            if (hChannel->isUds) {
+                Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkUds);
+            } else {
+                Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);
+            }
+#else
+            Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
+#endif
             break;
+        }
         case CMD_FILE_INIT:
         case CMD_FILE_CHECK:
         case CMD_FILE_BEGIN:
@@ -980,14 +952,19 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         case CMD_APP_DATA:
         case CMD_APP_FINISH:
             if (hChannel->fromClient) {
+                // server directly passthrough app command to client if remote file mode, else go default
                 sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
                 break;
             }
-            ret = HandleDefaultCommand(hChannel, channelId, command, payload, payloadSize);
+        default: {
+            HSession hSessionByQuery = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
+            if (!hSessionByQuery) {
+                ret = false;
+                break;
+            }
+            ret = DispatchTaskData(hSessionByQuery, channelId, command, payload, payloadSize);
             break;
-        default:
-            ret = HandleDefaultCommand(hChannel, channelId, command, payload, payloadSize);
-            break;
+        }
     }
     --hChannel->ref;
     return ret;

@@ -80,12 +80,6 @@ private:
     bool ServerSessionSSLInit(HSession hSession, SessionHandShake &handshake);
     bool CheckHostCommandPermission(HChannel channel, const uint32_t sessionId, const uint16_t command,
         uint8_t *payload, const int payloadSize);
-    bool HandleKernelEcho(HChannel hChannel, uint8_t *payload, const int payloadSize);
-    void HandleKernelChannelClose(HSession hSession, const uint32_t channelId, uint8_t *payload, const int payloadSize);
-    bool HandleForwardSuccess(HSession hSession, HChannel hChannel, const uint32_t channelId,
-        uint8_t *payload, const int payloadSize);
-    bool HandleDefaultCommand(HChannel hChannel, const uint32_t channelId, const uint16_t command,
-        uint8_t *payload, const int payloadSize);
     void GetDaemonMapOnlyOne(HDaemonInfo &hDaemonInfoInOut);
     void TryStopInstance();
     void AdminDaemonMapAdd(HDaemonInfo &hDaemonInfoInOut);

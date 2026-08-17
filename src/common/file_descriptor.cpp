@@ -101,7 +101,7 @@ void FileIoThread::Run()
     CloseIoFd(epollFd, descriptor->fdIO);
 
     --descriptor->refIO;
-    descriptor->workContinue.store(false);
+    descriptor->workContinue = false;
     descriptor->callbackFinish(descriptor->callerContext, fetalFinish, STRING_EMPTY);
 }
 
@@ -192,7 +192,7 @@ HdcFileDescriptor::HdcFileDescriptor(uv_loop_t *loopIn, int fdToRead, void *call
     callbackFinish = callbackFinishIn;
     callbackRead = callbackReadIn;
     fdIO = fdToRead;
-    refIO.store(0);
+    refIO = 0;
     isInteractive = interactiveShell;
     callerContext = callerContextIn;
     if (isInteractive) {
@@ -207,28 +207,15 @@ HdcFileDescriptor::~HdcFileDescriptor()
     workContinue = false;
     if (isInteractive) {
         NotifyWrite();
-        constexpr int maxWaitMs = 5000;
-        auto startTime = std::chrono::steady_clock::now();
-        while (!iOWriteThreadExit.load(std::memory_order_acquire)) {
-            if (std::chrono::steady_clock::now() - startTime > std::chrono::milliseconds(maxWaitMs)) {
-                WRITE_LOG(LOG_WARN, "~HdcFileDescriptor wait timeout");
-                break;
-            }
-            uv_sleep(MILL_SECONDS);
-        }
         if (ioWriteThread.joinable()) {
             ioWriteThread.join();
         }
-    }
-    if (fdIO > 0) {
-        Base::CloseFd(fdIO);
-        fdIO = -1;
     }
 }
 
 bool HdcFileDescriptor::ReadyForRelease()
 {
-    return refIO.load(std::memory_order_acquire) == 0;
+    return refIO == 0;
 }
 
 // just tryCloseFdIo = true, callback will be effect
@@ -240,7 +227,7 @@ void HdcFileDescriptor::StopWorkOnThread(bool tryCloseFdIo, std::function<void()
     }
 
     callbackCloseFd = closeFdCallback;
-    if (tryCloseFdIo && refIO.load(std::memory_order_acquire) > 0) {
+    if (tryCloseFdIo && refIO > 0) {
         if (callbackCloseFd != nullptr) {
             callbackCloseFd();
         }

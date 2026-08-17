@@ -54,19 +54,6 @@ bool CheckBundlePath(const std::string &bundleName, std::string &mountPath)
         currentUserId = DEFAULT_USER_ID;
     }
     std::string bundlePath = DEBUG_BUNDLE_PATH + std::to_string(currentUserId) + "/debug_hap/";
-    uv_fs_t req;
-    int rc = uv_fs_lstat(uv_default_loop(), &req, bundlePath.c_str(), nullptr);
-    if (rc != 0) {
-        WRITE_LOG(LOG_FATAL, "debug path %s lstat failed, rc:%d", bundlePath.c_str(), rc);
-        uv_fs_req_cleanup(&req);
-        return false;
-    }
-    if (req.statbuf.st_mode & S_IFLNK) {
-        WRITE_LOG(LOG_FATAL, "debug path %s is a symlink", bundlePath.c_str());
-        uv_fs_req_cleanup(&req);
-        return false;
-    }
-    uv_fs_req_cleanup(&req);
     if (access(bundlePath.c_str(), F_OK) != 0 || !Base::CheckBundleName(bundleName)) {
         WRITE_LOG(LOG_FATAL, "debug path %s not found", bundlePath.c_str());
         return false;

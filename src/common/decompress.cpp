@@ -49,62 +49,48 @@ bool Decompress::DecompressToLocal(std::string decPath)
     return true;
 }
 
-namespace {
-void LogFatal(const char* format, const std::string& str)
-{
-    if (Base::GetCaller() == Base::Caller::CLIENT) {
-        WRITE_LOG(LOG_FATAL, format, str.c_str());
-    } else {
-        WRITE_LOG(LOG_FATAL, format, Hdc::MaskString(str).c_str());
-    }
-}
-
-bool ValidateTarFile(const std::string& tarPath, const uv_stat_t& stat)
-{
-    if (!(stat.st_mode & S_IFREG)) {
-        LogFatal("%s not exist, or not file", tarPath);
-        return false;
-    }
-    if (stat.st_size == 0 || stat.st_size % HEADER_LEN != 0) {
-        LogFatal("file is not tar %s", tarPath);
-        return false;
-    }
-    return true;
-}
-
-bool ValidateDecompressPath(const std::string& decPath, const uv_stat_t& stat)
-{
-    if (stat.st_mode & S_IFLNK) {
-        LogFatal("path is a symlink, path traversal attack detected: %s", decPath);
-        return false;
-    }
-    if (stat.st_mode & S_IFREG) {
-        LogFatal("path exist, but is not a directory %s", decPath);
-        return false;
-    }
-    return true;
-}
-}
-
 bool Decompress::CheckPath(std::string decPath)
 {
     uv_fs_t req;
     int rc = uv_fs_lstat(nullptr, &req, tarPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
-    if (rc != 0 || !ValidateTarFile(tarPath, req.statbuf)) {
+    if (rc != 0 || !(req.statbuf.st_mode & S_IFREG)) {
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "%s not exist, or not file", tarPath.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "%s not exist, or not file", Hdc::MaskString(tarPath).c_str());
+        }
+        return false;
+    }
+    auto fileSize = req.statbuf.st_size;
+    if (fileSize == 0 || fileSize % HEADER_LEN != 0) {
+        if (Base::GetCaller() == Base::Caller::CLIENT) {
+            WRITE_LOG(LOG_FATAL, "file is not tar %s", tarPath.c_str());
+        } else {
+            WRITE_LOG(LOG_FATAL, "file is not tar %s", Hdc::MaskString(tarPath).c_str());
+        }
         return false;
     }
     rc = uv_fs_lstat(nullptr, &req, decPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
     if (rc == 0) {
-        if (!ValidateDecompressPath(decPath, req.statbuf)) {
+        if (req.statbuf.st_mode & S_IFREG) {
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", decPath.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "path is exist, and path not dir %s", Hdc::MaskString(decPath).c_str());
+            }
             return false;
         }
     } else {
         std::string estr;
         bool b = Base::TryCreateDirectory(decPath, estr);
         if (!b) {
-            LogFatal("mkdir failed decPath:%s estr:%s", decPath);
+            if (Base::GetCaller() == Base::Caller::CLIENT) {
+                WRITE_LOG(LOG_FATAL, "mkdir failed decPath:%s estr:%s", decPath.c_str(), estr.c_str());
+            } else {
+                WRITE_LOG(LOG_FATAL, "mkdir failed decPath:%s estr:%s", Hdc::MaskString(decPath).c_str(), estr.c_str());
+            }
             return false;
         }
     }

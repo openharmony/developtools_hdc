@@ -427,15 +427,11 @@ bool HdcTransferBase::IODelayed(uv_fs_t *req)
         HdcChannelBase *channelBase = reinterpret_cast<HdcChannelBase *>(thisClass->taskInfo->channelClass);
         if (channelBase->queuedPackages.load() >= maxPackages) {
             WRITE_LOG(LOG_DEBUG, "queued packages:%d is full", channelBase->queuedPackages.load());
-            if (!Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req,
-                               [](const uint8_t flag, string &msg, const void *data) {
-                                   uv_fs_t *req = (uv_fs_t *)data;
-                                   OnFileIO(req);
-                               })) {
-                WRITE_LOG(LOG_WARN, "IODelayed DelayDo failed, excuting OnFileIO directly");
-                OnFileIO(req);
-                return false;
-            }
+            Base::DelayDo(req->loop, delayMs, 0, "ChannelFull", req,
+                          [](const uint8_t flag, string &msg, const void *data) {
+                              uv_fs_t *req = (uv_fs_t *)data;
+                              OnFileIO(req);
+                          });
             return true;
         }
         channelBase->queuedPackages.fetch_add(1, std::memory_order_relaxed);

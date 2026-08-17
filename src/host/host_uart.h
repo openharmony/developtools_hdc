@@ -113,7 +113,7 @@ private:
     std::unordered_set<std::string> connectedPorts;
     std::vector<string> serialPortInfo;
     std::vector<string> serialPortRemoved;
-    std::atomic<bool> uartOpened = false;
+    bool uartOpened = false;
     std::thread sendThread;
     bool isCheck = false;
 

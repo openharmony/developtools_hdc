@@ -113,7 +113,7 @@ bool ParseHostReceiveArguments(int argc, char **argv, string &cwd, string &lastP
 
 HdcServerForClient::HdcServerForClient(const bool serverOrClient, const string &addrString, void *pClsServer,
                                        uv_loop_t *loopMainIn)
-    : HdcChannelBase(serverOrClient, addrString, loopMainIn), tcpListenInitialized(false)
+    : HdcChannelBase(serverOrClient, addrString, loopMainIn)
 {
     clsServer = pClsServer;
 }
@@ -125,9 +125,7 @@ HdcServerForClient::~HdcServerForClient()
 
 void HdcServerForClient::Stop()
 {
-    if (tcpListenInitialized) {
-        Base::TryCloseHandle((uv_handle_t *)&tcpListen);
-    }
+    Base::TryCloseHandle((uv_handle_t *)&tcpListen);
 #ifdef __OHOS__
     Base::TryCloseHandle((uv_handle_t *)&udsListen);
 #endif
@@ -308,7 +306,6 @@ bool HdcServerForClient::SetTCPListen()
     tcpListen.data = this;
     struct sockaddr_in6 addr;
     uv_tcp_init(loopMain, &tcpListen);
-    tcpListenInitialized = true;
 
     if (Base::GetCaller() == Base::Caller::SERVER) {
         WRITE_LOG(LOG_DEBUG, "channelHost %s, port: %d", Hdc::MaskString(channelHost).c_str(), channelPort);
@@ -390,22 +387,18 @@ int HdcServerForClient::Initial()
         return listenError;
     }
 #else
-    bool tcpListenOk = true;
     if (!channelHostPort.size() || !channelHost.size() || !channelPort) {
         WRITE_LOG(LOG_FATAL, "Listen string initial failed");
     } else {
         if (!SetTCPListen()) {
-            WRITE_LOG(LOG_WARN, "SetTCPListen failed, fallback to UDS only");
-            tcpListenOk = false;
+            WRITE_LOG(LOG_FATAL, "SetTCPListen failed");
+            //ohos system needeed default uds listen
         }
     }
     if (!SetUdsListen()) {
         WRITE_LOG(LOG_FATAL, "SetUdsListen failed");
         int listenError = -3; // -3:error for SetUdsListen failed
         return listenError;
-    }
-    if (!tcpListenOk) {
-        WRITE_LOG(LOG_WARN, "TCP listen unavailable, using UDS only");
     }
 #endif
     
@@ -456,10 +449,6 @@ void HdcServerForClient::SendCommandToClient(const HChannel hChannel, const uint
 bool HdcServerForClient::SendToDaemon(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int bufSize)
 {
     StartTraceScope("HdcServerForClient::SendToDaemon");
-    if (bufSize <= 0) {
-        WRITE_LOG(LOG_WARN, "SendToDaemon invalid bufSize:%d", bufSize);
-        return false;
-    }
     HDaemonInfo hdi = nullptr;
     bool ret = false;
     HdcServer *ptrServer = (HdcServer *)clsServer;
@@ -682,7 +671,7 @@ bool HdcServerForClient::CommandReconnectTarget(HChannel hChannel, const char *c
         ptrServer->clsUSBClt->AllowUsbNodeRescan(usbMountPoint);
     }
     string msg = "Reconnecting " + key + " ...";
-    EchoClient(hChannel, MSG_OK, "%s", msg.c_str());
+    EchoClient(hChannel, MSG_OK, msg.c_str());
     WRITE_LOG(LOG_INFO, "CommandReconnectTarget key:%s mount:%s",
               Hdc::MaskString(key).c_str(), usbMountPoint.c_str());
     return true;

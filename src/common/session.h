@@ -169,7 +169,6 @@ protected:
     void PrintSession(const uint32_t sessionId);
 #endif
     HSession VoteReset(const uint32_t sessionId);
-    HSession HandleVoteReset(const uint32_t sessionId);
     virtual void JdwpNewFileDescriptor(const uint8_t* /* buf */, const int /* bytesIO */)
     {
     }

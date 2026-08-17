@@ -375,14 +375,9 @@ static void ReadFileThreadFunc(void* arg)
 string HdcClient::GetHilogPath()
 {
     string hdcPath = Base::GetHdcAbsolutePath();
-    if (hdcPath.empty()) {
-        return "";
-    }
-    size_t index = hdcPath.find_last_of(Base::GetPathSep());
-    if (index == std::string::npos) {
-        return "";
-    }
+    int index = hdcPath.find_last_of(Base::GetPathSep());
     string exePath = hdcPath.substr(0, index) + Base::GetPathSep() + HILOG_NAME;
+
     return exePath;
 }
 

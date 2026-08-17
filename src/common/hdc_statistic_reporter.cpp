@@ -73,13 +73,7 @@ void HdcStatisticReporter::IncrFileTransferInfo(uint64_t fileSize, int fileCost)
     } else {
         fileTransferSize_ += fileSize;
     }
-    if (fileCost > 0 && fileTransferCost_ > std::numeric_limits<int>::max() - fileCost) {
-            fileTransferCost_ = std::numeric_limits<int>::max();
-        } else if (fileCost < 0 && fileTransferCost_ < std::numeric_limits<int>::min() - fileCost) {
-            fileTransferCost_ = std::numeric_limits<int>::min();
-        } else {
-            fileTransferCost_ += fileCost;
-        }
+    fileTransferCost_ += fileCost;
 #endif
 }
 

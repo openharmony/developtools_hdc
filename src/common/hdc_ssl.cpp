@@ -346,6 +346,10 @@ int HdcSSLBase::PerformHandshake(vector<uint8_t> &outBuf)
         WRITE_LOG(LOG_WARN, "SSL PerformHandshake failed, nread = %d", nread);
         return ERR_GENERIC;
     }
+    if (nread > MAX_SSL_BUFFER_SIZE) {
+        WRITE_LOG(LOG_WARN, "SSL buffer too large: %d", nread);
+        return ERR_GENERIC;
+    }
     outBuf.resize(nread);
     int outLen = DoBIORead(outBuf.data(), nread);
     if (outLen < 0) {

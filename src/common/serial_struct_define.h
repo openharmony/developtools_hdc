@@ -1123,6 +1123,9 @@ template<class T> struct Serializer<T, std::enable_if_t<std::is_enum_v<T>>> {
 };
 
 template<> struct Serializer<std::string> {
+    // Maximum size for serialized string to prevent OOM attacks
+    static constexpr size_t MAX_STRING_SIZE = 10 * 1024 * 1024;  // 10MB
+
     static void Serialize(uint32_t tag, const std::string &value, FlagsType<>, Writer &out,
                           [[maybe_unused]] bool force = false)
     {
@@ -1138,6 +1141,9 @@ template<> struct Serializer<std::string> {
         }
         size_t size;
         if (SerialDetail::ReadVarint(size, in)) {
+            if (size > MAX_STRING_SIZE) {
+                return false;
+            }
             value.resize(size);
             if (in.Read(value.data(), size) == size) {
                 return true;

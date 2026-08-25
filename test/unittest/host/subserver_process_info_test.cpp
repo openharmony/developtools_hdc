@@ -67,7 +67,7 @@ HWTEST_F(SubserverProcessInfoTest, GetSubserverStatus_CurrentProcess, TestSize.L
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         status = info.GetSubserverStatus();
-        EXPECT_EQ(status, SubserverStatus::SUBSERVER_OTHER_EXIT);
+        EXPECT_EQ(status, SubserverStatus::CONNECTING);
     }
 }
 

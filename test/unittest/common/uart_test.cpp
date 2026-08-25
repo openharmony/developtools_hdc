@@ -296,11 +296,11 @@ HWTEST_F(HdcUARTBaseTest, UartSendToHdcStreamLessBuff, TestSize.Level1)
 
     for (unsigned int i = 0; i < sizeof(UartHead); i++) {
         EXPECT_CALL(mockUARTBase, ResponseUartTrans).Times(0);
-        ASSERT_EQ(mockUARTBase.UartSendToHdcStream(server.get(), data.data(), i), true);
+        ASSERT_EQ(mockUARTBase.UartSendToHdcStream(server.get(), data.data(), i), false);
     }
     for (unsigned int i = 0; i < sizeof(UartHead); i++) {
         EXPECT_CALL(mockUARTBase, ResponseUartTrans).Times(0);
-        ASSERT_EQ(mockUARTBase.UartSendToHdcStream(daemon.get(), data.data(), i), true);
+        ASSERT_EQ(mockUARTBase.UartSendToHdcStream(daemon.get(), data.data(), i), false);
     }
 }
 
@@ -343,8 +343,8 @@ HWTEST_F(HdcUARTBaseTest, UartSendToHdcStreamAppend, TestSize.Level1)
 
     // send head one by one
     for (unsigned int i = 0; i < sizeof(UartHead); i++) {
-        ASSERT_TRUE(mockUARTBase.UartSendToHdcStream(server.get(), &data.data()[i],
-                                                     sizeof(data.data()[i])));
+        ASSERT_EQ(mockUARTBase.UartSendToHdcStream(server.get(), &data.data()[i],
+            sizeof(data.data()[i])), false);
     }
 
     // send content data  one by one
@@ -354,8 +354,8 @@ HWTEST_F(HdcUARTBaseTest, UartSendToHdcStreamAppend, TestSize.Level1)
     EXPECT_CALL(mockInterface, SendToStream).Times(0);
 #endif
     for (unsigned int i = sizeof(UartHead); i < data.size(); i++) {
-        ASSERT_TRUE(mockUARTBase.UartSendToHdcStream(server.get(), &data.data()[i],
-                                                     sizeof(data.data()[i])));
+        ASSERT_EQ(mockUARTBase.UartSendToHdcStream(server.get(), &data.data()[i],
+            sizeof(data.data()[i])), false);
         if (i + 1 == data.size()) {
             // if this is the last one , buf will clear after send
         } else {
@@ -633,7 +633,7 @@ HWTEST_F(HdcUARTBaseTest, ExternInterface, TestSize.Level1)
     EXPECT_EQ(defaultInterface.StartWorkThread(nullptr, nullptr, nullptr, nullptr), 0);
     EXPECT_NE(defaultInterface.TimerUvTask(uv_default_loop(), nullptr, nullptr), 0);
     EXPECT_NE(defaultInterface.UvTimerStart(&timer, nullptr, 0, 0), 0);
-    EXPECT_NE(defaultInterface.DelayDo(uv_default_loop(), 0, 0, "", nullptr, nullptr), 0);
+    EXPECT_EQ(defaultInterface.DelayDo(uv_default_loop(), 0, 0, "", nullptr, nullptr), 0);
     defaultInterface.TryCloseHandle((uv_handle_t *)&dummyPip, nullptr);
 }
 

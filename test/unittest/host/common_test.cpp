@@ -69,6 +69,7 @@ HWTEST_F(HdcCommonTest, TestIsHishell_1, TestSize.Level0)
     EXPECT_FALSE(TestIsHishellLabel(0));
 }
 
+#ifndef _WIN32
 HWTEST_F(HdcCommonTest, TestIsHishell_2, TestSize.Level0)
 {
     pid_t pid = fork();
@@ -107,4 +108,5 @@ HWTEST_F(HdcCommonTest, TestIsHishell_4, TestSize.Level0)
         EXPECT_TRUE(TestIsHishellLabel(pid));
     }
 }
+#endif
 }

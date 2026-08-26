@@ -254,10 +254,13 @@ bool HdcSecretManage::CheckPubkeyAndPrivKeyMatch()
     }
     if (!LoadPrivateKeyInfo()) {
         WRITE_LOG(LOG_FATAL, "LoadPrivateKeyInfo failed.");
+        ClearPublicKeyInfo();
         return false;
     }
 
     if (pubKey == nullptr) {
+        ClearPublicKeyInfo();
+        ClearPrivateKeyInfo();
         return false;
     }
 

@@ -284,21 +284,27 @@ int HdcDaemonApp::RemoveDir(const string &dir)
 
 void HdcDaemonApp::RemovePath(const string &path)
 {
+    if (path.empty() || path == "." || path == ".." || path == "/") {
+        WRITE_LOG(LOG_WARN, "RemovePath invalid path:%s", Hdc::MaskString(path).c_str());
+        return;
+    }
+    char resolvedPath[PATH_MAX] = {0};
+    if (realpath(path.c_str(), resolvedPath) == nullptr) {
+        WRITE_LOG(LOG_WARN, "RemovePath realpath failed path:%s", Hdc::MaskString(path).c_str());
+        return;
+    }
     struct stat st;
-    if (lstat(path.c_str(), &st) == -1) {
-        WRITE_LOG(LOG_WARN, "lstat failed path:%s", Hdc::MaskString(path).c_str());
+    if (lstat(resolvedPath, &st) == -1) {
+        WRITE_LOG(LOG_WARN, "lstat failed path:%s", Hdc::MaskString(std::string(resolvedPath)).c_str());
         return;
     }
     if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
-        if (unlink(path.c_str()) != 0) {
+        if (unlink(resolvedPath) != 0) {
             WRITE_LOG(LOG_FATAL, "Failed to unlink file or symlink, error is :%s", strerror(errno));
         }
     } else if (S_ISDIR(st.st_mode)) {
-        if (path == "." || path == "..") {
-            return;
-        }
-        int rc = RemoveDir(path);
-        WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, Hdc::MaskString(path).c_str());
+        int rc = RemoveDir(resolvedPath);
+        WRITE_LOG(LOG_INFO, "RemoveDir rc:%d path:%s", rc, Hdc::MaskString(std::string(resolvedPath)).c_str());
     }
 }
 

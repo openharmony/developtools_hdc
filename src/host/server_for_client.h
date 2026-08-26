@@ -82,6 +82,7 @@ private:
     uv_pipe_t udsListen;
 #endif
     uv_tcp_t tcpListen;
+    bool tcpListenInitialized;
     void *clsServer;
 
     struct HostReceivePermit {

@@ -161,7 +161,7 @@ void HdcHostApp::CheckMaster(CtxFile *context)
 bool HdcHostApp::CheckInstallContinue(AppModType mode, const char *msg)
 {
     if (msg == nullptr) {
-        LogMsg(LOG_FATAL, "msg is null");
+        LogMsg(MSG_OK, "msg is null");
         return false;
     }
     string modeDesc;

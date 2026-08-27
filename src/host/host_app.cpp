@@ -160,6 +160,10 @@ void HdcHostApp::CheckMaster(CtxFile *context)
 
 bool HdcHostApp::CheckInstallContinue(AppModType mode, const char *msg)
 {
+    if (msg == nullptr) {
+        LogMsg(MSG_ERROR, "msg is null");
+        return false;
+    }
     string modeDesc;
     switch (mode) {
         case APPMOD_INSTALL:

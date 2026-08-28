@@ -152,6 +152,7 @@ void HdcSecretManage::ClearPrivateKeyInfo()
         return;
     }
     EVP_PKEY_free(privKey);
+    privKey = nullptr;
 }
 
 bool HdcSecretManage::LoadPublicKeyInfo()
@@ -208,6 +209,7 @@ void HdcSecretManage::ClearPublicKeyInfo()
         return;
     }
     EVP_PKEY_free(pubKey);
+    pubKey = nullptr;
 }
 
 bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsigned char> &signature, size_t &reqLen)

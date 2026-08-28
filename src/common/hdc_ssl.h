@@ -47,6 +47,7 @@ public:
     }
 
 private:
+    static constexpr int MAX_SSL_BUFFER_SIZE = 16 * 1024 * 1024; // 16MB
     static int RsaPubkeyEncrypt(const unsigned char *inBuf, int inLen,
         unsigned char *outBuf, int outBufSize, const string &pubkey);
     int DoSSLWrite(const int bufLen, uint8_t *bufPtr);

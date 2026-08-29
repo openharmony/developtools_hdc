@@ -579,6 +579,7 @@ bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t ch
         WRITE_LOG(LOG_FATAL, "%s", notifymsg.c_str());
         HandleAuthFailed(handshake, channelId, hSession, notifymsg);
         LogMsg(hSession->sessionId, channelId, MSG_INFO, "Please remove public key and private key, then try again");
+        return false;
     }
     return true;
 }

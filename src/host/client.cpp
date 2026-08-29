@@ -914,9 +914,13 @@ void HdcClient::BindLocalStd(HChannel hChannel)
 #endif
 
     WRITE_LOG(LOG_DEBUG, "setup stdio TTY mode");
-    if (uv_tty_init(loopMain, &hChannel->stdoutTty, STDOUT_FILENO, 0)
-        || uv_tty_init(loopMain, &hChannel->stdinTty, STDIN_FILENO, 1)) {
-        WRITE_LOG(LOG_DEBUG, "uv_tty_init failed");
+    if (uv_tty_init(loopMain, &hChannel->stdoutTty, STDOUT_FILENO, 0) != 0) {
+        WRITE_LOG(LOG_DEBUG, "uv_tty_init stdout failed");
+        return;
+    }
+    if (uv_tty_init(loopMain, &hChannel->stdinTty, STDIN_FILENO, 1) != 0) {
+        WRITE_LOG(LOG_DEBUG, "uv_tty_init stdin failed");
+        uv_close((uv_handle_t *)&hChannel->stdoutTty, nullptr);
         return;
     }
     hChannel->stdoutTty.data = hChannel;

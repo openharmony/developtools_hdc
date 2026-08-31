@@ -15,7 +15,10 @@
 
 #include "daemon_tcp.h"
 
-#include <cstdlib>
+#include <charconv>
+#include <cstdint>
+#include <string>
+#include <system_error>
 
 #include "arpa/inet.h"
 #include "netinet/in.h"
@@ -27,6 +30,26 @@
 #include "session.h"
 #include "system_depend.h"
 
+namespace {
+// persist.hdc.port is a persisted string; atoi overflow/junk wraps into uint16_t
+// (e.g. "70000" -> 4464, "-1" -> 65535) and can bind the daemon on the wrong port.
+bool ParsePersistPortU16(const std::string &text, uint16_t &out)
+{
+    if (text.empty()) {
+        return false;
+    }
+    uint16_t value = 0;
+    const char *first = text.data();
+    const char *last = first + text.size();
+    auto result = std::from_chars(first, last, value);
+    if (result.ec != std::errc() || result.ptr != last) {
+        return false;
+    }
+    out = value;
+    return true;
+}
+}  // namespace
+
 namespace Hdc {
 HdcDaemonTCP::HdcDaemonTCP(const bool serverOrDaemonIn, void *ptrMainBase)
     : HdcTCPBase(serverOrDaemonIn, ptrMainBase)
@@ -34,10 +57,12 @@ HdcDaemonTCP::HdcDaemonTCP(const bool serverOrDaemonIn, void *ptrMainBase)
     // If the listening value for the property setting is obtained, it will be 0 randomly assigned.
     string strTCPPort;
     SystemDepend::GetDevItem("persist.hdc.port", strTCPPort);
-    tcpListenPort = atoi(strTCPPort.c_str());
-    if (tcpListenPort <= 0) {
+    uint16_t port = 0;
+    if (!ParsePersistPortU16(strTCPPort, port) || port == 0) {
         WRITE_LOG(LOG_WARN, "persist.hdc.port is invalid, set default to 0");
         tcpListenPort = 0;
+    } else {
+        tcpListenPort = port;
     }
 }
 

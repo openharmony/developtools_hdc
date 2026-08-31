@@ -534,6 +534,15 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
     uint8_t flag = 1;
     string &sNodeCfg = ctxPoint->localArgs[1];
     string resolvedPath = Base::CanonicalizeSpecPath(sNodeCfg);
+    if(resolvedPath.empty()){
+        ctxPoint->lastError = "Invalid path : failed to resolve path";
+        return false;
+    }
+    if(resolvedPath.find("/dev/")!=0){
+        ctxPoint->lastError = "Invalid path : only /dev/ devices are allowed";
+        WRITE_LOG(LOG_FATAL, "SetupDevicePoint: Path not in /dev/: %s", resolvedPath.c_str());
+        return false;
+    }
     if ((ctxPoint->fd = open(resolvedPath.c_str(), O_RDWR)) < 0) {
         ctxPoint->lastError = "Open unix-dev failed";
         flag = -1;

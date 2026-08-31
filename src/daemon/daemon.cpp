@@ -161,7 +161,9 @@ void HdcDaemon::TryStopInstance()
         ((HdcDaemonUART *)clsUARTServ)->Stop();
     }
 #endif
-    ((HdcJdwp *)clsJdwp)->Stop();
+    if (clsJdwp) {
+        ((HdcJdwp *)clsJdwp)->Stop();
+    }
     // workaround temply remove MainLoop instance clear
     ReMainLoopForInstanceClear();
     WRITE_LOG(LOG_DEBUG, "Stop loopmain");

@@ -641,7 +641,7 @@ int HdcHostUSB::SubmitUsbBio(HSession hSession, bool sendOrRecv, uint8_t *buf, i
     HostUSBEndpoint *ep = nullptr;
 
     if (sendOrRecv) {
-        timeout = GLOBAL_TIMEOUT * TIME_BASE;
+        timeout = USB_SEND_TIMEOUT * TIME_BASE;
         ep = &hUSB->hostBulkOut;
     } else {
         timeout = 0;  // infinity

@@ -108,16 +108,29 @@ void HdcDaemonTCP::RecvUDPEntry(const sockaddr *addrSrc, uv_udp_t *handle, const
     TransmitConfig(addrSrc, handle);
 }
 
-void HdcDaemonTCP::SetUDPListen()
+int HdcDaemonTCP::SetUDPListen()
 {
     struct sockaddr_in addr;
     HdcSessionBase *ptrConnect = (HdcSessionBase *)clsMainBase;
     // udp broadcast
     servUDP.data = this;
-    uv_udp_init(&ptrConnect->loopMain, &servUDP);
-    uv_ip4_addr("0.0.0.0", DEFAULT_PORT, &addr);
-    uv_udp_bind(&servUDP, (const struct sockaddr *)&addr, UV_UDP_REUSEADDR);
-    uv_udp_recv_start(&servUDP, AllocStreamUDP, RecvUDP);
+    if (uv_udp_init(&ptrConnect->loopMain, &servUDP) != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_udp_init failed");
+        return ERR_API_FAIL;
+    }
+    if (uv_ip4_addr("0.0.0.0", DEFAULT_PORT, &addr) != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_ip4_addr failed");
+        return ERR_API_FAIL;
+    }
+    if (uv_udp_bind(&servUDP, (const struct sockaddr *)&addr, UV_UDP_REUSEADDR) != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_udp_bind failed");
+        return ERR_API_FAIL;
+    }
+    if (uv_udp_recv_start(&servUDP, AllocStreamUDP, RecvUDP) != 0) {
+        WRITE_LOG(LOG_FATAL, "uv_udp_recv_start failed");
+        return ERR_API_FAIL;
+    }
+    return RET_SUCCESS;
 }
 
 // Set the daemon-side TCP listening
@@ -150,7 +163,10 @@ int HdcDaemonTCP::SetTCPListen()
 int HdcDaemonTCP::Initial()
 {
     WRITE_LOG(LOG_INFO, "HdcDaemonTCP init");
-    SetUDPListen();
+    if (SetUDPListen() != RET_SUCCESS) {
+        WRITE_LOG(LOG_FATAL, "UDP listen failed");
+        return ERR_GENERIC;
+    }
     if (SetTCPListen() != RET_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "TCP listen failed");
         return ERR_GENERIC;

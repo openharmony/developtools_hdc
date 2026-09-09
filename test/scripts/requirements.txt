@@ -8,3 +8,4 @@ pytest-repeat
 setuptools
 Jinja2
 requests
+pywinpty; sys_platform == "win32"

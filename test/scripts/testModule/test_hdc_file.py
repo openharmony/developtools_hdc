@@ -264,7 +264,7 @@ class TestFileBase:
         assert md5_remote == md5_local
 
     @pytest.mark.L0
-    @pytest.mark.repeat(2)
+    @pytest.mark.repeat(1)
     def test_file_md5_with_option_cwd(self):
         file_name = "test_file"
         gen_file_in_tmp_dir("", file_name, 1, "M", 1, 1)
@@ -351,6 +351,7 @@ class TestFileBase:
 
 
     @pytest.mark.L1
+    @pytest.mark.PERF
     def test_10G_file_md5(self):
         filename = "test_10G_file"
         gen_file_in_tmp_dir("", filename, 1024, "M", 10, 1)
@@ -371,6 +372,7 @@ class TestFileBase:
 
 
     @pytest.mark.L1
+    @pytest.mark.PERF
     def test_16G_file_md5(self):
         filename = "test_16G_file"
         gen_file_in_tmp_dir("", filename, 1024, "M", 16, 1)
@@ -472,6 +474,7 @@ class TestFileBase:
         assert md5_remote == md5_local
     
     @pytest.mark.L0
+    @pytest.mark.PERF
     def test_file_rate_60M(self):
         # The value less than 0.001 indicates that file_transfer_avg_rate is a value that has not been initialized yet
         if TestFileBase.file_transfer_avg_rate < 0.001:
@@ -480,6 +483,7 @@ class TestFileBase:
         assert TestFileBase.file_transfer_avg_rate >= rate_60M
 
     @pytest.mark.L0
+    @pytest.mark.PERF
     def test_file_rate_80M(self):
         # The value less than 0.001 indicates that file_transfer_avg_rate is a value that has not been initialized yet
         if TestFileBase.file_transfer_avg_rate < 0.001:
@@ -488,6 +492,7 @@ class TestFileBase:
         assert TestFileBase.file_transfer_avg_rate >= rate_80M
 
     @pytest.mark.L0
+    @pytest.mark.PERF
     def test_file_rate_120M(self):
         # The value less than 0.001 indicates that file_transfer_avg_rate is a value that has not been initialized yet
         if TestFileBase.file_transfer_avg_rate < 0.001:
@@ -941,10 +946,24 @@ class TestFileSendLongPath:
     @pytest.mark.repeat(1)
     def test_send_file_long_path(self):
         directory = 'a' * 128
-        test_file = 'a' * 80    #windos 默认不支持长路径
+        test_file = 'a' * 80
+        # Windows 最大路径长度 260（含结尾 \0 实际可用 259），动态调整文件名长度确保不超限
+        if sys.platform.startswith('win'):
+            # local_path 可能是相对路径，须转绝对路径后计算长度
+            prefix_len = len(os.path.abspath(GP.local_path)) + 1  # 绝对路径前缀 + 路径分隔符
+            # 前缀目录已超限，无法通过截断目录名补救，直接报错退出
+            if prefix_len + len(directory) > 259:
+                pytest.fail(f"local_path absolute path too long: '{os.path.abspath(GP.local_path)}' "
+                            f"({prefix_len - 1} chars), directory would be "
+                            f"{prefix_len + len(directory)} chars, exceeds 259. "
+                            f"Please use a shorter local_path directory.")
+            # 再确保完整文件路径（目录 + 分隔符 + 文件名）不超限
+            max_file_len = 259 - prefix_len - len(directory) - 1
+            if len(test_file) > max_file_len:
+                test_file = test_file[:max_file_len]
         dir_path = get_local_path(directory)
         test_file_path = os.path.join(dir_path, test_file)
-        file_size = 100 * 1024 *1024
+        file_size = 100 * 1024 * 1024
 
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)

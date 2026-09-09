@@ -910,11 +910,11 @@ HTaskInfo HdcSessionBase::AdminTask(const uint8_t op, HSession hSession, const u
         case OP_ADD: {
             auto it = mapTask.find(channelId);
             if (it != mapTask.end()) {
-                delete it->second;
-                it->second = hInput;
-            } else {
-                mapTask.emplace(channelId, hInput);
+                WRITE_LOG(LOG_WARN, "AdminTask OP_ADD duplicate channelId:%u sid:%s, reject to prevent UAF",
+                    channelId, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+                break;
             }
+            mapTask.emplace(channelId, hInput);
             hRet = hInput;
 
             WRITE_LOG(LOG_INFO, "AdminTask add task type:%u cid:%u sid:%s mapsize:%zu",
@@ -1680,6 +1680,45 @@ bool HdcSessionBase::AddTaskWithRetry(HSession hSession, TaskInformation* hTaskI
     return false;
 }
 
+HTaskInfo HdcSessionBase::CreateNewTask(HSession hSession, const uint32_t channelId, const uint16_t command,
+    bool masterTask, bool &ret)
+{
+    std::string sessionIdMaskStr = Hdc::MaskSessionIdToString(hSession->sessionId);
+    HTaskInfo existTask = AdminTask(OP_QUERY, hSession, channelId, nullptr);
+    if (existTask) {
+        WRITE_LOG(LOG_WARN, "DispatchTaskData channelId:%u already has task, reject duplicate init sid:%s",
+            channelId, sessionIdMaskStr.c_str());
+        ret = false;
+        return nullptr;
+    }
+    WRITE_LOG(LOG_INFO, "New HTaskInfo cid:%u sid:%s command:%u", channelId, sessionIdMaskStr.c_str(), command);
+    HTaskInfo hTaskInfo = new(std::nothrow) TaskInformation();
+    if (hTaskInfo == nullptr) {
+        WRITE_LOG(LOG_FATAL, "DispatchTaskData new hTaskInfo failed");
+        return nullptr;
+    }
+    hTaskInfo->channelId = channelId;
+    hTaskInfo->sessionId = hSession->sessionId;
+    hTaskInfo->runLoop = &hSession->childLoop;
+    hTaskInfo->runLoopStatus = &hSession->childLoopStatus;
+    hTaskInfo->serverOrDaemon = serverOrDaemon;
+    hTaskInfo->masterSlave = masterTask;
+    hTaskInfo->closeRetryCount = 0;
+    hTaskInfo->channelTask = false;
+    hTaskInfo->isCleared = false;
+
+    if (!AddTaskWithRetry(hSession, hTaskInfo)) {
+#ifndef HDC_HOST
+        LogMsg(hTaskInfo->sessionId, hTaskInfo->channelId,
+            MSG_FAIL, "hdc thread pool busy, may cause reset later");
+#endif
+        delete hTaskInfo;
+        ret = false;
+        return nullptr;
+    }
+    return hTaskInfo;
+}
+
 // Heavy and time-consuming work was putted in the new thread to do, and does
 // not occupy the main thread
 bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelId, const uint16_t command,
@@ -1693,31 +1732,8 @@ bool HdcSessionBase::DispatchTaskData(HSession hSession, const uint32_t channelI
     while (true) {
         // Some basic commands do not have a local task constructor. example: Interactive shell, some uinty commands
         if (NeedNewTaskInfo(command, masterTask)) {
-            WRITE_LOG(LOG_INFO, "New HTaskInfo cid:%u sid:%s command:%u", channelId,
-                sessionIdMaskStr.c_str(), command);
-            hTaskInfo = new(std::nothrow) TaskInformation();
+            hTaskInfo = CreateNewTask(hSession, channelId, command, masterTask, ret);
             if (hTaskInfo == nullptr) {
-                WRITE_LOG(LOG_FATAL, "DispatchTaskData new hTaskInfo failed");
-                break;
-            }
-            hTaskInfo->channelId = channelId;
-            hTaskInfo->sessionId = hSession->sessionId;
-            hTaskInfo->runLoop = &hSession->childLoop;
-            hTaskInfo->runLoopStatus = &hSession->childLoopStatus;
-            hTaskInfo->serverOrDaemon = serverOrDaemon;
-            hTaskInfo->masterSlave = masterTask;
-            hTaskInfo->closeRetryCount = 0;
-            hTaskInfo->channelTask = false;
-            hTaskInfo->isCleared = false;
-
-            if (!AddTaskWithRetry(hSession, hTaskInfo)) {
-#ifndef HDC_HOST
-                LogMsg(hTaskInfo->sessionId, hTaskInfo->channelId,
-                    MSG_FAIL, "hdc thread pool busy, may cause reset later");
-#endif
-                delete hTaskInfo;
-                hTaskInfo = nullptr;
-                ret = false;
                 break;
             }
         } else {

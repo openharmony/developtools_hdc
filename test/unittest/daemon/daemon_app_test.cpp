@@ -88,9 +88,31 @@ HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck, TestSize.Level3)
     delete taskInfo;
 }
 
-/*
- * New tests added below
- */
+HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck_InvalidOptionalName, TestSize.Level3)
+{
+    HTaskInfo taskInfo = new TaskInformation();
+
+    const std::vector<std::string> invalidNames = {
+        "",
+        "../etc/passwd",
+        "a/b.hap",
+        "a\\b.hap",
+        ".hidden",
+        "app..hap",
+    };
+
+    for (const auto &name : invalidNames) {
+        HdcDaemonApp daemonApp(taskInfo);
+        daemonApp.ctxNow.master = true;
+        daemonApp.ctxNow.transferConfig.optionalName = name;
+
+        uint8_t payload = 10;
+        daemonApp.MakeCtxForAppCheck(&payload, 10);
+        EXPECT_EQ(daemonApp.ctxNow.localPath, "") << "optionalName: " << name;
+    }
+
+    delete taskInfo;
+}
 
 HWTEST_F(HdcDaemonAppTest, Test_Tar2Dir_NoTar, TestSize.Level0)
 {

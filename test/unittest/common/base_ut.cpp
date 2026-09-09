@@ -1368,4 +1368,53 @@ HWTEST_F(BaseTest, GetCaller_Success, TestSize.Level1) {
                 caller == Base::Caller::DAEMON);
 }
 
+HWTEST_F(BaseTest, InitSubserverLogging_PathTraversal, TestSize.Level3) {
+    std::string tmpDir = Base::GetTmpDir();
+    std::string dirPath = tmpDir + ".hdc_subserver";
+
+    // Invalid: path traversal with ../
+    {
+        std::string target = tmpDir + "hdc_traversal_test.log";
+        remove(target.c_str());
+        Base::InitSubserverLogging("../hdc_traversal_test.log");
+        EXPECT_TRUE(access(target.c_str(), F_OK) != 0);
+        remove(target.c_str());
+    }
+
+    // Invalid: absolute path
+    {
+        std::string target = "/tmp/hdc_abs_test.log";
+        remove(target.c_str());
+        Base::InitSubserverLogging("/tmp/hdc_abs_test.log");
+        EXPECT_TRUE(access(target.c_str(), F_OK) != 0);
+        remove(target.c_str());
+    }
+
+    // Invalid: contains ..
+    {
+        std::string target = dirPath + Base::GetPathSep() + "app..log";
+        remove(target.c_str());
+        Base::InitSubserverLogging("app..log");
+        EXPECT_TRUE(access(target.c_str(), F_OK) != 0);
+        remove(target.c_str());
+    }
+
+    // Invalid: leading dot
+    {
+        std::string target = dirPath + Base::GetPathSep() + ".hidden.log";
+        remove(target.c_str());
+        Base::InitSubserverLogging(".hidden.log");
+        EXPECT_TRUE(access(target.c_str(), F_OK) != 0);
+        remove(target.c_str());
+    }
+
+    // Valid: normal filename — should succeed
+    {
+        std::string target = dirPath + Base::GetPathSep() + "hdc_valid_test.log";
+        remove(target.c_str());
+        Base::InitSubserverLogging("hdc_valid_test.log");
+        EXPECT_TRUE(access(target.c_str(), F_OK) == 0);
+        remove(target.c_str());
+    }
+}
 } // namespace Hdc

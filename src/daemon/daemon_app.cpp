@@ -54,7 +54,11 @@ void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
 {
     string dstPath = "/data/local/tmp/";
     string bufString(reinterpret_cast<char *>(payload), payloadSize);
-    SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
+    if (!SerialStruct::ParseFromString(ctxNow.transferConfig, bufString)) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK ParseFromString failed");
+        ctxNow.localPath = "";
+        return;
+    }
     // update transferconfig to main context
     ctxNow.master = false;
 #ifdef HDC_PCDEBUG
@@ -64,8 +68,24 @@ void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
     dstPath = tmpPath;
     dstPath += Base::GetPathSep();
 #endif
-    dstPath += ctxNow.transferConfig.optionalName;
-    ctxNow.localPath = dstPath;
+    const string &optName = ctxNow.transferConfig.optionalName;
+    if (optName.empty() || optName.find('/') != string::npos ||
+        optName.find('\\') != string::npos ||
+        optName.find("..") != string::npos || optName[0] == '.') {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected optionalName contains path traversal");
+        ctxNow.localPath = "";
+        return;
+    }
+    dstPath += optName;
+    string resolved = Base::CanonicalizeSpecPath(dstPath);
+#ifndef HDC_PCDEBUG
+    if (resolved.empty() || resolved.rfind("/data/local/tmp/", 0) != 0) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK path escapes staging dir");
+        ctxNow.localPath = "";
+        return;
+    }
+#endif
+    ctxNow.localPath = resolved.empty() ? dstPath : resolved;
     ctxNow.transferBegin = Base::GetRuntimeMSec();
     ctxNow.fileSize = ctxNow.transferConfig.fileSize;
     return;
@@ -110,13 +130,21 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
             }
             (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
             MakeCtxForAppCheck(payload, payloadSize);
+            if (ctxNow.localPath.empty()) {
+                WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected: invalid optionalName, channelId:%u",
+                    taskInfo->channelId);
+                delete openReq;
+                ret = false;
+                break;
+            }
             openReq->data = &ctxNow;
             ++refCount;
             WRITE_LOG(LOG_INFO, "CMD_APP_CHECK cid:%u sid:%s uv_fs_open local:%s remote:%s",
                 taskInfo->channelId, Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
                 Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
             uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(),
-                       UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH,
+                       UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_NOFOLLOW,
+                       S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH,
                        OnFileOpen);
             break;
         }
@@ -166,6 +194,12 @@ bool HdcDaemonApp::AsyncInstallFinish(int64_t exitStatus, const string result)
 void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, const string package)
 {
     ++refCount;
+    if (package.empty() || package.find("..") != string::npos ||
+        package.find("//") != string::npos) {
+        WRITE_LOG(LOG_FATAL, "PackageShell rejected: invalid package path");
+        --refCount;
+        return;
+    }
     // asynccmd Other processes, no RunningProtect protection
     chmod(package.c_str(), 0755);
     string doBuf;

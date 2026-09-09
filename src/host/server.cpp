@@ -585,7 +585,7 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
 
 bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &handshake)
 {
-    int connectValidation = 0; // 仅ohos平台获取该参数�?
+    int connectValidation = 0; // 仅ohos平台获取该参数
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
 #endif
@@ -738,16 +738,9 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, SessionHandShake &handshak
     return ret >= RET_SUCCESS;
 }
 
-bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handshake)
+static bool AllocPskOutBuffer(std::unique_ptr<unsigned char[]> &out)
 {
-    WRITE_LOG(LOG_INFO, "ServerSession SSL Init");
-    int payloadSize = handshake.buf.size();
-    uint8_t *payload = reinterpret_cast<uint8_t*>(handshake.buf.data());
-    if (payloadSize < BUF_SIZE_PSK) {
-        WRITE_LOG(LOG_WARN, "Encrypted Pre-Shared-Key payloadSize is %d", payloadSize);
-        return false;
-    }
-    std::unique_ptr<unsigned char[]> out(std::make_unique<unsigned char[]>(BUF_SIZE_DEFAULT2));
+    out = std::make_unique<unsigned char[]>(BUF_SIZE_DEFAULT2);
     if (!out) {
         WRITE_LOG(LOG_WARN, "new buffer failed");
         return false;
@@ -756,10 +749,15 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handsh
         WRITE_LOG(LOG_WARN, "ServerSessionSSLInit memset_s failed");
         return false;
     }
+    return true;
+}
+
+static HdcSSLBase *CreateHostSSL(HSession hSession)
+{
     SSLInfoPtr hSSLInfo = new (std::nothrow) HdcSSLInfo();
     if (!hSSLInfo) {
         WRITE_LOG(LOG_WARN, "new SSLInfoPtr failed");
-        return false;
+        return nullptr;
     }
     HdcSSLBase::SetSSLInfo(hSSLInfo, hSession);
     hSession->classSSL = new (std::nothrow) HdcHostSSL(hSSLInfo);
@@ -767,6 +765,27 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handsh
     HdcSSLBase *hssl = static_cast<HdcSSLBase *>(hSession->classSSL);
     if (!hssl) {
         WRITE_LOG(LOG_WARN, "new HdcHostSSL failed");
+        return nullptr;
+    }
+    return hssl;
+}
+
+bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handshake)
+{
+    WRITE_LOG(LOG_INFO, "ServerSession SSL Init");
+    int payloadSize = handshake.buf.size();
+    uint8_t *payload = reinterpret_cast<uint8_t*>(handshake.buf.data());
+    if (payloadSize < BUF_SIZE_PSK || payloadSize > BUF_SIZE_PSK_ENCRYPTED) {
+        WRITE_LOG(LOG_WARN, "Invalid PSK payload size %d, allowed [%d, %d]",
+                  payloadSize, BUF_SIZE_PSK, BUF_SIZE_PSK_ENCRYPTED);
+        return false;
+    }
+    std::unique_ptr<unsigned char[]> out;
+    if (!AllocPskOutBuffer(out)) {
+        return false;
+    }
+    HdcSSLBase *hssl = CreateHostSSL(hSession);
+    if (!hssl) {
         return false;
     }
     int outLen = hssl->RsaPrikeyDecrypt(reinterpret_cast<const unsigned char*>(payload),
@@ -781,8 +800,7 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handsh
             Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
         return false;
     }
-    int initRet = hssl->InitSSL();
-    if (initRet != RET_SUCCESS) {
+    if (hssl->InitSSL() != RET_SUCCESS) {
         WRITE_LOG(LOG_WARN, "InitSSL failed");
         return false;
     }
@@ -892,51 +910,113 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
         --hChannel->ref;
         return true;
     }
+    ret = DispatchChannelCommand(hChannel, hSession, command, payload, payloadSize);
+    --hChannel->ref;
+    return ret;
+}
+
+void HdcServer::HandleForwardSuccess(HChannel hChannel, HSession hSession, const uint32_t channelId,
+    uint8_t *payload, const int32_t payloadSize)
+{
+    if (payload == nullptr || payloadSize < 1) {
+        WRITE_LOG(LOG_WARN, "CMD_FORWARD_SUCCESS invalid payload, size:%d cid:%u", payloadSize, channelId);
+        return;
+    }
+    // payload format: "direction|taskCommand\0", payloadSize includes the null terminator.
+    // Bound the copy by payloadSize and truncate at the first NUL to safely mimic C-string semantics.
+    std::string payloadStr(reinterpret_cast<const char *>(payload), payloadSize);
+    size_t nulPos = payloadStr.find('\0');
+    if (nulPos != std::string::npos) {
+        payloadStr.resize(nulPos);
+    }
+    if (payloadStr.empty()) {
+        WRITE_LOG(LOG_WARN, "CMD_FORWARD_SUCCESS empty payload string, cid:%u", channelId);
+        return;
+    }
+    HdcForwardInformation di;
+    HForwardInfo pdiNew = &di;
+    pdiNew->channelId = channelId;
+    pdiNew->sessionId = hSession->sessionId;
+    pdiNew->connectKey = hSession->connectKey;
+    pdiNew->forwardDirection = payloadStr[0] == '1';
+    pdiNew->taskString = hSession->connectKey + "|" + payloadStr;
+    AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
+#ifdef __OHOS__
+    if (hChannel->isUds) {
+        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkUds);
+    } else {
+        Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);
+    }
+#else
+    Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
+#endif
+}
+
+void HdcServer::HandleKernelEcho(HChannel hChannel, HSession hSession, const uint32_t channelId,
+    uint8_t *payload, const int32_t payloadSize)
+{
+    if (payload == nullptr || payloadSize < 1) {
+        WRITE_LOG(LOG_WARN, "CMD_KERNEL_ECHO invalid payload, size:%d cid:%u", payloadSize, channelId);
+        return;
+    }
+    HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
+    MessageLevel level = static_cast<MessageLevel>(*payload);
+    string s(reinterpret_cast<char *>(payload + 1), payloadSize - 1);
+    sfc->EchoClient(hChannel, level, s.c_str());
+    WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d cid:%u sid:%s", payloadSize - 1, channelId,
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+}
+
+void HdcServer::HandleChannelClose(HSession hSession, const uint32_t channelId, uint8_t *payload,
+    const int32_t payloadSize)
+{
+    HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
+    WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%s", channelId,
+        Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+    // Forcibly closing the tcp handle here may result in incomplete data reception on the client side
+    ClearOwnTasks(hSession, channelId);
+    // crossthread free
+    sfc->PushAsyncMessage(channelId, ASYNC_FREE_CHANNEL, nullptr, 0);
+    if (payload == nullptr || payloadSize < 1) {
+        WRITE_LOG(LOG_WARN, "CMD_KERNEL_CHANNEL_CLOSE invalid payload, size:%d cid:%u", payloadSize, channelId);
+        return;
+    }
+    if (*payload != 0) {
+        --(*payload);
+        Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, payload, 1);
+    }
+}
+
+bool HdcServer::DispatchPassthroughTask(HChannel hChannel, const uint32_t channelId,
+    const uint16_t command, uint8_t *payload, const int32_t payloadSize)
+{
+    HSession hSessionByQuery = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
+    if (!hSessionByQuery) {
+        return false;
+    }
+    return DispatchTaskData(hSessionByQuery, channelId, command, payload, payloadSize);
+}
+
+bool HdcServer::DispatchChannelCommand(HChannel hChannel, HSession hSession,
+    const uint16_t command, uint8_t *payload, const int32_t payloadSize)
+{
+    const uint32_t channelId = hChannel->channelId;
+    HdcServerForClient *sfc = static_cast<HdcServerForClient *>(clsServerForClient);
     switch (command) {
         case CMD_KERNEL_ECHO_RAW: {  // Native shell data output
             sfc->EchoClientRaw(hChannel, payload, payloadSize);
             break;
         }
         case CMD_KERNEL_ECHO: {
-            MessageLevel level = static_cast<MessageLevel>(*payload);
-            string s(reinterpret_cast<char *>(payload + 1), payloadSize - 1);
-            sfc->EchoClient(hChannel, level, s.c_str());
-            WRITE_LOG(LOG_INFO, "CMD_KERNEL_ECHO size:%d cid:%u sid:%s", payloadSize - 1, channelId,
-                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+            HandleKernelEcho(hChannel, hSession, channelId, payload, payloadSize);
             break;
         }
         case CMD_KERNEL_CHANNEL_CLOSE: {
-            WRITE_LOG(LOG_INFO, "CMD_KERNEL_CHANNEL_CLOSE cid:%u sid:%s", channelId,
-                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
-            // Forcibly closing the tcp handle here may result in incomplete data reception on the client side
-            ClearOwnTasks(hSession, channelId);
-            // crossthread free
-            sfc->PushAsyncMessage(channelId, ASYNC_FREE_CHANNEL, nullptr, 0);
-            if (*payload != 0) {
-                --(*payload);
-                Send(hSession->sessionId, channelId, CMD_KERNEL_CHANNEL_CLOSE, payload, 1);
-            }
+            HandleChannelClose(hSession, channelId, payload, payloadSize);
             break;
         }
         case CMD_FORWARD_SUCCESS: {
-            // add to local
-            HdcForwardInformation di;
-            HForwardInfo pdiNew = &di;
-            pdiNew->channelId = channelId;
-            pdiNew->sessionId = hSession->sessionId;
-            pdiNew->connectKey = hSession->connectKey;
-            pdiNew->forwardDirection = (reinterpret_cast<char *>(payload))[0] == '1';
-            pdiNew->taskString = hSession->connectKey + "|" + reinterpret_cast<char *>(payload);
-            AdminForwardMap(OP_ADD, STRING_EMPTY, pdiNew);
-#ifdef __OHOS__
-            if (hChannel->isUds) {
-                Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkUds);
-            } else {
-                Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);
-            }
-#else
-            Base::TryCloseHandle((uv_handle_t *)&hChannel->hChildWorkTCP);  // detch client channel
-#endif
+            HandleForwardSuccess(hChannel, hSession, channelId, payload, payloadSize);
             break;
         }
         case CMD_FILE_INIT:
@@ -957,17 +1037,10 @@ bool HdcServer::FetchCommand(HSession hSession, const uint32_t channelId, const 
                 break;
             }
         default: {
-            HSession hSessionByQuery = AdminSession(OP_QUERY, hChannel->targetSessionId, nullptr);
-            if (!hSessionByQuery) {
-                ret = false;
-                break;
-            }
-            ret = DispatchTaskData(hSessionByQuery, channelId, command, payload, payloadSize);
-            break;
+            return DispatchPassthroughTask(hChannel, channelId, command, payload, payloadSize);
         }
     }
-    --hChannel->ref;
-    return ret;
+    return true;
 }
 
 void HdcServer::BuildForwardVisableLine(bool fullOrSimble, HForwardInfo hfi, string &echo)

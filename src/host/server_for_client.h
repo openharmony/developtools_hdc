@@ -31,6 +31,8 @@ public:
     void Stop();
     bool CheckHostReceivePermit(const HChannel hChannel, const uint32_t sessionId, uint8_t *payload,
         const int payloadSize);
+    bool CheckForwardEndpoint(const HChannel hChannel, const uint32_t sessionId, uint8_t *payload,
+        const int payloadSize);
     void RemoveHostReceivePermitsBySession(const uint32_t sessionId);
 
 protected:
@@ -77,6 +79,7 @@ private:
     bool RegisterHostReceivePermit(const HChannel hChannel, const string &parameters);
     void RemoveHostReceivePermit(const uint32_t channelId);
     void NotifyInstanceChannelFree(HChannel hChannel) override;
+    void StoreForwardEndpoint(const HChannel hChannel, const string &endpoint);
 
 #ifdef __OHOS__
     uv_pipe_t udsListen;
@@ -86,7 +89,8 @@ private:
 
     struct HostReceivePermit {
         uint32_t sessionId = 0;
-        string targetPath;
+        string targetPath;  // recv: expected local target path
+        string endpoint;    // forward: expected remote endpoint
     };
 
     std::mutex hostReceiveStateMutex;

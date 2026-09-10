@@ -394,6 +394,12 @@ bool HdcForwardBase::DetechForwardType(HCtxForward ctxPoint)
     if (sFType == "tcp") {
         ctxPoint->type = FORWARD_TCP;
     } else if (sFType == "dev") {
+        if (!Base::CheckPathTraversal(sNodeCfg)) {
+            WRITE_LOG(LOG_FATAL, "DetechForwardType: Path traversal detected in dev: %s",
+                      sNodeCfg.c_str());
+            ctxPoint->lastError = "Invalid path: path traversal not allowed";
+            return false;
+        }
         ctxPoint->type = FORWARD_DEVICE;
     } else if (sFType == "localabstract") {
         // daemon shell: /system/bin/socat abstract-listen:linux-abstract -
@@ -534,13 +540,13 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
     uint8_t flag = 1;
     string &sNodeCfg = ctxPoint->localArgs[1];
     string resolvedPath = Base::CanonicalizeSpecPath(sNodeCfg);
-    if(resolvedPath.empty()){
+    if (resolvedPath.empty()) {
         ctxPoint->lastError = "Invalid path : failed to resolve path";
         return false;
     }
-    if(resolvedPath.find("/dev/")!=0){
-        ctxPoint->lastError = "Invalid path : only /dev/ devices are allowed";
-        WRITE_LOG(LOG_FATAL, "SetupDevicePoint: Path not in /dev/: %s", resolvedPath.c_str());
+    if (!Base::IsDeviceFile(resolvedPath.c_str())) {
+        ctxPoint->lastError = "Invalid path : stat failed or not a device file";
+        WRITE_LOG(LOG_FATAL, "SetupDevicePoint: not a device file path:%s", resolvedPath.c_str());
         return false;
     }
     if ((ctxPoint->fd = open(resolvedPath.c_str(), O_RDWR)) < 0) {

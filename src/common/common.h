@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <string>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_set>
 #include <vector>

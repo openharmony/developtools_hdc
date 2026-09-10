@@ -58,6 +58,17 @@ void OnProxyTcpClosed(uv_handle_t *handle)
 {
     *static_cast<bool *>(handle->data) = true;
 }
+
+constexpr int FORWARD_PARAM_BUF_SIZE = 8; // 8: reserved param bits before forward endpoint
+
+std::string BuildForwardSlavePayload(const std::string &endpoint)
+{
+    // payload layout: 4 bytes serialized cid + 8 bytes reserved param bits + null-terminated endpoint
+    std::string payload(DWORD_SERIALIZE_SIZE + FORWARD_PARAM_BUF_SIZE, '\0');
+    payload.append(endpoint);
+    payload.push_back('\0');
+    return payload;
+}
 }
 
 void HdcHostReceivePermitTest::SetUp()
@@ -420,6 +431,153 @@ HWTEST_F(HdcHostReceivePermitTest, PermitFailureDoesNotRejectTaskCommand, TestSi
 
     uv_close(reinterpret_cast<uv_handle_t *>(&channel->hWorkTCP), nullptr);
     uv_run(&loopMain, UV_RUN_NOWAIT);
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, ForwardInitStoresRemoteEndpoint, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    TranslateCommand::FormatCommand command = {
+        CMD_FORWARD_INIT, "rport tcp:12345 tcp:4567", false
+    };
+
+    EXPECT_TRUE(serverForClient->TaskCommand(channel, &command));
+    ASSERT_EQ(serverForClient->hostReceivePermits.count(TEST_CHANNEL_ID), 1UL);
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].sessionId, TEST_SESSION_ID);
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].endpoint, "tcp:4567");
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointAcceptsMatchingSlave, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    std::string payload = BuildForwardSlavePayload("tcp:4567");
+
+    EXPECT_TRUE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsEndpointMismatch, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    std::string payload = BuildForwardSlavePayload("tcp:9999");
+
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsSessionMismatch, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    std::string payload = BuildForwardSlavePayload("tcp:4567");
+
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID + 1,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+    channel->targetSessionId = TEST_SESSION_ID + 2;
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsUnregisteredChannel, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    std::string payload = BuildForwardSlavePayload("tcp:4567");
+
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsInvalidPayload, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID, nullptr, 0));
+    std::string shortPayload(DWORD_SERIALIZE_SIZE + FORWARD_PARAM_BUF_SIZE, '\0');
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
+        reinterpret_cast<uint8_t *>(shortPayload.data()), static_cast<int>(shortPayload.size())));
+    std::string unterminatedPayload(DWORD_SERIALIZE_SIZE + FORWARD_PARAM_BUF_SIZE, '\0');
+    unterminatedPayload.append("tcp:4567");
+    EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
+        reinterpret_cast<uint8_t *>(unterminatedPayload.data()),
+        static_cast<int>(unterminatedPayload.size())));
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, ChannelFreeClearsForwardEndpoint, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    ASSERT_EQ(serverForClient->hostReceivePermits.count(TEST_CHANNEL_ID), 1UL);
+
+    serverForClient->NotifyInstanceChannelFree(channel);
+    EXPECT_TRUE(serverForClient->hostReceivePermits.empty());
+
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, SessionFreeClearsForwardEndpoint, TestSize.Level0)
+{
+    HChannel channelFirst = CreateChannel(0x11111111, TEST_SESSION_ID);
+    HChannel channelSecond = CreateChannel(0x22222222, TEST_SESSION_ID + 1);
+    serverForClient->StoreForwardEndpoint(channelFirst, "tcp:1111");
+    serverForClient->StoreForwardEndpoint(channelSecond, "tcp:2222");
+
+    serverForClient->RemoveHostReceivePermitsBySession(TEST_SESSION_ID);
+    EXPECT_EQ(serverForClient->hostReceivePermits.count(0x11111111), 0UL);
+    EXPECT_EQ(serverForClient->hostReceivePermits.count(0x22222222), 1UL);
+
+    delete channelFirst;
+    delete channelSecond;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, DispatcherRejectsUnauthorizedForwardSlave, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->AdminChannel(OP_ADD, TEST_CHANNEL_ID, channel);
+    HdcSession session;
+    session.sessionId = TEST_SESSION_ID;
+    session.mapTask = new std::map<uint32_t, HTaskInfo>();
+    std::string payload = BuildForwardSlavePayload("tcp:4567");
+
+    EXPECT_TRUE(server->FetchCommand(&session, TEST_CHANNEL_ID, CMD_FORWARD_ACTIVE_SLAVE,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+    EXPECT_TRUE(session.mapTask->empty());
+    EXPECT_EQ(channel->ref.load(), 0U);
+
+    serverForClient->AdminChannel(OP_REMOVE, TEST_CHANNEL_ID, nullptr);
+    delete channel;
+}
+
+HWTEST_F(HdcHostReceivePermitTest, DispatcherRejectsForwardSlaveSessionMismatch, TestSize.Level0)
+{
+    HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
+    serverForClient->AdminChannel(OP_ADD, TEST_CHANNEL_ID, channel);
+    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    HdcSession session;
+    session.sessionId = TEST_SESSION_ID + 1;
+    session.mapTask = new std::map<uint32_t, HTaskInfo>();
+    std::string payload = BuildForwardSlavePayload("tcp:4567");
+
+    EXPECT_TRUE(server->FetchCommand(&session, TEST_CHANNEL_ID, CMD_FORWARD_ACTIVE_SLAVE,
+        reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
+    EXPECT_TRUE(session.mapTask->empty());
+    EXPECT_EQ(channel->ref.load(), 0U);
+
+    serverForClient->AdminChannel(OP_REMOVE, TEST_CHANNEL_ID, nullptr);
     delete channel;
 }
 } // namespace Hdc

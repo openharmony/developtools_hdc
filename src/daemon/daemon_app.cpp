@@ -50,17 +50,24 @@ bool HdcDaemonApp::ReadyForRelease()
     return true;
 }
 
-void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
+bool HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
 {
-    string dstPath = "/data/local/tmp/";
+    if (payload == nullptr || payloadSize <= 0 || payloadSize > static_cast<int>(HDC_BUF_MAX_BYTES)) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK invalid payload or payloadSize:%d", payloadSize);
+        return false;
+    }
     string bufString(reinterpret_cast<char *>(payload), payloadSize);
     if (!SerialStruct::ParseFromString(ctxNow.transferConfig, bufString)) {
         WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK ParseFromString failed");
-        ctxNow.localPath = "";
-        return;
+        return false;
+    }
+    if (!Base::CheckOptionName(ctxNow.transferConfig.optionalName)) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected unsafe optionalName");
+        return false;
     }
     // update transferconfig to main context
     ctxNow.master = false;
+    string dstPath = "/data/local/tmp/";
 #ifdef HDC_PCDEBUG
     char tmpPath[256] = "";
     size_t size = 256;
@@ -68,27 +75,11 @@ void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
     dstPath = tmpPath;
     dstPath += Base::GetPathSep();
 #endif
-    const string &optName = ctxNow.transferConfig.optionalName;
-    if (optName.empty() || optName.find('/') != string::npos ||
-        optName.find('\\') != string::npos ||
-        optName.find("..") != string::npos || optName[0] == '.') {
-        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected optionalName contains path traversal");
-        ctxNow.localPath = "";
-        return;
-    }
-    dstPath += optName;
-    string resolved = Base::CanonicalizeSpecPath(dstPath);
-#ifndef HDC_PCDEBUG
-    if (resolved.empty() || resolved.rfind("/data/local/tmp/", 0) != 0) {
-        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK path escapes staging dir");
-        ctxNow.localPath = "";
-        return;
-    }
-#endif
-    ctxNow.localPath = resolved.empty() ? dstPath : resolved;
+    dstPath += ctxNow.transferConfig.optionalName;
+    ctxNow.localPath = dstPath;
     ctxNow.transferBegin = Base::GetRuntimeMSec();
     ctxNow.fileSize = ctxNow.transferConfig.fileSize;
-    return;
+    return true;
 }
 
 static void SplitCommand(uint8_t* payload, const int payloadSize, string& options, string& packages)
@@ -129,9 +120,8 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
                 return false;
             }
             (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
-            MakeCtxForAppCheck(payload, payloadSize);
-            if (ctxNow.localPath.empty()) {
-                WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected: invalid optionalName, channelId:%u",
+            if (!MakeCtxForAppCheck(payload, payloadSize)) {
+                WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected: invalid payload or path, channelId:%u",
                     taskInfo->channelId);
                 delete openReq;
                 ret = false;

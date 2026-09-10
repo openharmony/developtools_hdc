@@ -1417,4 +1417,26 @@ HWTEST_F(BaseTest, InitSubserverLogging_PathTraversal, TestSize.Level3) {
         remove(target.c_str());
     }
 }
+
+HWTEST_F(BaseTest, CheckOptionName, TestSize.Level3) {
+    // valid names
+    EXPECT_TRUE(Base::CheckOptionName("test.hap"));
+    EXPECT_TRUE(Base::CheckOptionName("a"));
+    EXPECT_TRUE(Base::CheckOptionName("123_bundle.hsp"));
+
+    // empty
+    EXPECT_FALSE(Base::CheckOptionName(""));
+
+    // contains path separator
+    EXPECT_FALSE(Base::CheckOptionName("a/b.hap"));
+    EXPECT_FALSE(Base::CheckOptionName("a\\b.hap"));
+
+    // path traversal
+    EXPECT_FALSE(Base::CheckOptionName("../etc/passwd"));
+    EXPECT_FALSE(Base::CheckOptionName("app..hap"));
+
+    // leading dot
+    EXPECT_FALSE(Base::CheckOptionName(".hidden"));
+    EXPECT_FALSE(Base::CheckOptionName("."));
+}
 } // namespace Hdc

@@ -638,10 +638,7 @@ namespace Base {
         if (logFileName.empty()) {
             return;
         }
-        if (logFileName.find('/') != string::npos ||
-            logFileName.find('\\') != string::npos ||
-            logFileName.find("..") != string::npos ||
-            logFileName[0] == '.') {
+        if (!CheckOptionName(logFileName)) {
             PrintMessage("InitSubserverLogging rejected: invalid log file name");
             return;
         }
@@ -3697,6 +3694,20 @@ void CloseOpenFd(void)
                 WRITE_LOG(LOG_WARN, "path traversal detected: %s", Hdc::MaskString(path).c_str());
                 return false;
             }
+        }
+        return true;
+    }
+    bool CheckOptionName(const std::string &name)
+    {
+        if (name.empty()) {
+            return false;
+        }
+        if (name.find('/') != std::string::npos ||
+            name.find('\\') != std::string::npos ||
+            name.find("..") != std::string::npos ||
+            name[0] == '.') {
+            WRITE_LOG(LOG_WARN, "invalid option name: %s", Hdc::MaskString(name).c_str());
+            return false;
         }
         return true;
     }

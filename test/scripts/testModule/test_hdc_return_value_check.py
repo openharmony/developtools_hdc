@@ -282,17 +282,16 @@ class TestHdcReturnValue:
                            "[Fail]There is no remote path")
         assert check_shell(f"file send -b com.package.unknown {get_local_path('small')} remote_path",
                            "[Fail][E005101] Invalid bundle name: com.package.unknown")
-
         check_shell(f"smode -r")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"file send {get_local_path('small')} /system/lib/")
         result = result.replace(get_end_symbol(), "")
         result = result.replace("\r", "")
-        assert (result == "[Fail]Error opening file: permission denied, path:/system/lib/small" or
+        assert_result = (result == "[Fail]Error opening file: permission denied, path:/system/lib/small" or
                 result == "[Fail]Error opening file: read-only file system, path:/system/lib/small")
-
         check_shell(f"smode")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+        assert assert_result
 
     """
     hdc fport tcp:xxxx tcp:xxxx

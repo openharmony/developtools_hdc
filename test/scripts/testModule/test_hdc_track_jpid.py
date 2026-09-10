@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
-from utils import GP, check_app_install, check_app_uninstall, check_cmd_block, \
+from utils import GP, check_app_install, check_app_uninstall, check_cmd_block_new, \
     check_hdc_cmd, check_shell, get_shell_result, load_gp, get_end_symbol
 
 
@@ -41,7 +41,7 @@ class TestHdcTrackJpid:
         pidstr = get_shell_result(f'shell "pidof {self.bundle_name}"').split(get_end_symbol())[0]
         track_cmd_p = f"{GP.hdc_exe} -t {GP.device_name} track-jpid -p"
         pattern_p = f"{pidstr} {self.bundle_name}"
-        assert check_cmd_block(track_cmd_p, pattern_p, timeout=2)
+        assert check_cmd_block_new(track_cmd_p, pattern_p, timeout=2)
         track_cmd_a = f"{GP.hdc_exe} -t {GP.device_name} track-jpid -a"
         pattern_a = f"{pidstr} {self.bundle_name} release"
-        assert check_cmd_block(track_cmd_a, pattern_a, timeout=2)
+        assert check_cmd_block_new(track_cmd_a, pattern_a, timeout=2)

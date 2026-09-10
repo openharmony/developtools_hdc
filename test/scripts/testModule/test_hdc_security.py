@@ -33,19 +33,10 @@ class TestHdcdSecurity:
     def teardown_class(self):
         pass
 
-    @pytest.mark.L0
-    @check_version("Ver: 3.1.0a")
-    def test_check_include_cpp(self):
-        product = get_shell_result(f'shell param get const.product.software.version')
-        cppstr = get_shell_result(f'shell strings $(which hdcd) | grep cpp')
-        if 'OpenHarmony' in product:
-            assert cppstr != ''
-        else:
-            assert cppstr == ''
 
     @pytest.mark.L0
     @check_version("Ver: 3.1.0a")
-    def test_check_source_file_leak(self):
+    def test_check_include_cpp(self):
         """校验 hdcd 编译产物中是否泄漏源码文件名和路径
 
         OpenHarmony 开源版：WRITE_LOG 使用 __FILE_NAME__，二进制中应有源文件名

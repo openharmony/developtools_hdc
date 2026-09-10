@@ -1,0 +1,50 @@
+# hdc version history (from git commits, HDC_VERSION_NUMBER in src/common/define.h)
+# format: version | commit time | commit hash | commit subject
+3.2.0f | 2026-07-16 11:44:05 +0800 | 825e0baa | fix host file receive permission checks
+3.2.0e | 2026-05-26 11:20:09 +0800 | 4b9d73ac | updater hdc version
+3.2.0d | 2026-03-03 11:18:41 +0800 | 5eebf793 | 更新hdc版本号
+3.2.0c | 2025-12-05 23:08:19 +0800 | 636f9143 | !2169 merge dev/lbs-event-report into master
+3.2.0b | 2025-12-04 09:40:11 +0800 | 5c71ac51 | add hisysevent code
+3.2.0c | 2025-11-25 09:31:50 +0800 | 605feb21 | command any for uart and version 3.2.0c
+3.2.0b | 2025-08-09 09:05:37 +0000 | 4ab69922 | update src/common/define.h.
+3.2.0a | 2025-07-19 16:28:04 +0800 | e7afacb6 | feat:更新hdc版本号到3.2.0a
+3.1.0g | 2025-06-20 10:53:18 +0000 | b92619ce | !1946 feat: support SSL with PreSharedKey TLS connect Merge pull request !1946 from liurantao/master
+3.1.0f | 2025-06-20 15:02:00 +0800 | 775da02a | feat: support SSL with PreSharedKey TLS connect.
+3.1.0g | 2025-06-17 16:43:36 +0800 | c6af4a11 | 修复心跳场景下sdk侧触发断链的问题，更新版本号到3.0.1g
+3.1.0f | 2025-05-16 13:33:37 +0800 | 01d0d415 | modify hdc version to 3.1.0f
+3.1.0e | 2024-12-30 08:47:39 +0000 | 17a9b12a | !1713 优化大文件传输时client内存消耗峰值 Merge pull request !1713 from 李帅/master
+3.1.0d | 2024-12-19 09:12:09 +0800 | ae3cd3e4 | file send big file, hdc client memory limit 32MB
+3.1.0e | 2024-12-05 22:37:04 +0800 | 1e519570 | feat: Non-interactive shell support option for bundle
+3.1.0d | 2024-11-04 07:36:10 +0000 | 9adda1b2 | !1624 优化session建立时排空usb通道数据的逻辑 Merge pull request !1624 from wenlong_12/20241021
+3.1.0c | 2024-11-04 09:41:19 +0800 | a0b6ddc9 | Optimize the logic of USB reading during session establishment
+3.1.0d | 2024-10-26 01:21:00 +0000 | 9abb2b60 | fix:  Resolve commit conflicts.
+3.1.0c | 2024-10-23 17:11:21 +0800 | c075d618 | feat: add error message for pull-up process of hdc server.
+3.1.0d | 2024-10-21 07:42:08 +0000 | 55ee4794 | update src/common/define.h.
+3.1.0c | 2024-10-12 18:48:29 +0800 | 62cfaecb | feat: upgrade the hdc version to 3.1.0c.
+3.1.0b | 2024-09-18 03:19:44 +0000 | 79d51d55 | !1555 更新hdc版本号到3.1.0b版本 Merge pull request !1555 from wenlong_12/20240914
+3.1.0a | 2024-09-18 03:19:15 +0000 | e19d350b | !1541 拆分hdc kill和hdc start的处理逻辑 Merge pull request !1541 from wenlong_12/20240909
+3.1.0b | 2024-09-14 14:06:48 +0800 | 2eff4519 | modify version to 3.1.0b
+3.1.0a | 2024-07-31 20:32:13 +0800 | 6b8365d5 | feat: expand the usb buf size.
+3.0.0e | 2024-07-06 13:55:19 +0800 | 1d51edef | modify version to 3.0.0e
+3.0.0d | 2024-06-06 19:57:25 +0800 | 82705153 | modify sdk kazhu
+3.0.0c | 2024-05-21 17:25:32 +0800 | 80f4e5c4 | modify hdc cpp version number to 3.0.0c
+3.0.0b | 2024-04-19 06:06:47 +0000 | 443234c1 | not support old hdc
+3.0.0a | 2024-03-21 08:40:05 +0000 | e922a6dd | update 3.0.0a version
+2.0.0a | 2023-11-28 11:52:40 +0800 | 8f9da26a | Update version to 2.0.0a
+1.3.0a | 2023-06-07 10:53:20 +0800 | 32bf92cb | update versin to 1.3.0
+1.2.0a | 2022-08-01 11:29:11 +0800 | 04b9a4b0 | release 1.2.0a
+1.1.2a | 2022-04-15 15:11:55 +0800 | b4664469 | update version
+1.1.1l | 2021-12-22 23:55:12 +0800 | 2aaadaae | host usb bio modify2
+1.1.1k | 2021-12-14 20:03:47 +0800 | a12d8cfd | hdc 1.1.1k release
+1.1.1j | 2021-12-02 12:27:07 +0000 | 002a7a23 | !163 Hdc JS: Add jdwp control support for JS Merge pull request !163 from yuxiaoyan_dream/cherry-pick-1637822563
+1.1.1i | 2021-12-02 19:44:54 +0800 | d84ccd91 | Hdc JS: Add jdwp control support for JS
+1.1.1j | 2021-11-25 11:58:46 +0800 | 211ea180 | refactor to fix unstable issues.
+1.1.1i | 2021-11-12 15:49:08 +0800 | 49763015 | enable log printing
+1.1.1h | 2021-11-03 16:36:25 +0800 | 24942d4c | sync fix relative path etc.
+1.1.1g | 2021-10-28 16:59:05 +0800 | d505ac99 | fix device enum issue.
+1.1.1f | 2021-09-22 18:34:20 +0800 | 5af8b17b | rework for stable issues
+1.1.1d | 2021-09-18 17:30:13 +0800 | 84c8b1ef | temp rework for stable issue
+1.1.1e | 2021-09-13 17:30:00 +0800 | a7a77bc3 | fix mac build issues
+1.1.1d | 2021-09-09 12:10:35 +0800 | 0dd943aa | refactor to fix stable issues
+1.1.1c | 2021-08-18 17:35:28 +0800 | a0af4892 | 202108 code update,Fix known errors
+1.1.0p | 2021-07-29 20:29:39 +0800 | 33d363ea | fix:file 0size;file path space;ctrl+c

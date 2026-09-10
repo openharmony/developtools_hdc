@@ -741,10 +741,6 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, SessionHandShake &handshak
 static bool AllocPskOutBuffer(std::unique_ptr<unsigned char[]> &out)
 {
     out = std::make_unique<unsigned char[]>(BUF_SIZE_DEFAULT2);
-    if (!out) {
-        WRITE_LOG(LOG_WARN, "new buffer failed");
-        return false;
-    }
     if (memset_s(out.get(), BUF_SIZE_DEFAULT2, 0, BUF_SIZE_DEFAULT2) != EOK) {
         WRITE_LOG(LOG_WARN, "ServerSessionSSLInit memset_s failed");
         return false;

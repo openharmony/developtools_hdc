@@ -237,8 +237,6 @@ private:
     void WorkThreadInitSession(HSession hSession, SessionHandShake &handshake);
     uint32_t GetSessionPseudoUid();
     bool NeedNewTaskInfo(const uint16_t command, bool &masterTask);
-    HTaskInfo CreateNewTask(HSession hSession, const uint32_t channelId, const uint16_t command,
-        bool masterTask, bool &ret);
     void StartHeartbeatWork(HSession hSession);
     void SetFeature(SessionHandShake &handshake, const uint8_t connType);
     void StopHeartbeatWork(HSession hSession);

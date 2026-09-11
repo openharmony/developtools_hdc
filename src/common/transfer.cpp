@@ -802,91 +802,69 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
 {
     string localPathBackup = localPath;
     if (ctxNow.targetDirNotExist) {
-        // If target directory not exist, the first layer directory from master should remove
-        if (optName.find('/') != string::npos) {
-            optName = optName.substr(optName.find('/') + 1);
-        } else if (optName.find('\\') != string::npos) {
-            optName = optName.substr(optName.find('\\') + 1);
+        size_t sepPos = optName.find('/');
+        if (sepPos == string::npos) {
+            sepPos = optName.find('\\');
+        }
+        if (sepPos != string::npos) {
+            optName = optName.substr(sepPos + 1);
         }
     }
-    vector<string> dirsOfOptName;
 
-    if (optName.find('/') != string::npos) {
-        Base::SplitString(optName, "/", dirsOfOptName);
-    } else if (optName.find('\\') != string::npos) {
-        Base::SplitString(optName, "\\", dirsOfOptName);
-    } else {
-        if (Base::GetCaller() == Base::Caller::CLIENT) {
-            WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", optName.c_str());
-        } else {
+    // Determine path separator
+    char sep = '/';
+    if (optName.find('/') == string::npos) {
+        sep = '\\';
+        if (optName.find('\\') == string::npos) {
             WRITE_LOG(LOG_DEBUG, "No need create dir for file = %s", Hdc::MaskString(optName).c_str());
+            return true;
         }
-        return true;
     }
+
+    vector<string> dirsOfOptName;
+    Base::SplitString(optName, string(1, sep), dirsOfOptName);
 
     // If filename still include dir, try create each layer
     optName = dirsOfOptName.back();
     dirsOfOptName.pop_back();
 
-    for (auto s : dirsOfOptName) {
-        // 拒绝路径遍历和无效目录名
-        if (!Base::CheckPathTraversal(s)) {
-            WRITE_LOG(LOG_WARN, "CheckFilename path traversal detected in optName component: %s",
-                Hdc::MaskString(s).c_str());
-            errStr = "Invalid directory name in path: " + s;
-            return false;
-        }
-        // 拒绝空目录名
-        if (s.empty()) {
-            WRITE_LOG(LOG_WARN, "CheckFilename empty directory name in optName");
-            errStr = "Empty directory name in path";
-            return false;
-        }
+    for (auto &s : dirsOfOptName) {
         // Add each layer directory to localPath
         localPath = localPath + Base::GetPathSep() + s;
         if (!Base::TryCreateDirectory(localPath, errStr)) {
             return false;
         }
-        if (ctxNow.fileModeSync) {
-            string resolvedPath = Base::CanonicalizeSpecPath(localPath);
-            auto pos = resolvedPath.find(localPathBackup);
-            if (pos == 0) {
-                string shortPath = resolvedPath.substr(localPathBackup.size());
-                if (shortPath.at(0) == Base::GetPathSep()) {
-                    shortPath = shortPath.substr(1);
-                }
-                if (Base::GetCaller() == Base::Caller::CLIENT) {
-                    WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, shortPath.c_str());
-                } else {
-                    WRITE_LOG(LOG_DEBUG, "pos = %zu, shortPath = %s", pos, Hdc::MaskString(shortPath).c_str());
-                }
-
-                // set mode
-                auto it = ctxNow.dirModeMap.find(shortPath);
-                if (it != ctxNow.dirModeMap.end()) {
-                    auto mode = it->second;
-                    uv_fs_t fs = {};
-                    uv_fs_chmod(nullptr, &fs, localPath.c_str(), mode.perm, nullptr);
-                    uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.uId, mode.gId, nullptr);
-                    uv_fs_req_cleanup(&fs);
-#if (!(defined(HOST_MINGW) || defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
-                    if (!mode.context.empty()) {
-                        WRITE_LOG(LOG_DEBUG, "setfilecon from master = %s", mode.context.c_str());
-                        setfilecon(localPath.c_str(), mode.context.c_str());
-                    }
-#endif
-                }
-            }
+        if (!ctxNow.fileModeSync) {
+            continue;
         }
+        // Sync directory mode
+        string resolvedPath = Base::CanonicalizeSpecPath(localPath);
+        auto pos = resolvedPath.find(localPathBackup);
+        if (pos != 0) {
+            continue;
+        }
+        string shortPath = resolvedPath.substr(localPathBackup.size());
+        if (!shortPath.empty() && shortPath.at(0) == Base::GetPathSep()) {
+            shortPath = shortPath.substr(1);
+        }
+        auto it = ctxNow.dirModeMap.find(shortPath);
+        if (it == ctxNow.dirModeMap.end()) {
+            continue;
+        }
+        auto mode = it->second;
+        uv_fs_t fs = {};
+        uv_fs_chmod(nullptr, &fs, localPath.c_str(), mode.perm, nullptr);
+        uv_fs_chown(nullptr, &fs, localPath.c_str(), mode.uId, mode.gId, nullptr);
+        uv_fs_req_cleanup(&fs);
+#if (!(defined(HOST_MINGW) || defined(HOST_MAC))) && defined(SURPPORT_SELINUX)
+        if (!mode.context.empty()) {
+            setfilecon(localPath.c_str(), mode.context.c_str());
+        }
+#endif
     }
 
-    if (Base::GetCaller() == Base::Caller::CLIENT) {
-        WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
-                  localPath.c_str(), optName.c_str());
-    } else {
-        WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
-                  Hdc::MaskString(localPath).c_str(), optName.c_str());
-    }
+    WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
+              Hdc::MaskString(localPath).c_str(), Hdc::MaskString(optName).c_str());
     return true;
 }
 

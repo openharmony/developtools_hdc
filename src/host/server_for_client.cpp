@@ -1639,11 +1639,10 @@ bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaem
 bool HdcServerForClient::IsNeedInterceptCommand()
 {
     std::string out;
-    SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out);
-    if (out.empty() || out == "false") {
-        return false;
+    if (!SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out)) {
+        return true;  // fail-closed: 读取失败时默认拦截
     }
-    return true;
+    return !out.empty() && out != "false";
 }
 #endif
 }  // namespace Hdc

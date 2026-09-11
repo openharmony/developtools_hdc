@@ -232,12 +232,56 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
 
 bool HdcFile::IsPathInsideSandbox(const string &path, const string &appDir)
 {
+    // 先进行快速的字符串前缀检查作为初步过滤
     if (path.size() < appDir.size()) {
         return false;
     }
-    string resolvedPath = path + Base::GetPathSep();
-    string appDirPath = appDir + Base::GetPathSep();
-    return (strncmp(resolvedPath.c_str(), appDirPath.c_str(), appDirPath.size()) == 0);
+    string pathSep = string(1, Base::GetPathSep());
+    string resolvedPathStr = path + pathSep;
+    string appDirPathStr = appDir + pathSep;
+    if (strncmp(resolvedPathStr.c_str(), appDirPathStr.c_str(), appDirPathStr.size()) != 0) {
+        return false;
+    }
+
+    // 使用 realpath 解析真实路径，防止符号链接逃逸
+    string canonicalAppDir = Base::CanonicalizeSpecPath(const_cast<string&>(appDir));
+    if (canonicalAppDir.empty()) {
+        WRITE_LOG(LOG_WARN, "IsPathInsideSandbox CanonicalizeSpecPath appDir failed: %s", appDir.c_str());
+        return false;
+    }
+
+    // 尝试解析目标路径
+    string canonicalTarget = Base::CanonicalizeSpecPath(const_cast<string&>(path));
+    if (!canonicalTarget.empty()) {
+        // 文件存在，解析成功
+        string canonicalTargetPath = canonicalTarget + pathSep;
+        string canonicalAppDirPath = canonicalAppDir + pathSep;
+        if (canonicalTargetPath.compare(0, canonicalAppDirPath.size(), canonicalAppDirPath) == 0) {
+            return true;
+        }
+        WRITE_LOG(LOG_WARN, "IsPathInsideSandbox symlink escape: %s -> %s, appDir: %s",
+            path.c_str(), canonicalTarget.c_str(), canonicalAppDir.c_str());
+        return false;
+    }
+
+    // 文件不存在，解析父目录
+    size_t lastSep = path.rfind(Base::GetPathSep());
+    if (lastSep == string::npos || lastSep == 0) {
+        // 无法解析父目录，但字符串前缀检查已通过，允许操作
+        return true;
+    }
+    string parentDir = path.substr(0, lastSep);
+    string canonicalParent = Base::CanonicalizeSpecPath(parentDir);
+    if (!canonicalParent.empty()) {
+        string canonicalParentPath = canonicalParent + pathSep;
+        string canonicalAppDirPath = canonicalAppDir + pathSep;
+        if (canonicalParentPath.compare(0, canonicalAppDirPath.size(), canonicalAppDirPath) == 0) {
+            return true;
+        }
+        WRITE_LOG(LOG_WARN, "IsPathInsideSandbox symlink escape via parent: %s -> %s, appDir: %s",
+            path.c_str(), canonicalParent.c_str(), canonicalAppDir.c_str());
+    }
+    return false;
 }
 
 string HdcFile::PathSimplify(const string &path)
@@ -483,6 +527,8 @@ bool HdcFile::CheckBundleAndPath()
             WRITE_LOG(LOG_DEBUG, "SlaveCheck CheckSandboxSubPath false.");
             return false;
         }
+        // 使用经验证的 resolvedPath，防止符号链接逃逸
+        ctxNow.localPath = resolvedPath;
     } else if (!taskInfo->serverOrDaemon && ctxNow.bundleName.size() > 0) {
         LogMsg(MSG_FAIL, "[E005101] Invalid bundle name: %s",
             ctxNow.bundleName.c_str());
@@ -557,8 +603,9 @@ bool HdcFile::BeginFileOperations()
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%s uv_fs_open local:%s remote:%s", taskInfo->channelId,
         Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
         Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
-    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
-                        S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
+    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(),
+        UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_NOFOLLOW,
+            S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {
         WRITE_LOG(LOG_DEBUG, "uv_fs_open create rc:%d %s", rc, Hdc::MaskString(ctxNow.localPath).c_str());
     }

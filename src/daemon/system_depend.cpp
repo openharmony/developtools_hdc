@@ -77,6 +77,24 @@ bool CallDoReboot(const char *reason)
 
 bool RebootDevice(const string &cmd)
 {
+    // 白名单校验：仅允许预定义的重启目标
+    static const int kMaxRebootArgLen = 32;
+    if (cmd.size() > kMaxRebootArgLen) {
+        WRITE_LOG(LOG_FATAL, "RebootDevice cmd too long: size=%zu", cmd.size());
+        return false;
+    }
+    // 检查控制字符和非法字符
+    for (char c : cmd) {
+        if (c < 0x20 || c == ',' || c == ';' || c == '&' || c == '|' || c == '$' || c == '`' || c == '\\') {
+            WRITE_LOG(LOG_FATAL, "RebootDevice invalid char in cmd: 0x%02x", static_cast<unsigned char>(c));
+            return false;
+        }
+    }
+    // 仅允许空值或预定义的重启目标
+    if (cmd != "" && cmd != "recovery" && cmd != "bootloader" && cmd != "fastboot" && cmd != "snapshots") {
+        WRITE_LOG(LOG_FATAL, "RebootDevice unsupported target: %s", Hdc::MaskString(cmd).c_str());
+        return false;
+    }
     string reason = "reboot";
     if (cmd != "") {
         reason += ",";

@@ -829,6 +829,19 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     dirsOfOptName.pop_back();
 
     for (auto s : dirsOfOptName) {
+        // 拒绝路径遍历和无效目录名
+        if (!Base::CheckPathTraversal(s)) {
+            WRITE_LOG(LOG_WARN, "CheckFilename path traversal detected in optName component: %s",
+                Hdc::MaskString(s).c_str());
+            errStr = "Invalid directory name in path: " + s;
+            return false;
+        }
+        // 拒绝空目录名
+        if (s.empty()) {
+            WRITE_LOG(LOG_WARN, "CheckFilename empty directory name in optName");
+            errStr = "Empty directory name in path";
+            return false;
+        }
         // Add each layer directory to localPath
         localPath = localPath + Base::GetPathSep() + s;
         if (!Base::TryCreateDirectory(localPath, errStr)) {

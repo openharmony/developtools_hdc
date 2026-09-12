@@ -134,7 +134,6 @@ namespace Base {
     string CanonicalizeSpecPath(string &src);
     bool TryCreateDirectory(const string &path, string &err);
     bool CheckPathTraversal(const std::string &path);
-    bool CheckOptionName(const std::string &name);
     // clang-format off
     const string StringFormat(const char * const formater, ...);
     const string StringFormat(const char * const formater, va_list &vaArgs);

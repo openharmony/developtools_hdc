@@ -738,9 +738,19 @@ bool HdcServer::ServerSSLHandshake(HSession hSession, SessionHandShake &handshak
     return ret >= RET_SUCCESS;
 }
 
-static bool AllocPskOutBuffer(std::unique_ptr<unsigned char[]> &out)
+struct PskBufferDeleter {
+    void operator()(unsigned char *p) const
+    {
+        if (p != nullptr) {
+            (void)memset_s(p, BUF_SIZE_DEFAULT2, 0, BUF_SIZE_DEFAULT2);
+        }
+        delete[] p;
+    }
+};
+
+static bool AllocPskOutBuffer(std::unique_ptr<unsigned char[], PskBufferDeleter> &out)
 {
-    out = std::make_unique<unsigned char[]>(BUF_SIZE_DEFAULT2);
+    out = std::unique_ptr<unsigned char[], PskBufferDeleter>(new unsigned char[BUF_SIZE_DEFAULT2]);
     if (memset_s(out.get(), BUF_SIZE_DEFAULT2, 0, BUF_SIZE_DEFAULT2) != EOK) {
         WRITE_LOG(LOG_WARN, "ServerSessionSSLInit memset_s failed");
         return false;
@@ -776,7 +786,7 @@ bool HdcServer::ServerSessionSSLInit(HSession hSession, SessionHandShake &handsh
                   payloadSize, BUF_SIZE_PSK, BUF_SIZE_PSK_ENCRYPTED);
         return false;
     }
-    std::unique_ptr<unsigned char[]> out;
+    std::unique_ptr<unsigned char[], PskBufferDeleter> out;
     if (!AllocPskOutBuffer(out)) {
         return false;
     }

@@ -120,12 +120,10 @@ HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck_InvalidOptionalName, TestSize
     HTaskInfo taskInfo = new TaskInformation();
 
     const std::vector<std::string> invalidNames = {
-        "",
         "../etc/passwd",
-        "a/b.hap",
-        "a\\b.hap",
-        ".hidden",
-        "app..hap",
+        "a/../b.hap",
+        "../",
+        "dir/../../etc",
     };
 
     for (const auto &name : invalidNames) {

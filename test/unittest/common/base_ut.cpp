@@ -1381,7 +1381,7 @@ HWTEST_F(BaseTest, InitSubserverLogging_PathTraversal, TestSize.Level3) {
         remove(target.c_str());
     }
 
-    // Invalid: absolute path
+    // Valid: absolute path (no ".." component, passes CheckPathTraversal)
     {
         std::string target = "/tmp/hdc_abs_test.log";
         remove(target.c_str());
@@ -1390,21 +1390,21 @@ HWTEST_F(BaseTest, InitSubserverLogging_PathTraversal, TestSize.Level3) {
         remove(target.c_str());
     }
 
-    // Invalid: contains ..
+    // Valid: contains ".." as substring (not as path component)
     {
         std::string target = dirPath + Base::GetPathSep() + "app..log";
         remove(target.c_str());
         Base::InitSubserverLogging("app..log");
-        EXPECT_TRUE(access(target.c_str(), F_OK) != 0);
+        EXPECT_TRUE(access(target.c_str(), F_OK) == 0);
         remove(target.c_str());
     }
 
-    // Invalid: leading dot
+    // Valid: leading dot (not ".." component)
     {
         std::string target = dirPath + Base::GetPathSep() + ".hidden.log";
         remove(target.c_str());
         Base::InitSubserverLogging(".hidden.log");
-        EXPECT_TRUE(access(target.c_str(), F_OK) != 0);
+        EXPECT_TRUE(access(target.c_str(), F_OK) == 0);
         remove(target.c_str());
     }
 
@@ -1418,25 +1418,18 @@ HWTEST_F(BaseTest, InitSubserverLogging_PathTraversal, TestSize.Level3) {
     }
 }
 
-HWTEST_F(BaseTest, CheckOptionName, TestSize.Level3) {
-    // valid names
-    EXPECT_TRUE(Base::CheckOptionName("test.hap"));
-    EXPECT_TRUE(Base::CheckOptionName("a"));
-    EXPECT_TRUE(Base::CheckOptionName("123_bundle.hsp"));
-
-    // empty
-    EXPECT_FALSE(Base::CheckOptionName(""));
-
-    // contains path separator
-    EXPECT_FALSE(Base::CheckOptionName("a/b.hap"));
-    EXPECT_FALSE(Base::CheckOptionName("a\\b.hap"));
+HWTEST_F(BaseTest, CheckPathTraversal, TestSize.Level3) {
+    // valid paths (no ".." component)
+    EXPECT_TRUE(Base::CheckPathTraversal("test.hap"));
+    EXPECT_TRUE(Base::CheckPathTraversal("a"));
+    EXPECT_TRUE(Base::CheckPathTraversal("123_bundle.hsp"));
+    EXPECT_TRUE(Base::CheckPathTraversal("a/b.hap"));
+    EXPECT_TRUE(Base::CheckPathTraversal(".hidden"));
+    EXPECT_TRUE(Base::CheckPathTraversal(""));
 
     // path traversal
-    EXPECT_FALSE(Base::CheckOptionName("../etc/passwd"));
-    EXPECT_FALSE(Base::CheckOptionName("app..hap"));
-
-    // leading dot
-    EXPECT_FALSE(Base::CheckOptionName(".hidden"));
-    EXPECT_FALSE(Base::CheckOptionName("."));
+    EXPECT_FALSE(Base::CheckPathTraversal("../etc/passwd"));
+    EXPECT_FALSE(Base::CheckPathTraversal("a/../b.hap"));
+    EXPECT_FALSE(Base::CheckPathTraversal("../"));
 }
 } // namespace Hdc

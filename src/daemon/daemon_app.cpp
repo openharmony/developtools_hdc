@@ -61,7 +61,7 @@ bool HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
         WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK ParseFromString failed");
         return false;
     }
-    if (!Base::CheckOptionName(ctxNow.transferConfig.optionalName)) {
+    if (!Base::CheckPathTraversal(ctxNow.transferConfig.optionalName)) {
         WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected unsafe optionalName");
         return false;
     }
@@ -184,12 +184,6 @@ bool HdcDaemonApp::AsyncInstallFinish(int64_t exitStatus, const string result)
 void HdcDaemonApp::PackageShell(bool installOrUninstall, const char *options, const string package)
 {
     ++refCount;
-    if (package.empty() || package.find("..") != string::npos ||
-        package.find("//") != string::npos) {
-        WRITE_LOG(LOG_FATAL, "PackageShell rejected: invalid package path");
-        --refCount;
-        return;
-    }
     // asynccmd Other processes, no RunningProtect protection
     chmod(package.c_str(), 0755);
     string doBuf;

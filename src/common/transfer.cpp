@@ -863,7 +863,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
 #endif
     }
 
-if (Base::GetCaller() == Base::Caller::CLIENT) {
+    if (Base::GetCaller() == Base::Caller::CLIENT) {
         WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
                   localPath.c_str(), optName.c_str());
     } else {

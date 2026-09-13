@@ -828,7 +828,7 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     optName = dirsOfOptName.back();
     dirsOfOptName.pop_back();
 
-    for (auto &s : dirsOfOptName) {
+    for (auto s : dirsOfOptName) {
         // Add each layer directory to localPath
         localPath = localPath + Base::GetPathSep() + s;
         if (!Base::TryCreateDirectory(localPath, errStr)) {
@@ -863,8 +863,13 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
 #endif
     }
 
-    WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
-              Hdc::MaskString(localPath).c_str(), Hdc::MaskString(optName).c_str());
+if (Base::GetCaller() == Base::Caller::CLIENT) {
+        WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
+                  localPath.c_str(), optName.c_str());
+    } else {
+        WRITE_LOG(LOG_DEBUG, "CheckFilename finish localPath:%s optName:%s",
+                  Hdc::MaskString(localPath).c_str(), optName.c_str());
+    }
     return true;
 }
 

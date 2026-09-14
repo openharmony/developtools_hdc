@@ -76,22 +76,24 @@ private:
     bool IsServerTransfer(HChannel hChannel, uint16_t cmdFlag, string &parameters);
     bool IsNeedInterceptCommand();
 #endif
-    bool RegisterHostReceivePermit(const HChannel hChannel, const string &parameters);
+    struct HostReceivePermit {
+        uint32_t sessionId = 0;
+        string target;
+    };
+
+    bool RegisterHostPermit(const HChannel hChannel, const string &parameters);
+    bool RegisterRecvPermit(const HChannel hChannel, int argc, char **argv);
+    bool RegisterForwardPermit(const HChannel hChannel, const int argc, char **argv);
+    bool StoreHostPermit(const uint32_t channelId, const HostReceivePermit &permit);
+    bool MatchHostPermit(const HChannel hChannel, const uint32_t sessionId, HostReceivePermit &permit);
     void RemoveHostReceivePermit(const uint32_t channelId);
     void NotifyInstanceChannelFree(HChannel hChannel) override;
-    void StoreForwardEndpoint(const HChannel hChannel, const string &endpoint);
 
 #ifdef __OHOS__
     uv_pipe_t udsListen;
 #endif
     uv_tcp_t tcpListen;
     void *clsServer;
-
-    struct HostReceivePermit {
-        uint32_t sessionId = 0;
-        string targetPath;  // recv: expected local target path
-        string endpoint;    // forward: expected remote endpoint
-    };
 
     std::mutex hostReceiveStateMutex;
     std::map<uint32_t, HostReceivePermit> hostReceivePermits;

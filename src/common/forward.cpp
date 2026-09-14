@@ -535,6 +535,7 @@ bool HdcForwardBase::SetupTCPPoint(HCtxForward ctxPoint)
     return true;
 }
 
+#ifndef _WIN32
 bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
 {
     uint8_t flag = 1;
@@ -572,6 +573,7 @@ bool HdcForwardBase::SetupDevicePoint(HCtxForward ctxPoint)
     SetupPointContinue(ctxPoint, flag);
     return true;
 }
+#endif
 
 bool HdcForwardBase::LocalAbstractConnect(uv_pipe_t *pipe, string &sNodeCfg)
 {

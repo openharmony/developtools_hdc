@@ -59,11 +59,10 @@ void OnProxyTcpClosed(uv_handle_t *handle)
     *static_cast<bool *>(handle->data) = true;
 }
 
-constexpr int FORWARD_PARAM_BUF_SIZE = 8; // 8: reserved param bits before forward endpoint
+constexpr int FORWARD_PARAM_BUF_SIZE = 8;
 
 std::string BuildForwardSlavePayload(const std::string &endpoint)
 {
-    // payload layout: 4 bytes serialized cid + 8 bytes reserved param bits + null-terminated endpoint
     std::string payload(DWORD_SERIALIZE_SIZE + FORWARD_PARAM_BUF_SIZE, '\0');
     payload.append(endpoint);
     payload.push_back('\0');
@@ -163,10 +162,10 @@ HWTEST_F(HdcHostReceivePermitTest, RegisterAbsoluteTargetWithoutCwd, TestSize.Le
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
 
-    EXPECT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    EXPECT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv /data/local/tmp/source /tmp/host-target"));
     ASSERT_EQ(serverForClient->hostReceivePermits.count(TEST_CHANNEL_ID), 1UL);
-    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].targetPath, "/tmp/host-target");
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].target, "/tmp/host-target");
 
     delete channel;
 }
@@ -175,9 +174,9 @@ HWTEST_F(HdcHostReceivePermitTest, RegisterRelativeTargetWithoutCwd, TestSize.Le
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
 
-    EXPECT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    EXPECT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv /data/local/tmp/source relative-target"));
-    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].targetPath, "relative-target");
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].target, "relative-target");
 
     delete channel;
 }
@@ -185,7 +184,7 @@ HWTEST_F(HdcHostReceivePermitTest, RegisterRelativeTargetWithoutCwd, TestSize.Le
 HWTEST_F(HdcHostReceivePermitTest, CheckPermitUsesChannelSessionBinding, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv -cwd /home/test/ /data/local/tmp/source relative-target"));
     std::string payload = SerializeFileConfig("/home/test/", "relative-target");
 
@@ -201,10 +200,10 @@ HWTEST_F(HdcHostReceivePermitTest, CheckPermitUsesChannelSessionBinding, TestSiz
 HWTEST_F(HdcHostReceivePermitTest, DuplicateRegistrationClearsPermit, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv /data/local/tmp/source /tmp/first-target"));
 
-    EXPECT_FALSE(serverForClient->RegisterHostReceivePermit(channel,
+    EXPECT_FALSE(serverForClient->RegisterHostPermit(channel,
         "recv /data/local/tmp/source /tmp/second-target"));
     EXPECT_TRUE(serverForClient->hostReceivePermits.empty());
 
@@ -214,7 +213,7 @@ HWTEST_F(HdcHostReceivePermitTest, DuplicateRegistrationClearsPermit, TestSize.L
 HWTEST_F(HdcHostReceivePermitTest, CheckPermitRejectsEscapingOptionalName, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv -cwd /home/test/ /data/local/tmp/source target"));
     std::string nestedPayload = SerializeFileConfig("/home/test/", "target", "source/nested.txt");
     std::string dottedNamePayload = SerializeFileConfig("/home/test/", "target", "source/a..b/nested.txt");
@@ -260,7 +259,7 @@ HWTEST_F(HdcHostReceivePermitTest, ProxyReceiveRegistersPermit, TestSize.Level0)
     auto permit = serverForClient->hostReceivePermits.find(TEST_CHANNEL_ID);
     EXPECT_NE(permit, serverForClient->hostReceivePermits.end());
     if (permit != serverForClient->hostReceivePermits.end()) {
-        EXPECT_EQ(permit->second.targetPath, "/home/test/relative-target");
+        EXPECT_EQ(permit->second.target, "/home/test/relative-target");
     }
 
     server->AdminDaemonMap(OP_REMOVE, channel->connectKey, daemonInfoPtr);
@@ -272,7 +271,7 @@ HWTEST_F(HdcHostReceivePermitTest, DispatcherRejectsMismatchedChannelSession, Te
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
     serverForClient->AdminChannel(OP_ADD, TEST_CHANNEL_ID, channel);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv -cwd /home/test/ /data/local/tmp/source relative-target"));
     HdcSession session;
     session.sessionId = TEST_SESSION_ID + 1;
@@ -328,7 +327,7 @@ HWTEST_F(HdcHostReceivePermitTest, DispatcherRejectsDaemonBugreportInitWithFileP
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
     serverForClient->AdminChannel(OP_ADD, TEST_CHANNEL_ID, channel);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv /data/local/tmp/source /tmp/host-target"));
     HdcSession session;
     session.sessionId = TEST_SESSION_ID;
@@ -351,7 +350,7 @@ HWTEST_F(HdcHostReceivePermitTest, ProxyFileCheckRequiresHostPermit, TestSize.Le
     ASSERT_NO_FATAL_FAILURE(InitWritableProxy(channel, peer));
 
     serverForClient->AdminChannel(OP_ADD, TEST_CHANNEL_ID, channel);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv -cwd /home/test/ /data/local/tmp/source safe"));
     HdcSession session;
     session.sessionId = TEST_SESSION_ID;
@@ -383,10 +382,10 @@ HWTEST_F(HdcHostReceivePermitTest, RegisterReceiveWithSupportedOptions, TestSize
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
 
-    EXPECT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    EXPECT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv -cwd /home/test/ -z -sync -a -m -b com.example.app source relative-target"));
     ASSERT_EQ(serverForClient->hostReceivePermits.count(TEST_CHANNEL_ID), 1UL);
-    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].targetPath, "/home/test/relative-target");
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].target, "/home/test/relative-target");
 
     delete channel;
 }
@@ -395,9 +394,9 @@ HWTEST_F(HdcHostReceivePermitTest, RegisterReceiveWithDefaultTarget, TestSize.Le
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
 
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv -cwd /home/test/ remote-source"));
-    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].targetPath, "/home/test/.");
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].target, "/home/test/.");
     std::string payload = SerializeFileConfig("/home/test/", ".");
     EXPECT_TRUE(serverForClient->CheckHostReceivePermit(channel, TEST_SESSION_ID,
         reinterpret_cast<uint8_t *>(payload.data()), static_cast<int>(payload.size())));
@@ -408,10 +407,10 @@ HWTEST_F(HdcHostReceivePermitTest, RegisterReceiveWithDefaultTarget, TestSize.Le
 HWTEST_F(HdcHostReceivePermitTest, FailedRegistrationClearsStalePermit, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    ASSERT_TRUE(serverForClient->RegisterHostReceivePermit(channel,
+    ASSERT_TRUE(serverForClient->RegisterHostPermit(channel,
         "recv /data/local/tmp/source /tmp/host-target"));
 
-    EXPECT_FALSE(serverForClient->RegisterHostReceivePermit(channel, "recv -cwd /home/test/ -b"));
+    EXPECT_FALSE(serverForClient->RegisterHostPermit(channel, "recv -cwd /home/test/ -b"));
     EXPECT_TRUE(serverForClient->hostReceivePermits.empty());
 
     delete channel;
@@ -444,7 +443,7 @@ HWTEST_F(HdcHostReceivePermitTest, ForwardInitStoresRemoteEndpoint, TestSize.Lev
     EXPECT_TRUE(serverForClient->TaskCommand(channel, &command));
     ASSERT_EQ(serverForClient->hostReceivePermits.count(TEST_CHANNEL_ID), 1UL);
     EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].sessionId, TEST_SESSION_ID);
-    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].endpoint, "tcp:4567");
+    EXPECT_EQ(serverForClient->hostReceivePermits[TEST_CHANNEL_ID].target, "tcp:4567");
 
     delete channel;
 }
@@ -452,7 +451,7 @@ HWTEST_F(HdcHostReceivePermitTest, ForwardInitStoresRemoteEndpoint, TestSize.Lev
 HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointAcceptsMatchingSlave, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    serverForClient->StoreHostPermit(TEST_CHANNEL_ID, {TEST_SESSION_ID, "tcp:4567"});
     std::string payload = BuildForwardSlavePayload("tcp:4567");
 
     EXPECT_TRUE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
@@ -464,7 +463,7 @@ HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointAcceptsMatchingSlave, Tes
 HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsEndpointMismatch, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    serverForClient->StoreHostPermit(TEST_CHANNEL_ID, {TEST_SESSION_ID, "tcp:4567"});
     std::string payload = BuildForwardSlavePayload("tcp:9999");
 
     EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID,
@@ -476,7 +475,7 @@ HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsEndpointMismatch, 
 HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsSessionMismatch, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    serverForClient->StoreHostPermit(TEST_CHANNEL_ID, {TEST_SESSION_ID, "tcp:4567"});
     std::string payload = BuildForwardSlavePayload("tcp:4567");
 
     EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID + 1,
@@ -502,7 +501,7 @@ HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsUnregisteredChanne
 HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsInvalidPayload, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    serverForClient->StoreHostPermit(TEST_CHANNEL_ID, {TEST_SESSION_ID, "tcp:4567"});
 
     EXPECT_FALSE(serverForClient->CheckForwardEndpoint(channel, TEST_SESSION_ID, nullptr, 0));
     std::string shortPayload(DWORD_SERIALIZE_SIZE + FORWARD_PARAM_BUF_SIZE, '\0');
@@ -520,7 +519,7 @@ HWTEST_F(HdcHostReceivePermitTest, CheckForwardEndpointRejectsInvalidPayload, Te
 HWTEST_F(HdcHostReceivePermitTest, ChannelFreeClearsForwardEndpoint, TestSize.Level0)
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
-    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    serverForClient->StoreHostPermit(TEST_CHANNEL_ID, {TEST_SESSION_ID, "tcp:4567"});
     ASSERT_EQ(serverForClient->hostReceivePermits.count(TEST_CHANNEL_ID), 1UL);
 
     serverForClient->NotifyInstanceChannelFree(channel);
@@ -533,8 +532,8 @@ HWTEST_F(HdcHostReceivePermitTest, SessionFreeClearsForwardEndpoint, TestSize.Le
 {
     HChannel channelFirst = CreateChannel(0x11111111, TEST_SESSION_ID);
     HChannel channelSecond = CreateChannel(0x22222222, TEST_SESSION_ID + 1);
-    serverForClient->StoreForwardEndpoint(channelFirst, "tcp:1111");
-    serverForClient->StoreForwardEndpoint(channelSecond, "tcp:2222");
+    serverForClient->StoreHostPermit(0x11111111, {TEST_SESSION_ID, "tcp:1111"});
+    serverForClient->StoreHostPermit(0x22222222, {TEST_SESSION_ID + 1, "tcp:2222"});
 
     serverForClient->RemoveHostReceivePermitsBySession(TEST_SESSION_ID);
     EXPECT_EQ(serverForClient->hostReceivePermits.count(0x11111111), 0UL);
@@ -566,7 +565,7 @@ HWTEST_F(HdcHostReceivePermitTest, DispatcherRejectsForwardSlaveSessionMismatch,
 {
     HChannel channel = CreateChannel(TEST_CHANNEL_ID, TEST_SESSION_ID);
     serverForClient->AdminChannel(OP_ADD, TEST_CHANNEL_ID, channel);
-    serverForClient->StoreForwardEndpoint(channel, "tcp:4567");
+    serverForClient->StoreHostPermit(TEST_CHANNEL_ID, {TEST_SESSION_ID, "tcp:4567"});
     HdcSession session;
     session.sessionId = TEST_SESSION_ID + 1;
     session.mapTask = new std::map<uint32_t, HTaskInfo>();

@@ -942,7 +942,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
     return ret;
 }
 
-bool HdcServerForClient::RegisterHostReceivePermit(const HChannel hChannel, const string &parameters)
+bool HdcServerForClient::RegisterHostPermit(const HChannel hChannel, const string &parameters)
 {
     int argc = 0;
     char **argv = Base::SplitCommandToArgs(parameters.c_str(), &argc);
@@ -950,32 +950,9 @@ bool HdcServerForClient::RegisterHostReceivePermit(const HChannel hChannel, cons
     string command = argsValid ? argv[0] : "";
     bool valid = false;
     if (command == "recv") {
-        // recv: register expected local target path for CMD_FILE_CHECK verifying
-        string cwd;
-        string lastPath;
-        size_t pathCount = 0;
-        valid = ParseHostReceiveArguments(argc, argv, cwd, lastPath, pathCount);
-        string targetPath;
-        if (valid) {
-            string localPath = pathCount == 1 ? "." : lastPath;
-            valid = ResolveHostReceiveTargetPath(cwd, localPath, targetPath);
-        }
-        if (valid) {
-            HostReceivePermit permit = {hChannel->targetSessionId, targetPath};
-            std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
-            if (!hostReceivePermits.emplace(hChannel->channelId, permit).second) {
-                hostReceivePermits.erase(hChannel->channelId);
-                WRITE_LOG(LOG_WARN, "Reject duplicate host receive permit cid:%u", hChannel->channelId);
-                valid = false;
-            }
-        } else {
-            WRITE_LOG(LOG_WARN, "Reject invalid host receive command cid:%u", hChannel->channelId);
-        }
+        valid = RegisterRecvPermit(hChannel, argc, argv);
     } else if (command == "rport" || command == "fport") {
-        // forward: the remote endpoint (last token) will be echoed back in
-        // CMD_FORWARD_ACTIVE_SLAVE, store it here for verifying
-        StoreForwardEndpoint(hChannel, argv[argc - 1]);
-        valid = true;
+        valid = RegisterForwardPermit(hChannel, argc, argv);
     } else if (!argsValid) {
         WRITE_LOG(LOG_WARN, "Reject invalid host receive command arguments cid:%u", hChannel->channelId);
     }
@@ -984,6 +961,61 @@ bool HdcServerForClient::RegisterHostReceivePermit(const HChannel hChannel, cons
     }
     delete[](reinterpret_cast<char *>(argv));
     return valid;
+}
+
+bool HdcServerForClient::RegisterRecvPermit(const HChannel hChannel, const int argc, char **argv)
+{
+    string cwd;
+    string lastPath;
+    size_t pathCount = 0;
+    bool valid = ParseHostReceiveArguments(argc, argv, cwd, lastPath, pathCount);
+    string targetPath;
+    if (valid) {
+        string localPath = pathCount == 1 ? "." : lastPath;
+        valid = ResolveHostReceiveTargetPath(cwd, localPath, targetPath);
+    }
+    if (valid) {
+        HostReceivePermit permit = {hChannel->targetSessionId, targetPath};
+        valid = StoreHostPermit(hChannel->channelId, permit);
+    } else {
+        WRITE_LOG(LOG_WARN, "Reject invalid host receive command cid:%u", hChannel->channelId);
+    }
+    return valid;
+}
+
+bool HdcServerForClient::RegisterForwardPermit(const HChannel hChannel, const int argc, char **argv)
+{
+    constexpr int kForwardArgCount = 3;
+    if (argc < kForwardArgCount) {
+        WRITE_LOG(LOG_WARN, "Reject invalid forward command arguments cid:%u argc:%d", hChannel->channelId, argc);
+        return false;
+    }
+    HostReceivePermit record = {hChannel->targetSessionId, argv[2]};
+    return StoreHostPermit(hChannel->channelId, record);
+}
+
+bool HdcServerForClient::StoreHostPermit(const uint32_t channelId, const HostReceivePermit &permit)
+{
+    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
+    bool stored = hostReceivePermits.emplace(channelId, permit).second;
+    if (stored) {
+        WRITE_LOG(LOG_DEBUG, "StoreHostPermit channelId:%u target:%s", channelId, permit.target.c_str());
+    } else {
+        WRITE_LOG(LOG_WARN, "Reject duplicate host permit cid:%u", channelId);
+    }
+    return stored;
+}
+
+bool HdcServerForClient::MatchHostPermit(const HChannel hChannel, const uint32_t sessionId, HostReceivePermit &permit)
+{
+    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
+    auto it = hostReceivePermits.find(hChannel->channelId);
+    if (it == hostReceivePermits.end() || it->second.sessionId != sessionId ||
+        hChannel->targetSessionId != sessionId) {
+        return false;
+    }
+    permit = it->second;
+    return true;
 }
 
 void HdcServerForClient::RemoveHostReceivePermit(const uint32_t channelId)
@@ -1017,17 +1049,10 @@ bool HdcServerForClient::CheckHostReceivePermit(const HChannel hChannel, const u
     uint32_t channelId = hChannel->channelId;
 
     HostReceivePermit permit;
-    {
-        std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
-
-        auto it = hostReceivePermits.find(channelId);
-        if (it == hostReceivePermits.end() || it->second.sessionId != sessionId ||
-            hChannel->targetSessionId != sessionId) {
-            WRITE_LOG(LOG_WARN, "Reject unmatched host receive permit cid:%u sid:%s", channelId,
-                Hdc::MaskSessionIdToString(sessionId).c_str());
-            return false;
-        }
-        permit = it->second;
+    if (!MatchHostPermit(hChannel, sessionId, permit)) {
+        WRITE_LOG(LOG_WARN, "Reject unmatched host receive permit cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
     }
 
     HdcTransferBase::TransferConfig config;
@@ -1048,20 +1073,12 @@ bool HdcServerForClient::CheckHostReceivePermit(const HChannel hChannel, const u
             Hdc::MaskSessionIdToString(sessionId).c_str());
         return false;
     }
-    if (targetPath != permit.targetPath) {
+    if (targetPath != permit.target) {
         WRITE_LOG(LOG_WARN, "Reject mismatched host receive target cid:%u sid:%s", channelId,
             Hdc::MaskSessionIdToString(sessionId).c_str());
         return false;
     }
     return true;
-}
-
-void HdcServerForClient::StoreForwardEndpoint(const HChannel hChannel, const string &endpoint)
-{
-    HostReceivePermit record = {hChannel->targetSessionId, "", endpoint};
-    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
-    hostReceivePermits[hChannel->channelId] = record;
-    WRITE_LOG(LOG_DEBUG, "StoreForwardEndpoint channelId:%u endpoint:%s", hChannel->channelId, endpoint.c_str());
 }
 
 bool HdcServerForClient::CheckForwardEndpoint(const HChannel hChannel, const uint32_t sessionId, uint8_t *payload,
@@ -1084,15 +1101,13 @@ bool HdcServerForClient::CheckForwardEndpoint(const HChannel hChannel, const uin
     }
     string receiveEndpoint(endpointInPayload, receiveLen);
 
-    std::lock_guard<std::mutex> lock(hostReceiveStateMutex);
-    auto it = hostReceivePermits.find(hChannel->channelId);
-    if (it == hostReceivePermits.end() || it->second.sessionId != sessionId ||
-        hChannel->targetSessionId != sessionId) {
+    HostReceivePermit permit;
+    if (!MatchHostPermit(hChannel, sessionId, permit)) {
         WRITE_LOG(LOG_WARN, "Reject unmatched forward endpoint permit cid:%u sid:%s", hChannel->channelId,
             Hdc::MaskSessionIdToString(sessionId).c_str());
         return false;
     }
-    if (it->second.endpoint != receiveEndpoint) {
+    if (permit.target != receiveEndpoint) {
         WRITE_LOG(LOG_FATAL, "Reject mismatched forward endpoint cid:%u sid:%s receive:%s", hChannel->channelId,
             Hdc::MaskSessionIdToString(sessionId).c_str(), receiveEndpoint.c_str());
         return false;
@@ -1111,11 +1126,11 @@ bool HdcServerForClient::TaskCommand(HChannel hChannel, void *formatCommandInput
         cmdFlag = "send ";
         sizeCmdFlag = 5;  // 5: cmdFlag send size
         HandleRemote(hChannel, formatCommand->parameters, RemoteType::REMOTE_FILE);
-        RegisterHostReceivePermit(hChannel, formatCommand->parameters);
+        RegisterHostPermit(hChannel, formatCommand->parameters);
     } else if (formatCommand->cmdFlag == CMD_FORWARD_INIT) {
         cmdFlag = "fport ";
         sizeCmdFlag = 6;  // 6: cmdFlag fport size
-        RegisterHostReceivePermit(hChannel, formatCommand->parameters);
+        RegisterHostPermit(hChannel, formatCommand->parameters);
     } else if (formatCommand->cmdFlag == CMD_APP_INIT) {
         cmdFlag = "install ";
         sizeCmdFlag = 8;  // 8: cmdFlag install size

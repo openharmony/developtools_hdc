@@ -263,13 +263,7 @@ namespace Base {
         return false;
     }
 #endif
-#ifdef _WIN32
-    inline bool IsDeviceFile(const char *path)
-    {
-        (void)path;
-        return false;
-    }
-#else
+#ifndef _WIN32
     inline bool IsDeviceFile(const char *path)
     {
         if (path == nullptr) {

@@ -551,12 +551,25 @@ void HdcServer::GetDaemonAuthType(HSession hSession, SessionHandShake &handshake
 #endif
     hSession->verifyType = AuthVerifyType::RSA_3072_SHA512;
     WRITE_LOG(LOG_INFO, "daemon auth type is rsa_3072_sha512 for %s session", sessionIdMaskStr.c_str());
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    auto encIt = tlvmap.find(TAG_ENCRYPT_TCP);
+    hSession->supportEncrypt = (encIt != tlvmap.end() && encIt->second == "1");
+    WRITE_LOG(LOG_INFO, "daemon encrypt-tcp negotiated %s for %s session",
+        hSession->supportEncrypt ? "yes" : "no", sessionIdMaskStr.c_str());
+#endif
 }
 
 bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handshake)
 {
     WRITE_LOG(LOG_INFO, "recive get publickey cmd");
     GetDaemonAuthType(hSession, handshake);
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (hSession->connType == CONN_TCP && Base::GetEncrpytTCPSwitch() && !hSession->supportEncrypt) {
+        WRITE_LOG(LOG_WARN, "daemon did not confirm encrypt-tcp negotiation for %s session, "
+            "enforcement deferred to HandServerAuth/ServerSessionHandshake",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+    }
+#endif
     int connectValidation = 0;
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
@@ -585,7 +598,7 @@ bool HdcServer::HandleAuthPubkeyMsg(HSession hSession, SessionHandShake &handsha
 
 bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &handshake)
 {
-    int connectValidation = 0; // 仅ohos平台获取该参数�?
+    int connectValidation = 0; // only ohos platform could get this param
 #ifdef HOST_OHOS
     connectValidation = HdcValidation::GetConnectValidationParam();
 #endif
@@ -613,6 +626,14 @@ bool HdcServer::HandleAuthSignatureMsg(HSession hSession, SessionHandShake &hand
 
 bool HdcServer::HandServerAuth(HSession hSession, SessionHandShake &handshake)
 {
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (hSession->connType == CONN_TCP && Base::GetEncrpytTCPSwitch()
+        && handshake.authType == AUTH_SIGNATURE) {
+        WRITE_LOG(LOG_FATAL, "reject plaintext auth-signature (downgrade) for session %s, encryption required",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+        return false;
+    }
+#endif
     switch (handshake.authType) {
         case AUTH_PUBLICKEY: {
             return HandleAuthPubkeyMsg(hSession, handshake);
@@ -818,6 +839,13 @@ bool HdcServer::ServerSessionHandshake(HSession hSession, uint8_t *payload, int 
         return true;
     }
     // handshake auth OK
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+    if (hSession->connType == CONN_TCP && Base::GetEncrpytTCPSwitch() && !hSession->sslHandshake) {
+        WRITE_LOG(LOG_FATAL, "reject auth-ok without ssl handshake (downgrade) for session %s, encryption required",
+            Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+        return false;
+    }
+#endif
     UpdateHdiInfo(handshake, hSession);
     hSession->handshakeOK = true;
     return true;

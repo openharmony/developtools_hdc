@@ -633,12 +633,17 @@ namespace Base {
 
     void InitSubserverLogging(const std::string& logFileName)
     {
-        g_subserverLogFileName = logFileName;
         g_isSubserver = true;
 
         if (logFileName.empty()) {
             return;
         }
+        if (!CheckPathTraversal(logFileName)) {
+            PrintMessage("InitSubserverLogging rejected: invalid log file name");
+            return;
+        }
+        g_subserverLogFileName = logFileName;
+
         string dirPath = GetTmpDir() + ".hdc_subserver";
         string filePath = dirPath + GetPathSep() + logFileName;
 
@@ -649,7 +654,7 @@ namespace Base {
         }
 
         uv_fs_t req;
-        int flags = UV_FS_O_RDWR | UV_FS_O_APPEND | UV_FS_O_CREAT;
+        int flags = UV_FS_O_RDWR | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_NOFOLLOW;
 #ifdef HOST_OHOS
         mode_t mode = (S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 #else

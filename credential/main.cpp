@@ -400,13 +400,12 @@ std::string CredentialVersion()
 
 bool SplitCommandToArgs(int argc, const char **argv)
 {
-    constexpr uint8_t cmdArgv1Len = 2;
     if (argc == CMD_ARG1_COUNT) {
-        if (!strncmp(argv[1], "-h", cmdArgv1Len)) {
+        if (!strcmp(argv[1], "-h")) {
             std::string usage = CredentialUsage();
             fprintf(stderr, "%s", usage.c_str());
             return false;
-        } else if (!strncmp(argv[1], "-v", cmdArgv1Len)) {
+        } else if (!strcmp(argv[1], "-v")) {
             std::string ver = CredentialVersion();
             fprintf(stderr, "%s\n", ver.c_str());
             return false;

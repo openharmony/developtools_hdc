@@ -50,13 +50,24 @@ bool HdcDaemonApp::ReadyForRelease()
     return true;
 }
 
-void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
+bool HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
 {
-    string dstPath = "/data/local/tmp/";
+    if (payload == nullptr || payloadSize <= 0 || payloadSize > static_cast<int>(HDC_BUF_MAX_BYTES)) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK invalid payload or payloadSize:%d", payloadSize);
+        return false;
+    }
     string bufString(reinterpret_cast<char *>(payload), payloadSize);
-    SerialStruct::ParseFromString(ctxNow.transferConfig, bufString);
+    if (!SerialStruct::ParseFromString(ctxNow.transferConfig, bufString)) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK ParseFromString failed");
+        return false;
+    }
+    if (!Base::CheckPathTraversal(ctxNow.transferConfig.optionalName)) {
+        WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected unsafe optionalName");
+        return false;
+    }
     // update transferconfig to main context
     ctxNow.master = false;
+    string dstPath = "/data/local/tmp/";
 #ifdef HDC_PCDEBUG
     char tmpPath[256] = "";
     size_t size = 256;
@@ -68,7 +79,7 @@ void HdcDaemonApp::MakeCtxForAppCheck(uint8_t *payload, const int payloadSize)
     ctxNow.localPath = dstPath;
     ctxNow.transferBegin = Base::GetRuntimeMSec();
     ctxNow.fileSize = ctxNow.transferConfig.fileSize;
-    return;
+    return true;
 }
 
 static void SplitCommand(uint8_t* payload, const int payloadSize, string& options, string& packages)
@@ -109,14 +120,21 @@ bool HdcDaemonApp::CommandDispatch(const uint16_t command, uint8_t *payload, con
                 return false;
             }
             (void)memset_s(openReq, sizeof(uv_fs_t), 0, sizeof(uv_fs_t));
-            MakeCtxForAppCheck(payload, payloadSize);
+            if (!MakeCtxForAppCheck(payload, payloadSize)) {
+                WRITE_LOG(LOG_FATAL, "CMD_APP_CHECK rejected: invalid payload or path, channelId:%u",
+                    taskInfo->channelId);
+                delete openReq;
+                ret = false;
+                break;
+            }
             openReq->data = &ctxNow;
             ++refCount;
             WRITE_LOG(LOG_INFO, "CMD_APP_CHECK cid:%u sid:%s uv_fs_open local:%s remote:%s",
                 taskInfo->channelId, Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
                 Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
             uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(),
-                       UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH,
+                       UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_NOFOLLOW,
+                       S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH,
                        OnFileOpen);
             break;
         }

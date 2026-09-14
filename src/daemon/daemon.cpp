@@ -161,7 +161,9 @@ void HdcDaemon::TryStopInstance()
         ((HdcDaemonUART *)clsUARTServ)->Stop();
     }
 #endif
-    ((HdcJdwp *)clsJdwp)->Stop();
+    if (clsJdwp) {
+        ((HdcJdwp *)clsJdwp)->Stop();
+    }
     // workaround temply remove MainLoop instance clear
     ReMainLoopForInstanceClear();
     WRITE_LOG(LOG_DEBUG, "Stop loopmain");
@@ -579,6 +581,7 @@ bool HdcDaemon::HandConnectValidationPubkey(HSession hSession, const uint32_t ch
         WRITE_LOG(LOG_FATAL, "%s", notifymsg.c_str());
         HandleAuthFailed(handshake, channelId, hSession, notifymsg);
         LogMsg(hSession->sessionId, channelId, MSG_INFO, "Please remove public key and private key, then try again");
+        return false;
     }
     return true;
 }

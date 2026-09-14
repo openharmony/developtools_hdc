@@ -24,6 +24,7 @@ public:
     virtual ~HdcServerForClient();
     int Initial();
     void EchoClient(HChannel hChannel, MessageLevel level, const char *msg, ...);
+    void EchoClient(HChannel hChannel, MessageLevel level, const std::string& info);
     void EchoClientRaw(const HChannel hChannel, uint8_t *payload, const int payloadSize);
     void SendCommandToClient(const HChannel hChannel, const uint16_t commandFlag, uint8_t *payload,
                              const int payloadSize);

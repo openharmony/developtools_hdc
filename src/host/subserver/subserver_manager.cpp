@@ -317,6 +317,9 @@ bool SubserverManager::IsHdcProcess(int pid)
 SubserverStatus SubserverManager::CreateSubserver(const std::string& serial, const std::string& port)
 {
     std::string runPath = ProcessHandle::GetExecutablePath();
+    if (runPath.empty()) {
+        return SubserverStatus::SUBPROCESS_FAIL;
+    }
     char args[BUF_SIZE_SMALL] = "";
 
     if (!ProcessHandle::BuildSubserverArgs(args, sizeof(args), port.c_str(), serial.c_str(), port.c_str())) {

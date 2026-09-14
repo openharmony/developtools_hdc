@@ -960,5 +960,6 @@ class TestFileSendLongPath:
         md5_local = get_md5sum_local(test_file_path)
         assert md5_remote == md5_local
 
+        check_hdc_cmd(f'shell rm -f {get_remote_path(test_file)}')
         if os.path.exists(get_local_path(directory)):
             shutil.rmtree(get_local_path(directory))

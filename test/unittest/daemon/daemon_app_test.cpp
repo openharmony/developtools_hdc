@@ -37,6 +37,12 @@ void HdcDaemonAppTest::SetUp()
 }
 void HdcDaemonAppTest::TearDown() {}
 
+static bool FileExists(const std::string &path)
+{
+    struct stat st;
+    return (lstat(path.c_str(), &st) == 0);
+}
+
 HWTEST_F(HdcDaemonAppTest, Test_HdcDaemonApp, TestSize.Level0)
 {
     HTaskInfo taskInfo = new TaskInformation();
@@ -81,16 +87,57 @@ HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck, TestSize.Level3)
     daemonApp.ctxNow.transferConfig.optionalName = "test.hap";
 
     uint8_t payload = 10;
-    daemonApp.MakeCtxForAppCheck(&payload, 10);
+    EXPECT_TRUE(daemonApp.MakeCtxForAppCheck(&payload, 10));
     EXPECT_FALSE(daemonApp.ctxNow.master);
     EXPECT_EQ(daemonApp.ctxNow.localPath, "/data/local/tmp/test.hap");
 
     delete taskInfo;
 }
 
-/*
- * New tests added below
- */
+HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck_InvalidPayload, TestSize.Level3)
+{
+    HTaskInfo taskInfo = new TaskInformation();
+    HdcDaemonApp daemonApp(taskInfo);
+    daemonApp.ctxNow.master = true;
+    daemonApp.ctxNow.transferConfig.optionalName = "test.hap";
+
+    // null payload
+    EXPECT_FALSE(daemonApp.MakeCtxForAppCheck(nullptr, 10));
+    EXPECT_TRUE(daemonApp.ctxNow.master);
+
+    // non-positive payloadSize
+    uint8_t payload = 10;
+    EXPECT_FALSE(daemonApp.MakeCtxForAppCheck(&payload, 0));
+    EXPECT_TRUE(daemonApp.ctxNow.master);
+    EXPECT_FALSE(daemonApp.MakeCtxForAppCheck(&payload, -1));
+    EXPECT_TRUE(daemonApp.ctxNow.master);
+
+    delete taskInfo;
+}
+
+HWTEST_F(HdcDaemonAppTest, Test_MakeCtxForAppCheck_InvalidOptionalName, TestSize.Level3)
+{
+    HTaskInfo taskInfo = new TaskInformation();
+
+    const std::vector<std::string> invalidNames = {
+        "../etc/passwd",
+        "a/../b.hap",
+        "../",
+        "dir/../../etc",
+    };
+
+    for (const auto &name : invalidNames) {
+        HdcDaemonApp daemonApp(taskInfo);
+        daemonApp.ctxNow.master = true;
+        daemonApp.ctxNow.transferConfig.optionalName = name;
+
+        uint8_t payload = 10;
+        EXPECT_FALSE(daemonApp.MakeCtxForAppCheck(&payload, 10)) << "optionalName: " << name;
+        EXPECT_TRUE(daemonApp.ctxNow.master) << "optionalName: " << name;
+    }
+
+    delete taskInfo;
+}
 
 HWTEST_F(HdcDaemonAppTest, Test_Tar2Dir_NoTar, TestSize.Level0)
 {
@@ -102,12 +149,6 @@ HWTEST_F(HdcDaemonAppTest, Test_Tar2Dir_NoTar, TestSize.Level0)
     EXPECT_EQ(res, "");
 
     delete taskInfo;
-}
-
-static bool FileExists(const std::string &path)
-{
-    struct stat st;
-    return (lstat(path.c_str(), &st) == 0);
 }
 
 HWTEST_F(HdcDaemonAppTest, Test_RemovePath_File, TestSize.Level0)

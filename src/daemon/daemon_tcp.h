@@ -34,7 +34,7 @@ private:
     static void AcceptClient(uv_stream_t *server, int status);
     void TransmitConfig(const sockaddr *addrSrc, uv_udp_t *handle);
     int SetTCPListen();
-    void SetUDPListen();
+    int SetUDPListen();
 
     uv_tcp_t servTCP = {};
     uv_udp_t servUDP = {};

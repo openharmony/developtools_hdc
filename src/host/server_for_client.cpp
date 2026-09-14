@@ -436,6 +436,26 @@ void HdcServerForClient::EchoClient(HChannel hChannel, MessageLevel level, const
     SendChannel(hChannel, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(log.c_str())), log.size());
 }
 
+void HdcServerForClient::EchoClient(HChannel hChannel, MessageLevel level, const std::string& info)
+{
+    string lvlstr = "";
+    switch (level) {
+        case MSG_FAIL:
+            lvlstr = MESSAGE_FAIL;
+            break;
+        case MSG_INFO:
+            lvlstr = MESSAGE_INFO;
+            break;
+        default:  // successful, not append extra info
+            break;
+    }
+    string log = lvlstr + info;
+    if (log.back() != '\n') {
+        log += "\r\n";
+    }
+    SendChannel(hChannel, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(log.c_str())), log.size());
+}
+
 void HdcServerForClient::EchoClientRaw(const HChannel hChannel, uint8_t *payload, const int payloadSize)
 {
     SendChannel(hChannel, payload, payloadSize);
@@ -726,7 +746,7 @@ void HdcServerForClient::GetTargetList(HChannel hChannel, void *formatCommandInp
     if (!sRet.length()) {
         sRet = EMPTY_ECHO;
     }
-    EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
+    EchoClient(hChannel, MSG_OK, sRet);
 #ifdef UNIT_TEST
     Base::WriteBinFile((UT_TMP_PATH + "/base-list.result").c_str(), (uint8_t *)MESSAGE_SUCCESS.c_str(),
                        MESSAGE_SUCCESS.size(), true);
@@ -922,7 +942,7 @@ bool HdcServerForClient::DoCommandLocal(HChannel hChannel, void *formatCommandIn
             if (!echo.length()) {
                 echo = EMPTY_ECHO;
             }
-            EchoClient(hChannel, MSG_OK, const_cast<char *>(echo.c_str()));
+            EchoClient(hChannel, MSG_OK, echo);
             hChannel->isSuccess = true;
             break;
         }

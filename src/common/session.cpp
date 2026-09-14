@@ -405,7 +405,11 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
     int ret = 0;
     switch (hSession->connType) {
         case CONN_TCP: {
-            uv_tcp_init(&loopMain, &hSession->hWorkTCP);
+            if (uv_tcp_init(&loopMain, &hSession->hWorkTCP) != 0) {
+                WRITE_LOG(LOG_FATAL, "uv_tcp_init failed");
+                ret = -1;
+                break;
+            }
             WRITE_LOG(LOG_INFO, "MallocSessionByConnectType init hWorkTCP sid:%s",
                 Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
             ++hSession->uvHandleRef;
@@ -415,7 +419,7 @@ int HdcSessionBase::MallocSessionByConnectType(HSession hSession)
         }
         case CONN_USB: {
             // Some members need to be placed at the primary thread
-            HUSB hUSB = new HdcUSB();
+            HUSB hUSB = new(std::nothrow) HdcUSB();
             if (!hUSB) {
                 ret = -1;
                 break;

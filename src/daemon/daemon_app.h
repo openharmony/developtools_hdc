@@ -32,7 +32,7 @@ private:
     string Tar2Dir(const char *path);
     int RemoveDir(const string &dir);
     void RemovePath(const string &path);
-    void MakeCtxForAppCheck(uint8_t *payload, const int payloadSize);
+    bool MakeCtxForAppCheck(uint8_t *payload, const int payloadSize);
 
     AsyncCmd asyncCommand;
     AppModType mode = APPMOD_NONE;

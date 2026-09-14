@@ -35,6 +35,7 @@ namespace {
 static const std::string VERIFY_PUBLIC_KEY_PATH = "/data/service/el2/public/hdc_service/verify_public_key.pem";
 static const int32_t DEFAULT_USER_ID = 100;
 static constexpr std::streamsize MAX_FILE_SIZE_LIMIT = 100 * 1024 * 1024; // 100MB
+static constexpr size_t MAX_SIGNATURE_SIZE = 1024; // Max RSA signature size 1k
 } // namespace
 
 static std::string GetEncryptPrivateKeyPath()
@@ -139,6 +140,7 @@ void HdcSecretManage::ClearPrivateKeyInfo()
         return;
     }
     EVP_PKEY_free(privKey);
+    privKey = nullptr;
 }
 
 bool HdcSecretManage::LoadPublicKeyInfo()
@@ -195,6 +197,7 @@ void HdcSecretManage::ClearPublicKeyInfo()
         return;
     }
     EVP_PKEY_free(pubKey);
+    pubKey = nullptr;
 }
 
 bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsigned char> &signature, size_t &reqLen)
@@ -213,6 +216,12 @@ bool HdcSecretManage::SignatureByPrivKey(const char *testData, std::vector<unsig
     reqLen = 0;
     if (EVP_DigestSign(mdctx, nullptr, &reqLen, (const unsigned char *)testData, strlen(testData)) != 1) {
         WRITE_LOG(LOG_WARN, "EVP_DigestSign failed");
+        EVP_MD_CTX_free(mdctx);
+        return false;
+    }
+
+    if (reqLen == 0 || reqLen > MAX_SIGNATURE_SIZE) {
+        WRITE_LOG(LOG_WARN, "invalid signature length: %zu", reqLen);
         EVP_MD_CTX_free(mdctx);
         return false;
     }

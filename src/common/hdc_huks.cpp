@@ -214,7 +214,7 @@ bool HdcHuks::AesGcmEncrypt(const uint8_t* plainData, int plainDataLen, std::vec
         encryptSuccess = false;
     }
 
-    WRITE_LOG(LOG_FATAL, "HksEncrypt encryptData len is %zu", encryptData.size());
+    WRITE_LOG(LOG_FATAL, "HksEncrypt encryptData len is %d", encryptData.size());
     HksFreeParamSet(&paramSet);
     return encryptSuccess;
 }
@@ -294,7 +294,6 @@ std::pair<uint8_t*, int> HdcHuks::AesGcmDecrypt(const uint8_t* inputData, size_t
     int32_t ret = HksDecrypt(&(this->keyBlobAlias), paramSet, &encryptBlob, &plainBlob);
     if (ret != HKS_SUCCESS) {
         WRITE_LOG(LOG_FATAL, "HksDecrypt failed, ret %d", ret);
-        memset_s(plainData, maxPlainDataLen, 0, maxPlainDataLen);
         delete[] plainData;
         SecureClearVector(nonceValue);
         SecureClearVector(encryptText);
@@ -497,11 +496,13 @@ std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &in
 {
     const size_t totalSize = inputData.size();
     if (totalSize == 0 || (totalSize % MAX_RSA_CIPHER_TEXT_LEN != 0)) {
-        WRITE_LOG(LOG_FATAL, "inputData size is invalid, size %zu", inputData.size());
+        WRITE_LOG(LOG_FATAL, "inputData size is invalid, size %d ", inputData.size());
         return std::make_pair(nullptr, 0);
     }
+
     std::vector<uint8_t> decryptedData;
     decryptedData.reserve(totalSize);
+
     struct HksParamSet *paramSet = nullptr;
     paramSet = MakeRsaDecryptParamSets();
     if (paramSet == nullptr) {
@@ -510,31 +511,27 @@ std::pair<uint8_t *, int> HdcHuks::RsaDecryptPrivateKey(std::vector<uint8_t> &in
     }
 
     uint8_t plainData[MAX_RSA_CIPHER_TEXT_LEN];
+
     for (size_t offset = 0; offset < totalSize; offset += MAX_RSA_CIPHER_TEXT_LEN) {
         const size_t currentSegmentSize = std::min(MAX_RSA_CIPHER_TEXT_LEN, totalSize - offset);
         const auto segmentStart = inputData.begin() + offset;
+
         struct HksBlob encryptBlob = {currentSegmentSize, reinterpret_cast<uint8_t*>(&(*segmentStart))};
+
         struct HksBlob plainBlob = {currentSegmentSize, plainData};
+
         int32_t ret = HksDecrypt(&(this->keyBlobAlias), paramSet, &encryptBlob, &plainBlob);
         if (ret != HKS_SUCCESS) {
             std::string str(reinterpret_cast<char*>(this->keyBlobAlias.data));
             WRITE_LOG(LOG_FATAL, "HksDecrypt failed, key %s, ret %d", str.c_str(), ret);
-            memset_s(plainData, sizeof(plainData), 0, sizeof(plainData));
             HksFreeParamSet(&paramSet);
             return std::make_pair(nullptr, 0);
         }
 
         decryptedData.insert(decryptedData.end(), plainData, plainData + plainBlob.size);
-        memset_s(plainData, sizeof(plainData), 0, sizeof(plainData));
     }
 
-    uint8_t* resultData = new(std::nothrow) uint8_t[decryptedData.size()];
-    if (resultData == nullptr) {
-        WRITE_LOG(LOG_FATAL, "RsaDecryptPrivateKey new failed, size %zu", decryptedData.size());
-        memset_s(decryptedData.data(), decryptedData.size(), 0, decryptedData.size());
-        HksFreeParamSet(&paramSet);
-        return std::make_pair(nullptr, 0);
-    }
+    uint8_t* resultData = new uint8_t[decryptedData.size()];
     std::copy(decryptedData.begin(), decryptedData.end(), resultData);
 
     WRITE_LOG(LOG_FATAL, "HksDecrypt Successed, size %zu", decryptedData.size());

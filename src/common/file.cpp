@@ -236,9 +236,20 @@ bool HdcFile::IsPathInsideSandbox(const string &path, const string &appDir)
     if (path.size() < appDir.size()) {
         return false;
     }
-    string pathSep = string(1, Base::GetPathSep());
+    char pathSep = Base::GetPathSep();
     string resolvedPathStr = path + pathSep;
     string appDirPathStr = appDir + pathSep;
+    // 统一分隔符进行比较，兼容 Windows (\) 和 Unix (/) 路径
+    for (size_t i = 0; i < resolvedPathStr.size(); ++i) {
+        if (resolvedPathStr[i] == '/' || resolvedPathStr[i] == '\\') {
+            resolvedPathStr[i] = pathSep;
+        }
+    }
+    for (size_t i = 0; i < appDirPathStr.size(); ++i) {
+        if (appDirPathStr[i] == '/' || appDirPathStr[i] == '\\') {
+            appDirPathStr[i] = pathSep;
+        }
+    }
     if (strncmp(resolvedPathStr.c_str(), appDirPathStr.c_str(), appDirPathStr.size()) != 0) {
         return false;
     }
@@ -246,8 +257,9 @@ bool HdcFile::IsPathInsideSandbox(const string &path, const string &appDir)
     // 使用 realpath 解析真实路径，防止符号链接逃逸
     string canonicalAppDir = Base::CanonicalizeSpecPath(const_cast<string&>(appDir));
     if (canonicalAppDir.empty()) {
-        WRITE_LOG(LOG_WARN, "IsPathInsideSandbox CanonicalizeSpecPath appDir failed: %s", appDir.c_str());
-        return false;
+        WRITE_LOG(LOG_WARN, "IsPathInsideSandbox CanonicalizeSpecPath appDir failed: %s, fallback to prefix check",
+            appDir.c_str());
+        return true;
     }
 
     // 尝试解析目标路径

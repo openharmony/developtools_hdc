@@ -1002,14 +1002,33 @@ def check_rom(baseline):
         return True
 
 
+def decode_output(data, encodings=('utf-8', 'gbk', 'latin1')):
+    """
+    decode 前先确认编码，返回 str 且不抛 UnicodeDecodeError。
+    依次用候选编码严格试解码（默认 UTF-8 → GBK → Latin1，覆盖 hdc 输出与中文 Windows 控制台），
+    全部失败时按首个候选编码忽略错误兜底。
+    data 为 None 返回空串；已是 str 则原样返回。
+    """
+    if data is None:
+        return ""
+    if isinstance(data, str):
+        return data
+    for encoding in encodings:
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode(encodings[0], errors='replace')
+
+
 def run_command_with_timeout(command, timeout):
     try:
         result = subprocess.run(command.split(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
-        return result.stdout.decode(), result.stderr.decode()
+        return decode_output(result.stdout), decode_output(result.stderr)
     except subprocess.TimeoutExpired:
         return "", "Command timed out"
     except subprocess.CalledProcessError as e:
-        return "", e.stderr.decode()
+        return "", decode_output(e.stderr)
 
 
 def check_cmd_block(command, pattern, timeout=600):

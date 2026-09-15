@@ -44,7 +44,7 @@ class TestShellHilog:
     @pytest.mark.L0
     def test_hilog_exit_after_hdc_kill(self):
         # 新开进程执行hdc shell hilog，防止阻塞主进程
-        p = multiprocessing.Process(target=self.new_process_run, args=("shell hilog",))
+        p = multiprocessing.Process(target=self.new_process_run, args=(f"{GP.hdc_head} shell hilog",))
         p.start()
         time.sleep(3)
         hilog_pid = get_shell_result(f'shell pidof hilog')

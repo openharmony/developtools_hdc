@@ -125,7 +125,7 @@ class TestForwardIpSetting:
 
     @pytest.mark.L1
     @pytest.mark.repeat(1)
-    def test_ip_valid_3(self):
+    def test_ip_valid_3_2(self):
         check_shell(f"kill")
         time.sleep(1)
 

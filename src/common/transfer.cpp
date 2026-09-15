@@ -828,7 +828,13 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     optName = dirsOfOptName.back();
     dirsOfOptName.pop_back();
 
-    for (auto s : dirsOfOptName) {
+    for (auto &s : dirsOfOptName) {
+        // Validate: reject path traversal (..), current dir (.), empty names, and absolute paths
+        if (s.empty() || s == "." || s == "..") {
+            WRITE_LOG(LOG_WARN, "CheckFilename invalid component: %s", Hdc::MaskString(s).c_str());
+            errStr = s.empty() ? "Empty directory name in path" : ("Invalid directory name in path: " + s);
+            return false;
+        }
         // Add each layer directory to localPath
         localPath = localPath + Base::GetPathSep() + s;
         if (!Base::TryCreateDirectory(localPath, errStr)) {

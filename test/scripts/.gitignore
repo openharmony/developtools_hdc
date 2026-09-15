@@ -1,0 +1,15 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+
+# Resources
+resource/
+
+# Test reports
+reports/
+
+# Config
+opencode.json
+.hdctester.conf

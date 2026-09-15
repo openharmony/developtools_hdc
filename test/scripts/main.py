@@ -17,6 +17,7 @@
 # 准备文件：package.zip
 # 执行方式：python main.py
 
+import argparse
 import subprocess
 import pytest
 import os
@@ -41,6 +42,12 @@ def is_gen_conf():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="hdc auto test framework")
+    parser.add_argument("--perf", action="store_true", default=False,
+                        help="run PERF performance testcases only (skipped by default)")
+    parser.add_argument("--all", action="store_true", default=False,
+                        help="run all testcases (including PERF)")
+    args = parser.parse_args()
     if check_library_installation("pytest"):
         subprocess.check_call(["pip", "install", "-r", "requirements.txt"])
         if check_library_installation("pytest"):
@@ -50,7 +57,7 @@ def main():
         prepare.prepare()
     if not is_gen_conf():
         GP.init()
-    pytest_run()
+    pytest_run(perf=args.perf, run_all=args.all)
 
 
 if __name__ == '__main__':

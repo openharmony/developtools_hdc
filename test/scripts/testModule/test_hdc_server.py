@@ -18,7 +18,7 @@ import platform
 import pytest
 import subprocess
 import tempfile
-from utils import GP, check_cmd_block, check_hdc_cmd, load_gp, get_server_pid_from_file
+from utils import GP, check_cmd_block_new, check_hdc_cmd, load_gp, get_server_pid_from_file
 
 def get_hdc_server_pid():
     result = subprocess.run('tasklist | findstr hdc', shell=True, capture_output=True, text=True).stdout
@@ -45,7 +45,7 @@ class TestHdcServer:
             port = 8710
         assert check_hdc_cmd("start")
         assert check_hdc_cmd("-l5 kill", "Kill server finish")
-        assert check_cmd_block(f"{GP.hdc_exe} -m", f"port: {port}", timeout=5)
+        assert check_cmd_block_new(f"{GP.hdc_exe} -m", f"port: {port}", timeout=5)
         assert check_hdc_cmd("start")
         time.sleep(3) # sleep 3s to wait for the device to connect channel
 

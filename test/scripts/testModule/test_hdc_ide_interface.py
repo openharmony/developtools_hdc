@@ -19,7 +19,7 @@ import logging
 import threading
 import pytest
 
-from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output, get_end_symbol, get_shell_result, load_gp
+from utils import GP, check_shell, run_command_with_timeout, get_cmd_block_output_new, get_end_symbol, get_shell_result, load_gp
 from enum import Enum
 
 
@@ -38,7 +38,7 @@ class TestCommonSupport:
 
     @staticmethod
     def check_track_jpid():
-        result = get_cmd_block_output("hdc track-jpid -a", timeout=2)
+        result = get_cmd_block_output_new("hdc track-jpid -a", timeout=2)
         result = result.split('\n')
         content_size = 0  # 所有表示长度的加起来
         first_line_size = 0  # 所有表示长度的内容长度之和

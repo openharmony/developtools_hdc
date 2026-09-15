@@ -31,6 +31,8 @@ import pytest
 import importlib
 import random
 import string
+import queue
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -221,9 +223,21 @@ class GP(object):
         return version
 
 
-def pytest_run():
+def pytest_run(perf=False, run_all=False):
     start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-    pytest.main()
+    # 命令行 -m 会覆盖 pytest.ini addopts 中的 -m "L0 or L1 or L2"
+    if run_all:
+        marker_expr = ""
+        print("--> running all testcases (including PERF)")
+        pytest.main()
+    elif perf:
+        marker_expr = "(L0 or L1 or L2) and PERF"
+        print("--> running PERF performance testcases only")
+        pytest.main(["-m", marker_expr])
+    else:
+        marker_expr = "(L0 or L1 or L2) and not PERF"
+        print("--> running normal testcases (PERF skipped)")
+        pytest.main(["-m", marker_expr])
     end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
     report_time = time.strftime('%Y-%m-%d_%H_%M_%S', time.localtime(time.time()))
     report_dir = os.path.join(os.getcwd(), "reports")
@@ -988,14 +1002,33 @@ def check_rom(baseline):
         return True
 
 
+def decode_output(data, encodings=('utf-8', 'gbk', 'latin1')):
+    """
+    decode 前先确认编码，返回 str 且不抛 UnicodeDecodeError。
+    依次用候选编码严格试解码（默认 UTF-8 → GBK → Latin1，覆盖 hdc 输出与中文 Windows 控制台），
+    全部失败时按首个候选编码忽略错误兜底。
+    data 为 None 返回空串；已是 str 则原样返回。
+    """
+    if data is None:
+        return ""
+    if isinstance(data, str):
+        return data
+    for encoding in encodings:
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode(encodings[0], errors='replace')
+
+
 def run_command_with_timeout(command, timeout):
     try:
         result = subprocess.run(command.split(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
-        return result.stdout.decode(), result.stderr.decode()
+        return decode_output(result.stdout), decode_output(result.stderr)
     except subprocess.TimeoutExpired:
         return "", "Command timed out"
     except subprocess.CalledProcessError as e:
-        return "", e.stderr.decode()
+        return "", decode_output(e.stderr)
 
 
 def check_cmd_block(command, pattern, timeout=600):
@@ -1018,6 +1051,49 @@ def check_cmd_block(command, pattern, timeout=600):
         return True
     else:
         return False
+
+
+def check_cmd_block_new(command, pattern, timeout=600):
+    """校验前台常驻命令的输出，命中 pattern 即返回 True，无需等进程退出
+
+    读管道的阻塞放在子线程，主线程轮询队列掌控超时：
+    pattern 出现的瞬间立即成功；无输出时超时也能严格生效。
+    """
+    print("enter check_cmd_block_new")
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, text=True)
+    output = ""
+    lines = queue.Queue()
+
+    def reader():
+        for line in process.stdout:  # 阻塞在子线程里，不影响主线程计时
+            lines.put(line)
+        lines.put(None)  # EOF 标记
+
+    thread = threading.Thread(target=reader, daemon=True)
+    thread.start()
+
+    deadline = time.time() + timeout
+    try:
+        while time.time() < deadline:
+            try:
+                line = lines.get(timeout=0.5)  # 队列轮询，主线程始终掌控计时
+            except queue.Empty:
+                continue
+            if line is None:  # 进程已退出且输出读完
+                break
+            output += line
+            if pattern in line:  # 命中即成功，无需等退出
+                return True
+        return pattern in output
+    finally:
+        print(f"check_cmd_block_new --> output: {output}")
+        # 清理子进程（常驻命令不会自行退出）
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 def check_version(version):
@@ -1118,6 +1194,49 @@ def get_cmd_block_output(command, timeout=600):
         output, _ = process.communicate(timeout=timeout)
 
     print(f"--> output: {output}")
+    return output
+
+
+@check_unsupport_systems(["Harmony"])
+def get_cmd_block_output_new(command, timeout=600):
+    """期限内收集常驻命令的输出，超时由主线程控制，不依赖输出到达
+
+    适用于 track-jpid 等常驻跟踪命令：读管道的阻塞放在子线程，
+    主线程轮询队列掌控超时——无输出时超时也能严格生效。
+    """
+    print("enter get_cmd_block_output_new")
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, text=True)
+    output = ""
+    lines = queue.Queue()
+
+    def reader():
+        for line in process.stdout:  # 阻塞在子线程里，不影响主线程计时
+            lines.put(line)
+        lines.put(None)  # EOF 标记
+
+    thread = threading.Thread(target=reader, daemon=True)
+    thread.start()
+
+    deadline = time.time() + timeout
+    try:
+        while time.time() < deadline:
+            try:
+                line = lines.get(timeout=0.5)  # 队列轮询，主线程始终掌控计时
+            except queue.Empty:
+                continue
+            if line is None:  # 进程已退出且输出读完
+                break
+            output += line
+    finally:
+        # 常驻命令不会自行退出，超时后主动清理
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+    print(f"get_cmd_block_output_new --> output: {output}")
     return output
 
 

@@ -24,6 +24,7 @@ def clear_env():
 
 class TestShellPerformance:
     @pytest.mark.L0
+    @pytest.mark.PERF
     def test_shell_cmd_timecost_param_p(self):
         check_hdc_cmd("shell \"touch /data/local/tmp/test_file\"")
         assert check_cmd_time(
@@ -33,6 +34,7 @@ class TestShellPerformance:
             times=50)
 
     @pytest.mark.L0
+    @pytest.mark.PERF
     def test_shell_cmd_timecost_param_none(self):
         check_hdc_cmd("shell \"ps -ef | grep hdcd\"")
         assert check_cmd_time(

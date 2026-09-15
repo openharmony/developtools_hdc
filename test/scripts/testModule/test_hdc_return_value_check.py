@@ -15,20 +15,74 @@
 import logging
 import os
 import re
+import subprocess
+import threading
 import time
 import pytest
 
-from utils import GP, get_shell_result, get_cmd_block_output, get_end_symbol, \
+from utils import GP, get_shell_result, get_cmd_block_output_new, get_end_symbol, \
     run_command_with_timeout, check_shell, get_remote_path, get_local_path, \
     load_gp, check_unsupport_systems
 
 logger = logging.getLogger(__name__)
 
+# 终端转义序列剥离：CSI(ESC [ ...)、OSC(ESC ] ... BEL/ST)、其他单字符 ESC 序列，
+# hdc 交互式 shell 在 raw TTY 下会把设备侧 shell 的终端握手响应(如 \e[?61;c)原样吐出
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]")
+
+
+def strip_ansi(text):
+    return _ANSI_ESCAPE_RE.sub("", text)
+
+
+def _version_to_int(ver_str):
+    """将版本字符串转为可比较的整数，与 utils.check_hdc_version 内部逻辑一致。
+
+    输入形如 "Ver: 3.1.0a" 或 "3.1.0a"，各段拼接后按 base-36 解析。
+    """
+    ver = ver_str.replace("Ver: ", "").strip()
+    parts = ver.split('.')
+    return int(''.join(parts), 36)
+
+
+def get_help_log_path():
+    """根据当前 hdc 版本选择对应的 help 基线文件。
+
+    文件命名规则（版本号取自 hdc version 输出，去掉 "Ver: " 前缀）：
+      help[3.1.0a-3.1.0e].log  — 版本在 [3.1.0a, 3.1.0e] 范围内
+      help[-3.1.0a].log        — 版本 <= 3.1.0a
+      help[3.1.0a-].log        — 版本 >= 3.1.0a
+      help.log                 — 默认基线（无版本范围匹配时回退）
+    """
+    version_output = get_shell_result("version").strip()
+    current_ver = _version_to_int(version_output)
+    print(f"--> hdc version: {version_output} (numeric: {current_ver})")
+
+    scripts_dir = os.path.dirname(os.path.dirname(__file__))
+    range_pattern = re.compile(r'^help\[(.+)\]\.log$')
+
+    for name in sorted(os.listdir(scripts_dir)):
+        m = range_pattern.match(name)
+        if not m:
+            continue
+        range_str = m.group(1)
+        if '-' not in range_str:
+            continue
+        lower_str, upper_str = range_str.split('-', 1)
+        lower = _version_to_int(lower_str) if lower_str else None
+        upper = _version_to_int(upper_str) if upper_str else None
+        if (lower is None or current_ver >= lower) and (upper is None or current_ver <= upper):
+            print(f"--> matched help log: {name}")
+            return name
+
+    print("--> no version-specific help log matched, fallback to help.log")
+    return "help.log"
+
 
 class TestHdcReturnValue:
     @staticmethod
     def check_track_jpid():
-        result = get_cmd_block_output("hdc track-jpid -a", timeout=2)
+        result = get_cmd_block_output_new("hdc track-jpid -a", timeout=2)
         result = result.split('\n')
         content_size = 0  # 所有表示长度的加起来
         first_line_size = 0  # 所有表示长度的内容长度之和
@@ -58,7 +112,7 @@ class TestHdcReturnValue:
     def test_hdc_help(self):
         result = get_shell_result(f"help")
         result_lines = re.split("\r|\n", result)
-        help_file = f"help.log"
+        help_file = get_help_log_path()
         index = 0
         with open(help_file, 'r') as file:
             for line in file.readlines():
@@ -228,17 +282,16 @@ class TestHdcReturnValue:
                            "[Fail]There is no remote path")
         assert check_shell(f"file send -b com.package.unknown {get_local_path('small')} remote_path",
                            "[Fail][E005101] Invalid bundle name: com.package.unknown")
-
         check_shell(f"smode -r")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
         result = get_shell_result(f"file send {get_local_path('small')} /system/lib/")
         result = result.replace(get_end_symbol(), "")
         result = result.replace("\r", "")
-        assert (result == "[Fail]Error opening file: permission denied, path:/system/lib/small" or
+        assert_result = (result == "[Fail]Error opening file: permission denied, path:/system/lib/small" or
                 result == "[Fail]Error opening file: read-only file system, path:/system/lib/small")
-
         check_shell(f"smode")
         run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+        assert assert_result
 
     """
     hdc fport tcp:xxxx tcp:xxxx
@@ -334,17 +387,53 @@ class TestHdcReturnValue:
 
 
     """
-    hdc shell
+    hdc shell 交互式 shell 验证：ConPTY 包裹 hdc 进程模拟真实终端，注入确定性命令，
+    验证 shell 启动/执行/退出全流程
     """
-
     @pytest.mark.L0
+    @check_unsupport_systems(["Linux", "Harmony", "Darwin"])
     def test_hdc_shell(self):
-        check_shell(f"smode")
-        run_command_with_timeout(f"{GP.hdc_head} wait", 20)
+        # 交互式 shell 要求 host 端 stdin 为真实 TTY（client.cpp BindLocalStd 校验 UV_TTY），
+        # subprocess.PIPE 会导致 host 不读取/转发 stdin，设备侧 shell 永不退出而超时，
+        # 因此必须用 ConPTY(pywinpty) 包裹 hdc 进程保持交互式语义
+        pytest.importorskip("winpty", reason="pywinpty is required to emulate interactive TTY")
+        from winpty import PtyProcess
 
-        result = get_cmd_block_output(f"{GP.hdc_head} shell", 10)
-        result = re.sub("[\r\n]", "", result)
-        assert result.find("#") > 0
+        process = PtyProcess.spawn(f"{GP.hdc_head} shell".split())
+        output_parts = []
+        reader_done = threading.Event()
+
+        def drain_output():
+            # 持续收集输出，hdc 进程退出后 read 抛 EOFError 结束
+            try:
+                while True:
+                    output_parts.append(process.read())
+            except (EOFError, OSError):
+                pass
+            finally:
+                reader_done.set()
+
+        threading.Thread(target=drain_output, daemon=True).start()
+        try:
+            time.sleep(2)
+            process.write("\n")
+            time.sleep(2)
+            # 注入确定性命令 + exit 主动退出；\r 模拟真实终端回车（设备侧 PTY 行规程转为换行）
+            process.write("echo hdc_shell_test_ok\r")
+            time.sleep(2)
+
+            process.write("exit\r")
+            # 主线程超时兜底，避免 read 阻塞导致用例挂死
+            exited = reader_done.wait(timeout=10)
+            # 剥除终端转义序列，避免 \e[?61;c 等握手响应显示成 ^[[?61;c
+            output = strip_ansi("".join(output_parts))
+            assert exited, f"hdc shell not exited in 10s, output: {output!r}"
+            assert "hdc_shell_test_ok" in output, f"shell output: {output!r}"
+            # 验证 shell 提示符（设备侧 root shell 提示符为 #）正常回显
+            assert "#" in output, f"shell prompt '#' not found, output: {output!r}"
+        finally:
+            if process.isalive():
+                process.terminate(force=True)
 
     """
     hdc shell find /nosuchfilename -name nosuchfilename

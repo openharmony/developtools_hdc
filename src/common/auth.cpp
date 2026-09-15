@@ -983,6 +983,37 @@ bool RsaSignAndBase64(string &buf, AuthVerifyType type)
     return signResult;
 }
 
+static int32_t DecryptPskCore(const unsigned char* in, int32_t inLen, unsigned char* out, RSA *&rsa, EVP_PKEY *&evp)
+{
+    string prikeyFileName;
+    if (!GetUserKeyPath(prikeyFileName)) {
+        WRITE_LOG(LOG_FATAL, "get key path failed");
+        return -1;
+    }
+    if (!LoadPrivateKey(prikeyFileName, &rsa, &evp)) {
+        WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", Hdc::MaskString(prikeyFileName).c_str());
+        return -1;
+    }
+    unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
+    int32_t expectedDecodeLen = (inLen / 4) * 3;
+    if (expectedDecodeLen > BUF_SIZE_DEFAULT) {
+        WRITE_LOG(LOG_FATAL, "Base64 decode output %d exceeds tokenDecode buffer %d, inLen=%d",
+                  expectedDecodeLen, BUF_SIZE_DEFAULT, inLen);
+        return -1;
+    }
+    int32_t tbytes = EVP_DecodeBlock(tokenDecode, in, inLen);
+    if (tbytes <= 0 || tbytes > BUF_SIZE_DEFAULT) {
+        WRITE_LOG(LOG_FATAL, "EVP_DecodeBlock invalid result %d, inLen=%d", tbytes, inLen);
+        return -1;
+    }
+    int32_t outLen = RSA_private_decrypt(tbytes, tokenDecode, out, rsa, RSA_PKCS1_OAEP_PADDING);
+    if (outLen < 0) {
+        WRITE_LOG(LOG_FATAL, "RSA_private_decrypt failed(%lu)", ERR_get_error());
+        return outLen;
+    }
+    return outLen;
+}
+
 int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, int outBufSize)
 {
     if (in == nullptr || out == nullptr) {
@@ -999,29 +1030,7 @@ int RsaPrikeyDecryptPsk(const unsigned char* in, int inLen, unsigned char* out, 
     }
     RSA *rsa = nullptr;
     EVP_PKEY *evp = nullptr;
-    string prikeyFileName;
-    int outLen = -1;
-    do {
-        if (!GetUserKeyPath(prikeyFileName)) {
-            WRITE_LOG(LOG_FATAL, "get key path failed");
-            break;
-        }
-        if (!LoadPrivateKey(prikeyFileName, &rsa, &evp)) {
-            WRITE_LOG(LOG_FATAL, "load prikey from file(%s) failed", Hdc::MaskString(prikeyFileName).c_str());
-            break;
-        }
-        unsigned char tokenDecode[BUF_SIZE_DEFAULT] = { 0 };
-        int tbytes = EVP_DecodeBlock(tokenDecode, in, inLen);
-        if (tbytes <= 0) {
-            WRITE_LOG(LOG_FATAL, "base64 decode PreShared Key failed");
-            break;
-        }
-        outLen = RSA_private_decrypt(tbytes, tokenDecode, out, rsa, RSA_PKCS1_OAEP_PADDING);
-        if (outLen < 0) {
-            WRITE_LOG(LOG_FATAL, "RSA_private_decrypt failed(%lu)", ERR_get_error());
-            break;
-        }
-    } while (0);
+    int outLen = DecryptPskCore(in, inLen, out, rsa, evp);
     if (rsa != nullptr) {
         RSA_free(rsa);
     }

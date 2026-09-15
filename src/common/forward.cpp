@@ -42,16 +42,18 @@ bool HdcForwardBase::ReadyForRelease()
 
 void HdcForwardBase::StopTask()
 {
-    std::lock_guard<std::mutex> lock(ctxPointMutex);
     vector<HCtxForward> ctxs;
     map<uint32_t, HCtxForward>::iterator iter;
-    for (iter = mapCtxPoint.begin(); iter != mapCtxPoint.end(); ++iter) {
-        HCtxForward ctx = iter->second;
-        ctxs.push_back(ctx);
+    {
+        std::lock_guard<std::mutex> lock(ctxPointMutex);
+        for (iter = mapCtxPoint.begin(); iter != mapCtxPoint.end(); ++iter) {
+            HCtxForward ctx = iter->second;
+            ctxs.push_back(ctx);
+        }
+        Base::CloseFd(fds[0]);
+        // FREECONTEXT in the STOP is triggered by the other party sector, no longer notifying each other.
+        mapCtxPoint.clear();
     }
-    Base::CloseFd(fds[0]);
-    // FREECONTEXT in the STOP is triggered by the other party sector, no longer notifying each other.
-    mapCtxPoint.clear();
     for (auto ctx: ctxs) {
         FreeContext(ctx, 0, false);
     }

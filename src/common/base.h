@@ -295,6 +295,7 @@ namespace Base {
     #define TAG_AUTH_TYPE "authtype"
     #define TAG_FEATURE_SHELL_OPT "1200" // CMD_UNITY_EXECUTE_EX
     #define TAG_SUPPORT_FEATURE "supportfeatures"
+    #define TAG_ENCRYPT_TCP "encrypttcp"
     void TrimSubString(string &str, string substr);
     bool TlvAppend(string &tlv, string tag, string val);
     bool TlvToStringMap(string tlv, std::map<string, string> &tlvmap);

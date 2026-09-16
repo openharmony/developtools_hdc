@@ -555,6 +555,13 @@ bool HdcDaemon::HandDaemonAuthInit(HSession hSession, const uint32_t channelId, 
         Base::TlvAppend(handshake.buf, TAG_AUTH_TYPE, std::to_string(AuthVerifyType::RSA_3072_SHA512));
         WRITE_LOG(LOG_INFO, "client support RSA_3072_SHA512 auth for %s session",
             Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+#ifdef HDC_SUPPORT_ENCRYPT_TCP
+        if (hSession->connType == CONN_TCP && hSession->supportEncrypt) {
+            Base::TlvAppend(handshake.buf, TAG_ENCRYPT_TCP, "1");
+            WRITE_LOG(LOG_INFO, "notify host encrypt-tcp negotiated for %s session",
+                Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+        }
+#endif
     }
     string bufString = SerialStruct::SerializeToString(handshake);
     Send(hSession->sessionId, channelId, CMD_KERNEL_HANDSHAKE,

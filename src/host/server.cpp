@@ -868,6 +868,12 @@ bool HdcServer::CheckHostCommandPermission(HChannel channel, const uint32_t sess
             Hdc::MaskSessionIdToString(sessionId).c_str());
         return false;
     }
+    if (command == CMD_FORWARD_ACTIVE_SLAVE &&
+        !serverForClient->CheckForwardEndpoint(channel, sessionId, payload, payloadSize)) {
+        WRITE_LOG(LOG_WARN, "Drop unauthorized host forward active slave cid:%u sid:%s", channelId,
+            Hdc::MaskSessionIdToString(sessionId).c_str());
+        return false;
+    }
     if (command == CMD_UNITY_BUGREPORT_INIT) {
         WRITE_LOG(LOG_WARN, "Drop unauthorized host bugreport init cid:%u sid:%s", channelId,
             Hdc::MaskSessionIdToString(sessionId).c_str());
@@ -1047,6 +1053,7 @@ bool HdcServer::DispatchChannelCommand(HChannel hChannel, HSession hSession,
                 sfc->SendCommandToClient(hChannel, command, payload, payloadSize);
                 break;
             }
+            [[fallthrough]];
         default: {
             return DispatchPassthroughTask(hChannel, channelId, command, payload, payloadSize);
         }

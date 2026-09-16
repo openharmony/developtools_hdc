@@ -263,6 +263,19 @@ namespace Base {
         return false;
     }
 #endif
+#ifndef _WIN32
+    inline bool IsDeviceFile(const char *path)
+    {
+        if (path == nullptr) {
+            return false;
+        }
+        struct stat st;
+        if (stat(path, &st) != 0) {
+            return false;
+        }
+        return S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode);
+    }
+#endif
 
     int ReadFromFd(int fd, void *buf, size_t count);
     int WriteToFd(int fd, const void *buf, size_t count);

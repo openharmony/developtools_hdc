@@ -142,12 +142,13 @@ bool Entry::CopyPayload(std::string prefixPath, std::ifstream &inFile)
 
 bool Entry::PayloadToFile(std::string prefixPath, std::ifstream &inFile)
 {
-    std::string entryName = GetName();
-    if (!Base::CheckPathTraversal(entryName)) {
-        WRITE_LOG(LOG_FATAL, "PayloadToFile path traversal detected: %s", Hdc::MaskString(entryName).c_str());
+    std::string saveFile = "";
+    saveFile = prefixPath + GetName();
+    if (!Base::CheckPathTraversal(saveFile)) {
+        WRITE_LOG(LOG_FATAL, "PayloadToFile path traversal detected: %s", Hdc::MaskString(saveFile).c_str());
         return false;
     }
-    std::string saveFile = prefixPath + entryName;
+
     std::ofstream outFile(saveFile, std::ios::app | std::ios::binary);
     if (!outFile.is_open()) {
         if (Base::GetCaller() == Base::Caller::CLIENT) {
@@ -202,13 +203,13 @@ bool Entry::ReadAndWriteData(std::ifstream &inFile, std::ofstream &outFile, uint
 
 bool Entry::PayloadToDir(std::string prefixPath)
 {
-    std::string entryName = GetName();
-    if (!Base::CheckPathTraversal(entryName)) {
-        WRITE_LOG(LOG_FATAL, "PayloadToDir path traversal detected: %s", Hdc::MaskString(entryName).c_str());
+    std::string saveFile = "";
+    auto dirPath = prefixPath.append(GetName());
+    if (!Base::CheckPathTraversal(dirPath)) {
+        WRITE_LOG(LOG_FATAL, "PayloadToDir path traversal detected: %s", Hdc::MaskString(dirPath).c_str());
         return false;
     }
-    std::string saveFile = "";
-    auto dirPath = prefixPath.append(entryName);
+
     std::string estr;
     bool b = Base::TryCreateDirectory(dirPath, estr);
     if (!b) {

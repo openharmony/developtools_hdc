@@ -811,13 +811,6 @@ bool HdcTransferBase::CheckFilename(string &localPath, string &optName, string &
     }
     vector<string> dirsOfOptName;
 
-    // Check for path traversal before processing optName
-    if (!Base::CheckPathTraversal(optName)) {
-        WRITE_LOG(LOG_WARN, "Path traversal detected in optionalName: %s", Hdc::MaskString(optName).c_str());
-        errStr = "Path traversal not allowed in optionalName";
-        return false;
-    }
-
     if (optName.find('/') != string::npos) {
         Base::SplitString(optName, "/", dirsOfOptName);
     } else if (optName.find('\\') != string::npos) {
@@ -902,12 +895,6 @@ bool HdcTransferBase::SmartSlavePath(string &cwd, string &localPath, const char 
     uv_fs_t req;
     int r = uv_fs_lstat(nullptr, &req, localPath.c_str(), nullptr);
     uv_fs_req_cleanup(&req);
-    // Validate optName for path traversal before appending to localPath
-    if (!Base::CheckPathTraversal(optName)) {
-        WRITE_LOG(LOG_WARN, "SmartSlavePath path traversal detected in optName: %s",
-                  Hdc::MaskString(std::string(optName)).c_str());
-        return false;
-    }
     if (r == 0 && (req.statbuf.st_mode & S_IFDIR)) {  // is dir
         localPath = localPath + Base::GetPathSep() + optName;
     }

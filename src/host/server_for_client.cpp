@@ -1639,11 +1639,7 @@ bool HdcServerForClient::CommandMatchDaemonFeature(uint16_t cmdFlag, const HDaem
 bool HdcServerForClient::IsNeedInterceptCommand()
 {
     std::string out;
-    // Use fail-closed strategy: if GetDevItem fails, intercept the command
-    if (!SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out)) {
-        WRITE_LOG(LOG_WARN, "IsNeedInterceptCommand: GetDevItem failed, assuming restricted");
-        return true;
-    }
+    SystemDepend::GetDevItem(SYS_PARAM_ENTERPRISE_HDC_DISABLE.c_str(), out);
     if (out.empty() || out == "false") {
         return false;
     }

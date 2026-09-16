@@ -226,7 +226,7 @@ struct HdcSession {
     std::atomic<uint32_t> ref;
     uint8_t uvHandleRef;  // libuv handle ref -- just main thread now
     uint8_t uvChildRef;   // libuv handle ref -- just main thread now
-    bool childCleared;
+    std::atomic<bool> childCleared;
     std::map<uint32_t, HTaskInfo> *mapTask;
     std::atomic<uint32_t> clearTaskTimes;
     // class ptr
@@ -307,7 +307,7 @@ struct HdcSession {
     }
 
     HdcSession() : serverOrDaemon(false), handshakeOK(false), isDead(false),
-                   voteReset(false), childLoopStatus(&childLoop, "ChildLoop")
+                   voteReset(false), childCleared(false), childLoopStatus(&childLoop, "ChildLoop")
     {
         connectKey = "";
         connType = CONN_USB;
@@ -315,7 +315,6 @@ struct HdcSession {
         ref = 0;
         uvHandleRef = 0;
         uvChildRef = 0;
-        childCleared = false;
         mapTask = nullptr;
         clearTaskTimes = 0;
         classInstance = nullptr;

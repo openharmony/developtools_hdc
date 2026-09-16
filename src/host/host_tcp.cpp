@@ -135,7 +135,7 @@ void HdcHostTCP::Connect(uv_connect_t *connection, int status)
     return;
 Finish:
     WRITE_LOG(LOG_FATAL, "Connect failed sessionId:%s", sessionIdMaskStr.c_str());
-    hSession->childCleared = true;
+    hSession->childCleared.store(true, std::memory_order_release);
     ptrConnect->FreeSession(hSession->sessionId);
 }
 

@@ -573,8 +573,8 @@ bool HdcFile::BeginFileOperations()
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%s uv_fs_open local:%s remote:%s", taskInfo->channelId,
         Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
         Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
-    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
-                        S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
+    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_NOFOLLOW,
+ 	    S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {
         WRITE_LOG(LOG_DEBUG, "uv_fs_open create rc:%d %s", rc, Hdc::MaskString(ctxNow.localPath).c_str());
     }

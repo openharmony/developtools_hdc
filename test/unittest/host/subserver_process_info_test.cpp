@@ -138,3 +138,36 @@ HWTEST_F(SubserverProcessInfoTest, GetSubserverStatus_AbnormalExit, TestSize.Lev
     ClearMockFunctions();
 }
 
+HWTEST_F(SubserverProcessInfoTest, GetSubserverStatus_ExitCodeAsStatus, TestSize.Level0)
+{
+    auto mockHandle = std::make_unique<ProcessHandle>();
+    mockHandle->SetPidForTest(getpid());
+
+    SetMockIsAlive([](pid_t) { return false; });
+    // Mock GetExitCode returns a value in range [CONNECTING, UNKNOWN)
+    // SubserverStatus::PORT_LISTEN_FAIL = 1003
+    SetMockGetExitCode([](pid_t) { return static_cast<int>(SubserverStatus::PORT_LISTEN_FAIL); });
+
+    SubserverProcessInfo info(std::move(mockHandle));
+
+    EXPECT_EQ(info.GetSubserverStatus(), SubserverStatus::PORT_LISTEN_FAIL);
+
+    ClearMockFunctions();
+}
+
+HWTEST_F(SubserverProcessInfoTest, GetSubserverStatus_ExitCodeConnectTimeout, TestSize.Level0)
+{
+    auto mockHandle = std::make_unique<ProcessHandle>();
+    mockHandle->SetPidForTest(getpid());
+
+    SetMockIsAlive([](pid_t) { return false; });
+    // SubserverStatus::CONNECT_TIMEOUT = 1004
+    SetMockGetExitCode([](pid_t) { return static_cast<int>(SubserverStatus::CONNECT_TIMEOUT); });
+
+    SubserverProcessInfo info(std::move(mockHandle));
+
+    EXPECT_EQ(info.GetSubserverStatus(), SubserverStatus::CONNECT_TIMEOUT);
+
+    ClearMockFunctions();
+}
+

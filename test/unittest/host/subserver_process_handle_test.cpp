@@ -16,8 +16,15 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <string>
+#include <sys/wait.h>
+#include <csignal>
+#include <functional>
 
 #include "process_handle.h"
+
+extern void SetMockIsAlive(std::function<bool(pid_t)> func);
+extern void SetMockGetExitCode(std::function<int(pid_t)> func);
+extern void ClearMockFunctions();
 
 using namespace testing::ext;
 using namespace Hdc;
@@ -93,4 +100,55 @@ HWTEST_F(ProcessHandleTest, GetExitCode_EmptyHandle, TestSize.Level0)
 {
     ProcessHandle handle;
     EXPECT_EQ(handle.GetExitCode(), -1);
+}
+
+HWTEST_F(ProcessHandleTest, GetExitCode_NormalExit, TestSize.Level0)
+{
+    pid_t pid = fork();
+    if (pid == 0) {
+        // child process, exit with code 42
+        _exit(42);
+    }
+    // parent process
+    ProcessHandle handle;
+    handle.SetPidForTest(pid);
+
+    int exitCode = handle.GetExitCode();
+    EXPECT_EQ(exitCode, 42);
+
+    // cleanup
+    int status;
+    waitpid(pid, &status, 0);
+}
+
+HWTEST_F(ProcessHandleTest, GetExitCode_SignalTerminate, TestSize.Level0)
+{
+    pid_t pid = fork();
+    if (pid == 0) {
+        // child process, terminated by signal
+        raise(SIGTERM);
+        _exit(0); // should not reach here
+    }
+    // parent process
+    ProcessHandle handle;
+    handle.SetPidForTest(pid);
+
+    int exitCode = handle.GetExitCode();
+    EXPECT_EQ(exitCode, -1);
+
+    // cleanup
+    int status;
+    waitpid(pid, &status, 0);
+}
+
+HWTEST_F(ProcessHandleTest, GetExitCode_Mock, TestSize.Level0)
+{
+    ProcessHandle handle;
+    handle.SetPidForTest(getpid());
+
+    SetMockGetExitCode([](pid_t) { return 100; });
+
+    EXPECT_EQ(handle.GetExitCode(), 100);
+
+    ClearMockFunctions();
 }

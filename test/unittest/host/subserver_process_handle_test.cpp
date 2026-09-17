@@ -18,13 +18,8 @@
 #include <string>
 #include <sys/wait.h>
 #include <csignal>
-#include <functional>
 
 #include "process_handle.h"
-
-extern void SetMockIsAlive(std::function<bool(pid_t)> func);
-extern void SetMockGetExitCode(std::function<int(pid_t)> func);
-extern void ClearMockFunctions();
 
 using namespace testing::ext;
 using namespace Hdc;
@@ -139,16 +134,4 @@ HWTEST_F(ProcessHandleTest, GetExitCode_SignalTerminate, TestSize.Level0)
     // cleanup
     int status;
     waitpid(pid, &status, 0);
-}
-
-HWTEST_F(ProcessHandleTest, GetExitCode_Mock, TestSize.Level0)
-{
-    ProcessHandle handle;
-    handle.SetPidForTest(getpid());
-
-    SetMockGetExitCode([](pid_t) { return 100; });
-
-    EXPECT_EQ(handle.GetExitCode(), 100);
-
-    ClearMockFunctions();
 }

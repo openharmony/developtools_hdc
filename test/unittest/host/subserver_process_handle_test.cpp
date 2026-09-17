@@ -16,6 +16,8 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <string>
+#include <sys/wait.h>
+#include <csignal>
 
 #include "process_handle.h"
 
@@ -93,4 +95,43 @@ HWTEST_F(ProcessHandleTest, GetExitCode_EmptyHandle, TestSize.Level0)
 {
     ProcessHandle handle;
     EXPECT_EQ(handle.GetExitCode(), -1);
+}
+
+HWTEST_F(ProcessHandleTest, GetExitCode_NormalExit, TestSize.Level0)
+{
+    pid_t pid = fork();
+    if (pid == 0) {
+        // child process, exit with code 42
+        _exit(42);
+    }
+    // parent process
+    ProcessHandle handle;
+    handle.SetPidForTest(pid);
+
+    int exitCode = handle.GetExitCode();
+    EXPECT_EQ(exitCode, 42);
+
+    // cleanup
+    int status;
+    waitpid(pid, &status, 0);
+}
+
+HWTEST_F(ProcessHandleTest, GetExitCode_SignalTerminate, TestSize.Level0)
+{
+    pid_t pid = fork();
+    if (pid == 0) {
+        // child process, terminated by signal
+        raise(SIGTERM);
+        _exit(0); // should not reach here
+    }
+    // parent process
+    ProcessHandle handle;
+    handle.SetPidForTest(pid);
+
+    int exitCode = handle.GetExitCode();
+    EXPECT_EQ(exitCode, -1);
+
+    // cleanup
+    int status;
+    waitpid(pid, &status, 0);
 }

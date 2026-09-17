@@ -65,9 +65,11 @@ HWTEST_F(SubserverProcessInfoTest, GetSubserverStatus_CurrentProcess, TestSize.L
         EXPECT_TRUE(status == SubserverStatus::CONNECTING || status == SubserverStatus::SUBSERVER_OTHER_EXIT);
 
         std::this_thread::sleep_for(std::chrono::seconds(2));
+        SetMockIsAlive([](pid_t) { return false; });
+        SetMockGetExitCode([](pid_t) { return 0; });
 
         status = info.GetSubserverStatus();
-        EXPECT_EQ(status, SubserverStatus::CONNECTING);
+        EXPECT_EQ(status, SubserverStatus::SUBSERVER_OTHER_EXIT);
     }
 }
 

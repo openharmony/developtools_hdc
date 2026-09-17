@@ -201,6 +201,14 @@ bool HdcFile::CheckSandboxSubPath(CtxFile *context, string &resolvedPath)
     string fullPath = SANDBOX_ROOT_DIR + context->bundleName;
     string appDir(fullPath);
     appDir = Base::CanonicalizeSpecPath(appDir);
+    // Validate inputLocalPath for path traversal before building full path
+    if (!Base::CheckPathTraversal(context->inputLocalPath)) {
+        LogMsg(MSG_FAIL, "[E005102] Remote path: %s is invalid, path traversal detected.",
+            context->inputLocalPath.c_str());
+        WRITE_LOG(LOG_WARN, "CheckSandboxSubPath path traversal in inputLocalPath:%s",
+            Hdc::MaskString(context->inputLocalPath).c_str());
+        return false;
+    }
     fullPath = fullPath + Base::GetPathSep() + context->inputLocalPath;
     // remove the postfix char '/', make sure that the method Base::GetPathWithoutFilename
     // returns a path without the last dir node name.
@@ -518,6 +526,15 @@ bool HdcFile::CheckLocalPathAndFilename()
         WRITE_LOG(LOG_WARN, "SlaveCheck CheckFilename error:%s", errStr.c_str());
         return false;
     }
+
+    // Validate final localPath after CheckFilename modifications to prevent path traversal
+    if (!Base::CheckPathTraversal(ctxNow.localPath)) {
+        RemoveSandboxRootPath(errStr, ctxNow.transferConfig.reserve1);
+        LogMsg(MSG_FAIL, "Path traversal not allowed in final path");
+        WRITE_LOG(LOG_WARN, "SlaveCheck path traversal detected in localPath:%s",
+            Hdc::MaskString(ctxNow.localPath).c_str());
+        return false;
+    }
     return true;
 }
 
@@ -557,8 +574,8 @@ bool HdcFile::BeginFileOperations()
     WRITE_LOG_DAEMON(LOG_INFO, "BeginFileOperations cid:%u sid:%s uv_fs_open local:%s remote:%s", taskInfo->channelId,
         Hdc::MaskSessionIdToString(taskInfo->sessionId).c_str(),
         Hdc::MaskString(ctxNow.localPath).c_str(), Hdc::MaskString(ctxNow.remotePath).c_str());
-    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY,
-                        S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
+    int rc = uv_fs_open(loopTask, openReq, ctxNow.localPath.c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY |
+        UV_FS_O_NOFOLLOW, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH, OnFileOpen);
     if (rc < 0) {
         WRITE_LOG(LOG_DEBUG, "uv_fs_open create rc:%d %s", rc, Hdc::MaskString(ctxNow.localPath).c_str());
     }

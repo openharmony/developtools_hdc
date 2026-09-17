@@ -77,6 +77,19 @@ bool CallDoReboot(const char *reason)
 
 bool RebootDevice(const string &cmd)
 {
+    constexpr size_t kMaxRebootArgLen = 12;
+
+    if (cmd.size() > kMaxRebootArgLen) {
+        WRITE_LOG(LOG_WARN, "RebootDevice: cmd too long, size:%zu", cmd.size());
+        return false;
+    }
+
+    if (cmd != "" && cmd != "recovery" && cmd != "bootloader" && cmd != "fastboot" && cmd != "shutdown"
+        && cmd != "restart" && cmd != "cold" && cmd != "flashd") {
+        WRITE_LOG(LOG_WARN, "RebootDevice: unauthorized reboot target:%s", cmd.c_str());
+        return false;
+    }
+
     string reason = "reboot";
     if (cmd != "") {
         reason += ",";

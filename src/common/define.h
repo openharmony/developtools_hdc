@@ -25,6 +25,7 @@ constexpr size_t SIZE_THREAD_POOL = 16;
 constexpr size_t SIZE_THREAD_POOL_MIN = 16;
 constexpr size_t SIZE_THREAD_POOL_MAX = 256;
 constexpr uint8_t GLOBAL_TIMEOUT = 30;
+constexpr uint8_t USB_SEND_TIMEOUT = 5; // seconds
 constexpr uint16_t DEFAULT_PORT = 8710;
 #ifdef FEATURE_HOST_LOG_COMPRESS
 constexpr uint16_t MAX_LOG_FILE_COUNT = 300;

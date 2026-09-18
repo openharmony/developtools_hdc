@@ -62,7 +62,7 @@ private:
 
     uv_timer_t checkSerialPort; // server-use
     std::atomic<uint32_t> currentSessionId{0};
-    bool isAlive = false;
+    std::atomic<bool> isAlive = false;
     std::string devPath;
 
     HdcDaemon &daemon;

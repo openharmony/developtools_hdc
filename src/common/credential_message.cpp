@@ -63,7 +63,6 @@ void CredentialMessage::Init(const std::string& messageStr)
         return;
     }
 
-    messageBodyLen = static_cast<int>(bodyLength);
     AllocateAndCopy(messageStr.data() + MESSAGE_BODY_POS, bodyLength);
 }
 CredentialMessage::~CredentialMessage()

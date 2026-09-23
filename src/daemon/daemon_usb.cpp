@@ -579,8 +579,8 @@ int HdcDaemonUSB::DispatchToWorkThread(uint32_t sessionId, uint8_t *readBuf, int
         }
     }
 
-    if (hChildSession->childCleared || hChildSession->isDead) {
-        WRITE_LOG(LOG_WARN, "session dead clr:%d - %d", hChildSession->childCleared,
+    if (hChildSession->childCleared.load() || hChildSession->isDead) {
+        WRITE_LOG(LOG_WARN, "session dead clr:%d - %d", static_cast<int>(hChildSession->childCleared.load()),
             static_cast<int>(hChildSession->isDead.load()));
         return ERR_SESSION_DEAD;
     }

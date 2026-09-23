@@ -728,9 +728,10 @@ void HdcSessionBase::FreeSessionOpeate(uv_timer_t *handle)
         auto callbackCheckFreeSessionContinue = [](uv_timer_t *handle) -> void {
             HSession hSession = (HSession)handle->data;
             HdcSessionBase *thisClass = (HdcSessionBase *)hSession->classInstance;
-            if (!hSession->childCleared) {
+            if (!hSession->childCleared.load()) {
                 WRITE_LOG(LOG_INFO, "FreeSessionOpeate childCleared:%d sessionId:%s",
-                    hSession->childCleared, Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
+                    static_cast<int>(hSession->childCleared.load()),
+                    Hdc::MaskSessionIdToString(hSession->sessionId).c_str());
                 return;
             }
             Base::TryCloseHandle((uv_handle_t *)handle, Base::CloseTimerCallback);
@@ -1609,7 +1610,7 @@ void HdcSessionBase::SessionWorkThread(uv_work_t *arg)
     WRITE_LOG(LOG_INFO, "!!!Workthread run again, sid:%s", sessionIdMaskStr.c_str());
     // main loop has exit
     thisClass->ReChildLoopForSessionClear(hSession);  // work pending again
-    hSession->childCleared = true;
+    hSession->childCleared.store(true, std::memory_order_release);
     WRITE_LOG(LOG_INFO, "!!!Workthread run finish, sid:%s", sessionIdMaskStr.c_str());
 }
 

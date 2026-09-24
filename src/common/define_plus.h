@@ -33,6 +33,24 @@
 
 namespace Hdc {
 
+#ifdef HDC_HOST
+constexpr char USB_CONNECTION_ERROR_INFO[] =
+    "[E001003] USB communication abnormal, please check the USB communication link.";
+constexpr char UART_CONNECTION_ERROR_INFO[] =
+    "[E001408] UART communication abnormal, please check the UART communication link.";
+
+inline const char *GetConnectionErrorInfo(uint8_t connType)
+{
+    if (connType == CONN_USB) {
+        return USB_CONNECTION_ERROR_INFO;
+    }
+    if (connType == CONN_SERIAL) {
+        return UART_CONNECTION_ERROR_INFO;
+    }
+    return nullptr;
+}
+#endif
+
 static string MaskString(const string &str)
 {
     if (str.empty()) {
@@ -275,6 +293,11 @@ struct HdcSession {
     bool isRunningOk;
     std::string faultInfo;
     std::mutex faultInfoMutex;
+    std::string GetConnectionError()
+    {
+        std::lock_guard<std::mutex> lock(faultInfoMutex);
+        return faultInfo;
+    }
     uint64_t commandCount = 0;
     std::string ToDisplayConnectionStr()
     {
@@ -453,6 +476,9 @@ struct HdcDaemonInformation {
     std::string daemonAuthStatus;
     std::map<std::string, std::string> daemonFeature;
     bool inited;
+#ifdef HDC_HOST
+    std::string faultInfo;
+#endif
 };
 using HDaemonInfo = struct HdcDaemonInformation *;
 

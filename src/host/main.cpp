@@ -19,6 +19,7 @@
 #include "runtime_config.h"
 #include "server.h"
 #include "server_for_client.h"
+#include "server_instance.h"
 #include "subserver/subserver_manager.h"
 
 #ifdef _WIN32
@@ -175,6 +176,9 @@ int RunServerMode()
     if (!server.Initial(serverListenString.c_str())) {
         Base::PrintMessage("Initial failed");
         return -1;
+    }
+    if (!RuntimeConfig::Instance().isSubserver && !WriteServerInstanceInfo(serverListenString)) {
+        WRITE_LOG(LOG_WARN, "[E002117] Failed to write HDC server endpoint information");
     }
     server.WorkerPendding();
     return 0;

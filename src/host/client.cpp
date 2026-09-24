@@ -23,6 +23,7 @@
 #endif
 #include "host_updater.h"
 #include "server.h"
+#include "server_instance.h"
 #ifdef __OHOS__
 #include <sys/un.h>
 #include "system_depend.h"
@@ -128,8 +129,38 @@ HdcClient::~HdcClient()
     Base::TryCloseLoop(loopMain, "ExecuteCommand finish");
 }
 
+void HdcClient::SetConnectionError(int status)
+{
+    if (status >= 0) {
+        return;
+    }
+    char buffer[BUF_SIZE_DEFAULT] = { 0 };
+    uv_strerror_r(status, buffer, sizeof(buffer));
+    connectionError = buffer;
+}
+
+void HdcClient::PrintConnectionError()
+{
+    if (connectionErrorPrinted) {
+        return;
+    }
+    string message = InspectServerInstance(channelHostPort);
+    if (message.empty()) {
+        message = "[E002110] HDC server connection failed";
+        if (!connectionError.empty()) {
+            message += ": " + connectionError;
+        }
+    }
+    WRITE_LOG(LOG_DEBUG, "%s", message.c_str());
+    (void)fprintf(stderr, "%s\n", message.c_str());
+    connectionErrorPrinted = true;
+}
+
 void HdcClient::NotifyInstanceChannelFree(HChannel hChannel)
 {
+    if (!hChannel->handshakeOK) {
+        PrintConnectionError();
+    }
 #ifndef _WIN32
     stdinBytesSincePoll = 0;
 #endif
@@ -548,6 +579,8 @@ static int ReportCommandEvent(const string &commandIn, bool isIntercepted)
 
 int HdcClient::ExecuteCommand(const string &commandIn)
 {
+    connectionError.clear();
+    connectionErrorPrinted = false;
     char ip[BUF_SIZE_TINY] = "";
     int ret = 0;
 #ifdef __OHOS__
@@ -563,6 +596,8 @@ int HdcClient::ExecuteCommand(const string &commandIn)
 #ifndef __OHOS__
         WRITE_LOG(LOG_FATAL, "ConnectKey2IPPort %s failed with %d",
                   channelHostPort.c_str(), ret);
+        connectionError = "invalid server endpoint";
+        PrintConnectionError();
         return -1;
 #endif
     }
@@ -580,6 +615,16 @@ int HdcClient::ExecuteCommand(const string &commandIn)
     }
     command = commandIn;
     connectKey = AutoConnectKey(command, connectKey);
+    ConnectToServer(ip, port);
+    uv_timer_init(loopMain, &waitTimeDoCmd);
+    waitTimeDoCmd.data = this;
+    uv_timer_start(&waitTimeDoCmd, CommandWorker, UV_START_TIMEOUT, UV_START_REPEAT);
+    WorkerPendding();
+    return 0;
+}
+
+void HdcClient::ConnectToServer(const char *ip, uint16_t port)
+{
 #ifdef __OHOS__
     AdminChannel(OP_UPDATE, channel->channelId, channel);
     if (channel->isUds) {
@@ -590,11 +635,6 @@ int HdcClient::ExecuteCommand(const string &commandIn)
 #else
     ConnectServerForClient(ip, port);
 #endif
-    uv_timer_init(loopMain, &waitTimeDoCmd);
-    waitTimeDoCmd.data = this;
-    uv_timer_start(&waitTimeDoCmd, CommandWorker, UV_START_TIMEOUT, UV_START_REPEAT);
-    WorkerPendding();
-    return 0;
 }
 
 int HdcClient::Initial(const string &connectKeyIn)
@@ -623,6 +663,7 @@ int HdcClient::ConnectUdsServerForClient()
     uv_connect_t *conn = new(std::nothrow) uv_connect_t();
     if (conn == nullptr) {
         WRITE_LOG(LOG_FATAL, "ConnectServerForClient new conn failed");
+        SetConnectionError(UV_ENOMEM);
         return ERR_GENERIC;
     }
     conn->data = this;
@@ -645,12 +686,15 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
     uv_connect_t *conn = new(std::nothrow) uv_connect_t();
     if (conn == nullptr) {
         WRITE_LOG(LOG_FATAL, "ConnectServerForClient new conn failed");
+        SetConnectionError(UV_ENOMEM);
         return ERR_GENERIC;
     }
     conn->data = this;
     tcpConnectRetryCount = 0;
     uv_timer_init(loopMain, &retryTcpConnTimer);
     retryTcpConnTimer.data = this;
+    const struct sockaddr *address = nullptr;
+    int status = 0;
     if (strchr(ip, '.')) {
         isIpV4 = true;
         std::string s = ip;
@@ -660,13 +704,21 @@ int HdcClient::ConnectServerForClient(const char *ip, uint16_t port)
             s = s.substr(index + size);
         }
         WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv4 %s:%d", s.c_str(), port);
-        uv_ip4_addr(s.c_str(), port, &destv4);
-        uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&destv4, Connect);
+        status = uv_ip4_addr(s.c_str(), port, &destv4);
+        address = reinterpret_cast<const struct sockaddr *>(&destv4);
     } else {
         isIpV4 = false;
         WRITE_LOG(LOG_DEBUG, "ConnectServerForClient ipv6 %s:%d", ip, port);
-        uv_ip6_addr(ip, port, &dest);
-        uv_tcp_connect(conn, (uv_tcp_t *)&channel->hWorkTCP, (const struct sockaddr *)&dest, Connect);
+        status = uv_ip6_addr(ip, port, &dest);
+        address = reinterpret_cast<const struct sockaddr *>(&dest);
+    }
+    if (status == 0) {
+        status = uv_tcp_connect(conn, &channel->hWorkTCP, address, Connect);
+    }
+    if (status < 0) {
+        SetConnectionError(status);
+        delete conn;
+        return status;
     }
     return 0;
 }
@@ -681,6 +733,7 @@ void HdcClient::CommandWorker(uv_timer_t *handle)
         uv_stop(thisClass->loopMain);
         WRITE_LOG(LOG_DEBUG, "Connect server failed");
         fprintf(stderr, "Connect server failed\n");
+        thisClass->PrintConnectionError();
         return;
     }
     if (!thisClass->channel->handshakeOK) {
@@ -958,6 +1011,7 @@ void HdcClient::ConnectUds(uv_connect_t *connection, int status)
 
     // connect success
     if (status == 0) {
+        thisClass->connectionError.clear();
         thisClass->BindLocalStd(hChannel);
         Base::SetUdsOptions((uv_pipe_t *)&hChannel->hWorkUds);
         WRITE_LOG(LOG_DEBUG, "uv_read_start");
@@ -966,6 +1020,7 @@ void HdcClient::ConnectUds(uv_connect_t *connection, int status)
     }
 
     // connect failed, start timer and retry
+    thisClass->SetConnectionError(status);
     WRITE_LOG(LOG_DEBUG, "retry count:%d", thisClass->udsConnectRetryCount);
     if (thisClass->udsConnectRetryCount >= TCP_CONNECT_MAX_RETRY_COUNT) {
         WRITE_LOG(LOG_DEBUG, "stop retry for connect");
@@ -992,6 +1047,7 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
 
     // connect success
     if (status == 0) {
+        thisClass->connectionError.clear();
         thisClass->BindLocalStd(hChannel);
         Base::SetTcpOptions((uv_tcp_t *)&hChannel->hWorkTCP);
         WRITE_LOG(LOG_DEBUG, "uv_read_start");
@@ -1000,6 +1056,7 @@ void HdcClient::Connect(uv_connect_t *connection, int status)
     }
 
     // connect failed, start timer and retry
+    thisClass->SetConnectionError(status);
     WRITE_LOG(LOG_DEBUG, "retry count:%d", thisClass->tcpConnectRetryCount);
     if (thisClass->tcpConnectRetryCount >= TCP_CONNECT_MAX_RETRY_COUNT) {
         WRITE_LOG(LOG_DEBUG, "stop retry for connect");
@@ -1019,6 +1076,7 @@ void HdcClient::RetryUdsConnectWorker(uv_timer_t *handle)
     uv_connect_t *connection = new(std::nothrow) uv_connect_t();
     if (connection == nullptr) {
         WRITE_LOG(LOG_FATAL, "RetryUdsConnectWorker new conn failed");
+        thisClass->SetConnectionError(UV_ENOMEM);
         thisClass->FreeChannel(hChannel->channelId);
         return;
     }
@@ -1036,17 +1094,20 @@ void HdcClient::RetryTcpConnectWorker(uv_timer_t *handle)
     uv_connect_t *connection = new(std::nothrow) uv_connect_t();
     if (connection == nullptr) {
         WRITE_LOG(LOG_FATAL, "RetryTcpConnectWorker new conn failed");
+        thisClass->SetConnectionError(UV_ENOMEM);
         thisClass->FreeChannel(hChannel->channelId);
         return;
     }
     connection->data = thisClass;
     WRITE_LOG(LOG_DEBUG, "RetryTcpConnectWorker start tcp connect");
-    if (thisClass->isIpV4) {
-        uv_tcp_connect(connection, &(thisClass->channel->hWorkTCP),
-            (const struct sockaddr *)&(thisClass->destv4), thisClass->Connect);
-    } else {
-        uv_tcp_connect(connection, &(thisClass->channel->hWorkTCP),
-            (const struct sockaddr *)&(thisClass->dest), thisClass->Connect);
+    const struct sockaddr *address = thisClass->isIpV4 ?
+        reinterpret_cast<const struct sockaddr *>(&thisClass->destv4) :
+        reinterpret_cast<const struct sockaddr *>(&thisClass->dest);
+    int status = uv_tcp_connect(connection, &hChannel->hWorkTCP, address, Connect);
+    if (status < 0) {
+        thisClass->SetConnectionError(status);
+        delete connection;
+        // Keep the existing wait-timeout path and its client output.
     }
 }
 
@@ -1116,6 +1177,7 @@ int HdcClient::FillConnectKeyAndCheckVersion(uint32_t channelId, ChannelHandShak
 void HdcClient::FinalizeHandshake(HChannel hChannel, ChannelHandShake *hShake)
 {
     hChannel->handshakeOK = true;
+    connectionError.clear();
 #ifdef HDC_CHANNEL_KEEP_ALIVE
     Send(hChannel->channelId,
          reinterpret_cast<uint8_t *>(const_cast<char*>(CMDSTR_INNER_ENABLE_KEEPALIVE.c_str())),
@@ -1127,6 +1189,7 @@ int HdcClient::PreHandshake(HChannel hChannel, const uint8_t *buf, const int byt
 {
     int ret = ValidateHandshakeBanner(hChannel, buf, bytesIO);
     if (ret != RET_SUCCESS) {
+        connectionError = "handshake failed";
         return ret;
     }
     SyncChannelId(hChannel, buf);

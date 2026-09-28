@@ -2273,8 +2273,8 @@ static void EchoLog(string &buf)
                  std::function<void(const uint8_t, string &, const void *)> cb)
     {
         if (loop == nullptr || !cb) {
-            WRITE_LOG(LOG_FATAL, "DelayDo invalid param loop:%s cb:%d", Hdc::MaskString(loop).c_str(),
-                static_cast<bool>(cb));
+            WRITE_LOG(LOG_FATAL, "DelayDo invalid param loop:%s cb:%d",
+                std::to_string(reinterpret_cast<uintptr_t>(loop)).c_str(), static_cast<bool>(cb));
             return false;
         }
         struct DelayDoParam {

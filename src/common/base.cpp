@@ -2273,7 +2273,8 @@ static void EchoLog(string &buf)
                  std::function<void(const uint8_t, string &, const void *)> cb)
     {
         if (loop == nullptr || !cb) {
-            WRITE_LOG(LOG_FATAL, "DelayDo invalid param loop:%p cb:%d", loop, static_cast<bool>(cb));
+            WRITE_LOG(LOG_FATAL, "DelayDo invalid param loop:%s cb:%d", Hdc::MaskString(loop).c_str(),
+                static_cast<bool>(cb));
             return false;
         }
         struct DelayDoParam {
@@ -2941,7 +2942,12 @@ void CloseOpenFd(void)
         } else {
             return  nullptr;
         }
-        int fd = open(fileName, flags, S_IRUSR | S_IWUSR);
+        char resolvedPath[PATH_MAX] = { 0 };
+        if (realpath(fileName, resolvedPath) == nullptr) {
+            WRITE_LOG(LOG_FATAL, "realpath %s failed", Hdc::MaskString(fileName).c_str());
+            return nullptr;
+        }
+        int fd = open(resolvedPath, flags, S_IRUSR | S_IWUSR);
         if (fd < 0) {
             WRITE_LOG(LOG_FATAL, "open file %s failed", Hdc::MaskString(fileName).c_str());
             return nullptr;

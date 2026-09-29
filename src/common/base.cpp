@@ -2272,9 +2272,8 @@ static void EchoLog(string &buf)
     bool DelayDo(uv_loop_t *loop, const int delayMs, const uint8_t flag, string msg, void *data,
                  std::function<void(const uint8_t, string &, const void *)> cb)
     {
-        if (loop == nullptr || !cb) {
-            WRITE_LOG(LOG_FATAL, "DelayDo invalid param loop:%s cb:%d",
-                std::to_string(reinterpret_cast<uintptr_t>(loop)).c_str(), static_cast<bool>(cb));
+        if (loop == nullptr) {
+            WRITE_LOG(LOG_FATAL, "DelayDo invalid param, loop is null");
             return false;
         }
         struct DelayDoParam {

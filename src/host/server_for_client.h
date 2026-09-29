@@ -51,6 +51,7 @@ private:
     void OrderFindTargets(HChannel hChannel);
     bool NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck = false);
     static void OrderConnecTargetResult(uv_timer_t *req);
+    bool OnConnectTargetSuccess(HChannel hChannel, HDaemonInfo hdi);
     bool SendToDaemon(HChannel hChannel, const uint16_t commandFlag, uint8_t *bufPtr, const int bufSize);
     int BindChannelToSession(HChannel hChannel);
     bool CheckAutoFillTarget(HChannel hChannel);

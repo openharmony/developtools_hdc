@@ -36,6 +36,19 @@ static const int ENTERPRISE_HDC_DISABLE_ERR = -11;
 #endif
 
 namespace {
+string GetDaemonConnectionError(HDaemonInfo hdi)
+{
+    const char *transportError = hdi == nullptr ? nullptr : GetConnectionErrorInfo(hdi->connType);
+    if (transportError != nullptr) {
+        return transportError;
+    }
+    string errorInfo = "[E002106] Failed to communicate with daemon";
+    if (hdi != nullptr && !hdi->faultInfo.empty()) {
+        errorInfo += ": " + hdi->faultInfo;
+    }
+    return errorInfo;
+}
+
 bool ResolveHostReceiveTargetPath(const string &cwd, const string &path, string &targetPath)
 {
     if (path.empty()) {
@@ -577,15 +590,7 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
         bConnectOK = true;
     }
     if (bConnectOK) {
-        bExitRepet = true;
-        if (hChannel->isCheck) {
-            WRITE_LOG(LOG_INFO, "check device success and remove %s", Hdc::MaskString(hChannel->key).c_str());
-            thisClass->CommandRemoveSession(hChannel, hChannel->key.c_str());
-            thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
-        } else {
-            sRet = "Connect OK";
-            thisClass->EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
-        }
+        bExitRepet = thisClass->OnConnectTargetSuccess(hChannel, hdi);
     } else {
         uint16_t *bRetryCount = reinterpret_cast<uint16_t *>(hChannel->bufStd);
         ++(*bRetryCount);
@@ -595,11 +600,13 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
             bExitRepet = IsDisconnect(hdi, *bRetryCount);
         }
         if (bExitRepet) {
-            sRet = "Connect failed";
-            thisClass->EchoClient(hChannel, MSG_FAIL, const_cast<char *>(sRet.c_str()));
-            hdi->inited = false;
-            hdi->connStatus = STATUS_OFFLINE;
-            ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
+            sRet = "Connect failed\r\n" + GetDaemonConnectionError(hdi);
+            thisClass->EchoClient(hChannel, MSG_FAIL, sRet);
+            if (hdi != nullptr) {
+                hdi->inited = false;
+                hdi->connStatus = STATUS_OFFLINE;
+                ptrServer->AdminDaemonMap(OP_UPDATE, target, hdi);
+            }
             WRITE_LOG(LOG_INFO, "channelId:%u target:%s STATUS_OFFLINE",
                       hChannel->channelId, Hdc::MaskString(target).c_str());
         }
@@ -610,6 +617,20 @@ void HdcServerForClient::OrderConnecTargetResult(uv_timer_t *req)
     }
 }
 
+bool HdcServerForClient::OnConnectTargetSuccess(HChannel hChannel, HDaemonInfo hdi)
+{
+    string sRet;
+    if (hChannel->isCheck) {
+        WRITE_LOG(LOG_INFO, "check device success and remove %s", Hdc::MaskString(hChannel->key).c_str());
+        CommandRemoveSession(hChannel, hChannel->key.c_str());
+        EchoClient(hChannel, MSG_OK, const_cast<char *>(hdi->version.c_str()));
+    } else {
+        sRet = "Connect OK";
+        EchoClient(hChannel, MSG_OK, const_cast<char *>(sRet.c_str()));
+    }
+    return true;
+}
+
 bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const string &connectKey, bool isCheck)
 {
 #ifdef HDC_DEBUG
@@ -617,14 +638,10 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
 #endif
     int childRet = ((HdcServer *)ptrServer)->CreateConnect(connectKey, isCheck);
     bool ret = false;
-    int connectError = -2;
     constexpr uint8_t bufOffsetTwo = 2;
     constexpr uint8_t bufOffsetThree = 3;
     if (childRet == -1) {
         EchoClient(hChannel, MSG_INFO, "Target is connected, repeat operation");
-    } else if (childRet == connectError) {
-        EchoClient(hChannel, MSG_FAIL, "CreateConnect failed");
-        WRITE_LOG(LOG_FATAL, "CreateConnect failed");
     } else if (childRet == RET_SUCCESS) {
         size_t pos = connectKey.find(":");
         if (pos != std::string::npos) {
@@ -642,7 +659,15 @@ bool HdcServerForClient::NewConnectTry(void *ptrServer, HChannel hChannel, const
             ret = true;
         }
     } else {
-        WRITE_LOG(LOG_FATAL, "NewConnectTry failed");
+        HDaemonInfo hdi = nullptr;
+        ((HdcServer *)ptrServer)->AdminDaemonMap(OP_QUERY, connectKey, hdi);
+        if (childRet == ERR_NO_SUPPORT) {
+            EchoClient(hChannel, MSG_FAIL, "CreateConnect failed");
+            WRITE_LOG(LOG_FATAL, "CreateConnect failed");
+        } else {
+            WRITE_LOG(LOG_FATAL, "NewConnectTry failed");
+        }
+        EchoClient(hChannel, MSG_OK, GetDaemonConnectionError(hdi));
     }
     return ret;
 }
@@ -1345,8 +1370,12 @@ HSession HdcServerForClient::FindAliveSessionFromDaemonMap(const HChannel hChann
     }
     if (hdi->connStatus != STATUS_CONNECTED) {
         WRITE_LOG(LOG_WARN, "Device not found or connected cid:%u", hChannel->channelId);
+        string errorInfo = "[E001005] Device not found or connected";
+        if (!hdi->faultInfo.empty()) {
+            errorInfo += "\r\n" + GetDaemonConnectionError(hdi);
+        }
         FillChannelResult(hChannel, false, "device not found or connected");
-        EchoClient(hChannel, MSG_FAIL, "[E001005] Device not found or connected");
+        EchoClient(hChannel, MSG_FAIL, errorInfo);
         return nullptr;
     }
     if (hdi->hSession == nullptr) {

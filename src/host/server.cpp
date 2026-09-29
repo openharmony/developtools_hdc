@@ -501,6 +501,13 @@ void HdcServer::NotifyInstanceSessionFree(HSession hSession, bool freeOrClear)
         diNew.inited = false;
         diNew.connStatus = STATUS_OFFLINE;
         diNew.hSession = nullptr;
+        diNew.faultInfo = hSession->GetConnectionError();
+        if (diNew.faultInfo.empty() && (!hSession->isRunningOk || !hSession->handshakeOK)) {
+            const char *errorInfo = GetConnectionErrorInfo(hSession->connType);
+            if (errorInfo != nullptr) {
+                diNew.faultInfo = errorInfo;
+            }
+        }
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hSession->connectKey, hdiNew);
         CleanForwardMap(hSession->sessionId);
@@ -672,6 +679,7 @@ void HdcServer::UpdateHdiInfo(Hdc::HdcSessionBase::SessionHandShake &handshake, 
     // update
     hdiNew->inited = false;
     hdiNew->connStatus = STATUS_CONNECTED;
+    hdiNew->faultInfo.clear();
     WRITE_LOG(LOG_INFO, "handshake info is : %s", handshake.ToDebugString().c_str());
     WRITE_LOG(LOG_INFO, "handshake.buf = %s", handshake.buf.c_str());
     if (handshake.version < "Ver: 3.0.0b") {
@@ -1337,6 +1345,7 @@ int HdcServer::CreateConnect(const string &connectKey, bool isCheck)
         HdcDaemonInformation diNew = *hdiQuery;
         diNew.hSession = hSession;
         diNew.inited = true;
+        diNew.faultInfo.clear();
         HDaemonInfo hdiNew = &diNew;
         AdminDaemonMap(OP_UPDATE, hdiQuery->connectKey, hdiNew);
     }

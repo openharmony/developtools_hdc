@@ -420,12 +420,17 @@ void HdcHostUART::UpdateUARTDaemonInfo(const std::string &connectKey, HSession h
                                        ConnStatus connStatus)
 {
     // add to list
-    HdcDaemonInformation diNew;
+    HdcDaemonInformation diNew{};
     HDaemonInfo diNewPtr = &diNew;
     diNew.connectKey = connectKey;
     diNew.connType = CONN_SERIAL;
     diNew.connStatus = connStatus;
     diNew.hSession = hSession;
+    if (hSession != nullptr) {
+        diNew.faultInfo = hSession->GetConnectionError();
+    } else if (connStatus == STATUS_OFFLINE) {
+        diNew.faultInfo = UART_CONNECTION_ERROR_INFO;
+    }
     WRITE_LOG(LOG_DEBUG, "%s uart connectKey :%s session %s change to %d", __FUNCTION__,
               connectKey.c_str(),
               hSession == nullptr ? "<null>" : hSession->ToDebugString().c_str(), connStatus);
@@ -458,7 +463,6 @@ bool HdcHostUART::StartUartReadThread(HSession hSession)
         hUART->readThread = std::thread([this, hSession]() { this->UartReadThread(hSession); });
     } catch (...) {
         server.FreeSession(hSession->sessionId);
-        UpdateUARTDaemonInfo(hSession->connectKey, hSession, STATUS_UNKNOW);
         WRITE_LOG(LOG_WARN, "%s failed err", __FUNCTION__);
         return false;
     }
@@ -527,7 +531,9 @@ RetErrCode HdcHostUART::StartupUARTWork()
 HSession HdcHostUART::ConnectDaemon(const std::string &connectKey)
 {
     WRITE_LOG(LOG_DEBUG, "%s", __FUNCTION__);
-    OpenSerialPort(connectKey);
+    if (OpenSerialPort(connectKey) != RET_SUCCESS) {
+        UpdateUARTDaemonInfo(connectKey, nullptr, STATUS_OFFLINE);
+    }
     return nullptr;
 }
 
@@ -656,11 +662,13 @@ void HdcHostUART::CloseSerialPort(const HUART hUART)
 void HdcHostUART::OnTransferErrorInner(const HSession session, bool lock)
 {
     if (session != nullptr) {
+        session->isRunningOk = false;
         WRITE_LOG(LOG_FATAL, "%s:%s", __FUNCTION__, session->ToDebugString().c_str());
         if (session->hUART != nullptr) {
             if (IsDeviceOpened(*session->hUART)) {
                 // same device dont echo twice to client
-                string echoStr = "ERR: uart link layer transmission error.\n";
+                string echoStr = string("ERR: uart link layer transmission error.\n") +
+                    UART_CONNECTION_ERROR_INFO + "\n";
                 server.EchoToClientsForSession(session->sessionId, echoStr);
             }
             // 1. dev opened by other application
@@ -701,7 +709,7 @@ void HdcHostUART::Restartession(const HSession session)
                   session->hUART->serialPort.c_str());
         CloseSerialPort(session->hUART); // huart will free , so we must clost it here
         server.EchoToClientsForSession(session->sessionId,
-                                       "uart link released by daemon. need connect again.");
+            string("uart link released by daemon. need connect again.\n") + UART_CONNECTION_ERROR_INFO + "\n");
     }
 }
 

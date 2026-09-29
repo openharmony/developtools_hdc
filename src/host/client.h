@@ -86,6 +86,9 @@ private:
     static void RunCommand(const string& cmd);
 #endif
     void RunExecuteCommand(const string& cmd);
+    void SetConnectionError(int status);
+    void PrintConnectionError();
+    void ConnectToServer(const char *ip, uint16_t port);
 
 #ifndef _WIN32
     termios terminalState;
@@ -93,6 +96,8 @@ private:
 #endif
     string connectKey;
     string command;
+    string connectionError;
+    bool connectionErrorPrinted = false;
     uint16_t debugRetryCount;
     bool bShellInteractive = false;
     uv_timer_t waitTimeDoCmd;

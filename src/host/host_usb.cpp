@@ -422,6 +422,9 @@ void HdcHostUSB::UpdateUSBDaemonInfo(HUSB hUSB, HSession hSession, uint8_t connS
     di.connType = CONN_USB;
     di.connStatus = connStatus;
     di.hSession = hSession;
+    if (hSession != nullptr) {
+        di.faultInfo = hSession->GetConnectionError();
+    }
     di.usbMountPoint = "";
     di.usbMountPoint = Base::StringFormat("%d-%d", hUSB->busId, hUSB->devId);
 
@@ -723,8 +726,11 @@ void HdcHostUSB::BeginUsbRead(HSession hSession)
         --hSession->ref;
         auto server = reinterpret_cast<HdcServer *>(clsMainBase);
         hUSB->hostBulkIn.isShutdown = true;
-        WRITE_LOG(LOG_FATAL,
-            "[Fail][E001003] USB communication abnormal, please check the USB communication link.");
+        if (childRet < 0) {
+            hSession->isRunningOk = false;
+            WRITE_LOG(LOG_FATAL,
+                "[Fail][E001003] USB communication abnormal, please check the USB communication link.");
+        }
         server->FreeSession(hSession->sessionId);
         RemoveIgnoreDevice(hUSB->usbMountPoint);
         WRITE_LOG(LOG_INFO, "Usb loop read finish sid:%s", sessionIdMaskStr.c_str());

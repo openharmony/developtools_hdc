@@ -427,6 +427,7 @@ ohos_executable("hdc") {
     "src/host/runtime_config.cpp",
     "src/host/server.cpp",
     "src/host/server_for_client.cpp",
+    "src/host/server_instance.cpp",
     "src/host/subserver/process_handle.cpp",
     "src/host/subserver/process_handle_win.cpp",
     "src/host/subserver/process_handle_unix.cpp",

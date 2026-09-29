@@ -23,23 +23,28 @@ HdcChannelBase::HdcChannelBase(const bool serverOrClient, const string &addrStri
     loopMainStatus.StartReportTimer();
     threadChanneMain = uv_thread_self();
 
+    constexpr int bufSize = 1024;
+    char buf[bufSize] = { 0 };
     int ret = uv_rwlock_init(&mainAsync);
     if (ret != 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to initialize mainAsync rwlock: %s", uv_strerror(ret));
+        uv_strerror_r(ret, buf, bufSize);
+        WRITE_LOG(LOG_FATAL, "Failed to initialize mainAsync rwlock: %s", buf);
         return;
     }
 
     asyncMainLoop.data = nullptr;
     ret = uv_async_init(loopMain, &asyncMainLoop, MainAsyncCallback);
     if (ret != 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to initialize asyncMainLoop: %s", uv_strerror(ret));
+        uv_strerror_r(ret, buf, bufSize);
+        WRITE_LOG(LOG_FATAL, "Failed to initialize asyncMainLoop: %s", buf);
         uv_rwlock_destroy(&mainAsync);
         return;
     }
 
     ret = uv_rwlock_init(&lockMapChannel);
     if (ret != 0) {
-        WRITE_LOG(LOG_FATAL, "Failed to initialize lockMapChannel rwlock: %s", uv_strerror(ret));
+        uv_strerror_r(ret, buf, bufSize);
+        WRITE_LOG(LOG_FATAL, "Failed to initialize lockMapChannel rwlock: %s", buf);
         if (!uv_is_closing((uv_handle_t *)&asyncMainLoop)) {
             uv_close((uv_handle_t *)&asyncMainLoop, nullptr);
         }
